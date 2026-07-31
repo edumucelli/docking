@@ -1,11 +1,11 @@
 # Global Search
 
 Docking Search combines local providers, deterministic query intents, utility
-results, configurable web fallback, and explicit user script commands.
+results, and configurable web fallback.
 
 ## Keywords
 
-Search has five top-level keywords:
+Search has four top-level keywords:
 
 | Keyword | Scope |
 |---|---|
@@ -13,7 +13,6 @@ Search has five top-level keywords:
 | `win` | Open windows |
 | `file` | Pinned and recent files |
 | `web` | Web search, optionally followed by an engine such as `google`, `ddg`, `brave`, `bing`, or `gh` |
-| `cmd` | User-owned script commands |
 
 Utilities remain implicit: type calculations, conversions, dates, time-zone
 queries, URLs, emails, or direct paths without a keyword. Calculations support
@@ -49,7 +48,6 @@ desktop state; utility providers activate only when their syntax is recognized.
 | Calculator | `2^8`, `sqrt(81) + pi`, `1e3 / 4`, `17 % 5` | Evaluate safe arithmetic and common scientific functions, then copy the result. Prefix with `=` to force calculator interpretation. |
 | Converter | `10 km to miles`, `32 F to celsius`, `10 USD to EUR` | Convert supported length, weight, volume, temperature, speed, time, data, and live currency values, then copy the result. |
 | Recent Files | `file proposal`, `file invoice` | Search the desktop's recent-file history, open a result, and preview supported local content. |
-| Script Commands | `cmd deploy`, `cmd deploy --env staging` | Find user-owned executable commands from user-controlled `PATH` directories and run an exact keyword with safely split arguments. |
 | Date & Time | `date`, `time`, `in 3 days`, `next Monday`, `time in Kathmandu`, `10:00 UTC to New York` | Show and copy dates, relative dates, local or remote times, and time-zone conversions. |
 | Direct Paths | `~/Downloads`, `/etc/hosts`, `file:///home/user/report.pdf` | Open an existing file or folder, copy its path, and preview supported local content. |
 | Web | `docs.python.org`, `user@example.com`, `web google docking linux`, `web gh docking` | Open detected URLs, compose email, search with a selected engine, or copy the resulting address. |
@@ -63,25 +61,6 @@ desktop state; utility providers activate only when their syntax is recognized.
 - **Ctrl+J:** open the standard Action Panel.
 - **Ctrl+P:** toggle the result preview.
 - **Esc:** close the active panel, then the palette.
-
-## Script commands
-
-Docking automatically discovers executable, user-owned files from
-user-controlled directories already listed in the system `PATH`. Keep scripts
-where you normally manage personal commands; nothing needs to be copied into a
-Docking-specific directory.
-
-Commands are only searched after the explicit `cmd` keyword. Docking executes
-them directly with an argument vector and never uses `shell=True`.
-
-The executable filename is its command keyword. For example, an executable
-named `deploy` can be run with:
-
-```text
-cmd deploy --env staging
-```
-
-Use the result's **Run in Terminal** action when terminal output is needed.
 
 ## Relevance learning and privacy
 

@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
-import docking.search.services.script_commands as script_commands_mod
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND
 from docking.platform.backends.base import (
     ActionResult,
@@ -25,7 +24,6 @@ from docking.search.providers import (
     DockSearchProvider,
     PathSearchProvider,
     RecentFilesSearchProvider,
-    ScriptCommandSearchProvider,
     TemporalSearchProvider,
     WebSearchProvider,
     WindowSearchProvider,
@@ -46,7 +44,6 @@ from docking.search.services.currency_rates import (
     CurrencyRatesState,
 )
 from docking.search.services.recent_files import RecentFileSnapshot
-from docking.search.services.script_commands import ScriptCommandCatalog
 from docking.search.types import SearchQuery
 
 
@@ -461,45 +458,6 @@ def test_temporal_provider_reuses_intent_recognition(monkeypatch) -> None:
 
     assert result.title == dt.date(2026, 7, 28).strftime("%A, %x")
     parse_again.assert_not_called()
-
-
-def test_script_provider_requires_cmd_routing_and_preserves_arguments(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    script = tmp_path / "deploy"
-    script.write_text("#!/bin/sh\n")
-    script.chmod(0o700)
-    monkeypatch.setattr(
-        script_commands_mod,
-        "_user_path_directories",
-        lambda: (tmp_path,),
-    )
-    provider = ScriptCommandSearchProvider(
-        catalog=ScriptCommandCatalog(),
-        copy_text=MagicMock(),
-    )
-    execute = MagicMock(return_value=True)
-    monkeypatch.setattr(
-        "docking.search.providers.scripts.execute_script",
-        execute,
-    )
-
-    result = _results(provider, 'deploy --env "staging west"')[0]
-
-    assert result.title == "Deploy"
-    assert provider.invoke(
-        result_identity=result.identity,
-        action_identity=result.actions[0].identity,
-    )
-    assert execute.call_args.kwargs["arguments"] == (
-        "--env",
-        "staging west",
-    )
-
-    fuzzy = _results(provider, "depl")[0]
-    assert fuzzy.actions[0].label == "Open Script"
-    assert all(action.label != "Run" for action in fuzzy.actions)
 
 
 def test_recent_file_provider_searches_and_opens() -> None:

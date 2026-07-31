@@ -360,7 +360,7 @@ class SearchWindow:
         self._result_generation += 1
         result_generation = self._result_generation
         self.empty_label.set_label(
-            _("Try app, win, file, web, cmd, or 10 km to mi")
+            _("Try app, win, file, web, or 10 km to mi")
             if snapshot.query.is_empty
             else _("No matching results")
         )

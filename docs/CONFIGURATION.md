@@ -171,7 +171,6 @@ stored separately in:
 | `global_search_max_results` | `12` | `5` to `30` | Maximum result rows displayed by the palette. |
 | `global_search_web_fallback` | `true` | boolean | Offers a web-search result when no strong local result matches. |
 | `global_search_web_engine` | `duckduckgo` | `duckduckgo`, `google`, `brave`, or `bing` | Engine used by fallback searches and the generic `web` keyword. |
-| `global_search_scripts_enabled` | `true` | boolean | Enables explicit `cmd` queries for executable, user-owned script commands. |
 | `global_search_learning_enabled` | `true` | boolean | Allows hashed result/action usage to provide small bounded ranking boosts. |
 
 Click the shortcut button in **Preferences -> Behavior -> Global Search**, then
@@ -179,8 +178,7 @@ press the desired sequence. On Wayland, the assignment belongs to the desktop
 portal, which may retain or assign a different trigger. On X11, Docking uses
 the captured sequence directly when the portal is unavailable.
 
-Script command directories, metadata, relevance privacy, previews, and the
-third-party provider entry-point API are documented in
+Relevance privacy, previews, and provider behavior are documented in
 [Global Search](SEARCH.md).
 
 ### Recent Applications and Documents

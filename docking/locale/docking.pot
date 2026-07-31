@@ -3052,7 +3052,6 @@ msgid "Help"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:132
-#: docking/search/providers/scripts.py:94
 msgid "Run"
 msgstr ""
 
@@ -4363,11 +4362,6 @@ msgstr ""
 msgid "Date & Time"
 msgstr ""
 
-#: docking/search/controller.py:509 docking/search/providers/scripts.py:114
-#: docking/ui/settings.py:962
-msgid "Script Commands"
-msgstr ""
-
 #: docking/search/controller.py:513
 #: docking/search/providers/applications.py:216
 #: docking/search/providers/windows.py:83 docking/ui/settings.py:626
@@ -4579,16 +4573,8 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: docking/search/providers/path.py:60 docking/search/providers/scripts.py:85
+#: docking/search/providers/path.py:60
 msgid "Copy Path"
-msgstr ""
-
-#: docking/search/providers/scripts.py:79
-msgid "Open Script"
-msgstr ""
-
-#: docking/search/providers/scripts.py:100
-msgid "Run in Terminal"
 msgstr ""
 
 #: docking/search/providers/web.py:61
@@ -4738,7 +4724,7 @@ msgid "Preview  Ctrl+P"
 msgstr ""
 
 #: docking/search/ui/window.py:363
-msgid "Try app, win, file, web, cmd, or 10 km to mi"
+msgid "Try app, win, file, web, or 10 km to mi"
 msgstr ""
 
 #: docking/search/ui/window.py:365
@@ -5470,12 +5456,6 @@ msgstr ""
 
 #: docking/ui/settings.py:959
 msgid "Choose the engine used by web fallback and the web keyword."
-msgstr ""
-
-#: docking/ui/settings.py:965
-msgid ""
-"Enable explicit cmd queries for user-owned executables in user-controlled "
-"PATH directories."
 msgstr ""
 
 #: docking/ui/settings.py:970

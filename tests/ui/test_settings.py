@@ -770,7 +770,6 @@ def _config():
         global_search_max_results=12,
         global_search_web_fallback=True,
         global_search_web_engine="duckduckgo",
-        global_search_scripts_enabled=True,
         global_search_learning_enabled=True,
         save=MagicMock(),
     )
@@ -962,14 +961,11 @@ class TestSettingsWindowController:
         controller._global_search_web_engine_combo.emit_changed()
         controller._global_search_web_fallback_switch.set_active(False)
         controller._global_search_web_fallback_switch.emit_notify_active()
-        controller._global_search_scripts_switch.set_active(False)
-        controller._global_search_scripts_switch.emit_notify_active()
         controller._global_search_learning_switch.set_active(False)
         controller._global_search_learning_switch.emit_notify_active()
 
         assert config.global_search_web_engine == "google"
         assert config.global_search_web_fallback is False
-        assert config.global_search_scripts_enabled is False
         assert config.global_search_learning_enabled is False
         assert controller._global_search_web_engine_combo.sensitive
 

@@ -33,7 +33,6 @@ class QueryIntentKind(str, Enum):
     WEB = "web"
     PATH = "path"
     TEMPORAL = "temporal"
-    SCRIPT = "script"
 
 
 _RecognizedQuery: TypeAlias = (
@@ -52,13 +51,12 @@ class QueryIntent:
     recognized: _RecognizedQuery | None = None
 
 
-CANONICAL_QUERY_KEYWORDS = ("app", "win", "file", "web", "cmd")
+CANONICAL_QUERY_KEYWORDS = ("app", "win", "file", "web")
 _PROVIDER_KEYWORDS: dict[str, tuple[str, ...]] = {
     "app": ("applications",),
     "win": ("windows",),
     "file": ("dock", "recent-files", "path"),
 }
-_SCRIPT_KEYWORD = "cmd"
 _WEB_KEYWORD = "web"
 _COMPLETION_KEYWORDS = CANONICAL_QUERY_KEYWORDS
 
@@ -104,14 +102,6 @@ def parse_query_intent(
             remainder,
             QueryIntentKind.SCOPED,
             provider_ids=_PROVIDER_KEYWORDS[keyword],
-            explicit=True,
-        )
-    if keyword == _SCRIPT_KEYWORD:
-        return QueryIntent(
-            raw_text,
-            remainder,
-            QueryIntentKind.SCRIPT,
-            provider_ids=("scripts",),
             explicit=True,
         )
     if keyword == _WEB_KEYWORD:

@@ -276,9 +276,8 @@ Arithmetic (`100 + 20`), unit and currency conversions (`10 km to miles`,
 `10 USD to EUR`), dates, time zones (`time in Tokyo`), URLs, and email addresses
 are recognized automatically. Provider keywords such as `app firefox`,
 `win terminal`, `file invoice`, `web google docking linux`, and
-`web gh docking` narrow or redirect the query. `cmd deploy staging` runs an
-explicitly discovered user script. These five top-level namespaces (`app`,
-`win`, `file`, `web`, and `cmd`) are the complete keyword set; calculations,
+`web gh docking` narrow or redirect the query. These four top-level namespaces
+(`app`, `win`, `file`, and `web`) are the complete keyword set; calculations,
 conversions, dates, time zones, URLs, and paths remain implicit. Unmatched text
 can offer a configurable web-search fallback. Absolute paths, `~/path`, and
 `file://` URIs open directly.
@@ -286,8 +285,8 @@ Press **Enter** for the primary action, **Tab** to complete a query keyword,
 **Ctrl+Right** to refine the selected result, **Ctrl+P** for a preview,
 **Ctrl+J** for contextual actions, and **Esc** to close the palette.
 
-See the [Global Search guide](docs/SEARCH.md) for script metadata, previews,
-pseudonymized relevance learning, and third-party provider entry points.
+See the [Global Search guide](docs/SEARCH.md) for provider examples, previews,
+and pseudonymized relevance learning.
 
 ## Configuration
 

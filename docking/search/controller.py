@@ -35,7 +35,6 @@ from docking.search.providers import (
     InvokableSearchProvider,
     PathSearchProvider,
     RecentFilesSearchProvider,
-    ScriptCommandSearchProvider,
     TemporalSearchProvider,
     WebSearchProvider,
     WindowSearchProvider,
@@ -49,7 +48,6 @@ from docking.search.services.global_shortcuts import (
     GlobalShortcutsStatus,
 )
 from docking.search.services.recent_files import RecentFilesCatalog
-from docking.search.services.script_commands import ScriptCommandCatalog
 from docking.search.services.x11_shortcuts import (
     ShortcutFallback,
     X11GlobalShortcutService,
@@ -109,7 +107,6 @@ class GlobalSearchController:
         self._schedule_idle = GLib.idle_add
         self._currency_rates = CurrencyRatesCatalog(schedule_idle=self._schedule_idle)
         self._usage_store = SearchUsageStore()
-        self._script_catalog = ScriptCommandCatalog()
         self._window_preview_cache: dict[
             tuple[str, int, int],
             tuple[float, LoadedSearchImage],
@@ -132,10 +129,6 @@ class GlobalSearchController:
                 currency_rates=self._currency_rates,
             ),
             RecentFilesSearchProvider(catalog=self._recent_files),
-            ScriptCommandSearchProvider(
-                catalog=self._script_catalog,
-                copy_text=copy_text,
-            ),
             TemporalSearchProvider(copy_text=copy_text),
             PathSearchProvider(
                 launcher=launcher,
@@ -458,8 +451,6 @@ class GlobalSearchController:
                 return True
             if provider_id == "datetime":
                 return True
-            if provider_id == "scripts":
-                return bool(self._config.global_search_scripts_enabled)
             return provider_id in enabled
 
         if intent.provider_ids:
@@ -495,8 +486,6 @@ class GlobalSearchController:
             return _("Direct Path")
         if intent.kind is QueryIntentKind.TEMPORAL:
             return _("Date & Time")
-        if intent.kind is QueryIntentKind.SCRIPT:
-            return _("Script Commands")
         if intent.kind is QueryIntentKind.SCOPED:
             labels = {
                 ("applications",): _("Applications"),

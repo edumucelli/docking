@@ -301,7 +301,6 @@ class SettingsWindowController:
         self._global_search_max_results_spin: Any = None
         self._global_search_web_fallback_switch: Any = None
         self._global_search_web_engine_combo: Any = None
-        self._global_search_scripts_switch: Any = None
         self._global_search_learning_switch: Any = None
         self._global_search_status_label: Any = None
         self._search_provider_box: Any = None
@@ -596,7 +595,6 @@ class SettingsWindowController:
             minimum=5, maximum=30, step=1
         )
         self._global_search_web_fallback_switch = self._new_switch()
-        self._global_search_scripts_switch = self._new_switch()
         self._global_search_learning_switch = self._new_switch()
         self._global_search_web_engine_combo = Gtk.ComboBoxText()
         web_engine_labels = {
@@ -950,14 +948,6 @@ class SettingsWindowController:
                     _("Search Engine"),
                     self._global_search_web_engine_combo,
                     _("Choose the engine used by web fallback and the web keyword."),
-                ),
-                (
-                    _("Script Commands"),
-                    self._global_search_scripts_switch,
-                    _(
-                        "Enable explicit cmd queries for user-owned executables "
-                        "in user-controlled PATH directories."
-                    ),
                 ),
                 (
                     _("Learn from Selections"),
@@ -1452,11 +1442,6 @@ class SettingsWindowController:
                 widget=self._global_search_web_engine_combo,
                 on_change=self._actions.refresh_search_settings,
             ),
-            self._register_switch_binding(
-                config_attr="global_search_scripts_enabled",
-                widget=self._global_search_scripts_switch,
-                on_change=self._actions.refresh_search_settings,
-            ),
         ]
 
     def _register_switch_binding(
@@ -1889,8 +1874,6 @@ class SettingsWindowController:
             self._global_search_web_fallback_switch.set_sensitive(search_sensitive)
         if self._global_search_web_engine_combo is not None:
             self._global_search_web_engine_combo.set_sensitive(search_sensitive)
-        if self._global_search_scripts_switch is not None:
-            self._global_search_scripts_switch.set_sensitive(search_sensitive)
         if self._global_search_learning_switch is not None:
             self._global_search_learning_switch.set_sensitive(search_sensitive)
         for check in self._search_provider_checks.values():

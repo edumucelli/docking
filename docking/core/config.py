@@ -164,7 +164,6 @@ from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED,
     DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
-    DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
     DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK,
@@ -868,8 +867,6 @@ class Config:
     global_search_web_fallback: bool = DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK
     # Web engine used by fallback and the generic "web" keyword
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
-    # Whether explicit `cmd` queries may discover user-owned scripts
-    global_search_scripts_enabled: bool = DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED
     # Whether hashed result/action usage may influence ranking
     global_search_learning_enabled: bool = DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED
 
@@ -1074,10 +1071,6 @@ class Config:
             web_engine
             if web_engine in GLOBAL_SEARCH_WEB_ENGINES
             else DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
-        )
-        self.global_search_scripts_enabled = _normalize_bool(
-            self.global_search_scripts_enabled,
-            default=DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED,
         )
         self.global_search_learning_enabled = _normalize_bool(
             self.global_search_learning_enabled,

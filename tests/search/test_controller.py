@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 from gi.repository import GdkPixbuf
 
 import docking.search.controller as controller_mod
-import docking.search.services.script_commands as script_commands_mod
 from docking.core.config import Config
 from docking.core.items import APPLET_KIND
 from docking.platform.backends.base import (
@@ -111,7 +110,6 @@ def _make_controller(
     shortcut_fallback=None,
     currency_rates=None,
     usage_store=None,
-    script_catalog=None,
 ):
     created = []
 
@@ -181,12 +179,6 @@ def _make_controller(
             controller_mod,
             "CurrencyRatesCatalog",
             lambda **_kwargs: currency_rates,
-        )
-    if script_catalog is not None:
-        monkeypatch.setattr(
-            controller_mod,
-            "ScriptCommandCatalog",
-            lambda: script_catalog,
         )
 
     controller = GlobalSearchController(
@@ -526,31 +518,6 @@ def test_tab_completes_query_keyword_before_refining_result(monkeypatch) -> None
 
     assert window.completed_queries == ["app "]
     assert controller._current_query == "app "
-
-
-def test_cmd_keyword_routes_only_to_user_script_provider(
-    monkeypatch,
-    tmp_path,
-) -> None:
-    from docking.search.services.script_commands import ScriptCommandCatalog
-
-    script = tmp_path / "deploy"
-    script.write_text("#!/bin/sh\n")
-    script.chmod(0o700)
-    monkeypatch.setattr(
-        script_commands_mod,
-        "_user_path_directories",
-        lambda: (tmp_path,),
-    )
-    controller, window, _apps, _recent, _shortcuts = _make_controller(
-        monkeypatch,
-        script_catalog=ScriptCommandCatalog(),
-    )
-
-    controller.show(initial_query="cmd deploy staging")
-
-    assert window.hints[-1] == "Script Commands"
-    assert window.snapshots[-1].results[0].title == "Deploy"
 
 
 def test_live_window_preview_uses_backend_capture(monkeypatch) -> None:

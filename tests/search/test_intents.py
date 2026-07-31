@@ -17,7 +17,8 @@ from docking.search.recognizers.web import get_web_engine, normalize_web_target
 
 
 def test_top_level_keyword_set_is_intentionally_small() -> None:
-    assert CANONICAL_QUERY_KEYWORDS == ("app", "win", "file", "web", "cmd")
+    assert CANONICAL_QUERY_KEYWORDS == ("app", "win", "file", "web")
+    assert parse_query_intent("cmd deploy").kind is QueryIntentKind.GLOBAL
 
 
 @pytest.mark.parametrize(
@@ -41,21 +42,12 @@ def test_provider_keywords_scope_the_remaining_query(
     assert intent.explicit
 
 
-def test_cmd_keyword_routes_explicit_script_query() -> None:
-    intent = parse_query_intent("cmd deploy staging")
-
-    assert intent.kind is QueryIntentKind.SCRIPT
-    assert intent.provider_ids == ("scripts",)
-    assert intent.search_text == "deploy staging"
-
-
 def test_tab_keyword_completion_is_deterministic() -> None:
     assert complete_query_keyword("ap") == "app "
     assert complete_query_keyword("w") is None
     assert complete_query_keyword("wi") == "win "
     assert complete_query_keyword("fi") == "file "
     assert complete_query_keyword("dd") is None
-    assert complete_query_keyword("cmd") == "cmd "
     assert complete_query_keyword("c") is None
     assert complete_query_keyword("app firefox") is None
 
