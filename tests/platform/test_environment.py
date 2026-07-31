@@ -72,6 +72,7 @@ class TestParseDesktop:
         assert _parse_desktop("cosmic") == Desktop.COSMIC
         assert _parse_desktop("cage") == Desktop.CAGE
         assert _parse_desktop("weston") == Desktop.WESTON
+        assert _parse_desktop("louvre") == Desktop.LOUVRE
 
 
 class TestDetectDesktop:
