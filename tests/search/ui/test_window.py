@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import time
+from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
+import docking.search.ui.window as window_mod
 from docking.search.coordinator import SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -26,15 +27,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _wait_until(predicate, timeout: float = 1.0) -> bool:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        while Gtk.events_pending():
-            Gtk.main_iteration_do(False)
-        if predicate():
-            return True
-        time.sleep(0.01)
-    return False
+class _ImmediateExecutor:
+    def submit(self, callback, **kwargs):
+        future = Future()
+        try:
+            future.set_result(callback(**kwargs))
+        except BaseException as exc:
+            future.set_exception(exc)
+        return future
+
+    def shutdown(self, **_kwargs) -> None:
+        pass
 
 
 def _snapshot() -> SearchSnapshot:
@@ -98,9 +101,7 @@ def test_results_primary_action_and_action_panel() -> None:
     window.window.show_all()
     window.action_frame.hide()
     window.preview_frame.hide()
-    window.search_entry.grab_focus()
-    while Gtk.events_pending():
-        Gtk.main_iteration_do(False)
+    window.window.set_focus(window.search_entry)
     assert window._on_key_press(
         window.window,
         SimpleNamespace(keyval=Gdk.KEY_Tab, state=Gdk.ModifierType(0)),
@@ -153,7 +154,17 @@ def test_activation_timestamp_is_used_for_window_manager_focus() -> None:
     window.window.present.assert_not_called()
 
 
-def test_image_preview_shows_thumbnail_and_metadata(tmp_path) -> None:
+def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        window_mod,
+        "ThreadPoolExecutor",
+        lambda **_kwargs: _ImmediateExecutor(),
+    )
+    monkeypatch.setattr(
+        window_mod.GLib,
+        "idle_add",
+        lambda callback, *args: callback(*args),
+    )
     image_path = tmp_path / "screenshot.png"
     pixbuf = GdkPixbuf.Pixbuf.new(
         GdkPixbuf.Colorspace.RGB,
@@ -196,7 +207,6 @@ def test_image_preview_shows_thumbnail_and_metadata(tmp_path) -> None:
     row = window.results_list.get_row_at_index(0)
     assert row is not None
     row_image = row.get_child().get_children()[0]
-    assert _wait_until(lambda: row_image.get_pixbuf() is not None)
     row_thumbnail = row_image.get_pixbuf()
     assert row_thumbnail is not None
     assert row_thumbnail.get_width() == 32
