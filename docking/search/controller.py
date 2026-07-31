@@ -19,6 +19,7 @@ from docking.core.items import APPLET_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.search.app_identity import application_id
+from docking.search.config import DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
 from docking.search.intents import (
     QueryIntent,
@@ -395,7 +396,7 @@ class GlobalSearchController:
             self._coordinator = self._new_coordinator(provider_ids)
         query = SearchQuery(
             text=intent.search_text,
-            limit=self._config.global_search_max_results,
+            limit=DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
             context=(
                 ("intent_kind", intent.kind.value),
                 ("web_engine", self._config.global_search_web_engine),

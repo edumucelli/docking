@@ -298,7 +298,6 @@ class SettingsWindowController:
         self._global_search_switch: Any = None
         self._global_search_shortcut_box: Any = None
         self._global_search_shortcut_entry: Any = None
-        self._global_search_max_results_spin: Any = None
         self._global_search_web_engine_combo: Any = None
         self._global_search_status_label: Any = None
         self._search_provider_box: Any = None
@@ -588,9 +587,6 @@ class SettingsWindowController:
             False,
             False,
             0,
-        )
-        self._global_search_max_results_spin = self._new_numeric_spin_button(
-            minimum=5, maximum=30, step=1
         )
         self._global_search_web_engine_combo = Gtk.ComboBoxText()
         web_engine_labels = {
@@ -924,11 +920,6 @@ class SettingsWindowController:
                         "Click the button, then press the desired key sequence. "
                         "The desktop may reserve some shortcuts."
                     ),
-                ),
-                (
-                    _("Maximum Results"),
-                    self._global_search_max_results_spin,
-                    _("Maximum number of rows shown in the palette."),
                 ),
                 (
                     _("Sources"),
@@ -1405,11 +1396,6 @@ class SettingsWindowController:
                 signal="shortcut-changed",
                 on_change=self._actions.refresh_search_settings,
             ),
-            self._register_int_binding(
-                config_attr="global_search_max_results",
-                widget=self._global_search_max_results_spin,
-                on_change=self._actions.refresh_search_settings,
-            ),
             self._register_choice_binding(
                 config_attr="global_search_web_engine",
                 widget=self._global_search_web_engine_combo,
@@ -1841,8 +1827,6 @@ class SettingsWindowController:
         search_sensitive = bool(self._config.global_search_enabled)
         if self._global_search_shortcut_entry is not None:
             self._global_search_shortcut_entry.set_sensitive(search_sensitive)
-        if self._global_search_max_results_spin is not None:
-            self._global_search_max_results_spin.set_sensitive(search_sensitive)
         if self._global_search_web_engine_combo is not None:
             self._global_search_web_engine_combo.set_sensitive(search_sensitive)
         for check in self._search_provider_checks.values():

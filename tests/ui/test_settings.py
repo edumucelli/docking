@@ -767,7 +767,6 @@ def _config():
             "recent-files",
             "path",
         ],
-        global_search_max_results=12,
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )

@@ -161,7 +161,6 @@ from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_ENABLED,
-    DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
@@ -859,8 +858,6 @@ class Config:
     global_search_providers: list[str] = field(
         default_factory=lambda: list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
     )
-    # Maximum visible result rows
-    global_search_max_results: int = DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
     # Web engine used by fallback searches
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
@@ -1049,12 +1046,6 @@ class Config:
         self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
         self.global_search_providers = normalize_search_providers(
             self.global_search_providers
-        )
-        self.global_search_max_results = _normalize_int(
-            self.global_search_max_results,
-            default=DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
-            minimum=5,
-            maximum=30,
         )
         web_engine = str(self.global_search_web_engine).strip().casefold()
         self.global_search_web_engine = (

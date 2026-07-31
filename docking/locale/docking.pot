@@ -5397,14 +5397,6 @@ msgid ""
 "reserve some shortcuts."
 msgstr ""
 
-#: docking/ui/settings.py:942
-msgid "Maximum Results"
-msgstr ""
-
-#: docking/ui/settings.py:944
-msgid "Maximum number of rows shown in the palette."
-msgstr ""
-
 #: docking/ui/settings.py:947
 msgid "Sources"
 msgstr ""
