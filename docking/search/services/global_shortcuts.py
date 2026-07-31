@@ -13,7 +13,7 @@ import secrets
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol, TypeAlias
+from typing import TypeAlias
 
 PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop"
 PORTAL_OBJECT_PATH = "/org/freedesktop/portal/desktop"
@@ -80,50 +80,6 @@ class GlobalShortcutsStatus:
 SignalCallback: TypeAlias = Callable[[tuple[object, ...]], None]
 ActivationCallback: TypeAlias = Callable[[GlobalShortcutActivation], None]
 StatusCallback: TypeAlias = Callable[[GlobalShortcutsStatus], None]
-TokenFactory: TypeAlias = Callable[[], str]
-
-
-class ConnectionAdapter(Protocol):
-    """Acquire the session-bus connection used for every portal call."""
-
-    def __call__(self) -> object:
-        """Return a D-Bus connection."""
-
-
-class CallAdapter(Protocol):
-    """Make one synchronous D-Bus method call."""
-
-    def __call__(
-        self,
-        connection: object,
-        *,
-        destination: str,
-        object_path: str,
-        interface: str,
-        method: str,
-        arguments: tuple[object, ...] = (),
-    ) -> object:
-        """Return the method reply."""
-
-
-class SignalAdapter(Protocol):
-    """Subscribe and unsubscribe D-Bus signals."""
-
-    def subscribe(
-        self,
-        connection: object,
-        *,
-        sender: str,
-        object_path: str | None,
-        interface: str,
-        signal: str,
-        arg0: str | None,
-        callback: SignalCallback,
-    ) -> object:
-        """Return an opaque subscription handle."""
-
-    def unsubscribe(self, connection: object, handle: object) -> None:
-        """Remove a subscription."""
 
 
 class GioConnectionAdapter:
@@ -137,8 +93,8 @@ class GioConnectionAdapter:
 class GioCallAdapter:
     """Default call adapter implemented with ``Gio.DBusConnection``."""
 
-    def __init__(self, *, timeout_ms: int = 5_000) -> None:
-        self._timeout_ms = timeout_ms
+    def __init__(self) -> None:
+        self._timeout_ms = 5_000
 
     def __call__(
         self,
@@ -236,31 +192,24 @@ class GlobalShortcutsService:
         self,
         *,
         app_id: str,
-        on_activated: ActivationCallback | None = None,
-        on_status_changed: StatusCallback | None = None,
-        description: str = "Toggle Docking search",
-        preferred_trigger: str | None = None,
-        parent_window: str = "",
-        connection: object | None = None,
-        connection_adapter: ConnectionAdapter | None = None,
-        call_adapter: CallAdapter | None = None,
-        signal_adapter: SignalAdapter | None = None,
-        token_factory: TokenFactory | None = None,
+        on_activated: ActivationCallback,
+        on_status_changed: StatusCallback,
+        preferred_trigger: str,
     ) -> None:
         if not app_id.strip():
             raise ValueError("app_id must not be empty")
         self._app_id = app_id.strip()
         self._on_activated = on_activated
         self._on_status_changed = on_status_changed
-        self._description = description
+        self._description = "Toggle Docking search"
         self._preferred_trigger = preferred_trigger
-        self._parent_window = parent_window
+        self._parent_window = ""
 
-        self._connection = connection
-        self._connection_adapter = connection_adapter or GioConnectionAdapter()
-        self._call_adapter = call_adapter or GioCallAdapter()
-        self._signal_adapter = signal_adapter or GioSignalAdapter()
-        self._token_factory = token_factory or (lambda: secrets.token_hex(8))
+        self._connection: object | None = None
+        self._connection_adapter = GioConnectionAdapter()
+        self._call_adapter = GioCallAdapter()
+        self._signal_adapter = GioSignalAdapter()
+        self._token_factory = lambda: secrets.token_hex(8)
 
         self._started = False
         self._generation = 0
@@ -563,8 +512,6 @@ class GlobalShortcutsService:
             options.get("activation_token", options.get("activation-token"))
         )
         callback = self._on_activated
-        if callback is None:
-            return
         try:
             callback(
                 GlobalShortcutActivation(
@@ -902,8 +849,6 @@ class GlobalShortcutsService:
             return
         self._status = status
         callback = self._on_status_changed
-        if callback is None:
-            return
         try:
             callback(status)
         except Exception:

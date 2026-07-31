@@ -17,10 +17,10 @@ def test_currency_rates_load_lazily_and_convert() -> None:
     finished = threading.Event()
     catalog = CurrencyRatesCatalog(
         schedule_idle=lambda callback, *args: int(not callback(*args)),
-        loader=lambda: (
-            Unit("Euro", "EUR", 1.0),
-            Unit("US Dollar", "USD", 0.8),
-        ),
+    )
+    catalog._loader = lambda: (
+        Unit("Euro", "EUR", 1.0),
+        Unit("US Dollar", "USD", 0.8),
     )
     catalog.add_listener(
         lambda: finished.set() if catalog.state is CurrencyRatesState.READY else None
@@ -48,8 +48,8 @@ def test_currency_rate_failure_can_retry() -> None:
 
     catalog = CurrencyRatesCatalog(
         schedule_idle=lambda callback, *args: int(not callback(*args)),
-        loader=load,
     )
+    catalog._loader = load
     catalog.add_listener(
         lambda: (
             finished.set()
@@ -82,10 +82,10 @@ def test_ready_rates_refresh_after_ttl_while_remaining_available() -> None:
 
     catalog = CurrencyRatesCatalog(
         schedule_idle=lambda callback, *args: int(not callback(*args)),
-        loader=load,
-        ttl_seconds=60,
-        clock=lambda: now[0],
     )
+    catalog._loader = load
+    catalog._ttl_seconds = 60
+    catalog._clock = lambda: now[0]
     catalog.add_listener(
         lambda: refreshed.set() if catalog.state is CurrencyRatesState.READY else None
     )

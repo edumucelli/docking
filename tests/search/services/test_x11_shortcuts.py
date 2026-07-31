@@ -6,6 +6,7 @@ import os
 
 import pytest
 
+import docking.search.services.x11_shortcuts as x11_mod
 from docking.search.services.x11_shortcuts import (
     CONTROL_MASK,
     MOD1_MASK,
@@ -46,15 +47,19 @@ class _FakeWorker:
         self.stop_calls += 1
 
 
-def test_service_dispatches_only_current_worker_generation() -> None:
+def test_service_dispatches_only_current_worker_generation(monkeypatch) -> None:
     workers = [_FakeWorker(), _FakeWorker()]
     activated = []
     queued = []
+    monkeypatch.setattr(
+        x11_mod,
+        "_ProcessShortcutWorker",
+        lambda **_kwargs: workers.pop(0),
+    )
     service = X11GlobalShortcutService(
         shortcut="CTRL+ALT+space",
         on_activated=activated.append,
         schedule_idle=lambda callback, *args: queued.append((callback, args)) or 1,
-        worker_factory=lambda: workers.pop(0),
     )
 
     assert service.start()
@@ -73,13 +78,17 @@ def test_service_dispatches_only_current_worker_generation() -> None:
     service.stop()
 
 
-def test_service_reports_worker_conflict_and_clears_error_on_stop() -> None:
+def test_service_reports_worker_conflict_and_clears_error_on_stop(monkeypatch) -> None:
     worker = _FakeWorker(starts=False, error="shortcut is already in use")
+    monkeypatch.setattr(
+        x11_mod,
+        "_ProcessShortcutWorker",
+        lambda **_kwargs: worker,
+    )
     service = X11GlobalShortcutService(
         shortcut="CTRL+ALT+space",
         on_activated=lambda _timestamp: None,
         schedule_idle=lambda _callback, *_args: 1,
-        worker_factory=lambda: worker,
     )
 
     assert not service.start()

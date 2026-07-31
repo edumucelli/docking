@@ -28,7 +28,7 @@ class ConverterSearchProvider:
         self,
         *,
         copy_text: Callable[[str], None],
-        currency_rates: CurrencyRatesCatalog | None = None,
+        currency_rates: CurrencyRatesCatalog,
     ) -> None:
         self._copy_text = copy_text
         self._currency_rates = currency_rates
@@ -99,13 +99,6 @@ class ConverterSearchProvider:
     ) -> SearchResult:
         key = hashlib.sha256(request.expression.encode()).hexdigest()
         catalog = self._currency_rates
-        if catalog is None:
-            return self._currency_status_result(
-                key=key,
-                request=request,
-                title=_("Currency rates unavailable"),
-                retry=False,
-            )
         catalog.ensure_loaded()
         if catalog.state is CurrencyRatesState.LOADING:
             return self._currency_status_result(
@@ -210,7 +203,7 @@ class ConverterSearchProvider:
             or parts[0] != result_identity.key
         ):
             return False
-        if parts[1] == "retry" and self._currency_rates is not None:
+        if parts[1] == "retry":
             self._currency_rates.retry()
             return False
         if parts[1] != "copy":

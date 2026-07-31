@@ -10,6 +10,7 @@ from docking.search.intents import (
     complete_query_keyword,
     parse_query_intent,
 )
+from docking.search.recognizers.calculation import CalculationValue
 from docking.search.recognizers.conversion import parse_unit_conversion
 from docking.search.recognizers.temporal import TemporalValue
 from docking.search.recognizers.web import get_web_engine, normalize_web_target
@@ -68,6 +69,7 @@ def test_calculation_conversion_url_and_web_intents() -> None:
 
     assert calculation.kind is QueryIntentKind.CALCULATION
     assert calculation.search_text == "=100 + 20"
+    assert isinstance(calculation.recognized, CalculationValue)
     assert conversion.kind is QueryIntentKind.CONVERSION
     assert conversion.provider_ids == ("converter",)
     assert conversion.recognized is not None
@@ -78,6 +80,17 @@ def test_calculation_conversion_url_and_web_intents() -> None:
     assert web.search_text == "docking linux"
     assert github.web_engine_id == "github"
     assert parse_query_intent("g docking").kind is QueryIntentKind.GLOBAL
+
+
+def test_scientific_calculations_are_recognized_without_hijacking_words() -> None:
+    power = parse_query_intent("2^8")
+    function = parse_query_intent("sqrt(9)")
+
+    assert power.kind is QueryIntentKind.CALCULATION
+    assert function.kind is QueryIntentKind.CALCULATION
+    assert parse_query_intent("pi").kind is QueryIntentKind.GLOBAL
+    assert parse_query_intent("rock + roll").kind is QueryIntentKind.GLOBAL
+    assert parse_query_intent("2 + apples").kind is QueryIntentKind.GLOBAL
 
 
 def test_dates_timezones_and_normal_words_are_distinguished() -> None:

@@ -87,6 +87,8 @@ def test_results_primary_action_and_action_panel() -> None:
         on_hidden=MagicMock(),
         on_refine_requested=refined,
         on_completion_requested=completed,
+        dynamic_preview_loader=MagicMock(return_value=None),
+        preview_resolver=MagicMock(return_value=None),
     )
 
     window.set_query_hint("Applications")
@@ -201,6 +203,10 @@ def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> No
         on_result_activated=MagicMock(),
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        on_completion_requested=MagicMock(return_value=False),
+        dynamic_preview_loader=MagicMock(return_value=None),
+        preview_resolver=MagicMock(return_value=None),
     )
 
     window.update(snapshot)
@@ -265,7 +271,10 @@ def test_dynamic_window_preview_loader_populates_panel() -> None:
         on_result_activated=MagicMock(),
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        on_completion_requested=MagicMock(return_value=False),
         dynamic_preview_loader=loader,
+        preview_resolver=MagicMock(return_value=None),
     )
 
     window.update(snapshot)
@@ -297,6 +306,10 @@ def test_partial_results_do_not_override_waiting_selection() -> None:
         on_result_activated=MagicMock(),
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        on_completion_requested=MagicMock(return_value=False),
+        dynamic_preview_loader=MagicMock(return_value=None),
+        preview_resolver=MagicMock(return_value=None),
     )
 
     window.update(waiting)

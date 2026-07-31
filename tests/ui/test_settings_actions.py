@@ -7,10 +7,19 @@ from unittest.mock import MagicMock
 from docking.ui.settings import SettingsActions
 
 
+def _actions(*, runtime, dnd, model=None) -> SettingsActions:
+    return SettingsActions(
+        runtime=runtime,
+        dnd=dnd,
+        model=model or MagicMock(),
+        search=MagicMock(),
+    )
+
+
 def test_settings_actions_delegate_dnd_locking_to_dnd_handler():
     runtime = MagicMock()
     dnd = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=MagicMock())
+    actions = _actions(runtime=runtime, dnd=dnd)
 
     actions.set_icons_locked(True)
 
@@ -21,7 +30,7 @@ def test_settings_actions_delegate_dnd_locking_to_dnd_handler():
 def test_settings_actions_delegate_shell_actions_to_runtime():
     runtime = MagicMock()
     dnd = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=MagicMock())
+    actions = _actions(runtime=runtime, dnd=dnd)
 
     actions.reposition()
     actions.queue_draw()
@@ -37,7 +46,7 @@ def test_settings_actions_delegate_shell_actions_to_runtime():
 def test_settings_actions_delegate_all_remaining_to_runtime():
     runtime = MagicMock()
     dnd = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=MagicMock())
+    actions = _actions(runtime=runtime, dnd=dnd)
 
     actions.on_hide_mode_changed()
     actions.set_active_display(True)
@@ -58,7 +67,7 @@ def test_settings_actions_get_monitor_choices():
     runtime = MagicMock()
     runtime.get_monitor_choices.return_value = ["mon1", "mon2"]
     dnd = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=MagicMock())
+    actions = _actions(runtime=runtime, dnd=dnd)
 
     result = actions.get_monitor_choices()
 
@@ -70,7 +79,7 @@ def test_settings_actions_current_monitor_choice():
     runtime = MagicMock()
     runtime.current_monitor_choice.return_value = 2
     dnd = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=MagicMock())
+    actions = _actions(runtime=runtime, dnd=dnd)
 
     result = actions.current_monitor_choice()
 
@@ -82,7 +91,7 @@ def test_settings_actions_reconcile_launcher_overlay_visibility():
     runtime = MagicMock()
     dnd = MagicMock()
     model = MagicMock()
-    actions = SettingsActions(runtime=runtime, dnd=dnd, model=model)
+    actions = _actions(runtime=runtime, dnd=dnd, model=model)
 
     actions.refresh_launcher_overlay_visibility()
 

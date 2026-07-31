@@ -59,18 +59,60 @@ def _build_timezone_indexes(
 _QUALIFIED_TIMEZONES, _UNIQUE_TIMEZONE_ALIASES = _build_timezone_indexes(
     available_timezones()
 )
+_DATE_TEXT = r"\d{4}[-/]\d{1,2}[-/]\d{1,2}"
+_RELATIVE_DATE_RE = re.compile(
+    r"^(?:in\s+(?P<future>\d+)\s+(?P<future_unit>days?|weeks?)|"
+    r"(?P<past>\d+)\s+(?P<past_unit>days?|weeks?)\s+ago)$",
+    re.IGNORECASE,
+)
+_WEEKDAY_RE = re.compile(
+    r"^(?P<direction>next|last)\s+"
+    r"(?P<weekday>monday|tuesday|wednesday|thursday|friday|saturday|sunday)$",
+    re.IGNORECASE,
+)
+_WEEKDAYS = {
+    name: index
+    for index, name in enumerate(
+        (
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        )
+    )
+}
+_UTC_OFFSET_RE = re.compile(
+    r"^(?:utc|gmt)\s*(?P<sign>[+-])(?P<hour>\d{1,2})"
+    r"(?::?(?P<minute>\d{2}))?$",
+    re.IGNORECASE,
+)
 _CURRENT_TIME_RE = re.compile(r"^(?:time|now)\s+in\s+(.+)$", re.IGNORECASE)
 _CITY_TIME_RE = re.compile(r"^(.+?)\s+time$", re.IGNORECASE)
 _TIME_CONVERSION_RE = re.compile(
-    r"^(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*"
+    rf"^(?:(?P<date>{_DATE_TEXT})\s+)?"
+    r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*"
     r"(?P<ampm>am|pm)?\s+"
     r"(?P<source>.+?)\s+to\s+(?P<target>.+)$",
     re.IGNORECASE,
 )
 
 
-def _resolve_timezone(value: str) -> tuple[str, ZoneInfo] | None:
+def _resolve_timezone(value: str) -> tuple[str, dt.tzinfo] | None:
     normalized = _normalize_timezone_name(value.strip())
+    offset_match = _UTC_OFFSET_RE.fullmatch(normalized)
+    if offset_match is not None:
+        hour = int(offset_match.group("hour"))
+        minute = int(offset_match.group("minute") or 0)
+        if hour > 14 or minute > 59 or (hour == 14 and minute != 0):
+            return None
+        sign_text = offset_match.group("sign")
+        sign = 1 if sign_text == "+" else -1
+        offset = dt.timedelta(hours=hour, minutes=minute) * sign
+        zone_name = f"UTC{sign_text}{hour:02d}:{minute:02d}"
+        return zone_name, dt.timezone(offset, name=zone_name)
     zone_name = _QUALIFIED_TIMEZONES.get(normalized) or _UNIQUE_TIMEZONE_ALIASES.get(
         normalized
     )
@@ -117,6 +159,7 @@ def _date_value(
 
 def _parse_date(text: str, *, today: dt.date) -> TemporalValue | None:
     keyword_dates = {
+        "date": today,
         "today": today,
         "tomorrow": today + dt.timedelta(days=1),
         "yesterday": today - dt.timedelta(days=1),
@@ -124,8 +167,28 @@ def _parse_date(text: str, *, today: dt.date) -> TemporalValue | None:
     normalized = text.casefold()
     if normalized in keyword_dates:
         return _date_value(keyword_dates[normalized], today=today)
+    relative_match = _RELATIVE_DATE_RE.fullmatch(normalized)
+    if relative_match is not None:
+        future = relative_match.group("future")
+        count = int(future or relative_match.group("past"))
+        unit = relative_match.group("future_unit") or relative_match.group("past_unit")
+        days = count * (7 if unit and unit.startswith("week") else 1)
+        if future is None:
+            days = -days
+        try:
+            return _date_value(today + dt.timedelta(days=days), today=today)
+        except OverflowError:
+            return None
+    weekday_match = _WEEKDAY_RE.fullmatch(normalized)
+    if weekday_match is not None:
+        wanted = _WEEKDAYS[weekday_match.group("weekday").casefold()]
+        if weekday_match.group("direction").casefold() == "next":
+            difference = (wanted - today.weekday()) % 7 or 7
+        else:
+            difference = -((today.weekday() - wanted) % 7 or 7)
+        return _date_value(today + dt.timedelta(days=difference), today=today)
     try:
-        value = dt.date.fromisoformat(text)
+        value = dt.date.fromisoformat(text.replace("/", "-"))
     except ValueError:
         return None
     return _date_value(value, today=today)
@@ -137,7 +200,7 @@ def _time_description(value: dt.datetime, zone_name: str) -> str:
 
 def _current_time_value(
     zone_name: str,
-    zone: ZoneInfo,
+    zone: dt.tzinfo,
     *,
     now: dt.datetime,
 ) -> TemporalValue:
@@ -171,13 +234,22 @@ def _converted_time_value(
         hour = hour % 12 + (12 if ampm == "pm" else 0)
     source_name, source_zone = source
     target_name, target_zone = target
+    date_text = match.group("date")
+    try:
+        source_date = (
+            dt.date.fromisoformat(date_text.replace("/", "-"))
+            if date_text
+            else now.astimezone(source_zone).date()
+        )
+    except ValueError:
+        return None
     source_time = dt.datetime.combine(
-        now.astimezone(source_zone).date(),
+        source_date,
         dt.time(hour=hour, minute=minute),
         tzinfo=source_zone,
     )
     converted = source_time.astimezone(target_zone)
-    shown = converted.strftime("%H:%M")
+    shown = converted.strftime("%Y-%m-%d %H:%M" if date_text else "%H:%M")
     return TemporalValue(
         kind=TemporalKind.TIME_CONVERSION,
         title=f"{shown} · {target_name}",
@@ -202,9 +274,15 @@ def parse_temporal_query(
     if not stripped:
         return None
     current = now or dt.datetime.now().astimezone()
+    if current.tzinfo is None:
+        current = current.astimezone()
     date_value = _parse_date(stripped, today=current.date())
     if date_value is not None:
         return date_value
+    if stripped.casefold() in {"time", "now"}:
+        zone = current.tzinfo or dt.timezone.utc
+        zone_name = getattr(zone, "key", None) or current.tzname() or "Local"
+        return _current_time_value(str(zone_name), zone, now=current)
     current_match = _CURRENT_TIME_RE.fullmatch(stripped) or _CITY_TIME_RE.fullmatch(
         stripped
     )

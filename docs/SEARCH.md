@@ -16,7 +16,9 @@ Search has five top-level keywords:
 | `cmd` | User-owned script commands |
 
 Utilities remain implicit: type calculations, conversions, dates, time-zone
-queries, URLs, emails, or direct paths without a keyword.
+queries, URLs, emails, or direct paths without a keyword. Calculations support
+scientific notation, exponentiation (`2^8`), modulo, constants such as `pi`, and
+common functions such as `sqrt`, `sin`, and `log`.
 
 Currency expressions lazily fetch a generic EUR-based rate table from
 Frankfurter. The typed amount and currency pair are not sent. Successful rates
@@ -27,6 +29,30 @@ identifier such as `time in America/New_York`, or an unambiguous location name
 such as `time in Kathmandu`. Spaces, letter case, underscores, and accents are
 normalized. When a short location name belongs to more than one installed zone,
 use its region-qualified identifier.
+
+Date and time queries include `date`, `time`, `in 3 days`, `2 weeks ago`,
+`next Monday`, and UTC offsets such as `time in UTC+05:30`. Prefix a time-zone
+conversion with an ISO date when daylight-saving rules for a specific day
+matter, for example `2026-12-01 10:00 Paris to Tokyo`.
+
+## Provider examples
+
+Providers participate according to the query rather than each requiring its own
+keyword. Applications, dock items, windows, and recent files search discovered
+desktop state; utility providers activate only when their syntax is recognized.
+
+| Provider | Example queries | What the result can do |
+|---|---|---|
+| Applications | `firefox`, `app image editor` | Open or focus an application, open a new window or desktop action, pin or unpin it, close its windows, and refine into individual windows or recent documents. |
+| Dock Items | `clock`, `file report` | Open pinned files and folders, activate applets, or remove an item from the dock. Application launchers are handled by the Applications provider. |
+| Windows | `win project plan`, `win terminal` | Find windows by title or application identity, activate them, close them, and preview them when the desktop backend supports capture. |
+| Calculator | `2^8`, `sqrt(81) + pi`, `1e3 / 4`, `17 % 5` | Evaluate safe arithmetic and common scientific functions, then copy the result. Prefix with `=` to force calculator interpretation. |
+| Converter | `10 km to miles`, `32 F to celsius`, `10 USD to EUR` | Convert supported length, weight, volume, temperature, speed, time, data, and live currency values, then copy the result. |
+| Recent Files | `file proposal`, `file invoice` | Search the desktop's recent-file history, open a result, and preview supported local content. |
+| Script Commands | `cmd deploy`, `cmd deploy --env staging` | Find user-owned executable commands from user-controlled `PATH` directories and run an exact keyword with safely split arguments. |
+| Date & Time | `date`, `time`, `in 3 days`, `next Monday`, `time in Kathmandu`, `10:00 UTC to New York` | Show and copy dates, relative dates, local or remote times, and time-zone conversions. |
+| Direct Paths | `~/Downloads`, `/etc/hosts`, `file:///home/user/report.pdf` | Open an existing file or folder, copy its path, and preview supported local content. |
+| Web | `docs.python.org`, `user@example.com`, `web google docking linux`, `web gh docking` | Open detected URLs, compose email, search with a selected engine, or copy the resulting address. |
 
 ## Keyboard controls
 
@@ -48,24 +74,14 @@ Docking-specific directory.
 Commands are only searched after the explicit `cmd` keyword. Docking executes
 them directly with an argument vector and never uses `shell=True`.
 
-Optional metadata uses comment lines near the start of the file:
-
-```sh
-#!/bin/sh
-# @docking.name Deploy Project
-# @docking.description Deploy the current project
-# @docking.keyword deploy
-# @docking.icon system-run
-# @docking.mode terminal
-```
-
-Then run it with:
+The executable filename is its command keyword. For example, an executable
+named `deploy` can be run with:
 
 ```text
 cmd deploy --env staging
 ```
 
-`mode` is `silent` by default and may be set to `terminal`.
+Use the result's **Run in Terminal** action when terminal output is needed.
 
 ## Relevance learning and privacy
 

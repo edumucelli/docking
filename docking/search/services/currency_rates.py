@@ -14,7 +14,6 @@ from docking.applets.unitconverter.state import (
 )
 from docking.log import get_logger
 
-CurrencyLoader = Callable[[], tuple[Unit, ...] | None]
 IdleScheduler = Callable[..., int]
 Listener = Callable[[], None]
 log = get_logger("search.currency")
@@ -35,14 +34,11 @@ class CurrencyRatesCatalog:
         self,
         *,
         schedule_idle: IdleScheduler,
-        loader: CurrencyLoader = fetch_currency_rates,
-        ttl_seconds: float = _DEFAULT_CURRENCY_TTL_SECONDS,
-        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._schedule_idle = schedule_idle
-        self._loader = loader
-        self._ttl_seconds = max(1.0, float(ttl_seconds))
-        self._clock = clock
+        self._loader = fetch_currency_rates
+        self._ttl_seconds = _DEFAULT_CURRENCY_TTL_SECONDS
+        self._clock = time.monotonic
         self._state = CurrencyRatesState.IDLE
         self._units: tuple[Unit, ...] = ()
         self._loaded_at = 0.0

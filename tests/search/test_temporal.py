@@ -25,16 +25,47 @@ def test_iso_and_relative_dates_are_detected() -> None:
     assert tomorrow.copy_text == "2026-07-29"
 
 
+def test_bare_relative_weekday_and_slash_dates_are_detected() -> None:
+    date = parse_temporal_query("date", now=NOW)
+    slash_date = parse_temporal_query("2026/08/01", now=NOW)
+    future = parse_temporal_query("in 3 days", now=NOW)
+    past = parse_temporal_query("2 weeks ago", now=NOW)
+    next_monday = parse_temporal_query("next Monday", now=NOW)
+
+    assert date is not None and date.copy_text == "2026-07-28"
+    assert slash_date is not None and slash_date.copy_text == "2026-08-01"
+    assert future is not None and future.copy_text == "2026-07-31"
+    assert past is not None and past.copy_text == "2026-07-14"
+    assert next_monday is not None and next_monday.copy_text == "2026-08-03"
+
+
 def test_current_time_and_timezone_conversion_are_detected() -> None:
+    local = parse_temporal_query("time", now=NOW)
     tokyo = parse_temporal_query("time in Tokyo", now=NOW)
     new_york = parse_temporal_query("10:00 UTC to New York", now=NOW)
 
+    assert local is not None
+    assert local.title == "12:00"
     assert tokyo is not None
     assert tokyo.kind is TemporalKind.CURRENT_TIME
     assert tokyo.title == "21:00"
     assert new_york is not None
     assert new_york.kind is TemporalKind.TIME_CONVERSION
     assert new_york.title == "06:00 · America/New_York"
+
+
+def test_utc_offsets_and_dated_timezone_conversions_are_detected() -> None:
+    offset = parse_temporal_query("time in UTC+05:30", now=NOW)
+    dated = parse_temporal_query(
+        "2026-12-01 23:30 Paris to Tokyo",
+        now=NOW,
+    )
+
+    assert offset is not None
+    assert offset.title == "17:30"
+    assert offset.canonical_key == "time:UTC+05:30"
+    assert dated is not None
+    assert dated.title == "2026-12-02 07:30 · Asia/Tokyo"
 
 
 def test_timezone_aliases_are_generated_from_available_zones() -> None:

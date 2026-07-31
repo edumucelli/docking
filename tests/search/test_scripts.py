@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock
 
+import docking.search.services.script_commands as script_commands_mod
 from docking.search.providers.scripts import _parse_script_arguments
 from docking.search.services.script_commands import (
     ScriptCommandCatalog,
@@ -18,10 +19,6 @@ def _script(tmp_path, name="deploy"):
         "\n".join(
             (
                 "#!/bin/sh",
-                "# @docking.name Deploy Project",
-                "# @docking.description Deploy the current project",
-                "# @docking.keyword deploy",
-                "# @docking.icon system-run",
                 "exit 0",
             )
         )
@@ -47,17 +44,22 @@ def test_default_catalog_discovers_user_owned_path_directories(
     assert catalog.directories == (commands,)
 
 
-def test_script_metadata_and_catalog_discovery(tmp_path) -> None:
+def test_script_catalog_discovery(tmp_path, monkeypatch) -> None:
     path = _script(tmp_path)
     ignored = tmp_path / "not-executable"
     ignored.write_text("#!/bin/sh")
-    catalog = ScriptCommandCatalog(directories=(tmp_path,))
+    monkeypatch.setattr(
+        script_commands_mod,
+        "_user_path_directories",
+        lambda: (tmp_path,),
+    )
+    catalog = ScriptCommandCatalog()
     commands = catalog.snapshot()
 
     assert len(commands) == 1
     command = commands[0]
     assert command.path == path
-    assert command.name == "Deploy Project"
+    assert command.name == "Deploy"
     assert command.keyword == "deploy"
 
 
@@ -66,7 +68,12 @@ def test_script_arguments_use_shell_quoting_without_shell_execution(
     monkeypatch,
 ) -> None:
     _script(tmp_path)
-    command = ScriptCommandCatalog(directories=(tmp_path,)).snapshot()[0]
+    monkeypatch.setattr(
+        script_commands_mod,
+        "_user_path_directories",
+        lambda: (tmp_path,),
+    )
+    command = ScriptCommandCatalog().snapshot()[0]
     popen = MagicMock()
     monkeypatch.setattr(
         "docking.search.services.script_commands.subprocess.Popen",
@@ -97,7 +104,12 @@ def test_script_is_revalidated_immediately_before_execution(
     monkeypatch,
 ) -> None:
     path = _script(tmp_path)
-    command = ScriptCommandCatalog(directories=(tmp_path,)).snapshot()[0]
+    monkeypatch.setattr(
+        script_commands_mod,
+        "_user_path_directories",
+        lambda: (tmp_path,),
+    )
+    command = ScriptCommandCatalog().snapshot()[0]
     replacement = tmp_path / "replacement"
     replacement.write_text("#!/bin/sh\n")
     replacement.chmod(0o700)

@@ -13,10 +13,6 @@ from docking.applets.runcommand.state import launch_command
 from docking.log import get_logger
 from docking.platform.environment import flatpak
 
-_MAX_METADATA_BYTES = 16 * 1024
-_METADATA_RE = re.compile(
-    r"^\s*#\s*@docking\.(name|description|keyword|icon|mode)\s+(.+?)\s*$"
-)
 _KEYWORD_RE = re.compile(r"^[a-z0-9_-]+$")
 log = get_logger("search.scripts")
 
@@ -44,24 +40,7 @@ def _user_path_directories() -> tuple[Path, ...]:
 class ScriptCommand:
     path: Path
     name: str
-    description: str
     keyword: str
-    icon_name: str
-    mode: str
-
-
-def _metadata(path: Path) -> dict[str, str]:
-    try:
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            content = handle.read(_MAX_METADATA_BYTES)
-    except OSError:
-        return {}
-    values: dict[str, str] = {}
-    for line in content.splitlines()[:80]:
-        match = _METADATA_RE.match(line)
-        if match is not None:
-            values[match.group(1)] = match.group(2).strip()
-    return values
 
 
 def _script_command_from_path(path: Path) -> ScriptCommand | None:
@@ -76,34 +55,21 @@ def _script_command_from_path(path: Path) -> ScriptCommand | None:
         or not os.access(path, os.X_OK)
     ):
         return None
-    values = _metadata(path)
-    keyword = values.get("keyword", path.stem).strip().casefold()
+    keyword = path.name.strip().casefold()
     if not _KEYWORD_RE.fullmatch(keyword):
         return None
-    mode = values.get("mode", "silent").strip().casefold()
-    if mode not in {"silent", "terminal"}:
-        mode = "silent"
     return ScriptCommand(
         path=path,
-        name=values.get("name", path.stem.replace("-", " ").title()).strip(),
-        description=values.get("description", "").strip(),
+        name=path.name.replace("-", " ").title(),
         keyword=keyword,
-        icon_name=values.get("icon", "system-run").strip() or "system-run",
-        mode=mode,
     )
 
 
 class ScriptCommandCatalog:
     """Small on-demand catalog; directories are scanned only for ``cmd`` queries."""
 
-    def __init__(
-        self,
-        *,
-        directories: tuple[Path, ...] | None = None,
-    ) -> None:
-        self._directories = (
-            _user_path_directories() if directories is None else directories
-        )
+    def __init__(self) -> None:
+        self._directories = _user_path_directories()
 
     @property
     def directories(self) -> tuple[Path, ...]:

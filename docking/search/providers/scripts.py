@@ -64,7 +64,7 @@ class ScriptCommandSearchProvider:
             else:
                 score = score_fields(
                     request,
-                    (command.name, command.keyword, command.description),
+                    (command.name, command.keyword),
                     source_boost=8,
                 )
                 if score is None:
@@ -108,9 +108,9 @@ class ScriptCommandSearchProvider:
                 SearchResult(
                     identity=SearchIdentity(self.provider_id, key),
                     title=command.name,
-                    description=command.description or str(command.path),
+                    description=str(command.path),
                     score=score,
-                    icon_name=command.icon_name,
+                    icon_name="system-run",
                     source=_("Script Commands"),
                     state=command.keyword,
                     keywords=(command.keyword,),
@@ -119,7 +119,6 @@ class ScriptCommandSearchProvider:
                         path=str(command.path),
                         keyword=command.keyword,
                         arguments=" ".join(arguments),
-                        mode=command.mode,
                     ),
                     preview=preview_local_descriptor(
                         target=str(command.path),
@@ -150,7 +149,7 @@ class ScriptCommandSearchProvider:
             return execute_script(
                 command=invocation.command,
                 arguments=invocation.arguments,
-                run_in_terminal=invocation.command.mode == "terminal",
+                run_in_terminal=False,
             )
         if parts[1] == "terminal":
             return execute_script(

@@ -5,10 +5,14 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 
-from docking.applets.calculator.state import evaluate
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
 from docking.search.providers.base import action, action_parts, metadata
+from docking.search.recognizers.calculation import (
+    CalculationError,
+    CalculationValue,
+    recognize_calculation,
+)
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
@@ -22,19 +26,26 @@ class CalculatorSearchProvider:
     def search(self, request: SearchRequest):
         text = request.query.text.strip()
         self._answers = {}
-        if not text.startswith("="):
+        value = (
+            request.recognized
+            if isinstance(request.recognized, CalculationValue)
+            else recognize_calculation(text)
+        )
+        if value is None:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
-        expression = text[1:].strip()
-        answer = evaluate(expression)
-        if not expression or not answer:
-            yield SearchBatch.replace(self.provider_id, request.generation)
-            return
-        if answer.startswith("Error"):
+        if value.error is not None:
+            descriptions = {
+                CalculationError.DIVISION_BY_ZERO: _("Division by zero"),
+                CalculationError.DOMAIN: _("Invalid value or mathematical domain"),
+                CalculationError.OVERFLOW: _("Result is too large"),
+                CalculationError.TOO_COMPLEX: _("Expression is too complex"),
+                CalculationError.INVALID: _("Unsupported or incomplete expression"),
+            }
             error = SearchResult(
                 identity=SearchIdentity(self.provider_id, "error"),
                 title=_("Invalid expression"),
-                description=answer.removeprefix("Error:").strip(),
+                description=descriptions[value.error],
                 score=1_000,
                 icon_name="dialog-error",
                 source=_("Calculator"),
@@ -46,6 +57,8 @@ class CalculatorSearchProvider:
                 (error,),
             )
             return
+        expression = value.expression
+        answer = value.answer
         key = hashlib.sha256(expression.encode()).hexdigest()
         self._answers[key] = answer
         result = SearchResult(

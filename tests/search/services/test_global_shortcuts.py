@@ -204,13 +204,16 @@ def _service(
     signals = _Signals()
     service = GlobalShortcutsService(
         app_id="org.docking.Docking",
-        on_activated=None if activated is None else activated.append,
+        on_activated=(
+            (lambda _activation: None) if activated is None else activated.append
+        ),
+        on_status_changed=lambda _status: None,
         preferred_trigger="CTRL+LOGO+space",
-        connection=_Connection(),
-        call_adapter=calls,
-        signal_adapter=signals,
-        token_factory=lambda: "fixed",
     )
+    service._connection = _Connection()
+    service._call_adapter = calls
+    service._signal_adapter = signals
+    service._token_factory = lambda: "fixed"
     return service, calls, signals
 
 

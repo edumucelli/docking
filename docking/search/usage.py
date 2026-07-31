@@ -32,8 +32,8 @@ class UsageRecord:
 class SearchUsageStore:
     """Learn selections without persisting raw queries, paths, or titles."""
 
-    def __init__(self, *, path: Path | None = None) -> None:
-        self._path = path or DEFAULT_USAGE_FILE
+    def __init__(self) -> None:
+        self._path = DEFAULT_USAGE_FILE
         self._lock = threading.RLock()
         self._results: dict[str, UsageRecord] = {}
         self._actions: dict[str, UsageRecord] = {}

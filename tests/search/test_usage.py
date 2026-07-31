@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import docking.search.usage as usage_mod
 from docking.search.coordinator import SearchCoordinator
 from docking.search.types import (
     SearchAction,
@@ -28,9 +29,10 @@ def _result(key: str, score: float = 100) -> SearchResult:
     )
 
 
-def test_usage_state_hashes_queries_and_identities(tmp_path) -> None:
+def test_usage_state_hashes_queries_and_identities(tmp_path, monkeypatch) -> None:
     path = tmp_path / "usage.json"
-    store = SearchUsageStore(path=path)
+    monkeypatch.setattr(usage_mod, "DEFAULT_USAGE_FILE", path)
+    store = SearchUsageStore()
     result = _result("/private/report.txt")
 
     store.record(
@@ -46,8 +48,9 @@ def test_usage_state_hashes_queries_and_identities(tmp_path) -> None:
     assert json.loads(payload)["version"] == 1
 
 
-def test_frequency_and_recency_produce_a_bounded_boost(tmp_path) -> None:
-    store = SearchUsageStore(path=tmp_path / "usage.json")
+def test_frequency_and_recency_produce_a_bounded_boost(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(usage_mod, "DEFAULT_USAGE_FILE", tmp_path / "usage.json")
+    store = SearchUsageStore()
     result = _result("firefox")
     for count in range(20):
         store.record(
@@ -62,8 +65,11 @@ def test_frequency_and_recency_produce_a_bounded_boost(tmp_path) -> None:
     assert 0 < boost <= MAX_RANK_BOOST
 
 
-def test_secondary_actions_learn_without_replacing_primary(tmp_path) -> None:
-    store = SearchUsageStore(path=tmp_path / "usage.json")
+def test_secondary_actions_learn_without_replacing_primary(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(usage_mod, "DEFAULT_USAGE_FILE", tmp_path / "usage.json")
+    store = SearchUsageStore()
     result = _result("firefox")
     for count in range(3):
         store.record(
@@ -93,8 +99,9 @@ class _Provider:
         )
 
 
-def test_coordinator_applies_learned_rank_adjustment(tmp_path) -> None:
-    store = SearchUsageStore(path=tmp_path / "usage.json")
+def test_coordinator_applies_learned_rank_adjustment(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(usage_mod, "DEFAULT_USAGE_FILE", tmp_path / "usage.json")
+    store = SearchUsageStore()
     learned = _result("learned")
     store.record(
         query="same",
@@ -119,10 +126,11 @@ def test_coordinator_applies_learned_rank_adjustment(tmp_path) -> None:
     ]
 
 
-def test_malformed_nonfinite_usage_state_is_ignored(tmp_path) -> None:
+def test_malformed_nonfinite_usage_state_is_ignored(tmp_path, monkeypatch) -> None:
     path = tmp_path / "usage.json"
     path.write_text('{"results":{"bad":{"count":"Infinity","last_used":"Infinity"}}}')
 
-    store = SearchUsageStore(path=path)
+    monkeypatch.setattr(usage_mod, "DEFAULT_USAGE_FILE", path)
+    store = SearchUsageStore()
 
     assert store.boost(_result("firefox"), SearchQuery("fire")) == 0

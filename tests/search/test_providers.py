@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
+import docking.search.services.script_commands as script_commands_mod
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND
 from docking.platform.backends.base import (
     ActionResult,
@@ -29,6 +30,7 @@ from docking.search.providers import (
     WebSearchProvider,
     WindowSearchProvider,
 )
+from docking.search.recognizers.calculation import recognize_calculation
 from docking.search.recognizers.conversion import (
     parse_currency_conversion,
     parse_unit_conversion,
@@ -270,15 +272,16 @@ def test_window_provider_activates_title_match() -> None:
     assert [item.title for item in scoped] == ["Global search plan"]
 
 
-def test_calculator_provider_requires_prefix_and_copies() -> None:
+def test_calculator_provider_uses_recognized_value_and_copies() -> None:
     copied: list[str] = []
     provider = CalculatorSearchProvider(copy_text=copied.append)
 
-    assert _results(provider, "2 + 2") == ()
+    recognized = recognize_calculation("2 + 2")
+    assert recognized is not None
     error = _results(provider, "= 2 +")[0]
     assert error.title == "Invalid expression"
     assert error.actions == ()
-    result = _results(provider, "= 2 + 2")[0]
+    result = _results(provider, "2 + 2", recognized=recognized)[0]
     assert result.title == "4"
     assert provider.invoke(
         result_identity=result.identity,
@@ -289,7 +292,10 @@ def test_calculator_provider_requires_prefix_and_copies() -> None:
 
 def test_converter_provider_copies_implicit_result() -> None:
     copied: list[str] = []
-    provider = ConverterSearchProvider(copy_text=copied.append)
+    provider = ConverterSearchProvider(
+        copy_text=copied.append,
+        currency_rates=MagicMock(),
+    )
 
     result = _results(provider, "10 km to mi")[0]
 
@@ -302,7 +308,10 @@ def test_converter_provider_copies_implicit_result() -> None:
 
 
 def test_converter_provider_reuses_intent_recognition(monkeypatch) -> None:
-    provider = ConverterSearchProvider(copy_text=MagicMock())
+    provider = ConverterSearchProvider(
+        copy_text=MagicMock(),
+        currency_rates=MagicMock(),
+    )
     conversion = parse_unit_conversion("10 km to mi")
     assert conversion is not None
     parse_again = MagicMock(side_effect=AssertionError("parsed twice"))
@@ -322,7 +331,12 @@ def test_converter_provider_reuses_intent_recognition(monkeypatch) -> None:
 
 
 def test_converter_provider_reuses_currency_recognition(monkeypatch) -> None:
-    provider = ConverterSearchProvider(copy_text=MagicMock())
+    rates = MagicMock()
+    rates.state = CurrencyRatesState.ERROR
+    provider = ConverterSearchProvider(
+        copy_text=MagicMock(),
+        currency_rates=rates,
+    )
     conversion = parse_currency_conversion("10 USD to EUR")
     assert conversion is not None
     parse_unit_again = MagicMock(side_effect=AssertionError("parsed twice"))
@@ -454,12 +468,15 @@ def test_script_provider_requires_cmd_routing_and_preserves_arguments(
     monkeypatch,
 ) -> None:
     script = tmp_path / "deploy"
-    script.write_text(
-        "#!/bin/sh\n# @docking.name Deploy Project\n# @docking.keyword deploy\n"
-    )
+    script.write_text("#!/bin/sh\n")
     script.chmod(0o700)
+    monkeypatch.setattr(
+        script_commands_mod,
+        "_user_path_directories",
+        lambda: (tmp_path,),
+    )
     provider = ScriptCommandSearchProvider(
-        catalog=ScriptCommandCatalog(directories=(tmp_path,)),
+        catalog=ScriptCommandCatalog(),
         copy_text=MagicMock(),
     )
     execute = MagicMock(return_value=True)
@@ -470,7 +487,7 @@ def test_script_provider_requires_cmd_routing_and_preserves_arguments(
 
     result = _results(provider, 'deploy --env "staging west"')[0]
 
-    assert result.title == "Deploy Project"
+    assert result.title == "Deploy"
     assert provider.invoke(
         result_identity=result.identity,
         action_identity=result.actions[0].identity,

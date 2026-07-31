@@ -41,8 +41,6 @@ DEFAULT_MAX_ENTRIES = 15
 log = with_context(get_logger(name="recent_files"))
 
 CatalogListener = Callable[[], None]
-RecentManagerFactory = Callable[[], object]
-UriLauncher = Callable[[str], object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,16 +60,10 @@ class RecentFileSnapshot:
 class RecentFilesCatalog:
     """Main-thread recent-file listing and change watcher."""
 
-    def __init__(
-        self,
-        *,
-        manager_factory: RecentManagerFactory | None = None,
-        uri_launcher: UriLauncher | None = None,
-        max_entries: int | None = DEFAULT_MAX_ENTRIES,
-    ) -> None:
-        self._manager_factory = manager_factory or Gtk.RecentManager.get_default
-        self._uri_launcher = uri_launcher or _launch_default_for_uri
-        self._max_entries = None if max_entries is None else max(0, int(max_entries))
+    def __init__(self) -> None:
+        self._manager_factory = Gtk.RecentManager.get_default
+        self._uri_launcher = _launch_default_for_uri
+        self._max_entries = DEFAULT_MAX_ENTRIES
 
         self._entries: tuple[RecentFileSnapshot, ...] = ()
         self._listeners: list[CatalogListener] = []
@@ -180,10 +172,8 @@ class RecentFilesCatalog:
                 continue
             seen_uris.add(entry.uri)
             entries.append(entry)
-            if self._max_entries is not None and len(entries) >= self._max_entries:
+            if len(entries) >= self._max_entries:
                 break
-        if self._max_entries == 0:
-            entries = []
 
         snapshot = tuple(entries)
         changed = not self._loaded or snapshot != self._entries

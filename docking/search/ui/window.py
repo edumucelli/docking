@@ -126,12 +126,12 @@ class SearchWindow:
         on_result_activated: Callable[[SearchResult], None],
         on_action_activated: Callable[[SearchResult, SearchAction], None],
         on_hidden: Callable[[], None],
-        on_refine_requested: Callable[[SearchResult | None], None] | None = None,
-        on_completion_requested: Callable[[], bool] | None = None,
+        on_refine_requested: Callable[[SearchResult | None], None],
+        on_completion_requested: Callable[[], bool],
         dynamic_preview_loader: (
-            Callable[[SearchPreview, int, int], LoadedSearchImage | None] | None
-        ) = None,
-        preview_resolver: Callable[[SearchResult], SearchPreview | None] | None = None,
+            Callable[[SearchPreview, int, int], LoadedSearchImage | None]
+        ),
+        preview_resolver: Callable[[SearchResult], SearchPreview | None],
     ) -> None:
         self._launcher = launcher
         self._on_query_changed = on_query_changed
@@ -499,11 +499,7 @@ class SearchWindow:
             self.preview_image.hide()
             self.preview_metadata.hide()
             return
-        resolved_preview = (
-            self._preview_resolver(result)
-            if self._preview_resolver is not None
-            else None
-        )
+        resolved_preview = self._preview_resolver(result)
         preview = (
             resolved_preview
             or result.preview
@@ -522,7 +518,7 @@ class SearchWindow:
         self.preview_metadata.hide()
         if preview.kind == "image" and preview.target:
             self._sync_image_preview(preview.target)
-        elif self._dynamic_preview_loader is not None:
+        else:
             loaded = self._dynamic_preview_loader(
                 preview,
                 PREVIEW_IMAGE_MAX_WIDTH,
@@ -682,7 +678,6 @@ class SearchWindow:
             if (
                 not event.state & Gdk.ModifierType.SHIFT_MASK
                 and self.search_entry.is_focus()
-                and self._on_completion_requested is not None
             ):
                 return self._on_completion_requested()
             return False
@@ -691,7 +686,7 @@ class SearchWindow:
             and event.state & Gdk.ModifierType.CONTROL_MASK
         ):
             result = self.selected_result()
-            if result is not None and self._on_refine_requested is not None:
+            if result is not None:
                 self._on_refine_requested(result)
                 return True
         if event.keyval in {Gdk.KEY_Return, Gdk.KEY_KP_Enter}:

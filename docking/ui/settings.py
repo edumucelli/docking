@@ -163,7 +163,7 @@ class SettingsActions:
         runtime: DockRuntime,
         dnd: DnDHandler,
         model: DockModel,
-        search: GlobalSearchController | None = None,
+        search: GlobalSearchController,
     ) -> None:
         self._runtime = runtime
         self._dnd = dnd
@@ -213,33 +213,24 @@ class SettingsActions:
         self._runtime.open_releases_page()
 
     def refresh_search_settings(self) -> None:
-        if self._search is not None:
-            self._search.refresh_settings()
+        self._search.refresh_settings()
 
     def suspend_search_shortcuts(self) -> None:
-        if self._search is not None:
-            self._search.suspend_shortcuts()
+        self._search.suspend_shortcuts()
 
     def resume_search_shortcuts(self) -> None:
-        if self._search is not None:
-            self._search.resume_shortcuts()
+        self._search.resume_shortcuts()
 
     def search_shortcut_status(self) -> str:
-        if self._search is None:
-            return _("Unavailable")
         return self._search.shortcut_status_text()
 
     def search_shortcut_status_summary(self) -> str:
-        if self._search is None:
-            return _("Unavailable")
         return self._search.shortcut_status_summary()
 
     def add_search_shortcut_status_listener(
         self,
         listener: Callable[[], None],
     ) -> Callable[[], None]:
-        if self._search is None:
-            return lambda: None
         return self._search.add_shortcut_status_listener(listener)
 
 

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
 
-from docking.applets.calculator.state import evaluate
+from docking.search.recognizers.calculation import (
+    CalculationValue,
+    recognize_calculation,
+)
 from docking.search.recognizers.conversion import (
     CurrencyConversionRequest,
     UnitConversion,
@@ -35,7 +37,7 @@ class QueryIntentKind(str, Enum):
 
 
 _RecognizedQuery: TypeAlias = (
-    CurrencyConversionRequest | TemporalValue | UnitConversion | str
+    CalculationValue | CurrencyConversionRequest | TemporalValue | UnitConversion | str
 )
 
 
@@ -59,32 +61,11 @@ _PROVIDER_KEYWORDS: dict[str, tuple[str, ...]] = {
 _SCRIPT_KEYWORD = "cmd"
 _WEB_KEYWORD = "web"
 _COMPLETION_KEYWORDS = CANONICAL_QUERY_KEYWORDS
-_DATE_RE = re.compile(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$")
-_CALCULATION_CHARACTERS_RE = re.compile(r"^[\d\s()+\-*/.]+$")
 
 
 def _split_keyword(text: str) -> tuple[str, str]:
     parts = text.split(maxsplit=1)
     return parts[0].casefold(), parts[1].strip() if len(parts) == 2 else ""
-
-
-def _looks_like_calculation(text: str) -> bool:
-    expression = text.strip()
-    if not expression or _DATE_RE.fullmatch(expression):
-        return False
-    if not _CALCULATION_CHARACTERS_RE.fullmatch(expression):
-        return False
-    operator_positions = [
-        index
-        for index, character in enumerate(expression)
-        if character in "+-*/" and index > 0
-    ]
-    if not operator_positions or not any(
-        character.isdigit() for character in expression
-    ):
-        return False
-    answer = evaluate(expression)
-    return bool(answer) and not answer.startswith("Error")
 
 
 def complete_query_keyword(text: str) -> str | None:
@@ -150,12 +131,14 @@ def parse_query_intent(
         )
 
     if stripped.startswith("="):
+        calculation = recognize_calculation(stripped)
         return QueryIntent(
             raw_text,
             stripped,
             QueryIntentKind.CALCULATION,
             provider_ids=("calculator",),
             explicit=True,
+            recognized=calculation,
         )
     if stripped.startswith(("/", "~/", "./", "../", "file://")):
         return QueryIntent(
@@ -186,12 +169,14 @@ def parse_query_intent(
             provider_ids=("converter",),
             recognized=conversion,
         )
-    if _looks_like_calculation(stripped):
+    calculation = recognize_calculation(stripped)
+    if calculation is not None:
         return QueryIntent(
             raw_text,
             f"={stripped}",
             QueryIntentKind.CALCULATION,
             provider_ids=("calculator",),
+            recognized=calculation,
         )
     web_target = normalize_web_target(stripped)
     if web_target is not None:

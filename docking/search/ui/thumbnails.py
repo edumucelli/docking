@@ -31,8 +31,8 @@ class LoadedSearchImage:
 class SearchImageCache:
     """Decode each unchanged image at a requested size only once."""
 
-    def __init__(self, *, max_entries: int = DEFAULT_CACHE_ENTRIES) -> None:
-        self._max_entries = max(1, int(max_entries))
+    def __init__(self) -> None:
+        self._max_entries = DEFAULT_CACHE_ENTRIES
         self._entries: OrderedDict[
             tuple[str, int, int, int, int],
             LoadedSearchImage | None,

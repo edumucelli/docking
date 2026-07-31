@@ -269,6 +269,7 @@ def _folder_stack_handler() -> MenuHandler:
         diagnostics=MagicMock(),
         launcher=launcher,
         dock_window=MagicMock(),
+        search=MagicMock(),
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"

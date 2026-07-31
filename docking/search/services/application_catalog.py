@@ -22,7 +22,7 @@ or inspect a snapshot without retaining ``Gio.DesktopAppInfo`` instances.
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,12 +43,6 @@ DEFAULT_DEBOUNCE_MS = 150
 log = with_context(get_logger(name="application_catalog"))
 
 CatalogListener = Callable[[], None]
-ApplicationSource = Callable[[], Iterable[object]]
-DesktopDirectoriesSource = Callable[[], Iterable[Path]]
-MonitorFactory = Callable[[], object]
-DirectoryMonitorFactory = Callable[[Path], object]
-TimeoutScheduler = Callable[[int, Callable[[], bool]], int]
-TimeoutCanceller = Callable[[int], object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,28 +83,14 @@ class ApplicationSnapshot:
 class ApplicationCatalog:
     """Main-thread cache of applications keyed by desktop ID."""
 
-    def __init__(
-        self,
-        *,
-        application_source: ApplicationSource | None = None,
-        desktop_directories_source: DesktopDirectoriesSource | None = None,
-        app_monitor_factory: MonitorFactory | None = None,
-        directory_monitor_factory: DirectoryMonitorFactory | None = None,
-        schedule_timeout: TimeoutScheduler | None = None,
-        cancel_timeout: TimeoutCanceller | None = None,
-        debounce_ms: int = DEFAULT_DEBOUNCE_MS,
-    ) -> None:
-        self._application_source = application_source or all_desktop_app_infos
-        self._desktop_directories_source = (
-            desktop_directories_source or desktop_entries.desktop_dirs
-        )
-        self._app_monitor_factory = app_monitor_factory or Gio.AppInfoMonitor.get
-        self._directory_monitor_factory = (
-            directory_monitor_factory or _monitor_directory
-        )
-        self._schedule_timeout = schedule_timeout or GLib.timeout_add
-        self._cancel_timeout = cancel_timeout or GLib.source_remove
-        self._debounce_ms = max(0, debounce_ms)
+    def __init__(self) -> None:
+        self._application_source = all_desktop_app_infos
+        self._desktop_directories_source = desktop_entries.desktop_dirs
+        self._app_monitor_factory = Gio.AppInfoMonitor.get
+        self._directory_monitor_factory = _monitor_directory
+        self._schedule_timeout = GLib.timeout_add
+        self._cancel_timeout = GLib.source_remove
+        self._debounce_ms = DEFAULT_DEBOUNCE_MS
 
         self._applications_by_id: dict[str, ApplicationSnapshot] = {}
         self._ordered_snapshot: tuple[ApplicationSnapshot, ...] = ()

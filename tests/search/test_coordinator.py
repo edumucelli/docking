@@ -45,7 +45,10 @@ class _Provider:
 
 
 def _coordinator(*provider_ids: str) -> SearchCoordinator:
-    return SearchCoordinator(_Provider(provider_id) for provider_id in provider_ids)
+    return SearchCoordinator(
+        (_Provider(provider_id) for provider_id in provider_ids),
+        rank_adjuster=lambda _result, _query: 0,
+    )
 
 
 class TestGenerationsAndCancellation:
@@ -123,7 +126,10 @@ class TestGenerationsAndCancellation:
                 [_result("apps", "too-late")],
             )
 
-        coordinator = SearchCoordinator([_Provider("apps", search)])
+        coordinator = SearchCoordinator(
+            [_Provider("apps", search)],
+            rank_adjuster=lambda _result, _query: 0,
+        )
 
         def cancel_after_first_result(snapshot: SearchSnapshot) -> None:
             if snapshot.results:
@@ -147,7 +153,8 @@ class TestBatchMerging:
             )
 
         coordinator = SearchCoordinator(
-            [_Provider("apps", search), _Provider("windows")]
+            [_Provider("apps", search), _Provider("windows")],
+            rank_adjuster=lambda _result, _query: 0,
         )
         request = coordinator.begin("fire")
 
@@ -463,7 +470,8 @@ class TestProviderErrors:
                     ),
                 ),
                 _Provider("broken", failing_search),
-            ]
+            ],
+            rank_adjuster=lambda _result, _query: 0,
         )
 
         snapshot = coordinator.run("result")
@@ -486,7 +494,8 @@ class TestProviderErrors:
                     lambda request: (SearchBatch.final("windows", request.generation),),
                 ),
                 _Provider("windows"),
-            ]
+            ],
+            rank_adjuster=lambda _result, _query: 0,
         )
 
         snapshot = coordinator.run("fire")
@@ -516,7 +525,8 @@ class TestProviderErrors:
                         ),
                     ),
                 )
-            ]
+            ],
+            rank_adjuster=lambda _result, _query: 0,
         )
 
         def broken_callback(snapshot: SearchSnapshot) -> None:

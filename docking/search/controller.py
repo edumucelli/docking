@@ -77,6 +77,10 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
 
+def _no_rank_adjustment(_result: SearchResult, _query: SearchQuery) -> float:
+    return 0.0
+
+
 class GlobalSearchController:
     """Own catalogs, providers, shortcut registration, and the search window."""
 
@@ -87,22 +91,14 @@ class GlobalSearchController:
         launcher: Launcher,
         model: DockModel,
         windows: WindowService,
-        preview_service: PreviewService | None = None,
-        application_catalog: ApplicationCatalog | None = None,
-        recent_files: RecentFilesCatalog | None = None,
-        global_shortcuts: GlobalShortcutsService | None = None,
-        shortcut_fallback: ShortcutFallback | None = None,
-        currency_rates: CurrencyRatesCatalog | None = None,
-        usage_store: SearchUsageStore | None = None,
-        script_catalog: ScriptCommandCatalog | None = None,
-        schedule_idle: Callable[..., int] | None = None,
+        preview_service: PreviewService,
     ) -> None:
         self._config = config
         self._model = model
         self._windows = windows
         self._preview_service = preview_service
-        self._application_catalog = application_catalog or ApplicationCatalog()
-        self._recent_files = recent_files or RecentFilesCatalog()
+        self._application_catalog = ApplicationCatalog()
+        self._recent_files = RecentFilesCatalog()
         self._started = False
         self._current_query = ""
         self._selected_identity: SearchIdentity | None = None
@@ -110,12 +106,10 @@ class GlobalSearchController:
         self._shortcut_status_listeners: list[Callable[[], None]] = []
         self._shortcut_suspended = False
         self._model_signature: tuple[tuple[object, ...], ...] = ()
-        self._schedule_idle = schedule_idle or GLib.idle_add
-        self._currency_rates = currency_rates or CurrencyRatesCatalog(
-            schedule_idle=self._schedule_idle
-        )
-        self._usage_store = usage_store or SearchUsageStore()
-        self._script_catalog = script_catalog or ScriptCommandCatalog()
+        self._schedule_idle = GLib.idle_add
+        self._currency_rates = CurrencyRatesCatalog(schedule_idle=self._schedule_idle)
+        self._usage_store = SearchUsageStore()
+        self._script_catalog = ScriptCommandCatalog()
         self._window_preview_cache: dict[
             tuple[str, int, int],
             tuple[float, LoadedSearchImage],
@@ -167,10 +161,8 @@ class GlobalSearchController:
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
         )
-        self._owns_global_shortcuts = global_shortcuts is None
-        self._global_shortcuts = global_shortcuts or self._new_shortcut_service()
-        self._owns_shortcut_fallback = shortcut_fallback is None
-        self._shortcut_fallback = shortcut_fallback or self._new_shortcut_fallback()
+        self._global_shortcuts = self._new_shortcut_service()
+        self._shortcut_fallback = self._new_shortcut_fallback()
         self._shortcut_preferences = self._current_shortcut_preferences()
 
     @property
@@ -337,10 +329,8 @@ class GlobalSearchController:
         shortcut_preferences = self._current_shortcut_preferences()
         if self._started and shortcut_preferences != self._shortcut_preferences:
             self._stop_shortcut_services()
-            if self._owns_global_shortcuts:
-                self._global_shortcuts = self._new_shortcut_service()
-            if self._owns_shortcut_fallback:
-                self._shortcut_fallback = self._new_shortcut_fallback()
+            self._global_shortcuts = self._new_shortcut_service()
+            self._shortcut_fallback = self._new_shortcut_fallback()
             if self._config.global_search_enabled and not self._shortcut_suspended:
                 self._start_shortcut_services()
             else:
@@ -408,7 +398,7 @@ class GlobalSearchController:
             rank_adjuster=(
                 self._usage_store.boost
                 if self._config.global_search_learning_enabled
-                else None
+                else _no_rank_adjustment
             ),
         )
 
@@ -737,7 +727,7 @@ class GlobalSearchController:
         height: int,
     ) -> LoadedSearchImage | None:
         service = self._preview_service
-        if preview.kind != "window" or service is None:
+        if preview.kind != "window":
             return None
         cache_key = (preview.target, width, height)
         cached = self._window_preview_cache.get(cache_key)

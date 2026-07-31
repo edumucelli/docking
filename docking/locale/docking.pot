@@ -4496,11 +4496,31 @@ msgstr ""
 msgid "Open Recent: {name}"
 msgstr ""
 
-#: docking/search/providers/calculator.py:36
+#: docking/search/providers/calculator.py:39
+msgid "Division by zero"
+msgstr ""
+
+#: docking/search/providers/calculator.py:40
+msgid "Invalid value or mathematical domain"
+msgstr ""
+
+#: docking/search/providers/calculator.py:41
+msgid "Result is too large"
+msgstr ""
+
+#: docking/search/providers/calculator.py:42
+msgid "Expression is too complex"
+msgstr ""
+
+#: docking/search/providers/calculator.py:43
+msgid "Unsupported or incomplete expression"
+msgstr ""
+
+#: docking/search/providers/calculator.py:47
 msgid "Invalid expression"
 msgstr ""
 
-#: docking/search/providers/calculator.py:63
+#: docking/search/providers/calculator.py:76
 #: docking/search/providers/converter.py:85
 #: docking/search/providers/converter.py:156
 msgid "Copy Result"

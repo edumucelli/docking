@@ -242,16 +242,10 @@ class X11GlobalShortcutService:
         shortcut: str,
         on_activated: ActivationCallback,
         schedule_idle: IdleScheduler,
-        display_name: str | None = None,
-        library_path: str | None = None,
-        worker_factory: Callable[[], ShortcutWorker] | None = None,
     ) -> None:
         self._shortcut = shortcut
         self._on_activated = on_activated
         self._schedule_idle = schedule_idle
-        self._display_name = display_name
-        self._library_path = library_path
-        self._worker_factory = worker_factory
         self._worker: ShortcutWorker | None = None
         self._generation = 0
         self._active = False
@@ -270,14 +264,10 @@ class X11GlobalShortcutService:
             return True
         self._generation += 1
         generation = self._generation
-        worker = (
-            self._worker_factory()
-            if self._worker_factory is not None
-            else _ProcessShortcutWorker(
-                shortcut=self._shortcut,
-                display_name=self._display_name,
-                library_path=self._library_path,
-            )
+        worker = _ProcessShortcutWorker(
+            shortcut=self._shortcut,
+            display_name=None,
+            library_path=None,
         )
         self._worker = worker
         self._error = None

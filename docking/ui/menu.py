@@ -311,7 +311,7 @@ class MenuHandler:
         diagnostics: DiagnosticsDialogController,
         launcher: Launcher,
         dock_window: Gtk.Window,
-        search: SearchPresenter | None = None,
+        search: SearchPresenter,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -630,11 +630,10 @@ class MenuHandler:
 
         Sections: add actions plus preferences/about/quit.
         """
-        if self._search is not None:
-            search_item = Gtk.MenuItem(label=_("Search..."))
-            search_item.connect("activate", lambda _: self._search.show())
-            menu.append(search_item)
-            menu.append(Gtk.SeparatorMenuItem())
+        search_item = Gtk.MenuItem(label=_("Search..."))
+        search_item.connect("activate", lambda _: self._search.show())
+        menu.append(search_item)
+        menu.append(Gtk.SeparatorMenuItem())
 
         # Add Applet submenu
         try:

@@ -145,10 +145,9 @@ def test_builds_normalized_plain_immutable_snapshots(monkeypatch):
         app_info=app_info,
     )
     changed: list[int] = []
-    catalog = ApplicationCatalog(
-        application_source=lambda: [entry, entry],
-        desktop_directories_source=list,
-    )
+    catalog = ApplicationCatalog()
+    catalog._application_source = lambda: [entry, entry]
+    catalog._desktop_directories_source = list
     catalog.add_listener(lambda: changed.append(catalog.generation))
 
     assert catalog.refresh() is True
@@ -205,10 +204,9 @@ def test_uses_desktop_file_metadata_as_best_effort_fallback(tmp_path, monkeypatc
         categories="Development;",
         icon_name="org.example.Tool",
     )
-    catalog = ApplicationCatalog(
-        application_source=lambda: [entry],
-        desktop_directories_source=list,
-    )
+    catalog = ApplicationCatalog()
+    catalog._application_source = lambda: [entry]
+    catalog._desktop_directories_source = list
 
     catalog.refresh()
 
@@ -245,15 +243,14 @@ def test_start_stop_and_monitor_refresh_are_idempotent(monkeypatch):
         directory_monitors[path] = monitor
         return monitor
 
-    catalog = ApplicationCatalog(
-        application_source=application_source,
-        desktop_directories_source=lambda: directories,
-        app_monitor_factory=lambda: app_monitor,
-        directory_monitor_factory=monitor_directory,
-        schedule_timeout=scheduler.schedule,
-        cancel_timeout=scheduler.cancel,
-        debounce_ms=75,
-    )
+    catalog = ApplicationCatalog()
+    catalog._application_source = application_source
+    catalog._desktop_directories_source = lambda: directories
+    catalog._app_monitor_factory = lambda: app_monitor
+    catalog._directory_monitor_factory = monitor_directory
+    catalog._schedule_timeout = scheduler.schedule
+    catalog._cancel_timeout = scheduler.cancel
+    catalog._debounce_ms = 75
     generations: list[int] = []
     unsubscribe = catalog.subscribe(
         lambda: generations.append(catalog.generation),
@@ -316,12 +313,11 @@ def test_directory_monitor_set_is_reconciled(monkeypatch):
         monitors.setdefault(path, []).append(monitor)
         return monitor
 
-    catalog = ApplicationCatalog(
-        application_source=list,
-        desktop_directories_source=lambda: directories,
-        app_monitor_factory=lambda: app_monitor,
-        directory_monitor_factory=monitor_directory,
-    )
+    catalog = ApplicationCatalog()
+    catalog._application_source = list
+    catalog._desktop_directories_source = lambda: directories
+    catalog._app_monitor_factory = lambda: app_monitor
+    catalog._directory_monitor_factory = monitor_directory
     catalog.start()
 
     directories[:] = [second]

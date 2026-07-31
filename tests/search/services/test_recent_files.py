@@ -110,10 +110,9 @@ def test_lists_existing_files_most_recent_first_as_frozen_snapshots():
             ),
         ]
     )
-    catalog = RecentFilesCatalog(
-        manager_factory=lambda: manager,
-        max_entries=2,
-    )
+    catalog = RecentFilesCatalog()
+    catalog._manager_factory = lambda: manager
+    catalog._max_entries = 2
     generations: list[int] = []
     catalog.add_listener(lambda: generations.append(catalog.generation))
 
@@ -146,7 +145,8 @@ def test_lists_existing_files_most_recent_first_as_frozen_snapshots():
 
 def test_manager_changes_advance_generation_only_for_new_data():
     manager = _FakeRecentManager()
-    catalog = RecentFilesCatalog(manager_factory=lambda: manager)
+    catalog = RecentFilesCatalog()
+    catalog._manager_factory = lambda: manager
     notifications: list[int] = []
     unsubscribe = catalog.subscribe(
         lambda: notifications.append(catalog.generation),
@@ -184,10 +184,9 @@ def test_open_and_clear_helpers_update_the_catalog():
         [_FakeRecentItem("notes.txt", "file:///notes.txt", 42)]
     )
     launched: list[str] = []
-    catalog = RecentFilesCatalog(
-        manager_factory=lambda: manager,
-        uri_launcher=launched.append,
-    )
+    catalog = RecentFilesCatalog()
+    catalog._manager_factory = lambda: manager
+    catalog._uri_launcher = launched.append
     catalog.start()
     entry = catalog.snapshot()[0]
 
@@ -212,10 +211,9 @@ def test_open_and_clear_failures_are_contained():
     def fail_to_launch(_uri: str) -> None:
         raise RuntimeError("launch failed")
 
-    catalog = RecentFilesCatalog(
-        manager_factory=lambda: manager,
-        uri_launcher=fail_to_launch,
-    )
+    catalog = RecentFilesCatalog()
+    catalog._manager_factory = lambda: manager
+    catalog._uri_launcher = fail_to_launch
 
     assert catalog.open_uri("file:///notes.txt") is False
     assert catalog.clear_recent() is False
@@ -233,10 +231,8 @@ def test_skips_invalid_items_deduplicates_uris_and_falls_back_to_uri_name():
         10,
     )
     manager = _FakeRecentManager([_BrokenItem(), duplicate, first])
-    catalog = RecentFilesCatalog(
-        manager_factory=lambda: manager,
-        max_entries=None,
-    )
+    catalog = RecentFilesCatalog()
+    catalog._manager_factory = lambda: manager
 
     catalog.refresh()
 
@@ -247,18 +243,3 @@ def test_skips_invalid_items_deduplicates_uris_and_falls_back_to_uri_name():
             modified=20,
         ),
     )
-
-
-def test_zero_limit_publishes_an_empty_loaded_snapshot():
-    manager = _FakeRecentManager(
-        [_FakeRecentItem("notes.txt", "file:///notes.txt", 42)]
-    )
-    catalog = RecentFilesCatalog(
-        manager_factory=lambda: manager,
-        max_entries=0,
-    )
-
-    assert catalog.refresh() is True
-    assert catalog.refresh() is False
-    assert catalog.snapshot() == ()
-    assert catalog.generation == 1

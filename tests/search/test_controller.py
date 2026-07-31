@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 
 from gi.repository import GdkPixbuf
 
+import docking.search.controller as controller_mod
+import docking.search.services.script_commands as script_commands_mod
 from docking.core.config import Config
 from docking.core.items import APPLET_KIND
 from docking.platform.backends.base import (
@@ -156,19 +158,43 @@ def _make_controller(
             callback(*args)
             return 1
 
+    monkeypatch.setattr(controller_mod, "ApplicationCatalog", lambda: applications)
+    monkeypatch.setattr(controller_mod, "RecentFilesCatalog", lambda: recent)
+    monkeypatch.setattr(controller_mod.GLib, "idle_add", schedule_idle)
+    monkeypatch.setattr(
+        GlobalSearchController,
+        "_new_shortcut_service",
+        lambda _self: shortcuts,
+    )
+    monkeypatch.setattr(
+        GlobalSearchController,
+        "_new_shortcut_fallback",
+        lambda _self: shortcut_fallback,
+    )
+    monkeypatch.setattr(
+        controller_mod,
+        "SearchUsageStore",
+        lambda: usage_store or _Usage(),
+    )
+    if currency_rates is not None:
+        monkeypatch.setattr(
+            controller_mod,
+            "CurrencyRatesCatalog",
+            lambda **_kwargs: currency_rates,
+        )
+    if script_catalog is not None:
+        monkeypatch.setattr(
+            controller_mod,
+            "ScriptCommandCatalog",
+            lambda: script_catalog,
+        )
+
     controller = GlobalSearchController(
         config=config,
         launcher=MagicMock(),
         model=cast(Any, model),
         windows=cast(Any, windows),
-        application_catalog=cast(Any, applications),
-        recent_files=cast(Any, recent),
-        global_shortcuts=shortcuts,
-        shortcut_fallback=shortcut_fallback,
-        currency_rates=currency_rates,
-        usage_store=cast(Any, usage_store or _Usage()),
-        script_catalog=script_catalog,
-        schedule_idle=schedule_idle,
+        preview_service=MagicMock(),
     )
     return controller, created[0], applications, recent, shortcuts
 
@@ -509,19 +535,22 @@ def test_cmd_keyword_routes_only_to_user_script_provider(
     from docking.search.services.script_commands import ScriptCommandCatalog
 
     script = tmp_path / "deploy"
-    script.write_text(
-        "#!/bin/sh\n# @docking.name Deploy Project\n# @docking.keyword deploy\n"
-    )
+    script.write_text("#!/bin/sh\n")
     script.chmod(0o700)
+    monkeypatch.setattr(
+        script_commands_mod,
+        "_user_path_directories",
+        lambda: (tmp_path,),
+    )
     controller, window, _apps, _recent, _shortcuts = _make_controller(
         monkeypatch,
-        script_catalog=ScriptCommandCatalog(directories=(tmp_path,)),
+        script_catalog=ScriptCommandCatalog(),
     )
 
     controller.show(initial_query="cmd deploy staging")
 
     assert window.hints[-1] == "Script Commands"
-    assert window.snapshots[-1].results[0].title == "Deploy Project"
+    assert window.snapshots[-1].results[0].title == "Deploy"
 
 
 def test_live_window_preview_uses_backend_capture(monkeypatch) -> None:

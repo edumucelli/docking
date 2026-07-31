@@ -159,9 +159,9 @@ class SearchCoordinator:
 
     def __init__(
         self,
-        providers: Iterable[SearchProvider] = (),
+        providers: Iterable[SearchProvider],
         *,
-        rank_adjuster: RankAdjuster | None = None,
+        rank_adjuster: RankAdjuster,
     ) -> None:
         self._providers = tuple(providers)
         self._rank_adjuster = rank_adjuster
@@ -552,7 +552,7 @@ class SearchCoordinator:
     def _ranked_score(self, result: SearchResult) -> float:
         adjuster = self._rank_adjuster
         request = self._request
-        if adjuster is None or request is None:
+        if request is None:
             return result.score
         adjustment = float(adjuster(result, request.query))
         if not math.isfinite(adjustment):

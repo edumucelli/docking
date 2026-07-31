@@ -450,6 +450,7 @@ class TestMenuLifecycleScenarios:
             diagnostics=MagicMock(),
             launcher=harness.launcher,
             dock_window=cast(Any, harness),
+            search=MagicMock(),
         )
         created: list[_FakePopupMenu] = []
 
