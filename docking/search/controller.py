@@ -23,7 +23,6 @@ from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchS
 from docking.search.intents import (
     QueryIntent,
     QueryIntentKind,
-    complete_query_keyword,
     parse_query_intent,
 )
 from docking.search.preview import preview_local_target
@@ -150,7 +149,6 @@ class GlobalSearchController:
             on_action_activated=self._activate_action,
             on_hidden=self._on_hidden,
             on_refine_requested=self._refine_result,
-            on_completion_requested=self._complete_query,
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
         )
@@ -399,25 +397,17 @@ class GlobalSearchController:
         if not self.visible:
             return
         self._current_query = text
-        intent = parse_query_intent(
-            text,
-            default_web_engine=self._config.global_search_web_engine,
-        )
+        intent = parse_query_intent(text)
         provider_ids = self._provider_ids_for_intent(intent)
         if provider_ids != self._enabled_provider_ids:
             self._coordinator = self._new_coordinator(provider_ids)
-        self.window.set_query_hint(self._intent_hint(intent))
         query = SearchQuery(
             text=intent.search_text,
             limit=self._config.global_search_max_results,
             context=(
                 ("intent_kind", intent.kind.value),
-                ("explicit", "true" if intent.explicit else "false"),
-                (
-                    "web_engine",
-                    intent.web_engine_id or self._config.global_search_web_engine,
-                ),
-                ("scope", self._intent_scope(intent)),
+                ("web_engine", self._config.global_search_web_engine),
+                ("question_like", "true" if intent.question_like else "false"),
             ),
         )
         request = self._coordinator.begin(
@@ -471,41 +461,6 @@ class GlobalSearchController:
         ):
             provider_ids.append("web")
         return tuple(provider_ids)
-
-    @staticmethod
-    def _intent_hint(intent: QueryIntent) -> str:
-        if intent.kind is QueryIntentKind.CALCULATION:
-            return _("Calculator")
-        if intent.kind is QueryIntentKind.CONVERSION:
-            return _("Converter")
-        if intent.kind is QueryIntentKind.URL:
-            return _("URL")
-        if intent.kind is QueryIntentKind.WEB:
-            return _("Web Search")
-        if intent.kind is QueryIntentKind.PATH:
-            return _("Direct Path")
-        if intent.kind is QueryIntentKind.TEMPORAL:
-            return _("Date & Time")
-        if intent.kind is QueryIntentKind.SCOPED:
-            labels = {
-                ("applications",): _("Applications"),
-                ("windows",): _("Windows"),
-                ("dock",): _("Dock"),
-                ("recent-files",): _("Recent Files"),
-                ("path",): _("Direct Path"),
-                ("dock", "recent-files", "path"): _("Files"),
-            }
-            return labels.get(intent.provider_ids, _("Filtered"))
-        return ""
-
-    @staticmethod
-    def _intent_scope(intent: QueryIntent) -> str:
-        scopes = {
-            ("applications",): "app",
-            ("windows",): "win",
-            ("dock", "recent-files", "path"): "file",
-        }
-        return scopes.get(intent.provider_ids, "")
 
     def _publish_snapshot(
         self,
@@ -596,14 +551,6 @@ class GlobalSearchController:
         if not result.actions:
             return
         self._activate_action(result, result.actions[0])
-
-    def _complete_query(self) -> bool:
-        completion = complete_query_keyword(self._current_query)
-        if completion is not None and completion != self._current_query:
-            self.window.set_query(completion)
-            self._search(completion)
-            return True
-        return False
 
     def _refine_result(self, result: SearchResult | None) -> None:
         if result is None:

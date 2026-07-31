@@ -63,7 +63,6 @@ class ApplicationSearchProvider:
             if item.kind == APP_KIND
         }
         results: list[SearchResult] = []
-        explicit_scope = request.query.context_value("scope") == "app"
         for application in self._catalog.snapshot():
             request.raise_if_cancelled()
             item = visible_apps.get(application.desktop_id)
@@ -71,13 +70,9 @@ class ApplicationSearchProvider:
             running = bool(item and item.is_running)
             recent = bool(item and item.is_recent)
             if request.query.is_empty:
-                if not explicit_scope and not (pinned or running or recent):
+                if not (pinned or running or recent):
                     continue
-                score = (
-                    (200.0 if explicit_scope else 240.0)
-                    + (30 if pinned else 0)
-                    + (20 if running else 0)
-                )
+                score = 240.0 + (30 if pinned else 0) + (20 if running else 0)
                 if recent:
                     score += 10
             else:

@@ -14,7 +14,6 @@ class WebEngine:
     id: str
     name: str
     search_url: str
-    keywords: tuple[str, ...]
 
     def url_for(self, query: str) -> str:
         return self.search_url.format(query=quote_plus(query.strip()))
@@ -25,43 +24,34 @@ _WEB_ENGINES: tuple[WebEngine, ...] = (
         id="duckduckgo",
         name="DuckDuckGo",
         search_url="https://duckduckgo.com/?q={query}",
-        keywords=("ddg", "duckduckgo"),
     ),
     WebEngine(
         id="google",
         name="Google",
         search_url="https://www.google.com/search?q={query}",
-        keywords=("g", "google"),
     ),
     WebEngine(
         id="brave",
         name="Brave Search",
         search_url="https://search.brave.com/search?q={query}",
-        keywords=("brave",),
     ),
     WebEngine(
         id="bing",
         name="Bing",
         search_url="https://www.bing.com/search?q={query}",
-        keywords=("bing",),
-    ),
-    WebEngine(
-        id="github",
-        name="GitHub",
-        search_url="https://github.com/search?q={query}",
-        keywords=("gh", "github"),
     ),
 )
 _WEB_ENGINE_BY_ID = {engine.id: engine for engine in _WEB_ENGINES}
-_WEB_ENGINE_BY_KEYWORD = {
-    keyword: engine for engine in _WEB_ENGINES for keyword in engine.keywords
-}
 
 _DOMAIN_RE = re.compile(
     r"^(?:localhost(?::\d+)?|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})(?:[/:?#].*)?$"
 )
 _IP_RE = re.compile(r"^(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:[/?#].*)?$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+_QUESTION_START_RE = re.compile(
+    r"^(?:what|who|where|when|why|how|which|can|could|do|does|is|are|should|would)\b",
+    re.IGNORECASE,
+)
 
 
 def get_web_engine(engine_id: str) -> WebEngine:
@@ -71,8 +61,10 @@ def get_web_engine(engine_id: str) -> WebEngine:
     )
 
 
-def get_web_engine_by_keyword(keyword: str) -> WebEngine | None:
-    return _WEB_ENGINE_BY_KEYWORD.get(keyword.casefold())
+def is_likely_web_question(text: str) -> bool:
+    """Return whether ordinary text has a clear question form."""
+    value = " ".join(text.split())
+    return bool(value and (value.endswith("?") or _QUESTION_START_RE.match(value)))
 
 
 def normalize_web_target(text: str) -> str | None:
@@ -98,6 +90,6 @@ __all__ = [
     "DEFAULT_WEB_ENGINE",
     "WebEngine",
     "get_web_engine",
-    "get_web_engine_by_keyword",
+    "is_likely_web_question",
     "normalize_web_target",
 ]

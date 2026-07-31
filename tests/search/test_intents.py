@@ -5,9 +5,7 @@ from __future__ import annotations
 import pytest
 
 from docking.search.intents import (
-    CANONICAL_QUERY_KEYWORDS,
     QueryIntentKind,
-    complete_query_keyword,
     parse_query_intent,
 )
 from docking.search.recognizers.calculation import CalculationValue
@@ -16,48 +14,37 @@ from docking.search.recognizers.temporal import TemporalValue
 from docking.search.recognizers.web import get_web_engine, normalize_web_target
 
 
-def test_top_level_keyword_set_is_intentionally_small() -> None:
-    assert CANONICAL_QUERY_KEYWORDS == ("app", "win", "file", "web")
-    assert parse_query_intent("cmd deploy").kind is QueryIntentKind.GLOBAL
-
-
 @pytest.mark.parametrize(
-    ("query", "providers", "search_text"),
+    "query",
     [
-        ("app firefox", ("applications",), "firefox"),
-        ("win terminal", ("windows",), "terminal"),
-        ("file proposal", ("dock", "recent-files", "path"), "proposal"),
+        "app firefox",
+        "win terminal",
+        "file proposal",
+        "web gh docking",
+        "cmd deploy",
     ],
 )
-def test_provider_keywords_scope_the_remaining_query(
-    query: str,
-    providers: tuple[str, ...],
-    search_text: str,
-) -> None:
+def test_provider_words_are_ordinary_query_text(query: str) -> None:
     intent = parse_query_intent(query)
 
-    assert intent.kind is QueryIntentKind.SCOPED
-    assert intent.provider_ids == providers
-    assert intent.search_text == search_text
-    assert intent.explicit
+    assert intent.kind is QueryIntentKind.GLOBAL
+    assert intent.provider_ids == ()
+    assert intent.search_text == query
 
 
-def test_tab_keyword_completion_is_deterministic() -> None:
-    assert complete_query_keyword("ap") == "app "
-    assert complete_query_keyword("w") is None
-    assert complete_query_keyword("wi") == "win "
-    assert complete_query_keyword("fi") == "file "
-    assert complete_query_keyword("dd") is None
-    assert complete_query_keyword("c") is None
-    assert complete_query_keyword("app firefox") is None
+def test_question_form_only_boosts_web_fallback() -> None:
+    question = parse_query_intent("What is a Linux dockbar?")
+
+    assert question.question_like
+    assert question.kind is QueryIntentKind.GLOBAL
+    assert parse_query_intent("Firefox").kind is QueryIntentKind.GLOBAL
+    assert not parse_query_intent("Firefox").question_like
 
 
-def test_calculation_conversion_url_and_web_intents() -> None:
+def test_calculation_conversion_and_url_intents() -> None:
     calculation = parse_query_intent("100 + 20")
     conversion = parse_query_intent("10 km to miles")
     url = parse_query_intent("docs.python.org/3/")
-    web = parse_query_intent("web google docking linux")
-    github = parse_query_intent("web gh docking")
 
     assert calculation.kind is QueryIntentKind.CALCULATION
     assert calculation.search_text == "=100 + 20"
@@ -67,11 +54,6 @@ def test_calculation_conversion_url_and_web_intents() -> None:
     assert conversion.recognized is not None
     assert url.kind is QueryIntentKind.URL
     assert url.recognized == "https://docs.python.org/3/"
-    assert web.kind is QueryIntentKind.WEB
-    assert web.web_engine_id == "google"
-    assert web.search_text == "docking linux"
-    assert github.web_engine_id == "github"
-    assert parse_query_intent("g docking").kind is QueryIntentKind.GLOBAL
 
 
 def test_scientific_calculations_are_recognized_without_hijacking_words() -> None:

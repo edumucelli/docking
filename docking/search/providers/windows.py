@@ -30,25 +30,21 @@ class WindowSearchProvider:
     def search(self, request: SearchRequest):
         text = request.query.text.strip()
         self._window_ids = {}
-        explicit_scope = request.query.context_value("scope") == "win"
-        if (request.query.is_empty and not explicit_scope) or is_special_query(text):
+        if request.query.is_empty or is_special_query(text):
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
 
         results: list[SearchResult] = []
         for window in self._windows.list_all_windows():
             request.raise_if_cancelled()
-            if request.query.is_empty:
-                score = 250 + (10 if window.active else 0)
-            else:
-                score = score_fields(
-                    request,
-                    (window.title, window.desktop_id, window.app_id or ""),
-                    source_boost=5,
-                    state_boost=10 if window.active else 0,
-                )
-                if score is None:
-                    continue
+            score = score_fields(
+                request,
+                (window.title, window.desktop_id, window.app_id or ""),
+                source_boost=5,
+                state_boost=10 if window.active else 0,
+            )
+            if score is None:
+                continue
             key = str(window.id)
             self._window_ids[key] = window.id
             result_actions = []

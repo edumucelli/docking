@@ -63,9 +63,7 @@ class _Window:
         self.visible = False
         self.snapshots = []
         self.queries = []
-        self.hints = []
         self.refinements = []
-        self.completed_queries = []
 
     def present(self, *, initial_query="", activation_context=None):
         self.visible = True
@@ -81,14 +79,8 @@ class _Window:
     def update(self, snapshot):
         self.snapshots.append(snapshot)
 
-    def set_query_hint(self, hint):
-        self.hints.append(hint)
-
     def show_actions_for(self, result):
         self.refinements.append(result)
-
-    def set_query(self, query):
-        self.completed_queries.append(query)
 
 
 class _Usage:
@@ -432,11 +424,9 @@ def test_intent_routing_supports_implicit_math_and_web_fallback(
 
     controller.show(initial_query="100 + 20")
 
-    assert window.hints[-1] == "Calculator"
     assert window.snapshots[-1].results[0].title == "120"
 
     window.callbacks["on_query_changed"]("2026-07-28")
-    assert window.hints[-1] == "Date & Time"
     assert window.snapshots[-1].results[0].state == "Date"
 
     controller._config.global_search_web_engine = "google"
@@ -445,18 +435,25 @@ def test_intent_routing_supports_implicit_math_and_web_fallback(
     assert window.snapshots[-1].results[0].state == "Google"
 
 
-def test_explicit_provider_keyword_suppresses_web_fallback(monkeypatch) -> None:
+def test_plain_text_keeps_all_providers_and_ranks_local_match(monkeypatch) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
 
-    controller.show(initial_query="app firefox")
+    controller.show(initial_query="Firefox")
 
-    assert window.hints[-1] == "Applications"
+    assert window.snapshots[-1].results[0].source == "Applications"
     assert [result.source for result in window.snapshots[-1].results] == [
         "Applications"
     ]
 
-    window.callbacks["on_query_changed"]("app")
-    assert [result.title for result in window.snapshots[-1].results] == ["Firefox"]
+    window.callbacks["on_query_changed"]("app firefox")
+    assert all(
+        result.source != "Applications" for result in window.snapshots[-1].results
+    )
+    assert window.snapshots[-1].results[0].source == "Web"
+
+    window.callbacks["on_query_changed"]("What is a Linux dockbar?")
+    assert window.snapshots[-1].results[0].source == "Web"
+    assert window.snapshots[-1].results[0].score == 250
 
 
 def test_web_fallback_can_be_disabled(monkeypatch) -> None:
@@ -491,7 +488,6 @@ def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
 
     controller.show(initial_query="10 USD to EUR")
 
-    assert window.hints[-1] == "Converter"
     assert window.snapshots[-1].results[0].title == "8 EUR"
 
 
@@ -508,16 +504,6 @@ def test_intent_recognition_is_forwarded_to_provider(monkeypatch) -> None:
 
     assert window.snapshots[-1].results[0].title.startswith("6.213")
     parse_again.assert_not_called()
-
-
-def test_tab_completes_query_keyword_before_refining_result(monkeypatch) -> None:
-    controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
-    controller.show(initial_query="ap")
-
-    assert controller._complete_query()
-
-    assert window.completed_queries == ["app "]
-    assert controller._current_query == "app "
 
 
 def test_live_window_preview_uses_backend_capture(monkeypatch) -> None:

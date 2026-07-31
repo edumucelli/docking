@@ -72,12 +72,10 @@ Optional launcher for Docking's process-wide global search palette.
 
 **Click:** Open the focusable search window. Search applications, dock items,
 open windows, recent files, calculations, unit/currency conversions, dates,
-time zones, URLs, web fallback, and direct paths. Provider keywords such as
-`app`, `win`, `file`, and `web` route explicit queries; web engines are
-selected beneath `web`, for example `web gh docking`. Press `Tab` to complete a
-partial keyword or `Ctrl+Right` to refine a result into app actions, windows,
-and recent documents. Use `Ctrl+P` for previews or `Ctrl+J` for standard
-contextual actions.
+time zones, URLs, web fallback, and direct paths. Type naturally and results
+from all relevant local sources are ranked together. Press `Ctrl+Right` to
+refine a result into app actions, windows, and recent documents. Use `Ctrl+P`
+for previews or `Ctrl+J` for standard contextual actions.
 
 The applet only opens the shared search service; removing it does not disable
 the configured global shortcut or D-Bus activation.

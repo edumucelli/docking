@@ -127,7 +127,6 @@ class SearchWindow:
         on_action_activated: Callable[[SearchResult, SearchAction], None],
         on_hidden: Callable[[], None],
         on_refine_requested: Callable[[SearchResult | None], None],
-        on_completion_requested: Callable[[], bool],
         dynamic_preview_loader: (
             Callable[[SearchPreview, int, int], LoadedSearchImage | None]
         ),
@@ -140,14 +139,12 @@ class SearchWindow:
         self._on_action_activated = on_action_activated
         self._on_hidden = on_hidden
         self._on_refine_requested = on_refine_requested
-        self._on_completion_requested = on_completion_requested
         self._dynamic_preview_loader = dynamic_preview_loader
         self._preview_resolver = preview_resolver
         self._results: tuple[SearchResult, ...] = ()
         self._selected_identity: SearchIdentity | None = None
         self._syncing_query = False
         self._syncing_results = False
-        self._query_hint = ""
         self._actions_result: SearchResult | None = None
         self._image_cache = SearchImageCache()
         self._thumbnail_executor = ThreadPoolExecutor(
@@ -178,9 +175,6 @@ class SearchWindow:
 
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.search_entry = Gtk.SearchEntry()
-        self.search_entry.set_placeholder_text(
-            _("Search apps, files, calculations, or the web...")
-        )
         self.search_entry.set_margin_start(14)
         self.search_entry.set_margin_end(14)
         self.search_entry.set_margin_top(12)
@@ -281,12 +275,6 @@ class SearchWindow:
         self.primary_button.connect("clicked", lambda *_: self.activate_selected())
         footer.pack_end(self.primary_button, False, False, 0)
         self.actions_button = Gtk.Button(label=_("Actions  Ctrl+J"))
-        self.actions_button.set_tooltip_text(
-            _(
-                "Press Tab to complete a keyword or Ctrl+Right to refine "
-                "the selected result."
-            )
-        )
         self.actions_button.connect("clicked", lambda *_: self.toggle_actions())
         footer.pack_end(self.actions_button, False, False, 0)
         self.preview_button = Gtk.Button(label=_("Preview  Ctrl+P"))
@@ -351,18 +339,13 @@ class SearchWindow:
         finally:
             self._syncing_query = False
 
-    def set_query_hint(self, hint: str) -> None:
-        self._query_hint = hint
-
     def update(self, snapshot: SearchSnapshot) -> None:
         self._results = snapshot.results
         self._selected_identity = snapshot.selected_identity
         self._result_generation += 1
         result_generation = self._result_generation
         self.empty_label.set_label(
-            _("Try app, win, file, web, or 10 km to mi")
-            if snapshot.query.is_empty
-            else _("No matching results")
+            "" if snapshot.query.is_empty else _("No matching results")
         )
         self._syncing_results = True
         try:
@@ -594,8 +577,6 @@ class SearchWindow:
             text = f"{text} · " + _("Searching...")
         elif errors:
             text = f"{text} · " + _("Some sources failed")
-        if self._query_hint:
-            text = f"{self._query_hint} · {text}"
         self.status_label.set_label(text)
 
     def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
@@ -674,13 +655,6 @@ class SearchWindow:
         ):
             self.toggle_preview()
             return True
-        if event.keyval == Gdk.KEY_Tab:
-            if (
-                not event.state & Gdk.ModifierType.SHIFT_MASK
-                and self.search_entry.is_focus()
-            ):
-                return self._on_completion_requested()
-            return False
         if (
             event.keyval == Gdk.KEY_Right
             and event.state & Gdk.ModifierType.CONTROL_MASK

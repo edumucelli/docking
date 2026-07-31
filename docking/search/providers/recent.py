@@ -24,24 +24,20 @@ class RecentFilesSearchProvider:
 
     def search(self, request: SearchRequest):
         text = request.query.text.strip()
-        explicit_scope = request.query.context_value("scope") == "file"
-        if (request.query.is_empty and not explicit_scope) or is_special_query(text):
+        if request.query.is_empty or is_special_query(text):
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
         results: list[SearchResult] = []
         for index, entry in enumerate(self._catalog.snapshot()):
             request.raise_if_cancelled()
-            if request.query.is_empty:
-                score = 240 + max(0, 8 - index)
-            else:
-                score = score_fields(
-                    request,
-                    (entry.name, entry.uri, entry.mime_type),
-                    source_boost=4,
-                    state_boost=max(0, 8 - index),
-                )
-                if score is None:
-                    continue
+            score = score_fields(
+                request,
+                (entry.name, entry.uri, entry.mime_type),
+                source_boost=4,
+                state_boost=max(0, 8 - index),
+            )
+            if score is None:
+                continue
             results.append(
                 SearchResult(
                     identity=SearchIdentity(self.provider_id, entry.uri),

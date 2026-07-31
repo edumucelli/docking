@@ -279,8 +279,8 @@ Try these examples:
 - `What is a Linux dockbar?` - search on the web.
 
 Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for
-more actions. See the [Global Search guide](docs/SEARCH.md) for every provider,
-keyword, and keyboard shortcut.
+more actions. See the [Global Search guide](docs/SEARCH.md) for provider details
+and keyboard shortcuts.
 
 ## Configuration
 

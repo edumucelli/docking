@@ -44,7 +44,7 @@ class WebSearchProvider:
                 engine_id=engine.id,
                 engine_name=engine.name,
                 target=engine.url_for(text),
-                explicit=request.query.context_value("explicit") == "true",
+                question_like=request.query.context_value("question_like") == "true",
             )
         self._targets[result.identity.key] = dict(result.metadata)["target"]
         yield SearchBatch.replace(
@@ -89,7 +89,7 @@ class WebSearchProvider:
         engine_id: str,
         engine_name: str,
         target: str,
-        explicit: bool,
+        question_like: bool,
     ) -> SearchResult:
         key = hashlib.sha256(target.encode()).hexdigest()
         return SearchResult(
@@ -99,7 +99,7 @@ class WebSearchProvider:
                 query=query,
             ),
             description=target,
-            score=950 if explicit else 75,
+            score=250 if question_like else 75,
             icon_name="edit-find-symbolic",
             source=_("Web"),
             state=engine_name,

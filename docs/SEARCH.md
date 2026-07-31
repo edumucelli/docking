@@ -1,23 +1,11 @@
 # Global Search
 
-Docking Search combines local providers, deterministic query intents, utility
-results, and configurable web fallback.
+Docking Search combines local providers, high-confidence query recognition,
+utility results, and configurable web fallback. Type what you are looking for;
+provider names and special prefixes are not needed.
 
-## Keywords
-
-Search has four top-level keywords:
-
-| Keyword | Scope |
-|---|---|
-| `app` | Installed applications |
-| `win` | Open windows |
-| `file` | Pinned and recent files |
-| `web` | Web search, optionally followed by an engine such as `google`, `ddg`, `brave`, `bing`, or `gh` |
-
-Utilities remain implicit: type calculations, conversions, dates, time-zone
-queries, URLs, emails, or direct paths without a keyword. Calculations support
-scientific notation, exponentiation (`2^8`), modulo, constants such as `pi`, and
-common functions such as `sqrt`, `sin`, and `log`.
+Calculations support scientific notation, exponentiation (`2^8`), modulo,
+constants such as `pi`, and common functions such as `sqrt`, `sin`, and `log`.
 
 Currency expressions lazily fetch a generic EUR-based rate table from
 Frankfurter. The typed amount and currency pair are not sent. Successful rates
@@ -36,26 +24,24 @@ matter, for example `2026-12-01 10:00 Paris to Tokyo`.
 
 ## Provider examples
 
-Providers participate according to the query rather than each requiring its own
-keyword. Applications, dock items, windows, and recent files search discovered
-desktop state; utility providers activate only when their syntax is recognized.
+Applications, dock items, windows, and recent files search discovered desktop
+state together. Utility providers activate when their syntax is recognized.
 
 | Provider | Example queries | What the result can do |
 |---|---|---|
-| Applications | `firefox`, `app image editor` | Open or focus an application, open a new window or desktop action, pin or unpin it, close its windows, and refine into individual windows or recent documents. |
-| Dock Items | `clock`, `file report` | Open pinned files and folders, activate applets, or remove an item from the dock. Application launchers are handled by the Applications provider. |
-| Windows | `win project plan`, `win terminal` | Find windows by title or application identity, activate them, close them, and preview them when the desktop backend supports capture. |
+| Applications | `firefox`, `image editor` | Open or focus an application, open a new window or desktop action, pin or unpin it, close its windows, and refine into individual windows or recent documents. |
+| Dock Items | `clock`, `report` | Open pinned files and folders, activate applets, or remove an item from the dock. Application launchers are handled by the Applications provider. |
+| Windows | `project plan`, `terminal` | Find windows by title or application identity, activate them, close them, and preview them when the desktop backend supports capture. |
 | Calculator | `2^8`, `sqrt(81) + pi`, `1e3 / 4`, `17 % 5` | Evaluate safe arithmetic and common scientific functions, then copy the result. Prefix with `=` to force calculator interpretation. |
 | Converter | `10 km to miles`, `32 F to celsius`, `10 USD to EUR` | Convert supported length, weight, volume, temperature, speed, time, data, and live currency values, then copy the result. |
-| Recent Files | `file proposal`, `file invoice` | Search the desktop's recent-file history, open a result, and preview supported local content. |
+| Recent Files | `proposal`, `invoice` | Search the desktop's recent-file history, open a result, and preview supported local content. |
 | Date & Time | `date`, `time`, `in 3 days`, `next Monday`, `time in Kathmandu`, `10:00 UTC to New York` | Show and copy dates, relative dates, local or remote times, and time-zone conversions. |
 | Direct Paths | `~/Downloads`, `/etc/hosts`, `file:///home/user/report.pdf` | Open an existing file or folder, copy its path, and preview supported local content. |
-| Web | `docs.python.org`, `user@example.com`, `web google docking linux`, `web gh docking` | Open detected URLs, compose email, search with a selected engine, or copy the resulting address. |
+| Web | `docs.python.org`, `user@example.com`, `What is a Linux dockbar?` | Open detected URLs, compose email, or offer a search using the configured engine when local results are weak. |
 
 ## Keyboard controls
 
 - **Enter:** run the primary action.
-- **Tab:** complete an unambiguous keyword while focus remains in the query.
 - **Ctrl+Right:** refine the selected application into actions, individual
   windows, and recent documents.
 - **Ctrl+J:** open the standard Action Panel.

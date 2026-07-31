@@ -4350,14 +4350,6 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: docking/search/controller.py:503
-msgid "Web Search"
-msgstr ""
-
-#: docking/search/controller.py:505 docking/search/controller.py:516
-msgid "Direct Path"
-msgstr ""
-
 #: docking/search/controller.py:507 docking/search/providers/temporal.py:47
 msgid "Date & Time"
 msgstr ""
@@ -4370,14 +4362,6 @@ msgstr ""
 
 #: docking/search/controller.py:514 docking/search/providers/dock.py:92
 msgid "Dock"
-msgstr ""
-
-#: docking/search/controller.py:517
-msgid "Files"
-msgstr ""
-
-#: docking/search/controller.py:519
-msgid "Filtered"
 msgstr ""
 
 #: docking/search/controller.py:768
@@ -4702,10 +4686,6 @@ msgstr ""
 msgid "Docking Search"
 msgstr ""
 
-#: docking/search/ui/window.py:182
-msgid "Search apps, files, calculations, or the web..."
-msgstr ""
-
 #: docking/search/ui/window.py:221
 msgid "Filter actions..."
 msgstr ""
@@ -4714,17 +4694,8 @@ msgstr ""
 msgid "Actions  Ctrl+J"
 msgstr ""
 
-#: docking/search/ui/window.py:286
-msgid ""
-"Press Tab to complete a keyword or Ctrl+Right to refine the selected result."
-msgstr ""
-
 #: docking/search/ui/window.py:292
 msgid "Preview  Ctrl+P"
-msgstr ""
-
-#: docking/search/ui/window.py:363
-msgid "Try app, win, file, web, or 10 km to mi"
 msgstr ""
 
 #: docking/search/ui/window.py:365
@@ -5455,7 +5426,7 @@ msgid "Search Engine"
 msgstr ""
 
 #: docking/ui/settings.py:959
-msgid "Choose the engine used by web fallback and the web keyword."
+msgid "Choose the engine used by web fallback."
 msgstr ""
 
 #: docking/ui/settings.py:970

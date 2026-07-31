@@ -36,12 +36,9 @@ class DockSearchProvider:
             return
 
         results: list[SearchResult] = []
-        file_scope = request.query.context_value("scope") == "file"
         for item in self._model.visible_items():
             request.raise_if_cancelled()
             if item.kind == APP_KIND or not item.is_pinned:
-                continue
-            if file_scope and item.kind not in {FILE_KIND, FOLDER_KIND}:
                 continue
             title = item.name or item.target
             if item.kind == APPLET_KIND:

@@ -230,12 +230,10 @@ def test_dock_provider_opens_applet_and_removes_file() -> None:
         action_identity=result.actions[0].identity,
     )
     applet.on_clicked.assert_called_once_with()
-    file_results = _results(
-        provider,
-        "",
-        context=(("scope", "file"),),
-    )
-    assert [item.title for item in file_results] == ["report.txt"]
+    assert {item.title for item in _results(provider, "")} == {
+        "Clock",
+        "report.txt",
+    }
 
 
 def test_window_provider_activates_title_match() -> None:
@@ -261,12 +259,7 @@ def test_window_provider_activates_title_match() -> None:
         action_identity=result.actions[0].identity,
     )
     assert windows.activated == [window.id]
-    scoped = _results(
-        provider,
-        "",
-        context=(("scope", "win"),),
-    )
-    assert [item.title for item in scoped] == ["Global search plan"]
+    assert _results(provider, "") == ()
 
 
 def test_calculator_provider_uses_recognized_value_and_copies() -> None:
@@ -401,10 +394,10 @@ def test_web_provider_detects_urls_and_uses_selected_engine(monkeypatch) -> None
     web = _results(
         provider,
         "docking linux",
-        context=(("web_engine", "google"), ("explicit", "true")),
+        context=(("web_engine", "google"), ("question_like", "true")),
     )[0]
     assert web.state == "Google"
-    assert web.score == 950
+    assert web.score == 250
 
 
 def test_web_provider_reuses_recognized_target(monkeypatch) -> None:
@@ -479,12 +472,7 @@ def test_recent_file_provider_searches_and_opens() -> None:
         action_identity=result.actions[0].identity,
     )
     catalog.open_uri.assert_called_once_with(entry.uri)
-    scoped = _results(
-        provider,
-        "",
-        context=(("scope", "file"),),
-    )
-    assert [item.title for item in scoped] == ["Proposal.pdf"]
+    assert _results(provider, "") == ()
 
 
 def test_direct_path_provider_uses_existing_path(tmp_path, monkeypatch) -> None:

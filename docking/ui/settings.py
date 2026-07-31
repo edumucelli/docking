@@ -947,7 +947,7 @@ class SettingsWindowController:
                 (
                     _("Search Engine"),
                     self._global_search_web_engine_combo,
-                    _("Choose the engine used by web fallback and the web keyword."),
+                    _("Choose the engine used by web fallback."),
                 ),
                 (
                     _("Learn from Selections"),

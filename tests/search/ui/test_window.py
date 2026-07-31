@@ -77,7 +77,6 @@ def test_results_primary_action_and_action_panel() -> None:
     activated = MagicMock()
     actioned = MagicMock()
     refined = MagicMock()
-    completed = MagicMock(return_value=True)
     window = SearchWindow(
         launcher=MagicMock(load_icon=MagicMock(return_value=None)),
         on_query_changed=MagicMock(),
@@ -86,17 +85,15 @@ def test_results_primary_action_and_action_panel() -> None:
         on_action_activated=actioned,
         on_hidden=MagicMock(),
         on_refine_requested=refined,
-        on_completion_requested=completed,
         dynamic_preview_loader=MagicMock(return_value=None),
         preview_resolver=MagicMock(return_value=None),
     )
 
-    window.set_query_hint("Applications")
     window.update(_snapshot())
 
     assert window.selected_result().title == "Firefox"
     assert window.primary_button.get_label() == "Open"
-    assert window.status_label.get_label().startswith("Applications · ")
+    assert window.status_label.get_label() == "1 results"
     window.activate_selected()
     activated.assert_called_once()
 
@@ -104,11 +101,10 @@ def test_results_primary_action_and_action_panel() -> None:
     window.action_frame.hide()
     window.preview_frame.hide()
     window.window.set_focus(window.search_entry)
-    assert window._on_key_press(
+    assert not window._on_key_press(
         window.window,
         SimpleNamespace(keyval=Gdk.KEY_Tab, state=Gdk.ModifierType(0)),
     )
-    completed.assert_called_once()
     assert not window._on_key_press(
         window.window,
         SimpleNamespace(
@@ -204,7 +200,6 @@ def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> No
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
         on_refine_requested=MagicMock(),
-        on_completion_requested=MagicMock(return_value=False),
         dynamic_preview_loader=MagicMock(return_value=None),
         preview_resolver=MagicMock(return_value=None),
     )
@@ -272,7 +267,6 @@ def test_dynamic_window_preview_loader_populates_panel() -> None:
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
         on_refine_requested=MagicMock(),
-        on_completion_requested=MagicMock(return_value=False),
         dynamic_preview_loader=loader,
         preview_resolver=MagicMock(return_value=None),
     )
@@ -307,7 +301,6 @@ def test_partial_results_do_not_override_waiting_selection() -> None:
         on_action_activated=MagicMock(),
         on_hidden=MagicMock(),
         on_refine_requested=MagicMock(),
-        on_completion_requested=MagicMock(return_value=False),
         dynamic_preview_loader=MagicMock(return_value=None),
         preview_resolver=MagicMock(return_value=None),
     )
