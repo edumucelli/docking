@@ -161,7 +161,6 @@ from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_ENABLED,
-    DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED,
     DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
@@ -865,10 +864,8 @@ class Config:
     global_search_max_results: int = DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
     # Whether an unmatched query offers a web-search result
     global_search_web_fallback: bool = DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK
-    # Web engine used by fallback and the generic "web" keyword
+    # Web engine used by fallback searches
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
-    # Whether hashed result/action usage may influence ranking
-    global_search_learning_enabled: bool = DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED
 
     @property
     def pos(self) -> Position:
@@ -1071,10 +1068,6 @@ class Config:
             web_engine
             if web_engine in GLOBAL_SEARCH_WEB_ENGINES
             else DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
-        )
-        self.global_search_learning_enabled = _normalize_bool(
-            self.global_search_learning_enabled,
-            default=DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED,
         )
 
     @classmethod

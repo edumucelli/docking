@@ -171,7 +171,6 @@ stored separately in:
 | `global_search_max_results` | `12` | `5` to `30` | Maximum result rows displayed by the palette. |
 | `global_search_web_fallback` | `true` | boolean | Offers a web-search result when no strong local result matches. |
 | `global_search_web_engine` | `duckduckgo` | `duckduckgo`, `google`, `brave`, or `bing` | Engine used by fallback searches. |
-| `global_search_learning_enabled` | `true` | boolean | Allows hashed result/action usage to provide small bounded ranking boosts. |
 
 Click the shortcut button in **Preferences -> Behavior -> Global Search**, then
 press the desired sequence. On Wayland, the assignment belongs to the desktop

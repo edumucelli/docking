@@ -14,7 +14,6 @@ DEFAULT_GLOBAL_SEARCH_MAX_RESULTS = 12
 DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK = True
 DEFAULT_GLOBAL_SEARCH_WEB_ENGINE = "duckduckgo"
 GLOBAL_SEARCH_WEB_ENGINES = ("duckduckgo", "google", "brave", "bing")
-DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED = True
 
 
 def normalize_search_providers(raw: object) -> list[str]:
@@ -30,7 +29,6 @@ def normalize_search_providers(raw: object) -> list[str]:
 
 __all__ = [
     "DEFAULT_GLOBAL_SEARCH_ENABLED",
-    "DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED",
     "DEFAULT_GLOBAL_SEARCH_MAX_RESULTS",
     "DEFAULT_GLOBAL_SEARCH_PROVIDERS",
     "DEFAULT_GLOBAL_SEARCH_SHORTCUT",

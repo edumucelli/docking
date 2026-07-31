@@ -49,7 +49,6 @@ class TestConfigDefaults:
         assert c.global_search_max_results == 12
         assert c.global_search_web_fallback is True
         assert c.global_search_web_engine == "duckduckgo"
-        assert c.global_search_learning_enabled is True
         assert c.global_search_providers == [
             "applications",
             "dock",
@@ -140,7 +139,6 @@ class TestConfigDefaults:
             ],
             "global_search_web_fallback": "off",
             "global_search_web_engine": "unknown",
-            "global_search_learning_enabled": "off",
         }
         c = Config(**malformed)
 
@@ -150,7 +148,6 @@ class TestConfigDefaults:
         assert c.global_search_providers == ["windows"]
         assert c.global_search_web_fallback is False
         assert c.global_search_web_engine == "duckduckgo"
-        assert c.global_search_learning_enabled is False
 
 
 class TestConfigLoad:

@@ -74,10 +74,6 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
 
-def _no_rank_adjustment(_result: SearchResult, _query: SearchQuery) -> float:
-    return 0.0
-
-
 class GlobalSearchController:
     """Own catalogs, providers, shortcut registration, and the search window."""
 
@@ -386,11 +382,7 @@ class GlobalSearchController:
                 for provider_id in provider_ids
                 if provider_id in self._provider_by_id
             ),
-            rank_adjuster=(
-                self._usage_store.boost
-                if self._config.global_search_learning_enabled
-                else _no_rank_adjustment
-            ),
+            rank_adjuster=self._usage_store.boost,
         )
 
     def _search(self, text: str) -> None:
@@ -473,17 +465,16 @@ class GlobalSearchController:
             or snapshot.generation != coordinator.generation
         ):
             return
-        if self._config.global_search_learning_enabled:
-            snapshot = replace(
-                snapshot,
-                results=tuple(
-                    replace(
-                        result,
-                        actions=self._usage_store.rank_actions(result.actions),
-                    )
-                    for result in snapshot.results
-                ),
-            )
+        snapshot = replace(
+            snapshot,
+            results=tuple(
+                replace(
+                    result,
+                    actions=self._usage_store.rank_actions(result.actions),
+                )
+                for result in snapshot.results
+            ),
+        )
         if snapshot.selected_identity is not None or snapshot.is_final:
             self._selected_identity = snapshot.selected_identity
         self.window.update(snapshot)
@@ -572,11 +563,10 @@ class GlobalSearchController:
                 result.identity.provider_id,
             )
             return
-        if self._config.global_search_learning_enabled:
-            refined = replace(
-                refined,
-                actions=self._usage_store.rank_actions(refined.actions),
-            )
+        refined = replace(
+            refined,
+            actions=self._usage_store.rank_actions(refined.actions),
+        )
         if refined.actions:
             self.window.show_actions_for(refined)
 
@@ -613,16 +603,15 @@ class GlobalSearchController:
             return
         if invoked:
             current_request = self._coordinator.request
-            if self._config.global_search_learning_enabled:
-                self._usage_store.record(
-                    query=(
-                        current_request.query.text
-                        if current_request is not None
-                        else self._current_query
-                    ),
-                    result=result,
-                    action=result_action,
-                )
+            self._usage_store.record(
+                query=(
+                    current_request.query.text
+                    if current_request is not None
+                    else self._current_query
+                ),
+                result=result,
+                action=result_action,
+            )
             self.hide()
 
     def _action_is_current(

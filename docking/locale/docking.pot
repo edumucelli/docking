@@ -5429,15 +5429,6 @@ msgstr ""
 msgid "Choose the engine used by web fallback."
 msgstr ""
 
-#: docking/ui/settings.py:970
-msgid "Learn from Selections"
-msgstr ""
-
-#: docking/ui/settings.py:973
-msgid ""
-"Use hashed result and action history for small, bounded ranking improvements."
-msgstr ""
-
 #: docking/ui/settings.py:1047
 msgid "Check Now"
 msgstr ""

@@ -301,7 +301,6 @@ class SettingsWindowController:
         self._global_search_max_results_spin: Any = None
         self._global_search_web_fallback_switch: Any = None
         self._global_search_web_engine_combo: Any = None
-        self._global_search_learning_switch: Any = None
         self._global_search_status_label: Any = None
         self._search_provider_box: Any = None
         self._search_provider_checks: dict[str, Gtk.CheckButton] = {}
@@ -595,7 +594,6 @@ class SettingsWindowController:
             minimum=5, maximum=30, step=1
         )
         self._global_search_web_fallback_switch = self._new_switch()
-        self._global_search_learning_switch = self._new_switch()
         self._global_search_web_engine_combo = Gtk.ComboBoxText()
         web_engine_labels = {
             "duckduckgo": "DuckDuckGo",
@@ -948,14 +946,6 @@ class SettingsWindowController:
                     _("Search Engine"),
                     self._global_search_web_engine_combo,
                     _("Choose the engine used by web fallback."),
-                ),
-                (
-                    _("Learn from Selections"),
-                    self._global_search_learning_switch,
-                    _(
-                        "Use hashed result and action history for small, bounded "
-                        "ranking improvements."
-                    ),
                 ),
             ],
         )
@@ -1410,11 +1400,6 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="global_search_enabled",
                 widget=self._global_search_switch,
-                on_change=self._actions.refresh_search_settings,
-            ),
-            self._register_switch_binding(
-                config_attr="global_search_learning_enabled",
-                widget=self._global_search_learning_switch,
                 on_change=self._actions.refresh_search_settings,
             ),
             self._register_numeric_binding(
@@ -1874,8 +1859,6 @@ class SettingsWindowController:
             self._global_search_web_fallback_switch.set_sensitive(search_sensitive)
         if self._global_search_web_engine_combo is not None:
             self._global_search_web_engine_combo.set_sensitive(search_sensitive)
-        if self._global_search_learning_switch is not None:
-            self._global_search_learning_switch.set_sensitive(search_sensitive)
         for check in self._search_provider_checks.values():
             check.set_sensitive(search_sensitive)
 
