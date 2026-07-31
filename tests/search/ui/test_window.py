@@ -17,8 +17,8 @@ from docking.search.types import (
     SearchQuery,
     SearchResult,
 )
-from docking.ui.search_thumbnails import LoadedSearchImage
-from docking.ui.search_window import SearchWindow
+from docking.search.ui.thumbnails import LoadedSearchImage
+from docking.search.ui.window import SearchWindow
 
 pytestmark = pytest.mark.skipif(
     not Gtk.init_check()[0],

@@ -28,11 +28,11 @@ from docking.search.types import (
     SearchPreview,
     SearchResult,
 )
+from docking.search.ui.thumbnails import LoadedSearchImage, SearchImageCache
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
     wrap_startup_popup_content,
 )
-from docking.ui.search_thumbnails import LoadedSearchImage, SearchImageCache
 
 SEARCH_WINDOW_WIDTH = 680
 SEARCH_WINDOW_HEIGHT = 470

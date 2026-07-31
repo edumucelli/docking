@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 from gi.repository import Gdk, Gtk
 
-from docking.ui.shortcut_capture import (
+from docking.search.ui.shortcut_capture import (
     ShortcutCaptureButton,
     shortcut_from_key_event,
     shortcut_label,

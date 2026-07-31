@@ -28,13 +28,13 @@ from docking.search.types import (
     SearchQuery,
     SearchResult,
 )
+from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import build_geometry_frame
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
-from docking.ui.search_window import SearchWindow
 from docking.ui.stack import StackContent, StackEntry
 from docking.ui.tooltip import TooltipManager
 

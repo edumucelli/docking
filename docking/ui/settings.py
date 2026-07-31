@@ -82,7 +82,7 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.shortcut_capture import ShortcutCaptureButton
+from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:
     from docking.core.config import Config

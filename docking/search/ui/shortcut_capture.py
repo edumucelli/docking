@@ -1,4 +1,4 @@
-"""Keyboard shortcut capture and XDG trigger formatting."""
+"""Global Search shortcut capture and XDG trigger formatting."""
 
 from __future__ import annotations
 

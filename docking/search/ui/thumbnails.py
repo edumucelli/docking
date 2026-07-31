@@ -1,4 +1,4 @@
-"""Bounded, modification-aware image loading for Search previews."""
+"""Bounded, modification-aware image loading for Global Search previews."""
 
 from __future__ import annotations
 

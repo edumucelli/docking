@@ -6,7 +6,7 @@ import os
 
 from gi.repository import GdkPixbuf
 
-from docking.ui.search_thumbnails import SearchImageCache
+from docking.search.ui.thumbnails import SearchImageCache
 
 
 def _write_png(path, *, width: int, height: int) -> None:

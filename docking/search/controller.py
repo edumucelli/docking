@@ -62,10 +62,10 @@ from docking.search.types import (
     SearchQuery,
     SearchResult,
 )
+from docking.search.ui.shortcut_capture import shortcut_label
+from docking.search.ui.thumbnails import LoadedSearchImage
+from docking.search.ui.window import SearchWindow
 from docking.search.usage import SearchUsageStore
-from docking.ui.search_thumbnails import LoadedSearchImage
-from docking.ui.search_window import SearchWindow
-from docking.ui.shortcut_capture import shortcut_label
 
 WEB_FALLBACK_STRONG_SCORE = 300
 log = get_logger("search.controller")

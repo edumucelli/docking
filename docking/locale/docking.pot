@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-31 01:33+0200\n"
+"POT-Creation-Date: 2026-07-31 09:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,7 +359,7 @@ msgstr ""
 msgid "(c) {who}"
 msgstr ""
 
-#: docking/applets/applications/applet.py:55 docking/search/controller.py:563
+#: docking/applets/applications/applet.py:55 docking/search/controller.py:512
 #: docking/search/providers/applications.py:177 docking/ui/settings.py:624
 msgid "Applications"
 msgstr ""
@@ -726,8 +726,8 @@ msgstr ""
 msgid "Caffeine: {time} remaining"
 msgstr ""
 
-#: docking/applets/caffeine/state.py:130 docking/search/controller.py:250
-#: docking/search/controller.py:268 docking/search/providers/windows.py:84
+#: docking/applets/caffeine/state.py:130 docking/search/controller.py:223
+#: docking/search/controller.py:241 docking/search/providers/windows.py:84
 msgid "Active"
 msgstr ""
 
@@ -737,7 +737,7 @@ msgid "Active - {time} left"
 msgstr ""
 
 #: docking/applets/calculator/applet.py:78
-#: docking/applets/calculator/applet.py:96 docking/search/controller.py:548
+#: docking/applets/calculator/applet.py:96 docking/search/controller.py:497
 #: docking/search/providers/calculator.py:40
 #: docking/search/providers/calculator.py:57 docking/ui/settings.py:627
 msgid "Calculator"
@@ -1044,7 +1044,7 @@ msgstr ""
 
 #: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
 #: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
-#: docking/search/controller.py:270 docking/ui/settings.py:227
+#: docking/search/controller.py:243 docking/ui/settings.py:227
 #: docking/ui/settings.py:232
 msgid "Unavailable"
 msgstr ""
@@ -2930,7 +2930,7 @@ msgstr ""
 msgid "{source}: loading..."
 msgstr ""
 
-#: docking/applets/recentfiles/applet.py:48 docking/search/controller.py:566
+#: docking/applets/recentfiles/applet.py:48 docking/search/controller.py:515
 #: docking/search/providers/recent.py:52 docking/ui/settings.py:628
 msgid "Recent Files"
 msgstr ""
@@ -3085,8 +3085,8 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:259
 #: docking/search/providers/applications.py:119
 #: docking/search/providers/dock.py:65 docking/search/providers/recent.py:59
-#: docking/search/providers/web.py:72 docking/ui/menu.py:446
-#: docking/ui/menu.py:531 docking/ui/search_window.py:579
+#: docking/search/providers/web.py:72 docking/search/ui/window.py:579
+#: docking/ui/menu.py:446 docking/ui/menu.py:531
 msgid "Open"
 msgstr ""
 
@@ -3123,7 +3123,8 @@ msgstr ""
 msgid "Line"
 msgstr ""
 
-#: docking/applets/separator/applet.py:137 docking/ui/shortcut_capture.py:80
+#: docking/applets/separator/applet.py:137
+#: docking/search/ui/shortcut_capture.py:80
 msgid "Space"
 msgstr ""
 
@@ -4274,118 +4275,118 @@ msgstr ""
 msgid "session bus unavailable"
 msgstr ""
 
-#: docking/search/controller.py:213
+#: docking/search/controller.py:186
 #, python-brace-format
 msgid "Active: {shortcut} (X11)"
 msgstr ""
 
-#: docking/search/controller.py:218
+#: docking/search/controller.py:191
 msgid "Shortcut already in use"
 msgstr ""
 
-#: docking/search/controller.py:219 docking/search/controller.py:244
+#: docking/search/controller.py:192 docking/search/controller.py:217
 msgid "Registration failed"
 msgstr ""
 
-#: docking/search/controller.py:222 docking/search/controller.py:245
+#: docking/search/controller.py:195 docking/search/controller.py:218
 msgid "Not active"
 msgstr ""
 
-#: docking/search/controller.py:229
+#: docking/search/controller.py:202
 msgid "Connecting..."
 msgstr ""
 
-#: docking/search/controller.py:235
+#: docking/search/controller.py:208
 #, python-brace-format
 msgid "Assigned: {shortcut}"
 msgstr ""
 
-#: docking/search/controller.py:236
+#: docking/search/controller.py:209
 msgid "Assigned by desktop"
 msgstr ""
 
-#: docking/search/controller.py:238
+#: docking/search/controller.py:211
 msgid "Unavailable on this desktop"
 msgstr ""
 
-#: docking/search/controller.py:240
+#: docking/search/controller.py:213
 msgid "Permission denied"
 msgstr ""
 
-#: docking/search/controller.py:242
+#: docking/search/controller.py:215
 msgid "Setup cancelled"
 msgstr ""
 
-#: docking/search/controller.py:253
+#: docking/search/controller.py:226
 msgid "Conflict"
 msgstr ""
 
-#: docking/search/controller.py:254 docking/search/controller.py:276
+#: docking/search/controller.py:227 docking/search/controller.py:249
 msgid "Failed"
 msgstr ""
 
-#: docking/search/controller.py:257 docking/search/controller.py:277
+#: docking/search/controller.py:230 docking/search/controller.py:250
 msgid "Inactive"
 msgstr ""
 
-#: docking/search/controller.py:263
+#: docking/search/controller.py:236
 msgid "Connecting"
 msgstr ""
 
-#: docking/search/controller.py:272
+#: docking/search/controller.py:245
 msgid "Denied"
 msgstr ""
 
-#: docking/search/controller.py:274
+#: docking/search/controller.py:247
 msgid "Cancelled"
 msgstr ""
 
-#: docking/search/controller.py:550 docking/search/providers/converter.py:78
+#: docking/search/controller.py:499 docking/search/providers/converter.py:78
 #: docking/search/providers/converter.py:149
 #: docking/search/providers/converter.py:193
 msgid "Converter"
 msgstr ""
 
-#: docking/search/controller.py:552 docking/search/providers/web.py:66
+#: docking/search/controller.py:501 docking/search/providers/web.py:66
 msgid "URL"
 msgstr ""
 
-#: docking/search/controller.py:554
+#: docking/search/controller.py:503
 msgid "Web Search"
 msgstr ""
 
-#: docking/search/controller.py:556 docking/search/controller.py:567
+#: docking/search/controller.py:505 docking/search/controller.py:516
 msgid "Direct Path"
 msgstr ""
 
-#: docking/search/controller.py:558 docking/search/providers/temporal.py:47
+#: docking/search/controller.py:507 docking/search/providers/temporal.py:47
 msgid "Date & Time"
 msgstr ""
 
-#: docking/search/controller.py:560 docking/search/providers/scripts.py:114
+#: docking/search/controller.py:509 docking/search/providers/scripts.py:114
 #: docking/ui/settings.py:962
 msgid "Script Commands"
 msgstr ""
 
-#: docking/search/controller.py:564
+#: docking/search/controller.py:513
 #: docking/search/providers/applications.py:216
 #: docking/search/providers/windows.py:83 docking/ui/settings.py:626
 msgid "Windows"
 msgstr ""
 
-#: docking/search/controller.py:565 docking/search/providers/dock.py:92
+#: docking/search/controller.py:514 docking/search/providers/dock.py:92
 msgid "Dock"
 msgstr ""
 
-#: docking/search/controller.py:568
+#: docking/search/controller.py:517
 msgid "Files"
 msgstr ""
 
-#: docking/search/controller.py:570
+#: docking/search/controller.py:519
 msgid "Filtered"
 msgstr ""
 
-#: docking/search/controller.py:819
+#: docking/search/controller.py:768
 msgid "Live Window"
 msgstr ""
 
@@ -4469,7 +4470,7 @@ msgstr ""
 msgid "Categories: {categories}"
 msgstr ""
 
-#: docking/search/providers/applications.py:219 docking/ui/search_window.py:217
+#: docking/search/providers/applications.py:219 docking/search/ui/window.py:217
 #: docking/ui/settings.py:1066
 msgid "Actions"
 msgstr ""
@@ -4641,6 +4642,122 @@ msgstr ""
 #: docking/search/recognizers/temporal.py:174
 #, python-brace-format
 msgid "{time} {source} to {target}"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:73
+msgid "Not set"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:75
+msgid "Ctrl"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:76
+msgid "Alt"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:77
+msgid "Shift"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:78
+msgid "Super"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:79
+msgid "Num"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:81
+msgid "Enter"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:82
+msgid "Escape"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:83
+msgid "Tab"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:84
+msgid "Backspace"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:123
+msgid "Search shortcut"
+msgstr ""
+
+#: docking/search/ui/shortcut_capture.py:142
+msgid "Press shortcut..."
+msgstr ""
+
+#: docking/search/ui/window.py:161 docking/search/ui/window.py:173
+msgid "Docking Search"
+msgstr ""
+
+#: docking/search/ui/window.py:182
+msgid "Search apps, files, calculations, or the web..."
+msgstr ""
+
+#: docking/search/ui/window.py:221
+msgid "Filter actions..."
+msgstr ""
+
+#: docking/search/ui/window.py:283
+msgid "Actions  Ctrl+J"
+msgstr ""
+
+#: docking/search/ui/window.py:286
+msgid ""
+"Press Tab to complete a keyword or Ctrl+Right to refine the selected result."
+msgstr ""
+
+#: docking/search/ui/window.py:292
+msgid "Preview  Ctrl+P"
+msgstr ""
+
+#: docking/search/ui/window.py:363
+msgid "Try app, win, file, web, cmd, or 10 km to mi"
+msgstr ""
+
+#: docking/search/ui/window.py:365
+msgid "No matching results"
+msgstr ""
+
+#: docking/search/ui/window.py:541
+msgid "Unable to decode image preview"
+msgstr ""
+
+#: docking/search/ui/window.py:550
+#, python-brace-format
+msgid "{width} × {height} · {format} · {size}"
+msgstr ""
+
+#: docking/search/ui/window.py:557
+#, python-brace-format
+msgid "{width} × {height} · {format}"
+msgstr ""
+
+#: docking/search/ui/window.py:592
+#, python-brace-format
+msgid "{count} results"
+msgstr ""
+
+#: docking/search/ui/window.py:594
+msgid "Type to search"
+msgstr ""
+
+#: docking/search/ui/window.py:596
+msgid "No results"
+msgstr ""
+
+#: docking/search/ui/window.py:598
+msgid "Searching..."
+msgstr ""
+
+#: docking/search/ui/window.py:600
+msgid "Some sources failed"
 msgstr ""
 
 #: docking/ui/about.py:68
@@ -4898,74 +5015,6 @@ msgstr ""
 #: docking/ui/placement.py:269
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
-msgstr ""
-
-#: docking/ui/search_window.py:161 docking/ui/search_window.py:173
-msgid "Docking Search"
-msgstr ""
-
-#: docking/ui/search_window.py:182
-msgid "Search apps, files, calculations, or the web..."
-msgstr ""
-
-#: docking/ui/search_window.py:221
-msgid "Filter actions..."
-msgstr ""
-
-#: docking/ui/search_window.py:283
-msgid "Actions  Ctrl+J"
-msgstr ""
-
-#: docking/ui/search_window.py:286
-msgid ""
-"Press Tab to complete a keyword or Ctrl+Right to refine the selected result."
-msgstr ""
-
-#: docking/ui/search_window.py:292
-msgid "Preview  Ctrl+P"
-msgstr ""
-
-#: docking/ui/search_window.py:363
-msgid "Try app, win, file, web, cmd, or 10 km to mi"
-msgstr ""
-
-#: docking/ui/search_window.py:365
-msgid "No matching results"
-msgstr ""
-
-#: docking/ui/search_window.py:541
-msgid "Unable to decode image preview"
-msgstr ""
-
-#: docking/ui/search_window.py:550
-#, python-brace-format
-msgid "{width} × {height} · {format} · {size}"
-msgstr ""
-
-#: docking/ui/search_window.py:557
-#, python-brace-format
-msgid "{width} × {height} · {format}"
-msgstr ""
-
-#: docking/ui/search_window.py:592
-#, python-brace-format
-msgid "{count} results"
-msgstr ""
-
-#: docking/ui/search_window.py:594
-msgid "Type to search"
-msgstr ""
-
-#: docking/ui/search_window.py:596
-msgid "No results"
-msgstr ""
-
-#: docking/ui/search_window.py:598
-msgid "Searching..."
-msgstr ""
-
-#: docking/ui/search_window.py:600
-msgid "Some sources failed"
 msgstr ""
 
 #: docking/ui/settings.py:355
@@ -5493,54 +5542,6 @@ msgstr ""
 #: docking/ui/settings.py:1843
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:73
-msgid "Not set"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:75
-msgid "Ctrl"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:76
-msgid "Alt"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:77
-msgid "Shift"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:78
-msgid "Super"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:79
-msgid "Num"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:81
-msgid "Enter"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:82
-msgid "Escape"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:83
-msgid "Tab"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:84
-msgid "Backspace"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:123
-msgid "Search shortcut"
-msgstr ""
-
-#: docking/ui/shortcut_capture.py:142
-msgid "Press shortcut..."
 msgstr ""
 
 #: docking/ui/stack.py:103
