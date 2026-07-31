@@ -1,4 +1,4 @@
-"""Tests for the reusable recent-files catalog."""
+"""Tests for the Global Search recent-files catalog."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from docking.platform.recent_files import (
+from docking.search.services.recent_files import (
     RecentFilesCatalog,
     RecentFileSnapshot,
 )

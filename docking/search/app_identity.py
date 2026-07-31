@@ -6,7 +6,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-"""Package-aware application identity for portals and session-bus ownership."""
+"""Package-aware identity for Search portals and session-bus ownership."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ import os
 from collections.abc import Mapping
 
 HOST_APPLICATION_ID = "org.docking.Docking"
-FLATPAK_APPLICATION_ID = "cc.docking.Docking"
 
 
 def application_id(env: Mapping[str, str] | None = None) -> str:
@@ -27,7 +26,6 @@ def application_id(env: Mapping[str, str] | None = None) -> str:
 
 
 __all__ = [
-    "FLATPAK_APPLICATION_ID",
     "HOST_APPLICATION_ID",
     "application_id",
 ]

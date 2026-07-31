@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Reusable, immutable snapshots of ``Gtk.RecentManager``.
+"""Immutable ``Gtk.RecentManager`` snapshots for Global Search.
 
 All GTK and Gio calls are synchronous and must be made on the GTK main thread.
 Published records contain only frozen Python values and may safely outlive a

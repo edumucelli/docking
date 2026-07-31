@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from docking.platform.global_shortcuts import (
+from docking.search.services.global_shortcuts import (
     DBUS_BUS_NAME,
     DBUS_INTERFACE,
     DBUS_OBJECT_PATH,

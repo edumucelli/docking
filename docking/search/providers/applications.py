@@ -8,7 +8,6 @@ from urllib.parse import unquote, urlparse
 from docking.core.items import APP_KIND
 from docking.i18n import _
 from docking.platform import launcher as launcher_actions
-from docking.platform.application_catalog import ApplicationCatalog
 from docking.platform.backends.base import WindowId, WindowService
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
@@ -21,6 +20,7 @@ from docking.search.providers.base import (
     metadata,
     score_fields,
 )
+from docking.search.services.application_catalog import ApplicationCatalog
 from docking.search.types import (
     SearchBatch,
     SearchIdentity,

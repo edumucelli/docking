@@ -10,19 +10,22 @@ from gi.repository import GdkPixbuf
 
 from docking.core.config import Config
 from docking.core.items import APPLET_KIND
-from docking.platform.application_catalog import ApplicationSnapshot, IconDescriptor
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.global_shortcuts import (
+from docking.search.controller import GlobalSearchController
+from docking.search.services.application_catalog import (
+    ApplicationSnapshot,
+    IconDescriptor,
+)
+from docking.search.services.global_shortcuts import (
     GlobalShortcutBinding,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
-from docking.search.controller import GlobalSearchController
 from docking.search.types import (
     SearchAction,
     SearchIdentity,

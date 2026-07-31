@@ -159,6 +159,18 @@ from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_ENABLED,
+    DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED,
+    DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
+    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
+    DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED,
+    DEFAULT_GLOBAL_SEARCH_SHORTCUT,
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK,
+    GLOBAL_SEARCH_WEB_ENGINES,
+    normalize_search_providers,
+)
 
 if TYPE_CHECKING:
     from docking.core.theme import Theme
@@ -291,22 +303,6 @@ DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
 MIN_RECENT_APPS_RETENTION_DAYS = 1
 DEFAULT_SHOW_RECENT_DOCS_IN_MENU = True
 DEFAULT_RECENT_DOCS_MAX = 10
-DEFAULT_GLOBAL_SEARCH_ENABLED = True
-DEFAULT_GLOBAL_SEARCH_SHORTCUT = "CTRL+LOGO+space"
-DEFAULT_GLOBAL_SEARCH_PROVIDERS: tuple[str, ...] = (
-    "applications",
-    "dock",
-    "windows",
-    "calculator",
-    "recent-files",
-    "path",
-)
-DEFAULT_GLOBAL_SEARCH_MAX_RESULTS = 12
-DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK = True
-DEFAULT_GLOBAL_SEARCH_WEB_ENGINE = "duckduckgo"
-GLOBAL_SEARCH_WEB_ENGINES = ("duckduckgo", "google", "brave", "bing")
-DEFAULT_GLOBAL_SEARCH_SCRIPTS_ENABLED = True
-DEFAULT_GLOBAL_SEARCH_LEARNING_ENABLED = True
 MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
@@ -764,17 +760,6 @@ def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
     return result
 
 
-def _normalize_search_providers(raw: object) -> list[str]:
-    if not isinstance(raw, list | tuple):
-        return list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
-    supported = set(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
-    normalized: list[str] = []
-    for value in raw:
-        if isinstance(value, str) and value in supported and value not in normalized:
-            normalized.append(value)
-    return normalized or list(DEFAULT_GLOBAL_SEARCH_PROVIDERS)
-
-
 @dataclass
 class Config:
     """Dock configuration with sensible defaults."""
@@ -1071,7 +1056,7 @@ class Config:
         )
         shortcut = str(self.global_search_shortcut).strip()
         self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
-        self.global_search_providers = _normalize_search_providers(
+        self.global_search_providers = normalize_search_providers(
             self.global_search_providers
         )
         self.global_search_max_results = _normalize_int(

@@ -20,6 +20,5 @@ adapts those methods to a stable D-Bus contract.
 
 from docking.ipc.bus_host import DockBusHost
 from docking.ipc.items_service import DockItemsService
-from docking.ipc.search_service import DockSearchService
 
-__all__ = ["DockBusHost", "DockItemsService", "DockSearchService"]
+__all__ = ["DockBusHost", "DockItemsService"]

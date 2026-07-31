@@ -60,6 +60,10 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
 
+    search_pkg = types.ModuleType("docking.search")
+    search_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.search", search_pkg)
+
     stub_modules = {
         "docking.platform.environment": {
             "apply_tweaks": lambda **_kwargs: None,
@@ -105,7 +109,12 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.ipc": {
             "DockBusHost": type("DockBusHost", (), {}),
             "DockItemsService": type("DockItemsService", (), {}),
+        },
+        "docking.search.ipc": {
             "DockSearchService": type("DockSearchService", (), {}),
+        },
+        "docking.search.app_identity": {
+            "application_id": lambda: "org.docking.Docking",
         },
     }
     for module_name, members in stub_modules.items():

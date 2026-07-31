@@ -18,8 +18,8 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
+from docking.ipc.introspection import BUS_NAME
 from docking.log import get_logger
-from docking.platform.app_identity import application_id
 
 log = get_logger("ipc.host")
 
@@ -46,7 +46,7 @@ class DockBusHost:
         name: str | None = None,
         connection: Gio.DBusConnection | None = None,
     ) -> None:
-        self.name = name or application_id()
+        self.name = name or BUS_NAME
         self.connection = connection
         self._acquired = False
         self._interfaces: list[BusInterface] = []

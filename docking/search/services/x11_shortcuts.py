@@ -1,4 +1,4 @@
-"""Dependency-free X11 global shortcuts isolated in a helper process."""
+"""Dependency-free Global Search shortcuts isolated in an X11 helper process."""
 
 from __future__ import annotations
 

@@ -30,8 +30,6 @@ from __future__ import annotations
 BUS_NAME = "org.docking.Docking"
 OBJECT_PATH = "/org/docking/Docking"
 ITEMS_INTERFACE = "org.docking.Docking.Items1"
-SEARCH_OBJECT_PATH = "/org/docking/Docking/Search"
-SEARCH_INTERFACE = "org.docking.Docking.Search1"
 UNKNOWN_METHOD_ERROR = "org.freedesktop.DBus.Error.UnknownMethod"
 
 ITEMS_INTROSPECTION_XML = f"""
@@ -66,21 +64,6 @@ ITEMS_INTROSPECTION_XML = f"""
       <arg name="position" type="s" direction="out"/>
     </method>
     <signal name="Changed"/>
-  </interface>
-</node>
-""".strip()
-
-SEARCH_INTROSPECTION_XML = f"""
-<node>
-  <interface name="{SEARCH_INTERFACE}">
-    <method name="Show">
-      <arg name="initial_query" type="s" direction="in"/>
-      <arg name="activation_context" type="a{{sv}}" direction="in"/>
-    </method>
-    <method name="Hide"/>
-    <method name="Toggle">
-      <arg name="activation_context" type="a{{sv}}" direction="in"/>
-    </method>
   </interface>
 </node>
 """.strip()

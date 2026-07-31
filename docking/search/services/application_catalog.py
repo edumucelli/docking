@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Cached, immutable desktop-application metadata.
+"""Cached, immutable desktop-application metadata for Global Search.
 
 The catalog deliberately performs discovery and Gio monitoring synchronously.
 Callers must create, start, stop, and refresh it on the GTK main thread. The

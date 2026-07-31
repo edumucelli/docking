@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from docking.i18n import _
-from docking.platform.recent_files import RecentFilesCatalog
 from docking.search.coordinator import SearchRequest
 from docking.search.preview import preview_local_descriptor
 from docking.search.providers.base import (
@@ -13,6 +12,7 @@ from docking.search.providers.base import (
     metadata,
     score_fields,
 )
+from docking.search.services.recent_files import RecentFilesCatalog
 from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 

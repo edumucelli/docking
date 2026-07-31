@@ -17,13 +17,13 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
-from docking.ipc.introspection import (
+from docking.log import get_logger
+from docking.search.ipc.introspection import (
     SEARCH_INTERFACE,
     SEARCH_INTROSPECTION_XML,
     SEARCH_OBJECT_PATH,
     UNKNOWN_METHOD_ERROR,
 )
-from docking.log import get_logger
 
 if TYPE_CHECKING:
     from docking.search.presenter import SearchPresenter

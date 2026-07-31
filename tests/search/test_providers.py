@@ -8,11 +8,6 @@ from typing import Any, cast
 from unittest.mock import MagicMock
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND
-from docking.platform.application_catalog import (
-    ApplicationSnapshot,
-    DesktopActionSnapshot,
-    IconDescriptor,
-)
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -21,7 +16,6 @@ from docking.platform.backends.base import (
 )
 from docking.platform.launcher import FileTargetInfo
 from docking.platform.recent_docs import RecentDoc
-from docking.platform.recent_files import RecentFileSnapshot
 from docking.search.coordinator import SearchCancellation, SearchRequest
 from docking.search.providers import (
     ApplicationSearchProvider,
@@ -40,10 +34,16 @@ from docking.search.recognizers.conversion import (
     parse_unit_conversion,
 )
 from docking.search.recognizers.temporal import parse_temporal_query
+from docking.search.services.application_catalog import (
+    ApplicationSnapshot,
+    DesktopActionSnapshot,
+    IconDescriptor,
+)
 from docking.search.services.currency_rates import (
     CurrencyRatesCatalog,
     CurrencyRatesState,
 )
+from docking.search.services.recent_files import RecentFileSnapshot
 from docking.search.services.script_commands import ScriptCommandCatalog
 from docking.search.types import SearchQuery
 

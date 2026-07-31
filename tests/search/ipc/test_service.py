@@ -1,4 +1,4 @@
-"""Tests for Search1 activation and package-aware bus ownership."""
+"""Tests for Search activation and its package-aware bus ownership."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 from gi.repository import GLib
 
 from docking.ipc.bus_host import DockBusHost
-from docking.ipc.introspection import SEARCH_INTERFACE, SEARCH_OBJECT_PATH
-from docking.ipc.search_service import DockSearchService
-from docking.platform.app_identity import application_id
+from docking.search.app_identity import application_id
+from docking.search.ipc.introspection import SEARCH_INTERFACE, SEARCH_OBJECT_PATH
+from docking.search.ipc.service import DockSearchService
 
 
 class _Connection:

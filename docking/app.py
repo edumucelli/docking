@@ -85,13 +85,15 @@ GLib.set_prgname("Docking")
 from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
-from docking.ipc import DockBusHost, DockItemsService, DockSearchService
+from docking.ipc import DockBusHost, DockItemsService
 from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.platform.status_notifier import StatusNotifierNotificationBridge
 from docking.platform.unity import UnityLauncherListener
+from docking.search.app_identity import application_id
+from docking.search.ipc import DockSearchService
 from docking.ui.factory import build_dock_window
 from docking.ui.renderer import DockRenderer
 
@@ -107,7 +109,7 @@ log = with_context(get_logger(name="app"), action="start_runtime")
 def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
-    bus_host = DockBusHost()
+    bus_host = DockBusHost(name=application_id())
     if not bus_host.acquire():
         log.info("Another Docking process owns the session-bus name; exiting")
         return

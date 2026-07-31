@@ -1,4 +1,4 @@
-"""XDG GlobalShortcuts portal integration.
+"""XDG GlobalShortcuts portal integration for Global Search.
 
 The service in this module deliberately has no non-portal fallback.  In
 particular, it never writes compositor or desktop-environment shortcut

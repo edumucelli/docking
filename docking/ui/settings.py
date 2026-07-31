@@ -59,9 +59,6 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
-    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
-    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
-    GLOBAL_SEARCH_WEB_ENGINES,
     MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
     MAX_PRESSURE_THRESHOLD,
@@ -82,6 +79,11 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_PROVIDERS,
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    GLOBAL_SEARCH_WEB_ENGINES,
+)
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:

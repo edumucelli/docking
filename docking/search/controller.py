@@ -18,20 +18,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from docking.core.items import APPLET_KIND
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.app_identity import application_id
-from docking.platform.application_catalog import ApplicationCatalog
-from docking.platform.global_shortcuts import (
-    GlobalShortcutActivation,
-    GlobalShortcutsService,
-    GlobalShortcutsState,
-    GlobalShortcutsStatus,
-)
-from docking.platform.recent_files import RecentFilesCatalog
-from docking.platform.x11_shortcuts import (
-    ShortcutFallback,
-    X11GlobalShortcutService,
-    is_x11_session,
-)
+from docking.search.app_identity import application_id
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
 from docking.search.intents import (
     QueryIntent,
@@ -53,8 +40,21 @@ from docking.search.providers import (
     WebSearchProvider,
     WindowSearchProvider,
 )
+from docking.search.services.application_catalog import ApplicationCatalog
 from docking.search.services.currency_rates import CurrencyRatesCatalog
+from docking.search.services.global_shortcuts import (
+    GlobalShortcutActivation,
+    GlobalShortcutsService,
+    GlobalShortcutsState,
+    GlobalShortcutsStatus,
+)
+from docking.search.services.recent_files import RecentFilesCatalog
 from docking.search.services.script_commands import ScriptCommandCatalog
+from docking.search.services.x11_shortcuts import (
+    ShortcutFallback,
+    X11GlobalShortcutService,
+    is_x11_session,
+)
 from docking.search.types import (
     SearchAction,
     SearchIdentity,

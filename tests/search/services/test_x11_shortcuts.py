@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from docking.platform.x11_shortcuts import (
+from docking.search.services.x11_shortcuts import (
     CONTROL_MASK,
     MOD1_MASK,
     MOD4_MASK,

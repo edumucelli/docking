@@ -1,4 +1,4 @@
-"""Tests for the reusable desktop application catalog."""
+"""Tests for the Global Search desktop application catalog."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import docking.platform.application_catalog as catalog_mod
-from docking.platform.application_catalog import (
+import docking.search.services.application_catalog as catalog_mod
+from docking.search.services.application_catalog import (
     ApplicationCatalog,
     DesktopActionSnapshot,
     IconDescriptor,
