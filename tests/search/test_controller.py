@@ -456,15 +456,6 @@ def test_plain_text_keeps_all_providers_and_ranks_local_match(monkeypatch) -> No
     assert window.snapshots[-1].results[0].score == 250
 
 
-def test_web_fallback_can_be_disabled(monkeypatch) -> None:
-    controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
-    controller._config.global_search_web_fallback = False
-
-    controller.show(initial_query="unlikely-local-match-xyz")
-
-    assert window.snapshots[-1].results == ()
-
-
 def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
     from docking.applets.unitconverter.state import Unit
     from docking.search.services.currency_rates import (

@@ -768,7 +768,6 @@ def _config():
             "path",
         ],
         global_search_max_results=12,
-        global_search_web_fallback=True,
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
@@ -939,7 +938,7 @@ class TestSettingsWindowController:
             "Permission denied"
         )
 
-    def test_web_fallback_settings_are_bound(self, monkeypatch):
+    def test_web_search_engine_setting_is_bound(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
@@ -958,10 +957,7 @@ class TestSettingsWindowController:
 
         controller._global_search_web_engine_combo.set_active_id("google")
         controller._global_search_web_engine_combo.emit_changed()
-        controller._global_search_web_fallback_switch.set_active(False)
-        controller._global_search_web_fallback_switch.emit_notify_active()
         assert config.global_search_web_engine == "google"
-        assert config.global_search_web_fallback is False
         assert controller._global_search_web_engine_combo.sensitive
 
     def test_window_height_is_clamped_to_monitor_workarea(self, monkeypatch):

@@ -1,7 +1,7 @@
 # Global Search
 
 Docking Search combines local providers, high-confidence query recognition,
-utility results, and configurable web fallback. Type what you are looking for;
+utility results, and web fallback. Type what you are looking for;
 provider names and special prefixes are not needed.
 
 Calculations support scientific notation, exponentiation (`2^8`), modulo,

@@ -169,7 +169,6 @@ stored separately in:
 | `global_search_shortcut` | `CTRL+LOGO+space` | captured shortcut | Preferred portal trigger and the active X11 fallback sequence. The desktop portal may retain or assign a different trigger. |
 | `global_search_providers` | all built-ins | list | Enabled provider IDs: `applications`, `dock`, `windows`, `calculator`, `recent-files`, and `path`. |
 | `global_search_max_results` | `12` | `5` to `30` | Maximum result rows displayed by the palette. |
-| `global_search_web_fallback` | `true` | boolean | Offers a web-search result when no strong local result matches. |
 | `global_search_web_engine` | `duckduckgo` | `duckduckgo`, `google`, `brave`, or `bing` | Engine used by fallback searches. |
 
 Click the shortcut button in **Preferences -> Behavior -> Global Search**, then

@@ -47,7 +47,6 @@ class TestConfigDefaults:
         assert c.global_search_enabled is True
         assert c.global_search_shortcut == "CTRL+LOGO+space"
         assert c.global_search_max_results == 12
-        assert c.global_search_web_fallback is True
         assert c.global_search_web_engine == "duckduckgo"
         assert c.global_search_providers == [
             "applications",
@@ -137,7 +136,6 @@ class TestConfigDefaults:
                 {"bad": "value"},
                 "windows",
             ],
-            "global_search_web_fallback": "off",
             "global_search_web_engine": "unknown",
         }
         c = Config(**malformed)
@@ -146,7 +144,6 @@ class TestConfigDefaults:
         assert c.global_search_shortcut == "CTRL+LOGO+space"
         assert c.global_search_max_results == 30
         assert c.global_search_providers == ["windows"]
-        assert c.global_search_web_fallback is False
         assert c.global_search_web_engine == "duckduckgo"
 
 

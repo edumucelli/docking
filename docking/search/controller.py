@@ -446,11 +446,7 @@ class GlobalSearchController:
             for provider_id in self._provider_by_id
             if provider_id in enabled
         ]
-        if (
-            intent.search_text
-            and self._config.global_search_web_fallback
-            and "web" not in provider_ids
-        ):
+        if intent.search_text and "web" not in provider_ids:
             provider_ids.append("web")
         return tuple(provider_ids)
 

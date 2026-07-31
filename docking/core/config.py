@@ -165,7 +165,6 @@ from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
-    DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK,
     GLOBAL_SEARCH_WEB_ENGINES,
     normalize_search_providers,
 )
@@ -862,8 +861,6 @@ class Config:
     )
     # Maximum visible result rows
     global_search_max_results: int = DEFAULT_GLOBAL_SEARCH_MAX_RESULTS
-    # Whether an unmatched query offers a web-search result
-    global_search_web_fallback: bool = DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK
     # Web engine used by fallback searches
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
@@ -1058,10 +1055,6 @@ class Config:
             default=DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
             minimum=5,
             maximum=30,
-        )
-        self.global_search_web_fallback = _normalize_bool(
-            self.global_search_web_fallback,
-            default=DEFAULT_GLOBAL_SEARCH_WEB_FALLBACK,
         )
         web_engine = str(self.global_search_web_engine).strip().casefold()
         self.global_search_web_engine = (

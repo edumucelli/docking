@@ -5413,14 +5413,6 @@ msgstr ""
 msgid "Choose which local sources participate in search."
 msgstr ""
 
-#: docking/ui/settings.py:952
-msgid "Web Fallback"
-msgstr ""
-
-#: docking/ui/settings.py:954
-msgid "Offer a web search when no strong local result matches."
-msgstr ""
-
 #: docking/ui/settings.py:957
 msgid "Search Engine"
 msgstr ""
