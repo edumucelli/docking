@@ -66,6 +66,7 @@ class Desktop(enum.Flag):
     LOUVRE = enum.auto()
     PHOSH = enum.auto()
     JAY = enum.auto()
+    MIRIWAY = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -117,6 +118,7 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "phosh": Desktop.PHOSH,
     "phoc": Desktop.PHOSH,
     "jay": Desktop.JAY,
+    "miriway": Desktop.MIRIWAY,
 }
 
 
