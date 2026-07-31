@@ -1,4 +1,16 @@
-"""Recognize and evaluate inline unit-conversion queries."""
+"""Recognize natural unit conversions without requiring provider keywords.
+
+The grammar accepts a numeric value, source unit, conversion connector, and
+target unit. Static units reuse the unit converter applet's canonical data and
+conversion functions. Currency recognition validates well-known ISO codes but
+does not fetch rates or perform conversion; the currency catalog and provider
+own that stateful work.
+
+Unit aliases are built once from canonical names and symbols, then augmented by
+a short explicit vocabulary for common irregular plurals and spoken forms.
+Both units must resolve to the same category, which prevents plausible but
+meaningless expressions from being routed as conversions.
+"""
 
 from __future__ import annotations
 
@@ -40,11 +52,14 @@ class UnitConversion:
 
     @property
     def formatted_result(self) -> str:
+        """Return the shared unit converter's human-readable result."""
         return format_result(self.result)
 
 
 @dataclass(frozen=True, slots=True)
 class CurrencyConversionRequest:
+    """A validated currency expression awaiting a live rate catalog."""
+
     expression: str
     value: float
     source_code: str
@@ -107,6 +122,9 @@ def _unit_aliases(unit: Unit) -> set[str]:
 
 
 def _unit_index() -> dict[str, tuple[Category, Unit]]:
+    # setdefault preserves the first canonical unit when normalized aliases
+    # collide. Explicit aliases are applied afterward because their intended
+    # symbol is known and should win over a generated spelling.
     index: dict[str, tuple[Category, Unit]] = {}
     explicit_aliases = {
         "feet": "ft",
@@ -146,7 +164,7 @@ _UNITS = _unit_index()
 
 
 def parse_unit_conversion(expression: str) -> UnitConversion | None:
-    """Parse and evaluate ``10 km to mi`` style expressions."""
+    """Parse and evaluate a static ``10 km to mi`` style expression."""
     match = _CONVERSION_RE.fullmatch(expression)
     if match is None:
         return None
@@ -181,7 +199,7 @@ def parse_unit_conversion(expression: str) -> UnitConversion | None:
 def parse_currency_conversion(
     expression: str,
 ) -> CurrencyConversionRequest | None:
-    """Parse ``10 USD to EUR`` without performing network access."""
+    """Parse ``10 USD to EUR`` without loading rates or using the network."""
     match = _CONVERSION_RE.fullmatch(expression)
     if match is None:
         return None

@@ -54,13 +54,21 @@ class RecentFileSnapshot:
 
     @property
     def display_name(self) -> str:
+        """Return the normalized name used for search presentation."""
         return self.name
 
 
 class RecentFilesCatalog:
-    """Main-thread recent-file listing and change watcher."""
+    """Maintain a bounded main-thread snapshot of existing recent files.
+
+    ``Gtk.RecentManager`` entries are transient GObjects, so refresh converts
+    them immediately into frozen Python values. Invalid, private, missing, and
+    duplicate entries are filtered before the most recently modified values
+    are capped. Listeners run only when the resulting immutable tuple changes.
+    """
 
     def __init__(self) -> None:
+        """Initialize an empty snapshot and lazy recent-manager connection."""
         self._manager_factory = Gtk.RecentManager.get_default
         self._uri_launcher = _launch_default_for_uri
         self._max_entries = DEFAULT_MAX_ENTRIES
@@ -80,10 +88,12 @@ class RecentFilesCatalog:
 
     @property
     def started(self) -> bool:
+        """Return whether manager change monitoring is active."""
         return self._started
 
     @property
     def entries(self) -> tuple[RecentFileSnapshot, ...]:
+        """Return the current immutable recent-file sequence."""
         return self._entries
 
     def snapshot(self) -> tuple[RecentFileSnapshot, ...]:
@@ -145,7 +155,7 @@ class RecentFilesCatalog:
             manager.disconnect(handler)
 
     def refresh(self) -> bool:
-        """Synchronously rebuild the listing, returning whether it changed."""
+        """Synchronously rebuild, deduplicate, cap, and publish the listing."""
         manager = self._get_manager()
         if manager is None:
             return False
@@ -257,6 +267,7 @@ def _launch_default_for_uri(uri: str) -> object:
 
 
 def _snapshot_from_item(item: object) -> RecentFileSnapshot | None:
+    """Defensively extract searchable values from one RecentInfo-like object."""
     if not bool(_safe_call(item, "exists", default=False)):
         return None
     uri = _clean_text(_safe_call(item, "get_uri"))

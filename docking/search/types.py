@@ -1,4 +1,16 @@
-"""Immutable, toolkit-free value types for Docking search."""
+"""Define immutable, toolkit-free values shared by every search layer.
+
+Providers, coordinators, services, and GTK presentation communicate through
+these dataclasses rather than callbacks or widgets. Construction validates the
+invariants once, after which snapshots can be retained, compared, ranked, and
+passed between execution contexts safely.
+
+Identities are provider-scoped and stable across reranking. Optional canonical
+keys deduplicate the same entity across providers. Actions are data descriptors
+whose identities return to the owning provider for invocation. Batches carry a
+generation and explicit replace, append, or final semantics so partial work is
+unambiguous.
+"""
 
 from __future__ import annotations
 
@@ -42,6 +54,7 @@ class SearchIdentity:
     key: str
 
     def __post_init__(self) -> None:
+        """Normalize and validate both identity components."""
         object.__setattr__(
             self,
             "provider_id",
@@ -62,13 +75,19 @@ class SearchIdentity:
 
 @dataclass(frozen=True, slots=True)
 class SearchQuery:
-    """One normalized search request from a caller."""
+    """One bounded search request plus string-only provider context.
+
+    Context is an immutable tuple rather than an open mutable mapping. This
+    keeps requests deterministic and prevents providers from communicating by
+    mutating shared query state.
+    """
 
     text: str
     limit: int = 50
     context: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate the limit and freeze string-only context pairs."""
         if not isinstance(self.text, str):
             raise TypeError("text must be a string")
         if isinstance(self.limit, bool) or not isinstance(self.limit, int):
@@ -87,6 +106,7 @@ class SearchQuery:
         return not self.text.strip()
 
     def context_value(self, key: str, default: str = "") -> str:
+        """Return one context value without exposing mutable query state."""
         return dict(self.context).get(key, default)
 
 
@@ -106,6 +126,7 @@ class SearchAction:
     payload: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate action identity, label, verb, and immutable payload."""
         if not isinstance(self.identity, SearchIdentity):
             raise TypeError("identity must be a SearchIdentity")
         if not isinstance(self.label, str) or not self.label.strip():
@@ -134,6 +155,7 @@ class SearchPreview:
     target: str = ""
 
     def __post_init__(self) -> None:
+        """Validate required display text and target transport values."""
         if not self.title.strip():
             raise ValueError("preview title must not be empty")
         if not isinstance(self.body, str):
@@ -144,7 +166,13 @@ class SearchPreview:
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
-    """One ranked result emitted by a provider."""
+    """One immutable ranked result emitted by exactly one provider.
+
+    ``score`` is the provider's base relevance. The coordinator may apply a
+    small bounded learning adjustment without mutating the result. Actions
+    must use the same provider ID so invocation always returns to the component
+    that created the descriptor.
+    """
 
     identity: SearchIdentity
     title: str
@@ -160,6 +188,7 @@ class SearchResult:
     canonical_key: str = ""
 
     def __post_init__(self) -> None:
+        """Validate score, provider ownership, and immutable child values."""
         if not isinstance(self.identity, SearchIdentity):
             raise TypeError("identity must be a SearchIdentity")
         if not isinstance(self.title, str) or not self.title.strip():
@@ -229,6 +258,7 @@ class SearchBatch:
     results: tuple[SearchResult, ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate generation, provider ownership, and batch semantics."""
         object.__setattr__(
             self,
             "provider_id",
@@ -291,12 +321,15 @@ class SearchBatch:
 
     @property
     def replaces(self) -> bool:
+        """Return whether this batch replaces the provider's prior results."""
         return self.kind is SearchBatchKind.REPLACE
 
     @property
     def appends(self) -> bool:
+        """Return whether this batch adds to the provider's prior results."""
         return self.kind is SearchBatchKind.APPEND
 
     @property
     def is_final(self) -> bool:
+        """Return whether this batch marks its provider complete."""
         return self.kind is SearchBatchKind.FINAL

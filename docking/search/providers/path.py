@@ -1,4 +1,14 @@
-"""Direct existing-path results without owning a filesystem index."""
+"""Resolve explicit local paths without crawling or indexing the filesystem.
+
+Participation requires path-shaped syntax such as an absolute path, home
+prefix, relative path, or local file URI. The launcher resolves and validates
+the target, then the provider emits one high-confidence file or folder result.
+Ordinary words never trigger directory traversal.
+
+Opening delegates to the platform launcher, copying uses the shared clipboard
+callback, and preview metadata is bounded by the preview subsystem. The target
+itself is the stable identity and canonical deduplication key.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +25,8 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class PathSearchProvider:
+    """Produce one result for an explicit existing local path."""
+
     provider_id = "path"
 
     def __init__(
@@ -24,11 +36,13 @@ class PathSearchProvider:
         copy_text: Callable[[str], None],
         icon_size: int,
     ) -> None:
+        """Bind path resolution, open, copy, and icon-size dependencies."""
         self._launcher = launcher
         self._copy_text = copy_text
         self._icon_size = icon_size
 
     def search(self, request: SearchRequest):
+        """Resolve and yield one result when the query is an existing path."""
         text = request.query.text.strip()
         target = _path_target(text)
         if target is None:
@@ -79,6 +93,7 @@ class PathSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Dispatch a validated open or copy action for the resolved target."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

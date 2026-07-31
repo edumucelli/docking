@@ -1,4 +1,17 @@
-"""Recognize and safely evaluate inline calculation queries."""
+"""Recognize arithmetic and evaluate a deliberately small safe AST language.
+
+Expressions are parsed with Python's AST parser but are never compiled or
+passed to ``eval``. The evaluator accepts numeric constants, a fixed table of
+operators, named mathematical constants, and explicitly registered functions.
+Attribute access, indexing, comprehensions, containers, lambdas, arbitrary
+names, keyword arguments, and every statement form are rejected.
+
+Length, node-count, exponent, and finite-result limits bound both work and
+numeric growth. Explicit ``=`` input returns structured errors so the UI can
+explain invalid syntax. Implicit input is recognized only when it contains a
+known numeric value and an unmistakable operation, which keeps ordinary text
+out of the calculator provider.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +28,8 @@ _MAX_EXPONENT = 1_000
 
 
 class CalculationError(str, Enum):
+    """Stable user-facing failure categories from safe evaluation."""
+
     INVALID = "invalid"
     DIVISION_BY_ZERO = "division-by-zero"
     DOMAIN = "domain"
@@ -24,6 +39,8 @@ class CalculationError(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class CalculationValue:
+    """A parsed expression with either a formatted answer or one error."""
+
     expression: str
     answer: str = ""
     error: CalculationError | None = None
@@ -83,6 +100,9 @@ def _finite(value: float) -> float:
 
 
 def _evaluate_node(node: ast.AST) -> float:
+    # This explicit dispatcher is the security boundary. New AST node types
+    # must remain rejected unless their complete behavior is understood and
+    # covered by the same complexity and finite-number limits.
     if isinstance(node, ast.Expression):
         return _evaluate_node(node.body)
     if (
@@ -185,7 +205,7 @@ def _format_answer(value: float) -> str:
 
 
 def recognize_calculation(text: str) -> CalculationValue | None:
-    """Recognize explicit or unambiguous implicit calculation input."""
+    """Recognize and safely evaluate explicit or unambiguous arithmetic."""
     stripped = text.strip()
     explicit = stripped.startswith("=")
     expression = stripped.removeprefix("=").strip() if explicit else stripped

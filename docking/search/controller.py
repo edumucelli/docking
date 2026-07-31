@@ -1,4 +1,18 @@
-"""Process-wide search orchestration and GTK presentation lifecycle."""
+"""Join search policy, providers, services, shortcuts, and GTK presentation.
+
+The controller is the process-wide composition root for global search. It owns
+one instance of each catalog and provider, translates text into a query intent,
+schedules providers cooperatively on the GTK main loop, and publishes merged
+snapshots to the window. Providers remain unaware of GTK, shortcut transport,
+and one another.
+
+Every query starts a coordinator generation. A callback, preview, action, or
+provider batch is accepted only while it still belongs to the active
+generation. This rule is what makes rapid typing safe even when catalog work,
+currency loading, or image decoding completes later. The controller also owns
+the XDG portal shortcut and starts the X11 helper only when the portal is
+unavailable on an X11 session.
+"""
 
 from __future__ import annotations
 
@@ -79,7 +93,14 @@ if TYPE_CHECKING:
 
 
 class GlobalSearchController:
-    """Own catalogs, providers, shortcut registration, and the search window."""
+    """Own the complete runtime lifecycle of the global search feature.
+
+    The object is long lived and must be created and used on the GTK main
+    thread. ``start`` activates catalogs and shortcut registration. Showing the
+    window starts query generations but does not create another controller.
+    ``stop`` tears down external subscriptions, background services, helper
+    processes, caches, and the window.
+    """
 
     def __init__(
         self,
@@ -90,6 +111,7 @@ class GlobalSearchController:
         windows: WindowService,
         preview_service: PreviewService,
     ) -> None:
+        """Compose providers and services around the injected Docking runtime."""
         self._config = config
         self._model = model
         self._windows = windows
@@ -112,6 +134,9 @@ class GlobalSearchController:
         ] = {}
 
         copy_text = self._copy_text
+        # Provider order is a deterministic tie breaker in SearchCoordinator.
+        # Utility providers can be absent from the ordinary provider tuple and
+        # still be selected directly by the intent router.
         providers: tuple[InvokableSearchProvider, ...] = (
             ApplicationSearchProvider(
                 catalog=self._application_catalog,
@@ -158,13 +183,16 @@ class GlobalSearchController:
 
     @property
     def visible(self) -> bool:
+        """Return whether the shared search window is currently visible."""
         return self.window.visible
 
     @property
     def shortcut_status(self) -> GlobalShortcutsStatus | None:
+        """Return the latest portal status, if the portal has reported one."""
         return self._shortcut_status
 
     def shortcut_status_text(self) -> str:
+        """Return detailed shortcut status suitable for a diagnostic tooltip."""
         if self._shortcut_fallback is not None and self._shortcut_fallback.active:
             return _("Active: {shortcut} (X11)").format(
                 shortcut=shortcut_label(self._config.global_search_shortcut)
@@ -201,6 +229,7 @@ class GlobalSearchController:
         return _("Not active")
 
     def shortcut_status_summary(self) -> str:
+        """Return the short shortcut state displayed below Preferences."""
         if self._shortcut_fallback is not None:
             if self._shortcut_fallback.active:
                 return _("Active")
@@ -236,6 +265,7 @@ class GlobalSearchController:
         self,
         listener: Callable[[], None],
     ) -> Callable[[], None]:
+        """Subscribe to status changes and return an idempotent unsubscriber."""
         if listener not in self._shortcut_status_listeners:
             self._shortcut_status_listeners.append(listener)
 
@@ -252,11 +282,13 @@ class GlobalSearchController:
         self._notify_shortcut_status()
 
     def resume_shortcuts(self) -> None:
+        """Restore shortcut services after capture or another temporary pause."""
         self._shortcut_suspended = False
         if self._started and self._config.global_search_enabled:
             self._start_shortcut_services()
 
     def start(self) -> None:
+        """Start catalogs and register the process-wide keyboard shortcut."""
         if self._started:
             return
         self._started = True
@@ -272,6 +304,7 @@ class GlobalSearchController:
             self._start_shortcut_services()
 
     def stop(self) -> None:
+        """Release every resource owned by the global search subsystem."""
         if not self._started:
             return
         self._started = False
@@ -293,6 +326,12 @@ class GlobalSearchController:
         initial_query: str = "",
         activation_context: dict[str, object] | None = None,
     ) -> None:
+        """Present the palette and optionally seed its editable query.
+
+        ``activation_context`` carries platform metadata such as an X11 event
+        timestamp. The window uses it only for correct focus and presentation;
+        it is not forwarded to providers or persisted.
+        """
         if not self._config.global_search_enabled:
             return
         self._current_query = initial_query
@@ -303,19 +342,21 @@ class GlobalSearchController:
         self._search(initial_query)
 
     def hide(self) -> None:
+        """Hide the reusable palette without destroying its resources."""
         self.window.hide()
 
     def toggle(
         self,
         activation_context: dict[str, object] | None = None,
     ) -> None:
+        """Hide a visible palette or present a hidden one."""
         if self.visible:
             self.hide()
         else:
             self.show(activation_context=activation_context)
 
     def refresh_settings(self) -> None:
-        """Rebuild provider routing after settings change."""
+        """Rebuild runtime pieces affected by supported search preferences."""
         self._coordinator = self._new_coordinator()
         shortcut_preferences = self._current_shortcut_preferences()
         if self._started and shortcut_preferences != self._shortcut_preferences:
@@ -369,6 +410,7 @@ class GlobalSearchController:
         self,
         provider_ids: tuple[str, ...] | None = None,
     ) -> SearchCoordinator:
+        """Replace the coordinator with exactly the providers for one intent."""
         previous = getattr(self, "_coordinator", None)
         if previous is not None and previous.request is not None:
             previous.cancel()
@@ -385,6 +427,7 @@ class GlobalSearchController:
         )
 
     def _search(self, text: str) -> None:
+        """Route one entry value and schedule its providers in stable order."""
         if not self.visible:
             return
         self._current_query = text
@@ -423,6 +466,7 @@ class GlobalSearchController:
             )
 
     def _provider_ids_for_intent(self, intent: QueryIntent) -> tuple[str, ...]:
+        """Return exclusive utility routing or the ordinary provider set."""
         if intent.provider_ids:
             return tuple(
                 provider_id
@@ -466,6 +510,13 @@ class GlobalSearchController:
         provider_ids: tuple[str, ...],
         index: int,
     ) -> bool:
+        """Run one provider and queue the next while the request is current.
+
+        Providers are intentionally advanced one at a time through idle
+        callbacks. This keeps GTK ownership simple, allows each batch to update
+        the window promptly, and gives newer input a cancellation point between
+        providers.
+        """
         if coordinator is not self._coordinator or not coordinator.is_current(
             request.generation
         ):
@@ -555,6 +606,7 @@ class GlobalSearchController:
         result: SearchResult,
         result_action: SearchAction,
     ) -> None:
+        """Invoke an action only if its provider and generation remain valid."""
         provider = self._provider_by_id.get(result.identity.provider_id)
         if provider is None:
             return

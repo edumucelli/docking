@@ -1,4 +1,11 @@
-"""Date and time-zone utility search results."""
+"""Present recognized dates, current times, and time-zone conversions.
+
+Temporal parsing is isolated in a pure recognizer that returns already
+formatted, immutable values. The provider converts exactly one recognized
+value into a high-confidence result and stores its copy text behind the
+canonical temporal key. It does not perform broad text matching and therefore
+runs only when intent routing has confidently selected it.
+"""
 
 from __future__ import annotations
 
@@ -16,13 +23,17 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class TemporalSearchProvider:
+    """Produce one temporal utility result and own its copy action."""
+
     provider_id = "datetime"
 
     def __init__(self, *, copy_text: Callable[[str], None]) -> None:
+        """Store the clipboard callback and initialize the active value cache."""
         self._copy_text = copy_text
         self._values: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
+        """Yield one recognized and fully evaluated temporal result."""
         value = (
             request.recognized
             if isinstance(request.recognized, TemporalValue)
@@ -69,6 +80,7 @@ class TemporalSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Copy the cached temporal value for a validated action."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

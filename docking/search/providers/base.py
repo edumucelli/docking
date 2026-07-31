@@ -1,4 +1,11 @@
-"""Shared contracts and matching helpers for built-in search providers."""
+"""Define the provider action contract and shared construction helpers.
+
+Results and actions cross the coordinator as plain immutable data. The helper
+functions here keep identity encoding, metadata filtering, and field scoring
+consistent across providers. Action identities encode an entity and action ID
+with a separator that cannot be confused with display text; invocation decodes
+the same identity and never trusts a row index or label.
+"""
 
 from __future__ import annotations
 
@@ -19,14 +26,18 @@ class InvokableSearchProvider(SearchProvider, Protocol):
         *,
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
-    ) -> bool: ...
+    ) -> bool:
+        """Validate and execute one action previously emitted by this provider."""
+        ...
 
 
 def metadata(**values: str) -> tuple[tuple[str, str], ...]:
+    """Return non-empty metadata values in immutable transport form."""
     return tuple((key, value) for key, value in values.items() if value)
 
 
 def metadata_dict(result: SearchResult) -> dict[str, str]:
+    """Materialize result metadata for provider-local dispatch code."""
     return dict(result.metadata)
 
 
@@ -38,6 +49,7 @@ def action(
     label: str,
     verb: str = "activate",
 ) -> SearchAction:
+    """Build an action whose identity can be decoded by its owning provider."""
     return SearchAction(
         identity=SearchIdentity(provider_id, f"{entity_id}\x1f{action_id}"),
         label=label,
@@ -47,6 +59,7 @@ def action(
 
 
 def action_parts(identity: SearchIdentity) -> tuple[str, str] | None:
+    """Decode the entity and action IDs from a provider-owned action."""
     parts = identity.key.rsplit("\x1f", 1)
     if len(parts) != 2 or not all(parts):
         return None
@@ -60,6 +73,7 @@ def score_fields(
     source_boost: float = 0,
     state_boost: float = 0,
 ) -> float | None:
+    """Return the best shared matcher score across provider-owned fields."""
     matched = best_match(
         request.query,
         (field for field in fields if field),
@@ -70,6 +84,7 @@ def score_fields(
 
 
 def is_special_query(text: str) -> bool:
+    """Return whether text is reserved for a recognizer-routed utility."""
     stripped = text.strip()
     return stripped.startswith(("=", "/", "~/", "./", "../", "file://"))
 

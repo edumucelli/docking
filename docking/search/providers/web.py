@@ -1,4 +1,15 @@
-"""Detected URL and configurable web-search results."""
+"""Present direct web targets and the bounded ordinary-query web fallback.
+
+Direct URLs, domains, IP addresses, and email addresses are recognized before
+provider execution and receive high-confidence actions. Ordinary text produces
+a search-engine URL with a deliberately low score, or a stronger bounded score
+when it has a clear question form. The controller suppresses this fallback if
+a strong local result already exists.
+
+The provider never performs a network request. It only constructs a target for
+the platform launcher or clipboard, and caches that target behind a hashed
+identity for safe action dispatch.
+"""
 
 from __future__ import annotations
 
@@ -14,13 +25,17 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class WebSearchProvider:
+    """Produce direct-target or search-engine results without fetching them."""
+
     provider_id = "web"
 
     def __init__(self, *, copy_text: Callable[[str], None]) -> None:
+        """Bind clipboard output and initialize the active target cache."""
         self._copy_text = copy_text
         self._targets: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
+        """Yield a direct target or one configured search-engine fallback."""
         text = request.query.text.strip()
         self._targets = {}
         if not text:
@@ -131,6 +146,7 @@ class WebSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Open or copy the cached target for a validated web action."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

@@ -1,4 +1,16 @@
-"""Deterministic text matching and scoring for global search providers."""
+"""Provide shared Unicode-aware text matching and tiered relevance scores.
+
+All ordinary providers use this module so an application, window, recent file,
+and dock item interpret text consistently. Input is normalized with Unicode
+compatibility normalization, case folding, and whitespace collapse. Matching
+then proceeds through exact, prefix, token-start, substring, and ordered fuzzy
+tiers.
+
+Tier base scores have intentionally large gaps. Candidate quality and bounded
+provider hints can order results inside a tier, but cannot promote a weaker
+text relationship above a stronger one. Usage learning is applied later by the
+coordinator and is bounded below the same tier gaps.
+"""
 
 from __future__ import annotations
 
@@ -46,6 +58,10 @@ class TextMatch:
     positions: tuple[int, ...]
     normalized_query: str
     normalized_candidate: str
+
+    # Positions refer to normalized text, not the original display string.
+    # They support score quality and remain available for future highlighting
+    # without changing the provider contract.
 
 
 def normalize_search_text(value: str) -> str:

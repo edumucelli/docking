@@ -1,4 +1,16 @@
-"""Recognize and evaluate date and time-zone queries."""
+"""Recognize dates, current times, and conversions across IANA time zones.
+
+Time-zone names come from :func:`zoneinfo.available_timezones`, not a fixed
+city alias table. The module builds normalized indexes for fully qualified IANA
+names and for short city components. A short alias is accepted only when it is
+unique across the installed zone database, so convenient input such as
+``time in Sao Paulo`` does not make ambiguous city names arbitrary.
+
+The parser also accepts bounded UTC offsets, relative dates, weekday phrases,
+ISO dates, local time, current time in a zone, and explicit time conversion.
+All results include canonical keys and copy text. Supplying ``now`` makes date
+and daylight-saving behavior deterministic in tests.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +27,8 @@ from docking.i18n import _
 
 
 class TemporalKind(str, Enum):
+    """Semantic temporal result categories used by presentation."""
+
     DATE = "date"
     CURRENT_TIME = "current-time"
     TIME_CONVERSION = "time-conversion"
@@ -22,6 +36,8 @@ class TemporalKind(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class TemporalValue:
+    """A fully evaluated temporal answer ready for provider presentation."""
+
     kind: TemporalKind
     title: str
     description: str
@@ -41,6 +57,7 @@ def _normalize_timezone_name(value: str) -> str:
 def _build_timezone_indexes(
     zones: Iterable[str],
 ) -> tuple[dict[str, str], dict[str, str]]:
+    """Build qualified aliases and only the globally unique short aliases."""
     qualified: dict[str, str] = {}
     short_candidates: defaultdict[str, set[str]] = defaultdict(set)
     for zone_name in sorted(set(zones)):
@@ -59,6 +76,9 @@ def _build_timezone_indexes(
 _QUALIFIED_TIMEZONES, _UNIQUE_TIMEZONE_ALIASES = _build_timezone_indexes(
     available_timezones()
 )
+# Index construction is intentionally process-wide. The IANA database is
+# effectively immutable during one process lifetime, and rebuilding thousands
+# of aliases on each keystroke would make recognition unnecessarily expensive.
 _DATE_TEXT = r"\d{4}[-/]\d{1,2}[-/]\d{1,2}"
 _RELATIVE_DATE_RE = re.compile(
     r"^(?:in\s+(?P<future>\d+)\s+(?P<future_unit>days?|weeks?)|"
@@ -101,6 +121,7 @@ _TIME_CONVERSION_RE = re.compile(
 
 
 def _resolve_timezone(value: str) -> tuple[str, dt.tzinfo] | None:
+    """Resolve a safe UTC offset, qualified IANA name, or unique city alias."""
     normalized = _normalize_timezone_name(value.strip())
     offset_match = _UTC_OFFSET_RE.fullmatch(normalized)
     if offset_match is not None:
@@ -269,7 +290,7 @@ def parse_temporal_query(
     *,
     now: dt.datetime | None = None,
 ) -> TemporalValue | None:
-    """Recognize ISO/relative dates and common time-zone expressions."""
+    """Recognize and evaluate one supported date or time-zone expression."""
     stripped = text.strip()
     if not stripped:
         return None

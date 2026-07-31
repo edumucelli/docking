@@ -1,4 +1,16 @@
-"""Safe bounded text previews for local search targets."""
+"""Build safe, bounded previews for local files and provider descriptors.
+
+Search results can point at untrusted, very large, changing, or non-text files.
+Preview construction therefore validates file type and size before reading,
+caps every read, limits archive traversal, decodes text defensively, and never
+executes file content. Image files return a descriptor for the separate image
+loader because pixbuf decoding belongs off the main GTK update path.
+
+Provider-supplied descriptors use the same :class:`SearchPreview` value type
+as filesystem previews. Keeping preview data toolkit-free lets providers cache
+it without retaining widgets and lets the window decide how each kind is
+rendered.
+"""
 
 from __future__ import annotations
 
@@ -71,6 +83,7 @@ _ARCHIVE_SUFFIXES = (
 
 
 def local_path_from_target(target: str) -> Path | None:
+    """Return a local path for plain paths and local ``file`` URIs only."""
     parsed = urlparse(target)
     if parsed.scheme == "file":
         return Path(unquote(parsed.path))
@@ -84,6 +97,7 @@ def preview_local_target(
     target: str,
     title: str,
 ) -> SearchPreview:
+    """Inspect a local target and return a bounded preview or safe fallback."""
     path = local_path_from_target(target)
     if path is None:
         return SearchPreview(title=title, body=target, kind="uri")
@@ -168,7 +182,12 @@ def preview_local_descriptor(
     target: str,
     title: str,
 ) -> SearchPreview:
-    """Build cheap metadata for rows; expensive content stays lazy."""
+    """Build cheap row metadata while leaving expensive content lazy.
+
+    The descriptor is safe to create during result production. Full file reads
+    happen only after the user requests a preview, and image decoding remains
+    the responsibility of the thumbnail service.
+    """
     path = local_path_from_target(target)
     if path is None:
         return SearchPreview(
@@ -261,7 +280,7 @@ def _markdown_preview(body: str) -> str:
             continue
         heading = re.sub(r"^#{1,6}\s+", "", line)
         bullet = re.sub(r"^\s*[-*+]\s+", "• ", heading)
-        links = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 — \2", bullet)
+        links = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 - \2", bullet)
         rendered.append(links.replace("**", "").replace("__", ""))
     return "\n".join(rendered).strip()
 

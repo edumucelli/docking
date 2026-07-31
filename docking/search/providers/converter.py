@@ -1,4 +1,16 @@
-"""Implicit static-unit conversion results."""
+"""Present recognized static-unit and live-currency conversions.
+
+Static conversions use the unit converter's local definitions and can return a
+result immediately. Currency conversions share a lazy catalog whose first
+matching query starts a background rate load. Loading and error states are
+represented as ordinary results, and catalog notifications cause the visible
+query to run again when fresh rates arrive.
+
+The provider reuses recognized values supplied by intent routing. Parsing only
+occurs as a defensive fallback for direct provider use. Displayed answers are
+cached behind stable identities so action payloads do not need to duplicate
+formatted values.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +34,8 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class ConverterSearchProvider:
+    """Produce unit or currency answers and own their copy and retry actions."""
+
     provider_id = "converter"
 
     def __init__(
@@ -30,11 +44,13 @@ class ConverterSearchProvider:
         copy_text: Callable[[str], None],
         currency_rates: CurrencyRatesCatalog,
     ) -> None:
+        """Bind clipboard output and the shared lazy currency catalog."""
         self._copy_text = copy_text
         self._currency_rates = currency_rates
         self._answers: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
+        """Yield a static answer or the current live-currency result state."""
         recognized = request.recognized
         if isinstance(recognized, UnitConversion):
             conversion = recognized
@@ -196,6 +212,7 @@ class ConverterSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Dispatch a validated copy or currency-retry action."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

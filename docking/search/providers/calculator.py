@@ -1,4 +1,15 @@
-"""Explicit ``=`` calculator results using Docking's safe AST evaluator."""
+"""Turn recognized arithmetic into copyable calculator results.
+
+Evaluation is delegated to the safe AST recognizer. This provider never calls
+Python ``eval`` and never executes names outside the recognizer's fixed
+operation table. Both valid values and structured errors become results, so an
+explicit but incomplete expression receives useful feedback instead of
+silently falling back to unrelated fuzzy matches.
+
+Answers are cached by a hash-based result identity for the active result set.
+Invocation can therefore copy the exact displayed answer without placing raw
+expressions inside action payloads.
+"""
 
 from __future__ import annotations
 
@@ -17,13 +28,17 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class CalculatorSearchProvider:
+    """Present recognized calculations and own their copy action."""
+
     provider_id = "calculator"
 
     def __init__(self, *, copy_text: Callable[[str], None]) -> None:
+        """Store the clipboard callback used by emitted copy actions."""
         self._copy_text = copy_text
         self._answers: dict[str, str] = {}
 
     def search(self, request: SearchRequest):
+        """Yield a calculation answer or a structured explicit-input error."""
         text = request.query.text.strip()
         self._answers = {}
         value = (
@@ -91,6 +106,7 @@ class CalculatorSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Copy the cached answer for a validated result and action identity."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

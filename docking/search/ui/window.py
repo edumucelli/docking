@@ -6,7 +6,20 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-"""Focusable GTK presentation for Docking's unified search results."""
+"""Present immutable search snapshots in one reusable focusable GTK window.
+
+The window owns widgets and keyboard interaction only. Query changes,
+selection, primary activation, contextual actions, refinement, and lazy
+preview resolution are callbacks into the controller. It never invokes a
+provider or changes ranking itself.
+
+Results are rebuilt from each immutable snapshot and selection is restored by
+stable identity. The search entry remains the primary typing target while the
+preview panel is visible. The action panel intentionally moves focus to its own
+filter and restores search focus when closed. Row image thumbnails decode on a
+single worker, then return through the GTK idle loop with a result-generation
+check so stale rows are never mutated.
+"""
 
 from __future__ import annotations
 
@@ -53,6 +66,8 @@ def _format_file_size(size: int) -> str:
 
 
 class _ResultRow(Gtk.ListBoxRow):
+    """Render one immutable result without owning activation behavior."""
+
     def __init__(
         self,
         result: SearchResult,
@@ -99,6 +114,8 @@ class _ResultRow(Gtk.ListBoxRow):
 
 
 class _ActionRow(Gtk.ListBoxRow):
+    """Render one provider-owned action and retain its immutable descriptor."""
+
     def __init__(self, action: SearchAction) -> None:
         super().__init__()
         self.action = action
@@ -115,7 +132,12 @@ class _ActionRow(Gtk.ListBoxRow):
 
 
 class SearchWindow:
-    """Own one reusable search toplevel and its keyboard interaction."""
+    """Own one reusable palette, side panels, and keyboard interaction model.
+
+    The toplevel is hidden rather than recreated between activations. Destroy
+    is reserved for controller shutdown because it also terminates thumbnail
+    work and clears image caches.
+    """
 
     def __init__(
         self,
@@ -132,6 +154,7 @@ class SearchWindow:
         ),
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
     ) -> None:
+        """Construct the reusable toplevel and bind controller callbacks."""
         self._launcher = launcher
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
@@ -286,6 +309,7 @@ class SearchWindow:
 
     @property
     def visible(self) -> bool:
+        """Return whether GTK currently considers the toplevel visible."""
         return bool(self.window.get_visible())
 
     def present(
@@ -294,6 +318,7 @@ class SearchWindow:
         initial_query: str = "",
         activation_context: dict[str, object] | None = None,
     ) -> None:
+        """Show the palette with correct activation metadata and search focus."""
         context = activation_context or {}
         startup_id = str(
             context.get("XDG_ACTIVATION_TOKEN")
@@ -322,15 +347,18 @@ class SearchWindow:
             self.window.present()
 
     def hide(self) -> None:
+        """Hide the toplevel while preserving reusable widget state."""
         self.window.hide()
 
     def destroy(self) -> None:
+        """Invalidate async image work, stop its executor, and destroy GTK state."""
         self._result_generation += 1
         self._thumbnail_executor.shutdown(wait=False, cancel_futures=True)
         self._image_cache.clear()
         self.window.destroy()
 
     def set_query(self, text: str) -> None:
+        """Synchronize entry text without reporting a synthetic user edit."""
         if self.search_entry.get_text() == text:
             return
         self._syncing_query = True
@@ -340,6 +368,7 @@ class SearchWindow:
             self._syncing_query = False
 
     def update(self, snapshot: SearchSnapshot) -> None:
+        """Replace visible rows from one authoritative coordinator snapshot."""
         self._results = snapshot.results
         self._selected_identity = snapshot.selected_identity
         self._result_generation += 1
@@ -391,6 +420,7 @@ class SearchWindow:
         path: str,
         generation: int,
     ) -> None:
+        """Decode one row thumbnail off the GTK thread at most once per generation."""
         pending_key = (path, SEARCH_ICON_SIZE, generation)
         if pending_key in self._pending_thumbnails:
             return
@@ -418,6 +448,7 @@ class SearchWindow:
         pending_key: tuple[str, int, int],
         generation: int,
     ) -> bool:
+        """Apply a completed thumbnail only to a row from the current snapshot."""
         self._pending_thumbnails.discard(pending_key)
         if generation != self._result_generation or row.get_parent() is None:
             return False
@@ -430,15 +461,18 @@ class SearchWindow:
         return False
 
     def selected_result(self) -> SearchResult | None:
+        """Return the immutable result retained by the selected row."""
         row = self.results_list.get_selected_row()
         return row.result if isinstance(row, _ResultRow) else None
 
     def activate_selected(self) -> None:
+        """Report primary activation for the selected result, if any."""
         result = self.selected_result()
         if result is not None:
             self._on_result_activated(result)
 
     def toggle_actions(self) -> None:
+        """Open or close the contextual action panel for the selected result."""
         if self.action_frame.get_visible():
             self._hide_actions(focus_search=True)
             return
@@ -448,6 +482,7 @@ class SearchWindow:
         self.show_actions_for(result)
 
     def show_actions_for(self, result: SearchResult) -> None:
+        """Populate and focus the action panel for an already refined result."""
         self._hide_preview()
         self._sync_actions(result)
         self.action_frame.show_all()
@@ -461,6 +496,7 @@ class SearchWindow:
             self.search_entry.grab_focus()
 
     def toggle_preview(self) -> None:
+        """Toggle preview while deliberately keeping typing in the search entry."""
         if self.preview_frame.get_visible():
             self._hide_preview()
             return
@@ -475,6 +511,7 @@ class SearchWindow:
         self.preview_frame.hide()
 
     def _sync_preview(self) -> None:
+        """Resolve cheap or lazy preview data for the current stable selection."""
         result = self.selected_result()
         if result is None:
             self.preview_title.set_label("")
@@ -634,6 +671,7 @@ class SearchWindow:
             self._on_action_row_activated(self.actions_list, row)
 
     def _on_key_press(self, _window: Gtk.Window, event: Gdk.EventKey) -> bool:
+        """Implement palette navigation without stealing ordinary text input."""
         if event.keyval == Gdk.KEY_Escape:
             if self.action_frame.get_visible():
                 self._hide_actions(focus_search=True)

@@ -81,9 +81,18 @@ class ApplicationSnapshot:
 
 
 class ApplicationCatalog:
-    """Main-thread cache of applications keyed by desktop ID."""
+    """Maintain a main-thread application cache keyed by desktop ID.
+
+    Gio application and directory monitors can emit several signals for one
+    filesystem change. The catalog coalesces those signals through a short
+    timeout, rebuilds plain snapshots synchronously, and notifies listeners
+    only when the published value changes. A generation identifies each
+    distinct snapshot, while a lifecycle token prevents a queued timeout from
+    an earlier start cycle from mutating a restarted or stopped catalog.
+    """
 
     def __init__(self) -> None:
+        """Initialize empty snapshots, monitor factories, and debounce state."""
         self._application_source = all_desktop_app_infos
         self._desktop_directories_source = desktop_entries.desktop_dirs
         self._app_monitor_factory = Gio.AppInfoMonitor.get
@@ -112,6 +121,7 @@ class ApplicationCatalog:
 
     @property
     def started(self) -> bool:
+        """Return whether filesystem and application monitoring is active."""
         return self._started
 
     @property
@@ -172,7 +182,13 @@ class ApplicationCatalog:
         self._cancel_directory_monitors()
 
     def refresh(self) -> bool:
-        """Synchronously rebuild the cache, returning whether it changed."""
+        """Synchronously rebuild and publish the cache if its value changed.
+
+        Individual malformed desktop entries are skipped so one third-party
+        file cannot make the entire application provider unavailable. Duplicate
+        desktop IDs keep the first discovered snapshot, then final ordering is
+        deterministic by normalized name and ID.
+        """
         try:
             entries = tuple(self._application_source())
         except Exception as exc:
@@ -293,6 +309,7 @@ class ApplicationCatalog:
         self._queue_refresh()
 
     def _queue_refresh(self) -> None:
+        """Coalesce monitor bursts into one lifecycle-checked refresh."""
         if not self._started or self._debounce_source_id is not None:
             return
         lifecycle_token = self._lifecycle_token

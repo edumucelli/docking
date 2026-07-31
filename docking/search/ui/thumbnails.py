@@ -1,4 +1,17 @@
-"""Bounded, modification-aware image loading for Global Search previews."""
+"""Decode bounded image previews with modification-aware LRU caching.
+
+Files are validated by size before GdkPixbuf sees them. Header dimensions and
+total pixel count are checked before full decoding, output is scaled to the
+requested box without enlargement, and embedded orientation is applied.
+Failures are cached as ``None`` so a corrupt result row does not repeatedly
+attempt expensive decoding.
+
+Cache keys include the path string, modification timestamp, file size, and
+requested dimensions. A changed file or a larger preview therefore receives a
+fresh decode, while repeated snapshots reuse the existing pixbuf. The cache is
+protected because row thumbnails are loaded by a worker executor and preview
+panels can read it from the GTK thread.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +34,8 @@ DEFAULT_CACHE_ENTRIES = 128
 
 @dataclass(frozen=True, slots=True)
 class LoadedSearchImage:
+    """A decoded pixbuf plus original image metadata for presentation."""
+
     pixbuf: GdkPixbuf.Pixbuf
     width: int
     height: int
@@ -29,9 +44,10 @@ class LoadedSearchImage:
 
 
 class SearchImageCache:
-    """Decode each unchanged image at a requested size only once."""
+    """Decode each unchanged image and target size at most once per cache."""
 
     def __init__(self) -> None:
+        """Initialize an empty bounded LRU including negative cache entries."""
         self._max_entries = DEFAULT_CACHE_ENTRIES
         self._entries: OrderedDict[
             tuple[str, int, int, int, int],
@@ -46,6 +62,7 @@ class SearchImageCache:
         max_width: int,
         max_height: int,
     ) -> LoadedSearchImage | None:
+        """Return a cached bounded decode, or none for unsupported input."""
         file_path = Path(path)
         try:
             stat = file_path.stat()
@@ -84,6 +101,7 @@ class SearchImageCache:
             return loaded
 
     def clear(self) -> None:
+        """Discard all successful and failed decode entries."""
         with self._lock:
             self._entries.clear()
 
@@ -95,6 +113,7 @@ def _load_image(
     max_width: int,
     max_height: int,
 ) -> LoadedSearchImage | None:
+    """Validate dimensions before decoding one file into a scaled pixbuf."""
     try:
         image_format, width, height = GdkPixbuf.Pixbuf.get_file_info(str(path))
         if (

@@ -1,4 +1,14 @@
-"""Lazy background service for live currency conversion factors."""
+"""Load live currency factors lazily without blocking the search UI.
+
+No network work occurs until a recognized currency query needs rates. The
+first request starts one background loader; concurrent queries observe the
+same loading state. Ready values remain usable for a bounded time and can be
+refreshed in the background without discarding the previous snapshot.
+
+A generation invalidates callbacks after retry or stop, and completion is
+marshalled through the injected GTK idle scheduler. Listeners receive only a
+state-change notification and read the immutable unit tuple separately.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +31,8 @@ _DEFAULT_CURRENCY_TTL_SECONDS = 60 * 60
 
 
 class CurrencyRatesState(str, Enum):
+    """Observable loading states consumed by the converter provider."""
+
     IDLE = "idle"
     LOADING = "loading"
     READY = "ready"
@@ -28,13 +40,14 @@ class CurrencyRatesState(str, Enum):
 
 
 class CurrencyRatesCatalog:
-    """Fetch rates only after a currency query is entered."""
+    """Own one lazy, expiring currency-rate snapshot and its loader thread."""
 
     def __init__(
         self,
         *,
         schedule_idle: IdleScheduler,
     ) -> None:
+        """Initialize an idle catalog with an injected main-loop scheduler."""
         self._schedule_idle = schedule_idle
         self._loader = fetch_currency_rates
         self._ttl_seconds = _DEFAULT_CURRENCY_TTL_SECONDS
@@ -49,21 +62,26 @@ class CurrencyRatesCatalog:
 
     @property
     def state(self) -> CurrencyRatesState:
+        """Return the current observable load state."""
         return self._state
 
     @property
     def units(self) -> tuple[Unit, ...]:
+        """Return the latest immutable currency unit snapshot."""
         return self._units
 
     def add_listener(self, listener: Listener) -> None:
+        """Subscribe once to catalog state or value changes."""
         if listener not in self._listeners:
             self._listeners.append(listener)
 
     def remove_listener(self, listener: Listener) -> None:
+        """Remove a previously subscribed listener if present."""
         if listener in self._listeners:
             self._listeners.remove(listener)
 
     def ensure_loaded(self) -> None:
+        """Start loading only when no current or fresh snapshot satisfies use."""
         with self._lock:
             if self._state is CurrencyRatesState.LOADING or self._refreshing:
                 return
@@ -86,12 +104,14 @@ class CurrencyRatesCatalog:
         ).start()
 
     def retry(self) -> None:
+        """Invalidate an error or stale load and start a fresh generation."""
         with self._lock:
             self._state = CurrencyRatesState.IDLE
         self.ensure_loaded()
         self._notify()
 
     def stop(self) -> None:
+        """Invalidate pending completion callbacks and reset loading state."""
         with self._lock:
             self._generation += 1
             if self._state is CurrencyRatesState.LOADING:
@@ -105,6 +125,7 @@ class CurrencyRatesCatalog:
         source_code: str,
         target_code: str,
     ) -> float | None:
+        """Convert with the current immutable rates, returning none if unavailable."""
         factors = {
             unit.symbol.upper(): unit.factor for unit in self._units if unit.factor > 0
         }

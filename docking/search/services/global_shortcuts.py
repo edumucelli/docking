@@ -1,9 +1,22 @@
-"""XDG GlobalShortcuts portal integration for Global Search.
+"""Own the asynchronous XDG GlobalShortcuts portal session for search.
 
-The service in this module deliberately has no non-portal fallback.  In
-particular, it never writes compositor or desktop-environment shortcut
-settings.  D-Bus transport is kept behind small adapters so the lifecycle can
-be tested without importing PyGObject.
+The portal protocol is request based. Method calls return request object paths,
+and outcomes arrive later through ``Response`` signals. A successful session
+then emits activation, binding-change, and close signals on a separate object.
+This module models that sequence explicitly and publishes immutable status
+snapshots for the controller and Preferences UI.
+
+The service never writes compositor or desktop-environment settings. It has no
+built-in fallback because the controller decides whether the separate X11
+helper is appropriate. D-Bus connection, call, and signal operations sit behind
+small adapters, which keeps protocol behavior testable without a real portal
+or a PyGObject import at module load time.
+
+Every initialization cycle increments a generation. Request responses and
+signals from older generations are discarded, all subscriptions are tracked,
+and stop closes outstanding remote requests and the session on a best-effort
+basis. Portal disappearance is observable and a later owner can initialize a
+fresh session without recreating the service.
 """
 
 from __future__ import annotations
@@ -83,17 +96,19 @@ StatusCallback: TypeAlias = Callable[[GlobalShortcutsStatus], None]
 
 
 class GioConnectionAdapter:
-    """Default session-bus connection adapter."""
+    """Create the real session-bus connection only when the service starts."""
 
     def __call__(self) -> object:
+        """Return the process session-bus connection."""
         gio, _glib = _load_gio()
         return gio.bus_get_sync(gio.BusType.SESSION, None)
 
 
 class GioCallAdapter:
-    """Default call adapter implemented with ``Gio.DBusConnection``."""
+    """Translate plain arguments into synchronous Gio D-Bus calls."""
 
     def __init__(self) -> None:
+        """Use a bounded timeout for portal method calls."""
         self._timeout_ms = 5_000
 
     def __call__(
@@ -106,6 +121,7 @@ class GioCallAdapter:
         method: str,
         arguments: tuple[object, ...] = (),
     ) -> object:
+        """Call one D-Bus method after converting its plain arguments."""
         gio, glib = _load_gio()
         parameters = _gio_parameters(
             glib,
@@ -127,7 +143,7 @@ class GioCallAdapter:
 
 
 class GioSignalAdapter:
-    """Default signal adapter implemented with ``Gio.DBusConnection``."""
+    """Translate Gio subscriptions into tuple-based signal callbacks."""
 
     def subscribe(
         self,
@@ -140,6 +156,7 @@ class GioSignalAdapter:
         arg0: str | None,
         callback: SignalCallback,
     ) -> object:
+        """Subscribe to one filtered signal and return its Gio handle."""
         gio, _glib = _load_gio()
 
         def on_signal(
@@ -169,11 +186,14 @@ class GioSignalAdapter:
         )
 
     def unsubscribe(self, connection: object, handle: object) -> None:
+        """Remove a signal subscription from the supplied connection."""
         connection.signal_unsubscribe(handle)
 
 
 @dataclass(eq=False)
 class _PendingRequest:
+    """Track one portal request path and the generation that created it."""
+
     path: str
     generation: int
     subscription: object | None = None
@@ -183,9 +203,9 @@ class _PendingRequest:
 class GlobalShortcutsService:
     """Own one ``toggle-search`` XDG GlobalShortcuts portal session.
 
-    ``start`` initiates the asynchronous CreateSession/BindShortcuts sequence.
-    Portal request outcomes arrive through ``status`` and the optional status
-    callback.  ``stop`` closes the session and removes every subscription.
+    ``start`` initiates the asynchronous CreateSession and BindShortcuts
+    sequence. Portal request outcomes arrive through ``status`` and the status
+    callback. ``stop`` closes the session and removes every subscription.
     """
 
     def __init__(
@@ -196,6 +216,7 @@ class GlobalShortcutsService:
         on_status_changed: StatusCallback,
         preferred_trigger: str,
     ) -> None:
+        """Initialize one stopped portal service with injected callbacks."""
         if not app_id.strip():
             raise ValueError("app_id must not be empty")
         self._app_id = app_id.strip()
@@ -225,22 +246,27 @@ class GlobalShortcutsService:
 
     @property
     def status(self) -> GlobalShortcutsStatus:
+        """Return the latest immutable status snapshot."""
         return self._status
 
     @property
     def state(self) -> GlobalShortcutsState:
+        """Return the lifecycle state from the latest status."""
         return self._status.state
 
     @property
     def portal_version(self) -> int | None:
+        """Return the last successfully probed portal interface version."""
         return self._portal_version
 
     @property
     def session_handle(self) -> str | None:
+        """Return the active remote session object path, if bound."""
         return self._session_handle
 
     @property
     def supports_list_shortcuts(self) -> bool:
+        """Return whether the probed portal supports binding inspection."""
         return (
             self._portal_version is not None
             and self._portal_version >= GLOBAL_SHORTCUTS_VERSION
@@ -317,6 +343,7 @@ class GlobalShortcutsService:
         )
 
     def _initialize_portal(self) -> None:
+        """Probe capabilities and begin one fresh CreateSession generation."""
         if not self._started or self._connection is None:
             return
         self._generation += 1
@@ -381,6 +408,7 @@ class GlobalShortcutsService:
             raise ValueError("invalid GlobalShortcuts version reply") from exc
 
     def _on_create_response(self, response: int, results: Mapping[str, object]) -> None:
+        """Subscribe to the new session before asking the portal to bind."""
         if self._publish_response_failure("CreateSession", response):
             return
         session_handle = _string_value(results.get("session_handle"))
@@ -605,6 +633,15 @@ class GlobalShortcutsService:
         make_arguments: Callable[[str], tuple[object, ...]],
         on_response: Callable[[int, Mapping[str, object]], None],
     ) -> bool:
+        """Call one request-style portal method and track its async response.
+
+        The expected request path can be derived from the connection's unique
+        bus name and handle token, allowing subscription before the method call
+        closes a fast-response race. Portals may still return another valid
+        path, in which case the subscription is replaced. Test adapters may
+        deliver the response from inside the call, so every step checks whether
+        the request already completed.
+        """
         if self._connection is None:
             self._publish(
                 GlobalShortcutsState.ERROR,
@@ -718,6 +755,7 @@ class GlobalShortcutsService:
         return True
 
     def _clear_portal_resources(self, *, close_remote: bool) -> None:
+        """Dispose every request, session signal, binding, and remote handle."""
         pending_requests = tuple(self._pending_requests)
         if close_remote:
             for pending in pending_requests:
@@ -823,6 +861,7 @@ class GlobalShortcutsService:
             log.debug("could not remove D-Bus signal subscription")
 
     def _new_token(self, purpose: str) -> str:
+        """Return a unique D-Bus-safe token for this service instance."""
         self._token_counter += 1
         raw = str(self._token_factory())
         safe = "".join(
@@ -838,6 +877,7 @@ class GlobalShortcutsService:
         state: GlobalShortcutsState,
         message: str | None = None,
     ) -> None:
+        """Publish a changed immutable status snapshot exactly once."""
         status = GlobalShortcutsStatus(
             state=state,
             portal_version=self._portal_version,

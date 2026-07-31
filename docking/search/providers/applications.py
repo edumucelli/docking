@@ -1,4 +1,17 @@
-"""Installed-application results and contextual launcher actions."""
+"""Search installed applications and expose their contextual launcher actions.
+
+The provider consumes immutable application catalog snapshots, but delegates
+launching, pinning, window activation, and recent-document opening to existing
+platform and model services. Base results stay cheap. Expensive preview data
+and contextual actions are built only when the user asks to refine or preview
+a selected application.
+
+Application desktop IDs are used as stable identities. Canonical keys allow an
+application result to deduplicate equivalent entities from another provider,
+while action identities remain in this provider's namespace. Small caches map
+those transport-neutral identities back to window IDs and preview values for
+the current result set.
+"""
 
 from __future__ import annotations
 
@@ -30,6 +43,8 @@ from docking.search.types import (
 
 
 class ApplicationSearchProvider:
+    """Produce installed application results and dispatch application actions."""
+
     provider_id = "applications"
 
     def __init__(
@@ -41,6 +56,7 @@ class ApplicationSearchProvider:
         windows: WindowService,
         recent_docs_limit: int,
     ) -> None:
+        """Bind the immutable catalog to existing launcher and model services."""
         self._catalog = catalog
         self._launcher = launcher
         self._model = model
@@ -50,6 +66,7 @@ class ApplicationSearchProvider:
         self._preview_cache: dict[str, SearchPreview] = {}
 
     def search(self, request: SearchRequest):
+        """Yield ranked installed applications for one current request."""
         request.raise_if_cancelled()
         self._preview_cache.clear()
         text = request.query.text.strip()
@@ -181,6 +198,7 @@ class ApplicationSearchProvider:
         yield SearchBatch.replace(self.provider_id, request.generation, results)
 
     def build_preview(self, result: SearchResult) -> SearchPreview:
+        """Build and cache a provider-neutral preview for one application."""
         desktop_id = result.identity.key
         cached = self._preview_cache.get(desktop_id)
         if cached is not None:
@@ -225,6 +243,7 @@ class ApplicationSearchProvider:
         return preview
 
     def refine(self, result: SearchResult) -> SearchResult:
+        """Expand a selected application with live windows and recent files."""
         """Add per-window and recent-document actions for Tab refinement."""
         if result.identity.provider_id != self.provider_id:
             return result
@@ -272,6 +291,7 @@ class ApplicationSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Validate an application action identity and dispatch its side effect."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

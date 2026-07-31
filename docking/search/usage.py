@@ -1,4 +1,16 @@
-"""Privacy-preserving search result and action relevance learning."""
+"""Learn bounded relevance hints without storing user-visible search data.
+
+The store records only SHA-256 identifiers derived from normalized queries,
+stable result identities, and action identities. Raw queries, titles, paths,
+document names, and action labels never enter the state file. Frequency and
+recency produce small score adjustments that cannot cross the text match tier
+gaps defined by :mod:`docking.search.matcher`.
+
+Writes use a temporary file plus atomic replacement, records are capped, and a
+reentrant lock protects both search reads and activation writes. Corrupt or
+unexpected state is treated as empty learning data so relevance history can
+never prevent search from working.
+"""
 
 from __future__ import annotations
 
@@ -25,14 +37,17 @@ log = get_logger("search.usage")
 
 @dataclass(frozen=True, slots=True)
 class UsageRecord:
+    """Minimal persisted frequency and recency data for one hashed identity."""
+
     count: int
     last_used: float
 
 
 class SearchUsageStore:
-    """Learn selections without persisting raw queries, paths, or titles."""
+    """Record activations and expose bounded result and action ordering hints."""
 
     def __init__(self) -> None:
+        """Load the bounded hash-only state from the default search state file."""
         self._path = DEFAULT_USAGE_FILE
         self._lock = threading.RLock()
         self._results: dict[str, UsageRecord] = {}
@@ -48,6 +63,7 @@ class SearchUsageStore:
         action: SearchAction,
         now: float | None = None,
     ) -> None:
+        """Record one successful activation and persist the trimmed state."""
         used_at = float(now if now is not None else time.time())
         if not math.isfinite(used_at) or used_at <= 0:
             used_at = time.time()
@@ -81,6 +97,7 @@ class SearchUsageStore:
         *,
         now: float | None = None,
     ) -> float:
+        """Return a bounded relevance adjustment for a result and query."""
         reference = float(now if now is not None else time.time())
         result_record = self._results.get(_identity_hash(result.identity))
         query_key = _query_result_hash(query=query.text, identity=result.identity)

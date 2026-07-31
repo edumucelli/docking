@@ -1,4 +1,13 @@
-"""Recent-file search results backed by the shared catalog."""
+"""Search immutable recent-file snapshots from the shared GTK catalog.
+
+The catalog owns ``Gtk.RecentManager`` and publishes plain snapshots. This
+provider performs only matching, result construction, and open dispatch, so it
+does not retain GTK recent-info objects. Recency supplies a small bounded hint
+inside the shared match tier and cannot overcome a stronger text match.
+
+Empty and recognizer-routed queries intentionally emit no recent-file results.
+Each URI is both the stable provider identity and cross-provider canonical key.
+"""
 
 from __future__ import annotations
 
@@ -17,12 +26,16 @@ from docking.search.types import SearchBatch, SearchIdentity, SearchResult
 
 
 class RecentFilesSearchProvider:
+    """Produce recent-file matches and dispatch their open actions."""
+
     provider_id = "recent-files"
 
     def __init__(self, *, catalog: RecentFilesCatalog) -> None:
+        """Retain the immutable recent-file catalog used for matching and open."""
         self._catalog = catalog
 
     def search(self, request: SearchRequest):
+        """Yield non-empty ordinary-query matches from the recent snapshot."""
         text = request.query.text.strip()
         if request.query.is_empty or is_special_query(text):
             yield SearchBatch.replace(self.provider_id, request.generation)
@@ -71,6 +84,7 @@ class RecentFilesSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Open the URI encoded by a validated recent-file action."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

@@ -1,4 +1,11 @@
-"""Built-in providers for Docking Search."""
+"""Expose the built-in result and action providers used by global search.
+
+Providers translate toolkit-free requests into immutable batches. Each owns a
+stable ``provider_id``, all result and action identities in that namespace, and
+the side effects required to invoke those actions. They do not merge results,
+manage selection, create GTK widgets, or decide whether another provider
+should run. Those responsibilities belong to the coordinator and controller.
+"""
 
 from docking.search.providers.applications import ApplicationSearchProvider
 from docking.search.providers.base import InvokableSearchProvider

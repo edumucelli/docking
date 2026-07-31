@@ -1,4 +1,15 @@
-"""Global Search shortcut capture and XDG trigger formatting."""
+"""Capture keyboard input and translate it to XDG shortcut syntax.
+
+The portal and X11 fallback share one canonical string form, such as
+``CTRL+ALT+space``. GDK events are normalized into that form while standalone
+modifier keys and unsafe unmodified typing keys are rejected. The same module
+renders canonical values into localized labels without changing the stored
+trigger.
+
+The capture button emits lifecycle signals so Preferences can suspend the
+active global grab before capture starts and restore it afterward. Losing focus
+or pressing Escape cancels capture without overwriting the previous shortcut.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +44,7 @@ _KEY_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def shortcut_from_key_event(keyval: int, state: Gdk.ModifierType) -> str | None:
-    """Convert a GDK key event to the freedesktop shortcut syntax."""
+    """Convert a safe GDK key event to canonical freedesktop syntax."""
     if keyval in _MODIFIER_KEYVALS:
         return None
     if keyval == Gdk.KEY_ISO_Left_Tab:
@@ -93,7 +104,7 @@ def shortcut_label(shortcut: str) -> str:
 
 
 class ShortcutCaptureButton(Gtk.Button):
-    """A button that captures the next non-modifier key combination."""
+    """Capture one safe combination while preserving the prior value on cancel."""
 
     __gsignals__: ClassVar[dict[str, tuple[object, ...]]] = {
         "shortcut-changed": (
@@ -114,6 +125,7 @@ class ShortcutCaptureButton(Gtk.Button):
     }
 
     def __init__(self) -> None:
+        """Initialize an idle capture button with no stored shortcut."""
         super().__init__()
         self._shortcut = ""
         self._capturing = False
@@ -125,17 +137,21 @@ class ShortcutCaptureButton(Gtk.Button):
 
     @property
     def capturing(self) -> bool:
+        """Return whether the next valid key event will be committed."""
         return self._capturing
 
     def get_shortcut(self) -> str:
+        """Return the canonical stored shortcut string."""
         return self._shortcut
 
     def set_shortcut(self, shortcut: str) -> None:
+        """Set canonical shortcut text without entering capture mode."""
         self._shortcut = str(shortcut).strip()
         if not self._capturing:
             self._refresh_label()
 
     def begin_capture(self) -> None:
+        """Enter capture mode, notify the owner, and claim keyboard focus."""
         if self._capturing:
             return
         self._capturing = True
@@ -144,6 +160,7 @@ class ShortcutCaptureButton(Gtk.Button):
         self.grab_focus()
 
     def cancel_capture(self) -> None:
+        """Leave capture mode without changing the stored shortcut."""
         if not self._capturing:
             return
         self._capturing = False
@@ -151,6 +168,7 @@ class ShortcutCaptureButton(Gtk.Button):
         self.emit("capture-ended")
 
     def _commit(self, shortcut: str) -> None:
+        """Store one validated shortcut and emit change before capture ends."""
         self._shortcut = shortcut
         self._capturing = False
         self._refresh_label()

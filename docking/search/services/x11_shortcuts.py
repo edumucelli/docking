@@ -1,4 +1,17 @@
-"""Dependency-free Global Search shortcuts isolated in an X11 helper process."""
+"""Provide an isolated X11 fallback for the global search shortcut.
+
+X11 global grabs require blocking native Xlib calls and process-global error
+handling. Those operations run in a short-lived helper process so they cannot
+block GTK, retain application objects after shutdown, or alter the main
+process's Xlib error handler. A monitor thread receives small ready, error, and
+activation messages through a one-way multiprocessing pipe.
+
+The public service converts XDG shortcut syntax to X11 masks, starts at most
+one helper per generation, and marshals activations back to the GTK idle loop.
+Generation checks discard messages queued by a helper that has already been
+stopped. Lock and Num Lock variants are grabbed together so the shortcut works
+regardless of those keyboard states.
+"""
 
 from __future__ import annotations
 
@@ -26,24 +39,42 @@ IdleScheduler = Callable[..., int]
 
 
 class ShortcutFallback(Protocol):
-    @property
-    def active(self) -> bool: ...
+    """Controller-facing lifecycle contract for a non-portal shortcut."""
 
     @property
-    def error(self) -> str | None: ...
+    def active(self) -> bool:
+        """Return whether the fallback currently owns its global grab."""
+        ...
 
-    def start(self) -> bool: ...
+    @property
+    def error(self) -> str | None:
+        """Return the latest startup error, if any."""
+        ...
 
-    def stop(self) -> None: ...
+    def start(self) -> bool:
+        """Start the fallback and report whether its grab became active."""
+        ...
+
+    def stop(self) -> None:
+        """Release the global grab and invalidate queued activations."""
+        ...
 
 
 class ShortcutWorker(Protocol):
+    """Process-worker contract isolated for deterministic lifecycle tests."""
+
     @property
-    def error(self) -> str | None: ...
+    def error(self) -> str | None:
+        """Return the worker's latest startup error."""
+        ...
 
-    def start(self, on_activated: ActivationCallback) -> bool: ...
+    def start(self, on_activated: ActivationCallback) -> bool:
+        """Start native work and report activation messages through a callback."""
+        ...
 
-    def stop(self) -> None: ...
+    def stop(self) -> None:
+        """Stop native work and close its transport resources."""
+        ...
 
 
 class _XKeyEvent(ctypes.Structure):
@@ -94,6 +125,7 @@ _XErrorHandler = ctypes.CFUNCTYPE(
 
 
 def parse_xdg_shortcut(shortcut: str) -> tuple[int, str]:
+    """Translate supported XDG modifiers into an X11 mask and key name."""
     parts = [part.strip() for part in shortcut.split("+") if part.strip()]
     if not parts:
         raise ValueError("shortcut must contain a key")
@@ -119,6 +151,7 @@ def parse_xdg_shortcut(shortcut: str) -> tuple[int, str]:
 
 
 def is_x11_session(env: dict[str, str] | None = None) -> bool:
+    """Return whether an X11 fallback is appropriate for this environment."""
     values = os.environ if env is None else env
     session_type = values.get("XDG_SESSION_TYPE", "").strip().casefold()
     if session_type:
@@ -127,6 +160,8 @@ def is_x11_session(env: dict[str, str] | None = None) -> bool:
 
 
 class _ProcessShortcutWorker:
+    """Own the native helper process, message pipe, and monitor thread."""
+
     def __init__(
         self,
         *,
@@ -150,6 +185,7 @@ class _ProcessShortcutWorker:
         return self._error
 
     def start(self, on_activated: ActivationCallback) -> bool:
+        """Start the helper and wait briefly for a ready or error message."""
         try:
             context = multiprocessing.get_context("forkserver")
         except ValueError:
@@ -234,7 +270,7 @@ class _ProcessShortcutWorker:
 
 
 class X11GlobalShortcutService:
-    """Own one per-generation X11 shortcut helper process."""
+    """Own one per-generation X11 helper and main-loop activation bridge."""
 
     def __init__(
         self,
@@ -243,6 +279,7 @@ class X11GlobalShortcutService:
         on_activated: ActivationCallback,
         schedule_idle: IdleScheduler,
     ) -> None:
+        """Bind one shortcut to a GTK idle scheduler and activation callback."""
         self._shortcut = shortcut
         self._on_activated = on_activated
         self._schedule_idle = schedule_idle
@@ -253,13 +290,16 @@ class X11GlobalShortcutService:
 
     @property
     def active(self) -> bool:
+        """Return whether the current helper owns all required X11 grabs."""
         return self._active
 
     @property
     def error(self) -> str | None:
+        """Return the current helper's startup failure, if any."""
         return self._error
 
     def start(self) -> bool:
+        """Start the helper once and expose any synchronous startup error."""
         if self._active:
             return True
         self._generation += 1
@@ -280,6 +320,7 @@ class X11GlobalShortcutService:
         return self._active
 
     def stop(self) -> None:
+        """Invalidate queued activations and terminate the active helper."""
         self._generation += 1
         worker = self._worker
         self._worker = None
@@ -304,6 +345,7 @@ def _x11_worker(
     stop_event: Any,
     connection: Any,
 ) -> None:
+    """Own Xlib setup, grabs, the event loop, and cleanup in a child process."""
     library = None
     display = None
     keycode = 0

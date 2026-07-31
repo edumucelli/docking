@@ -1,4 +1,15 @@
-"""Recognize web targets and define supported search engines."""
+"""Recognize unambiguous web targets and construct search-engine URLs.
+
+Direct target recognition is intentionally conservative. Only HTTP or HTTPS
+URLs with a host, email addresses, domain-shaped values, valid-looking IPv4
+targets, and localhost forms are accepted. Whitespace rejects direct routing,
+and arbitrary URI schemes are not opened. Text that does not meet these rules
+remains an ordinary query and can later receive the low-priority web fallback.
+
+Search-engine definitions contain URL templates only. No request is performed
+in this module, and unknown engine IDs fall back deterministically to
+DuckDuckGo.
+"""
 
 from __future__ import annotations
 
@@ -11,11 +22,14 @@ DEFAULT_WEB_ENGINE = "duckduckgo"
 
 @dataclass(frozen=True, slots=True)
 class WebEngine:
+    """Immutable metadata and URL construction for one search engine."""
+
     id: str
     name: str
     search_url: str
 
     def url_for(self, query: str) -> str:
+        """Encode a query and substitute it into this engine's URL template."""
         return self.search_url.format(query=quote_plus(query.strip()))
 
 
@@ -55,6 +69,7 @@ _QUESTION_START_RE = re.compile(
 
 
 def get_web_engine(engine_id: str) -> WebEngine:
+    """Return a supported engine, falling back to the built-in default."""
     return _WEB_ENGINE_BY_ID.get(
         engine_id,
         _WEB_ENGINE_BY_ID[DEFAULT_WEB_ENGINE],
@@ -62,13 +77,13 @@ def get_web_engine(engine_id: str) -> WebEngine:
 
 
 def is_likely_web_question(text: str) -> bool:
-    """Return whether ordinary text has a clear question form."""
+    """Return whether ordinary text has a clear, language-level question form."""
     value = " ".join(text.split())
     return bool(value and (value.endswith("?") or _QUESTION_START_RE.match(value)))
 
 
 def normalize_web_target(text: str) -> str | None:
-    """Return an openable URI when text unambiguously resembles one."""
+    """Return an openable URI only when text unambiguously resembles one."""
     value = text.strip()
     if not value or any(character.isspace() for character in value):
         return None

@@ -1,4 +1,15 @@
-"""Pinned file, folder, and applet results sourced from DockModel."""
+"""Search pinned non-application items from the live dock model.
+
+Installed applications have their own richer provider, so this provider emits
+only pinned applets, files, and folders. It reads the current visible model on
+each request, uses shared text scoring, and marks the canonical target so a
+file found elsewhere can be deduplicated.
+
+Actions call existing model and launcher operations. Removing an item is
+destructive enough to require controller confirmation, but the provider still
+owns the final identity validation and mutation. Preview descriptors remain
+cheap until the user opens the preview panel.
+"""
 
 from __future__ import annotations
 
@@ -24,12 +35,16 @@ from docking.search.types import (
 
 
 class DockSearchProvider:
+    """Produce pinned dock results and dispatch open or unpin actions."""
+
     provider_id = "dock"
 
     def __init__(self, *, model: DockModel) -> None:
+        """Retain the live model that owns pinned items and their mutations."""
         self._model = model
 
     def search(self, request: SearchRequest):
+        """Yield matching pinned applets, files, and folders from the model."""
         text = request.query.text.strip()
         if is_special_query(text):
             yield SearchBatch.replace(self.provider_id, request.generation)
@@ -118,6 +133,7 @@ class DockSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Dispatch a validated open or unpin operation."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id

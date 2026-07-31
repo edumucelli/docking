@@ -1,4 +1,17 @@
-"""Generation-safe coordination of toolkit-free search providers."""
+"""Merge provider streams into immutable, generation-safe search snapshots.
+
+The coordinator is the concurrency boundary of global search, although it does
+not create threads or depend on an event loop. A caller starts a generation,
+runs providers in any suitable execution context, and feeds their batches back
+into this object. Generation numbers and cooperative cancellation reject late
+work from an older query.
+
+Within a generation, each provider owns a result map and may replace or append
+to it before reporting completion. The coordinator then applies bounded usage
+adjustments, deterministic tie breakers, cross-provider canonical-key
+deduplication, the query limit, and identity-based selection preservation. No
+caller should attempt to merge or sort provider results independently.
+"""
 
 from __future__ import annotations
 
@@ -31,17 +44,21 @@ class SearchCancellation:
     __slots__ = ("_event", "generation")
 
     def __init__(self, generation: int) -> None:
+        """Create an active cancellation token for one generation."""
         self.generation = generation
         self._event = threading.Event()
 
     @property
     def cancelled(self) -> bool:
+        """Return whether cancellation has been requested."""
         return self._event.is_set()
 
     def cancel(self) -> None:
+        """Request cooperative cancellation in a thread-safe way."""
         self._event.set()
 
     def raise_if_cancelled(self) -> None:
+        """Raise the package-specific cancellation exception when cancelled."""
         if self.cancelled:
             raise SearchCancelledError(
                 f"search generation {self.generation} was cancelled"
@@ -63,9 +80,11 @@ class SearchRequest:
 
     @property
     def cancelled(self) -> bool:
+        """Return the state of this request's shared cancellation token."""
         return self.cancellation.cancelled
 
     def raise_if_cancelled(self) -> None:
+        """Stop provider work at a cooperative cancellation point."""
         self.cancellation.raise_if_cancelled()
 
 
@@ -97,6 +116,7 @@ class ProviderError:
         generation: int,
         error: BaseException,
     ) -> ProviderError:
+        """Convert an exception to immutable display-safe failure data."""
         return cls(
             provider_id=provider_id,
             generation=generation,
@@ -119,9 +139,11 @@ class SearchSnapshot:
 
     @property
     def is_final(self) -> bool:
+        """Return whether every provider has completed or been cancelled."""
         return not self.pending_provider_ids
 
     def result_for(self, identity: SearchIdentity) -> SearchResult | None:
+        """Look up a visible result by stable identity."""
         return next(
             (result for result in self.results if result.identity == identity),
             None,
@@ -163,6 +185,10 @@ class SearchCoordinator:
         *,
         rank_adjuster: RankAdjuster,
     ) -> None:
+        """Register providers and initialize an empty generation state."""
+        # Registration order remains stable for the lifetime of a coordinator.
+        # It is deliberately part of tie breaking so equal scores do not depend
+        # on dictionary iteration or provider completion timing.
         self._providers = tuple(providers)
         self._rank_adjuster = rank_adjuster
         self._provider_by_id: dict[str, SearchProvider] = {}
@@ -200,15 +226,18 @@ class SearchCoordinator:
 
     @property
     def providers(self) -> tuple[SearchProvider, ...]:
+        """Return providers in deterministic registration order."""
         return self._providers
 
     @property
     def generation(self) -> int:
+        """Return the latest generation number under the coordinator lock."""
         with self._lock:
             return self._generation
 
     @property
     def request(self) -> SearchRequest | None:
+        """Return the current request, or none before the first generation."""
         with self._lock:
             return self._request
 
@@ -283,6 +312,7 @@ class SearchCoordinator:
             return True
 
     def is_current(self, generation: int) -> bool:
+        """Return whether a generation is active and not cancelled."""
         with self._lock:
             return (
                 self._request is not None
@@ -312,6 +342,9 @@ class SearchCoordinator:
                 self._refresh_selection_unlocked()
                 return True
 
+            # REPLACE starts a new provider view, while APPEND retains earlier
+            # entries. Stable first-seen numbers survive replacements so a
+            # provider refresh cannot arbitrarily reorder equal-scoring rows.
             provider_results = self._results_by_provider[batch.provider_id]
             if batch.kind is SearchBatchKind.REPLACE:
                 provider_results = {}
@@ -521,6 +554,7 @@ class SearchCoordinator:
             self._publish(on_update)
 
     def _ranked_results_unlocked(self) -> tuple[SearchResult, ...]:
+        """Rank, deduplicate, and limit the current provider-owned entries."""
         entries = [
             entry
             for provider_results in self._results_by_provider.values()
@@ -563,6 +597,13 @@ class SearchCoordinator:
         )
 
     def _refresh_selection_unlocked(self) -> None:
+        """Preserve a target identity without selecting a temporary fallback.
+
+        When the provider that owned the prior selection is still pending, the
+        selection stays empty instead of jumping to the first partial result.
+        Once that provider finishes, the target is either restored or the best
+        visible result becomes the new target.
+        """
         results = self._ranked_results_unlocked()
         identities = {result.identity for result in results}
         target = self._selection_target

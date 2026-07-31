@@ -6,7 +6,14 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-"""Package-aware identity for Search portals and session-bus ownership."""
+"""Resolve the application identity used by search-related desktop services.
+
+Portal sessions and desktop integration must identify the package that is
+actually running. A Flatpak build is known to the desktop by ``FLATPAK_ID``;
+an unpackaged or traditionally packaged build uses Docking's canonical
+application ID. Keeping this decision in the search package prevents shortcut
+services from depending on broader application bootstrap code.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +24,12 @@ HOST_APPLICATION_ID = "org.docking.Docking"
 
 
 def application_id(env: Mapping[str, str] | None = None) -> str:
-    """Return the identity of the installed package currently running."""
+    """Return the desktop identity of the package currently running.
+
+    ``env`` exists so callers and tests can evaluate the rule without changing
+    process state. An empty or whitespace-only Flatpak value is intentionally
+    treated as absent.
+    """
     values = env if env is not None else os.environ
     flatpak_id = values.get("FLATPAK_ID", "").strip()
     if flatpak_id:

@@ -101,7 +101,7 @@ def test_markdown_and_source_previews_are_readable(tmp_path) -> None:
 
     assert markdown_preview.kind == "markdown"
     assert markdown_preview.body.startswith("Heading\n• Item")
-    assert "Docking — https://example.com" in markdown_preview.body
+    assert "Docking - https://example.com" in markdown_preview.body
     assert source_preview.kind == "source"
     assert "1  def main():" in source_preview.body
     assert "2      return 0" in source_preview.body

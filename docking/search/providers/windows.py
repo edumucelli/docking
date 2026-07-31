@@ -1,4 +1,15 @@
-"""Search open window titles through the backend-neutral WindowService."""
+"""Search live windows through the backend-neutral window service.
+
+Every request snapshots the windows currently exposed by the active backend.
+Titles, desktop IDs, and application IDs participate in shared text matching;
+the active state adds only a small bounded hint. Results carry preview metadata
+without retaining backend window objects.
+
+Window IDs are cached for the active result set and recovered only through a
+provider-owned identity. Activation and close operations are delegated to the
+window service, with close confirmation handled by the controller before the
+provider is invoked.
+"""
 
 from __future__ import annotations
 
@@ -21,13 +32,17 @@ from docking.search.types import (
 
 
 class WindowSearchProvider:
+    """Produce live window matches and dispatch activate or close actions."""
+
     provider_id = "windows"
 
     def __init__(self, *, windows: WindowService) -> None:
+        """Retain the active backend-neutral service used for window actions."""
         self._windows = windows
         self._window_ids: dict[str, WindowId] = {}
 
     def search(self, request: SearchRequest):
+        """Snapshot and yield live windows matching the current query."""
         text = request.query.text.strip()
         self._window_ids = {}
         if request.query.is_empty or is_special_query(text):
@@ -100,6 +115,7 @@ class WindowSearchProvider:
         result_identity: SearchIdentity,
         action_identity: SearchIdentity,
     ) -> bool:
+        """Activate or close the cached window behind a validated action."""
         parts = action_parts(action_identity)
         if (
             result_identity.provider_id != self.provider_id
