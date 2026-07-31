@@ -265,28 +265,22 @@ The first things to explore are:
 
 ## Global Search
 
-Open **Search...** from the dock background menu or add the optional **Search**
-applet. Docking also registers a desktop-wide shortcut through the XDG
-GlobalShortcuts portal, with an X11 key-grab fallback when the portal is not
-available. Capture the desired sequence and inspect its current assignment
-under **Preferences -> Behavior -> Global Search**.
+Open **Search...** from the dock menu, use the optional **Search** applet, or
+configure a system-wide shortcut under **Preferences -> Behavior -> Global
+Search**. Search understands applications, windows, files, calculations,
+conversions, dates, time zones, paths, and the web.
 
-Type normally to search applications, dock items, windows, and recent files.
-Arithmetic (`100 + 20`), unit and currency conversions (`10 km to miles`,
-`10 USD to EUR`), dates, time zones (`time in Tokyo`), URLs, and email addresses
-are recognized automatically. Provider keywords such as `app firefox`,
-`win terminal`, `file invoice`, `web google docking linux`, and
-`web gh docking` narrow or redirect the query. These four top-level namespaces
-(`app`, `win`, `file`, and `web`) are the complete keyword set; calculations,
-conversions, dates, time zones, URLs, and paths remain implicit. Unmatched text
-can offer a configurable web-search fallback. Absolute paths, `~/path`, and
-`file://` URIs open directly.
-Press **Enter** for the primary action, **Tab** to complete a query keyword,
-**Ctrl+Right** to refine the selected result, **Ctrl+P** for a preview,
-**Ctrl+J** for contextual actions, and **Esc** to close the palette.
+Try these examples:
 
-See the [Global Search guide](docs/SEARCH.md) for provider examples, previews,
-and pseudonymized relevance learning.
+- `Firefox` - find an installed application or open window.
+- `Time in Sao Paulo` - check the current time in another city.
+- `10 USD to EUR` - convert currencies using current rates.
+- `10 + pi` - calculate an expression.
+- `What is a Linux dockbar?` - search on the web.
+
+Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for
+more actions. See the [Global Search guide](docs/SEARCH.md) for every provider,
+keyword, and keyboard shortcut.
 
 ## Configuration
 
