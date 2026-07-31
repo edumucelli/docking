@@ -106,6 +106,7 @@ from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.reddit.render import render_icon as render_reddit
 from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.screenshot.applet import _draw_screenshot_icon
+from docking.applets.search.render import render_icon as render_search
 from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
@@ -416,6 +417,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.RUNCOMMAND: render_runcommand(size=size),
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
+        AppletId.SEARCH: render_search(size=size),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
         AppletId.SPEEDTEST: render_speedtest(

@@ -22,6 +22,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Installation](#installation)
 - [Running](#running)
 - [First Use](#first-use)
+- [Global Search](#global-search)
 - [Configuration](#configuration)
 - [Applets](#applets)
 - [Theming](#theming)
@@ -36,7 +37,8 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 64 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- Unified global search for applications, dock items, open windows, recent files, calculator expressions, and direct paths.
+- 65 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -261,6 +263,25 @@ The first things to explore are:
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend
   support or preparing a support report.
 
+## Global Search
+
+Open **Search...** from the dock menu, use the optional **Search** applet, or
+configure a system-wide shortcut under **Preferences -> Behavior -> Global
+Search**. Search understands applications, windows, files, calculations,
+conversions, dates, time zones, paths, and the web.
+
+Try these examples:
+
+- `Firefox` - find an installed application or open window.
+- `Time in Sao Paulo` - check the current time in another city.
+- `10 USD to EUR` - convert currencies using current rates.
+- `10 + pi` - calculate an expression.
+- `What is a Linux dockbar?` - search on the web.
+
+Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for
+more actions. See the [Global Search guide](docs/SEARCH.md) for provider details
+and keyboard shortcuts.
+
 ## Configuration
 
 Open right-click -> **Preferences** to configure the dock's appearance,
@@ -286,7 +307,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 64 built-in applets, ranging from application
+Docking includes 65 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -294,7 +315,7 @@ live information.
 
 | Category | Examples |
 |---|---|
-| Launcher & Navigation | Applications, Run Application, Desktop, WhatsApp, Workspaces |
+| Launcher & Navigation | Applications, Search, Run Application, Desktop, WhatsApp, Workspaces |
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
@@ -477,6 +498,7 @@ every package format live in the [packaging guide](packaging/README.md).
 ## Additional Docs
 
 - [Configuration](docs/CONFIGURATION.md)
+- [Global Search](docs/SEARCH.md)
 - [Applets](docs/APPLETS.md)
 - [Themes](docs/THEMES.md)
 - [D-Bus Remote Control](docs/DBUS.md)

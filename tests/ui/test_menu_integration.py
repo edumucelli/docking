@@ -782,6 +782,7 @@ def handler(monkeypatch):
         diagnostics=MagicMock(),
         launcher=launcher,
         dock_window=MagicMock(),
+        search=MagicMock(),
     )
 
 

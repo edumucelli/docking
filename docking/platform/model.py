@@ -1405,6 +1405,26 @@ class DockModel:
             self._persist_pinned_changes()
             self.notify()
 
+    def pin_application(self, desktop_id: str) -> bool:
+        """Pin an installed application even when it has no visible dock item."""
+        existing = self.find_by_desktop_id(desktop_id=desktop_id)
+        if existing is not None:
+            if existing.is_pinned:
+                return False
+            self.pin_item(desktop_id)
+            return existing.is_pinned
+        if self._launcher.resolve(desktop_id=desktop_id, log_failures=False) is None:
+            return False
+        item = self._make_app_item(
+            desktop_id=desktop_id,
+            is_pinned=True,
+            running_info=None,
+        )
+        self.pinned_items.append(item)
+        self._persist_pinned_changes()
+        self.notify()
+        return True
+
     def insert_pinned_item(self, item: DockItem, index: int) -> bool:
         """Insert a resolved pinned item, applying final model-owned persistence."""
         if item.kind not in {APP_KIND, FILE_KIND, FOLDER_KIND}:

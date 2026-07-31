@@ -159,6 +159,12 @@ from docking.core.paths import ensure_parent_dir
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_ENABLED,
+    DEFAULT_GLOBAL_SEARCH_SHORTCUT,
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    GLOBAL_SEARCH_WEB_ENGINES,
+)
 
 if TYPE_CHECKING:
     from docking.core.theme import Theme
@@ -842,6 +848,12 @@ class Config:
     show_recent_docs_in_menu: bool = DEFAULT_SHOW_RECENT_DOCS_IN_MENU
     # Per-app cap for recent document entries in the submenu
     recent_docs_max: int = DEFAULT_RECENT_DOCS_MAX
+    # Whether the process-wide global search palette is available
+    global_search_enabled: bool = DEFAULT_GLOBAL_SEARCH_ENABLED
+    # Preferred XDG trigger and X11 fallback sequence
+    global_search_shortcut: str = DEFAULT_GLOBAL_SEARCH_SHORTCUT
+    # Web engine used by fallback searches
+    global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
     @property
     def pos(self) -> Position:
@@ -1019,6 +1031,18 @@ class Config:
             default=DEFAULT_RECENT_DOCS_MAX,
             minimum=1,
             maximum=25,
+        )
+        self.global_search_enabled = _normalize_bool(
+            self.global_search_enabled,
+            default=DEFAULT_GLOBAL_SEARCH_ENABLED,
+        )
+        shortcut = str(self.global_search_shortcut).strip()
+        self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
+        web_engine = str(self.global_search_web_engine).strip().casefold()
+        self.global_search_web_engine = (
+            web_engine
+            if web_engine in GLOBAL_SEARCH_WEB_ENGINES
+            else DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
         )
 
     @classmethod

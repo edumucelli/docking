@@ -79,10 +79,16 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    GLOBAL_SEARCH_WEB_ENGINES,
+)
+from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.model import DockModel
+    from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
     from docking.ui.placement import MonitorChoice
     from docking.ui.runtime import DockRuntime
@@ -153,10 +159,12 @@ class SettingsActions:
         runtime: DockRuntime,
         dnd: DnDHandler,
         model: DockModel,
+        search: GlobalSearchController,
     ) -> None:
         self._runtime = runtime
         self._dnd = dnd
         self._model = model
+        self._search = search
 
     def on_hide_mode_changed(self) -> None:
         self._runtime.on_hide_mode_changed()
@@ -200,6 +208,27 @@ class SettingsActions:
     def open_releases_page(self) -> None:
         self._runtime.open_releases_page()
 
+    def refresh_search_settings(self) -> None:
+        self._search.refresh_settings()
+
+    def suspend_search_shortcuts(self) -> None:
+        self._search.suspend_shortcuts()
+
+    def resume_search_shortcuts(self) -> None:
+        self._search.resume_shortcuts()
+
+    def search_shortcut_status(self) -> str:
+        return self._search.shortcut_status_text()
+
+    def search_shortcut_status_summary(self) -> str:
+        return self._search.shortcut_status_summary()
+
+    def add_search_shortcut_status_listener(
+        self,
+        listener: Callable[[], None],
+    ) -> Callable[[], None]:
+        return self._search.add_shortcut_status_listener(listener)
+
 
 class SettingsWindowController:
     """Owns the dock preferences window lifecycle and widget synchronization."""
@@ -218,6 +247,9 @@ class SettingsWindowController:
         self._config = config
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
+        self._actions.add_search_shortcut_status_listener(
+            self._update_search_shortcut_status
+        )
 
         self._hide_mode_combo: Any = None
         self._hide_mode_info: Any = None
@@ -259,6 +291,11 @@ class SettingsWindowController:
         self._recent_apps_retention_combo: Any = None
         self._recent_docs_switch: Any = None
         self._recent_docs_max_spin: Any = None
+        self._global_search_switch: Any = None
+        self._global_search_shortcut_box: Any = None
+        self._global_search_shortcut_entry: Any = None
+        self._global_search_web_engine_combo: Any = None
+        self._global_search_status_label: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -513,7 +550,53 @@ class SettingsWindowController:
         self._recent_docs_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=25, step=1
         )
-
+        self._global_search_switch = self._new_switch()
+        self._global_search_shortcut_entry = ShortcutCaptureButton()
+        self._global_search_shortcut_entry.connect(
+            "capture-started",
+            lambda *_: self._actions.suspend_search_shortcuts(),
+        )
+        self._global_search_shortcut_entry.connect(
+            "capture-ended",
+            lambda *_: self._actions.resume_search_shortcuts(),
+        )
+        self._global_search_status_label = Gtk.Label()
+        self._global_search_status_label.set_xalign(0.0)
+        self._global_search_status_label.set_line_wrap(False)
+        self._global_search_status_label.set_max_width_chars(28)
+        self._global_search_status_label.set_margin_top(4)
+        self._global_search_status_label.get_style_context().add_class("dim-label")
+        self._global_search_shortcut_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=4,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_shortcut_entry,
+            False,
+            False,
+            0,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_status_label,
+            False,
+            False,
+            0,
+        )
+        self._global_search_web_engine_combo = Gtk.ComboBoxText()
+        web_engine_labels = {
+            "duckduckgo": "DuckDuckGo",
+            "google": "Google",
+            "brave": "Brave Search",
+            "bing": "Bing",
+        }
+        for engine_id in GLOBAL_SEARCH_WEB_ENGINES:
+            self._global_search_web_engine_combo.append(
+                engine_id,
+                web_engine_labels.get(engine_id, engine_id.title()),
+            )
+        self._global_search_web_engine_combo.set_active_id(
+            DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
+        )
         self._register_bindings()
 
         self._append_section(
@@ -784,6 +867,30 @@ class SettingsWindowController:
                     _("Max Documents Per App"),
                     self._recent_docs_max_spin,
                     _("Maximum recent document entries shown per app."),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Global Search"),
+            rows=[
+                (
+                    _("Enabled"),
+                    self._global_search_switch,
+                    _("Enable Docking's process-wide search palette."),
+                ),
+                (
+                    _("Preferred Shortcut"),
+                    self._global_search_shortcut_box,
+                    _(
+                        "Click the button, then press the desired key sequence. "
+                        "The desktop may reserve some shortcuts."
+                    ),
+                ),
+                (
+                    _("Search Engine"),
+                    self._global_search_web_engine_combo,
+                    _("Choose the engine used by web fallback."),
                 ),
             ],
         )
@@ -1235,6 +1342,26 @@ class SettingsWindowController:
                 config_attr="recent_docs_max",
                 widget=self._recent_docs_max_spin,
             ),
+            self._register_switch_binding(
+                config_attr="global_search_enabled",
+                widget=self._global_search_switch,
+                on_change=self._actions.refresh_search_settings,
+            ),
+            self._register_numeric_binding(
+                config_attr="global_search_shortcut",
+                widget=self._global_search_shortcut_entry,
+                read_widget=self._global_search_shortcut_entry.get_shortcut,
+                write_widget=lambda value: (
+                    self._global_search_shortcut_entry.set_shortcut(str(value))
+                ),
+                signal="shortcut-changed",
+                on_change=self._actions.refresh_search_settings,
+            ),
+            self._register_choice_binding(
+                config_attr="global_search_web_engine",
+                widget=self._global_search_web_engine_combo,
+                on_change=self._actions.refresh_search_settings,
+            ),
         ]
 
     def _register_switch_binding(
@@ -1325,6 +1452,7 @@ class SettingsWindowController:
                 check.set_active(desktop_id in active_ids)
             self._sync_monitor_combo()
             self._update_updates_status()
+            self._update_search_shortcut_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
@@ -1341,6 +1469,15 @@ class SettingsWindowController:
         for choice in choices:
             self._monitor_combo.append(str(choice.index), choice.label)
         self._monitor_combo.set_active_id(str(self._actions.current_monitor_choice()))
+
+    def _update_search_shortcut_status(self) -> None:
+        if self._global_search_status_label is None:
+            return
+        shortcut_summary = self._actions.search_shortcut_status_summary()
+        shortcut_status = _("Shortcut Status: {status}").format(status=shortcut_summary)
+        shortcut_description = self._actions.search_shortcut_status()
+        self._global_search_status_label.set_label(shortcut_status)
+        self._global_search_status_label.set_tooltip_text(shortcut_description)
 
     def _monitor_choices(self) -> list[Any]:
         try:
@@ -1624,6 +1761,11 @@ class SettingsWindowController:
         docs_sensitive = bool(self._config.show_recent_docs_in_menu)
         if self._recent_docs_max_spin is not None:
             self._recent_docs_max_spin.set_sensitive(docs_sensitive)
+        search_sensitive = bool(self._config.global_search_enabled)
+        if self._global_search_shortcut_entry is not None:
+            self._global_search_shortcut_entry.set_sensitive(search_sensitive)
+        if self._global_search_web_engine_combo is not None:
+            self._global_search_web_engine_combo.set_sensitive(search_sensitive)
 
     def _on_applet_toggled(
         self,

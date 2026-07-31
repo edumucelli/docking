@@ -146,6 +146,16 @@ def main() -> None:
     )
     window = ui.window
     items_service = DockItemsService(model=model, window=window)
+    model.set_applet_services(
+        AppletServices(
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+            search=ui.search,
+        )
+    )
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)

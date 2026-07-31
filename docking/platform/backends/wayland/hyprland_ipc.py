@@ -249,6 +249,12 @@ class HyprlandWindowService(WindowService):
         self._records_by_address.clear()
         self._model.update_running(running={})
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every known Hyprland window."""
+        return tuple(
+            self._snapshot_for(record) for record in self._records_by_address.values()
+        )
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return known Hyprland windows for one desktop ID."""
         return tuple(

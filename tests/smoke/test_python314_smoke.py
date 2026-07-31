@@ -275,6 +275,7 @@ def test_app_main_smoke(monkeypatch):
     window = MagicMock()
     ui = SimpleNamespace(
         window=window,
+        search=MagicMock(),
         start=MagicMock(),
         stop=MagicMock(),
     )

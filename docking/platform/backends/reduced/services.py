@@ -44,6 +44,10 @@ class ReducedWindowService(WindowService):
     def stop(self) -> None:
         """No resources are held."""
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return no windows in reduced mode."""
+        return ()
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return no window rows in reduced mode."""
         return ()

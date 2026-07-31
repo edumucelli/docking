@@ -16,10 +16,18 @@ website: https://github.com/edumucelli/docking
 grade: stable
 confinement: devmode
 
+slots:
+  docking-session-bus:
+    interface: dbus
+    bus: session
+    name: org.docking.Docking
+
 apps:
   docking:
     command: bin/docking
     desktop: usr/share/applications/org.docking.Docking.desktop
+    slots:
+      - docking-session-bus
     plugs:
       - x11
       - wayland

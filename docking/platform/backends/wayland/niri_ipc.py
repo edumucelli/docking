@@ -319,6 +319,10 @@ class NiriWindowService(WindowService):
         self._workspaces.clear()
         self._model.update_running(running={})
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every known Niri window."""
+        return tuple(self._snapshot_for(record) for record in self._records.values())
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return known Niri windows for one desktop ID."""
         return tuple(

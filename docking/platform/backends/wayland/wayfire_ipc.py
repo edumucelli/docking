@@ -318,6 +318,9 @@ class WayfireWindowService(WindowService):
         self._records.clear()
         self._model.update_running(running={})
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        return tuple(self._snapshot_for(record) for record in self._records.values())
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         return tuple(
             self._snapshot_for(record)

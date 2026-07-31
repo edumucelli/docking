@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 64 built-in applets that live alongside
+Docking includes 65 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -26,7 +26,7 @@ the applet keeps a safe unavailable state or hides unsupported actions.
 ## Catalog
 
 - **Launcher & Navigation:** [Applications](#applications), [Desktop](#desktop),
-  [Run Application](#run-application), [WhatsApp](#whatsapp),
+  [Run Application](#run-application), [Search](#search), [WhatsApp](#whatsapp),
   [Workspaces](#workspaces)
 - **Time & Productivity:** [AI Usage](#ai-usage), [Alarm](#alarm),
   [Bookmarks](#bookmarks), [Calculator](#calculator), [Calendar](#calendar),
@@ -65,6 +65,20 @@ applications as you type.
 
 **Drag:** Drag an application from the menu directly into the dock to pin it.
 The application icon remains beside the pointer during the drag.
+
+### Search
+
+Optional launcher for Docking's process-wide global search palette.
+
+**Click:** Open the focusable search window. Search applications, dock items,
+open windows, recent files, calculations, unit/currency conversions, dates,
+time zones, URLs, web fallback, and direct paths. Type naturally and results
+from all relevant local sources are ranked together. Press `Ctrl+Right` to
+refine a result into app actions, windows, and recent documents. Use `Ctrl+P`
+for previews or `Ctrl+J` for standard contextual actions.
+
+The applet only opens the shared search service; removing it does not disable
+the configured global shortcut or D-Bus activation.
 
 ### Desktop
 

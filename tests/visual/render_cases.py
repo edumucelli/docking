@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import tempfile
+import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +20,15 @@ from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
+from docking.search.coordinator import SearchSnapshot
+from docking.search.types import (
+    SearchAction,
+    SearchIdentity,
+    SearchPreview,
+    SearchQuery,
+    SearchResult,
+)
+from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import build_geometry_frame
@@ -48,7 +60,15 @@ POPUP_CASES = (
     "tooltip-open-bottom",
     "preview-popup-open-bottom",
 )
-VISUAL_CASES = DOCK_CASES + FOLDER_STACK_CASES + SHORT_STACK_CASES + POPUP_CASES
+SEARCH_CASES = (
+    "search-palette-results",
+    "search-palette-actions",
+    "search-palette-preview",
+    "search-palette-image-preview",
+)
+VISUAL_CASES = (
+    DOCK_CASES + FOLDER_STACK_CASES + SHORT_STACK_CASES + POPUP_CASES + SEARCH_CASES
+)
 
 DOCK_WIDTH = 420
 DOCK_HEIGHT = 90
@@ -249,6 +269,7 @@ def _folder_stack_handler() -> MenuHandler:
         diagnostics=MagicMock(),
         launcher=launcher,
         dock_window=MagicMock(),
+        search=MagicMock(),
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"
@@ -446,6 +467,163 @@ def _draw_preview_case() -> cairo.ImageSurface:
         _flush_gtk()
 
 
+def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
+    class _Launcher:
+        @staticmethod
+        def load_icon(*, icon_name: str, size: int):
+            colors = {
+                "firefox": (235, 94, 55),
+                "org.gnome.Terminal": (70, 74, 86),
+                "document-open-recent": (60, 132, 241),
+            }
+            red, green, blue = colors.get(icon_name, (120, 120, 120))
+            return _pixbuf(size, red=red, green=green, blue=blue)
+
+    firefox = SearchIdentity("applications", "firefox.desktop")
+    terminal = SearchIdentity("windows", "terminal-window")
+    recent = SearchIdentity("recent-files", "file:///tmp/Proposal.pdf")
+    image_path: Path | None = None
+    firefox_preview = SearchPreview(
+        title="Firefox",
+        body=(
+            "Browse the Web\n\nDesktop entry: firefox.desktop\nState: Running · Pinned"
+        ),
+    )
+    if panel == "image":
+        image_path = Path(tempfile.gettempdir()) / "docking-search-visual-preview.png"
+        image = GdkPixbuf.Pixbuf.new(
+            GdkPixbuf.Colorspace.RGB,
+            False,
+            8,
+            400,
+            220,
+        )
+        image.fill(_rgba_fill(58, 112, 202))
+        image.savev(str(image_path), "png", [], [])
+        firefox_preview = SearchPreview(
+            title="Screenshot.png",
+            body=str(image_path),
+            kind="image",
+            target=str(image_path),
+        )
+    snapshot = SearchSnapshot(
+        generation=1,
+        query=SearchQuery("fi"),
+        results=(
+            SearchResult(
+                identity=firefox,
+                title="Firefox",
+                description="Browse the Web",
+                score=750,
+                icon_name="firefox",
+                source="Applications",
+                state="Running · Pinned",
+                actions=(
+                    SearchAction(
+                        SearchIdentity(
+                            "applications",
+                            "firefox.desktop\x1ffocus",
+                        ),
+                        "Focus",
+                    ),
+                    SearchAction(
+                        SearchIdentity(
+                            "applications",
+                            "firefox.desktop\x1fnew-window",
+                        ),
+                        "Open New Window",
+                    ),
+                    SearchAction(
+                        SearchIdentity(
+                            "applications",
+                            "firefox.desktop\x1funpin",
+                        ),
+                        "Remove from Dock",
+                        verb="remove",
+                    ),
+                ),
+                preview=firefox_preview,
+            ),
+            SearchResult(
+                identity=terminal,
+                title="Project — Terminal",
+                description="org.gnome.Terminal.desktop",
+                score=520,
+                icon_name="org.gnome.Terminal",
+                source="Windows",
+                actions=(
+                    SearchAction(
+                        SearchIdentity("windows", "terminal-window\x1factivate"),
+                        "Activate Window",
+                    ),
+                ),
+            ),
+            SearchResult(
+                identity=recent,
+                title="Proposal.pdf",
+                description="file:///tmp/Proposal.pdf",
+                score=320,
+                icon_name="document-open-recent",
+                source="Recent Files",
+                state="Recent",
+                actions=(
+                    SearchAction(
+                        SearchIdentity(
+                            "recent-files",
+                            "file:///tmp/Proposal.pdf\x1fopen",
+                        ),
+                        "Open",
+                    ),
+                ),
+            ),
+        ),
+        selected_identity=firefox,
+        pending_provider_ids=(),
+        errors=(),
+    )
+    window = SearchWindow(
+        launcher=_Launcher(),
+        on_query_changed=lambda _query: None,
+        on_result_selected=lambda _identity: None,
+        on_result_activated=lambda _result: None,
+        on_action_activated=lambda _result, _action: None,
+        on_hidden=lambda: None,
+        on_refine_requested=lambda _result: None,
+        dynamic_preview_loader=lambda _preview, _width, _height: None,
+        preview_resolver=lambda _result: None,
+    )
+    root = window.window.get_child()
+    window.window.remove(root)
+    window.window.destroy()
+    offscreen = Gtk.OffscreenWindow()
+    offscreen.set_default_size(680, 470)
+    root.set_size_request(680, 470)
+    offscreen.add(root)
+    window.window = offscreen
+    try:
+        window.set_query("fi")
+        window.update(snapshot)
+        window.window.show_all()
+        window.action_frame.hide()
+        window.preview_frame.hide()
+        if panel == "actions":
+            window.toggle_actions()
+        elif panel in {"preview", "image"}:
+            window.toggle_preview()
+        else:
+            window.window.set_focus(None)
+        if panel == "image":
+            for _ in range(20):
+                _flush_gtk()
+                time.sleep(0.01)
+        return _capture_window_surface(window.window)
+    finally:
+        window.destroy()
+        _flush_gtk()
+        if image_path is not None:
+            image_path.unlink(missing_ok=True)
+
+
 def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
@@ -456,4 +634,12 @@ def render_case(case_name: str) -> cairo.ImageSurface:
         return _draw_tooltip_case()
     if case_name == "preview-popup-open-bottom":
         return _draw_preview_case()
+    if case_name == "search-palette-results":
+        return _draw_search_case(panel=None)
+    if case_name == "search-palette-actions":
+        return _draw_search_case(panel="actions")
+    if case_name == "search-palette-preview":
+        return _draw_search_case(panel="preview")
+    if case_name == "search-palette-image-preview":
+        return _draw_search_case(panel="image")
     raise AssertionError(f"Unknown visual case {case_name}")

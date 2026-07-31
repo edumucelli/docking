@@ -453,6 +453,13 @@ class WindowTracker:
                 self._cycle_order_by_desktop.pop(desktop_id, None)
                 self._cycle_index.pop(desktop_id, None)
 
+    def list_all_windows(self) -> list[WindowSnapshot]:
+        """Return backend-neutral snapshots for every matched X11 window."""
+        snapshots: list[WindowSnapshot] = []
+        for desktop_id in self._running_xids_by_desktop:
+            snapshots.extend(self.list_windows(desktop_id=desktop_id))
+        return snapshots
+
     def list_windows(self, desktop_id: str) -> list[WindowSnapshot]:
         """Return backend-neutral snapshots for current windows of a desktop ID."""
         active_xid = self._active_xid()

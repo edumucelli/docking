@@ -48,6 +48,7 @@ from docking.platform.backends.base import (
 )
 from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
+from docking.search.controller import GlobalSearchController
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
@@ -79,15 +80,18 @@ class DockUi:
     window: DockWindow
     startup_popups: StartupPopupCoordinator
     input_controller: DockInputController
+    search: GlobalSearchController
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
         self.input_controller.start()
+        self.search.start()
         self.startup_popups.start()
 
     def stop(self) -> None:
         """Stop the composed dock UI lifecycle."""
         self.startup_popups.stop()
+        self.search.stop()
         self.input_controller.stop()
 
 
@@ -126,6 +130,13 @@ def build_dock_window(
         parent=window,
         backend=session_backend,
     )
+    search = GlobalSearchController(
+        config=config,
+        launcher=launcher,
+        model=model,
+        windows=window_tracker,
+        preview_service=preview_service,
+    )
     folder_stack = FolderStackController(
         config=config,
         runtime=runtime,
@@ -147,6 +158,7 @@ def build_dock_window(
         runtime=runtime,
         dnd=dnd,
         model=model,
+        search=search,
     )
     settings = SettingsWindowController(
         parent=window,
@@ -166,6 +178,7 @@ def build_dock_window(
         folder_stack=folder_stack,
         launcher=launcher,
         dock_window=window,
+        search=search,
     )
     interactions = DockInteractions(
         menu=menu,
@@ -213,4 +226,5 @@ def build_dock_window(
         window=window,
         startup_popups=startup_popups,
         input_controller=input_controller,
+        search=search,
     )
