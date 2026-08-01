@@ -246,10 +246,17 @@ def _create_wayland_layer_shell_backend(
         log.info("Wayland layer-shell backend unavailable: GtkLayerShell not installed")
         return None
     if not layer_shell_is_supported(layer_shell):
-        log.info(
-            "Wayland layer-shell backend unavailable: compositor does not support "
-            "layer-shell"
-        )
+        if detect_desktop() & Desktop.MIRIWAY:
+            log.info(
+                "Wayland layer-shell backend unavailable: Miriway exposes shell "
+                "protocols only to configured shell components; add "
+                "shell-component=docking to miriway-shell.config"
+            )
+        else:
+            log.info(
+                "Wayland layer-shell backend unavailable: compositor does not support "
+                "layer-shell"
+            )
         return None
     backend = WaylandLayerShellSessionBackend(
         layer_shell=layer_shell,
