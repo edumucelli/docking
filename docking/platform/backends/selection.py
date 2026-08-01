@@ -27,6 +27,7 @@ from docking.platform.environment import (
     Desktop,
     backend_name,
     detect_desktop,
+    is_gamescope_session,
     is_kde_session,
     is_wayland_session,
     is_x11_backend,
@@ -254,6 +255,14 @@ def create_session_backend(
                 "management protocol to third-party dock clients"
             )
         return _create_reduced_backend(reason=reason)
+
+    # Reaching this point means the early GameScope Wayland bootstrap could not
+    # produce a usable native GTK display. Avoid treating its nested X display
+    # as a normal desktop with full X11 window-management capabilities.
+    if is_gamescope_session():
+        return _create_reduced_backend(
+            reason="GameScope native layer-shell connection was unavailable"
+        )
 
     return _create_x11_backend(
         config=config,

@@ -68,6 +68,7 @@ class Desktop(enum.Flag):
     JAY = enum.auto()
     MIRIWAY = enum.auto()
     DEEPIN = enum.auto()
+    GAMESCOPE = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -123,6 +124,7 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "deepin": Desktop.DEEPIN,
     "treeland": Desktop.DEEPIN,
     "dde": Desktop.DEEPIN,
+    "gamescope": Desktop.GAMESCOPE,
 }
 
 
@@ -180,6 +182,21 @@ def is_kde_session(*, desktop: Desktop | None = None) -> bool:
     """Return True for KDE sessions."""
     resolved = desktop if desktop is not None else detect_desktop()
     return bool(resolved & Desktop.KDE)
+
+
+def is_gamescope_session(*, desktop: Desktop | None = None) -> bool:
+    """Return True when running under Valve's GameScope compositor.
+
+    GameScope sets ``XDG_CURRENT_DESKTOP=gamescope`` but may set
+    ``XDG_SESSION_TYPE=x11`` even though it is a Wayland compositor
+    (native Wayland clients require ``--expose-wayland``).
+    The ``GAMESCOPE_WAYLAND_DISPLAY`` variable is always set as a
+    secondary detection signal.
+    """
+    resolved = desktop if desktop is not None else detect_desktop()
+    if resolved & Desktop.GAMESCOPE:
+        return True
+    return bool(os.environ.get("GAMESCOPE_WAYLAND_DISPLAY", ""))
 
 
 def is_x11_backend(*, display: object | None = None) -> bool:
