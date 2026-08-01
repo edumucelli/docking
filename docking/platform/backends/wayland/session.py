@@ -36,7 +36,6 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
-from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
@@ -69,7 +68,6 @@ class WaylandLayerShellRuntimeServices:
     visibility: ReducedVisibilityService
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
-    idle: IdleService | None
     protocol_runtime: WaylandProtocolRuntime | None
 
 
@@ -173,14 +171,6 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             if workspace_protocol is not None
             else None
         )
-        idle_protocol = (
-            getattr(runtime, "idle_protocol", None) if runtime is not None else None
-        )
-        idle: IdleService | None = (
-            WaylandIdleService(protocol=idle_protocol)
-            if idle_protocol is not None
-            else None
-        )
         self._services = WaylandLayerShellRuntimeServices(
             windows=windows,
             previews=previews,
@@ -190,7 +180,6 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             screen_capture=screen_capture
             if screen_capture is not None
             else load_portal_color_picker(),
-            idle=idle,
             protocol_runtime=runtime,
         )
 
@@ -229,7 +218,6 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             supports_layer_shell=True,
             supports_screen_reservation=True,
             supports_input_region=True,
-            supports_idle_time=isinstance(self._services.idle, WaylandIdleService),
         )
 
     @property
@@ -262,7 +250,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
 
     @property
     def idle(self) -> IdleService | None:
-        return self._services.idle
+        return None
 
     @property
     def window_picker(self) -> WindowPickService | None:
@@ -277,12 +265,8 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             self._services.workspaces.start()
         if self._services.screen_capture is not None:
             self._services.screen_capture.start()
-        if self._services.idle is not None:
-            self._services.idle.start()
 
     def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
         if self._services.screen_capture is not None:
             self._services.screen_capture.stop()
         if self._services.workspaces is not None:
