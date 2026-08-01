@@ -184,6 +184,7 @@ one with `DOCKING_BACKEND`.
 | **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
 | **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
+| **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
 | **Native layer-shell** | Phosh / phoc | Dock placement and window actions through standard protocols, with native per-window thumbnails when phoc exposes `phosh_private` to the client |
 | **Reduced** | Cage | Launcher-only mode. Cage is a single-application kiosk and does not provide a layer-shell surface suitable for a dock |
 | **Reduced** | Weston | Launcher-only mode. Weston's shell protocols are reserved for its configured shell or IVI controller, not general third-party docks |
@@ -237,6 +238,35 @@ DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
 DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
 DOCKING_BACKEND=x11 docking                   # X11 (full support)
 ```
+
+#### Jay client capabilities
+
+Jay restricts window-management, workspace, capture, and idle protocols to
+approved clients. Launch Docking with a connection tag:
+
+```bash
+jay run-tagged docking docking
+```
+
+Then grant that tag the protocols used by the generic Wayland backend:
+
+```toml
+[[clients]]
+match.tag = "docking"
+capabilities = [
+    "layer-shell",
+    "foreign-toplevel-manager",
+    "foreign-toplevel-list",
+    "workspace-manager",
+    "screencopy",
+    "idle-notifier",
+]
+```
+
+Jay replaces its default permissions when a client rule matches, so
+`layer-shell` must remain in the explicit list. A connection tag is preferred
+over matching the process name because it grants these privileges only to the
+Docking instance launched through `jay run-tagged`.
 
 ## First Use
 
