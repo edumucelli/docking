@@ -383,7 +383,7 @@
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: one dock across Linux desktops</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
           </div>
-          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, wlroots, and fallback sessions</div>
+          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, Treeland, and protocol-capable Wayland</div>
         </div>
 
         <div class="mt-10 overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-ember/8 shadow-soft backdrop-blur-2xl">
@@ -430,6 +430,18 @@
               <p class="text-sm leading-7 text-slate-300">Layer-shell placement, AT-SPI window tracking with titles, and workspace switching through KWin D-Bus. Window actions depend on what KWin exposes.</p>
             </article>
 
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cinnamon-wayland" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Cinnamon Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Current Muffin releases</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Layer-shell plus Muffin snapshots</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement and read-only running, active, attention, geometry, and workspace state. Muffin does not expose window actions, previews, or change signals.</p>
+            </article>
+
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cosmic" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
@@ -466,28 +478,52 @@
               <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker - via native Wayfire IPC.</p>
             </article>
 
-            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wlroots" data-status="partial">
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="protocol-wayland" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
                   <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Varies</span>
-                  <h3 class="text-lg font-semibold text-white">Hyprland, Sway, labwc, river</h3>
+                  <h3 class="text-lg font-semibold text-white">Protocol-capable Wayland</h3>
                 </div>
-                <p class="mt-2 text-sm text-slate-400">wlroots-style Wayland compositors</p>
+                <p class="mt-2 text-sm text-slate-400">Sway, labwc, river, Louvre-based, Jay, Miriway, Phosh / phoc</p>
               </div>
-              <div class="text-sm font-medium text-slate-200">Layer-shell plus compositor protocols</div>
-              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, workspaces, and previews vary by compositor protocol support and backend selection.</p>
+              <div class="text-sm font-medium text-slate-200">Layer-shell plus advertised protocols</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, actions, workspaces, previews, and idle time are enabled independently. Jay and Miriway require trusted-client configuration; phoc can provide native window thumbnails.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="treeland" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Deepin Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Treeland compositor sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Standard protocols plus Treeland extensions</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking and previews, Show Desktop, and overlap-driven hiding. Left-edge overlap falls back while Treeland's current checker remains limited.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gamescope" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Overlay</span>
+                  <h3 class="text-lg font-semibold text-white">GameScope</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Nested and gaming sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Native GameScope Wayland socket</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement as an external overlay, including sessions without <code>--expose-wayland</code>. GameScope does not expose general window management to regular clients.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="reduced" data-status="fallback">
               <div>
                 <div class="flex items-center gap-3">
                   <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Fallback</span>
-                  <h3 class="text-lg font-semibold text-white">Any unsupported session</h3>
+                  <h3 class="text-lg font-semibold text-white">Cage, Weston, and unsupported sessions</h3>
                 </div>
-                <p class="mt-2 text-sm text-slate-400">Safe launcher/app applet mode</p>
+                <p class="mt-2 text-sm text-slate-400">Safe launcher and applet mode</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Reduced backend</div>
-              <p class="text-sm leading-7 text-slate-300">Dock remains usable even without window management, running indicators, previews, or workspace switching.</p>
+              <p class="text-sm leading-7 text-slate-300">Docking remains usable without running indicators, previews, or workspace switching when no supported integration is available.</p>
             </article>
           </div>
         </div>
