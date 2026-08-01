@@ -114,6 +114,7 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "weston": Desktop.WESTON,
     "louvre": Desktop.LOUVRE,
     "phosh": Desktop.PHOSH,
+    "phoc": Desktop.PHOSH,
 }
 
 
