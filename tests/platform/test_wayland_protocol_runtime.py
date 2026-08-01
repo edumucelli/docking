@@ -21,7 +21,7 @@ ExtForeignToplevelImageCaptureSourceManagerV1 = pytest.importorskip(
 ExtImageCopyCaptureManagerV1 = pytest.importorskip(
     "pywayland.protocol.ext_image_copy_capture_v1"
 ).ExtImageCopyCaptureManagerV1
-from pywayland.protocol.wayland import WlSeat, WlShm
+from pywayland.protocol.wayland import WlOutput, WlSeat, WlShm
 
 from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
@@ -31,6 +31,10 @@ from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 imp
     HyprlandToplevelExportManagerV1,
 )
 from docking.platform.backends.wayland.protocols.phosh_private import PhoshPrivate
+from docking.platform.backends.wayland.protocols.treeland_shell import (
+    TreelandDDEShellManagerV1,
+    TreelandWindowManagementV1,
+)
 from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (
     ZwlrForeignToplevelManagerV1,
 )
@@ -316,6 +320,49 @@ def test_wayland_protocol_runtime_binds_idle_protocol():
         (41, WlSeat, WlSeat.version),
         (41, WlSeat, WlSeat.version),
     ]
+
+
+def test_wayland_protocol_runtime_binds_treeland_extensions_and_outputs():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](
+        registry,
+        50,
+        "treeland_dde_shell_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](
+        registry,
+        51,
+        "treeland_window_management_v1",
+        99,
+    )
+    registry.dispatcher["global"](registry, 52, "wl_output", 99)
+
+    assert runtime.treeland_overlap_protocol is runtime.treeland_overlap
+    assert (
+        runtime.treeland_window_management_protocol
+        is runtime.treeland_window_management
+    )
+    assert registry.bound == [
+        (
+            50,
+            TreelandDDEShellManagerV1,
+            TreelandDDEShellManagerV1.version,
+        ),
+        (
+            51,
+            TreelandWindowManagementV1,
+            TreelandWindowManagementV1.version,
+        ),
+        (52, WlOutput, WlOutput.version),
+    ]
+
+    registry.dispatcher["global_remove"](registry, 52)
+    assert runtime.treeland_overlap._outputs == []
 
 
 def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():

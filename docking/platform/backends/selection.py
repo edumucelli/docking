@@ -140,6 +140,17 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"KWin backend unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested in {"treeland", "deepin"}:
+        backend = _create_treeland_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"Treeland backend unavailable after DOCKING_BACKEND={requested}"
+        )
 
     if not is_x11_backend():
         # Hyprland has a richer IPC backend than generic layer-shell.
@@ -181,6 +192,14 @@ def create_session_backend(
         # KWin / KDE Plasma native backend
         if is_kde_session():
             backend = _create_kwin_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
+        if detect_desktop() & Desktop.DEEPIN:
+            backend = _create_treeland_backend(
                 launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
@@ -280,6 +299,30 @@ def _create_gnome_shell_bridge_backend(
         model=model,
         launcher=launcher,
         bridge=bridge,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_treeland_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+    from docking.platform.backends.wayland.treeland_session import (
+        TreelandSessionBackend,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None or not layer_shell_is_supported(layer_shell):
+        log.info("Treeland backend unavailable: layer-shell is not usable")
+        return None
+    backend = TreelandSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
