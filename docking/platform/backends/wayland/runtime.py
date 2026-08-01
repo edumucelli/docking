@@ -682,6 +682,61 @@ class HyprlandPreviewProtocolAdapter:
             self._flush()
 
 
+class PhocPreviewProtocolAdapter:
+    """Adapter for phoc's window-specific phosh_private thumbnail request."""
+
+    def __init__(self) -> None:
+        self._manager = None
+        self._shm = None
+        self._flush: Callable[[], None] | None = None
+        self.available = False
+
+    @property
+    def capture_available(self) -> bool:
+        return self.available and self._manager is not None and self._shm is not None
+
+    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
+        self._flush = callback
+
+    def bind(self, *, registry, name: int, version: int) -> None:
+        from docking.platform.backends.wayland.protocols.phosh_private import (
+            PhoshPrivate,
+        )
+
+        bind_version = min(version, PhoshPrivate.version)
+        self._manager = registry.bind(name, PhoshPrivate, bind_version)
+        self.available = bind_version >= 4
+
+    def bind_shm(self, *, registry, name: int, version: int) -> None:
+        from pywayland.protocol.wayland import WlShm
+
+        self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
+
+    def create_frame(self, handle: object, width: int, height: int) -> object:
+        if not self.capture_available or self._manager is None:
+            raise RuntimeError("Phoc preview capture is unavailable")
+        return self._manager.get_thumbnail(handle, width, height)
+
+    def create_shm_pool(self, fd: int, size: int) -> object:
+        if not self.capture_available or self._shm is None:
+            raise RuntimeError("Phoc preview shm is unavailable")
+        return self._shm.create_pool(fd, size)
+
+    def flush(self) -> None:
+        if self._flush is not None:
+            self._flush()
+
+    def stop(self) -> None:
+        for obj in (self._manager, self._shm):
+            destroy = getattr(obj, "destroy", None)
+            if callable(destroy):
+                destroy()
+        self._manager = None
+        self._shm = None
+        self._flush = None
+        self.available = False
+
+
 class WaylandProtocolRuntime:
     """Owns direct Wayland protocol connection and event-loop integration."""
 
@@ -693,6 +748,7 @@ class WaylandProtocolRuntime:
         workspace_adapter: WorkspaceProtocolAdapter | None = None,
         preview_adapter: PreviewProtocolAdapter | None = None,
         hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
+        phoc_preview_adapter: PhocPreviewProtocolAdapter | None = None,
         idle_adapter: IdleProtocolAdapter | None = None,
         cosmic_toplevel_adapter: object | None = None,
         cosmic_workspace_adapter: object | None = None,
@@ -711,6 +767,7 @@ class WaylandProtocolRuntime:
         self.hyprland_previews = (
             hyprland_preview_adapter or HyprlandPreviewProtocolAdapter()
         )
+        self.phoc_previews = phoc_preview_adapter or PhocPreviewProtocolAdapter()
         self.idle = idle_adapter or IdleProtocolAdapter()
         self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
         self.cosmic_workspace = cosmic_workspace_adapter or CosmicWorkspaceAdapter()
@@ -737,6 +794,10 @@ class WaylandProtocolRuntime:
         return (
             self.hyprland_previews if self.hyprland_previews.capture_available else None
         )
+
+    @property
+    def phoc_preview_protocol(self) -> object | None:
+        return self.phoc_previews if self.phoc_previews.capture_available else None
 
     @property
     def idle_protocol(self) -> object | None:
@@ -770,6 +831,7 @@ class WaylandProtocolRuntime:
             self.workspaces.set_flush_callback(display.flush)
             self.previews.set_flush_callback(display.flush)
             self.hyprland_previews.set_flush_callback(display.flush)
+            self.phoc_previews.set_flush_callback(display.flush)
             self.idle.set_flush_callback(display.flush)
             self.cosmic_toplevel.set_flush_callback(display.flush)
             self.cosmic_workspace.set_flush_callback(display.flush)
@@ -802,6 +864,7 @@ class WaylandProtocolRuntime:
         self.workspaces.stop()
         self.previews.stop()
         self.hyprland_previews.stop()
+        self.phoc_previews.stop()
         self.idle.stop()
         self.cosmic_toplevel.stop()
         self.cosmic_workspace.stop()
@@ -895,8 +958,19 @@ class WaylandProtocolRuntime:
                 name=name,
                 version=version,
             )
+            self.phoc_previews.bind_shm(
+                registry=registry,
+                name=name,
+                version=version,
+            )
         elif interface == "hyprland_toplevel_export_manager_v1":
             self.hyprland_previews.bind_export_manager(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "phosh_private":
+            self.phoc_previews.bind(
                 registry=registry,
                 name=name,
                 version=version,

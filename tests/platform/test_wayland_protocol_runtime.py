@@ -30,12 +30,14 @@ from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_
 from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 import (
     HyprlandToplevelExportManagerV1,
 )
+from docking.platform.backends.wayland.protocols.phosh_private import PhoshPrivate
 from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (
     ZwlrForeignToplevelManagerV1,
 )
 from docking.platform.backends.wayland.runtime import (
     ForeignToplevelProtocolAdapter,
     IdleProtocolAdapter,
+    PhocPreviewProtocolAdapter,
     PreviewProtocolAdapter,
     WaylandProtocolFactories,
     WaylandProtocolRuntime,
@@ -241,6 +243,7 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
         (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
         (23, WlShm, WlShm.version),
         (23, WlShm, WlShm.version),
+        (23, WlShm, WlShm.version),
     ]
 
 
@@ -267,7 +270,34 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
         ),
         (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
+        (31, WlShm, WlShm.version),
     ]
+
+
+def test_wayland_protocol_runtime_binds_phoc_preview_protocol():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 35, "phosh_private", 7)
+    registry.dispatcher["global"](registry, 36, "wl_shm", 99)
+
+    assert runtime.phoc_preview_protocol is runtime.phoc_previews
+    assert (35, PhoshPrivate, PhoshPrivate.version) in registry.bound
+    assert (36, WlShm, WlShm.version) in registry.bound
+
+
+def test_phoc_preview_adapter_requires_protocol_v4_and_shm():
+    registry = FakeRegistry()
+    adapter = PhocPreviewProtocolAdapter()
+
+    adapter.bind(registry=registry, name=1, version=3)
+    adapter.bind_shm(registry=registry, name=2, version=1)
+    assert adapter.capture_available is False
+
+    adapter.bind(registry=registry, name=3, version=7)
+    assert adapter.capture_available is True
 
 
 def test_wayland_protocol_runtime_binds_idle_protocol():

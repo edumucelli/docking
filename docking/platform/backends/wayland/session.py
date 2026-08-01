@@ -42,6 +42,7 @@ from docking.platform.backends.wayland.portals import (
 )
 from docking.platform.backends.wayland.previews import (
     HyprlandPreviewService,
+    PhocPreviewService,
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
@@ -117,6 +118,11 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             if runtime is not None
             else None
         )
+        phoc_preview_protocol = (
+            getattr(runtime, "phoc_preview_protocol", None)
+            if runtime is not None
+            else None
+        )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
         if foreign_protocol is not None and model is not None and launcher is not None:
@@ -132,7 +138,10 @@ class WaylandLayerShellSessionBackend(SessionBackend):
                 protocol=foreign_protocol,
                 preview_handles=preview_handles,
                 can_preview=preview_protocol is None
-                and hyprland_preview_protocol is not None,
+                and (
+                    hyprland_preview_protocol is not None
+                    or phoc_preview_protocol is not None
+                ),
             )
         else:
             windows = ReducedWindowService()
@@ -146,6 +155,13 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         ):
             previews = HyprlandPreviewService(
                 protocol=hyprland_preview_protocol,
+                windows=windows,
+            )
+        elif phoc_preview_protocol is not None and isinstance(
+            windows, WaylandForeignToplevelWindowService
+        ):
+            previews = PhocPreviewService(
+                protocol=phoc_preview_protocol,
                 windows=windows,
             )
         else:

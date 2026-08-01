@@ -29,6 +29,7 @@ from docking.platform.backends.wayland.niri_session import NiriSessionBackend
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
 from docking.platform.backends.wayland.previews import (
     HyprlandPreviewService,
+    PhocPreviewService,
     WaylandPreviewService,
 )
 from docking.platform.backends.wayland.services import (
@@ -75,6 +76,7 @@ def _empty_runtime() -> SimpleNamespace:
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
+        phoc_preview_protocol=None,
         idle_protocol=None,
         stop=MagicMock(),
     )
@@ -183,6 +185,37 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
 
     assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
     assert isinstance(backend.previews, HyprlandPreviewService)
+
+
+def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
+    phoc_preview_protocol = SimpleNamespace(
+        capture_available=True,
+        create_frame=MagicMock(),
+        create_shm_pool=MagicMock(),
+        flush=MagicMock(),
+    )
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        foreign_toplevel_protocol=SimpleNamespace(),
+        protocol_runtime=SimpleNamespace(
+            foreign_toplevel_protocol=None,
+            workspace_protocol=None,
+            preview_protocol=None,
+            hyprland_preview_protocol=None,
+            phoc_preview_protocol=phoc_preview_protocol,
+            idle_protocol=None,
+            stop=MagicMock(),
+        ),
+    )
+
+    assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
+    assert backend.windows._can_preview is True
+    assert isinstance(backend.previews, PhocPreviewService)
 
 
 def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_available():
