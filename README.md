@@ -190,9 +190,7 @@ one with `DOCKING_BACKEND`.
 | **Native layer-shell** | Miriway | Dock placement, window actions, and workspaces when Docking is launched as a trusted Miriway shell component |
 | **Native layer-shell** | Phosh / phoc | Dock placement and window actions through standard protocols, with native per-window thumbnails when phoc exposes `phosh_private` to the client |
 | **Treeland** | Deepin Wayland | Standard layer-shell window tracking and previews, plus Treeland Show Desktop and overlap-driven hiding. Left-edge overlap falls back until Treeland fixes its current left-anchor checker |
-| **Reduced** | Cage | Launcher-only mode. Cage is a single-application kiosk and does not provide a layer-shell surface suitable for a dock |
-| **Reduced** | Weston | Launcher-only mode. Weston's shell protocols are reserved for its configured shell or IVI controller, not general third-party docks |
-| **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
+| **Reduced** | Cage, Weston, and Wayland compositors without a supported integration | Launcher-only mode with no running indicators, previews, or workspace switching. Cage is a single-application kiosk without a suitable layer-shell surface; Weston reserves its shell protocols for its configured shell or IVI controller |
 
 #### GNOME Shell Bridge
 
