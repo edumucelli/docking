@@ -24,6 +24,7 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandWindowService,
 )
 from docking.platform.backends.wayland.hyprland_session import HyprlandSessionBackend
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.niri_ipc import NiriWindowService
 from docking.platform.backends.wayland.niri_session import NiriSessionBackend
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
@@ -233,6 +234,24 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     assert backend.capabilities.supports_workspace_list is True
     assert backend.capabilities.supports_workspace_switch is True
     assert backend.capabilities.supports_screen_color_pick is True
+
+
+def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
+    idle_protocol = MagicMock()
+    runtime = _empty_runtime()
+    runtime.idle_protocol = idle_protocol
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        protocol_runtime=runtime,
+    )
+
+    assert isinstance(backend.idle, WaylandIdleService)
+    assert backend.capabilities.supports_idle_time is True
+
+    backend.start()
+    idle_protocol.start.assert_called_once_with(backend.idle)
+    backend.stop()
+    idle_protocol.stop.assert_called_once()
 
 
 def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():

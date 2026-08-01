@@ -369,6 +369,7 @@ class IdleProtocolAdapter:
 
     def __init__(self) -> None:
         self._notifier = None
+        self._notifier_version = 0
         self._seat = None
         self._notification = None
         self._flush: Callable[[], None] | None = None
@@ -383,6 +384,7 @@ class IdleProtocolAdapter:
 
         bind_version = min(version, ExtIdleNotifierV1.version)
         self._notifier = registry.bind(name, ExtIdleNotifierV1, bind_version)
+        self._notifier_version = bind_version
         self.available = True
         self._maybe_create_notification()
 
@@ -408,6 +410,7 @@ class IdleProtocolAdapter:
             if callable(destroy):
                 destroy()
         self._notifier = None
+        self._notifier_version = 0
         self._seat = None
         self._notification = None
         self._flush = None
@@ -422,7 +425,9 @@ class IdleProtocolAdapter:
             or self._service is None
         ):
             return
-        create = getattr(self._notifier, "get_input_idle_notification", None)
+        create = None
+        if self._notifier_version >= 2:
+            create = getattr(self._notifier, "get_input_idle_notification", None)
         if not callable(create):
             create = getattr(self._notifier, "get_idle_notification", None)
         if not callable(create):

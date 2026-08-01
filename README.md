@@ -183,7 +183,7 @@ one with `DOCKING_BACKEND`.
 | **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
 | **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
-| **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
+| **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
 | **Cinnamon Wayland** | Current Muffin | Dock placement plus read-only running, active, attention, geometry, and workspace state through Muffin's `org.cinnamon.Muffin.Debug.ListWindows` snapshot API. Muffin does not expose window actions, previews, or change signals, so Docking polls every two seconds |
 | **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
 | **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
