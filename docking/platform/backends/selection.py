@@ -207,6 +207,11 @@ def create_session_backend(
                 "Cage is a single-application kiosk compositor and does not expose "
                 "a layer-shell surface suitable for a dock"
             )
+        elif detect_desktop() & Desktop.WESTON:
+            reason = (
+                "Weston does not expose a general-purpose layer-shell or window "
+                "management protocol to third-party dock clients"
+            )
         return _create_reduced_backend(reason=reason)
 
     return _create_x11_backend(
