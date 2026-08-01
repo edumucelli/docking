@@ -61,6 +61,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
 
     stub_modules = {
+        "docking.platform.gamescope": {
+            "prepare_gamescope_wayland_environment": lambda: False,
+        },
         "docking.platform.environment": {
             "apply_tweaks": lambda **_kwargs: None,
             "detect_desktop": lambda: "test",
