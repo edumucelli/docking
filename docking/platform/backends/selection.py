@@ -201,7 +201,13 @@ def create_session_backend(
         )
         if backend is not None:
             return backend
-        return _create_reduced_backend(reason=_non_x11_reason())
+        reason = _non_x11_reason()
+        if detect_desktop() & Desktop.CAGE:
+            reason = (
+                "Cage is a single-application kiosk compositor and does not expose "
+                "a layer-shell surface suitable for a dock"
+            )
+        return _create_reduced_backend(reason=reason)
 
     return _create_x11_backend(
         config=config,

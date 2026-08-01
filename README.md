@@ -184,6 +184,7 @@ one with `DOCKING_BACKEND`.
 | **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
 | **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
+| **Reduced** | Cage | Launcher-only mode. Cage is a single-application kiosk and does not provide a layer-shell surface suitable for a dock |
 | **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
 
 #### GNOME Shell Bridge

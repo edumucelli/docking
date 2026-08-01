@@ -69,6 +69,32 @@ def test_create_session_backend_selects_reduced_for_non_x11_without_x11_import(
     assert result.name == "reduced"
 
 
+def test_create_session_backend_explains_cage_reduced_mode(monkeypatch):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.CAGE)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", lambda **_: None
+    )
+    monkeypatch.setattr(
+        selection, "_create_gnome_shell_bridge_backend", lambda **_: None
+    )
+    create_reduced = MagicMock(return_value=MagicMock(name="reduced"))
+    monkeypatch.setattr(selection, "_create_reduced_backend", create_reduced)
+
+    selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    reason = create_reduced.call_args.kwargs["reason"]
+    assert "single-application kiosk" in reason
+    assert "layer-shell" in reason
+
+
 def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkeypatch):
     monkeypatch.delenv("DOCKING_BACKEND", raising=False)
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
