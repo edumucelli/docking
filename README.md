@@ -185,6 +185,7 @@ one with `DOCKING_BACKEND`.
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
 | **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
 | **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
+| **Native layer-shell** | Miriway | Dock placement, window actions, and workspaces when Docking is launched as a trusted Miriway shell component |
 | **Native layer-shell** | Phosh / phoc | Dock placement and window actions through standard protocols, with native per-window thumbnails when phoc exposes `phosh_private` to the client |
 | **Reduced** | Cage | Launcher-only mode. Cage is a single-application kiosk and does not provide a layer-shell surface suitable for a dock |
 | **Reduced** | Weston | Launcher-only mode. Weston's shell protocols are reserved for its configured shell or IVI controller, not general third-party docks |
@@ -267,6 +268,20 @@ Jay replaces its default permissions when a client rule matches, so
 `layer-shell` must remain in the explicit list. A connection tag is preferred
 over matching the process name because it grants these privileges only to the
 Docking instance launched through `jay run-tagged`.
+
+#### Miriway shell component
+
+Miriway deliberately limits layer-shell, foreign-toplevel management, and
+workspace management to trusted shell components. Add Docking to
+`~/.config/miriway-shell.config`:
+
+```ini
+shell-component=docking
+```
+
+Restart Miriway after changing this file. Miriway then launches Docking with
+the privileged Wayland socket. Starting Docking as an ordinary application
+leaves these protocols hidden and results in reduced launcher-only behavior.
 
 ## First Use
 

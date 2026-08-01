@@ -143,6 +143,29 @@ def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkey
     create_wayland.assert_called_once()
 
 
+def test_miriway_layer_shell_failure_logs_shell_component_hint(monkeypatch, caplog):
+    caplog.set_level("INFO")
+    layer_shell = MagicMock()
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.load_gtk_layer_shell",
+        lambda: layer_shell,
+    )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.layer_shell_is_supported",
+        lambda _layer_shell: False,
+    )
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.MIRIWAY)
+
+    result = selection._create_wayland_layer_shell_backend(
+        launcher=MagicMock(),
+        model=MagicMock(),
+        reason="test",
+    )
+
+    assert result is None
+    assert "shell-component=docking" in caplog.text
+
+
 def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
     monkeypatch,
 ):
