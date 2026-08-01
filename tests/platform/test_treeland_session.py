@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.backends.base import ActionResult, Rect
 from docking.platform.backends.wayland import treeland
 from docking.platform.backends.wayland.treeland import (
@@ -130,6 +132,8 @@ def test_treeland_overlap_avoids_broken_left_anchor():
 
 
 def test_treeland_output_transform_and_hotplug_are_tracked():
+    pytest.importorskip("pywayland")
+
     proxy = SimpleNamespace(release=MagicMock(), dispatcher={})
     registry = SimpleNamespace(bind=MagicMock(return_value=proxy))
     adapter = TreelandOverlapAdapter()
