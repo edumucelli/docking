@@ -408,3 +408,30 @@ def test_create_session_backend_auto_selects_wayfire_before_generic_wayland(
     assert result is backend
     create_wayfire.assert_called_once()
     create_wayland.assert_not_called()
+
+
+def test_create_session_backend_auto_selects_treeland_before_generic_wayland(
+    monkeypatch,
+):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.DEEPIN)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
+    backend = MagicMock(name="treeland")
+    create_treeland = MagicMock(return_value=backend)
+    create_wayland = MagicMock()
+    monkeypatch.setattr(selection, "_create_treeland_backend", create_treeland)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", create_wayland
+    )
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_treeland.assert_called_once()
+    create_wayland.assert_not_called()

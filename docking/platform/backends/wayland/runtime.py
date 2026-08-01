@@ -29,6 +29,10 @@ if TYPE_CHECKING:
     from docking.platform.backends.wayland.toplevels import (
         WaylandForeignToplevelWindowService,
     )
+    from docking.platform.backends.wayland.treeland import (
+        TreelandOverlapAdapter,
+        TreelandWindowManagementAdapter,
+    )
     from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 log = get_logger(name="wayland_protocol_runtime")
@@ -759,6 +763,10 @@ class WaylandProtocolRuntime:
             CosmicToplevelAdapter,
             CosmicWorkspaceAdapter,
         )
+        from docking.platform.backends.wayland.treeland import (
+            TreelandOverlapAdapter,
+            TreelandWindowManagementAdapter,
+        )
 
         self._factories = factories
         self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
@@ -772,6 +780,8 @@ class WaylandProtocolRuntime:
         self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
         self.cosmic_workspace = cosmic_workspace_adapter or CosmicWorkspaceAdapter()
         self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
+        self.treeland_overlap = TreelandOverlapAdapter()
+        self.treeland_window_management = TreelandWindowManagementAdapter()
         self._display = None
         self._registry = None
         self._glib_source_id = 0
@@ -815,6 +825,20 @@ class WaylandProtocolRuntime:
     def cosmic_overlap_protocol(self) -> object | None:
         return self.cosmic_overlap if self.cosmic_overlap.available else None
 
+    @property
+    def treeland_overlap_protocol(self) -> TreelandOverlapAdapter | None:
+        return self.treeland_overlap if self.treeland_overlap.available else None
+
+    @property
+    def treeland_window_management_protocol(
+        self,
+    ) -> TreelandWindowManagementAdapter | None:
+        return (
+            self.treeland_window_management
+            if self.treeland_window_management.available
+            else None
+        )
+
     def start(self) -> bool:
         factories = self._factories or load_protocol_factories()
         if factories is None:
@@ -825,6 +849,7 @@ class WaylandProtocolRuntime:
             display.connect()
             registry = display.get_registry()
             registry.dispatcher["global"] = self._on_global
+            registry.dispatcher["global_remove"] = self._on_global_remove
             self._display = display
             self._registry = registry
             self.foreign_toplevel.set_flush_callback(display.flush)
@@ -836,6 +861,8 @@ class WaylandProtocolRuntime:
             self.cosmic_toplevel.set_flush_callback(display.flush)
             self.cosmic_workspace.set_flush_callback(display.flush)
             self.cosmic_overlap.set_flush_callback(display.flush)
+            self.treeland_overlap.set_flush_callback(display.flush)
+            self.treeland_window_management.set_flush_callback(display.flush)
             display.dispatch(block=False)
             display.roundtrip()
             # The roundtrip discovers globals and binds protocol managers. Flush
@@ -869,6 +896,8 @@ class WaylandProtocolRuntime:
         self.cosmic_toplevel.stop()
         self.cosmic_workspace.stop()
         self.cosmic_overlap.stop()
+        self.treeland_overlap.stop()
+        self.treeland_window_management.stop()
         source_id = self._glib_source_id
         factories = self._factories or load_protocol_factories()
         if source_id and factories is not None:
@@ -898,6 +927,12 @@ class WaylandProtocolRuntime:
                 version=version,
             )
             self.idle.bind_seat(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "wl_output":
+            self.treeland_overlap.bind_output(
                 registry=registry,
                 name=name,
                 version=version,
@@ -935,6 +970,18 @@ class WaylandProtocolRuntime:
             )
         elif interface == "zcosmic_overlap_notify_v1":
             self.cosmic_overlap.bind(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "treeland_dde_shell_manager_v1":
+            self.treeland_overlap.bind(
+                registry=registry,
+                name=name,
+                version=version,
+            )
+        elif interface == "treeland_window_management_v1":
+            self.treeland_window_management.bind(
                 registry=registry,
                 name=name,
                 version=version,
@@ -977,6 +1024,9 @@ class WaylandProtocolRuntime:
             )
         elif interface == "ext_idle_notifier_v1":
             self.idle.bind(registry=registry, name=name, version=version)
+
+    def _on_global_remove(self, _registry, name: int) -> None:
+        self.treeland_overlap.unbind_output(name)
 
     def _install_glib_watch(
         self, *, factories: WaylandProtocolFactories, display
