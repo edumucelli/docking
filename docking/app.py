@@ -56,6 +56,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from docking.platform.gamescope import prepare_gamescope_wayland_environment
+
+# This must run before importing gi or GTK. GameScope's private Wayland socket
+# exposes layer-shell even when the child environment describes an X11 session.
+prepare_gamescope_wayland_environment()
+
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
 faulthandler.enable()

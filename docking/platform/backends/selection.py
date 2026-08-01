@@ -256,11 +256,12 @@ def create_session_backend(
             )
         return _create_reduced_backend(reason=reason)
 
-    # GameScope sets XDG_SESSION_TYPE=x11 even though it is a Wayland
-    # compositor. Force reduced mode so we do not try the X11 backend.
+    # Reaching this point means the early GameScope Wayland bootstrap could not
+    # produce a usable native GTK display. Avoid treating its nested X display
+    # as a normal desktop with full X11 window-management capabilities.
     if is_gamescope_session():
         return _create_reduced_backend(
-            reason="GameScope session (XDG_SESSION_TYPE may be x11)"
+            reason="GameScope native layer-shell connection was unavailable"
         )
 
     return _create_x11_backend(
