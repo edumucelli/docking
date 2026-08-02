@@ -173,8 +173,6 @@ def _factories(glib: FakeGLib) -> WaylandProtocolFactories:
     FakeDisplay.registry = FakeRegistry()
     return WaylandProtocolFactories(
         display_cls=FakeDisplay,
-        manager_cls=ZwlrForeignToplevelManagerV1,
-        workspace_manager_cls=ExtWorkspaceManagerV1,
         glib=glib,
     )
 
@@ -183,8 +181,6 @@ def _workspace_factories(glib: FakeGLib) -> WaylandProtocolFactories:
     DelayedWorkspaceDisplay.registry = FakeRegistry()
     return WaylandProtocolFactories(
         display_cls=DelayedWorkspaceDisplay,
-        manager_cls=ZwlrForeignToplevelManagerV1,
-        workspace_manager_cls=ExtWorkspaceManagerV1,
         glib=glib,
     )
 

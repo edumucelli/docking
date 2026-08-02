@@ -12,7 +12,6 @@ from docking.platform.backends.wayland.workspaces import (
     CAPABILITY_ACTIVATE,
     STATE_ACTIVE,
     WaylandWorkspaceService,
-    load_workspace_protocol,
 )
 
 
@@ -113,10 +112,6 @@ def test_wayland_workspace_service_removes_workspaces():
 
     assert service.list_workspaces() == ()
     assert service.active_workspace() is None
-
-
-def test_workspace_protocol_probe_is_safe_without_live_adapter():
-    assert load_workspace_protocol() is None
 
 
 def test_portal_color_picker_converts_float_channels_to_bytes():

@@ -87,6 +87,8 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
         screen_capture=screen_capture,
     )
@@ -109,6 +111,8 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
 
 
 def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_available():
+    runtime = _empty_runtime()
+    runtime.foreign_toplevel_protocol = SimpleNamespace()
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
@@ -116,8 +120,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
             update_running=MagicMock(),
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
-        foreign_toplevel_protocol=SimpleNamespace(),
-        protocol_runtime=_empty_runtime(),
+        protocol_runtime=runtime,
     )
 
     assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
@@ -144,9 +147,8 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
             update_running=MagicMock(),
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
-        foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
-            foreign_toplevel_protocol=None,
+            foreign_toplevel_protocol=SimpleNamespace(),
             workspace_protocol=None,
             preview_protocol=preview_protocol,
             hyprland_preview_protocol=None,
@@ -173,9 +175,8 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
             update_running=MagicMock(),
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
-        foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
-            foreign_toplevel_protocol=None,
+            foreign_toplevel_protocol=SimpleNamespace(),
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=hyprland_preview_protocol,
@@ -202,9 +203,8 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
             update_running=MagicMock(),
         ),
         launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
-        foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
-            foreign_toplevel_protocol=None,
+            foreign_toplevel_protocol=SimpleNamespace(),
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=None,
@@ -221,11 +221,14 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
 
 def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_available():
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
+    runtime = _empty_runtime()
+    runtime.workspace_protocol = SimpleNamespace()
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
-        workspace_protocol=SimpleNamespace(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
         screen_capture=screen_capture,
-        protocol_runtime=_empty_runtime(),
+        protocol_runtime=runtime,
     )
 
     assert isinstance(backend.workspaces, WaylandWorkspaceService)
@@ -242,6 +245,8 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
     runtime.idle_protocol = idle_protocol
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
         protocol_runtime=runtime,
     )
 
@@ -254,7 +259,7 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
     idle_protocol.stop.assert_called_once()
 
 
-def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
+def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities(monkeypatch):
     window_service = HyprlandWindowService(
         model=SimpleNamespace(
             visible_items=MagicMock(return_value=[]),
@@ -264,12 +269,16 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
         client=SimpleNamespace(paths=HyprlandSocketPaths(command="", events="")),
         event_stream_factory=lambda _callback: None,
     )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.hyprland_session."
+        "load_hyprland_window_service",
+        lambda **_: window_service,
+    )
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         launcher=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
-        window_service=window_service,
     )
 
     assert backend.name == "hyprland"
@@ -309,16 +318,20 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     assert backend.capabilities.supports_layer_shell is True
 
 
-def test_hyprland_session_uses_generic_idle_protocol() -> None:
+def test_hyprland_session_uses_generic_idle_protocol(monkeypatch) -> None:
     idle_protocol = MagicMock()
     runtime = _empty_runtime()
     runtime.idle_protocol = idle_protocol
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.hyprland_session."
+        "load_hyprland_window_service",
+        lambda **_: ReducedWindowService(),
+    )
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         launcher=SimpleNamespace(),
         protocol_runtime=runtime,
-        window_service=ReducedWindowService(),
     )
 
     assert isinstance(backend.idle, WaylandIdleService)
@@ -333,6 +346,8 @@ def test_hyprland_session_uses_generic_idle_protocol() -> None:
 def test_wayland_layer_shell_session_lifecycle_is_safe():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
     )
 
@@ -454,7 +469,7 @@ def test_layer_shell_support_probe_handles_missing_or_failing_probe():
     assert layer_shell_is_supported(SimpleNamespace(is_supported=broken_probe)) is False
 
 
-def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
+def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities(monkeypatch):
     window_service = NiriWindowService(
         model=SimpleNamespace(
             visible_items=MagicMock(return_value=[]),
@@ -464,12 +479,15 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
         client=MagicMock(),
         event_stream_factory=lambda _callback: None,
     )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.niri_session.load_niri_window_service",
+        lambda **_: window_service,
+    )
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         launcher=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
-        window_service=window_service,
     )
 
     assert backend.name == "niri"

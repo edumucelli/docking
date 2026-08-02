@@ -48,14 +48,6 @@ log = get_logger(name="cosmic_protocols")
 # ---------------------------------------------------------------------------
 # Toplevel state constants (matching xdg-toplevel states)
 # ---------------------------------------------------------------------------
-_STATE_BY_VALUE = {
-    0: "maximized",
-    1: "minimized",
-    2: "activated",
-    3: "fullscreen",
-    4: "sticky",
-}
-
 # Management capability constants
 _CAP_CLOSE = 1
 _CAP_ACTIVATE = 2
@@ -93,9 +85,6 @@ class CosmicToplevelAdapter:
 
         # Known COSMIC info handles keyed by ext toplevel handle
         self._cosmic_handles: dict[object, object] = {}
-        # Reverse mapping: cosmic handle -> ext handle
-        self._ext_handles: dict[object, object] = {}
-
         # Management capabilities
         self._capabilities: set[int] = set()
         self._dirty_toplevels: set[object] = set()
@@ -205,7 +194,6 @@ class CosmicToplevelAdapter:
         self._pending_toplevels.clear()
         self._pending_data.clear()
         self._cosmic_handles.clear()
-        self._ext_handles.clear()
         self._capabilities.clear()
         self._dirty_toplevels.clear()
         self.available = False
@@ -302,9 +290,7 @@ class CosmicToplevelAdapter:
         if toplevel in self._pending_toplevels:
             self._pending_toplevels.remove(toplevel)
         self._pending_data.pop(toplevel, None)
-        cosmic_handle = self._cosmic_handles.pop(toplevel, None)
-        if cosmic_handle is not None:
-            self._ext_handles.pop(cosmic_handle, None)
+        self._cosmic_handles.pop(toplevel, None)
         self._dirty_toplevels.discard(toplevel)
         if self._service is not None:
             self._service.closed(toplevel)
@@ -343,7 +329,6 @@ class CosmicToplevelAdapter:
         except Exception:
             return
         self._cosmic_handles[toplevel] = cosmic_handle
-        self._ext_handles[cosmic_handle] = toplevel
         # Wire COSMIC handle events to the service
         service = self._service
         cosmic_handle.dispatcher["state"] = lambda _h, states: self._on_cosmic_state(
@@ -554,11 +539,3 @@ def _workspace_id(workspace: object) -> str:
     if identifier is not None:
         return str(identifier)
     return str(id(workspace))
-
-
-def _parse_capabilities(caps_bytes: bytes) -> set[int]:
-    """Parse COSMIC capabilities array into a set of bit flags."""
-    result: set[int] = set()
-    for (val,) in struct.iter_unpack("I", caps_bytes):
-        result.add(val)
-    return result

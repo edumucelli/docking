@@ -36,6 +36,15 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     windows = MagicMock(spec=WayfireWindowService)
     workspaces = MagicMock(spec=WayfireWorkspaceService)
     picker = MagicMock(spec=WayfireWindowPickService)
+    monkeypatch.setattr(
+        wayfire_session, "load_wayfire_window_service", lambda **_: windows
+    )
+    monkeypatch.setattr(
+        wayfire_session, "load_wayfire_workspace_service", lambda: workspaces
+    )
+    monkeypatch.setattr(
+        wayfire_session, "load_wayfire_window_pick_service", lambda: picker
+    )
     backend = wayfire_session.WayfireSessionBackend(
         layer_shell=object(),
         model=MagicMock(),
@@ -43,12 +52,6 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
         config=MagicMock(),
         protocol_runtime=SimpleNamespace(idle_protocol=None, stop=MagicMock()),
         screen_capture=None,
-        window_service=windows,
-        workspace_service=workspaces,
-        window_picker=picker,
-        desktop_action_service=None,
-        visibility_service=None,
-        preview_service=None,
     )
 
     capabilities = backend.capabilities

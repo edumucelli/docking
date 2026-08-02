@@ -80,18 +80,16 @@ def test_cosmic_info_batch_publishes_state_geometry_and_workspace() -> None:
     assert service.list_all_windows()[0].workspace_id is None
 
 
-def test_cosmic_toplevel_close_releases_both_handle_mappings() -> None:
+def test_cosmic_toplevel_close_releases_handle_mapping() -> None:
     adapter = CosmicToplevelAdapter()
     toplevel = _Handle()
     cosmic_handle = _Handle()
     adapter._pending_toplevels.append(toplevel)
     adapter._cosmic_handles[toplevel] = cosmic_handle
-    adapter._ext_handles[cosmic_handle] = toplevel
 
     adapter._on_toplevel_closed(toplevel)
 
     assert adapter._cosmic_handles == {}
-    assert adapter._ext_handles == {}
 
 
 def test_cosmic_overlap_attaches_when_surface_precedes_monitor() -> None:

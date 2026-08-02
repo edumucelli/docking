@@ -22,7 +22,6 @@ from docking.platform.backends.base import (
     PlatformCapabilities,
     PreviewService,
     ScreenCaptureService,
-    WindowService,
 )
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
@@ -69,7 +68,6 @@ class HyprlandSessionBackend(ComposedWaylandSessionBackend):
         launcher: Launcher,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
-        window_service: WindowService | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -79,7 +77,7 @@ class HyprlandSessionBackend(ComposedWaylandSessionBackend):
             if candidate_runtime.start():
                 runtime = candidate_runtime
 
-        windows = window_service or load_hyprland_window_service(
+        windows = load_hyprland_window_service(
             model=model,
             launcher=launcher,
         )
