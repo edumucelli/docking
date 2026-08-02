@@ -19,7 +19,7 @@ import mmap
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 import gi
 
@@ -41,6 +41,10 @@ if TYPE_CHECKING:
 SHM_ARGB8888 = 0
 SHM_XRGB8888 = 1
 _PREFERRED_SHM_FORMATS = (SHM_ARGB8888, SHM_XRGB8888)
+
+
+class _ShmProtocol(Protocol):
+    def create_shm_pool(self, fd: int, size: int) -> object: ...
 
 
 @dataclass
@@ -66,7 +70,6 @@ class _CaptureRequest:
     frame: object | None = None
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    pool: object | None = None
     buffer: object | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
@@ -83,7 +86,6 @@ class _HyprlandCaptureRequest:
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    pool: object | None = None
     buffer: object | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
@@ -100,7 +102,6 @@ class _PhocCaptureRequest:
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    pool: object | None = None
     buffer: object | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
@@ -313,18 +314,16 @@ class WaylandPreviewService(PreviewService):
 
     def _create_frame(self, *, request: _CaptureRequest, format_: int) -> None:
         stride = request.width * 4
-        size = stride * request.height
-        fd = os.memfd_create("docking-wayland-preview")
-        os.ftruncate(fd, size)
-        mmap_obj = mmap.mmap(fd, size)
-        pool = self._protocol.create_shm_pool(fd, size)
-        buffer = pool.create_buffer(0, request.width, request.height, stride, format_)
-        pool.destroy()
+        buffer = _allocate_shm_buffer(
+            request,
+            protocol=self._protocol,
+            label="docking-wayland-preview",
+            width=request.width,
+            height=request.height,
+            stride=stride,
+            format_=format_,
+        )
         frame = request.session.create_frame()
-        request.fd = fd
-        request.mmap_obj = mmap_obj
-        request.pool = pool
-        request.buffer = buffer
         request.stride = stride
         request.format = format_
         request.frame = frame
@@ -338,6 +337,8 @@ class WaylandPreviewService(PreviewService):
         self._protocol.flush()
 
     def _on_frame_ready(self, request: _CaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         with suppress(Exception):
             self._cache[request.window_id] = _pixbuf_from_request(request)
         self._finish_request(request)
@@ -346,24 +347,22 @@ class WaylandPreviewService(PreviewService):
         self._finish_failed(request)
 
     def _finish_failed(self, request: _CaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._cache.pop(request.window_id, None)
         self._finish_request(request)
 
     def _finish_request(self, request: _CaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._pending.pop(request.window_id, None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _CaptureRequest) -> None:
-        for attr in ("frame", "buffer", "session", "source"):
-            obj = getattr(request, attr, None)
-            destroy = getattr(obj, "destroy", None)
-            if callable(destroy):
-                with suppress(Exception):
-                    destroy()
-        if request.mmap_obj is not None:
-            request.mmap_obj.close()
-        if request.fd is not None:
-            os.close(request.fd)
+        _cleanup_capture_request(
+            request,
+            object_attributes=("frame", "buffer", "session", "source"),
+        )
 
 
 class HyprlandPreviewService(PreviewService):
@@ -463,23 +462,15 @@ class HyprlandPreviewService(PreviewService):
             self._finish_failed(request)
             return
         try:
-            size = request.stride * request.height
-            fd = os.memfd_create("docking-hyprland-preview")
-            os.ftruncate(fd, size)
-            mmap_obj = mmap.mmap(fd, size)
-            pool = self._protocol.create_shm_pool(fd, size)
-            buffer = pool.create_buffer(
-                0,
-                request.width,
-                request.height,
-                request.stride,
-                request.format,
+            buffer = _allocate_shm_buffer(
+                request,
+                protocol=self._protocol,
+                label="docking-hyprland-preview",
+                width=request.width,
+                height=request.height,
+                stride=request.stride,
+                format_=request.format,
             )
-            pool.destroy()
-            request.fd = fd
-            request.mmap_obj = mmap_obj
-            request.pool = pool
-            request.buffer = buffer
             request.frame.copy(buffer, 1)
             self._protocol.flush()
         except Exception:
@@ -489,29 +480,26 @@ class HyprlandPreviewService(PreviewService):
         request.y_inverted = bool(int(flags) & 1)
 
     def _on_ready(self, request: _HyprlandCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         with suppress(Exception):
             self._cache[request.window_id] = _pixbuf_from_request(request)
         self._finish_request(request)
 
     def _finish_failed(self, request: _HyprlandCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._cache.pop(request.window_id, None)
         self._finish_request(request)
 
     def _finish_request(self, request: _HyprlandCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._pending.pop(request.window_id, None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _HyprlandCaptureRequest) -> None:
-        for attr in ("frame", "buffer"):
-            obj = getattr(request, attr, None)
-            destroy = getattr(obj, "destroy", None)
-            if callable(destroy):
-                with suppress(Exception):
-                    destroy()
-        if request.mmap_obj is not None:
-            request.mmap_obj.close()
-        if request.fd is not None:
-            os.close(request.fd)
+        _cleanup_capture_request(request, object_attributes=("frame", "buffer"))
 
 
 class PhocPreviewService(PreviewService):
@@ -602,23 +590,15 @@ class PhocPreviewService(PreviewService):
             self._finish_failed(request)
             return
         try:
-            size = request.stride * request.height
-            fd = os.memfd_create("docking-phoc-preview")
-            os.ftruncate(fd, size)
-            mmap_obj = mmap.mmap(fd, size)
-            pool = self._protocol.create_shm_pool(fd, size)
-            buffer = pool.create_buffer(
-                0,
-                request.width,
-                request.height,
-                request.stride,
-                request.format,
+            buffer = _allocate_shm_buffer(
+                request,
+                protocol=self._protocol,
+                label="docking-phoc-preview",
+                width=request.width,
+                height=request.height,
+                stride=request.stride,
+                format_=request.format,
             )
-            pool.destroy()
-            request.fd = fd
-            request.mmap_obj = mmap_obj
-            request.pool = pool
-            request.buffer = buffer
             request.frame.copy(buffer)
             self._protocol.flush()
         except Exception:
@@ -628,29 +608,78 @@ class PhocPreviewService(PreviewService):
         request.y_inverted = bool(int(flags) & 1)
 
     def _on_ready(self, request: _PhocCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         with suppress(Exception):
             self._cache[request.window_id] = _pixbuf_from_request(request)
         self._finish_request(request)
 
     def _finish_failed(self, request: _PhocCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._cache.pop(request.window_id, None)
         self._finish_request(request)
 
     def _finish_request(self, request: _PhocCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         self._pending.pop(request.window_id, None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _PhocCaptureRequest) -> None:
-        for attr in ("frame", "buffer"):
-            obj = getattr(request, attr, None)
-            destroy = getattr(obj, "destroy", None)
-            if callable(destroy):
-                with suppress(Exception):
-                    destroy()
-        if request.mmap_obj is not None:
-            request.mmap_obj.close()
-        if request.fd is not None:
-            os.close(request.fd)
+        _cleanup_capture_request(request, object_attributes=("frame", "buffer"))
+
+
+def _allocate_shm_buffer(
+    request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
+    *,
+    protocol: object,
+    label: str,
+    width: int,
+    height: int,
+    stride: int,
+    format_: int,
+) -> object:
+    """Allocate capture storage while recording each resource immediately."""
+    size = stride * height
+    request.fd = os.memfd_create(label)
+    os.ftruncate(request.fd, size)
+    request.mmap_obj = mmap.mmap(request.fd, size)
+    pool = cast(_ShmProtocol, protocol).create_shm_pool(request.fd, size)
+    try:
+        buffer = pool.create_buffer(0, width, height, stride, format_)
+        request.buffer = buffer
+        return buffer
+    finally:
+        destroy = getattr(pool, "destroy", None)
+        if callable(destroy):
+            with suppress(Exception):
+                destroy()
+
+
+def _cleanup_capture_request(
+    request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
+    *,
+    object_attributes: tuple[str, ...],
+) -> None:
+    """Release a capture request once, even if multiple terminal events arrive."""
+    for attribute in object_attributes:
+        obj = getattr(request, attribute, None)
+        setattr(request, attribute, None)
+        destroy = getattr(obj, "destroy", None)
+        if callable(destroy):
+            with suppress(Exception):
+                destroy()
+    mmap_obj = request.mmap_obj
+    request.mmap_obj = None
+    if mmap_obj is not None:
+        with suppress(Exception):
+            mmap_obj.close()
+    fd = request.fd
+    request.fd = None
+    if fd is not None:
+        with suppress(OSError):
+            os.close(fd)
 
 
 def _pixbuf_from_request(
