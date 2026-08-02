@@ -309,6 +309,27 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     assert backend.capabilities.supports_layer_shell is True
 
 
+def test_hyprland_session_uses_generic_idle_protocol() -> None:
+    idle_protocol = MagicMock()
+    runtime = _empty_runtime()
+    runtime.idle_protocol = idle_protocol
+    backend = HyprlandSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        launcher=SimpleNamespace(),
+        protocol_runtime=runtime,
+        window_service=ReducedWindowService(),
+    )
+
+    assert isinstance(backend.idle, WaylandIdleService)
+    assert backend.capabilities.supports_idle_time is True
+
+    backend.start()
+    idle_protocol.start.assert_called_once_with(backend.idle)
+    backend.stop()
+    idle_protocol.stop.assert_called_once_with()
+
+
 def test_wayland_layer_shell_session_lifecycle_is_safe():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
