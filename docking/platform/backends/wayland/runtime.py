@@ -57,8 +57,6 @@ class WaylandProtocolFactories:
     """Runtime imports and constructors needed by WaylandProtocolRuntime."""
 
     display_cls: type
-    manager_cls: type
-    workspace_manager_cls: type
     glib: object
 
 
@@ -794,7 +792,6 @@ class WaylandProtocolRuntime:
         cosmic_overlap_adapter: object | None = None,
     ) -> None:
         self._factories = factories
-        self._profile = profile
         self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
         self.workspaces = workspace_adapter or WorkspaceProtocolAdapter()
         self.previews = preview_adapter or PreviewProtocolAdapter()
@@ -830,7 +827,6 @@ class WaylandProtocolRuntime:
             self.treeland_overlap = TreelandOverlapAdapter()
             self.treeland_window_management = TreelandWindowManagementAdapter()
         self._display = None
-        self._registry = None
         self._global_interfaces: dict[int, str] = {}
         self._glib_source_id = 0
         self._running = False
@@ -917,7 +913,6 @@ class WaylandProtocolRuntime:
             registry.dispatcher["global"] = self._on_global
             registry.dispatcher["global_remove"] = self._on_global_remove
             self._display = display
-            self._registry = registry
             self.foreign_toplevel.set_flush_callback(display.flush)
             self.workspaces.set_flush_callback(display.flush)
             self.previews.set_flush_callback(display.flush)
@@ -984,7 +979,6 @@ class WaylandProtocolRuntime:
             if callable(disconnect):
                 disconnect()
         self._display = None
-        self._registry = None
         self._global_interfaces.clear()
         self._running = False
 
@@ -1189,17 +1183,9 @@ def load_protocol_factories() -> WaylandProtocolFactories | None:
         from gi.repository import GLib
         from pywayland.client import Display
 
-        from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (  # noqa: E501
-            ExtWorkspaceManagerV1,
-        )
-        from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (  # noqa: E501
-            ZwlrForeignToplevelManagerV1,
-        )
     except (ImportError, ValueError):
         return None
     return WaylandProtocolFactories(
         display_cls=Display,
-        manager_cls=ZwlrForeignToplevelManagerV1,
-        workspace_manager_cls=ExtWorkspaceManagerV1,
         glib=GLib,
     )

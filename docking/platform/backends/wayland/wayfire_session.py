@@ -13,17 +13,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
-    DesktopActionService,
     IdleService,
     PlatformCapabilities,
-    PreviewService,
     ScreenCaptureService,
-    VisibilityService,
-    WindowPickService,
-    WindowService,
-    WorkspaceService,
 )
 from docking.platform.backends.reduced.services import (
+    ReducedPreviewService,
     ReducedVisibilityService,
     ReducedWindowService,
 )
@@ -72,12 +67,6 @@ class WayfireSessionBackend(ComposedWaylandSessionBackend):
         config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
-        window_service: WindowService | None = None,
-        workspace_service: WorkspaceService | None = None,
-        window_picker: WindowPickService | None = None,
-        visibility_service: VisibilityService | None = None,
-        desktop_action_service: DesktopActionService | None = None,
-        preview_service: PreviewService | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -87,31 +76,23 @@ class WayfireSessionBackend(ComposedWaylandSessionBackend):
             if candidate_runtime.start():
                 runtime = candidate_runtime
 
-        windows = window_service or load_wayfire_window_service(
+        windows = load_wayfire_window_service(
             model=model,
             launcher=launcher,
         )
         if windows is None:
             windows = ReducedWindowService()
 
-        workspaces = workspace_service or load_wayfire_workspace_service()
-        picker = window_picker or load_wayfire_window_pick_service()
-        desktop_actions = (
-            desktop_action_service or load_wayfire_desktop_action_service()
-        )
+        workspaces = load_wayfire_workspace_service()
+        picker = load_wayfire_window_pick_service()
+        desktop_actions = load_wayfire_desktop_action_service()
 
-        visibility = visibility_service
-        if visibility is None:
-            visibility = load_wayfire_visibility_service(config=config)
+        visibility = load_wayfire_visibility_service(config=config)
         if visibility is None:
             visibility = ReducedVisibilityService()
 
-        previews = preview_service or load_wayfire_preview_service()
+        previews = load_wayfire_preview_service()
         if previews is None:
-            from docking.platform.backends.reduced.services import (
-                ReducedPreviewService,
-            )
-
             previews = ReducedPreviewService()
         idle_protocol = runtime.idle_protocol if runtime is not None else None
         idle: IdleService | None = (

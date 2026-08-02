@@ -26,7 +26,6 @@ WindowId, WindowSnapshot, and RunningAppInfo values.
 
 from __future__ import annotations
 
-import importlib
 import struct
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -390,26 +389,6 @@ class WaylandForeignToplevelWindowService(WindowService):
             handle_method()
             return ActionResult.OK
         return ActionResult.UNSUPPORTED
-
-
-def load_foreign_toplevel_protocol() -> object | None:
-    """Load an optional foreign-toplevel protocol adapter.
-
-    The Python Wayland binding is intentionally optional. Systems without a
-    binding or compositor support keep using ReducedWindowService.
-    """
-    try:
-        importlib.import_module(
-            "docking.platform.backends.wayland.protocols."
-            "wlr_foreign_toplevel_management_unstable_v1"
-        )
-    except ImportError:
-        return None
-    # A concrete adapter can be added here once the project chooses and packages
-    # a live pywayland registry/event-loop bridge. The generated protocol module
-    # is vendored, but the service above stays independent from the binding so it
-    # can be tested without a live compositor.
-    return None
 
 
 def _normalize_state(value: object) -> str:

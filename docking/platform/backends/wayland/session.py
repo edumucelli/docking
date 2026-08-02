@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from docking.platform.backends.base import (
     IdleService,
     PlatformCapabilities,
@@ -50,12 +52,12 @@ from docking.platform.backends.wayland.runtime import (
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
-    load_foreign_toplevel_protocol,
 )
-from docking.platform.backends.wayland.workspaces import (
-    WaylandWorkspaceService,
-    load_workspace_protocol,
-)
+from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
+
+if TYPE_CHECKING:
+    from docking.platform.launcher import Launcher
+    from docking.platform.model import DockModel
 
 
 class WaylandLayerShellSessionBackend(ComposedWaylandSessionBackend):
@@ -67,38 +69,20 @@ class WaylandLayerShellSessionBackend(ComposedWaylandSessionBackend):
         self,
         *,
         layer_shell: object,
-        model=None,
-        launcher=None,
-        foreign_toplevel_protocol: object | None = None,
-        workspace_protocol: object | None = None,
+        model: DockModel,
+        launcher: Launcher,
         screen_capture: ScreenCaptureService | None = None,
         protocol_runtime: WaylandProtocolRuntime | None = None,
     ) -> None:
         runtime = protocol_runtime
-        if runtime is None and (
-            foreign_toplevel_protocol is None or workspace_protocol is None
-        ):
+        if runtime is None:
             candidate_runtime = WaylandProtocolRuntime(profile=self.protocol_profile)
             if candidate_runtime.start():
                 runtime = candidate_runtime
         foreign_protocol = (
-            foreign_toplevel_protocol
-            if foreign_toplevel_protocol is not None
-            else (
-                runtime.foreign_toplevel_protocol
-                if runtime is not None
-                else load_foreign_toplevel_protocol()
-            )
+            runtime.foreign_toplevel_protocol if runtime is not None else None
         )
-        workspace_protocol = (
-            workspace_protocol
-            if workspace_protocol is not None
-            else (
-                runtime.workspace_protocol
-                if runtime is not None
-                else load_workspace_protocol()
-            )
-        )
+        workspace_protocol = runtime.workspace_protocol if runtime is not None else None
         preview_protocol = (
             getattr(runtime, "preview_protocol", None) if runtime is not None else None
         )
@@ -114,7 +98,7 @@ class WaylandLayerShellSessionBackend(ComposedWaylandSessionBackend):
         )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
-        if foreign_protocol is not None and model is not None and launcher is not None:
+        if foreign_protocol is not None:
             if preview_protocol is not None:
                 preview_handles = WaylandPreviewHandleTracker(
                     model=model,

@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
@@ -197,19 +196,6 @@ class WaylandWorkspaceService(WorkspaceService):
             self.workspace_created(handle=handle)
             state = self._state_by_handle[handle]
         return state
-
-
-def load_workspace_protocol() -> object | None:
-    """Load an optional live ext-workspace adapter, if one exists."""
-    try:
-        importlib.import_module(
-            "docking.platform.backends.wayland.protocols.ext_workspace_v1"
-        )
-    except ImportError:
-        return None
-    # Generated bindings are available, but the live registry/event-loop adapter
-    # is separate future work. Keep the service fail-closed until then.
-    return None
 
 
 def _normalize_token(value: object) -> str:
