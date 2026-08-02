@@ -134,6 +134,7 @@ def test_cosmic_session_reports_only_delivered_toplevel_capabilities() -> None:
         hyprland_preview_protocol=None,
         foreign_toplevel_protocol=None,
         workspace_protocol=None,
+        idle_protocol=None,
         stop=MagicMock(),
     )
     backend = CosmicSessionBackend(

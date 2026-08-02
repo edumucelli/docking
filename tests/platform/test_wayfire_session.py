@@ -24,7 +24,6 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
         "WaylandLayerShellSurfaceService",
         MagicMock(return_value=surface),
     )
-    monkeypatch.setattr(wayfire_session, "WaylandProtocolRuntime", MagicMock())
     monkeypatch.setattr(wayfire_session, "load_portal_color_picker", lambda: None)
     monkeypatch.setattr(
         wayfire_session, "load_wayfire_desktop_action_service", lambda: None
@@ -42,7 +41,7 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
         model=MagicMock(),
         launcher=MagicMock(),
         config=MagicMock(),
-        protocol_runtime=None,
+        protocol_runtime=SimpleNamespace(idle_protocol=None, stop=MagicMock()),
         screen_capture=None,
         window_service=windows,
         workspace_service=workspaces,

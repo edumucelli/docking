@@ -6,10 +6,9 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
-    DesktopActionService,
     PlatformCapabilities,
-    VisibilityService,
 )
+from docking.platform.backends.wayland.runtime import TREELAND_PROTOCOL_PROFILE
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 from docking.platform.backends.wayland.treeland import (
     TreelandDesktopActionService,
@@ -25,6 +24,8 @@ if TYPE_CHECKING:
 
 class TreelandSessionBackend(WaylandLayerShellSessionBackend):
     """Decorate the generic backend with overlap and Show Desktop support."""
+
+    protocol_profile = TREELAND_PROTOCOL_PROFILE
 
     def __init__(
         self,
@@ -47,13 +48,18 @@ class TreelandSessionBackend(WaylandLayerShellSessionBackend):
         window_management = (
             runtime.treeland_window_management_protocol if runtime is not None else None
         )
-        self._treeland_visibility = (
+        visibility = (
             TreelandVisibilityService(adapter=overlap) if overlap is not None else None
         )
-        self._treeland_desktop_actions = (
+        desktop_actions = (
             TreelandDesktopActionService(adapter=window_management)
             if window_management is not None
             else None
+        )
+        self._services = replace(
+            self._services,
+            visibility=visibility or self._services.visibility,
+            desktop_actions=desktop_actions,
         )
 
     @property
@@ -65,28 +71,9 @@ class TreelandSessionBackend(WaylandLayerShellSessionBackend):
         base = super().capabilities
         return replace(
             base,
-            supports_show_desktop=self._treeland_desktop_actions is not None,
-            supports_overlap_any=self._treeland_visibility is not None,
+            supports_show_desktop=self._services.desktop_actions is not None,
+            supports_overlap_any=isinstance(
+                self._services.visibility,
+                TreelandVisibilityService,
+            ),
         )
-
-    @property
-    def visibility(self) -> VisibilityService:
-        return self._treeland_visibility or super().visibility
-
-    @property
-    def desktop_actions(self) -> DesktopActionService | None:
-        return self._treeland_desktop_actions
-
-    def start(self) -> None:
-        super().start()
-        if self._treeland_visibility is not None:
-            self._treeland_visibility.start()
-        if self._treeland_desktop_actions is not None:
-            self._treeland_desktop_actions.start()
-
-    def stop(self) -> None:
-        if self._treeland_desktop_actions is not None:
-            self._treeland_desktop_actions.stop()
-        if self._treeland_visibility is not None:
-            self._treeland_visibility.stop()
-        super().stop()

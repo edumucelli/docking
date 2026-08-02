@@ -10,18 +10,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
     DesktopActionService,
-    DisplayServer,
     IdleService,
     PlatformCapabilities,
     PreviewService,
     ScreenCaptureService,
-    SessionBackend,
-    SurfaceService,
     VisibilityService,
     WindowPickService,
     WindowService,
@@ -31,11 +27,19 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.wayland.composed_session import (
+    ComposedWaylandSessionBackend,
+    WaylandSessionServices,
+)
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
 )
-from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
+from docking.platform.backends.wayland.runtime import (
+    STANDARD_PROTOCOL_PROFILE,
+    WaylandProtocolRuntime,
+)
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireDesktopActionService,
@@ -56,22 +60,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
 
-@dataclass(frozen=True)
-class WayfireRuntimeServices:
-    """Concrete services selected for the Wayfire Wayland backend."""
-
-    windows: WindowService
-    previews: PreviewService
-    surface: WaylandLayerShellSurfaceService
-    visibility: VisibilityService
-    workspaces: WorkspaceService | None
-    desktop_actions: DesktopActionService | None
-    screen_capture: ScreenCaptureService | None
-    window_picker: WindowPickService | None
-    protocol_runtime: WaylandProtocolRuntime | None
-
-
-class WayfireSessionBackend(SessionBackend):
+class WayfireSessionBackend(ComposedWaylandSessionBackend):
     """SessionBackend using Wayfire IPC for windows and layer-shell surfaces."""
 
     def __init__(
@@ -92,7 +81,9 @@ class WayfireSessionBackend(SessionBackend):
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
-            candidate_runtime = WaylandProtocolRuntime()
+            candidate_runtime = WaylandProtocolRuntime(
+                profile=STANDARD_PROTOCOL_PROFILE
+            )
             if candidate_runtime.start():
                 runtime = candidate_runtime
 
@@ -122,28 +113,33 @@ class WayfireSessionBackend(SessionBackend):
             )
 
             previews = ReducedPreviewService()
+        idle_protocol = runtime.idle_protocol if runtime is not None else None
+        idle: IdleService | None = (
+            WaylandIdleService(protocol=idle_protocol)
+            if idle_protocol is not None
+            else None
+        )
 
-        self._services = WayfireRuntimeServices(
-            windows=windows,
-            previews=previews,
-            surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=visibility,
-            workspaces=workspaces,
-            desktop_actions=desktop_actions,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
-            window_picker=picker,
-            protocol_runtime=runtime,
+        super().__init__(
+            services=WaylandSessionServices(
+                windows=windows,
+                previews=previews,
+                surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
+                visibility=visibility,
+                workspaces=workspaces,
+                desktop_actions=desktop_actions,
+                screen_capture=screen_capture
+                if screen_capture is not None
+                else load_portal_color_picker(),
+                idle=idle,
+                window_picker=picker,
+                protocol_runtime=runtime,
+            )
         )
 
     @property
     def name(self) -> str:
         return "wayfire"
-
-    @property
-    def display_server(self) -> DisplayServer:
-        return DisplayServer.WAYLAND
 
     @property
     def capabilities(self) -> PlatformCapabilities:
@@ -199,70 +195,5 @@ class WayfireSessionBackend(SessionBackend):
             supports_window_pick=supports_window_pick,
             supports_window_pid=supports_window_pick,
             supports_process_kill=supports_window_pick,
+            supports_idle_time=isinstance(self._services.idle, WaylandIdleService),
         )
-
-    @property
-    def windows(self) -> WindowService:
-        return self._services.windows
-
-    @property
-    def surface(self) -> SurfaceService:
-        return self._services.surface
-
-    @property
-    def visibility(self) -> VisibilityService:
-        return self._services.visibility
-
-    @property
-    def previews(self) -> PreviewService:
-        return self._services.previews
-
-    @property
-    def workspaces(self) -> WorkspaceService | None:
-        return self._services.workspaces
-
-    @property
-    def desktop_actions(self) -> DesktopActionService | None:
-        return self._services.desktop_actions
-
-    @property
-    def screen_capture(self) -> ScreenCaptureService | None:
-        return self._services.screen_capture
-
-    @property
-    def idle(self) -> IdleService | None:
-        return None
-
-    @property
-    def window_picker(self) -> WindowPickService | None:
-        return self._services.window_picker
-
-    def start(self) -> None:
-        self._services.previews.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
-        if self._services.window_picker is not None:
-            self._services.window_picker.start()
-
-    def stop(self) -> None:
-        if self._services.window_picker is not None:
-            self._services.window_picker.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
-        if self._services.protocol_runtime is not None:
-            self._services.protocol_runtime.stop()

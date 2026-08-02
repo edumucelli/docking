@@ -39,6 +39,8 @@ from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management
     ZwlrForeignToplevelManagerV1,
 )
 from docking.platform.backends.wayland.runtime import (
+    HYPRLAND_PROTOCOL_PROFILE,
+    TREELAND_PROTOCOL_PROFILE,
     ForeignToplevelProtocolAdapter,
     IdleProtocolAdapter,
     PhocPreviewProtocolAdapter,
@@ -209,7 +211,6 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
         (11, ExtWorkspaceManagerV1, ExtWorkspaceManagerV1.version),
         (12, WlSeat, WlSeat.version),
         (12, WlSeat, WlSeat.version),
-        (12, WlSeat, WlSeat.version),
     ]
     assert glib.watch is not None
 
@@ -238,7 +239,6 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
     assert runtime.preview_protocol is runtime.previews
     assert registry.bound == [
         (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
-        (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
         (
             21,
             ExtForeignToplevelImageCaptureSourceManagerV1,
@@ -247,13 +247,15 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
         (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
         (23, WlShm, WlShm.version),
         (23, WlShm, WlShm.version),
-        (23, WlShm, WlShm.version),
     ]
 
 
 def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
     glib = FakeGLib()
-    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+    runtime = WaylandProtocolRuntime(
+        factories=_factories(glib),
+        profile=HYPRLAND_PROTOCOL_PROFILE,
+    )
 
     assert runtime.start() is True
     registry = FakeDisplay.registry
@@ -272,7 +274,6 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
             HyprlandToplevelExportManagerV1,
             HyprlandToplevelExportManagerV1.version,
         ),
-        (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
     ]
@@ -318,13 +319,15 @@ def test_wayland_protocol_runtime_binds_idle_protocol():
         (40, ExtIdleNotifierV1, ExtIdleNotifierV1.version),
         (41, WlSeat, WlSeat.version),
         (41, WlSeat, WlSeat.version),
-        (41, WlSeat, WlSeat.version),
     ]
 
 
 def test_wayland_protocol_runtime_binds_treeland_extensions_and_outputs():
     glib = FakeGLib()
-    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+    runtime = WaylandProtocolRuntime(
+        factories=_factories(glib),
+        profile=TREELAND_PROTOCOL_PROFILE,
+    )
 
     assert runtime.start() is True
     registry = FakeDisplay.registry
@@ -363,6 +366,36 @@ def test_wayland_protocol_runtime_binds_treeland_extensions_and_outputs():
 
     registry.dispatcher["global_remove"](registry, 52)
     assert runtime.treeland_overlap._outputs == []
+
+
+def test_wayland_protocol_runtime_stops_when_manager_global_is_removed() -> None:
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](
+        registry,
+        60,
+        "zwlr_foreign_toplevel_manager_v1",
+        99,
+    )
+
+    registry.dispatcher["global_remove"](registry, 60)
+
+    assert glib.removed == [77]
+    assert runtime.foreign_toplevel_protocol is None
+
+
+def test_wayland_protocol_runtime_ignores_unowned_global_removal() -> None:
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 61, "unrelated_protocol_v1", 1)
+
+    registry.dispatcher["global_remove"](registry, 61)
+
+    assert glib.removed == []
 
 
 def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():

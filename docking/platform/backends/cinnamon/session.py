@@ -9,10 +9,14 @@ from docking.platform.backends.cinnamon.muffin import (
     MuffinDebugClient,
     MuffinWindowService,
 )
+from docking.platform.backends.reduced.services import ReducedPreviewService
+from docking.platform.backends.wayland.runtime import STANDARD_PROTOCOL_PROFILE
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 
 
 class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
+    protocol_profile = STANDARD_PROTOCOL_PROFILE
+
     def __init__(
         self, *, layer_shell: object, model, launcher, client: MuffinDebugClient
     ):
@@ -24,6 +28,7 @@ class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
                 launcher=launcher,
                 client=client,
             ),
+            previews=ReducedPreviewService(),
         )
 
     @property

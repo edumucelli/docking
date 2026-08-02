@@ -15,26 +15,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from docking.platform.backends.base import (
-    DesktopActionService,
-    DisplayServer,
     IdleService,
     PlatformCapabilities,
     PreviewService,
     ScreenCaptureService,
-    SessionBackend,
-    SurfaceService,
-    VisibilityService,
-    WindowPickService,
     WindowService,
-    WorkspaceService,
 )
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedVisibilityService,
     ReducedWindowService,
+)
+from docking.platform.backends.wayland.composed_session import (
+    ComposedWaylandSessionBackend,
+    WaylandSessionServices,
 )
 from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
@@ -47,7 +42,11 @@ from docking.platform.backends.wayland.previews import (
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
-from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
+from docking.platform.backends.wayland.runtime import (
+    GENERIC_LAYER_SHELL_PROTOCOL_PROFILE,
+    WaylandProtocolProfile,
+    WaylandProtocolRuntime,
+)
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
@@ -59,22 +58,10 @@ from docking.platform.backends.wayland.workspaces import (
 )
 
 
-@dataclass(frozen=True)
-class WaylandLayerShellRuntimeServices:
-    """Concrete services selected for native Wayland support."""
-
-    windows: WindowService
-    previews: PreviewService
-    surface: WaylandLayerShellSurfaceService
-    visibility: ReducedVisibilityService
-    workspaces: WorkspaceService | None
-    screen_capture: ScreenCaptureService | None
-    idle: IdleService | None
-    protocol_runtime: WaylandProtocolRuntime | None
-
-
-class WaylandLayerShellSessionBackend(SessionBackend):
+class WaylandLayerShellSessionBackend(ComposedWaylandSessionBackend):
     """SessionBackend with native Wayland surface placement and optional windows."""
+
+    protocol_profile: WaylandProtocolProfile = GENERIC_LAYER_SHELL_PROTOCOL_PROFILE
 
     def __init__(
         self,
@@ -91,7 +78,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         if runtime is None and (
             foreign_toplevel_protocol is None or workspace_protocol is None
         ):
-            candidate_runtime = WaylandProtocolRuntime()
+            candidate_runtime = WaylandProtocolRuntime(profile=self.protocol_profile)
             if candidate_runtime.start():
                 runtime = candidate_runtime
         foreign_protocol = (
@@ -181,26 +168,24 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             if idle_protocol is not None
             else None
         )
-        self._services = WaylandLayerShellRuntimeServices(
-            windows=windows,
-            previews=previews,
-            surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=ReducedVisibilityService(),
-            workspaces=workspaces,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
-            idle=idle,
-            protocol_runtime=runtime,
+        super().__init__(
+            services=WaylandSessionServices(
+                windows=windows,
+                previews=previews,
+                surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
+                visibility=ReducedVisibilityService(),
+                workspaces=workspaces,
+                screen_capture=screen_capture
+                if screen_capture is not None
+                else load_portal_color_picker(),
+                idle=idle,
+                protocol_runtime=runtime,
+            )
         )
 
     @property
     def name(self) -> str:
         return "wayland-layer-shell"
-
-    @property
-    def display_server(self) -> DisplayServer:
-        return DisplayServer.WAYLAND
 
     @property
     def capabilities(self) -> PlatformCapabilities:
@@ -231,65 +216,3 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             supports_input_region=True,
             supports_idle_time=isinstance(self._services.idle, WaylandIdleService),
         )
-
-    @property
-    def windows(self) -> WindowService:
-        return self._services.windows
-
-    @property
-    def surface(self) -> SurfaceService:
-        return self._services.surface
-
-    @property
-    def visibility(self) -> VisibilityService:
-        return self._services.visibility
-
-    @property
-    def previews(self) -> PreviewService:
-        return self._services.previews
-
-    @property
-    def workspaces(self) -> WorkspaceService | None:
-        return self._services.workspaces
-
-    @property
-    def desktop_actions(self) -> DesktopActionService | None:
-        return None
-
-    @property
-    def screen_capture(self) -> ScreenCaptureService | None:
-        return self._services.screen_capture
-
-    @property
-    def idle(self) -> IdleService | None:
-        return self._services.idle
-
-    @property
-    def window_picker(self) -> WindowPickService | None:
-        return None
-
-    def start(self) -> None:
-        self._services.previews.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
-        if self._services.idle is not None:
-            self._services.idle.start()
-
-    def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
-        if self._services.protocol_runtime is not None:
-            self._services.protocol_runtime.stop()
