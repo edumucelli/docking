@@ -45,7 +45,11 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
@@ -337,21 +341,27 @@ class AtspiWindowService(WindowService):
             matcher.sync_visible_items(model.visible_items())
 
         # Group windows by resolved desktop_id
-        by_desktop: dict[str, list[_AtspiWindow]] = {}
+        by_desktop: dict[
+            str,
+            list[tuple[_AtspiWindow, RuntimeAppIdentity | None]],
+        ] = {}
         with self._lock:
             for w in self._windows.values():
-                desktop_id = None
+                match = None
                 if w.app_name:
-                    desktop_id = matcher.match(w.app_name)
+                    match = matcher.match_result(w.app_name, process_id=w.pid)
+                desktop_id = match.desktop_id if match is not None else None
                 if not desktop_id:
                     desktop_id = f"kwin:{w.app_name or w.window_id.value}"
-                by_desktop.setdefault(desktop_id, []).append(w)
+                by_desktop.setdefault(desktop_id, []).append(
+                    (w, match.runtime_app if match is not None else None)
+                )
 
         # Build RunningAppInfo per desktop_id
         running: dict[str, RunningAppInfo] = {}
         for desktop_id, windows in by_desktop.items():
             rwis = []
-            for w in windows:
+            for w, runtime_app in windows:
                 rwis.append(
                     RunningWindowInfo(
                         desktop_id=desktop_id,
@@ -360,6 +370,7 @@ class AtspiWindowService(WindowService):
                         active=w.active,
                         urgent=False,
                         window=None,
+                        runtime_app=runtime_app,
                     )
                 )
             running[desktop_id] = RunningAppInfo.from_windows(rwis)
@@ -623,7 +634,10 @@ class AtspiWindowService(WindowService):
         # app_name with a kwin: prefix so the UI can still show something.
         desktop_id = None
         if w.app_name:
-            desktop_id = self._matcher.match(w.app_name)
+            desktop_id = self._matcher.match(
+                w.app_name,
+                process_id=w.pid,
+            )
         if not desktop_id:
             desktop_id = f"kwin:{w.app_name or w.window_id.value}"
 

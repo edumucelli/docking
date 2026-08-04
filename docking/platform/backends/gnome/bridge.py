@@ -49,7 +49,11 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
@@ -232,6 +236,8 @@ class _BridgeWindow:
     monitor: int | None
     workspace_id: str | None
     geometry: Rect | None
+    pid: int | None
+    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
@@ -368,7 +374,11 @@ class GnomeShellBridgeWindowService(WindowService):
         if bridge_id is None:
             return None
         app_id = _str_from_row(row, "app-id")
-        desktop_id = self._matcher.match(app_id) if app_id else None
+        pid = _int_from_row(row, "pid")
+        if pid is not None and pid <= 0:
+            pid = None
+        match = self._matcher.match_result(app_id, process_id=pid) if app_id else None
+        desktop_id = match.desktop_id if match is not None else None
         geometry = _rect_from_row(row)
         return _BridgeWindow(
             bridge_id=bridge_id,
@@ -382,6 +392,8 @@ class GnomeShellBridgeWindowService(WindowService):
             monitor=_int_from_row(row, "monitor"),
             workspace_id=_workspace_id_from_row(row),
             geometry=geometry,
+            pid=pid,
+            runtime_app=match.runtime_app if match is not None else None,
         )
 
     def _publish_running(self) -> None:
@@ -397,6 +409,7 @@ class GnomeShellBridgeWindowService(WindowService):
                     active=window.active,
                     urgent=False,
                     window=window.bridge_id,
+                    runtime_app=window.runtime_app,
                 )
             )
         self._model.update_running(

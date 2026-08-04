@@ -649,6 +649,45 @@ class TestResolve:
         assert info is not None
         assert info.desktop_id == "org.gnome.Calculator.desktop"
 
+    def test_match_indexes_preserve_alias_collisions_and_exact_exec(self, tmp_path):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        executable_a = tmp_path / "tool-v1" / "bin" / "tool"
+        executable_b = tmp_path / "tool-v2" / "bin" / "tool"
+        executable_a.parent.mkdir(parents=True)
+        executable_b.parent.mkdir(parents=True)
+        executable_a.write_bytes(b"\x7fELF")
+        executable_b.write_bytes(b"\x7fELF")
+        infos = {
+            "tool-v1.desktop": DesktopInfo(
+                "tool-v1.desktop",
+                "Tool v1",
+                "tool",
+                "SharedTool",
+                str(executable_a),
+            ),
+            "tool-v2.desktop": DesktopInfo(
+                "tool-v2.desktop",
+                "Tool v2",
+                "tool",
+                "SharedTool",
+                str(executable_b),
+            ),
+        }
+        for desktop_id in infos:
+            (apps_dir / desktop_id).write_text("[Desktop Entry]\n")
+        launcher = Launcher()
+        launcher._desktop_dirs = [apps_dir]
+        launcher.resolve = MagicMock(
+            side_effect=lambda desktop_id, **_: infos.get(desktop_id)
+        )
+
+        aliases = launcher.resolve_all_by_wm_class("SharedTool")
+        exact = launcher.resolve_by_executable_path(executable_b)
+
+        assert {info.desktop_id for info in aliases} == set(infos)
+        assert exact == infos["tool-v2.desktop"]
+
     def test_resolve_file_uses_image_thumbnail_for_images(self, monkeypatch):
         from docking.platform import launcher as launcher_mod
 
@@ -1092,6 +1131,31 @@ class TestLaunch:
         assert args[0] == ["firefox", "--new-window"]
         assert kwargs["shell"] is False
         assert kwargs["start_new_session"] is True
+
+    @patch("docking.platform.launcher.process_identity.record_launch")
+    @patch("subprocess.Popen")
+    def test_launch_records_exact_process_provenance(
+        self, popen_mock, record_launch, tmp_path
+    ):
+        executable = tmp_path / "app" / "bin" / "tool"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"\x7fELF")
+        process = MagicMock(pid=4321)
+        popen_mock.return_value = process
+        app_info = MagicMock()
+        app_info.get_commandline.return_value = f'"{executable}" --flag'
+
+        with patch(
+            "docking.platform.launcher.Gio.DesktopAppInfo.new",
+            return_value=app_info,
+        ):
+            launch(desktop_id="tool.desktop")
+
+        record_launch.assert_called_once_with(
+            process=process,
+            desktop_id="tool.desktop",
+            executable_path=executable.resolve(),
+        )
 
     @patch("subprocess.Popen")
     def test_launch_returns_when_desktop_missing(self, popen_mock):

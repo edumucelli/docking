@@ -21,7 +21,11 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 if TYPE_CHECKING:
     from docking.platform.launcher import Launcher
@@ -90,6 +94,8 @@ class _MuffinWindow:
     urgent: bool
     geometry: Rect | None
     workspace_id: str | None
+    pid: int | None
+    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
@@ -198,14 +204,19 @@ class MuffinWindowService(WindowService):
             )
         )
         app_id = identities[0] if identities else ""
-        desktop_id = next(
-            (
-                matched
-                for identity in identities
-                if (matched := self._matcher.match(identity)) is not None
-            ),
-            None,
-        )
+        pid = _int(row, "pid")
+        if pid is not None and pid <= 0:
+            pid = None
+        match = None
+        desktop_id = None
+        for identity in identities:
+            if pid is None:
+                desktop_id = self._matcher.match(identity)
+            else:
+                match = self._matcher.match_result(identity, process_id=pid)
+                desktop_id = match.desktop_id if match is not None else None
+            if desktop_id is not None:
+                break
         return _MuffinWindow(
             muffin_id=muffin_id,
             title=_text(row, "title") or "Window",
@@ -219,6 +230,8 @@ class MuffinWindowService(WindowService):
                 if (workspace := _int(row, "workspace")) is not None
                 else None
             ),
+            pid=pid,
+            runtime_app=match.runtime_app if match is not None else None,
         )
 
     def _publish_running(self) -> None:
@@ -234,6 +247,7 @@ class MuffinWindowService(WindowService):
                     active=window.active,
                     urgent=window.urgent,
                     window=window.muffin_id,
+                    runtime_app=window.runtime_app,
                 )
             )
         self._model.update_running(
