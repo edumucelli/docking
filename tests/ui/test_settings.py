@@ -264,14 +264,17 @@ class FakeComboBoxText:
 class FakeSpinButton:
     def __init__(self) -> None:
         self._value = 0.0
+        self.range = None
         self.callbacks: dict[str, object] = {}
         self.properties: dict[str, object] = {}
         self.sensitive = True
         self.tooltip_text = None
 
     @classmethod
-    def new_with_range(cls, *_args):
-        return cls()
+    def new_with_range(cls, minimum, maximum, step):
+        spin = cls()
+        spin.range = (minimum, maximum, step)
+        return spin
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
@@ -1806,6 +1809,39 @@ class TestSettingsWindowController:
 
 class TestRecentSettingsBehavior:
     """Tests for recent apps/docs settings controls."""
+
+    def test_recent_apps_retention_uses_free_numeric_selector(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+
+        config = _config()
+        runtime = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        controller.show()
+
+        selector = controller._recent_apps_retention_spin
+        assert isinstance(selector, FakeSpinButton)
+        assert selector.range == (
+            settings_mod.MIN_RECENT_APPS_RETENTION_DAYS,
+            settings_mod.MAX_RECENT_APPS_RETENTION_DAYS,
+            1,
+        )
+
+        selector.set_value(23)
+        selector.emit_value_changed()
+
+        assert config.recent_apps_retention_days == 23
+        config.save.assert_called_once()
+        runtime.queue_draw.assert_called_once()
 
     def test_show_recent_apps_changed_disabled_clears_and_redraws(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

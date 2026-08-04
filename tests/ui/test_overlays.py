@@ -45,6 +45,25 @@ def test_draw_circle_badge_with_and_without_outline():
     assert _non_empty(surface)
 
 
+def test_draw_circle_badge_does_not_connect_to_existing_path():
+    surface = cairo.RecordingSurface(cairo.CONTENT_COLOR_ALPHA, None)
+    cr = cairo.Context(surface)
+    cr.move_to(4, 60)
+
+    draw_circle_badge(
+        cr=cr,
+        cx=40,
+        cy=16,
+        radius=8,
+        background_rgba=(1, 0, 0, 1),
+        outline_rgba=(1, 1, 1, 1),
+        outline_width=2,
+    )
+
+    _, y, _, height = surface.ink_extents()
+    assert y + height <= 26
+
+
 def test_draw_count_badge_supports_all_label_lengths():
     surface, cr = _context()
 
