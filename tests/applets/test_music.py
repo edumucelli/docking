@@ -181,6 +181,28 @@ class TestMusicStateHelpers:
         assert play_pause_menu_label(_state(playback_status="Playing")) == "Pause"
         assert play_pause_menu_label(_state(playback_status="Paused")) == "Play"
 
+    def test_active_media_ignores_idle_and_internal_webkit_players(self):
+        idle_browser = _state(
+            playback_status="Stopped",
+            title="",
+            artist="",
+            album="",
+            track_url="",
+            can_play_pause=False,
+        )
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+
+        assert music_state_mod.has_active_media(idle_browser) is False
+        assert music_state_mod.has_active_media(internal_webkit) is False
+        assert music_state_mod.has_active_media(_state()) is True
+
     def test_normalize_volume_percent(self):
         assert _normalize_volume_percent(0.78) == 78
         assert _normalize_volume_percent(78.0) == 78
@@ -206,6 +228,15 @@ class TestMusicStateHelpers:
         )
         assert text == "Music"
         assert "Rhythmbox" not in text
+
+    def test_empty_artist_metadata_does_not_leak_list_repr_into_tooltip(self):
+        artist = music_state_mod._metadata_artist({})
+
+        text = tooltip_text(_state(title="", artist=artist, album=""))
+
+        assert artist == ""
+        assert text == "Music"
+        assert "[]" not in text
 
     def test_normalize_playback_and_misc_helpers(self):
         assert music_state_mod._normalize_playback_status(" paused ") == "Paused"
@@ -244,6 +275,53 @@ class TestMusicStateHelpers:
     def test_tooltip_with_title_only(self):
         text = tooltip_text(_state(artist="", album="", title="Only Title"))
         assert text == "Music\nOnly Title"
+
+
+class TestMediaAppDiscovery:
+    def test_prefers_default_audio_application(self, monkeypatch):
+        app_info = MagicMock()
+        get_default = MagicMock(return_value=app_info)
+        monkeypatch.setattr(
+            music_applet_mod.Gio.AppInfo,
+            "get_default_for_type",
+            get_default,
+        )
+
+        assert music_applet_mod._find_media_app() is app_info
+        get_default.assert_called_once_with("audio/mpeg", False)
+
+    def test_falls_back_to_recommended_media_application(self, monkeypatch):
+        app_info = MagicMock()
+        app_info.should_show.return_value = True
+        monkeypatch.setattr(
+            music_applet_mod.Gio.AppInfo,
+            "get_default_for_type",
+            lambda _content_type, _must_support_uris: None,
+        )
+        get_recommended = MagicMock(return_value=[app_info])
+        monkeypatch.setattr(
+            music_applet_mod.Gio.AppInfo,
+            "get_recommended_for_type",
+            get_recommended,
+        )
+
+        assert music_applet_mod._find_media_app() is app_info
+        get_recommended.assert_called_once_with("audio/mpeg")
+
+    def test_launches_media_application_by_desktop_id(self, monkeypatch):
+        app_info = MagicMock()
+        app_info.get_id.return_value = "org.videolan.VLC.desktop"
+        monkeypatch.setattr(
+            music_applet_mod,
+            "_find_media_app",
+            lambda: app_info,
+        )
+        launch = MagicMock()
+        monkeypatch.setattr(music_applet_mod, "launch_desktop_id", launch)
+
+        assert music_applet_mod.launch_default_media_app() is True
+        launch.assert_called_once_with(desktop_id="org.videolan.VLC.desktop")
+        app_info.launch.assert_not_called()
 
 
 class TestMprisBackendInternals:
@@ -288,6 +366,21 @@ class TestMprisBackendInternals:
     def test_get_state_unavailable_when_no_players(self):
         backend = self._make_backend()
         backend.list_players = list  # type: ignore[method-assign]
+        assert backend.get_state().available is False
+
+    def test_get_state_ignores_internal_webkit_player(self):
+        backend = self._make_backend()
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+        backend.list_players = lambda: [internal_webkit.player_bus_name]  # type: ignore[method-assign]
+        backend._read_state = lambda bus_name: internal_webkit  # type: ignore[method-assign]
+
         assert backend.get_state().available is False
 
     def test_has_owner_and_list_players_branches(self, monkeypatch):
@@ -642,6 +735,54 @@ class TestMusicApplet:
         applet, backend, _resolver = _make_applet(monkeypatch, _state())
         applet.on_clicked()
         backend.play_pause.assert_called_once()
+
+    def test_on_clicked_launches_media_app_when_no_player_is_open(self, monkeypatch):
+        applet, backend, _resolver = _make_applet(monkeypatch, unavailable_state())
+        launch = MagicMock(return_value=True)
+        monkeypatch.setattr(music_applet_mod, "launch_default_media_app", launch)
+
+        applet.on_clicked()
+
+        launch.assert_called_once_with()
+        backend.play_pause.assert_not_called()
+
+    def test_on_clicked_ignores_idle_empty_browser_mpris_service(self, monkeypatch):
+        idle_browser = _state(
+            player_name="Chrome",
+            player_bus_name="org.mpris.MediaPlayer2.chromium.instance1",
+            playback_status="Stopped",
+            title="",
+            artist="",
+            album="",
+            track_url="",
+            can_play_pause=False,
+        )
+        applet, backend, _resolver = _make_applet(monkeypatch, idle_browser)
+        launch = MagicMock(return_value=True)
+        monkeypatch.setattr(music_applet_mod, "launch_default_media_app", launch)
+
+        applet.on_clicked()
+
+        launch.assert_called_once_with()
+        backend.play_pause.assert_not_called()
+
+    def test_on_clicked_ignores_internal_webkit_media_service(self, monkeypatch):
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+        applet, backend, _resolver = _make_applet(monkeypatch, internal_webkit)
+        launch = MagicMock(return_value=True)
+        monkeypatch.setattr(music_applet_mod, "launch_default_media_app", launch)
+
+        applet.on_clicked()
+
+        launch.assert_called_once_with()
+        backend.play_pause.assert_not_called()
 
     def test_scroll_up_adjusts_volume(self, monkeypatch):
         applet, backend, _resolver = _make_applet(
