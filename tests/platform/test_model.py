@@ -12,12 +12,14 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.platform.model as model_mod
 from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
+from docking.platform.desktop_entries import DesktopInfo, GeneratedDesktopEntry
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
-from docking.platform.running import RunningAppInfo
+from docking.platform.running import RunningAppInfo, RuntimeAppIdentity
 
 
 def _make_launcher(*desktop_ids: str):
@@ -30,6 +32,7 @@ def _make_launcher(*desktop_ids: str):
         info.name = did.removesuffix(".desktop")
         info.icon_name = "test-icon"
         info.wm_class = did.removesuffix(".desktop")
+        info.exec_line = did.removesuffix(".desktop")
         infos[did] = info
 
     def resolve(desktop_id, **_kwargs):
@@ -132,6 +135,36 @@ class TestUpdateRunning:
         assert not items[1].is_pinned
         assert items[1].is_running
 
+    def test_runtime_identity_builds_launchable_transient(self, tmp_path):
+        executable = tmp_path / "tool-v2" / "bin" / "tool"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"\x7fELF")
+        runtime = RuntimeAppIdentity(
+            desktop_id="docking-generated-tool-runtime.desktop",
+            executable_path=str(executable),
+            name="Shared Tool",
+            icon_name="shared-tool",
+            wm_class="SharedTool",
+        )
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+
+        model.update_running(
+            {
+                runtime.desktop_id: RunningAppInfo(
+                    count=1,
+                    runtime_app=runtime,
+                )
+            }
+        )
+
+        item = model.visible_items()[0]
+        assert item.desktop_id == runtime.desktop_id
+        assert item.name == "Shared Tool"
+        assert item.wm_class == "SharedTool"
+        assert item.runtime_executable == str(executable)
+
     def test_removes_transient_when_no_longer_running(self):
         # Given
         config = _make_config(["a.desktop"])
@@ -174,6 +207,65 @@ class TestPinUnpin:
         assert items[1].is_pinned
         assert "b.desktop" in config.pinned
         config.save.assert_called_once()
+
+    def test_pin_runtime_transient_generates_persistent_launcher(
+        self, tmp_path, monkeypatch
+    ):
+        executable = tmp_path / "tool"
+        executable.write_bytes(b"\x7fELF")
+        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime = RuntimeAppIdentity(
+            desktop_id=runtime_id,
+            executable_path=str(executable),
+            name="Shared Tool",
+            icon_name="shared-tool",
+            wm_class="SharedTool",
+        )
+        config = _make_config([])
+        launcher = _make_launcher()
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running(
+            {
+                runtime_id: RunningAppInfo(
+                    count=1,
+                    runtime_app=runtime,
+                )
+            }
+        )
+        generated = GeneratedDesktopEntry(
+            desktop_id=runtime_id,
+            path=tmp_path / runtime_id,
+            name="tool",
+            icon_name="application-x-executable",
+        )
+        resolved = DesktopInfo(
+            desktop_id=runtime_id,
+            name="tool",
+            icon_name="application-x-executable",
+            wm_class="tool",
+            exec_line=str(executable),
+        )
+        create = MagicMock(return_value=generated)
+        monkeypatch.setattr(
+            model_mod.desktop_entries,
+            "create_desktop_entry_for_executable",
+            create,
+        )
+        launcher.resolve.side_effect = lambda desktop_id, **_: (
+            resolved if desktop_id == runtime_id else None
+        )
+
+        model.pin_item(runtime_id)
+
+        item = model.visible_items()[0]
+        assert item.is_pinned
+        assert item.runtime_executable == ""
+        assert item.target == runtime_id
+        create.assert_called_once_with(
+            str(executable),
+            startup_wm_class="SharedTool",
+        )
+        launcher.refresh_desktop_entries.assert_called_once_with()
 
     def test_unpin_running_becomes_transient(self):
         # Given
