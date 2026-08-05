@@ -168,7 +168,7 @@ from docking.core.items import (
 )
 from docking.core.math import clamp
 from docking.log import get_logger, with_context
-from docking.platform import icon_overrides
+from docking.platform import desktop_entries, icon_overrides
 from docking.platform.launcher import fallback_file_icon_name
 from docking.platform.running import RunningAppInfo
 
@@ -337,6 +337,7 @@ class DockModel:
                 name=resolved.name,
                 icon_name=resolved.icon_name,
                 wm_class=resolved.wm_class,
+                exec_line=resolved.exec_line,
                 is_pinned=False,
                 is_running=False,
                 is_recent=True,
@@ -391,6 +392,7 @@ class DockModel:
             name=resolved.name,
             icon_name=resolved.icon_name,
             wm_class=resolved.wm_class,
+            exec_line=resolved.exec_line,
             is_pinned=False,
             is_running=False,
             is_recent=True,
@@ -478,6 +480,7 @@ class DockModel:
                 name=info.name,
                 icon_name=info.icon_name,
                 wm_class=info.wm_class,
+                exec_line=info.exec_line,
                 is_pinned=True,
                 icon=icon,
             )
@@ -516,8 +519,20 @@ class DockModel:
             desktop_id=desktop_id,
             log_failures=False,
         )
+        # A path-disambiguated process has no desktop file yet. Its structured
+        # runtime metadata supplies a useful name/icon and keeps the executable
+        # available for an eventual "Keep in Dock" promotion.
+        runtime = running_info.runtime_app if running_info is not None else None
         icon_size = self._config.scaled_icon_size
-        icon_name = resolved.icon_name if resolved else "application-x-executable"
+        icon_name = (
+            resolved.icon_name
+            if resolved
+            else (
+                runtime.icon_name
+                if runtime is not None and runtime.icon_name
+                else "application-x-executable"
+            )
+        )
         icon = (
             self._launcher.load_desktop_icon(info=resolved, size=icon_size)
             if resolved
@@ -527,9 +542,23 @@ class DockModel:
             desktop_id=desktop_id,
             kind=APP_KIND,
             target=desktop_id,
-            name=resolved.name if resolved else desktop_id,
+            name=(
+                resolved.name
+                if resolved
+                else (runtime.name if runtime is not None else desktop_id)
+            ),
             icon_name=icon_name,
-            wm_class=resolved.wm_class if resolved else "",
+            wm_class=(
+                resolved.wm_class
+                if resolved
+                else (runtime.wm_class if runtime is not None else "")
+            ),
+            exec_line=(
+                resolved.exec_line
+                if resolved
+                else (runtime.executable_path if runtime is not None else "")
+            ),
+            runtime_executable=(runtime.executable_path if runtime is not None else ""),
             is_pinned=is_pinned,
             is_running=running_info is not None,
             is_active=running_info.active if running_info is not None else False,
@@ -558,6 +587,7 @@ class DockModel:
             item.name = resolved.name
             item.icon_name = resolved.icon_name
             item.wm_class = resolved.wm_class
+            item.exec_line = resolved.exec_line
             item.icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
             return
 
@@ -1398,12 +1428,68 @@ class DockModel:
                 self._recent_apps.remove(item)
                 self._sync_recent_apps_to_config()
         if item:
+            if not self._prepare_runtime_item_for_pinning(item):
+                return
             if item in self._transient:
                 self._transient.remove(item)
             item.is_pinned = True
             self.pinned_items.append(item)
             self._persist_pinned_changes()
             self.notify()
+
+    def _prepare_runtime_item_for_pinning(self, item: DockItem) -> bool:
+        """Persist a safe launcher before a runtime-only item becomes pinned."""
+        if not item.runtime_executable:
+            return True
+        # Runtime IDs deliberately use generated_desktop_id_for_path(), so this
+        # promotion creates the matching desktop file without changing the
+        # item's identity (and therefore without losing its running windows).
+        generated = desktop_entries.create_desktop_entry_for_executable(
+            item.runtime_executable,
+            startup_wm_class=item.wm_class,
+        )
+        if generated is None:
+            return False
+        self._launcher.refresh_desktop_entries()
+        resolved = self._launcher.resolve(
+            generated.desktop_id,
+            log_failures=False,
+        )
+        if resolved is None:
+            return False
+        item.desktop_id = generated.desktop_id
+        item.target = generated.desktop_id
+        item.prefs_key = generated.desktop_id
+        item.name = resolved.name
+        item.icon_name = resolved.icon_name
+        item.wm_class = resolved.wm_class
+        item.exec_line = resolved.exec_line
+        item.runtime_executable = ""
+        item.icon = self._launcher.load_desktop_icon(
+            info=resolved,
+            size=self._config.scaled_icon_size,
+        )
+        return True
+
+    def pin_application(self, desktop_id: str) -> bool:
+        """Pin an installed application even when it has no visible dock item."""
+        existing = self.find_by_desktop_id(desktop_id=desktop_id)
+        if existing is not None:
+            if existing.is_pinned:
+                return False
+            self.pin_item(desktop_id)
+            return existing.is_pinned
+        if self._launcher.resolve(desktop_id=desktop_id, log_failures=False) is None:
+            return False
+        item = self._make_app_item(
+            desktop_id=desktop_id,
+            is_pinned=True,
+            running_info=None,
+        )
+        self.pinned_items.append(item)
+        self._persist_pinned_changes()
+        self.notify()
+        return True
 
     def insert_pinned_item(self, item: DockItem, index: int) -> bool:
         """Insert a resolved pinned item, applying final model-owned persistence."""
@@ -1464,6 +1550,13 @@ class DockModel:
             return
 
         item = items[from_index]
+        target_item = items[to_index]
+        candidates = (item,) if target_item is item else (item, target_item)
+        for candidate in candidates:
+            if not candidate.is_pinned and not self._prepare_runtime_item_for_pinning(
+                candidate
+            ):
+                return
 
         # Auto-pin transient items so they can be reordered among pinned items
         if not item.is_pinned:
@@ -1476,14 +1569,13 @@ class DockModel:
         pinned_from = self.pinned_items.index(item)
 
         # Map visible target index -> pinned index (auto-pin target if transient)
-        target_item = items[to_index] if to_index < len(items) else None
-        if target_item and not target_item.is_pinned:
+        if not target_item.is_pinned:
             if target_item in self._transient:
                 self._transient.remove(target_item)
             target_item.is_pinned = True
             self.pinned_items.append(target_item)
 
-        if target_item and target_item in self.pinned_items:
+        if target_item in self.pinned_items:
             pinned_to = self.pinned_items.index(target_item)
         else:
             pinned_to = len(self.pinned_items) - 1

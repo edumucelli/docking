@@ -7,6 +7,7 @@ from docking.platform.environment import (
     Desktop,
     detect_desktop,
     is_flatpak,
+    is_gamescope_session,
     is_gnome_session,
     is_kde_session,
     is_mate_session,
@@ -70,6 +71,16 @@ class TestParseDesktop:
         assert _parse_desktop("hyprland") == Desktop.HYPRLAND
         assert _parse_desktop("niri") == Desktop.NIRI
         assert _parse_desktop("cosmic") == Desktop.COSMIC
+        assert _parse_desktop("cage") == Desktop.CAGE
+        assert _parse_desktop("weston") == Desktop.WESTON
+        assert _parse_desktop("louvre") == Desktop.LOUVRE
+        assert _parse_desktop("phosh") == Desktop.PHOSH
+        assert _parse_desktop("phoc") == Desktop.PHOSH
+        assert _parse_desktop("jay") == Desktop.JAY
+        assert _parse_desktop("miriway") == Desktop.MIRIWAY
+        assert _parse_desktop("deepin") == Desktop.DEEPIN
+        assert _parse_desktop("treeland") == Desktop.DEEPIN
+        assert _parse_desktop("gamescope") == Desktop.GAMESCOPE
 
 
 class TestDetectDesktop:
@@ -178,6 +189,26 @@ class TestSessionBackendDetection:
 
         with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
             assert is_xwayland_session(display=display_cls()) is False
+
+    def test_is_gamescope_from_desktop(self):
+        with patch.dict(
+            "os.environ",
+            {"XDG_CURRENT_DESKTOP": "gamescope"},
+            clear=True,
+        ):
+            assert is_gamescope_session() is True
+
+    def test_is_gamescope_from_env_var(self):
+        with patch.dict(
+            "os.environ",
+            {"GAMESCOPE_WAYLAND_DISPLAY": "gamescope-0"},
+            clear=True,
+        ):
+            assert is_gamescope_session() is True
+
+    def test_is_gamescope_false(self):
+        with patch.dict("os.environ", {}, clear=True):
+            assert is_gamescope_session() is False
 
 
 class TestUsesMonitorGeometry:

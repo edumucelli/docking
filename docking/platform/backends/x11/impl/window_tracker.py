@@ -162,7 +162,7 @@ import os
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.app_matcher import AppIdMatcher, AppMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -212,15 +212,21 @@ class WindowMatcher:
 
     def match(self, window: Wnck.Window) -> str | None:
         """Return the desktop ID for a window, or None when no match is known."""
+        result = self.match_result(window)
+        return result.desktop_id if result is not None else None
+
+    def match_result(self, window: Wnck.Window) -> AppMatch | None:
+        """Return structured identity, including runtime-only app metadata."""
         class_group = self._class_group_for(window=window)
         if not class_group:
             return None
         class_instance = self._class_instance_for(window=window)
-        return self._app_matcher.match(
+        return self._app_matcher.match_result(
             app_id=class_group,
             instance_hint=class_instance,
             prefer_raw_app_id=False,
             defer_wm_class_lookup=True,
+            process_id=self._pid_for(window=window),
         )
 
     def _class_group_for(self, *, window: Wnck.Window) -> str | None:
@@ -240,6 +246,17 @@ class WindowMatcher:
                 f"Failed to read class instance name: {exc}"
             )
             return None
+
+    def _pid_for(self, *, window: Wnck.Window) -> int | None:
+        try:
+            pid = int(window.get_pid())
+        except _GEOMETRY_ERRORS as exc:
+            log.bind(action="window_pid").debug(
+                "Failed to read window process ID: %s",
+                exc,
+            )
+            return None
+        return pid if pid > 0 else None
 
 
 class WindowTracker:
@@ -330,9 +347,10 @@ class WindowTracker:
                 workspace=active_workspace,
             ):
                 continue
-            desktop_id = self._matcher.match(window=window)
-            if desktop_id is None:
+            match = self._matcher.match_result(window=window)
+            if match is None:
                 continue
+            desktop_id = match.desktop_id
             # Preserve the old scan semantics: once a window matched a desktop
             # ID, the app existed in the aggregate even if a later XID read
             # failed. That can produce count=0 for a racey window, but it avoids
@@ -343,6 +361,7 @@ class WindowTracker:
                 window=window,
                 desktop_id=desktop_id,
                 active_xid=active_xid,
+                match=match,
             )
             if snapshot is not None:
                 snapshots_by_desktop[desktop_id].append(snapshot)
@@ -405,7 +424,12 @@ class WindowTracker:
             yield window
 
     def _window_snapshot(
-        self, *, window: Wnck.Window, desktop_id: str, active_xid: int
+        self,
+        *,
+        window: Wnck.Window,
+        desktop_id: str,
+        active_xid: int,
+        match: AppMatch,
     ) -> RunningWindowInfo | None:
         """Convert one live Wnck window into typed running state."""
         # Wnck windows are live wrappers around X11 state. The window can vanish
@@ -434,6 +458,7 @@ class WindowTracker:
             active=xid == active_xid,
             urgent=urgent,
             window=window,
+            runtime_app=match.runtime_app,
         )
 
     @staticmethod
@@ -452,6 +477,13 @@ class WindowTracker:
             if desktop_id not in active_desktop_ids:
                 self._cycle_order_by_desktop.pop(desktop_id, None)
                 self._cycle_index.pop(desktop_id, None)
+
+    def list_all_windows(self) -> list[WindowSnapshot]:
+        """Return backend-neutral snapshots for every matched X11 window."""
+        snapshots: list[WindowSnapshot] = []
+        for desktop_id in self._running_xids_by_desktop:
+            snapshots.extend(self.list_windows(desktop_id=desktop_id))
+        return snapshots
 
     def list_windows(self, desktop_id: str) -> list[WindowSnapshot]:
         """Return backend-neutral snapshots for current windows of a desktop ID."""

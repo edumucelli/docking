@@ -56,6 +56,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from docking.platform.gamescope import prepare_gamescope_wayland_environment
+
+# This must run before importing gi or GTK. GameScope's private Wayland socket
+# exposes layer-shell even when the child environment describes an X11 session.
+prepare_gamescope_wayland_environment()
+
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
 faulthandler.enable()
@@ -146,6 +152,16 @@ def main() -> None:
     )
     window = ui.window
     items_service = DockItemsService(model=model, window=window)
+    model.set_applet_services(
+        AppletServices(
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+            search=ui.search,
+        )
+    )
 
     # Graceful shutdown on SIGINT/SIGTERM
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)

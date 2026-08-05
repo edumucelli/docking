@@ -23,6 +23,17 @@ from docking.platform.backends.base import WindowId
 
 
 @dataclass(frozen=True)
+class RuntimeAppIdentity:
+    """Metadata for a running executable without a matching desktop entry."""
+
+    desktop_id: str
+    executable_path: str
+    name: str
+    icon_name: str
+    wm_class: str
+
+
+@dataclass(frozen=True)
 class RunningWindowInfo:
     """One matched live window from the latest tracker scan."""
 
@@ -44,6 +55,9 @@ class RunningWindowInfo:
     # The live Wnck window is intentionally carried through for callers that
     # need titles, focus, or close/minimize operations. Do not serialize it.
     window: Any
+    # Present only when strong executable evidence deliberately separated this
+    # window from a family-level desktop entry.
+    runtime_app: RuntimeAppIdentity | None = None
 
 
 @dataclass(frozen=True)
@@ -62,6 +76,7 @@ class RunningAppInfo:
     windows: tuple[Any, ...] = ()
     xids: tuple[int, ...] = ()
     window_ids: tuple[WindowId, ...] = ()
+    runtime_app: RuntimeAppIdentity | None = None
 
     @classmethod
     def from_windows(cls, windows: Iterable[RunningWindowInfo]) -> RunningAppInfo:
@@ -70,6 +85,14 @@ class RunningAppInfo:
         # windows, and XIDs. Keeping all fields derived from the same snapshot
         # tuple prevents subtle mismatches if a generator were consumed twice.
         snapshots = tuple(windows)
+        runtime_app = next(
+            (
+                snapshot.runtime_app
+                for snapshot in snapshots
+                if snapshot.runtime_app is not None
+            ),
+            None,
+        )
         return cls(
             count=len(snapshots),
             active=any(snapshot.active for snapshot in snapshots),
@@ -77,4 +100,5 @@ class RunningAppInfo:
             windows=tuple(snapshot.window for snapshot in snapshots),
             xids=tuple(snapshot.xid for snapshot in snapshots),
             window_ids=tuple(snapshot.window_id for snapshot in snapshots),
+            runtime_app=runtime_app,
         )

@@ -33,6 +33,7 @@ def _patch_ui_components(monkeypatch):
         menu=MagicMock(),
         interactions=MagicMock(),
         input_controller=MagicMock(),
+        search=MagicMock(),
     )
     monkeypatch.setattr(
         factory_mod,
@@ -63,6 +64,11 @@ def _patch_ui_components(monkeypatch):
         factory_mod,
         "DockRuntime",
         MagicMock(return_value=components.runtime),
+    )
+    monkeypatch.setattr(
+        factory_mod,
+        "GlobalSearchController",
+        MagicMock(return_value=components.search),
     )
     monkeypatch.setattr(
         factory_mod,
@@ -167,6 +173,13 @@ class TestBuildDockWindow:
             window,
             update_checker=components.update_checker,
         )
+        factory_mod.GlobalSearchController.assert_called_once_with(
+            config=config,
+            launcher=launcher,
+            model=model,
+            windows=tracker,
+            preview_service=preview_service,
+        )
         factory_mod.FolderStackController.assert_called_once_with(
             config=config,
             runtime=components.runtime,
@@ -188,6 +201,7 @@ class TestBuildDockWindow:
             runtime=components.runtime,
             dnd=components.dnd,
             model=model,
+            search=components.search,
         )
         factory_mod.SettingsWindowController.assert_called_once_with(
             parent=window,
@@ -207,6 +221,7 @@ class TestBuildDockWindow:
             folder_stack=components.folder_stack,
             launcher=launcher,
             dock_window=window,
+            search=components.search,
         )
         factory_mod.DockInteractions.assert_called_once_with(
             menu=components.menu,
@@ -227,16 +242,19 @@ class TestBuildDockWindow:
         components.startup_popups.register.assert_any_call(components.update_checker)
         components.startup_popups.register.assert_any_call(components.startup_tips)
         components.input_controller.start.assert_not_called()
+        components.search.start.assert_not_called()
         components.update_checker.start.assert_not_called()
         components.startup_popups.start.assert_not_called()
 
         result.start()
         components.input_controller.start.assert_called_once_with()
+        components.search.start.assert_called_once_with()
         components.startup_popups.start.assert_called_once_with()
         components.update_checker.start.assert_not_called()
 
         result.stop()
         components.startup_popups.stop.assert_called_once_with()
+        components.search.stop.assert_called_once_with()
         components.update_checker.stop.assert_not_called()
         components.input_controller.stop.assert_called_once_with()
 

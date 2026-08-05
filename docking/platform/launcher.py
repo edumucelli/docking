@@ -156,7 +156,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.core.config import MiddleClickAction
 from docking.log import get_logger, with_context
-from docking.platform import desktop_entries
+from docking.platform import desktop_entries, process_identity
 from docking.platform.environment import flatpak, is_flatpak
 
 DESKTOP_SUFFIX = ".desktop"
@@ -244,7 +244,10 @@ class Launcher:
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
         ] = {}
-        self._wm_class_index: dict[str, desktop_entries.DesktopInfo] | None = None
+        self._wm_class_index: dict[str, list[desktop_entries.DesktopInfo]] | None = None
+        self._executable_path_index: (
+            dict[Path, list[desktop_entries.DesktopInfo]] | None
+        ) = None
 
     def resolve(
         self, desktop_id: str, *, log_failures: bool = True
@@ -271,6 +274,7 @@ class Launcher:
             return None
 
         self._cache_resolved_aliases(info=info)
+        self._cache_resolved_executable(info=info)
         return info
 
     def _desktop_app_info_for_id(
@@ -327,23 +331,61 @@ class Launcher:
         # has been built this keeps later direct resolves visible to
         # resolve_by_wm_class.
         for alias in desktop_entries.desktop_match_aliases(info):
-            self._wm_class_index.setdefault(alias, info)
+            # Multiple versions can intentionally share StartupWMClass. Keep
+            # every candidate so AppIdMatcher can use full Exec paths instead
+            # of freezing whichever desktop file happened to be scanned first.
+            candidates = self._wm_class_index.setdefault(alias, [])
+            if all(candidate.desktop_id != info.desktop_id for candidate in candidates):
+                candidates.append(info)
+
+    def _cache_resolved_executable(self, *, info: desktop_entries.DesktopInfo) -> None:
+        if self._executable_path_index is None:
+            return
+        path = desktop_entries.executable_path_from_exec_line(info.exec_line)
+        if path is None:
+            return
+        candidates = self._executable_path_index.setdefault(path, [])
+        if all(candidate.desktop_id != info.desktop_id for candidate in candidates):
+            candidates.append(info)
 
     def resolve_by_wm_class(self, wm_class: str) -> desktop_entries.DesktopInfo | None:
         """Resolve an installed desktop file by runtime WM_CLASS or executable alias."""
+        matches = self.resolve_all_by_wm_class(wm_class)
+        return matches[0] if matches else None
+
+    def resolve_all_by_wm_class(
+        self, wm_class: str
+    ) -> tuple[desktop_entries.DesktopInfo, ...]:
+        """Return every installed desktop entry sharing a runtime alias."""
         lookup = wm_class.lower().strip()
         if not lookup:
-            return None
+            return ()
         if self._wm_class_index is None:
             self._build_wm_class_index()
         if self._wm_class_index is None:
+            return ()
+        return tuple(self._wm_class_index.get(lookup, ()))
+
+    def resolve_by_executable_path(
+        self, executable_path: Path
+    ) -> desktop_entries.DesktopInfo | None:
+        """Resolve an installed desktop entry by exact canonical Exec path."""
+        try:
+            lookup = executable_path.expanduser().resolve(strict=True)
+        except (OSError, RuntimeError):
             return None
-        return self._wm_class_index.get(lookup)
+        if self._executable_path_index is None:
+            self._build_wm_class_index()
+        if self._executable_path_index is None:
+            return None
+        matches = self._executable_path_index.get(lookup, ())
+        return matches[0] if matches else None
 
     def refresh_desktop_entries(self) -> None:
         """Reload desktop-entry search paths and invalidate runtime alias cache."""
         self._desktop_dirs = desktop_entries.desktop_dirs()
         self._wm_class_index = None
+        self._executable_path_index = None
 
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
@@ -520,8 +562,9 @@ class Launcher:
         return app_info.get_display_name() or None
 
     def _build_wm_class_index(self) -> None:
-        """Index installed desktop entries by WM_CLASS-like runtime aliases."""
-        index: dict[str, desktop_entries.DesktopInfo] = {}
+        """Index installed entries by runtime aliases and canonical Exec paths."""
+        alias_index: dict[str, list[desktop_entries.DesktopInfo]] = {}
+        executable_index: dict[Path, list[desktop_entries.DesktopInfo]] = {}
         seen_desktop_ids: set[str] = set()
         for desktop_dir in self._desktop_dirs:
             for path in desktop_dir.rglob(f"*{DESKTOP_SUFFIX}"):
@@ -535,8 +578,14 @@ class Launcher:
                 if info is None:
                     continue
                 for alias in desktop_entries.desktop_match_aliases(info):
-                    index.setdefault(alias, info)
-        self._wm_class_index = index
+                    alias_index.setdefault(alias, []).append(info)
+                executable_path = desktop_entries.executable_path_from_exec_line(
+                    info.exec_line
+                )
+                if executable_path is not None:
+                    executable_index.setdefault(executable_path, []).append(info)
+        self._wm_class_index = alias_index
+        self._executable_path_index = executable_index
 
     def _try_load_gicon(self, gicon: Gio.Icon, size: int) -> GdkPixbuf.Pixbuf | None:
         theme = _create_icon_theme()
@@ -781,13 +830,18 @@ def _launch_exec_line(
             return
         argv = host_argv
     try:
-        subprocess.Popen(
+        process = subprocess.Popen(
             argv,
             shell=False,
             start_new_session=True,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+        )
+        process_identity.record_launch(
+            process=process,
+            desktop_id=desktop_id,
+            executable_path=desktop_entries.executable_path_from_exec_line(exec_line),
         )
     except OSError as e:
         log.bind(desktop_id=desktop_id, action=action).warning(
@@ -820,7 +874,7 @@ def normalize_file_target(target: str) -> str | None:
 def open_target(target: str) -> bool:
     """Open a local file, directory, or web URL with the default handler."""
     parsed = urlparse(target)
-    if parsed.scheme in {"http", "https"}:
+    if parsed.scheme in {"http", "https", "mailto"}:
         uri = target
     else:
         uri = normalize_file_target(target)

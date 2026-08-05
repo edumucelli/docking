@@ -9,13 +9,19 @@ import pytest
 
 pytest.importorskip("pywayland")
 
-from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
-from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1
-from pywayland.protocol.ext_image_capture_source_v1 import (
-    ExtForeignToplevelImageCaptureSourceManagerV1,
-)
-from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1
-from pywayland.protocol.wayland import WlSeat, WlShm
+ExtForeignToplevelListV1 = pytest.importorskip(
+    "pywayland.protocol.ext_foreign_toplevel_list_v1"
+).ExtForeignToplevelListV1
+ExtIdleNotifierV1 = pytest.importorskip(
+    "pywayland.protocol.ext_idle_notify_v1"
+).ExtIdleNotifierV1
+ExtForeignToplevelImageCaptureSourceManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_capture_source_v1"
+).ExtForeignToplevelImageCaptureSourceManagerV1
+ExtImageCopyCaptureManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_copy_capture_v1"
+).ExtImageCopyCaptureManagerV1
+from pywayland.protocol.wayland import WlOutput, WlSeat, WlShm
 
 from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
@@ -24,12 +30,18 @@ from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_
 from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 import (
     HyprlandToplevelExportManagerV1,
 )
+from docking.platform.backends.wayland.protocols.phosh_private import PhoshPrivate
+from docking.platform.backends.wayland.protocols.treeland_shell import (
+    TreelandDDEShellManagerV1,
+    TreelandWindowManagementV1,
+)
 from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (
     ZwlrForeignToplevelManagerV1,
 )
 from docking.platform.backends.wayland.runtime import (
     ForeignToplevelProtocolAdapter,
     IdleProtocolAdapter,
+    PhocPreviewProtocolAdapter,
     PreviewProtocolAdapter,
     WaylandProtocolFactories,
     WaylandProtocolRuntime,
@@ -235,6 +247,7 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
         (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
         (23, WlShm, WlShm.version),
         (23, WlShm, WlShm.version),
+        (23, WlShm, WlShm.version),
     ]
 
 
@@ -261,7 +274,34 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
         ),
         (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
+        (31, WlShm, WlShm.version),
     ]
+
+
+def test_wayland_protocol_runtime_binds_phoc_preview_protocol():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 35, "phosh_private", 7)
+    registry.dispatcher["global"](registry, 36, "wl_shm", 99)
+
+    assert runtime.phoc_preview_protocol is runtime.phoc_previews
+    assert (35, PhoshPrivate, PhoshPrivate.version) in registry.bound
+    assert (36, WlShm, WlShm.version) in registry.bound
+
+
+def test_phoc_preview_adapter_requires_protocol_v4_and_shm():
+    registry = FakeRegistry()
+    adapter = PhocPreviewProtocolAdapter()
+
+    adapter.bind(registry=registry, name=1, version=3)
+    adapter.bind_shm(registry=registry, name=2, version=1)
+    assert adapter.capture_available is False
+
+    adapter.bind(registry=registry, name=3, version=7)
+    assert adapter.capture_available is True
 
 
 def test_wayland_protocol_runtime_binds_idle_protocol():
@@ -280,6 +320,49 @@ def test_wayland_protocol_runtime_binds_idle_protocol():
         (41, WlSeat, WlSeat.version),
         (41, WlSeat, WlSeat.version),
     ]
+
+
+def test_wayland_protocol_runtime_binds_treeland_extensions_and_outputs():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](
+        registry,
+        50,
+        "treeland_dde_shell_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](
+        registry,
+        51,
+        "treeland_window_management_v1",
+        99,
+    )
+    registry.dispatcher["global"](registry, 52, "wl_output", 99)
+
+    assert runtime.treeland_overlap_protocol is runtime.treeland_overlap
+    assert (
+        runtime.treeland_window_management_protocol
+        is runtime.treeland_window_management
+    )
+    assert registry.bound == [
+        (
+            50,
+            TreelandDDEShellManagerV1,
+            TreelandDDEShellManagerV1.version,
+        ),
+        (
+            51,
+            TreelandWindowManagementV1,
+            TreelandWindowManagementV1.version,
+        ),
+        (52, WlOutput, WlOutput.version),
+    ]
+
+    registry.dispatcher["global_remove"](registry, 52)
+    assert runtime.treeland_overlap._outputs == []
 
 
 def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():

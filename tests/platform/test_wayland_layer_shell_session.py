@@ -24,11 +24,13 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandWindowService,
 )
 from docking.platform.backends.wayland.hyprland_session import HyprlandSessionBackend
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.niri_ipc import NiriWindowService
 from docking.platform.backends.wayland.niri_session import NiriSessionBackend
 from docking.platform.backends.wayland.portals import WaylandPortalColorPickerService
 from docking.platform.backends.wayland.previews import (
     HyprlandPreviewService,
+    PhocPreviewService,
     WaylandPreviewService,
 )
 from docking.platform.backends.wayland.services import (
@@ -75,6 +77,7 @@ def _empty_runtime() -> SimpleNamespace:
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
+        phoc_preview_protocol=None,
         idle_protocol=None,
         stop=MagicMock(),
     )
@@ -185,6 +188,37 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
     assert isinstance(backend.previews, HyprlandPreviewService)
 
 
+def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
+    phoc_preview_protocol = SimpleNamespace(
+        capture_available=True,
+        create_frame=MagicMock(),
+        create_shm_pool=MagicMock(),
+        flush=MagicMock(),
+    )
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        foreign_toplevel_protocol=SimpleNamespace(),
+        protocol_runtime=SimpleNamespace(
+            foreign_toplevel_protocol=None,
+            workspace_protocol=None,
+            preview_protocol=None,
+            hyprland_preview_protocol=None,
+            phoc_preview_protocol=phoc_preview_protocol,
+            idle_protocol=None,
+            stop=MagicMock(),
+        ),
+    )
+
+    assert isinstance(backend.windows, WaylandForeignToplevelWindowService)
+    assert backend.windows._can_preview is True
+    assert isinstance(backend.previews, PhocPreviewService)
+
+
 def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_available():
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
@@ -200,6 +234,24 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     assert backend.capabilities.supports_workspace_list is True
     assert backend.capabilities.supports_workspace_switch is True
     assert backend.capabilities.supports_screen_color_pick is True
+
+
+def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
+    idle_protocol = MagicMock()
+    runtime = _empty_runtime()
+    runtime.idle_protocol = idle_protocol
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        protocol_runtime=runtime,
+    )
+
+    assert isinstance(backend.idle, WaylandIdleService)
+    assert backend.capabilities.supports_idle_time is True
+
+    backend.start()
+    idle_protocol.start.assert_called_once_with(backend.idle)
+    backend.stop()
+    idle_protocol.stop.assert_called_once()
 
 
 def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():

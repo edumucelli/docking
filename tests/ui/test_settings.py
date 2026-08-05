@@ -6,6 +6,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environments
@@ -262,14 +264,17 @@ class FakeComboBoxText:
 class FakeSpinButton:
     def __init__(self) -> None:
         self._value = 0.0
+        self.range = None
         self.callbacks: dict[str, object] = {}
         self.properties: dict[str, object] = {}
         self.sensitive = True
         self.tooltip_text = None
 
     @classmethod
-    def new_with_range(cls, *_args):
-        return cls()
+    def new_with_range(cls, minimum, maximum, step):
+        spin = cls()
+        spin.range = (minimum, maximum, step)
+        return spin
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
@@ -369,6 +374,7 @@ class FakeButton:
     def __init__(self, label: str = "") -> None:
         self.label = label
         self.callbacks: dict[str, object] = {}
+        self.sensitive = True
 
     def connect(self, signal: str, callback) -> None:
         self.callbacks[signal] = callback
@@ -377,6 +383,54 @@ class FakeButton:
         callback = self.callbacks.get("clicked")
         if callback is not None:
             callback(self)
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
+
+
+class FakeEntry:
+    def __init__(self) -> None:
+        self.text = ""
+        self.placeholder = ""
+        self.callbacks: dict[str, object] = {}
+        self.sensitive = True
+
+    def set_width_chars(self, _value: int) -> None:
+        pass
+
+    def set_placeholder_text(self, value: str) -> None:
+        self.placeholder = value
+
+    def connect(self, signal: str, callback, *args) -> None:
+        self.callbacks[signal] = (callback, args)
+
+    def set_text(self, value: str) -> None:
+        self.text = value
+
+    def get_text(self) -> str:
+        return self.text
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
+
+
+class FakeShortcutCaptureButton(FakeButton):
+    def __init__(self) -> None:
+        super().__init__()
+        self.shortcut = ""
+
+    def set_shortcut(self, value: str) -> None:
+        self.shortcut = value
+        self.label = value
+
+    def get_shortcut(self) -> str:
+        return self.shortcut
+
+    def emit_shortcut_changed(self, value: str) -> None:
+        self.shortcut = value
+        callback = self.callbacks.get("shortcut-changed")
+        if callback is not None:
+            callback(self, value)
 
 
 class FakeImage:
@@ -594,6 +648,7 @@ class FakeGtk:
     Switch = FakeSwitch
     CheckButton = FakeCheckButton
     Button = FakeButton
+    Entry = FakeEntry
     Image = FakeImage
     EventBox = FakeEventBox
     Popover = FakePopover
@@ -643,6 +698,15 @@ class FakeDisplay:
 class FakeGdk:
     EventMask = FakeEventMask
     Display = FakeDisplay
+
+
+@pytest.fixture(autouse=True)
+def _fake_shortcut_capture(monkeypatch):
+    monkeypatch.setattr(
+        settings_mod,
+        "ShortcutCaptureButton",
+        FakeShortcutCaptureButton,
+    )
 
 
 def _stack_page_child(stack, index: int):
@@ -696,6 +760,9 @@ def _config():
         recent_apps=[],
         show_recent_docs_in_menu=True,
         recent_docs_max=10,
+        global_search_enabled=True,
+        global_search_shortcut="CTRL+ALT+space",
+        global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
 
@@ -772,6 +839,7 @@ class TestSettingsWindowController:
             "<b>Stacks</b>",
             "<b>Recent Apps</b>",
             "<b>Recent Documents</b>",
+            "<b>Global Search</b>",
         ]
         updates_box = _stack_page_child(stack, 3)
         updates_labels = [
@@ -780,6 +848,98 @@ class TestSettingsWindowController:
             if isinstance(child, FakeBox) and child.get_children()
         ]
         assert updates_labels == ["<b>Update Checks</b>"]
+
+    def test_captured_search_shortcut_is_saved_and_applied(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        controller.show()
+        capture = controller._global_search_shortcut_entry
+
+        assert capture.get_shortcut() == "CTRL+ALT+space"
+        capture.callbacks["capture-started"](capture)
+        actions.suspend_search_shortcuts.assert_called_once_with()
+        capture.emit_shortcut_changed("CTRL+LOGO+space")
+        capture.callbacks["capture-ended"](capture)
+
+        assert config.global_search_shortcut == "CTRL+LOGO+space"
+        config.save.assert_called()
+        actions.refresh_search_settings.assert_called()
+        actions.resume_search_shortcuts.assert_called_once_with()
+
+    def test_shortcut_status_is_concise_secondary_text(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        actions = MagicMock()
+        actions.search_shortcut_status.return_value = "Assigned: Super+Space"
+        actions.search_shortcut_status_summary.return_value = "Active"
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=_config(),
+        )
+
+        controller.show()
+
+        assert controller._global_search_shortcut_box.children == [
+            controller._global_search_shortcut_entry,
+            controller._global_search_status_label,
+        ]
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Active"
+        )
+        assert controller._global_search_status_label.tooltip_text == (
+            "Assigned: Super+Space"
+        )
+
+        actions.search_shortcut_status.return_value = "Permission denied"
+        actions.search_shortcut_status_summary.return_value = "Denied"
+        controller._update_search_shortcut_status()
+
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Denied"
+        )
+        assert controller._global_search_status_label.tooltip_text == (
+            "Permission denied"
+        )
+
+    def test_web_search_engine_setting_is_bound(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        controller.show()
+
+        controller._global_search_web_engine_combo.set_active_id("google")
+        controller._global_search_web_engine_combo.emit_changed()
+        assert config.global_search_web_engine == "google"
+        assert controller._global_search_web_engine_combo.sensitive
 
     def test_window_height_is_clamped_to_monitor_workarea(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -1649,6 +1809,39 @@ class TestSettingsWindowController:
 
 class TestRecentSettingsBehavior:
     """Tests for recent apps/docs settings controls."""
+
+    def test_recent_apps_retention_uses_free_numeric_selector(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+
+        config = _config()
+        runtime = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=runtime,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+        )
+        controller.show()
+
+        selector = controller._recent_apps_retention_spin
+        assert isinstance(selector, FakeSpinButton)
+        assert selector.range == (
+            settings_mod.MIN_RECENT_APPS_RETENTION_DAYS,
+            settings_mod.MAX_RECENT_APPS_RETENTION_DAYS,
+            1,
+        )
+
+        selector.set_value(23)
+        selector.emit_value_changed()
+
+        assert config.recent_apps_retention_days == 23
+        config.save.assert_called_once()
+        runtime.queue_draw.assert_called_once()
 
     def test_show_recent_apps_changed_disabled_clears_and_redraws(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

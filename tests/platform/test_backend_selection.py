@@ -69,6 +69,58 @@ def test_create_session_backend_selects_reduced_for_non_x11_without_x11_import(
     assert result.name == "reduced"
 
 
+def test_create_session_backend_explains_cage_reduced_mode(monkeypatch):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.CAGE)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", lambda **_: None
+    )
+    monkeypatch.setattr(
+        selection, "_create_gnome_shell_bridge_backend", lambda **_: None
+    )
+    create_reduced = MagicMock(return_value=MagicMock(name="reduced"))
+    monkeypatch.setattr(selection, "_create_reduced_backend", create_reduced)
+
+    selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    reason = create_reduced.call_args.kwargs["reason"]
+    assert "single-application kiosk" in reason
+    assert "layer-shell" in reason
+
+
+def test_create_session_backend_explains_weston_reduced_mode(monkeypatch):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.WESTON)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", lambda **_: None
+    )
+    monkeypatch.setattr(
+        selection, "_create_gnome_shell_bridge_backend", lambda **_: None
+    )
+    create_reduced = MagicMock(return_value=MagicMock(name="reduced"))
+    monkeypatch.setattr(selection, "_create_reduced_backend", create_reduced)
+
+    selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    reason = create_reduced.call_args.kwargs["reason"]
+    assert "Weston" in reason
+    assert "third-party dock clients" in reason
+
+
 def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkeypatch):
     monkeypatch.delenv("DOCKING_BACKEND", raising=False)
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
@@ -89,6 +141,29 @@ def test_create_session_backend_selects_layer_shell_for_supported_wayland(monkey
 
     assert result is backend
     create_wayland.assert_called_once()
+
+
+def test_miriway_layer_shell_failure_logs_shell_component_hint(monkeypatch, caplog):
+    caplog.set_level("INFO")
+    layer_shell = MagicMock()
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.load_gtk_layer_shell",
+        lambda: layer_shell,
+    )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.layer_shell_is_supported",
+        lambda _layer_shell: False,
+    )
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.MIRIWAY)
+
+    result = selection._create_wayland_layer_shell_backend(
+        launcher=MagicMock(),
+        model=MagicMock(),
+        reason="test",
+    )
+
+    assert result is None
+    assert "shell-component=docking" in caplog.text
 
 
 def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
@@ -332,4 +407,31 @@ def test_create_session_backend_auto_selects_wayfire_before_generic_wayland(
 
     assert result is backend
     create_wayfire.assert_called_once()
+    create_wayland.assert_not_called()
+
+
+def test_create_session_backend_auto_selects_treeland_before_generic_wayland(
+    monkeypatch,
+):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.DEEPIN)
+    monkeypatch.setattr(selection, "is_kde_session", lambda: False)
+    monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
+    backend = MagicMock(name="treeland")
+    create_treeland = MagicMock(return_value=backend)
+    create_wayland = MagicMock()
+    monkeypatch.setattr(selection, "_create_treeland_backend", create_treeland)
+    monkeypatch.setattr(
+        selection, "_create_wayland_layer_shell_backend", create_wayland
+    )
+
+    result = selection.create_session_backend(
+        config=MagicMock(),
+        launcher=MagicMock(),
+        model=MagicMock(),
+    )
+
+    assert result is backend
+    create_treeland.assert_called_once()
     create_wayland.assert_not_called()

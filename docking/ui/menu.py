@@ -204,6 +204,7 @@ if TYPE_CHECKING:
     )
     from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+    from docking.search.presenter import SearchPresenter
 
 
 APPLET_MENU_ICON_PX = 16
@@ -310,6 +311,7 @@ class MenuHandler:
         diagnostics: DiagnosticsDialogController,
         launcher: Launcher,
         dock_window: Gtk.Window,
+        search: SearchPresenter,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -321,6 +323,7 @@ class MenuHandler:
         self._preview_service = preview_service
         self._launcher = launcher
         self._dock_window = dock_window
+        self._search = search
         self._folder_stack = folder_stack
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
@@ -627,6 +630,11 @@ class MenuHandler:
 
         Sections: add actions plus preferences/about/quit.
         """
+        search_item = Gtk.MenuItem(label=_("Search..."))
+        search_item.connect("activate", lambda _: self._search.show())
+        menu.append(search_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
         # Add Applet submenu
         try:
             catalog = get_applet_catalog()

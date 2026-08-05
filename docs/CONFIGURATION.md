@@ -161,6 +161,22 @@ stored separately in:
 ~/.local/state/docking/updates.json
 ```
 
+### Global Search
+
+| Setting | Default | Values | Description |
+|---|---:|---|---|
+| `global_search_enabled` | `true` | boolean | Enables the shared search palette, D-Bus activation, and XDG GlobalShortcuts registration. |
+| `global_search_shortcut` | `CTRL+ALT+space` | captured shortcut | Preferred portal trigger and the active X11 fallback sequence. The desktop portal may retain or assign a different trigger. |
+| `global_search_web_engine` | `duckduckgo` | `duckduckgo`, `google`, `brave`, or `bing` | Engine used by fallback searches. |
+
+Click the shortcut button in **Preferences -> Behavior -> Global Search**, then
+press the desired sequence. On Wayland, the assignment belongs to the desktop
+portal, which may retain or assign a different trigger. On X11, Docking uses
+the captured sequence directly when the portal is unavailable.
+
+Relevance privacy, previews, and provider behavior are documented in
+[Global Search](SEARCH.md).
+
 ### Recent Applications and Documents
 
 | Setting | Default | Values | Description |
