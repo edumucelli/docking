@@ -36,7 +36,11 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 log = get_logger(name="hyprland_ipc")
 
@@ -93,6 +97,8 @@ class HyprlandWindowRecord:
     pinned: bool | None
     geometry: Rect | None
     workspace_id: str | None
+    pid: int | None
+    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
@@ -400,6 +406,7 @@ class HyprlandWindowService(WindowService):
                     active=record.active,
                     urgent=record.urgent,
                     window=record.address,
+                    runtime_app=record.runtime_app,
                 )
             )
         self._model.update_running(
@@ -521,7 +528,9 @@ def _record_from_client(
         or _mapping_value(item, "initialClass", "")
         or ""
     ).strip()
-    desktop_id = matcher.match(app_id) if app_id else None
+    pid = _optional_int(_mapping_value(item, "pid", None))
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
+    desktop_id = match.desktop_id if match is not None else None
     workspace = _mapping_value(item, "workspace", {})
     workspace_id = None
     if isinstance(workspace, Mapping):
@@ -540,6 +549,8 @@ def _record_from_client(
         pinned=_optional_bool(_mapping_value(item, "pinned", None)),
         geometry=geometry,
         workspace_id=workspace_id,
+        pid=pid,
+        runtime_app=match.runtime_app if match is not None else None,
     )
 
 
@@ -587,6 +598,21 @@ def _optional_bool(value: object) -> bool | None:
     if isinstance(value, int):
         return bool(value)
     return None
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed > 0 else None
 
 
 def _window_address(window_id: WindowId) -> str | None:

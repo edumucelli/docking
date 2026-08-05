@@ -767,6 +767,7 @@ class DnDHandler:
                 name=resolved.name,
                 icon_name=resolved.icon_name,
                 wm_class=resolved.wm_class,
+                exec_line=getattr(resolved, "exec_line", "") or "",
                 is_pinned=True,
                 icon=icon,
             )
@@ -798,6 +799,7 @@ class DnDHandler:
                 name=resolved.name,
                 icon_name=resolved.icon_name,
                 wm_class=resolved.wm_class,
+                exec_line=getattr(resolved, "exec_line", "") or "",
                 is_pinned=True,
                 icon=icon,
             )
