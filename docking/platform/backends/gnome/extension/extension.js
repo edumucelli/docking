@@ -378,6 +378,7 @@ export default class DockingBridgeExtension extends Extension {
         "id": id,
         "title": window.get_title() || "Window",
         "app-id": this._appIdFor(app, window),
+        "pid": window.get_pid ? window.get_pid() : 0,
         "active": global.display.focus_window === window,
         "minimized": Boolean(window.minimized),
         "maximized": this._isMaximized(window),

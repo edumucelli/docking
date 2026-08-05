@@ -22,6 +22,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - [Installation](#installation)
 - [Running](#running)
 - [First Use](#first-use)
+- [Global Search](#global-search)
 - [Configuration](#configuration)
 - [Applets](#applets)
 - [Theming](#theming)
@@ -36,7 +37,8 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
 - Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
-- 64 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
+- Unified global search for applications, dock items, open windows, recent files, calculator expressions, and direct paths.
+- 65 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
 - Flexible dock layout with multi-position, multi-monitor, auto-hide, separators, and scalable sizing.
 - Deep customization through 13 built-in themes, transparency, icon sizing, per-item custom icons, menu behavior, and tooltip controls.
@@ -181,8 +183,14 @@ one with `DOCKING_BACKEND`.
 | **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
 | **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
-| **Native layer-shell** | wlroots-based (Sway, labwc, river, Wayfire) | Dock placement, window tracking, workspace switching (varies by compositor protocol support) |
-| **Reduced** | Any Wayland | Dock visible but no window management (no running indicators, no previews, no workspace switching) |
+| **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
+| **Cinnamon Wayland** | Current Muffin | Dock placement plus read-only running, active, attention, geometry, and workspace state through Muffin's `org.cinnamon.Muffin.Debug.ListWindows` snapshot API. Muffin does not expose window actions, previews, or change signals, so Docking polls every two seconds |
+| **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
+| **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
+| **Native layer-shell** | Miriway | Dock placement, window actions, and workspaces when Docking is launched as a trusted Miriway shell component |
+| **Native layer-shell** | Phosh / phoc | Dock placement and window actions through standard protocols, with native per-window thumbnails when phoc exposes `phosh_private` to the client |
+| **Treeland** | Deepin Wayland | Standard layer-shell window tracking and previews, plus Treeland Show Desktop and overlap-driven hiding. Left-edge overlap falls back until Treeland fixes its current left-anchor checker |
+| **Reduced** | Cage, Weston, and Wayland compositors without a supported integration | Launcher-only mode with no running indicators, previews, or workspace switching. Cage is a single-application kiosk without a suitable layer-shell surface; Weston reserves its shell protocols for its configured shell or IVI controller |
 
 #### GNOME Shell Bridge
 
@@ -233,6 +241,49 @@ DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
 DOCKING_BACKEND=x11 docking                   # X11 (full support)
 ```
 
+#### Jay client capabilities
+
+Jay restricts window-management, workspace, capture, and idle protocols to
+approved clients. Launch Docking with a connection tag:
+
+```bash
+jay run-tagged docking docking
+```
+
+Then grant that tag the protocols used by the generic Wayland backend:
+
+```toml
+[[clients]]
+match.tag = "docking"
+capabilities = [
+    "layer-shell",
+    "foreign-toplevel-manager",
+    "foreign-toplevel-list",
+    "workspace-manager",
+    "screencopy",
+    "idle-notifier",
+]
+```
+
+Jay replaces its default permissions when a client rule matches, so
+`layer-shell` must remain in the explicit list. A connection tag is preferred
+over matching the process name because it grants these privileges only to the
+Docking instance launched through `jay run-tagged`.
+
+#### Miriway shell component
+
+Miriway deliberately limits layer-shell, foreign-toplevel management, and
+workspace management to trusted shell components. Add Docking to
+`~/.config/miriway-shell.config`:
+
+```ini
+shell-component=docking
+```
+
+Restart Miriway after changing this file. Miriway then launches Docking with
+the privileged Wayland socket. Starting Docking as an ordinary application
+leaves these protocols hidden and results in reduced launcher-only behavior.
+
 ## First Use
 
 Start by opening the dock menu: right-click the shelf background between icons.
@@ -261,6 +312,25 @@ The first things to explore are:
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend
   support or preparing a support report.
 
+## Global Search
+
+Open **Search...** from the dock menu, use the optional **Search** applet, or
+configure a system-wide shortcut under **Preferences -> Behavior -> Global
+Search**. Search understands applications, windows, files, calculations,
+conversions, dates, time zones, paths, and the web.
+
+Try these examples:
+
+- `Firefox` - find an installed application or open window.
+- `Time in Sao Paulo` - check the current time in another city.
+- `10 USD to EUR` - convert currencies using current rates.
+- `10 + pi` - calculate an expression.
+- `What is a Linux dockbar?` - search on the web.
+
+Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for
+more actions. See the [Global Search guide](docs/SEARCH.md) for provider details
+and keyboard shortcuts.
+
 ## Configuration
 
 Open right-click -> **Preferences** to configure the dock's appearance,
@@ -286,7 +356,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 64 built-in applets, ranging from application
+Docking includes 65 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -294,7 +364,7 @@ live information.
 
 | Category | Examples |
 |---|---|
-| Launcher & Navigation | Applications, Run Application, Desktop, WhatsApp, Workspaces |
+| Launcher & Navigation | Applications, Search, Run Application, Desktop, WhatsApp, Workspaces |
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
@@ -477,6 +547,7 @@ every package format live in the [packaging guide](packaging/README.md).
 ## Additional Docs
 
 - [Configuration](docs/CONFIGURATION.md)
+- [Global Search](docs/SEARCH.md)
 - [Applets](docs/APPLETS.md)
 - [Themes](docs/THEMES.md)
 - [D-Bus Remote Control](docs/DBUS.md)

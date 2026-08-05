@@ -27,6 +27,7 @@ from docking.platform.environment import (
     Desktop,
     backend_name,
     detect_desktop,
+    is_gamescope_session,
     is_kde_session,
     is_wayland_session,
     is_x11_backend,
@@ -140,6 +141,31 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"KWin backend unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested in {"treeland", "deepin"}:
+        backend = _create_treeland_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=f"Treeland backend unavailable after DOCKING_BACKEND={requested}"
+        )
+    if requested in {"cinnamon", "cinnamon-wayland"}:
+        backend = _create_cinnamon_wayland_backend(
+            launcher=launcher,
+            model=model,
+            reason=f"requested by DOCKING_BACKEND={requested}",
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(
+            reason=(
+                "Cinnamon Wayland backend unavailable after "
+                f"DOCKING_BACKEND={requested}"
+            )
+        )
 
     if not is_x11_backend():
         # Hyprland has a richer IPC backend than generic layer-shell.
@@ -187,6 +213,22 @@ def create_session_backend(
             )
             if backend is not None:
                 return backend
+        if detect_desktop() & Desktop.DEEPIN:
+            backend = _create_treeland_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
+        if detect_desktop() & Desktop.CINNAMON:
+            backend = _create_cinnamon_wayland_backend(
+                launcher=launcher,
+                model=model,
+                reason=_non_x11_reason(),
+            )
+            if backend is not None:
+                return backend
         backend = _create_wayland_layer_shell_backend(
             launcher=launcher,
             model=model,
@@ -201,7 +243,26 @@ def create_session_backend(
         )
         if backend is not None:
             return backend
-        return _create_reduced_backend(reason=_non_x11_reason())
+        reason = _non_x11_reason()
+        if detect_desktop() & Desktop.CAGE:
+            reason = (
+                "Cage is a single-application kiosk compositor and does not expose "
+                "a layer-shell surface suitable for a dock"
+            )
+        elif detect_desktop() & Desktop.WESTON:
+            reason = (
+                "Weston does not expose a general-purpose layer-shell or window "
+                "management protocol to third-party dock clients"
+            )
+        return _create_reduced_backend(reason=reason)
+
+    # Reaching this point means the early GameScope Wayland bootstrap could not
+    # produce a usable native GTK display. Avoid treating its nested X display
+    # as a normal desktop with full X11 window-management capabilities.
+    if is_gamescope_session():
+        return _create_reduced_backend(
+            reason="GameScope native layer-shell connection was unavailable"
+        )
 
     return _create_x11_backend(
         config=config,
@@ -235,10 +296,17 @@ def _create_wayland_layer_shell_backend(
         log.info("Wayland layer-shell backend unavailable: GtkLayerShell not installed")
         return None
     if not layer_shell_is_supported(layer_shell):
-        log.info(
-            "Wayland layer-shell backend unavailable: compositor does not support "
-            "layer-shell"
-        )
+        if detect_desktop() & Desktop.MIRIWAY:
+            log.info(
+                "Wayland layer-shell backend unavailable: Miriway exposes shell "
+                "protocols only to configured shell components; add "
+                "shell-component=docking to miriway-shell.config"
+            )
+        else:
+            log.info(
+                "Wayland layer-shell backend unavailable: compositor does not support "
+                "layer-shell"
+            )
         return None
     backend = WaylandLayerShellSessionBackend(
         layer_shell=layer_shell,
@@ -262,6 +330,58 @@ def _create_gnome_shell_bridge_backend(
         model=model,
         launcher=launcher,
         bridge=bridge,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_treeland_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+    from docking.platform.backends.wayland.treeland_session import (
+        TreelandSessionBackend,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None or not layer_shell_is_supported(layer_shell):
+        log.info("Treeland backend unavailable: layer-shell is not usable")
+        return None
+    backend = TreelandSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
+def _create_cinnamon_wayland_backend(
+    *, launcher: Launcher, model: DockModel, reason: str
+) -> SessionBackend | None:
+    from docking.platform.backends.cinnamon.muffin import MuffinDebugClient
+    from docking.platform.backends.cinnamon.session import (
+        CinnamonWaylandSessionBackend,
+    )
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+
+    layer_shell = load_gtk_layer_shell()
+    if layer_shell is None or not layer_shell_is_supported(layer_shell):
+        return None
+    client = MuffinDebugClient.connect()
+    if client is None:
+        return None
+    backend = CinnamonWaylandSessionBackend(
+        layer_shell=layer_shell,
+        launcher=launcher,
+        model=model,
+        client=client,
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend

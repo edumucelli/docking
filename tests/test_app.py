@@ -153,6 +153,7 @@ class TestAppMain:
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
+            search=MagicMock(),
             start=MagicMock(),
             stop=MagicMock(),
         )
@@ -224,6 +225,7 @@ class TestAppMain:
         assert services.window_picker is None
         assert services.idle is None
         assert services.screen_capture is None
+        assert services.search is ui.search
         factory.assert_called_once_with(
             config=config,
             model=model,
@@ -299,6 +301,7 @@ class TestAppMain:
         window = MagicMock()
         ui = SimpleNamespace(
             window=window,
+            search=MagicMock(),
             start=MagicMock(),
             stop=MagicMock(),
         )

@@ -118,6 +118,10 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._last_running = {}
         self._model.update_running(running={})
 
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every current Wayland toplevel."""
+        return tuple(self._snapshot_for(state) for state in self._state_by_id.values())
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return current Wayland toplevels matched to one desktop ID."""
         return tuple(

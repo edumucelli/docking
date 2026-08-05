@@ -22,6 +22,7 @@
     "--talk-name=org.gtk.vfs.*",
     "--talk-name=org.freedesktop.Notifications",
     "--talk-name=org.freedesktop.Flatpak",
+    "--own-name=cc.docking.Docking",
     "--system-talk-name=org.freedesktop.NetworkManager",
     "--system-talk-name=org.freedesktop.UDisks2"
   ],

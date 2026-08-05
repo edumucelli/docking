@@ -1,7 +1,7 @@
 name: docking
 title: Docking
 base: core22
-version: "2.10.0"
+version: "2.11.0"
 summary: Feature-rich Linux dock in Python with GTK 3 and Cairo
 description: |
   A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo.
@@ -16,10 +16,18 @@ website: https://github.com/edumucelli/docking
 grade: stable
 confinement: devmode
 
+slots:
+  docking-session-bus:
+    interface: dbus
+    bus: session
+    name: org.docking.Docking
+
 apps:
   docking:
     command: bin/docking
     desktop: usr/share/applications/org.docking.Docking.desktop
+    slots:
+      - docking-session-bus
     plugs:
       - x11
       - wayland

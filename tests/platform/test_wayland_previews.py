@@ -10,6 +10,7 @@ from docking.platform.backends.wayland import previews as preview_mod
 from docking.platform.backends.wayland.previews import (
     SHM_ARGB8888,
     HyprlandPreviewService,
+    PhocPreviewService,
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
@@ -160,3 +161,34 @@ def test_hyprland_preview_service_uses_wlr_handle_and_returns_cached_frame(
     frame.dispatcher["ready"](frame, 0, 0, 0)
 
     assert service.capture(window_id, width=100, height=60) is image
+
+
+def test_phoc_preview_service_copies_thumbnail_frame_immediately(monkeypatch):
+    window_id = WindowId(backend=DisplayServer.WAYLAND, value=8)
+    handle = object()
+    frame = FakeFrame()
+    pool = FakePool()
+    protocol = SimpleNamespace(
+        create_frame=MagicMock(return_value=frame),
+        create_shm_pool=MagicMock(return_value=pool),
+        flush=MagicMock(),
+    )
+    windows = SimpleNamespace(
+        protocol_handle_for_window_id=MagicMock(return_value=handle),
+    )
+    image = PreviewImage(image=object(), width=96, height=64)
+    monkeypatch.setattr(
+        preview_mod,
+        "_pixbuf_from_request",
+        MagicMock(return_value=image),
+    )
+    service = PhocPreviewService(protocol=protocol, windows=windows)
+
+    assert service.thumbnail(window_id, width=96, height=64) is None
+    protocol.create_frame.assert_called_once_with(handle, 96, 64)
+
+    frame.dispatcher["buffer"](frame, SHM_ARGB8888, 192, 128, 768)
+    frame.copy.assert_called_once_with(pool.buffer)
+    frame.dispatcher["ready"](frame, 0, 0, 0)
+
+    assert service.thumbnail(window_id, width=96, height=64) is image

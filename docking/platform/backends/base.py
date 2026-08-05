@@ -242,6 +242,10 @@ class WindowService(Service):
     """Taskbar/window state and window actions."""
 
     @abstractmethod
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every current window known to this backend."""
+
+    @abstractmethod
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return current windows for a desktop ID."""
 

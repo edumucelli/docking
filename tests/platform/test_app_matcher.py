@@ -8,9 +8,11 @@ previously split across X11 and Wayland test files.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import docking.platform.app_matcher as app_matcher_mod
 from docking.platform.app_matcher import (
     AppIdMatcher,
     _app_id_candidates,
@@ -20,6 +22,7 @@ from docking.platform.app_matcher import (
     _wine_aliases_from_instance,
 )
 from docking.platform.launcher import GNOME_APP_PREFIX
+from docking.platform.process_identity import LaunchProvenance, ProcessIdentity
 
 
 def _launcher(*, resolve_by_wm_class=None, resolve=None):
@@ -51,8 +54,21 @@ class _FakeDesktopInfo:
     exec_line: str = ""
 
 
-def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
-    return SimpleNamespace(desktop_id=desktop_id, wm_class=wm_class)
+def _item(
+    desktop_id: str,
+    wm_class: str = "",
+    *,
+    exec_line: str = "",
+    name: str = "Test App",
+    icon_name: str = "test-icon",
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        desktop_id=desktop_id,
+        wm_class=wm_class,
+        exec_line=exec_line,
+        name=name,
+        icon_name=icon_name,
+    )
 
 
 class TestNormalizeAlias:
@@ -220,6 +236,215 @@ class TestVisibleAliases:
         matcher.sync_visible_items([_item("chrome.desktop", wm_class="Chrome")])
         assert matcher.match("Firefox") is None
         assert matcher.match("Chrome") == "chrome.desktop"
+
+
+class TestExecutableIdentity:
+    @staticmethod
+    def _binary(tmp_path, version: str):
+        path = tmp_path / version / "bin" / "tool"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"\x7fELF")
+        return path.resolve()
+
+    @staticmethod
+    def _script(tmp_path, version: str):
+        path = tmp_path / version / "bin" / "tool.sh"
+        path.parent.mkdir(parents=True)
+        path.write_text("#!/bin/sh\n", encoding="utf-8")
+        return path.resolve()
+
+    def test_exact_process_path_selects_matching_visible_launcher(
+        self, tmp_path, monkeypatch
+    ):
+        first = self._binary(tmp_path, "tool-v1")
+        second = self._binary(tmp_path, "tool-v2")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(first),
+                ),
+                _item(
+                    "tool-v2.desktop",
+                    "SharedTool",
+                    exec_line=str(second),
+                ),
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=42, executable_path=first),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=42)
+
+        assert result is not None
+        assert result.desktop_id == "tool-v1.desktop"
+        assert result.runtime_app is None
+
+    def test_conflicting_direct_process_path_creates_runtime_identity(
+        self, tmp_path, monkeypatch
+    ):
+        pinned = self._binary(tmp_path, "tool-v1")
+        running = self._binary(tmp_path, "tool-v2")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(pinned),
+                    name="Shared Tool",
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=43, executable_path=running),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=43)
+
+        assert result is not None
+        assert result.desktop_id != "tool-v1.desktop"
+        assert result.runtime_app is not None
+        assert result.runtime_app.executable_path == str(running)
+        assert result.runtime_app.name == "Shared Tool"
+
+    def test_missing_process_path_preserves_visible_alias_fallback(
+        self, tmp_path, monkeypatch
+    ):
+        pinned = self._binary(tmp_path, "tool-v1")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(pinned),
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=44),
+        )
+
+        assert matcher.match("SharedTool", process_id=44) == "tool-v1.desktop"
+
+    def test_sibling_bundle_wrapper_and_native_are_distinct(
+        self, tmp_path, monkeypatch
+    ):
+        pinned = self._script(tmp_path, "tool-v1")
+        running = self._binary(tmp_path, "tool-v2")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(pinned),
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=45, executable_path=running),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=45)
+
+        assert result is not None
+        assert result.desktop_id != "tool-v1.desktop"
+        assert result.runtime_app is not None
+
+    def test_wrapper_and_native_in_same_bundle_keep_family_fallback(
+        self, tmp_path, monkeypatch
+    ):
+        pinned = self._script(tmp_path, "tool-v1")
+        running = pinned.with_name("tool")
+        running.write_bytes(b"\x7fELF")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(pinned),
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(
+                pid=46,
+                executable_path=running.resolve(),
+            ),
+        )
+
+        assert matcher.match("SharedTool", process_id=46) == "tool-v1.desktop"
+
+    def test_wrapper_candidate_is_not_shadowed_by_native_runtime_item(
+        self, tmp_path, monkeypatch
+    ):
+        wrapper = self._script(tmp_path, "tool-v1")
+        native = self._binary(tmp_path, "tool-v2")
+        interpreter = tmp_path / "tool-v1" / "runtime" / "bin" / "interpreter"
+        interpreter.parent.mkdir(parents=True)
+        interpreter.write_bytes(b"\x7fELF")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items(
+            [
+                _item(
+                    "tool-v1.desktop",
+                    "SharedTool",
+                    exec_line=str(wrapper),
+                ),
+                _item(
+                    "tool-v2.desktop",
+                    "SharedTool",
+                    exec_line=str(native),
+                ),
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(
+                pid=47,
+                executable_path=interpreter.resolve(),
+            ),
+        )
+
+        assert matcher.match("SharedTool", process_id=47) == "tool-v1.desktop"
+
+    def test_system_bin_is_not_treated_as_specific_bundle_root(self):
+        assert app_matcher_mod._specific_bundle_root(Path("/usr/bin/tool")) is None
+
+    def test_launch_provenance_survives_wrapper_exec(self, tmp_path, monkeypatch):
+        java = self._binary(tmp_path, "runtime")
+        matcher = AppIdMatcher(launcher=_launcher())
+        matcher.sync_visible_items([])
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(
+                pid=45,
+                executable_path=java,
+                launch=LaunchProvenance(
+                    desktop_id="tool-wrapper.desktop",
+                ),
+            ),
+        )
+
+        assert matcher.match("SharedTool", process_id=45) == "tool-wrapper.desktop"
 
 
 class TestWineMatching:

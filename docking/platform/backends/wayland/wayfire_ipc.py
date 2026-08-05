@@ -52,7 +52,11 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 log = get_logger(name="wayfire_ipc")
 
@@ -210,6 +214,7 @@ class WayfireWindowRecord:
     geometry: Rect | None
     workspace_id: str | None
     pid: int | None
+    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
@@ -317,6 +322,9 @@ class WayfireWindowService(WindowService):
         self._poll_source_id = 0
         self._records.clear()
         self._model.update_running(running={})
+
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        return tuple(self._snapshot_for(record) for record in self._records.values())
 
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         return tuple(
@@ -443,6 +451,7 @@ class WayfireWindowService(WindowService):
                     active=record.active,
                     urgent=False,
                     window=str(record.id),
+                    runtime_app=record.runtime_app,
                 )
             )
         self._model.update_running(
@@ -1045,7 +1054,18 @@ def _record_from_view(
     if view_id is None:
         return None
     app_id = str(view.get("app-id", "") or "").strip()
-    desktop_id = matcher.match(app_id) if app_id else None
+    pid = _optional_int(view.get("pid"))
+    match_result = getattr(matcher, "match_result", None)
+    match = (
+        match_result(app_id, process_id=pid)
+        if app_id and callable(match_result)
+        else None
+    )
+    desktop_id = (
+        match.desktop_id
+        if match is not None
+        else (matcher.match(app_id) if app_id else None)
+    )
     wset_index = view.get("wset-index")
     workspace_id = str(wset_index) if wset_index not in (None, -1, "") else None
     return WayfireWindowRecord(
@@ -1058,7 +1078,8 @@ def _record_from_view(
         fullscreen=_optional_bool(view.get("fullscreen")),
         geometry=_rect_from_mapping(view.get("geometry")),
         workspace_id=workspace_id,
-        pid=_optional_int(view.get("pid")),
+        pid=pid,
+        runtime_app=match.runtime_app if match is not None else None,
     )
 
 

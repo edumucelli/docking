@@ -16,11 +16,13 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.platform.app_matcher as app_matcher_mod
 import docking.platform.backends.x11.impl.window_tracker as window_tracker_mod
 from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.desktop_entries import DesktopInfo
 from docking.platform.model import DockItem
+from docking.platform.process_identity import ProcessIdentity
 
 
 class FakeWindow:
@@ -33,6 +35,7 @@ class FakeWindow:
         skip_tasklist: bool = False,
         urgent: bool = False,
         minimized: bool = False,
+        pid: int = 99999,
     ) -> None:
         self._xid = xid
         self._class_group = class_group
@@ -41,6 +44,7 @@ class FakeWindow:
         self._skip_tasklist = skip_tasklist
         self._urgent = urgent
         self._minimized = minimized
+        self._pid = pid
         self._name = class_group
         self.activated_with: list[int] = []
         self.closed_with: list[int] = []
@@ -72,7 +76,7 @@ class FakeWindow:
         return self._minimized
 
     def get_pid(self) -> int:
-        return 99999
+        return self._pid
 
     def activate(self, timestamp: int) -> None:
         self.activated_with.append(timestamp)
@@ -237,8 +241,10 @@ class TestWindowTrackerRunningAggregation:
         )
 
         mapping = {w1: "firefox.desktop", w2: "firefox.desktop", w3: "code.desktop"}
-        tracker._matcher.match = MagicMock(
-            side_effect=lambda window: mapping.get(window)
+        tracker._matcher.match_result = MagicMock(
+            side_effect=lambda window: (
+                app_matcher_mod.AppMatch(mapping[window]) if window in mapping else None
+            )
         )
         # When
         tracker._update_running()
@@ -261,6 +267,43 @@ class TestWindowTrackerRunningAggregation:
             "code.desktop": [3],
         }
 
+    def test_update_running_publishes_runtime_only_identity(
+        self, tracker_env, tmp_path, monkeypatch
+    ):
+        tracker, model, _launcher = tracker_env
+        pinned = tmp_path / "tool-v1" / "bin" / "tool"
+        running = tmp_path / "tool-v2" / "bin" / "tool"
+        pinned.parent.mkdir(parents=True)
+        running.parent.mkdir(parents=True)
+        pinned.write_bytes(b"\x7fELF")
+        running.write_bytes(b"\x7fELF")
+        model.visible_items.return_value = [
+            DockItem(
+                desktop_id="tool-v1.desktop",
+                name="Shared Tool",
+                wm_class="SharedTool",
+                exec_line=str(pinned),
+            )
+        ]
+        window = FakeWindow(20, class_group="SharedTool", pid=4243)
+        tracker._screen = FakeScreen(windows=[window], active_window=window)
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda pid: ProcessIdentity(
+                pid=pid,
+                executable_path=running.resolve(),
+            ),
+        )
+
+        tracker._update_running()
+
+        published = model.update_running.call_args.kwargs["running"]
+        assert "tool-v1.desktop" not in published
+        runtime_info = next(iter(published.values()))
+        assert runtime_info.runtime_app is not None
+        assert runtime_info.runtime_app.executable_path == str(running.resolve())
+
     def test_update_running_filters_to_current_workspace(self, tracker_env):
         tracker, model, _launcher = tracker_env
         tracker._config = SimpleNamespace(current_workspace_only=True)
@@ -282,9 +325,11 @@ class TestWindowTrackerRunningAggregation:
             active_window=current,
             active_workspace=active_workspace,
         )
-        tracker._matcher.match = MagicMock(
+        tracker._matcher.match_result = MagicMock(
             side_effect=lambda window: (
-                "firefox.desktop" if window in {current, other} else None
+                app_matcher_mod.AppMatch("firefox.desktop")
+                if window in {current, other}
+                else None
             )
         )
 
@@ -383,8 +428,10 @@ class TestWindowTrackerRunningAggregation:
 
         good = FakeWindow(10, class_group="Firefox")
         tracker._screen = FakeScreen(windows=[BrokenWindow(), good], active_window=good)
-        tracker._matcher.match = MagicMock(
-            side_effect=lambda window: "firefox.desktop" if window is good else None
+        tracker._matcher.match_result = MagicMock(
+            side_effect=lambda window: (
+                app_matcher_mod.AppMatch("firefox.desktop") if window is good else None
+            )
         )
         # When
         tracker._update_running()
@@ -405,7 +452,9 @@ class TestWindowTrackerRunningAggregation:
 
         broken = BrokenXidWindow(10, class_group="Firefox")
         tracker._screen = FakeScreen(windows=[broken], active_window=None)
-        tracker._matcher.match = MagicMock(return_value="firefox.desktop")
+        tracker._matcher.match_result = MagicMock(
+            return_value=app_matcher_mod.AppMatch("firefox.desktop")
+        )
 
         tracker._update_running()
 
@@ -423,6 +472,48 @@ class TestWindowMatching:
         # When
         # Then
         assert tracker._matcher.match(win) == "firefox.desktop"
+
+    def test_match_separates_same_class_with_different_direct_exec(
+        self, tracker_env, tmp_path, monkeypatch
+    ):
+        tracker, _model, _launcher = tracker_env
+        pinned = tmp_path / "tool-v1" / "bin" / "tool"
+        running = tmp_path / "tool-v2" / "bin" / "tool"
+        pinned.parent.mkdir(parents=True)
+        running.parent.mkdir(parents=True)
+        pinned.write_bytes(b"\x7fELF")
+        running.write_bytes(b"\x7fELF")
+        tracker._matcher.sync_visible_items(
+            [
+                DockItem(
+                    desktop_id="tool-v1.desktop",
+                    name="Shared Tool",
+                    wm_class="SharedTool",
+                    exec_line=str(pinned),
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda pid: ProcessIdentity(
+                pid=pid,
+                executable_path=running.resolve(),
+            ),
+        )
+        window = FakeWindow(
+            19,
+            class_group="SharedTool",
+            class_instance="SharedTool",
+            pid=4242,
+        )
+
+        match = tracker._matcher.match_result(window)
+
+        assert match is not None
+        assert match.desktop_id != "tool-v1.desktop"
+        assert match.runtime_app is not None
+        assert match.runtime_app.executable_path == str(running.resolve())
 
     def test_match_uses_class_instance_map(self, tracker_env):
         # Given
