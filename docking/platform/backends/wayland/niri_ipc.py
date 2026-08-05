@@ -53,7 +53,11 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.running import (
+    RunningAppInfo,
+    RunningWindowInfo,
+    RuntimeAppIdentity,
+)
 
 log = get_logger(name="niri_ipc")
 
@@ -105,6 +109,8 @@ class NiriWindowRecord:
     urgent: bool
     workspace_id: int | None
     geometry: Rect | None
+    pid: int | None
+    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
@@ -510,6 +516,8 @@ class NiriWindowService(WindowService):
                     urgent=record.urgent,
                     workspace_id=record.workspace_id,
                     geometry=record.geometry,
+                    pid=record.pid,
+                    runtime_app=record.runtime_app,
                 )
 
     def _apply_urgency_change(self, data: Mapping[str, JsonValue]) -> None:
@@ -529,6 +537,8 @@ class NiriWindowService(WindowService):
             urgent=urgent,
             workspace_id=record.workspace_id,
             geometry=record.geometry,
+            pid=record.pid,
+            runtime_app=record.runtime_app,
         )
 
     def _publish_running(self) -> None:
@@ -544,6 +554,7 @@ class NiriWindowService(WindowService):
                     active=record.active,
                     urgent=record.urgent,
                     window=str(record.id),
+                    runtime_app=record.runtime_app,
                 )
             )
         self._model.update_running(
@@ -1073,7 +1084,16 @@ def _record_from_window(
     if not isinstance(window_id, int):
         return None
     app_id = str(item.get("app_id") or "").strip()
-    desktop_id = matcher.match(app_id) if app_id else None
+    pid_value = item.get("pid")
+    pid = (
+        pid_value
+        if isinstance(pid_value, int)
+        and not isinstance(pid_value, bool)
+        and pid_value > 0
+        else None
+    )
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
+    desktop_id = match.desktop_id if match is not None else None
     workspace_id = item.get("workspace_id")
     if not isinstance(workspace_id, int):
         workspace_id = None
@@ -1087,6 +1107,8 @@ def _record_from_window(
         urgent=bool(item.get("is_urgent", False)),
         workspace_id=workspace_id,
         geometry=geometry,
+        pid=pid,
+        runtime_app=match.runtime_app if match is not None else None,
     )
 
 

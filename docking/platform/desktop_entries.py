@@ -131,6 +131,31 @@ def normalized_exec_basename(exec_line: str) -> str:
     return Path(argv[0]).name.lower()
 
 
+def executable_path_from_exec_line(exec_line: str) -> Path | None:
+    """Return a canonical direct executable path from a desktop Exec line.
+
+    Only an absolute first argument is strong enough to use as installation
+    identity. Commands resolved through ``PATH`` and wrapper constructs such as
+    ``env`` remain on the existing WM_CLASS/app-ID fallback path.
+    """
+    if not exec_line:
+        return None
+    try:
+        argv = shlex.split(exec_line)
+    except ValueError:
+        return None
+    if not argv:
+        return None
+    path = Path(argv[0]).expanduser()
+    if not path.is_absolute():
+        return None
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    return resolved if resolved.is_file() else None
+
+
 def wine_executable_aliases(exec_line: str) -> list[str]:
     """Return Wine executable aliases from a desktop Exec line.
 
@@ -245,6 +270,19 @@ def desktop_info_from_file(*, desktop_id: str, path: Path) -> DesktopInfo | None
 
     exec_line = desktop_entry_string(key_file, "Exec")
     wm_class = desktop_entry_string(key_file, "StartupWMClass")
+    icon_name = desktop_entry_string(key_file, "Icon") or FALLBACK_ICON
+    # Older generated entries may already be pinned with the generic icon.
+    # Recover a sibling executable icon at read time so they improve without
+    # requiring users to remove and recreate the launcher.
+    if desktop_id.startswith(GENERATED_DESKTOP_PREFIX) and icon_name == FALLBACK_ICON:
+        source_path = desktop_entry_string(key_file, GENERATED_SOURCE_KEY)
+        source = (
+            Path(source_path)
+            if source_path
+            else executable_path_from_exec_line(exec_line)
+        )
+        if source is not None:
+            icon_name = _icon_name_for_generated_entry(source)
     wine_aliases = wine_executable_aliases(exec_line)
     if wine_aliases and (not wm_class or wm_class.lower() == "wine"):
         wm_class = wine_aliases[0]
@@ -255,7 +293,7 @@ def desktop_info_from_file(*, desktop_id: str, path: Path) -> DesktopInfo | None
     return DesktopInfo(
         desktop_id=desktop_id,
         name=desktop_entry_locale_string(key_file, "Name") or desktop_id,
-        icon_name=desktop_entry_string(key_file, "Icon") or FALLBACK_ICON,
+        icon_name=icon_name,
         wm_class=wm_class,
         exec_line=exec_line,
     )
@@ -268,13 +306,22 @@ def desktop_info_from_app_info(
     icon = app_info.get_icon()
     icon_name = icon.to_string() if icon else None
     wm_class = wm_class_for_app_info(app_info=app_info, desktop_id=desktop_id)
+    commandline = app_info.get_commandline() or ""
+    # Gio is normally the preferred resolver, so mirror the file-parser repair
+    # path here instead of relying on direct .desktop parsing to recover icons.
+    if desktop_id.startswith(GENERATED_DESKTOP_PREFIX) and (
+        not icon_name or icon_name == FALLBACK_ICON
+    ):
+        executable_path = executable_path_from_exec_line(commandline)
+        if executable_path is not None:
+            icon_name = _icon_name_for_generated_entry(executable_path)
 
     return DesktopInfo(
         desktop_id=desktop_id,
         name=app_info.get_display_name() or desktop_id,
         icon_name=icon_name or FALLBACK_ICON,
         wm_class=wm_class,
-        exec_line=app_info.get_commandline() or "",
+        exec_line=commandline,
     )
 
 
@@ -616,6 +663,8 @@ def make_user_executable(path: Path) -> bool:
 
 def create_desktop_entry_for_executable(
     target: str | Path,
+    *,
+    startup_wm_class: str = "",
 ) -> GeneratedDesktopEntry | None:
     """Create or update a generated desktop entry for a launchable local file.
 
@@ -637,6 +686,7 @@ def create_desktop_entry_for_executable(
         name=name,
         exec_path=path,
         icon_name=icon_name,
+        startup_wm_class=startup_wm_class,
     )
 
     try:
@@ -710,6 +760,24 @@ def _slugify_desktop_name(name: str) -> str:
 
 
 def _icon_name_for_generated_entry(path: Path) -> str:
+    """Return a colocated executable icon before using a generic fallback."""
+    stem = (
+        path.name[: -len(".AppImage")]
+        if path.name.lower().endswith(".appimage")
+        else path.stem
+        if path.suffix
+        else path.name
+    )
+    # Standalone application bundles commonly ship ``bin/tool`` together with
+    # ``bin/tool.svg`` or ``bin/tool.png``. This convention is generic and also
+    # avoids application-specific icon-name mappings.
+    for suffix in (".svg", ".png", ".xpm"):
+        candidate = path.with_name(f"{stem}{suffix}")
+        if candidate.is_file():
+            try:
+                return str(candidate.resolve(strict=True))
+            except (OSError, RuntimeError):
+                continue
     if path.name.lower().endswith(".appimage"):
         return "application-x-appimage"
     return FALLBACK_ICON
@@ -720,13 +788,20 @@ def _generated_desktop_entry_content(
     name: str,
     exec_path: Path,
     icon_name: str,
+    startup_wm_class: str = "",
 ) -> str:
-    return "\n".join(
+    lines = [
+        "[Desktop Entry]",
+        "Type=Application",
+        f"Name={_escape_desktop_value(name)}",
+        f"Exec={_quote_exec_arg(str(exec_path))}",
+    ]
+    if startup_wm_class.strip():
+        lines.append(
+            f"StartupWMClass={_escape_desktop_value(startup_wm_class.strip())}"
+        )
+    lines.extend(
         [
-            "[Desktop Entry]",
-            "Type=Application",
-            f"Name={_escape_desktop_value(name)}",
-            f"Exec={_quote_exec_arg(str(exec_path))}",
             "Terminal=false",
             "Categories=Utility;",
             f"Icon={_escape_desktop_value(icon_name)}",
@@ -735,6 +810,7 @@ def _generated_desktop_entry_content(
             "",
         ]
     )
+    return "\n".join(lines)
 
 
 def _escape_desktop_value(value: str) -> str:

@@ -53,6 +53,10 @@ class DockItem:
     name: str = ""
     icon_name: str = "application-x-executable"
     wm_class: str = ""
+    # Original desktop Exec line retained for executable-aware window matching.
+    exec_line: str = ""
+    # Direct executable backing a runtime-only transient item.
+    runtime_executable: str = ""
     is_pinned: bool = False
     is_running: bool = False
     is_active: bool = False
