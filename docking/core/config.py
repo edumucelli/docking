@@ -342,12 +342,12 @@ class HideMode(str, Enum):
 DEFAULT_HIDE_MODE = HideMode.NONE.value
 
 
-def _build_initial_pinned() -> list[PinnedEntry]:
+def _build_initial_pinned(*, registry: object | None = None) -> list[PinnedEntry]:
     applications_entry = PinnedEntry(
         kind=APPLET_KIND,
         target=applet_desktop_id(applet_id=STARTER_APPLET_IDS[0]),
     )
-    launcher_entries = _build_initial_launcher_entries()
+    launcher_entries = _build_initial_launcher_entries(registry=registry)
     applet_entries = [
         PinnedEntry(kind=APPLET_KIND, target=applet_desktop_id(applet_id=applet_id))
         for applet_id in STARTER_APPLET_IDS[1:]
@@ -355,7 +355,10 @@ def _build_initial_pinned() -> list[PinnedEntry]:
     return [applications_entry, *launcher_entries, *applet_entries]
 
 
-def _build_initial_launcher_entries() -> list[PinnedEntry]:
+def _build_initial_launcher_entries(
+    *,
+    registry: object | None = None,
+) -> list[PinnedEntry]:
     entries: list[PinnedEntry] = []
     seen_targets: set[str] = set()
     slots: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -371,6 +374,7 @@ def _build_initial_launcher_entries() -> list[PinnedEntry]:
         desktop_id = _resolve_initial_desktop_id(
             candidates=candidates,
             fallback_content_types=fallback_content_types,
+            registry=registry,
         )
         if desktop_id is None or desktop_id in seen_targets:
             continue
@@ -383,13 +387,19 @@ def _resolve_initial_desktop_id(
     *,
     candidates: tuple[str, ...],
     fallback_content_types: tuple[str, ...],
+    registry: object | None = None,
 ) -> str | None:
+    exists = (
+        (lambda did: _desktop_id_exists_in_registry(did, registry))
+        if registry is not None
+        else _desktop_id_exists
+    )
     for desktop_id in candidates:
-        if _desktop_id_exists(desktop_id):
+        if exists(desktop_id):
             return desktop_id
     for content_type in fallback_content_types:
         desktop_id = _default_desktop_id_for(content_type)
-        if desktop_id and _desktop_id_exists(desktop_id):
+        if desktop_id and exists(desktop_id):
             return desktop_id
     return None
 
@@ -398,6 +408,10 @@ def _desktop_id_exists(desktop_id: str) -> bool:
     from docking.platform.launcher import Launcher
 
     return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
+
+
+def _desktop_id_exists_in_registry(desktop_id: str, registry: object) -> bool:
+    return registry.resolve(desktop_id, log_failures=False) is not None
 
 
 def _default_desktop_id_for(content_type: str) -> str | None:
@@ -1046,11 +1060,16 @@ class Config:
         )
 
     @classmethod
-    def load(cls, path: Path | str | None = None) -> Config:
+    def load(
+        cls,
+        path: Path | str | None = None,
+        *,
+        registry: object | None = None,
+    ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
         if not path.exists():
-            config = cls(pinned=_build_initial_pinned())
+            config = cls(pinned=_build_initial_pinned(registry=registry))
             config._path = path
             config.save(path=path)
             return config

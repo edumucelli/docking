@@ -137,7 +137,9 @@ class TestConfigLoad:
             PinnedEntry(kind=APP_KIND, target="browser.desktop"),
             PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
         ]
-        monkeypatch.setattr("docking.core.config._build_initial_pinned", lambda: seeded)
+        monkeypatch.setattr(
+            "docking.core.config._build_initial_pinned", lambda **_: seeded
+        )
         # When
         config = Config.load(path)
         # Then
@@ -152,7 +154,7 @@ class TestConfigLoad:
 
         monkeypatch.setattr(
             "docking.core.config._build_initial_launcher_entries",
-            lambda: [
+            lambda **_: [
                 PinnedEntry(kind=APP_KIND, target="browser.desktop"),
                 PinnedEntry(kind=APP_KIND, target="terminal.desktop"),
                 PinnedEntry(kind=APP_KIND, target="mail.desktop"),
@@ -431,7 +433,7 @@ class TestConfigLoad:
         path = tmp_path / "dock.json"
         path.write_text(json.dumps({"pinned": ["existing.desktop"]}), encoding="utf-8")
 
-        def fail_if_called():
+        def fail_if_called(**__):
             raise AssertionError("first-run seeding should not run for existing config")
 
         monkeypatch.setattr("docking.core.config._build_initial_pinned", fail_if_called)

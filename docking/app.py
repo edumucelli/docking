@@ -92,6 +92,7 @@ from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.launcher import Launcher
@@ -114,11 +115,12 @@ def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
 
-    config = Config.load()
+    registry = ApplicationRegistry()
+    config = Config.load(registry=registry)
     theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
         config.transparency
     )
-    launcher = Launcher()
+    launcher = Launcher(registry=registry)
     model = DockModel(
         config=config,
         launcher=launcher,
@@ -168,6 +170,7 @@ def main() -> None:
     GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
     try:
+        registry.start()
         status_notifications.start()
         unity.start()
         window.show_all()
@@ -181,6 +184,7 @@ def main() -> None:
         unity.stop()
         model.stop_applets()
         backend.stop()
+        registry.stop()
 
 
 def _start_runtime(

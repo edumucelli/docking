@@ -35,6 +35,10 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
+    apps_pkg = types.ModuleType("docking.platform.applications")
+    apps_pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, "docking.platform.applications", apps_pkg)
+
     backends_pkg = types.ModuleType("docking.platform.backends")
     backends_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform.backends", backends_pkg)
@@ -52,11 +56,17 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "apply_tweaks": lambda **_kwargs: None,
             "detect_desktop": lambda: "test",
         },
+        "docking.platform.gamescope": {
+            "prepare_gamescope_wayland_environment": lambda: False,
+        },
         "docking.platform.launcher": {
             "Launcher": type("Launcher", (), {}),
         },
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
+        },
+        "docking.platform.applications.registry": {
+            "ApplicationRegistry": MagicMock,
         },
         "docking.platform.backends.selection": {
             "create_session_backend": lambda **_kwargs: None,

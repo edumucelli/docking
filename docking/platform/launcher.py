@@ -238,7 +238,8 @@ def _theme_icon_candidates(icon_name: str) -> list[str]:
 class Launcher:
     """Resolves .desktop files via XDG_DATA_DIRS and loads icons."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, registry: object | None = None) -> None:
+        self._registry = registry
         self._desktop_dirs = desktop_entries.desktop_dirs()
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
         self._file_icon_cache: dict[
@@ -253,6 +254,17 @@ class Launcher:
         self, desktop_id: str, *, log_failures: bool = True
     ) -> desktop_entries.DesktopInfo | None:
         """Resolve a desktop ID (e.g. 'firefox.desktop') to full info."""
+        if self._registry is not None:
+            info = self._registry.resolve(desktop_id, log_failures=log_failures)
+            if info is not None:
+                return desktop_entries.DesktopInfo(
+                    desktop_id=info.desktop_id,
+                    name=info.name,
+                    icon_name=info.icon_name,
+                    wm_class=info.wm_class,
+                    exec_line=info.exec_line,
+                )
+            return None
         resolve_errors: list[str] = []
         app_info = self._desktop_app_info_for_id(
             desktop_id=desktop_id,
@@ -350,6 +362,18 @@ class Launcher:
 
     def resolve_by_wm_class(self, wm_class: str) -> desktop_entries.DesktopInfo | None:
         """Resolve an installed desktop file by runtime WM_CLASS or executable alias."""
+        if self._registry is not None:
+            infos = self._registry.resolve_all_by_wm_class(wm_class)
+            if infos:
+                i = infos[0]
+                return desktop_entries.DesktopInfo(
+                    desktop_id=i.desktop_id,
+                    name=i.name,
+                    icon_name=i.icon_name,
+                    wm_class=i.wm_class,
+                    exec_line=i.exec_line,
+                )
+            return None
         matches = self.resolve_all_by_wm_class(wm_class)
         return matches[0] if matches else None
 
@@ -357,6 +381,18 @@ class Launcher:
         self, wm_class: str
     ) -> tuple[desktop_entries.DesktopInfo, ...]:
         """Return every installed desktop entry sharing a runtime alias."""
+        if self._registry is not None:
+            infos = self._registry.resolve_all_by_wm_class(wm_class)
+            return tuple(
+                desktop_entries.DesktopInfo(
+                    desktop_id=i.desktop_id,
+                    name=i.name,
+                    icon_name=i.icon_name,
+                    wm_class=i.wm_class,
+                    exec_line=i.exec_line,
+                )
+                for i in infos
+            )
         lookup = wm_class.lower().strip()
         if not lookup:
             return ()
@@ -370,6 +406,17 @@ class Launcher:
         self, executable_path: Path
     ) -> desktop_entries.DesktopInfo | None:
         """Resolve an installed desktop entry by exact canonical Exec path."""
+        if self._registry is not None:
+            info = self._registry.resolve_by_executable_path(executable_path)
+            if info is not None:
+                return desktop_entries.DesktopInfo(
+                    desktop_id=info.desktop_id,
+                    name=info.name,
+                    icon_name=info.icon_name,
+                    wm_class=info.wm_class,
+                    exec_line=info.exec_line,
+                )
+            return None
         try:
             lookup = executable_path.expanduser().resolve(strict=True)
         except (OSError, RuntimeError):
@@ -383,6 +430,10 @@ class Launcher:
 
     def refresh_desktop_entries(self) -> None:
         """Reload desktop-entry search paths and invalidate runtime alias cache."""
+        if self._registry is not None:
+            self._registry.refresh()
+            self._desktop_dirs = desktop_entries.desktop_dirs()
+            return
         self._desktop_dirs = desktop_entries.desktop_dirs()
         self._wm_class_index = None
         self._executable_path_index = None
