@@ -156,7 +156,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from docking.platform import desktop_entries
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+from docking.platform.applications.entries import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 from docking.platform.process_identity import ProcessIdentity, identity_for_pid
 from docking.platform.running import RuntimeAppIdentity
 
