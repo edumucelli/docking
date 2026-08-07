@@ -53,6 +53,9 @@ import os
 import signal
 import sys
 from collections.abc import Callable
+from contextlib import ExitStack
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -89,14 +92,27 @@ from gi.repository import GLib, Gtk
 GLib.set_prgname("Docking")
 
 from docking.applets.services import AppletServices
-from docking.core.config import Config
+from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform import launcher as launcher_facade
+from docking.platform import process_identity as process_identity_facade
+from docking.platform.applications.identity import (
+    LaunchProvenanceStore,
+    ProcessIdentityService,
+)
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.recents import (
+    RecentApplications,
+    RecentApplicationsPersistence,
+)
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
-from docking.platform.launcher import Launcher
+from docking.platform.icons import IconLoader
 from docking.platform.model import DockModel
 from docking.platform.status_notifier import StatusNotifierNotificationBridge
+from docking.platform.targets import TargetService
 from docking.platform.unity import UnityLauncherListener
 from docking.ui.factory import build_dock_window
 from docking.ui.renderer import DockRenderer
@@ -110,77 +126,175 @@ _FORCE_QUIT_SOURCE_ID = 0
 log = with_context(get_logger(name="app"), action="start_runtime")
 
 
+def _initial_pinned_for_registry(
+    registry: ApplicationRegistry,
+) -> list[PinnedEntry]:
+    def default_desktop_id_for(content_type: str) -> str | None:
+        application = registry.default_for_content_type(content_type)
+        return application.desktop_id if application is not None else None
+
+    return build_initial_pinned(
+        desktop_id_exists=lambda desktop_id: registry.get(desktop_id) is not None,
+        default_desktop_id_for=default_desktop_id_for,
+    )
+
+
+def _refresh_initial_registry(registry: ApplicationRegistry) -> None:
+    """Require one successfully published registry generation before config."""
+    registry.refresh()
+    if registry.generation <= 0:
+        raise RuntimeError("Initial application discovery failed")
+
+
+def _safe_stop(name: str, callback: Callable[[], object]) -> None:
+    """Run one cleanup callback without preventing later cleanup."""
+    try:
+        callback()
+    except Exception:
+        log.exception("Failed to stop runtime stage: %s", name)
+
+
 def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
 
-    config = Config.load()
-    theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
-        config.transparency
-    )
-    launcher = Launcher()
-    model = DockModel(
-        config=config,
-        launcher=launcher,
-        applet_services=AppletServices(),
-    )
-    renderer = DockRenderer()
-    backend = create_session_backend(config=config, launcher=launcher, model=model)
-    model.set_applet_services(
-        AppletServices(
+    with ExitStack() as cleanup:
+        registry = ApplicationRegistry()
+        cleanup.callback(_safe_stop, "registry", registry.stop)
+
+        provenance_store = LaunchProvenanceStore()
+        process_identity_service = ProcessIdentityService(provenance_store)
+        application_launcher = ApplicationLauncher(registry, provenance_store)
+        icon_loader = IconLoader()
+        target_service = TargetService(icon_loader=icon_loader)
+
+        _refresh_initial_registry(registry)
+
+        previous_process_identity = (
+            process_identity_facade.configure_process_identity_service(
+                process_identity_service
+            )
+        )
+        cleanup.callback(
+            _safe_stop,
+            "process identity facade",
+            partial(
+                process_identity_facade.reset_process_identity_service,
+                previous_process_identity,
+            ),
+        )
+        previous_application_launcher = launcher_facade.configure_application_launcher(
+            application_launcher
+        )
+        cleanup.callback(
+            _safe_stop,
+            "application launcher facade",
+            partial(
+                launcher_facade.reset_application_launcher,
+                previous_application_launcher,
+            ),
+        )
+
+        config = Config.load(
+            initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
+        )
+        recent_applications = RecentApplications(
+            registry,
+            RecentApplicationsPersistence(config),
+        )
+        theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
+            config.transparency
+        )
+        applet_services = AppletServices(
+            application_registry=registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+        )
+        model = DockModel(
+            config=config,
+            applet_services=applet_services,
+            application_registry=registry,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
+        )
+        cleanup.callback(_safe_stop, "model listener", model.close)
+        cleanup.callback(_safe_stop, "applets", model.stop_applets)
+
+        renderer = DockRenderer()
+        backend = create_session_backend(
+            config=config,
+            model=model,
+            application_registry=registry,
+            process_identity_service=process_identity_service,
+        )
+        cleanup.callback(_safe_stop, "backend", backend.stop)
+
+        applet_services = replace(
+            applet_services,
             desktop_actions=backend.desktop_actions,
             workspaces=backend.workspaces,
             window_picker=backend.window_picker,
             idle=backend.idle,
             screen_capture=backend.screen_capture,
         )
-    )
-    unity = UnityLauncherListener(model=model)
-    status_notifications = StatusNotifierNotificationBridge(model=model)
+        model.set_applet_services(applet_services)
+        unity = UnityLauncherListener(
+            model=model,
+            application_registry=registry,
+        )
+        cleanup.callback(_safe_stop, "unity", unity.stop)
 
-    ui = build_dock_window(
-        config=config,
-        model=model,
-        renderer=renderer,
-        theme=theme,
-        window_tracker=backend.windows,
-        preview_service=backend.previews,
-        surface_service=backend.surface,
-        visibility_service=backend.visibility,
-        session_backend=backend,
-        launcher=launcher,
-    )
-    window = ui.window
-    items_service = DockItemsService(model=model, window=window)
-    model.set_applet_services(
-        AppletServices(
-            desktop_actions=backend.desktop_actions,
-            workspaces=backend.workspaces,
-            window_picker=backend.window_picker,
-            idle=backend.idle,
-            screen_capture=backend.screen_capture,
+        status_notifications = StatusNotifierNotificationBridge(
+            model=model,
+            application_registry=registry,
+        )
+        cleanup.callback(
+            _safe_stop,
+            "status notifications",
+            status_notifications.stop,
+        )
+
+        ui = build_dock_window(
+            config=config,
+            model=model,
+            renderer=renderer,
+            theme=theme,
+            window_tracker=backend.windows,
+            preview_service=backend.previews,
+            surface_service=backend.surface,
+            visibility_service=backend.visibility,
+            session_backend=backend,
+            application_registry=registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
+        )
+        cleanup.callback(_safe_stop, "UI", ui.stop)
+
+        window = ui.window
+        items_service = DockItemsService(model=model, window=window)
+        cleanup.callback(_safe_stop, "items service", items_service.stop)
+
+        applet_services = replace(
+            applet_services,
             search=ui.search,
         )
-    )
+        model.set_applet_services(applet_services)
 
-    # Graceful shutdown on SIGINT/SIGTERM
-    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
-    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
+        # Graceful shutdown on SIGINT/SIGTERM
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
-    try:
+        registry.start()
         status_notifications.start()
         unity.start()
         window.show_all()
         ui.start()
         GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
-    finally:
-        items_service.stop()
-        status_notifications.stop()
-        ui.stop()
-        unity.stop()
-        model.stop_applets()
-        backend.stop()
 
 
 def _start_runtime(

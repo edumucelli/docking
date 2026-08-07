@@ -2,12 +2,40 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
+import docking.platform.recent_docs as recent_docs_mod
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.recent_docs import RecentDoc, recent_docs_for_app
+
+_DEFAULT_APPLICATION = object()
+
+
+def _patch_one_shot_registry(
+    monkeypatch,
+    application: object | None = _DEFAULT_APPLICATION,
+) -> MagicMock:
+    registry = MagicMock()
+    registry.refresh.return_value = True
+    registry.resolve.return_value = (
+        SimpleNamespace(name="Firefox")
+        if application is _DEFAULT_APPLICATION
+        else application
+    )
+    monkeypatch.setattr(
+        recent_docs_mod,
+        "ApplicationRegistry",
+        MagicMock(return_value=registry),
+    )
+    return registry
 
 
 class _FakeRecentItem:
@@ -82,47 +110,158 @@ class TestRecentDocDataclass:
 
 class TestRecentDocsForApp:
     def test_empty_desktop_id_returns_empty(self):
-        result = recent_docs_for_app("", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("", limit=10)
         assert result == []
 
     def test_nonexistent_desktop_entry_returns_empty(self, monkeypatch):
-        import docking.platform.recent_docs as mod
+        registry = _patch_one_shot_registry(monkeypatch, None)
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: None,
-        )
-        result = recent_docs_for_app("missing.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("missing.desktop", limit=10)
+
         assert result == []
+        recent_docs_mod.ApplicationRegistry.assert_called_once_with()
+        registry.refresh.assert_called_once_with()
+        registry.resolve.assert_called_once_with(
+            "missing.desktop",
+            log_failures=False,
+        )
 
     def test_empty_recent_store_returns_empty(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         fake_manager = MagicMock()
         fake_manager.get_items.return_value = []
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert result == []
+
+    def test_injected_registry_resolves_without_refreshing_borrowed_state(
+        self,
+        monkeypatch,
+    ):
+        registry = MagicMock()
+        registry.resolve.return_value = SimpleNamespace(name="Firefox")
+        fake_manager = MagicMock()
+        fake_manager.get_items.return_value = []
+        monkeypatch.setattr(
+            recent_docs_mod.Gtk.RecentManager,
+            "get_default",
+            lambda: fake_manager,
+        )
+
+        assert (
+            recent_docs_for_app(
+                "firefox.desktop",
+                limit=10,
+                registry=registry,
+            )
+            == []
+        )
+        registry.resolve.assert_called_once_with(
+            "firefox.desktop",
+            log_failures=False,
+        )
+        registry.refresh.assert_not_called()
+
+    def test_legacy_positional_launcher_and_limit_are_accepted_as_no_op(
+        self,
+        monkeypatch,
+    ):
+        registry = MagicMock()
+        registry.resolve.return_value = SimpleNamespace(name="Firefox")
+        legacy_launcher = MagicMock()
+        legacy_launcher.resolve.side_effect = AssertionError(
+            "deprecated launcher must not resolve applications"
+        )
+        manager = MagicMock()
+        manager.get_items.return_value = [
+            _FakeRecentItem(
+                f"file:///doc-{index}.txt",
+                f"doc-{index}.txt",
+                "text/plain",
+                1000 - index,
+            )
+            for index in range(3)
+        ]
+        monkeypatch.setattr(
+            recent_docs_mod.Gtk.RecentManager,
+            "get_default",
+            lambda: manager,
+        )
+
+        result = recent_docs_for_app(
+            "firefox.desktop",
+            legacy_launcher,
+            1,
+            registry=registry,
+        )
+
+        assert [document.name for document in result] == ["doc-0.txt"]
+        legacy_launcher.resolve.assert_not_called()
+        registry.resolve.assert_called_once_with(
+            "firefox.desktop",
+            log_failures=False,
+        )
+
+    def test_legacy_launcher_keyword_is_accepted_as_no_op(self, monkeypatch):
+        registry = MagicMock()
+        registry.resolve.return_value = SimpleNamespace(name="Firefox")
+        legacy_launcher = MagicMock()
+        legacy_launcher.resolve.side_effect = AssertionError(
+            "deprecated launcher must not resolve applications"
+        )
+        manager = MagicMock()
+        manager.get_items.return_value = []
+        monkeypatch.setattr(
+            recent_docs_mod.Gtk.RecentManager,
+            "get_default",
+            lambda: manager,
+        )
+
+        assert (
+            recent_docs_for_app(
+                desktop_id="firefox.desktop",
+                launcher=legacy_launcher,
+                registry=registry,
+                limit=2,
+            )
+            == []
+        )
+        legacy_launcher.resolve.assert_not_called()
+        registry.resolve.assert_called_once_with(
+            "firefox.desktop",
+            log_failures=False,
+        )
+
+    def test_second_positional_integer_remains_the_limit(self, monkeypatch):
+        registry = MagicMock()
+        registry.resolve.return_value = SimpleNamespace(name="Firefox")
+        manager = MagicMock()
+        manager.get_items.return_value = [
+            _FakeRecentItem(
+                f"file:///doc-{index}.txt",
+                f"doc-{index}.txt",
+                "text/plain",
+                1000 - index,
+            )
+            for index in range(3)
+        ]
+        monkeypatch.setattr(
+            recent_docs_mod.Gtk.RecentManager,
+            "get_default",
+            lambda: manager,
+        )
+
+        result = recent_docs_for_app("firefox.desktop", 1, registry=registry)
+
+        assert [document.name for document in result] == ["doc-0.txt"]
 
     def test_filters_non_local_files(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 "file:///remote/doc.txt",
@@ -147,20 +286,14 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert len(result) == 1
         assert result[0].uri == "file:///local/doc.txt"
 
     def test_filters_nonexistent_files(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 "file:///deleted/doc.txt",
@@ -185,20 +318,14 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert len(result) == 1
         assert result[0].uri == "file:///alive/doc.txt"
 
     def test_filters_wrong_application(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 "file:///chrome/doc.txt",
@@ -223,20 +350,14 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert len(result) == 1
         assert result[0].uri == "file:///firefox/doc.txt"
 
     def test_respects_limit(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 f"file:///doc{i}.txt",
@@ -253,19 +374,13 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=5)
+        result = recent_docs_for_app("firefox.desktop", limit=5)
         assert len(result) == 5
 
     def test_sorts_by_modified_descending(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 "file:///old.txt",
@@ -299,7 +414,7 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert len(result) == 3
         assert result[0].uri == "file:///new.txt"
         assert result[1].uri == "file:///mid.txt"
@@ -308,13 +423,7 @@ class TestRecentDocsForApp:
     def test_filters_empty_mime_type(self, monkeypatch):
         import docking.platform.recent_docs as mod
 
-        monkeypatch.setattr(
-            mod.desktop_entries,
-            "resolve_app_info",
-            lambda desktop_id, **kw: SimpleNamespace(
-                app_info=SimpleNamespace(get_display_name=lambda: "Firefox")
-            ),
-        )
+        _patch_one_shot_registry(monkeypatch)
         items = [
             _FakeRecentItem(
                 "file:///no-mime.txt",
@@ -339,6 +448,52 @@ class TestRecentDocsForApp:
         fake_manager.get_items.return_value = items
         monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: fake_manager)
 
-        result = recent_docs_for_app("firefox.desktop", launcher=MagicMock(), limit=10)
+        result = recent_docs_for_app("firefox.desktop", limit=10)
         assert len(result) == 1
         assert result[0].uri == "file:///has-mime.txt"
+
+    def test_canonical_application_uses_exact_metadata_without_reresolve(
+        self,
+        monkeypatch,
+    ):
+        import docking.platform.recent_docs as mod
+
+        application = ApplicationInfo(
+            desktop_id="org.example.Writer.desktop",
+            name="Canonical Writer",
+            declared_icon="org.example.Writer",
+            wm_class="Writer",
+            exec_line="writer",
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=Path("/usr/share/applications/org.example.Writer.desktop"),
+            executable_path=None,
+            aliases=("writer",),
+            visible=True,
+            has_gio_source=True,
+        )
+        item = _FakeRecentItem(
+            "file:///tmp/exact.odt",
+            "exact.odt",
+            "application/vnd.oasis.opendocument.text",
+            1234,
+        )
+        item.has_application = MagicMock(return_value=True)
+        manager = MagicMock()
+        manager.get_items.return_value = [item]
+        monkeypatch.setattr(mod.Gtk.RecentManager, "get_default", lambda: manager)
+        monkeypatch.setattr(
+            mod,
+            "ApplicationRegistry",
+            MagicMock(side_effect=AssertionError("canonical metadata was re-resolved")),
+        )
+
+        assert recent_docs_for_app(application, limit=1) == [
+            RecentDoc(
+                uri="file:///tmp/exact.odt",
+                name="exact.odt",
+                mime_type="application/vnd.oasis.opendocument.text",
+                modified=1234,
+            )
+        ]
+        item.has_application.assert_called_once_with("Canonical Writer")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import FrozenInstanceError
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -217,6 +218,19 @@ def test_open_and_clear_failures_are_contained():
 
     assert catalog.open_uri("file:///notes.txt") is False
     assert catalog.clear_recent() is False
+
+
+def test_injected_target_service_controls_exact_open_result():
+    target_service = MagicMock()
+    target_service.open_target.side_effect = [True, False]
+    catalog = RecentFilesCatalog(target_service=target_service)
+
+    assert catalog.open_uri(" file:///opened.txt ") is True
+    assert catalog.open_uri("file:///rejected.txt") is False
+    assert target_service.open_target.call_args_list == [
+        call("file:///opened.txt"),
+        call("file:///rejected.txt"),
+    ]
 
 
 def test_skips_invalid_items_deduplicates_uris_and_falls_back_to_uri_name():

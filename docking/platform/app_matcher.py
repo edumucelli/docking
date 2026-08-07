@@ -1,439 +1,208 @@
-# Author: Eduardo Mucelli Rezende Oliveira
-# E-mail: edumucelli@gmail.com
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-
-"""Shared window-identity to desktop-ID matching for all display-server backends.
-
-Why this module exists
------------------------
-
-Every backend (X11/Wnck, Wayland/wlr-foreign-toplevel, Hyprland IPC,
-Wayfire IPC, Niri IPC, GNOME Shell Bridge, KWin/AT-SPI) needs to answer
-the same question:
-
-    "Which Docking desktop ID does this running window belong to?"
-
-Before this module the answer lived in two independent matchers with
-different feature sets:
-
-* ``WindowMatcher`` in the X11 backend - Wine ``.exe`` extraction,
-  space→hyphen→joined candidate generation, GNOME prefix synthesis,
-  and missed-candidate memoization.
-* ``WaylandAppIdMatcher`` in the Wayland backend - Snap ``_`` prefix
-  expansion, dot-suffix split, broad visible-item aliasing.
-
-Neither matcher had the union of both feature sets, so every
-backend-specific improvement (e.g. PR #206 Wine matching) had to be
-implemented twice, and the growing set of Wayland consumers
-(Hyprland, Wayfire, Niri, GNOME Bridge, AT-SPI) all inherited the
-limitations of ``WaylandAppIdMatcher``.
-
-Design
--------
-
-``AppIdMatcher`` is a backend-agnostic matching engine.  Backends
-extract identity strings from their display server and pass them here
-as plain strings.  The matcher owns the heuristics; backends own only
-the display-server extraction.
-
-The public interface has one constructor flag plus three methods:
-
-``sync_visible_items(items)``
-    Rebuild the fast-path alias cache from the current dock model.
-    Called at the start of every running-window scan.
-
-``cache_missed_desktop_ids``
-    Constructor flag used by X11 to preserve its historical missed
-    desktop-file memoization. Wayland-style backends leave it disabled
-    so newly installed/generated desktop files can be matched without a
-    Docking restart.
-
-``match(...)``
-    Map a runtime window identity to a Docking desktop ID.
-
-``match_result(...)``
-    Return the same match plus runtime-only executable metadata when a
-    verified path collision must remain separate from an installed launcher.
-
-    ``app_id`` is the primary identity from the display server:
-
-    * X11: ``class_group`` (WM_CLASS class part)
-    * Wayland/Hyprland/Wayfire/Niri/GNOME: the single ``app_id`` /
-      ``class`` string the compositor provides
-    * AT-SPI: ``app_name`` from the accessibility tree
-
-    ``instance_hint`` is an optional secondary identity.  Currently
-    only X11 provides this (WM_CLASS instance part).  It enables Wine
-    disambiguation: when ``app_id == "wine"`` the matcher extracts the
-    ``.exe`` name from ``instance_hint`` instead.
-
-    ``prefer_raw_app_id`` controls candidate order. Wayland-style
-    backends keep compositor-provided app IDs first; X11 passes
-    ``False`` to preserve the historical WM_CLASS lowercase-first order.
-
-    ``defer_wm_class_lookup`` controls when the install-wide WM_CLASS
-    index is consulted. X11 passes ``True`` to preserve its historical
-    priority of trying all generated desktop IDs before the expensive
-    reverse alias lookup. Wayland-style backends keep it ``False`` so
-    each increasingly broad candidate can still check its exact alias
-    before falling back to the next broader direct desktop ID.
-
-    ``process_id`` is optional. When a backend supplies it, exact Docking
-    launch provenance and canonical process/desktop Exec paths refine the
-    family-level app-ID and WM_CLASS evidence. Missing or inaccessible process
-    metadata leaves the historical matching order unchanged.
-
-Matching priority (strongest first)
-------------------------------------
-
-1. **Exact Docking launch provenance** - a process started by Docking keeps
-   its desktop ID even when a shell wrapper replaces itself with another
-   executable.
-
-2. **Verified executable evidence** - among launchers sharing an alias, an
-   exact canonical Exec path wins. Different native binaries with the same
-   basename, and wrapper/native launchers in distinct sibling app bundles,
-   become path-derived runtime items rather than being folded together.
-
-3. **Wine detection** - when ``app_id`` is the generic ``"wine"``
-   class group and ``instance_hint`` contains a ``.exe`` path, extract
-   the executable name and match against visible aliases and the
-   launcher WM_CLASS index.
-
-4. **Visible-item alias cache** - fast-path lookup against currently
-   pinned and transient dock items (no Gio or filesystem calls).
-
-5. **Instance-hint match** - when ``app_id`` is generic but
-   ``instance_hint`` is specific and matches a visible item
-   (X11 optimization).
-
-6. **Candidate generation + resolution** - for each generated
-   candidate string:
-
-   a. Check visible aliases (normalized).
-   b. Try ``launcher.resolve(f"{candidate}.desktop")``.
-   c. Try ``launcher.resolve_by_wm_class(candidate)``.
-
-   Failed desktop IDs can be memoized for X11 so signal bursts don't
-   hammer Gio with repeated failing lookups. Successful WM_CLASS
-   matches use the launcher's indexed lookup.
-
-Candidate generation (merged from both legacy matchers)
---------------------------------------------------------
-
-Candidates are generated in a stable, deterministic order:
-
-* Raw ``app_id``
-* Raw ``app_id`` without ``.desktop``
-* Lowercase variants of the above
-* Space→hyphen (``"mongodb compass"`` → ``"mongodb-compass"``)
-* Space→joined  (``"mongodb compass"`` → ``"mongodbcompass"``)
-* GNOME prefix + original class-group (``"Files"`` → ``"org.gnome.Files"``)
-* Dot-suffix split (``"org.gnome.Nautilus"`` → ``"Nautilus"``)
-* Snap/container ``_`` prefix expansion
-  (``"firefox_firefox"`` → ``"firefox"``)
-
-Duplicates are removed while preserving first-occurrence order so
-the first successful match is always the same for a given input.
-"""
+"""Compatibility adapter for the canonical application matcher."""
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import lru_cache
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from docking.platform import desktop_entries
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
-from docking.platform.process_identity import ProcessIdentity, identity_for_pid
-from docking.platform.running import RuntimeAppIdentity
+from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.identity import (
+    ProcessIdentity,
+    ProcessIdentityService,
+)
+from docking.platform.applications.matcher import (
+    AppIdMatcher as _CanonicalAppIdMatcher,
+)
+from docking.platform.applications.matcher import (
+    _app_id_candidates,
+    _class_group_candidates,
+    _ensure_desktop_suffix,
+    _executable_paths_conflict,
+    _instance_candidates,
+    _is_native_executable,
+    _launcher_path_compatibility,
+    _normalize_alias,
+    _runtime_application,
+    _sibling_bundle_launchers_conflict,
+    _specific_bundle_root,
+    _wine_aliases_from_instance,
+)
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationMatch,
+    ApplicationOrigin,
+    MatchEvidence,
+    MatchMethod,
+)
+from docking.platform.process_identity import identity_for_pid
+from docking.platform.running import (
+    RuntimeAppIdentity,
+    _canonical_runtime_application,
+    _legacy_runtime_identity,
+)
 
 if TYPE_CHECKING:
     from docking.core.items import DockItem
-    from docking.platform.launcher import Launcher
 
 
-def _normalize_alias(value: str) -> str:
-    """Normalize an alias for cache-key comparison (lowercase, no .desktop suffix)."""
-    return value.strip().lower().removesuffix(DESKTOP_SUFFIX)
+class _LegacyRegistryAdapter:
+    """Project a legacy Launcher-like resolver into the registry contract."""
+
+    def __init__(self, launcher: object) -> None:
+        self._launcher = launcher
+
+    @property
+    def generation(self) -> int:
+        registry = getattr(self._launcher, "_registry", None)
+        generation = getattr(registry, "generation", 0)
+        return generation if isinstance(generation, int) else 0
+
+    def get(self, desktop_id: str) -> ApplicationInfo | None:
+        return self.resolve(desktop_id, log_failures=False)
+
+    def resolve(
+        self,
+        desktop_id: str,
+        *,
+        log_failures: bool = True,
+    ) -> ApplicationInfo | None:
+        resolve = getattr(self._launcher, "resolve", None)
+        if not callable(resolve):
+            return None
+        return _application_from_legacy(resolve(desktop_id, log_failures=log_failures))
+
+    def resolve_all_by_wm_class(
+        self,
+        alias: str,
+    ) -> tuple[ApplicationInfo, ...]:
+        resolve_all = getattr(self._launcher, "resolve_all_by_wm_class", None)
+        if callable(resolve_all):
+            infos = resolve_all(alias)
+            if isinstance(infos, list | tuple):
+                return tuple(
+                    application
+                    for info in infos
+                    if (application := _application_from_legacy(info)) is not None
+                )
+        resolve_one = getattr(self._launcher, "resolve_by_wm_class", None)
+        info = resolve_one(alias) if callable(resolve_one) else None
+        application = _application_from_legacy(info)
+        return (application,) if application is not None else ()
 
 
-def _ensure_desktop_suffix(value: str) -> str:
-    """Append ``.desktop`` to *value* when it is not already suffixed."""
-    stripped = value.strip()
-    return (
-        stripped
-        if stripped.lower().endswith(DESKTOP_SUFFIX)
-        else f"{stripped}{DESKTOP_SUFFIX}"
+class _LegacyProcessIdentityService:
+    """Route lookups through the monkeypatchable compatibility function."""
+
+    @staticmethod
+    def identity_for_pid(pid: int | None) -> ProcessIdentity | None:
+        return identity_for_pid(pid)
+
+
+class _LegacyVisibleItem:
+    """Add the canonical application kind to migration-era item values."""
+
+    kind = "app"
+
+    def __init__(self, item: object) -> None:
+        self._item = item
+        self.application_info = _application_from_legacy(item)
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._item, name)
+
+
+def _application_from_legacy(info: object | None) -> ApplicationInfo | None:
+    if isinstance(info, ApplicationInfo):
+        return info
+    desktop_id = getattr(info, "desktop_id", None)
+    if not isinstance(desktop_id, str) or not desktop_id:
+        return None
+    name = getattr(info, "name", "") or desktop_id
+    icon_name = getattr(info, "icon_name", "") or ""
+    wm_class = getattr(info, "wm_class", "") or ""
+    exec_line = getattr(info, "exec_line", "") or ""
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name=name,
+        declared_icon=icon_name,
+        wm_class=wm_class,
+        exec_line=exec_line,
+        origin=(
+            ApplicationOrigin.GENERATED
+            if desktop_id.startswith(desktop_entries.GENERATED_DESKTOP_PREFIX)
+            else ApplicationOrigin.INSTALLED
+        ),
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=None,
+        executable_path=desktop_entries.executable_path_from_exec_line(exec_line),
+        aliases=tuple(
+            desktop_entries.match_aliases(
+                desktop_id=desktop_id,
+                wm_class=wm_class,
+                exec_line=exec_line,
+            )
+        ),
+        visible=True,
+        has_gio_source=False,
     )
 
 
-def _app_id_candidates(app_id: str) -> list[str]:
-    """Generate lookup candidates from a Wayland-style single ``app_id``.
-
-    Handles dot-separated prefixes (``org.gnome.Nautilus`` → ``Nautilus``)
-    and Snap/container underscore notation
-    (``firefox_firefox`` → ``firefox``).
-    """
-    stripped = app_id.strip()
-    if not stripped:
-        return []
-    candidates = [
-        stripped,
-        stripped.removesuffix(DESKTOP_SUFFIX),
-        stripped.lower(),
-        stripped.lower().removesuffix(DESKTOP_SUFFIX),
-    ]
-    # Wine / Windows executable reported as the sole app_id by a Wayland
-    # compositor (e.g. Hyprland `class` = "notepad.exe").  Strip the .exe
-    # suffix so the launcher can match "notepad" → "wine-notepad.desktop".
-    is_windows_executable = stripped.lower().endswith(".exe")
-    if is_windows_executable:
-        candidates.append(stripped[:-4])  # preserve original case
-        candidates.append(stripped[:-4].lower())
-    elif "." in stripped:
-        candidates.append(stripped.split(".")[-1])
-    # Snap / container app-ids like firefox_firefox.desktop: also try the
-    # leading segment so the launcher can match firefox.desktop.
-    body = stripped.removesuffix(DESKTOP_SUFFIX)
-    if "_" in body:
-        segments = body.split("_")
-        prefixes = ["_".join(segments[: i + 1]) for i in range(len(segments) - 1)]
-        for prefix in prefixes:
-            candidates.append(prefix)
-            candidates.append(f"{prefix}{DESKTOP_SUFFIX}")
-            candidates.append(prefix.lower())
-            candidates.append(f"{prefix.lower()}{DESKTOP_SUFFIX}")
-    return list(dict.fromkeys(candidate for candidate in candidates if candidate))
-
-
-def _class_group_candidates(*, class_lower: str, class_group: str) -> list[str]:
-    """Generate desktop ID candidates from an X11-style WM_CLASS class group.
-
-    Handles space→hyphen→joined transformations and GNOME prefix synthesis.
-    """
-    candidates = [class_lower]
-    if " " in class_lower:
-        candidates.append(class_lower.replace(" ", "-"))
-        candidates.append(class_lower.replace(" ", ""))
-    candidates.append(f"{GNOME_APP_PREFIX}{class_group}")
-    return list(dict.fromkeys(candidates))
-
-
-def _wine_aliases_from_instance(instance: str) -> list[str]:
-    """Extract lookup aliases from a Wine ``class_instance`` path.
-
-    For ``C:\\\\Program Files\\\\App\\\\Tool.exe`` this returns
-    ``["tool.exe", "tool"]``.  The full raw instance is also included
-    so direct cache hits on the unfiltered string still work.
-    """
-    instance_lower = instance.lower().strip()
-    basename = re.split(r"[\\/]", instance_lower)[-1]
-    aliases = [basename]
-    if basename.endswith(".exe"):
-        aliases.append(basename[:-4])
-    if instance_lower != basename:
-        aliases.append(instance_lower)
-    return list(dict.fromkeys(aliases))
-
-
-@dataclass(frozen=True)
-class AppMatch:
-    """Structured match result, including optional runtime-only metadata."""
-
-    desktop_id: str
-    runtime_app: RuntimeAppIdentity | None = None
-
-
-@dataclass(frozen=True)
-class _VisibleAppIdentity:
-    desktop_id: str
-    name: str
-    icon_name: str
-    wm_class: str
-    executable_path: Path | None
-
-
-_SCRIPT_LAUNCHER_SUFFIXES = frozenset({".bash", ".sh", ".zsh"})
-_GENERIC_BUNDLE_ROOTS = frozenset(
-    {
-        Path("/"),
-        Path("/bin"),
-        Path("/opt"),
-        Path("/sbin"),
-        Path("/usr"),
-        Path("/usr/local"),
-    }
-)
-
-
-def _executable_paths_conflict(
-    launcher_path: Path | None,
-    runtime_path: Path | None,
-) -> bool:
-    """Return whether two directly comparable executable paths disagree."""
-    if launcher_path is None or runtime_path is None or launcher_path == runtime_path:
-        return False
-    if (
-        launcher_path.name.casefold() == runtime_path.name.casefold()
-        and _is_native_executable(launcher_path)
-        and _is_native_executable(runtime_path)
-    ):
-        return True
-    return _sibling_bundle_launchers_conflict(launcher_path, runtime_path)
-
-
-def _sibling_bundle_launchers_conflict(
-    launcher_path: Path,
-    runtime_path: Path,
-) -> bool:
-    """Detect a wrapper/native pair from different sibling app bundles.
-
-    For example, ``tool-v1/bin/tool.sh`` and ``tool-v2/bin/tool`` are strong
-    evidence for separate installations. Restricting this to non-system sibling
-    roots avoids treating ordinary wrappers such as ``/usr/bin/tool`` as a
-    different application from the binary they eventually execute.
-    """
-    if launcher_path.suffix.casefold() not in _SCRIPT_LAUNCHER_SUFFIXES:
-        return False
-    launcher_name = launcher_path.stem.casefold()
-    if launcher_name != runtime_path.name.casefold():
-        return False
-    launcher_root = _specific_bundle_root(launcher_path)
-    runtime_root = _specific_bundle_root(runtime_path)
-    return bool(
-        launcher_root is not None
-        and runtime_root is not None
-        and launcher_root != runtime_root
-        and launcher_root.parent == runtime_root.parent
-        and _is_native_executable(runtime_path)
-    )
-
-
-def _specific_bundle_root(path: Path) -> Path | None:
-    """Return a non-system application root for ``root/bin/executable``."""
-    if path.parent.name not in {"bin", "sbin"}:
-        return None
-    root = path.parent.parent
-    if root in _GENERIC_BUNDLE_ROOTS:
-        return None
-    # ``~/bin`` is a command collection, not a single application bundle.
-    if len(root.parts) == 3 and root.parts[1] == "home":
-        return None
-    return root
-
-
-@lru_cache(maxsize=512)
-def _is_native_executable(path: Path) -> bool:
-    """Return whether *path* has the Linux ELF executable signature."""
-    try:
-        with path.open("rb") as handle:
-            return handle.read(4) == b"\x7fELF"
-    except OSError:
-        return False
-
-
-def _launcher_path_compatibility(
-    launcher_path: Path | None,
-    runtime_path: Path | None,
-) -> int:
-    """Score a launcher that can legitimately become another executable.
-
-    A script can ``exec`` an interpreter or bundled runtime, so a differing
-    process path does not disqualify it. A native launcher receives no such
-    preference because its process path should normally remain directly useful.
-    """
-    if launcher_path is None or runtime_path is None:
-        return 0
-    return 1 if not _is_native_executable(launcher_path) else 0
-
-
-class AppIdMatcher:
-    """Shared window → desktop ID matching for all display-server backends.
-
-    Backends extract identity from their display server (Wnck, Wayland
-    protocol, compositor IPC, AT-SPI) and pass it here as plain strings.
-    The matcher owns the heuristics for mapping runtime identities to
-    Docking desktop IDs.
-    """
+class AppIdMatcher(_CanonicalAppIdMatcher):
+    """Accept the old Launcher constructor while delegating matching."""
 
     def __init__(
         self,
-        launcher: Launcher,
+        registry: ApplicationRegistry | None = None,
+        process_identity_service: ProcessIdentityService | None = None,
         *,
         cache_missed_desktop_ids: bool = False,
+        launcher: object | None = None,
     ) -> None:
-        self._launcher = launcher
-        self._cache_missed_desktop_ids = cache_missed_desktop_ids
-        self._visible_aliases: dict[str, list[_VisibleAppIdentity]] = {}
-        self._missed_candidates: set[str] = set()
-
-    def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Rebuild visible-item alias cache from the current dock model.
-
-        Called at the start of every running-window scan so the cache
-        reflects the current pinned / transient item set.  Pinned items
-        can be reordered, pinned, unpinned, or replaced at runtime, and
-        using stale aliases would make running indicators disappear
-        until restart.
-        """
-        self._visible_aliases.clear()
-        for item in items:
-            identity = _VisibleAppIdentity(
-                desktop_id=item.desktop_id,
-                name=getattr(item, "name", "") or item.desktop_id,
-                icon_name=getattr(item, "icon_name", "") or "",
-                wm_class=getattr(item, "wm_class", "") or "",
-                executable_path=desktop_entries.executable_path_from_exec_line(
-                    getattr(item, "exec_line", "") or ""
-                ),
+        if (
+            launcher is None
+            and process_identity_service is None
+            and registry is not None
+            and not isinstance(registry, ApplicationRegistry)
+        ):
+            launcher = registry
+            registry = None
+        self._compatibility_items = registry is None
+        if registry is None:
+            if launcher is None:
+                raise TypeError("registry and process_identity_service are required")
+            candidate = getattr(launcher, "registry", None)
+            canonical_registry = (
+                candidate
+                if isinstance(candidate, ApplicationRegistry)
+                else cast(ApplicationRegistry, _LegacyRegistryAdapter(launcher))
             )
-            aliases = {
-                item.desktop_id,
-                item.desktop_id.removesuffix(DESKTOP_SUFFIX),
-                getattr(item, "wm_class", "") or "",
-            }
-            for alias in aliases:
-                normalized = _normalize_alias(alias)
-                if normalized:
-                    matches = self._visible_aliases.setdefault(normalized, [])
-                    matches[:] = [
-                        match
-                        for match in matches
-                        if match.desktop_id != identity.desktop_id
-                    ]
-                    matches.append(identity)
+            canonical_process_identity_service = process_identity_service or cast(
+                ProcessIdentityService, _LegacyProcessIdentityService()
+            )
+        elif process_identity_service is None:
+            raise TypeError("process_identity_service is required with registry")
+        else:
+            canonical_registry = registry
+            canonical_process_identity_service = process_identity_service
 
-    def match(
-        self,
-        app_id: str,
-        *,
-        instance_hint: str | None = None,
-        prefer_raw_app_id: bool = True,
-        defer_wm_class_lookup: bool = False,
-        process_id: int | None = None,
-    ) -> str | None:
-        """Map a runtime window identity to a Docking desktop ID."""
-        result = self.match_result(
-            app_id,
-            instance_hint=instance_hint,
-            prefer_raw_app_id=prefer_raw_app_id,
-            defer_wm_class_lookup=defer_wm_class_lookup,
-            process_id=process_id,
+        super().__init__(
+            registry=canonical_registry,
+            process_identity_service=canonical_process_identity_service,
+            cache_missed_desktop_ids=cache_missed_desktop_ids,
         )
-        return result.desktop_id if result is not None else None
+
+    def sync_visible_items(self, items: Iterable[object]) -> None:
+        if self._compatibility_items:
+            items = (
+                item
+                if getattr(item, "kind", None) is not None
+                else _LegacyVisibleItem(item)
+                for item in items
+            )
+        super().sync_visible_items(cast("Iterable[DockItem]", items))
 
     def match_result(
         self,
@@ -443,333 +212,85 @@ class AppIdMatcher:
         prefer_raw_app_id: bool = True,
         defer_wm_class_lookup: bool = False,
         process_id: int | None = None,
-    ) -> AppMatch | None:
-        """Return a structured match using process evidence when available."""
-        app_id = app_id.strip()
-        if not app_id:
-            return None
-
-        app_id_lower = app_id.lower().strip()
-        process = identity_for_pid(process_id)
-        if process is not None and process.launch is not None:
-            return AppMatch(process.launch.desktop_id)
-
-        # 1. Wine detection - when the primary identity is the generic
-        #    "wine" class group, use the instance (exe path) instead.
-        if instance_hint:
-            result = self._match_wine_instance(
-                app_id_lower=app_id_lower,
-                instance_hint=instance_hint,
-            )
-            if result:
-                return AppMatch(result)
-
-        # 2. Visible-item alias cache (fast path, no Gio calls).
-        result = self._match_visible_alias(
-            app_id_lower,
-            process=process,
-            runtime_wm_class=app_id,
-        )
-        if result is not None:
-            return result
-
-        # 3. Instance hint against visible aliases (X11 optimization:
-        #    when class_group is generic but class_instance is specific
-        #    and matches a pinned item).
-        if instance_hint:
-            result = self._match_visible_alias(
-                instance_hint,
-                process=process,
-                runtime_wm_class=app_id,
-            )
-            if result is not None:
-                return result
-
-        # 4. Candidate generation + resolution.
-        candidates = self._candidates(
-            app_id=app_id,
-            app_id_lower=app_id_lower,
+    ) -> AppMatch | None:  # ty: ignore[invalid-method-override]
+        """Return the historical match shape with canonical evidence attached."""
+        result = super().match_result(
+            app_id,
             instance_hint=instance_hint,
             prefer_raw_app_id=prefer_raw_app_id,
+            defer_wm_class_lookup=defer_wm_class_lookup,
+            process_id=process_id,
         )
-        for candidate in candidates:
-            # 4a. Visible aliases (normalized).
-            result = self._match_visible_alias(
-                candidate,
-                process=process,
-                runtime_wm_class=app_id,
-            )
-            if result is not None:
-                return result
+        return AppMatch.from_canonical(result) if result is not None else None
 
-            # 4b. Direct desktop ID resolution (with missed-candidate
-            #     memoization so signal bursts don't hammer Gio).
-            desktop_id = _ensure_desktop_suffix(candidate)
-            if not (
-                self._cache_missed_desktop_ids and desktop_id in self._missed_candidates
-            ):
-                info = self._launcher.resolve(desktop_id, log_failures=False)
-                if info is not None:
-                    return self._match_desktop_infos(
-                        (info,),
-                        process=process,
-                        runtime_wm_class=app_id,
-                    )
-                if self._cache_missed_desktop_ids:
-                    self._missed_candidates.add(desktop_id)
 
-            if defer_wm_class_lookup:
-                continue
+@dataclass(frozen=True, init=False)
+class AppMatch:
+    """Historical two-field result with canonical diagnostics attached."""
 
-            # 4c. WM_CLASS index lookup (lazy-built once, then dict).
-            result = self._match_desktop_infos(
-                self._desktop_infos_for_alias(candidate),
-                process=process,
-                runtime_wm_class=app_id,
-            )
-            if result is not None:
-                return result
+    desktop_id: str
+    runtime_app: RuntimeAppIdentity | None = None
 
-        if defer_wm_class_lookup:
-            for candidate in candidates:
-                result = self._match_desktop_infos(
-                    self._desktop_infos_for_alias(candidate),
-                    process=process,
-                    runtime_wm_class=app_id,
-                )
-                if result is not None:
-                    return result
-
-        return None
-
-    def _match_visible_alias(
+    def __init__(
         self,
-        alias: str,
-        *,
-        process: ProcessIdentity | None,
-        runtime_wm_class: str,
-    ) -> AppMatch | None:
-        matches = self._visible_aliases.get(_normalize_alias(alias), ())
-        if not matches:
-            return None
-        executable_path = process.executable_path if process is not None else None
-        if executable_path is not None:
-            # Full-path agreement is stronger than the shared WM_CLASS/app ID
-            # and disambiguates multiple visible versions deterministically.
-            exact = next(
-                (
-                    match
-                    for match in reversed(matches)
-                    if match.executable_path == executable_path
-                ),
-                None,
-            )
-            if exact is not None:
-                return AppMatch(exact.desktop_id)
-        # If no exact path exists, prefer a wrapper that could legitimately
-        # have replaced itself with the observed interpreter/runtime. Equal
-        # scores retain the pre-existing last-visible-item behavior.
-        selected = max(
-            enumerate(matches),
-            key=lambda indexed: (
-                _launcher_path_compatibility(
-                    indexed[1].executable_path,
-                    executable_path,
-                ),
-                indexed[0],  # Preserve the historical last-visible-item tie-break.
-            ),
-        )[1]
-        if _executable_paths_conflict(selected.executable_path, executable_path):
-            assert executable_path is not None
-            # Do not attach a verified different installation to the selected
-            # family launcher. A stable path-derived ID creates a transient item
-            # that can later become a generated desktop launcher when pinned.
-            return self._runtime_match(
-                executable_path=executable_path,
-                name=selected.name,
-                icon_name=selected.icon_name,
-                wm_class=runtime_wm_class or selected.wm_class,
-            )
-        return AppMatch(selected.desktop_id)
-
-    def _match_desktop_infos(
-        self,
-        infos: Iterable[object],
-        *,
-        process: ProcessIdentity | None,
-        runtime_wm_class: str,
-    ) -> AppMatch | None:
-        candidates = [
-            info for info in infos if isinstance(getattr(info, "desktop_id", None), str)
-        ]
-        if not candidates:
-            return None
-        executable_path = process.executable_path if process is not None else None
-        if executable_path is not None:
-            # The install-wide alias index can contain several desktop files
-            # with the same StartupWMClass; exact Exec agreement wins.
-            exact = next(
-                (
-                    info
-                    for info in candidates
-                    if desktop_entries.executable_path_from_exec_line(
-                        getattr(info, "exec_line", "") or ""
-                    )
-                    == executable_path
-                ),
-                None,
-            )
-            if exact is not None:
-                return AppMatch(exact.desktop_id)
-        # Installed aliases historically selected the first indexed entry. Keep
-        # that tie-break while allowing wrapper compatibility to refine it.
-        selected = max(
-            enumerate(candidates),
-            key=lambda indexed: (
-                _launcher_path_compatibility(
-                    desktop_entries.executable_path_from_exec_line(
-                        getattr(indexed[1], "exec_line", "") or ""
-                    ),
-                    executable_path,
-                ),
-                -indexed[0],  # Preserve the install-index first-winner tie-break.
-            ),
-        )[1]
-        selected_path = desktop_entries.executable_path_from_exec_line(
-            getattr(selected, "exec_line", "") or ""
+        desktop_id: str,
+        runtime_app: RuntimeAppIdentity | ApplicationInfo | None = None,
+    ) -> None:
+        canonical_application = _canonical_runtime_application(runtime_app)
+        legacy_runtime = (
+            runtime_app
+            if isinstance(runtime_app, RuntimeAppIdentity)
+            else _legacy_runtime_identity(canonical_application)
         )
-        if _executable_paths_conflict(selected_path, executable_path):
-            assert executable_path is not None
-            return self._runtime_match(
-                executable_path=executable_path,
-                name=getattr(selected, "name", "") or selected.desktop_id,
-                icon_name=getattr(selected, "icon_name", "") or "",
-                wm_class=runtime_wm_class or (getattr(selected, "wm_class", "") or ""),
-            )
-        return AppMatch(selected.desktop_id)
-
-    def _desktop_infos_for_alias(self, alias: str) -> tuple[object, ...]:
-        resolve_all = getattr(self._launcher, "resolve_all_by_wm_class", None)
-        if callable(resolve_all):
-            infos = resolve_all(alias)
-            if isinstance(infos, (list, tuple)):
-                return tuple(infos)
-        info = self._launcher.resolve_by_wm_class(alias)
-        return (info,) if info is not None else ()
-
-    @staticmethod
-    def _runtime_match(
-        *,
-        executable_path: Path,
-        name: str,
-        icon_name: str,
-        wm_class: str,
-    ) -> AppMatch:
-        # Reuse the same deterministic ID as drag-to-pin generation. This keeps
-        # the transient stable across scans and avoids an identity change when
-        # the user later chooses "Keep in Dock".
-        desktop_id = desktop_entries.generated_desktop_id_for_path(executable_path)
-        return AppMatch(
-            desktop_id=desktop_id,
-            runtime_app=RuntimeAppIdentity(
-                desktop_id=desktop_id,
-                executable_path=str(executable_path),
-                name=name or executable_path.stem or executable_path.name,
-                icon_name=icon_name,
-                wm_class=wm_class,
+        object.__setattr__(self, "desktop_id", desktop_id)
+        object.__setattr__(self, "runtime_app", legacy_runtime)
+        object.__setattr__(self, "_application", canonical_application)
+        object.__setattr__(
+            self,
+            "_evidence",
+            MatchEvidence(
+                method=MatchMethod.DESKTOP_ID,
+                raw_app_id=desktop_id,
             ),
         )
 
-    def _match_wine_instance(
-        self, *, app_id_lower: str, instance_hint: str
-    ) -> str | None:
-        """Try to match a Wine window by its ``.exe`` instance name.
-
-        Only triggers when *app_id_lower* is the generic ``"wine"``
-        class group **and** the instance looks like a Windows executable
-        path.  Non-``.exe`` instances fall through to normal matching.
-        """
-        if app_id_lower != "wine":
-            return None
-        instance_lower = instance_hint.lower().strip()
-        if not instance_lower.endswith(".exe"):
-            return None
-        for alias in _wine_aliases_from_instance(instance_hint):
-            # Visible aliases (covers pinned Wine launcher items).
-            matches = self._visible_aliases.get(_normalize_alias(alias), ())
-            if matches:
-                return matches[-1].desktop_id
-            # Launcher WM_CLASS index.
-            info = self._launcher.resolve_by_wm_class(alias)
-            if info is not None:
-                return info.desktop_id
-        return None
-
-    def _candidates(
-        self,
-        *,
-        app_id: str,
-        app_id_lower: str,
-        instance_hint: str | None,
-        prefer_raw_app_id: bool,
-    ) -> list[str]:
-        """Generate lookup candidates merged from both legacy matchers.
-
-        Order is stable and deterministic. Wayland-style callers keep
-        compositor-provided desktop IDs authoritative; X11 callers keep
-        the old lowercase-first WM_CLASS order. Duplicates are removed
-        while preserving first-occurrence order.
-        """
-        # X11-style candidates from class_group.
-        x11_candidates = _class_group_candidates(
-            class_lower=app_id_lower,
-            class_group=app_id,
+    @classmethod
+    def from_canonical(cls, match: ApplicationMatch) -> AppMatch:
+        """Adapt one canonical match without discarding metadata or evidence."""
+        result = cls(
+            match.desktop_id,
+            match.application,
         )
+        object.__setattr__(result, "_evidence", match.evidence)
+        return result
 
-        # Wayland-style candidates (dot-split, Snap prefixes, lowercase).
-        wl_candidates = _app_id_candidates(app_id)
+    @property
+    def application(self) -> ApplicationInfo | None:
+        """Retain canonical metadata for migration-era diagnostics."""
+        return self._application
 
-        # Keep raw compositor IDs first, then add X11 transforms and
-        # Wayland/container fallbacks. Dedupe preserving order.
-        seen: set[str] = set()
-        merged: list[str] = []
-        raw_candidates = [
-            app_id,
-            app_id.removesuffix(DESKTOP_SUFFIX),
-            app_id_lower,
-            app_id_lower.removesuffix(DESKTOP_SUFFIX),
-        ]
-        source_candidates = (
-            raw_candidates + x11_candidates + wl_candidates
-            if prefer_raw_app_id
-            else x11_candidates + wl_candidates
-        )
-        for candidate in source_candidates:
-            if candidate not in seen:
-                seen.add(candidate)
-                merged.append(candidate)
-
-        # Instance hint aliases (when available) - appended after
-        # the main candidates so they don't shadow a more specific match
-        # from the class-group candidates.
-        if instance_hint:
-            for alias in _instance_candidates(instance_hint):
-                if alias not in seen:
-                    seen.add(alias)
-                    merged.append(alias)
-
-        return merged
+    @property
+    def evidence(self) -> MatchEvidence:
+        """Retain the canonical evidence route for current compatibility users."""
+        return self._evidence
 
 
-def _instance_candidates(instance_hint: str) -> list[str]:
-    """Generate lookup candidates from a WM_CLASS instance string."""
-    instance_lower = instance_hint.lower().strip()
-    if not instance_lower:
-        return []
-    candidates = [instance_lower]
-    # Also handle the case where the instance itself contains spaces
-    # (rare, but some X11 apps do this).
-    if " " in instance_lower:
-        candidates.append(instance_lower.replace(" ", "-"))
-        candidates.append(instance_lower.replace(" ", ""))
-    return list(dict.fromkeys(candidates))
+__all__ = [
+    "AppIdMatcher",
+    "AppMatch",
+    "ApplicationMatch",
+    "_app_id_candidates",
+    "_class_group_candidates",
+    "_ensure_desktop_suffix",
+    "_executable_paths_conflict",
+    "_instance_candidates",
+    "_is_native_executable",
+    "_launcher_path_compatibility",
+    "_normalize_alias",
+    "_runtime_application",
+    "_sibling_bundle_launchers_conflict",
+    "_specific_bundle_root",
+    "_wine_aliases_from_instance",
+    "desktop_entries",
+    "identity_for_pid",
+]

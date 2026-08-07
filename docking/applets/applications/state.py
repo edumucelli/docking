@@ -17,7 +17,13 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
+from docking.platform.applications.listing import (
+    ApplicationListing,
+    listing_categories,
+    listing_name,
+    visible_listings,
+)
+from docking.platform.applications.registry import ApplicationRegistry
 
 # FreeDesktop main categories -> display label
 CATEGORY_LABELS: dict[str, str] = {
@@ -62,21 +68,23 @@ def _map_category(categories: str) -> str:
     return display_cat
 
 
-def _build_app_categories() -> dict[str, list[ApplicationEntry]]:
+def _build_app_categories(
+    registry: ApplicationRegistry | None = None,
+) -> dict[str, list[ApplicationListing]]:
     """Group installed apps by FreeDesktop category.
 
     Returns {display_category: [app_info, ...]} sorted by app name.
     Apps that don't match any known category go into "Other".
     Hidden and no-display apps are excluded.
     """
-    categories: dict[str, list[ApplicationEntry]] = defaultdict(list)
+    categories: dict[str, list[ApplicationListing]] = defaultdict(list)
 
-    for app_info in all_desktop_app_infos():
-        cats = app_info.get_categories() or ""
+    for app_info in visible_listings(registry):
+        cats = listing_categories(app_info)
         categories[_map_category(categories=cats)].append(app_info)
 
     # Sort apps within each category by display name
     for apps in categories.values():
-        apps.sort(key=lambda a: (a.get_display_name() or "").lower())
+        apps.sort(key=lambda app: listing_name(app).lower())
 
     return dict(categories)

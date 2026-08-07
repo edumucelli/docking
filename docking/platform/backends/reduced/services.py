@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from docking.platform.applications.constants import FALLBACK_ICON
 from docking.platform.backends.base import (
     ActionResult,
     PlacementRequest,
@@ -31,8 +32,6 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-
-FALLBACK_ICON = "application-x-executable"
 
 
 class ReducedWindowService(WindowService):

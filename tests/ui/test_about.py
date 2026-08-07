@@ -263,21 +263,14 @@ class TestAboutDialogController:
 
     def test_help_response_opens_project_github(self, monkeypatch):
         monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
-        launch_default_for_uri = MagicMock()
-        monkeypatch.setattr(
-            about_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            launch_default_for_uri,
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(about_mod.targets, "open_target", open_target)
         controller = about_mod.AboutDialogController(parent=object())
         dialog = FakeAboutDialog()
 
         controller._on_response(dialog, about_mod.Gtk.ResponseType.HELP)
 
-        launch_default_for_uri.assert_called_once_with(
-            about_mod.PROJECT_GITHUB_URL,
-            None,
-        )
+        open_target.assert_called_once_with(about_mod.PROJECT_GITHUB_URL)
         assert dialog.hidden is False
 
     def test_license_fallback_when_license_file_missing(self, monkeypatch):

@@ -9,8 +9,13 @@ from unittest.mock import MagicMock
 
 from docking.applets.services import AppletServices
 from docking.core.config import Config
+from docking.platform.applications.running import RunningAppInfo
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.model import DockModel
-from docking.platform.running import RunningAppInfo
 
 
 def _make_running(**kw) -> RunningAppInfo:
@@ -22,12 +27,21 @@ def _make_launcher(*desktop_ids: str):
     launcher = MagicMock()
     infos = {}
     for did in desktop_ids:
-        info = MagicMock()
-        info.desktop_id = did
-        info.name = did.removesuffix(".desktop")
-        info.icon_name = "test-icon"
-        info.wm_class = did.removesuffix(".desktop")
-        infos[did] = info
+        stem = did.removesuffix(".desktop")
+        infos[did] = ApplicationInfo(
+            desktop_id=did,
+            name=stem,
+            declared_icon="test-icon",
+            wm_class=stem,
+            exec_line=stem,
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(stem,),
+            visible=True,
+            has_gio_source=False,
+        )
 
     def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)

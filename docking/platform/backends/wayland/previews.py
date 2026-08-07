@@ -26,7 +26,8 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -35,7 +36,8 @@ from docking.platform.backends.base import (
 )
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 SHM_ARGB8888 = 0
@@ -49,8 +51,16 @@ class _PreviewToplevelState:
     title: str = ""
     app_id: str = ""
     identifier: str = ""
-    desktop_id: str | None = None
+    application_match: ApplicationMatch | None = None
     closed: bool = False
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 @dataclass
@@ -110,9 +120,19 @@ class _PhocCaptureRequest:
 class WaylandPreviewHandleTracker:
     """Tracks ext-foreign-toplevel-list handles for preview capture."""
 
-    def __init__(self, *, model: DockModel, launcher: Launcher, protocol: object):
+    def __init__(
+        self,
+        *,
+        model: DockModel,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+        protocol: object,
+    ):
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._protocol = protocol
         self._state_by_handle: dict[object, _PreviewToplevelState] = {}
         self._handle_by_window_id: dict[WindowId, object] = {}
@@ -195,7 +215,9 @@ class WaylandPreviewHandleTracker:
 
     def _refresh_match(self, state: _PreviewToplevelState) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
-        state.desktop_id = self._matcher.match(state.app_id) if state.app_id else None
+        state.application_match = (
+            self._matcher.match_result(state.app_id) if state.app_id else None
+        )
 
     def _match_handle(
         self, *, desktop_id: str | None, app_id: str, title: str

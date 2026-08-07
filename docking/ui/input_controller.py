@@ -29,7 +29,6 @@ from docking.core.config import LeftClickAction, MiddleClickAction, StackUnfold
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.log import get_logger
-from docking.platform.launcher import launch, launch_new_window, open_target
 from docking.ui.autohide import HideState
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
@@ -41,6 +40,8 @@ if TYPE_CHECKING:
     import cairo
 
     from docking.core.items import DockItem
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.targets import TargetService
     from docking.ui.dnd import DnDHandler
     from docking.ui.dock_window import DockWindow
     from docking.ui.geometry import DockGeometryFrame
@@ -66,9 +67,13 @@ class DockInputController:
         window: DockWindow,
         interactions: DockInteractions,
         dnd: DnDHandler,
+        application_launcher: ApplicationLauncher,
+        target_service: TargetService,
     ) -> None:
         self._window = window
         self._interactions = interactions
+        self._application_launcher = application_launcher
+        self._target_service = target_service
         self._click_x: float = -1.0
         self._click_y: float = -1.0
         self._click_button: int = 0
@@ -454,7 +459,7 @@ class DockInputController:
 
             if item.kind == FILE_KIND:
                 item.last_launched = now
-                open_target(item.target)
+                self._target_service.open_target(item.target)
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
@@ -469,9 +474,9 @@ class DockInputController:
             if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
                 item.last_launched = now
                 if action == MiddleClickAction.NEW_WINDOW.value:
-                    launch_new_window(desktop_id=item.desktop_id)
+                    self._application_launcher.launch_new_window(item.desktop_id)
                 else:
-                    launch(desktop_id=item.desktop_id)
+                    self._application_launcher.launch(item.desktop_id)
                 window.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
             elif action == LeftClickAction.CYCLE.value:
                 window.window_tracker.cycle(item.desktop_id)

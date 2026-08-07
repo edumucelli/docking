@@ -16,19 +16,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, cast
-from urllib.parse import urlparse
+from typing import TYPE_CHECKING
 
 import gi
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, Gio, Gtk
 
-import docking.platform.launcher as launcher_mod
-from docking.applets.base import Applet, load_theme_icon
+from docking.applets.base import Applet
 from docking.applets.devices import meta
 from docking.applets.devices.render import create_devices_icon
 from docking.applets.devices.state import (
@@ -42,13 +39,13 @@ from docking.applets.devices.unix_mounts import (
 )
 from docking.core.icons import IconSource
 from docking.i18n import _
-from docking.log import get_logger, with_context
+from docking.platform.icons import IconLoader
+from docking.platform.targets import TargetService
 from docking.ui.stack import StackContent, StackEntry
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
-
-log = with_context(get_logger(name="devices"), applet_id=meta.id)
 
 _MONITOR_SIGNALS = (
     "mount-added",
@@ -79,9 +76,17 @@ class DevicesApplet(Applet):
             read_network_mounts(),
         )
         self._handler_ids: list[tuple[object, int]] = []
-        self._stack_icons: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
+        self._icon_loader: IconLoader | None = None
+        self._target_service: TargetService | None = None
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        """Borrow the process-wide icon and target services."""
+        self._target_service = services.target_service
+        self._icon_loader = services.icon_loader
+        if self._icon_loader is None and self._target_service is not None:
+            self._icon_loader = self._target_service.icon_loader
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_devices_icon(size=size, device_count=len(self._devices))
@@ -151,7 +156,6 @@ class DevicesApplet(Applet):
         self._devices = devices
         if not changed:
             return
-        self._stack_icons.clear()
         self.present()
 
     def _stack_icon(
@@ -160,46 +164,40 @@ class DevicesApplet(Applet):
         device: MountedDevice,
         size: int,
     ) -> GdkPixbuf.Pixbuf | None:
-        cache_key = (device.key, size)
-        if cache_key in self._stack_icons:
-            return self._stack_icons[cache_key]
-        icon = _load_mount_icon(device=device, size=size)
-        self._stack_icons[cache_key] = icon
-        return icon
+        icon_loader, _target_service = self._ensure_platform_services()
+        return _load_mount_icon(
+            device=device,
+            size=size,
+            icon_loader=icon_loader,
+        )
 
     def _open_device(self, *, uri: str) -> None:
-        if urlparse(uri).scheme == "file" and launcher_mod.open_target(uri):
-            return
-        try:
-            Gio.AppInfo.launch_default_for_uri(uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_device", uri=uri).warning(
-                "Failed to open mounted device %s: %s",
-                uri,
-                exc,
-            )
+        _icon_loader, target_service = self._ensure_platform_services()
+        target_service.open_target(uri)
+
+    def _ensure_platform_services(self) -> tuple[IconLoader, TargetService]:
+        """Create a paired fallback only for standalone applet tests."""
+        if self._icon_loader is None and self._target_service is not None:
+            self._icon_loader = self._target_service.icon_loader
+        if self._icon_loader is None:
+            self._icon_loader = IconLoader()
+        if self._target_service is None:
+            self._target_service = TargetService(icon_loader=self._icon_loader)
+        return self._icon_loader, self._target_service
 
 
 def _load_mount_icon(
     *,
     device: MountedDevice,
     size: int,
+    icon_loader: IconLoader,
 ) -> GdkPixbuf.Pixbuf | None:
     if device.icon is not None:
-        try:
-            theme = Gtk.IconTheme.get_default()
-            if theme is not None:
-                icon_info = theme.lookup_by_gicon(
-                    cast(Gio.Icon, device.icon),
-                    size,
-                    Gtk.IconLookupFlags.FORCE_SIZE,
-                )
-                if icon_info is not None:
-                    return icon_info.load_icon()
-        except (AttributeError, GLib.Error):
-            pass
+        icon = icon_loader.load_gicon(device.icon, size)
+        if icon is not None:
+            return icon
     fallback = "folder-remote" if device.is_network else "drive-harddisk"
-    return load_theme_icon(name=fallback, size=size)
+    return icon_loader.load_icon(fallback, size)
 
 
 def _device_signature(devices: list[MountedDevice]) -> tuple[tuple[str, ...], ...]:

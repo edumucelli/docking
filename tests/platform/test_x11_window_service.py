@@ -16,9 +16,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 
 import docking.platform.backends.x11.impl.window_tracker as tracker_mod
 from docking.core.config import Config
+from docking.platform.applications.running import RunningAppInfo
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.x11.services.windows import X11WindowService
-from docking.platform.running import RunningAppInfo
 
 
 class FakeWorkspace:
@@ -137,6 +137,28 @@ def make_service(
     service._cycle_order_by_desktop = {}
     service._screen_signal_ids = []
     return service
+
+
+def test_constructor_reuses_canonical_identity_services(monkeypatch):
+    monkeypatch.setattr(tracker_mod.GLib, "idle_add", MagicMock(return_value=1))
+    model = MagicMock()
+    model.visible_items.return_value = []
+    registry = MagicMock()
+    registry.generation = 7
+    process_identity_service = MagicMock()
+
+    service = X11WindowService(
+        model=model,
+        config=Config(),
+        application_registry=registry,
+        process_identity_service=process_identity_service,
+    )
+
+    assert service._matcher._app_matcher.registry is registry
+    assert (
+        service._matcher._app_matcher.process_identity_service
+        is process_identity_service
+    )
 
 
 def test_list_windows_returns_backend_snapshots(monkeypatch):

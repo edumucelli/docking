@@ -20,12 +20,13 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango, PangoCairo
 
-import docking.platform.launcher as launcher_mod
 from docking.applets.popup import PopupAnchor
 from docking.core.items import FOLDER_KIND
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.icons import IconLoader
+from docking.platform.targets import TargetService
 from docking.ui.folder._browser import (
     FOLDER_SMALL_ICON_PX,
     FOLDER_SORT_OPTIONS,
@@ -55,7 +56,6 @@ from docking.ui.stack import (
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
-    from docking.platform.launcher import Launcher
     from docking.ui.runtime import DockRuntime
 
 
@@ -92,8 +92,9 @@ __all__ = [
 class FolderStackCache(StackLayoutCache):
     """Generic layout cache plus the folder prewarm queue."""
 
-    def __init__(self) -> None:
+    def __init__(self, target_service: TargetService) -> None:
         super().__init__()
+        self._target_service = target_service
         self.prewarm_queue: list[DockItem] = []
         self.prewarm_targets: set[str] = set()
         self.prewarm_source: int = 0
@@ -109,7 +110,7 @@ class FolderStackCache(StackLayoutCache):
         if not self.prewarm_queue:
             return None
         item = self.prewarm_queue.pop(0)
-        uri = launcher_mod.normalize_file_target(item.target)
+        uri = self._target_service.normalize_file_target(item.target)
         if uri is not None:
             self.prewarm_targets.discard(uri)
         return item
@@ -120,7 +121,7 @@ class FolderStackCache(StackLayoutCache):
         self.prewarm_queue = [
             item
             for item in self.prewarm_queue
-            if launcher_mod.normalize_file_target(item.target) != uri
+            if self._target_service.normalize_file_target(item.target) != uri
         ]
 
 
@@ -132,17 +133,28 @@ class FolderStackController(StackPopupController):
         *,
         config: Config,
         runtime: DockRuntime,
-        launcher: Launcher,
         dock_window: Gtk.Window,
+        target_service: TargetService | None = None,
+        icon_loader: IconLoader | None = None,
     ) -> None:
         super().__init__(
             config=config,
             runtime=runtime,
             dock_window=dock_window,
         )
-        self._launcher = launcher
-        self._browser = FolderBrowser(launcher=launcher)
-        self._folder_stack_cache = FolderStackCache()
+        if target_service is None:
+            icon_loader = icon_loader or IconLoader()
+            target_service = TargetService(icon_loader=icon_loader)
+        elif icon_loader is None:
+            icon_loader = target_service.icon_loader
+        assert icon_loader is not None
+        self._target_service = target_service
+        self._icon_loader = icon_loader
+        self._browser = FolderBrowser(
+            target_service=target_service,
+            icon_loader=icon_loader,
+        )
+        self._folder_stack_cache = FolderStackCache(target_service)
         self._folder_content_cache: dict[tuple[object, ...], StackContent] = {}
         self._folder_stack_item: DockItem | None = None
         self._folder_stack_monitor: Gio.FileMonitor | None = None
@@ -234,7 +246,7 @@ class FolderStackController(StackPopupController):
         """Queue a folder data and layout warm-up during idle time."""
         if item.kind != FOLDER_KIND:
             return
-        uri = launcher_mod.normalize_file_target(item.target)
+        uri = self._target_service.normalize_file_target(item.target)
         if uri is None:
             return
         if not self._folder_stack_cache.queue_prewarm(item, uri=uri):
@@ -250,7 +262,7 @@ class FolderStackController(StackPopupController):
 
     def invalidate_target(self, target: str) -> None:
         self._browser.invalidate_target(target)
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is not None:
             self._folder_stack_cache.invalidate_target(uri=uri)
             for key in [key for key in self._folder_content_cache if key[0] == uri]:
@@ -320,8 +332,8 @@ class FolderStackController(StackPopupController):
             return StackContent(empty_label=_("Folder not found"))
 
         prefs = self._folder_prefs_for_item(item)
-        uri = launcher_mod.normalize_file_target(item.target) or item.target
-        app_name = self._launcher.default_directory_app_name()
+        uri = self._target_service.normalize_file_target(item.target) or item.target
+        app_name = self._target_service.default_directory_app_name()
         cache_key = (
             uri,
             self._browser.cache_stamp(item.target),
@@ -383,7 +395,7 @@ class FolderStackController(StackPopupController):
         self, *, hidden_count: int, app_name: str | None = None
     ) -> str:
         if app_name is None:
-            app_name = self._launcher.default_directory_app_name()
+            app_name = self._target_service.default_directory_app_name()
         if app_name:
             return (
                 _("Open in %s") % app_name
@@ -445,7 +457,7 @@ class FolderStackController(StackPopupController):
         return True
 
     def _track_folder_stack(self, target: str) -> None:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         if self._folder_stack_monitor is not None:
@@ -502,7 +514,7 @@ class FolderStackController(StackPopupController):
         self._folder_stack_item = None
 
     def _open_folder_stack_target(self, target: str) -> None:
-        launcher_mod.open_target(target)
+        self._target_service.open_target(target)
         self._close_stack()
 
     def _activate_stack_key(self, key: str) -> None:

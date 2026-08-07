@@ -33,14 +33,20 @@ from docking.applets.music import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.launcher import launch as launch_desktop_id
+from docking.platform.applications.listing import (
+    ApplicationListing,
+    listing_desktop_id,
+    listing_key,
+)
 
 from .artwork import CoverArtResolver
 from .render import create_music_icon
 from .state import (
+    _MPRIS_PREFIX,
     VOLUME_STEP,
     HybridBackend,
     MusicState,
+    _normalize_desktop_entry,
     clamp_percent,
     has_active_media,
     play_pause_menu_label,
@@ -49,7 +55,10 @@ from .state import (
 )
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
 
 POLL_INTERVAL_S = 1
 SCROLL_SYNC_DELAY_MS = 220
@@ -61,6 +70,35 @@ MEDIA_CONTENT_TYPES = (
     "video/mp4",
 )
 log = with_context(get_logger(name="music"), applet_id=meta.id)
+
+
+def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
+    """Return registry desktop-ID candidates without consulting platform APIs."""
+    value = raw.strip()
+    if not value:
+        return ()
+
+    value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if value.lower().endswith(".desktop"):
+        value = value[: -len(".desktop")]
+    if value.startswith(_MPRIS_PREFIX):
+        value = value[len(_MPRIS_PREFIX) :]
+
+    candidates: list[str] = []
+
+    def add(desktop_id: str) -> None:
+        if desktop_id and desktop_id not in candidates:
+            candidates.append(desktop_id)
+
+    if value:
+        add(f"{value}.desktop")
+
+    normalized = _normalize_desktop_entry(raw)
+    if normalized:
+        add(f"{normalized}.desktop")
+    if normalized == "rhythmbox":
+        add("org.gnome.Rhythmbox3.desktop")
+    return tuple(candidates)
 
 
 def _find_media_app() -> Gio.AppInfo | None:
@@ -102,11 +140,6 @@ def launch_default_media_app() -> bool:
     if app_info is None:
         return False
 
-    desktop_id = app_info.get_id()
-    if desktop_id:
-        launch_desktop_id(desktop_id=desktop_id)
-        return True
-
     try:
         return bool(app_info.launch([], None))
     except GLib.Error as exc:
@@ -127,6 +160,8 @@ class MusicApplet(Applet):
     def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = HybridBackend()
         self._cover_art = CoverArtResolver()
+        self._application_registry: ApplicationRegistry | None = None
+        self._application_launcher: ApplicationLauncher | None = None
         self._state = unavailable_state()
         self._album_art: GdkPixbuf.Pixbuf | None = None
         self._timer_id: int = 0
@@ -155,6 +190,20 @@ class MusicApplet(Applet):
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
+    def set_services(self, services: AppletServices) -> None:
+        registry = services.application_registry
+        registry_changed = registry is not self._application_registry
+        self._application_registry = registry
+        self._application_launcher = services.application_launcher
+        if registry is None or not registry_changed:
+            return
+
+        state = self._state_with_registry_icon(self._state)
+        if state == self._state:
+            return
+        self._state = state
+        self.present()
+
     def stop(self) -> None:
         if self._scroll_sync_id:
             GLib.source_remove(self._scroll_sync_id)
@@ -166,7 +215,7 @@ class MusicApplet(Applet):
 
     def on_clicked(self) -> None:
         if not has_active_media(self._state):
-            launch_default_media_app()
+            self._launch_default_media_app()
             return
         if self._backend.play_pause(state=self._state):
             self._refresh_now()
@@ -261,12 +310,59 @@ class MusicApplet(Applet):
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
     ) -> bool:
+        state = self._state_with_registry_icon(state)
         if state == self._state and art is self._album_art:
             return False
         self._state = state
         self._album_art = art
         self.present()
         return False
+
+    def _state_with_registry_icon(self, state: MusicState) -> MusicState:
+        registry = self._application_registry
+        if registry is None or not state.player_desktop_entry:
+            return state
+        for desktop_id in _desktop_entry_candidates(state.player_desktop_entry):
+            application = registry.resolve(desktop_id, log_failures=False)
+            if application is None:
+                continue
+            if application.declared_icon:
+                return replace(state, player_icon_name=application.declared_icon)
+            return state
+        return state
+
+    def _find_media_application(self) -> ApplicationListing | None:
+        registry = self._application_registry
+        if registry is None:
+            return None
+
+        for content_type in MEDIA_CONTENT_TYPES:
+            application = registry.default_listing_for_content_type(content_type)
+            if application is not None:
+                return application
+
+        for content_type in MEDIA_CONTENT_TYPES:
+            applications = registry.recommended_listings_for_content_type(content_type)
+            if applications:
+                return applications[0]
+        return None
+
+    def _launch_default_media_app(self) -> bool:
+        registry = self._application_registry
+        launcher = self._application_launcher
+        if registry is None and launcher is None:
+            return launch_default_media_app()
+        if registry is None or launcher is None:
+            return False
+
+        application = self._find_media_application()
+        if application is None:
+            return False
+        desktop_id = listing_desktop_id(application)
+        if desktop_id is not None:
+            return launcher.launch(desktop_id)
+        opaque_key = listing_key(application)
+        return opaque_key is not None and launcher.launch_listing(opaque_key)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:

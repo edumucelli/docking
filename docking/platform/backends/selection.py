@@ -20,7 +20,7 @@ native Wayland paths can stay lazy and isolated from each other.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from docking.log import get_logger
 from docking.platform.environment import (
@@ -35,15 +35,26 @@ from docking.platform.environment import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import SessionBackend
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+
+
+class _IdentityArguments(TypedDict):
+    application_registry: ApplicationRegistry
+    process_identity_service: ProcessIdentityService
+
 
 log = get_logger(name="backend_selection")
 
 
 def create_session_backend(
-    *, config: Config, launcher: Launcher, model: DockModel
+    *,
+    config: Config,
+    model: DockModel,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend:
     """Create the production session backend for the current runtime.
 
@@ -53,21 +64,25 @@ def create_session_backend(
     Hyprland, COSMIC, Niri, Wayfire, KWin, then layer-shell, then the GNOME
     Shell bridge, then reduced mode.
     """
+    identity_arguments = _identity_arguments(
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
+    )
     requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
     if requested == "reduced":
         return _create_reduced_backend(reason="requested by DOCKING_BACKEND=reduced")
     if requested == "x11":
         return _create_x11_backend(
             config=config,
-            launcher=launcher,
             model=model,
             reason="requested by DOCKING_BACKEND=x11",
+            **identity_arguments,
         )
     if requested in {"gnome", "gnome-shell", "gnome-shell-bridge"}:
         backend = _create_gnome_shell_bridge_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -76,9 +91,9 @@ def create_session_backend(
         )
     if requested in {"wayland", "wayland-layer-shell", "layer-shell"}:
         backend = _create_wayland_layer_shell_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -87,9 +102,9 @@ def create_session_backend(
         )
     if requested in {"cosmic", "cosmic-session"}:
         backend = _create_cosmic_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -98,9 +113,9 @@ def create_session_backend(
         )
     if requested in {"hyprland", "hypr"}:
         backend = _create_hyprland_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -109,9 +124,9 @@ def create_session_backend(
         )
     if requested in {"niri"}:
         backend = _create_niri_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -120,10 +135,10 @@ def create_session_backend(
         )
     if requested in {"wayfire"}:
         backend = _create_wayfire_backend(
-            launcher=launcher,
             model=model,
             config=config,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -132,9 +147,9 @@ def create_session_backend(
         )
     if requested in {"kwin", "kde", "plasma", "kwin-script"}:
         backend = _create_kwin_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -143,9 +158,9 @@ def create_session_backend(
         )
     if requested in {"treeland", "deepin"}:
         backend = _create_treeland_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -154,9 +169,9 @@ def create_session_backend(
         )
     if requested in {"cinnamon", "cinnamon-wayland"}:
         backend = _create_cinnamon_wayland_backend(
-            launcher=launcher,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -171,75 +186,75 @@ def create_session_backend(
         # Hyprland has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.HYPRLAND:
             backend = _create_hyprland_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         # COSMIC takes priority on its native desktop
         if detect_desktop() is Desktop.COSMIC:
             backend = _create_cosmic_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         # Niri has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.NIRI:
             backend = _create_niri_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         if detect_desktop() & Desktop.WAYFIRE or _wayfire_ipc_available():
             backend = _create_wayfire_backend(
-                launcher=launcher,
                 model=model,
                 config=config,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         # KWin / KDE Plasma native backend
         if is_kde_session():
             backend = _create_kwin_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         if detect_desktop() & Desktop.DEEPIN:
             backend = _create_treeland_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         if detect_desktop() & Desktop.CINNAMON:
             backend = _create_cinnamon_wayland_backend(
-                launcher=launcher,
                 model=model,
                 reason=_non_x11_reason(),
+                **identity_arguments,
             )
             if backend is not None:
                 return backend
         backend = _create_wayland_layer_shell_backend(
-            launcher=launcher,
             model=model,
             reason=_non_x11_reason(),
+            **identity_arguments,
         )
         if backend is not None:
             return backend
         backend = _create_gnome_shell_bridge_backend(
-            launcher=launcher,
             model=model,
             reason=_non_x11_reason(),
+            **identity_arguments,
         )
         if backend is not None:
             return backend
@@ -266,10 +281,21 @@ def create_session_backend(
 
     return _create_x11_backend(
         config=config,
-        launcher=launcher,
         model=model,
         reason="GTK display is X11",
+        **identity_arguments,
     )
+
+
+def _identity_arguments(
+    *,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> _IdentityArguments:
+    return {
+        "application_registry": application_registry,
+        "process_identity_service": process_identity_service,
+    }
 
 
 def _create_reduced_backend(*, reason: str) -> SessionBackend:
@@ -281,7 +307,11 @@ def _create_reduced_backend(*, reason: str) -> SessionBackend:
 
 
 def _create_wayland_layer_shell_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.services import (
         layer_shell_is_supported,
@@ -310,15 +340,22 @@ def _create_wayland_layer_shell_backend(
         return None
     backend = WaylandLayerShellSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_gnome_shell_bridge_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.gnome.bridge import GnomeShellBridgeClient
     from docking.platform.backends.gnome.session import GnomeShellBridgeSessionBackend
@@ -328,15 +365,22 @@ def _create_gnome_shell_bridge_backend(
         return None
     backend = GnomeShellBridgeSessionBackend(
         model=model,
-        launcher=launcher,
         bridge=bridge,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_treeland_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.services import (
         layer_shell_is_supported,
@@ -352,15 +396,22 @@ def _create_treeland_backend(
         return None
     backend = TreelandSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_cinnamon_wayland_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.cinnamon.muffin import MuffinDebugClient
     from docking.platform.backends.cinnamon.session import (
@@ -379,30 +430,45 @@ def _create_cinnamon_wayland_backend(
         return None
     backend = CinnamonWaylandSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
         client=client,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_x11_backend(
-    *, config: Config, launcher: Launcher, model: DockModel, reason: str
+    *,
+    config: Config,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend:
     from docking.platform.backends.x11.session import X11SessionBackend
 
     backend = X11SessionBackend(
         model=model,
-        launcher=launcher,
         config=config,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_cosmic_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.cosmic_session import CosmicSessionBackend
     from docking.platform.backends.wayland.services import (
@@ -419,15 +485,22 @@ def _create_cosmic_backend(
         return None
     backend = CosmicSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_hyprland_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.hyprland_session import (
         HyprlandSessionBackend,
@@ -448,15 +521,22 @@ def _create_hyprland_backend(
         return None
     backend = HyprlandSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_kwin_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.kwin.session import KWinSessionBackend
     from docking.platform.backends.wayland.services import (
@@ -481,15 +561,22 @@ def _create_kwin_backend(
 
     backend = KWinSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_niri_backend(
-    *, launcher: Launcher, model: DockModel, reason: str
+    *,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.niri_session import NiriSessionBackend
     from docking.platform.backends.wayland.services import (
@@ -506,15 +593,23 @@ def _create_niri_backend(
         return None
     backend = NiriSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend
 
 
 def _create_wayfire_backend(
-    *, launcher: Launcher, model: DockModel, config: Config, reason: str
+    *,
+    model: DockModel,
+    config: Config,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
 ) -> SessionBackend | None:
     from docking.platform.backends.wayland.services import (
         layer_shell_is_supported,
@@ -535,9 +630,12 @@ def _create_wayfire_backend(
         return None
     backend = WayfireSessionBackend(
         layer_shell=layer_shell,
-        launcher=launcher,
         model=model,
         config=config,
+        **_identity_arguments(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        ),
     )
     log.info("Selected session backend: %s (%s)", backend.name, reason)
     return backend

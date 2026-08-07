@@ -52,7 +52,8 @@ from docking.platform.backends.wayland.wayfire_ipc import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -79,7 +80,8 @@ class WayfireSessionBackend(SessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
@@ -98,7 +100,8 @@ class WayfireSessionBackend(SessionBackend):
 
         windows = window_service or load_wayfire_window_service(
             model=model,
-            launcher=launcher,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
         )
         if windows is None:
             windows = ReducedWindowService()

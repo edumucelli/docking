@@ -7,6 +7,9 @@ from unittest.mock import MagicMock
 from gi.repository import GLib
 
 import docking.platform.unity as unity_mod
+from docking.platform.applications.identity import (
+    parse_application_uri as parse_application_identity_uri,
+)
 
 
 class _FakeConnection:
@@ -57,8 +60,15 @@ def _variant_payload(
     )
 
 
+def _registry():
+    registry = MagicMock()
+    registry.resolve.return_value = None
+    return registry
+
+
 class TestParseApplicationUri:
     def test_valid_uri_returns_desktop_id(self):
+        assert unity_mod.parse_application_uri is parse_application_identity_uri
         assert unity_mod.parse_application_uri("application://firefox.desktop") == (
             "firefox.desktop"
         )
@@ -69,6 +79,7 @@ class TestParseApplicationUri:
         assert unity_mod.parse_application_uri("application://nested/path.desktop") is (
             None
         )
+        assert unity_mod.parse_application_uri("application://firefox") is None
 
 
 class TestUnityLauncherListener:
@@ -83,7 +94,10 @@ class TestUnityLauncherListener:
             unity_mod.Gio, "bus_unown_name", lambda owner_id: unowned.append(owner_id)
         )
 
-        listener = unity_mod.UnityLauncherListener(model=model)
+        listener = unity_mod.UnityLauncherListener(
+            model=model,
+            application_registry=_registry(),
+        )
         listener.start()
         listener.stop()
 
@@ -92,7 +106,10 @@ class TestUnityLauncherListener:
         assert unowned == [77]
 
     def test_parse_payload_extracts_normalized_state(self):
-        listener = unity_mod.UnityLauncherListener(model=MagicMock())
+        listener = unity_mod.UnityLauncherListener(
+            model=MagicMock(),
+            application_registry=_registry(),
+        )
 
         state = listener._parse_payload(
             sender_name=":1.7",
@@ -108,8 +125,53 @@ class TestUnityLauncherListener:
         assert state.progress_visible is True
         assert state.urgent is True
 
+    def test_parse_payload_uses_canonical_id_for_exact_registry_match(self):
+        registry = _registry()
+        registry.resolve.return_value = MagicMock(
+            desktop_id="org.mozilla.firefox.desktop"
+        )
+        listener = unity_mod.UnityLauncherListener(
+            model=MagicMock(),
+            application_registry=registry,
+        )
+
+        state = listener._parse_payload(
+            sender_name=":1.7",
+            parameters=_variant_payload(),
+        )
+
+        assert state is not None
+        assert state.desktop_id == "org.mozilla.firefox.desktop"
+        registry.resolve.assert_called_once_with(
+            "firefox.desktop",
+            log_failures=False,
+        )
+
+    def test_parse_payload_keeps_unresolved_id_without_alias_broadening(self):
+        registry = _registry()
+        listener = unity_mod.UnityLauncherListener(
+            model=MagicMock(),
+            application_registry=registry,
+        )
+
+        state = listener._parse_payload(
+            sender_name=":1.7",
+            parameters=_variant_payload(app_uri="application://Vendor-Firefox.desktop"),
+        )
+
+        assert state is not None
+        assert state.desktop_id == "Vendor-Firefox.desktop"
+        registry.resolve.assert_called_once_with(
+            "Vendor-Firefox.desktop",
+            log_failures=False,
+        )
+        registry.resolve_by_wm_class.assert_not_called()
+
     def test_invalid_payload_signature_is_ignored(self):
-        listener = unity_mod.UnityLauncherListener(model=MagicMock())
+        listener = unity_mod.UnityLauncherListener(
+            model=MagicMock(),
+            application_registry=_registry(),
+        )
 
         state = listener._parse_payload(
             sender_name=":1.7",
@@ -130,7 +192,10 @@ class TestUnityLauncherListener:
         monkeypatch.setattr(unity_mod.GLib, "idle_add", _idle_add)
         monkeypatch.setattr(unity_mod.GLib, "get_monotonic_time", lambda: 100_000)
 
-        listener = unity_mod.UnityLauncherListener(model=model)
+        listener = unity_mod.UnityLauncherListener(
+            model=model,
+            application_registry=_registry(),
+        )
         listener._handle_update(sender_name=":1.7", parameters=_variant_payload())
 
         assert (
@@ -149,7 +214,10 @@ class TestUnityLauncherListener:
 
     def test_name_owner_changed_removes_sender_state(self):
         model = MagicMock()
-        listener = unity_mod.UnityLauncherListener(model=model)
+        listener = unity_mod.UnityLauncherListener(
+            model=model,
+            application_registry=_registry(),
+        )
         listener._entries[":1.7"] = unity_mod._SenderEntry()
 
         listener._on_name_owner_changed(
@@ -178,7 +246,10 @@ class TestUnityLauncherListener:
             ),
         )
 
-        listener = unity_mod.UnityLauncherListener(model=model)
+        listener = unity_mod.UnityLauncherListener(
+            model=model,
+            application_registry=_registry(),
+        )
         payload = _variant_payload()
         for _ in range(5):
             listener._handle_update(sender_name=":1.7", parameters=payload)

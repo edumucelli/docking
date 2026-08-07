@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
     DesktopActionService,
@@ -43,6 +44,10 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
 )
 
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
+
 
 @dataclass(frozen=True)
 class GnomeShellBridgeRuntimeServices:
@@ -59,11 +64,19 @@ class GnomeShellBridgeRuntimeServices:
 class GnomeShellBridgeSessionBackend(SessionBackend):
     """GNOME Shell bridge backend with reduced GTK surface integration."""
 
-    def __init__(self, *, model, launcher, bridge: GnomeShellBridgeClient) -> None:
+    def __init__(
+        self,
+        *,
+        model,
+        bridge: GnomeShellBridgeClient,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
         self._services = GnomeShellBridgeRuntimeServices(
             windows=GnomeShellBridgeWindowService(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 bridge=bridge,
             ),
             workspaces=GnomeShellBridgeWorkspaceService(bridge=bridge),

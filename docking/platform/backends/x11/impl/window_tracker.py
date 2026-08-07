@@ -162,7 +162,9 @@ import os
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
-from docking.platform.app_matcher import AppIdMatcher, AppMatch
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -170,7 +172,6 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
 # so only add it to the catch tuple when it actually is one.
@@ -185,7 +186,8 @@ log = with_context(get_logger(name="window_tracker"))
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -193,16 +195,22 @@ class WindowMatcher:
     """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints.
 
     This is a thin X11-specific wrapper around the shared
-    :class:`~docking.platform.app_matcher.AppIdMatcher`.  The wrapping
+    :class:`~docking.platform.applications.matcher.AppIdMatcher`. The wrapping
     handles Wnck-specific window property extraction (class group,
     class instance) and defensive error handling; all matching
     heuristics live in the shared matcher so they apply uniformly
     across X11 and Wayland backends.
     """
 
-    def __init__(self, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        *,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
         self._app_matcher = AppIdMatcher(
-            launcher=launcher,
+            registry=application_registry,
+            process_identity_service=process_identity_service,
             cache_missed_desktop_ids=True,
         )
 
@@ -215,7 +223,7 @@ class WindowMatcher:
         result = self.match_result(window)
         return result.desktop_id if result is not None else None
 
-    def match_result(self, window: Wnck.Window) -> AppMatch | None:
+    def match_result(self, window: Wnck.Window) -> ApplicationMatch | None:
         """Return structured identity, including runtime-only app metadata."""
         class_group = self._class_group_for(window=window)
         if not class_group:
@@ -262,13 +270,24 @@ class WindowMatcher:
 class WindowTracker:
     """Tracks running applications and maps them to dock items via WM_CLASS."""
 
-    def __init__(self, model: DockModel, launcher: Launcher, config: Config) -> None:
+    def __init__(
+        self,
+        model: DockModel,
+        config: Config | None = None,
+        *,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
+        if config is None:
+            raise TypeError("config is required")
         self._model = model
         self._config = config
-        self._launcher = launcher
         self._screen: Wnck.Screen | None = None
         self._screen_signal_ids: list[int] = []
-        self._matcher = WindowMatcher(launcher=launcher)
+        self._matcher = WindowMatcher(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         # Latest known window XIDs per desktop_id from _update_running().
         # Preview/toggle paths use this cache to avoid rematching WM_CLASS
         # during hover-time UI events.
@@ -429,7 +448,7 @@ class WindowTracker:
         window: Wnck.Window,
         desktop_id: str,
         active_xid: int,
-        match: AppMatch,
+        match: ApplicationMatch,
     ) -> RunningWindowInfo | None:
         """Convert one live Wnck window into typed running state."""
         # Wnck windows are live wrappers around X11 state. The window can vanish

@@ -33,6 +33,7 @@ from docking.applets.whatsapp.state import (
 from docking.core.paths import ensure_dir
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import targets
 from docking.platform.environment.xdg import docking_cache_dir, docking_data_dir
 
 log = get_logger("whatsapp.browser")
@@ -581,10 +582,7 @@ def _unique_download_path(suggested_filename: str) -> Path:
 
 
 def _open_external_uri(uri: str) -> None:
-    try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
-    except GLib.Error as exc:
-        log.warning("Could not open external WhatsApp link %s: %s", uri, exc)
+    targets.open_target(uri)
 
 
 def _error_message(error: object) -> str:

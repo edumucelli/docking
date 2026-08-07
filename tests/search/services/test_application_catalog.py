@@ -1,329 +1,379 @@
-"""Tests for the Global Search desktop application catalog."""
+"""Tests for the registry-backed ApplicationCatalog compatibility adapter."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import FrozenInstanceError
 from pathlib import Path
 
-import pytest
-
-import docking.search.services.application_catalog as catalog_mod
-from docking.search.services.application_catalog import (
-    ApplicationCatalog,
-    DesktopActionSnapshot,
-    IconDescriptor,
-)
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.search.services.application_catalog import ApplicationCatalog
 
 
-class _FakeAppInfo:
-    def __init__(
-        self,
-        *,
-        description: str = "",
-        keywords: tuple[str, ...] = (),
-        actions: dict[str, str] | None = None,
-        filename: str = "",
-        icon: object | None = None,
-    ) -> None:
-        self.description = description
-        self.keywords = keywords
-        self.actions = actions or {}
-        self.filename = filename
-        self.icon = icon
+class _Icon:
+    def __init__(self, value: str) -> None:
+        self._value = value
 
-    def get_description(self) -> str:
-        return self.description
-
-    def get_keywords(self) -> tuple[str, ...]:
-        return self.keywords
-
-    def list_actions(self) -> tuple[str, ...]:
-        return tuple(self.actions)
-
-    def get_action_name(self, action_id: str) -> str:
-        return self.actions[action_id]
-
-    def get_filename(self) -> str:
-        return self.filename
-
-    def get_icon(self) -> object | None:
-        return self.icon
+    def to_string(self) -> str:
+        return self._value
 
 
-class _FakeApplicationEntry:
+class _Application:
     def __init__(
         self,
         desktop_id: str,
         name: str,
         *,
-        categories: str = "",
-        icon_name: str = "",
-        app_info: object | None = None,
+        commandline: str = "example",
+        icon: str = "example",
     ) -> None:
         self.desktop_id = desktop_id
         self.name = name
-        self.categories = categories
-        self.icon_name = icon_name
-        self.app_info = app_info
+        self.commandline = commandline
+        self.icon = icon
 
     def get_id(self) -> str:
         return self.desktop_id
 
+    def get_is_hidden(self) -> bool:
+        return False
+
+    def get_nodisplay(self) -> bool:
+        return False
+
+    def get_filename(self) -> str:
+        return ""
+
+    def get_commandline(self) -> str:
+        return self.commandline
+
+    def get_startup_wm_class(self) -> str:
+        return self.desktop_id.removesuffix(".desktop")
+
+    def get_icon(self) -> _Icon:
+        return _Icon(self.icon)
+
     def get_display_name(self) -> str:
         return self.name
 
+    def get_generic_name(self) -> str:
+        return ""
+
+    def get_description(self) -> str:
+        return f"{self.name} description"
+
     def get_categories(self) -> str:
-        return self.categories
+        return "Utility;"
+
+    def get_keywords(self) -> tuple[str, ...]:
+        return ("utility",)
+
+    def list_actions(self) -> tuple[str, ...]:
+        return ()
 
 
-class _FakeSignalSource:
-    def __init__(self) -> None:
-        self.callbacks: dict[int, Callable[..., object]] = {}
-        self.disconnected: list[int] = []
-
-    def connect(self, signal: str, callback: Callable[..., object]) -> int:
-        assert signal == "changed"
-        handler_id = len(self.callbacks) + 1
-        self.callbacks[handler_id] = callback
-        return handler_id
-
-    def disconnect(self, handler_id: int) -> None:
-        self.disconnected.append(handler_id)
-        self.callbacks.pop(handler_id, None)
-
-    def emit_changed(self) -> None:
-        for callback in tuple(self.callbacks.values()):
-            callback(self)
-
-
-class _FakeDirectoryMonitor(_FakeSignalSource):
-    def __init__(self) -> None:
-        super().__init__()
-        self.cancelled = False
-
-    def cancel(self) -> None:
-        self.cancelled = True
-
-
-class _FakeScheduler:
-    def __init__(self) -> None:
-        self.callbacks: dict[int, Callable[[], bool]] = {}
-        self.cancelled: list[int] = []
-        self.delays: list[int] = []
-
-    def schedule(self, delay: int, callback: Callable[[], bool]) -> int:
-        source_id = len(self.callbacks) + 1
-        self.delays.append(delay)
-        self.callbacks[source_id] = callback
-        return source_id
-
-    def cancel(self, source_id: int) -> None:
-        self.cancelled.append(source_id)
-
-    def run(self, source_id: int) -> bool:
-        callback = self.callbacks[source_id]
-        return callback()
-
-
-def test_builds_normalized_plain_immutable_snapshots(monkeypatch):
-    monkeypatch.setattr(
-        catalog_mod.desktop_entries,
-        "find_desktop_file",
-        lambda _desktop_id: None,
+def _registry(source: list[_Application]) -> ApplicationRegistry:
+    return ApplicationRegistry(
+        application_source=lambda: tuple(source),
+        desktop_directories_source=lambda: (),
     )
-    app_info = _FakeAppInfo(
-        description="  Write and   edit documents. ",
-        keywords=("Write", " Documents ", "write"),
-        actions={"new-window": " New Window "},
+
+
+class _BorrowedRegistry:
+    def __init__(self, registry: ApplicationRegistry) -> None:
+        self._registry = registry
+        self.listeners: list[Callable[[], None]] = []
+        self.start_calls = 0
+        self.stop_calls = 0
+        self.refresh_calls = 0
+
+    def snapshot(self):
+        return self._registry.snapshot()
+
+    def subscribe(self, callback: Callable[[], None]):
+        self.listeners.append(callback)
+        subscribed = True
+
+        def unsubscribe() -> None:
+            nonlocal subscribed
+            if not subscribed:
+                return
+            subscribed = False
+            self.listeners.remove(callback)
+
+        return unsubscribe
+
+    def start(self) -> None:
+        self.start_calls += 1
+
+    def stop(self) -> None:
+        self.stop_calls += 1
+
+    def refresh(self) -> bool:
+        self.refresh_calls += 1
+        changed = self._registry.refresh()
+        if changed:
+            self.publish()
+        return changed
+
+    def publish(self) -> None:
+        for callback in tuple(self.listeners):
+            callback()
+
+
+def test_owned_refresh_projects_registry_sources_and_tracks_projection_generation():
+    source = [
+        _Application("zulu.desktop", "Zulu"),
+        _Application("alpha.desktop", "Alpha"),
+    ]
+    catalog = ApplicationCatalog(
+        application_source=lambda: tuple(source),
+        desktop_directories_source=lambda: (),
     )
-    entry = _FakeApplicationEntry(
-        "org.example.Writer.desktop",
-        "  Café   Writer ",
-        categories=" Office ;Utility;office;;",
-        icon_name="/opt/example/writer.svg",
-        app_info=app_info,
-    )
-    changed: list[int] = []
-    catalog = ApplicationCatalog()
-    catalog._application_source = lambda: [entry, entry]
-    catalog._desktop_directories_source = list
-    catalog.add_listener(lambda: changed.append(catalog.generation))
+    notifications: list[int] = []
+    catalog.subscribe(lambda: notifications.append(catalog.generation))
 
     assert catalog.refresh() is True
-    assert catalog.refresh() is False
-
-    assert changed == [1]
+    assert [application.desktop_id for application in catalog.applications] == [
+        "alpha.desktop",
+        "zulu.desktop",
+    ]
+    assert catalog.get("alpha.desktop") is catalog.applications[0]
     assert catalog.generation == 1
-    assert len(catalog.snapshot()) == 1
-    snapshot = catalog.get("org.example.Writer.desktop")
-    assert snapshot is not None
-    assert snapshot.name == "Café Writer"
-    assert snapshot.normalized_name == "café writer"
-    assert snapshot.categories == ("Office", "Utility")
-    assert snapshot.icon == IconDescriptor(
-        kind="file",
-        value="/opt/example/writer.svg",
+    assert notifications == [1]
+
+    assert catalog.refresh() is False
+    assert catalog.generation == 1
+
+    source[0].name = "Aardvark"
+    assert catalog.refresh() is True
+    assert catalog.generation == 2
+    assert catalog.applications[0].name == "Aardvark"
+
+
+def test_owned_failed_initial_refresh_does_not_publish_or_notify():
+    def fail() -> tuple[_Application, ...]:
+        raise RuntimeError("initial discovery failed")
+
+    catalog = ApplicationCatalog(
+        application_source=fail,
+        desktop_directories_source=lambda: (),
     )
-    assert snapshot.icon_descriptor is snapshot.icon
-    assert snapshot.description == "Write and edit documents."
-    assert snapshot.keywords == ("Write", "Documents")
-    assert snapshot.actions == (
-        DesktopActionSnapshot(action_id="new-window", name="New Window"),
+    notifications: list[int] = []
+    catalog.subscribe(lambda: notifications.append(catalog.generation))
+
+    assert catalog.refresh() is False
+    assert catalog.generation == 0
+    assert catalog.snapshot() == ()
+    assert notifications == []
+
+
+def test_owned_successful_empty_initial_refresh_publishes_once():
+    catalog = ApplicationCatalog(
+        application_source=tuple,
+        desktop_directories_source=tuple,
     )
+    notifications: list[int] = []
+    catalog.subscribe(lambda: notifications.append(catalog.generation))
 
-    with pytest.raises(FrozenInstanceError):
-        snapshot.name = "Changed"  # ty: ignore[invalid-assignment]
+    assert catalog.refresh() is True
+    assert catalog.generation == 1
+    assert catalog.snapshot() == ()
+    assert notifications == [1]
+    assert catalog.refresh() is False
+    assert notifications == [1]
 
 
-def test_uses_desktop_file_metadata_as_best_effort_fallback(tmp_path, monkeypatch):
-    desktop_file = tmp_path / "org.example.Tool.desktop"
-    desktop_file.write_text(
-        "[Desktop Entry]\n"
-        "Type=Application\n"
-        "Name=Example Tool\n"
-        "Comment=Inspect useful things\n"
-        "Keywords=Inspect;Utility;\n"
-        "Actions=new-window;private;\n"
-        "\n"
-        "[Desktop Action new-window]\n"
-        "Name=New Window\n"
-        "\n"
-        "[Desktop Action private]\n"
-        "Name=Private Session\n",
-        encoding="utf-8",
+def test_owned_start_and_stop_own_exactly_one_registry(monkeypatch):
+    catalog = ApplicationCatalog(
+        application_source=tuple,
+        desktop_directories_source=tuple,
     )
-    monkeypatch.setattr(
-        catalog_mod.desktop_entries,
-        "find_desktop_file",
-        lambda _desktop_id: desktop_file,
-    )
-    entry = _FakeApplicationEntry(
-        "org.example.Tool.desktop",
-        "Example Tool",
-        categories="Development;",
-        icon_name="org.example.Tool",
-    )
-    catalog = ApplicationCatalog()
-    catalog._application_source = lambda: [entry]
-    catalog._desktop_directories_source = list
+    registry = catalog.registry
+    start = registry.start
+    stop = registry.stop
+    start_calls = 0
+    stop_calls = 0
 
-    catalog.refresh()
+    def counted_start() -> None:
+        nonlocal start_calls
+        start_calls += 1
+        start()
 
-    snapshot = catalog.snapshot()[0]
-    assert snapshot.description == "Inspect useful things"
-    assert snapshot.keywords == ("Inspect", "Utility")
-    assert snapshot.actions == (
-        DesktopActionSnapshot("new-window", "New Window"),
-        DesktopActionSnapshot("private", "Private Session"),
-    )
-    assert snapshot.icon == IconDescriptor("themed", "org.example.Tool")
+    def counted_stop() -> None:
+        nonlocal stop_calls
+        stop_calls += 1
+        stop()
 
-
-def test_start_stop_and_monitor_refresh_are_idempotent(monkeypatch):
-    monkeypatch.setattr(
-        catalog_mod.desktop_entries,
-        "find_desktop_file",
-        lambda _desktop_id: None,
-    )
-    applications: list[_FakeApplicationEntry] = []
-    app_monitor = _FakeSignalSource()
-    scheduler = _FakeScheduler()
-    directory_monitors: dict[Path, _FakeDirectoryMonitor] = {}
-    directories = [Path("/apps/one"), Path("/apps/two")]
-    source_calls = 0
-
-    def application_source():
-        nonlocal source_calls
-        source_calls += 1
-        return list(applications)
-
-    def monitor_directory(path: Path) -> _FakeDirectoryMonitor:
-        monitor = _FakeDirectoryMonitor()
-        directory_monitors[path] = monitor
-        return monitor
-
-    catalog = ApplicationCatalog()
-    catalog._application_source = application_source
-    catalog._desktop_directories_source = lambda: directories
-    catalog._app_monitor_factory = lambda: app_monitor
-    catalog._directory_monitor_factory = monitor_directory
-    catalog._schedule_timeout = scheduler.schedule
-    catalog._cancel_timeout = scheduler.cancel
-    catalog._debounce_ms = 75
-    generations: list[int] = []
-    unsubscribe = catalog.subscribe(
-        lambda: generations.append(catalog.generation),
-    )
+    monkeypatch.setattr(registry, "start", counted_start)
+    monkeypatch.setattr(registry, "stop", counted_stop)
 
     catalog.start()
     catalog.start()
-
     assert catalog.started is True
-    assert source_calls == 1
-    assert generations == [1]
-    assert len(app_monitor.callbacks) == 1
-    assert set(directory_monitors) == set(directories)
+    assert start_calls == 1
 
-    applications.append(
-        _FakeApplicationEntry(
-            "org.example.New.desktop",
-            "New App",
-            icon_name="application-x-executable",
-        )
-    )
-    app_monitor.emit_changed()
-    directory_monitors[directories[0]].emit_changed()
-
-    assert source_calls == 1
-    assert scheduler.delays == [75]
-    assert scheduler.run(1) is False
-    assert source_calls == 2
-    assert generations == [1, 2]
-
-    app_monitor.emit_changed()
     catalog.stop()
     catalog.stop()
-
     assert catalog.started is False
-    assert scheduler.cancelled == [2]
-    assert app_monitor.disconnected == [1]
-    assert all(monitor.cancelled for monitor in directory_monitors.values())
-    assert catalog.snapshot()[0].desktop_id == "org.example.New.desktop"
+    assert stop_calls == 1
+
+
+def test_borrowed_mode_subscribes_without_mutating_registry_lifecycle():
+    source = [_Application("example.desktop", "Example")]
+    canonical = _registry(source)
+    assert canonical.refresh() is True
+    borrowed = _BorrowedRegistry(canonical)
+    catalog = ApplicationCatalog(registry=borrowed)  # type: ignore[arg-type]
+
+    catalog.start()
+    catalog.start()
+
+    assert borrowed.start_calls == 0
+    assert len(borrowed.listeners) == 1
+    assert catalog.applications[0].name == "Example"
+
+    source[0].name = "Changed"
+    assert canonical.refresh() is True
+    borrowed.publish()
+    assert catalog.applications[0].name == "Changed"
+
+    catalog.stop()
+    catalog.stop()
+    assert borrowed.stop_calls == 0
+    assert borrowed.listeners == []
+
+
+def test_borrowed_refresh_synchronously_refreshes_and_notifies_once():
+    source = [_Application("example.desktop", "Example")]
+    canonical = _registry(source)
+    canonical.refresh()
+    borrowed = _BorrowedRegistry(canonical)
+    catalog = ApplicationCatalog(registry=borrowed)  # type: ignore[arg-type]
+    notifications: list[int] = []
+    catalog.subscribe(lambda: notifications.append(catalog.generation))
+    catalog.start()
+    notifications.clear()
+
+    source[0].name = "Fresh"
+    assert catalog.refresh() is True
+    assert borrowed.refresh_calls == 1
+    assert catalog.applications[0].name == "Fresh"
+    assert notifications == [2]
+
+    assert catalog.refresh() is False
+    assert borrowed.refresh_calls == 2
+    assert notifications == [2]
+
+
+def test_borrowed_failed_refresh_preserves_published_projection():
+    def stable() -> tuple[_Application, ...]:
+        return (_Application("stable.desktop", "Stable"),)
+
+    source: Callable[[], tuple[_Application, ...]] = stable
+    canonical = ApplicationRegistry(
+        application_source=lambda: source(),
+        desktop_directories_source=lambda: (),
+    )
+    canonical.refresh()
+    borrowed = _BorrowedRegistry(canonical)
+    catalog = ApplicationCatalog(registry=borrowed)  # type: ignore[arg-type]
+    notifications: list[int] = []
+    catalog.subscribe(lambda: notifications.append(catalog.generation))
+    catalog.start()
+    notifications.clear()
+    published = catalog.snapshot()
+    generation = catalog.generation
+
+    def fail() -> tuple[_Application, ...]:
+        raise RuntimeError("discovery failed")
+
+    source = fail
+    assert catalog.refresh() is False
+    assert borrowed.refresh_calls == 1
+    assert catalog.snapshot() is published
+    assert catalog.generation == generation
+    assert notifications == []
+
+
+def test_projection_generation_ignores_nonsearch_registry_changes():
+    source = [_Application("example.desktop", "Example", commandline="first")]
+    registry = _registry(source)
+    registry.refresh()
+    catalog = ApplicationCatalog(registry=registry)
+    catalog.start()
+    generation = catalog.generation
+    published = catalog.snapshot()
+
+    source[0].commandline = "second"
+    assert registry.refresh() is True
+
+    assert catalog.generation == generation
+    assert catalog.snapshot() is published
+
+
+def test_listener_unsubscribe_is_idempotent_and_failures_are_isolated():
+    source = [_Application("example.desktop", "Example")]
+    catalog = ApplicationCatalog(
+        application_source=lambda: source,
+        desktop_directories_source=lambda: (),
+    )
+    notifications: list[int] = []
+    catalog.subscribe(lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    unsubscribe = catalog.add_listener(lambda: notifications.append(catalog.generation))
+
+    assert catalog.refresh() is True
+    assert notifications == [1]
 
     unsubscribe()
-    catalog.start()
-    assert generations == [1, 2]
+    unsubscribe()
+    source[0].name = "Changed"
+    assert catalog.refresh() is True
+    assert notifications == [1]
 
 
-def test_directory_monitor_set_is_reconciled(monkeypatch):
-    monkeypatch.setattr(
-        catalog_mod.desktop_entries,
-        "find_desktop_file",
-        lambda _desktop_id: None,
+def test_owned_source_failure_preserves_published_projection():
+    def stable() -> tuple[_Application, ...]:
+        return (_Application("stable.desktop", "Stable"),)
+
+    source: Callable[[], tuple[_Application, ...]] = stable
+    catalog = ApplicationCatalog(
+        application_source=lambda: source(),
+        desktop_directories_source=lambda: (),
     )
-    app_monitor = _FakeSignalSource()
-    first = Path("/apps/first")
-    second = Path("/apps/second")
-    directories = [first]
-    monitors: dict[Path, list[_FakeDirectoryMonitor]] = {}
+    assert catalog.refresh() is True
+    published = catalog.snapshot()
+    generation = catalog.generation
 
-    def monitor_directory(path: Path) -> _FakeDirectoryMonitor:
-        monitor = _FakeDirectoryMonitor()
-        monitors.setdefault(path, []).append(monitor)
-        return monitor
+    def fail() -> tuple[_Application, ...]:
+        raise RuntimeError("discovery failed")
 
-    catalog = ApplicationCatalog()
-    catalog._application_source = list
-    catalog._desktop_directories_source = lambda: directories
-    catalog._app_monitor_factory = lambda: app_monitor
-    catalog._directory_monitor_factory = monitor_directory
-    catalog.start()
+    source = fail
+    assert catalog.refresh() is False
+    assert catalog.snapshot() is published
+    assert catalog.generation == generation
 
-    directories[:] = [second]
-    catalog.refresh()
 
-    assert monitors[first][0].cancelled is True
-    assert monitors[second][0].cancelled is False
-    catalog.stop()
-    assert monitors[second][0].cancelled is True
+def test_constructor_rejects_sources_with_borrowed_registry():
+    registry = _registry([])
+
+    try:
+        ApplicationCatalog(
+            registry=registry,
+            application_source=tuple,
+        )
+    except TypeError as exc:
+        assert "owned mode" in str(exc)
+    else:
+        raise AssertionError("expected TypeError")
+
+
+def test_catalog_has_no_discovery_or_monitor_implementation():
+    catalog = ApplicationCatalog(
+        application_source=tuple,
+        desktop_directories_source=lambda: (Path("/unused"),),
+    )
+
+    assert not hasattr(catalog, "_application_source")
+    assert not hasattr(catalog, "_app_monitor")
+    assert not hasattr(catalog, "_directory_monitors")
+    assert not hasattr(catalog, "_debounce_source_id")

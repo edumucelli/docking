@@ -7,6 +7,8 @@ from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.factory as factory_mod
 
 
@@ -114,6 +116,35 @@ def _patch_ui_components(monkeypatch):
 
 
 class TestBuildDockWindow:
+    def test_dock_ui_stop_attempts_every_component_after_failures(self):
+        order = []
+        startup_popups = MagicMock()
+        settings = MagicMock()
+        search = MagicMock()
+        input_controller = MagicMock()
+
+        def stop(name, *, fail=False):
+            order.append(name)
+            if fail:
+                raise RuntimeError(f"{name} failed")
+
+        startup_popups.stop.side_effect = lambda: stop("startup", fail=True)
+        settings.close.side_effect = lambda: stop("settings", fail=True)
+        search.stop.side_effect = lambda: stop("search")
+        input_controller.stop.side_effect = lambda: stop("input")
+        ui = factory_mod.DockUi(
+            window=MagicMock(),
+            startup_popups=startup_popups,
+            input_controller=input_controller,
+            search=search,
+            settings=settings,
+        )
+
+        with pytest.raises(RuntimeError, match="settings failed"):
+            ui.stop()
+
+        assert order == ["startup", "settings", "search", "input"]
+
     def test_build_dock_window_constructs_window_and_starts_dodge_monitor(
         self, monkeypatch
     ):
@@ -122,7 +153,11 @@ class TestBuildDockWindow:
         renderer = MagicMock()
         theme = MagicMock()
         tracker = MagicMock()
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -143,13 +178,19 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
-            launcher=launcher,
+            application_registry=application_registry,
             session_backend=session_backend,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
         )
 
         assert result.window is window
         assert result.startup_popups is components.startup_popups
         assert result.input_controller is components.input_controller
+        assert result.search is components.search
+        assert result.settings is components.settings
         factory_mod.DockWindow.assert_called_once_with(
             config=config,
             model=model,
@@ -175,16 +216,20 @@ class TestBuildDockWindow:
         )
         factory_mod.GlobalSearchController.assert_called_once_with(
             config=config,
-            launcher=launcher,
             model=model,
             windows=tracker,
             preview_service=preview_service,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
         )
         factory_mod.FolderStackController.assert_called_once_with(
             config=config,
             runtime=components.runtime,
-            launcher=launcher,
             dock_window=window,
+            target_service=target_service,
+            icon_loader=icon_loader,
         )
         factory_mod.DnDHandler.assert_called_once_with(
             drawing_area=window.drawing_area,
@@ -193,9 +238,12 @@ class TestBuildDockWindow:
             config=config,
             renderer=renderer,
             theme=theme,
-            launcher=launcher,
             geometry_builder=window.geometry,
             folder_stack=components.folder_stack,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
         )
         factory_mod.SettingsActions.assert_called_once_with(
             runtime=components.runtime,
@@ -208,6 +256,7 @@ class TestBuildDockWindow:
             actions=components.settings_actions,
             model=model,
             config=config,
+            recent_applications=recent_applications,
         )
         factory_mod.MenuHandler.assert_called_once_with(
             about=components.about,
@@ -219,9 +268,11 @@ class TestBuildDockWindow:
             window_tracker=tracker,
             preview_service=preview_service,
             folder_stack=components.folder_stack,
-            launcher=launcher,
             dock_window=window,
             search=components.search,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+            target_service=target_service,
         )
         factory_mod.DockInteractions.assert_called_once_with(
             menu=components.menu,
@@ -231,6 +282,43 @@ class TestBuildDockWindow:
             window=window,
             interactions=components.interactions,
             dnd=components.dnd,
+            application_launcher=application_launcher,
+            target_service=target_service,
+        )
+        assert (
+            factory_mod.FolderStackController.call_args.kwargs["target_service"]
+            is target_service
+        )
+        assert (
+            factory_mod.FolderStackController.call_args.kwargs["icon_loader"]
+            is icon_loader
+        )
+        assert (
+            factory_mod.DnDHandler.call_args.kwargs["application_registry"]
+            is application_registry
+        )
+        assert (
+            factory_mod.DnDHandler.call_args.kwargs["application_launcher"]
+            is application_launcher
+        )
+        assert factory_mod.DnDHandler.call_args.kwargs["icon_loader"] is icon_loader
+        assert (
+            factory_mod.DnDHandler.call_args.kwargs["target_service"] is target_service
+        )
+        assert (
+            factory_mod.MenuHandler.call_args.kwargs["application_launcher"]
+            is application_launcher
+        )
+        assert (
+            factory_mod.MenuHandler.call_args.kwargs["target_service"] is target_service
+        )
+        assert (
+            factory_mod.DockInputController.call_args.kwargs["application_launcher"]
+            is application_launcher
+        )
+        assert (
+            factory_mod.DockInputController.call_args.kwargs["target_service"]
+            is target_service
         )
         factory_mod.StartupPopupCoordinator.assert_called_once_with()
         factory_mod.NewYearGreetingController.assert_called_once_with(window=window)
@@ -254,6 +342,7 @@ class TestBuildDockWindow:
 
         result.stop()
         components.startup_popups.stop.assert_called_once_with()
+        components.settings.close.assert_called_once_with()
         components.search.stop.assert_called_once_with()
         components.update_checker.stop.assert_not_called()
         components.input_controller.stop.assert_called_once_with()
@@ -264,7 +353,11 @@ class TestBuildDockWindow:
         renderer = MagicMock()
         theme = MagicMock()
         tracker = MagicMock()
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -283,8 +376,12 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
-            launcher=launcher,
+            application_registry=application_registry,
             session_backend=session_backend,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
         )
 
         assert result.window is window
@@ -298,7 +395,11 @@ class TestBuildDockWindow:
         renderer = MagicMock()
         theme = MagicMock()
         tracker = MagicMock()
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -333,8 +434,12 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
-            launcher=launcher,
+            application_registry=application_registry,
             session_backend=session_backend,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
@@ -347,7 +452,11 @@ class TestBuildDockWindow:
         renderer = MagicMock()
         theme = MagicMock()
         tracker = MagicMock()
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -375,8 +484,12 @@ class TestBuildDockWindow:
             preview_service=preview_service,
             surface_service=surface_service,
             visibility_service=visibility_service,
-            launcher=launcher,
+            application_registry=application_registry,
             session_backend=session_backend,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])

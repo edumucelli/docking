@@ -248,14 +248,16 @@ def _folder_stack_handler() -> MenuHandler:
         item_prefs={},
         save=MagicMock(),
     )
-    launcher = MagicMock()
-    launcher.default_directory_app_name.return_value = "Caja"
+    icon_loader = MagicMock()
+    target_service = MagicMock()
+    target_service.default_directory_app_name.return_value = "Caja"
     runtime = MagicMock()
     folder_stack = FolderStackController(
         config=config,
         runtime=runtime,
-        launcher=launcher,
         dock_window=runtime.window,
+        target_service=target_service,
+        icon_loader=icon_loader,
     )
     handler = MenuHandler(
         about=MagicMock(),
@@ -267,9 +269,11 @@ def _folder_stack_handler() -> MenuHandler:
         preview_service=MagicMock(),
         folder_stack=folder_stack,
         diagnostics=MagicMock(),
-        launcher=launcher,
         dock_window=MagicMock(),
         search=MagicMock(),
+        application_registry=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=target_service,
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"
@@ -582,7 +586,7 @@ def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
         errors=(),
     )
     window = SearchWindow(
-        launcher=_Launcher(),
+        icon_loader=_Launcher(),
         on_query_changed=lambda _query: None,
         on_result_selected=lambda _identity: None,
         on_result_activated=lambda _result: None,

@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 
 import gi
 
-gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections
 from docking.applets.recentfiles import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 
 from .render import render_icon
 from .state import MAX_ENTRIES, RecentEntry, tooltip_text, truncate_name
@@ -78,10 +78,7 @@ class RecentFilesApplet(Applet):
         if not self._entries:
             return
         uri = self._entries[0].uri
-        try:
-            Gio.AppInfo.launch_default_for_uri(uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
+        targets.open_target(uri)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
@@ -114,10 +111,7 @@ class RecentFilesApplet(Applet):
         self.present()
 
     def _open_uri(self, *, uri: str) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_recent").warning("Failed to open %s: %s", uri, exc)
+        targets.open_target(uri)
 
     def _clear_recent(self) -> None:
         try:

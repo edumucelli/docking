@@ -5,7 +5,7 @@ from __future__ import annotations
 import stat
 import sys
 from types import SimpleNamespace
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, MagicMock, call
 
 try:
     import gi  # noqa: F401
@@ -19,6 +19,11 @@ import docking.ui.dnd as dnd_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.model import DockItem
 from docking.ui.geometry import Rect
 
@@ -40,7 +45,40 @@ def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
     )
 
 
-def _make_handler(monkeypatch, lock_icons: bool = False):
+def _application(
+    desktop_id: str,
+    *,
+    name: str = "Application",
+    icon_name: str = "application-x-executable",
+    wm_class: str = "application",
+    exec_line: str = "/usr/bin/application",
+    desktop_file=None,
+) -> ApplicationInfo:
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name=name,
+        declared_icon=icon_name,
+        wm_class=wm_class,
+        exec_line=exec_line,
+        origin=ApplicationOrigin.INSTALLED,
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=desktop_file,
+        executable_path=None,
+        aliases=(),
+        visible=True,
+        has_gio_source=True,
+    )
+
+
+def _make_handler(
+    monkeypatch,
+    lock_icons: bool = False,
+    *,
+    application_registry=None,
+    application_launcher=None,
+    icon_loader=None,
+    target_service=None,
+):
     drawing_area = MagicMock()
     default_frame = _frame()
 
@@ -69,7 +107,15 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
     model.insert_pinned_item.side_effect = insert_pinned_item
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
     theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
-    launcher = MagicMock()
+    if application_registry is None:
+        application_registry = MagicMock()
+        application_registry.resolve.return_value = None
+        application_registry.resolve_by_desktop_file.return_value = None
+    application_launcher = application_launcher or MagicMock()
+    icon_loader = icon_loader or MagicMock()
+    if target_service is None:
+        target_service = MagicMock()
+        target_service.resolve_file.return_value = None
     autohide = SimpleNamespace(
         enabled=True,
         set_disabled=MagicMock(),
@@ -102,12 +148,40 @@ def _make_handler(monkeypatch, lock_icons: bool = False):
         config,
         renderer,
         theme,
-        launcher,
         geometry_builder=SimpleNamespace(build_frame=lambda **_kwargs: default_frame),
         folder_stack=folder_stack,
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        icon_loader=icon_loader,
+        target_service=target_service,
     )
     handler._test_folder_stack = folder_stack
     return handler
+
+
+def test_selected_app_uri_drop_uses_shared_application_launcher(monkeypatch):
+    application_launcher = MagicMock()
+    application_launcher.launch_app_uris.return_value = True
+    handler = _make_handler(
+        monkeypatch,
+        application_launcher=application_launcher,
+    )
+    handler.drop_insert_index = -1
+    frame = _frame(count=1)
+    handler._geometry_builder = SimpleNamespace(
+        build_frame=lambda **_kwargs: frame,
+    )
+
+    assert handler._try_open_with_launcher(
+        x=10,
+        y=10,
+        uris=["file:///tmp/document.txt", "file:///tmp/ignored.desktop"],
+    )
+
+    application_launcher.launch_app_uris.assert_called_once_with(
+        "item0.desktop",
+        ["file:///tmp/document.txt"],
+    )
 
 
 class _FakeResponseDialog:
@@ -373,13 +447,14 @@ class TestDropAndReceive:
         handler._renderer.prev_positions = {"firefox.desktop": 320.0}
         handler._model.pinned_items = []
         handler._model.find_by_desktop_id.return_value = None
-        resolved = SimpleNamespace(
+        resolved = _application(
+            "firefox.desktop",
             name="Firefox",
             icon_name="firefox",
             wm_class="firefox",
         )
-        handler._launcher.resolve.return_value = resolved
-        handler._launcher.load_icon.return_value = object()
+        handler._application_registry.resolve.return_value = resolved
+        handler._icon_loader.load_desktop_icon.return_value = object()
         selection = MagicMock()
         selection.get_uris.return_value = [
             "file:///usr/share/applications/firefox.desktop"
@@ -422,7 +497,7 @@ class TestDropAndReceive:
         handler._model.pinned_items = []
         handler._model.find_by_desktop_id.return_value = None
         file_uri = (tmp_path / "notes.txt").as_uri()
-        handler._launcher.resolve_file.return_value = SimpleNamespace(
+        handler._target_service.resolve_file.return_value = SimpleNamespace(
             target=file_uri,
             name="notes.txt",
             icon_name="text-x-generic",
@@ -442,13 +517,6 @@ class TestDropAndReceive:
         handler._geometry_builder = SimpleNamespace(
             build_frame=lambda **_kwargs: gap_frame
         )
-        desktop_app_info = MagicMock()
-        desktop_app_info.launch_uris = MagicMock()
-        monkeypatch.setattr(
-            dnd_mod.Gio.DesktopAppInfo,
-            "new",
-            MagicMock(return_value=desktop_app_info),
-        )
         selection = MagicMock()
         selection.get_uris.return_value = [file_uri]
         finish = MagicMock()
@@ -464,7 +532,7 @@ class TestDropAndReceive:
             77,
         )
 
-        desktop_app_info.launch_uris.assert_not_called()
+        handler._application_launcher.launch_app_uris.assert_not_called()
         assert [entry.target for entry in handler._config.pinned] == [file_uri]
         assert len(handler._model.pinned_items) == 1
         finish.assert_called_once_with(ANY, True, False, 77)
@@ -546,7 +614,7 @@ class TestDropAndReceive:
     def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)
         folder_uri = tmp_path.as_uri()
-        handler._launcher.resolve_file.return_value = SimpleNamespace(
+        handler._target_service.resolve_file.return_value = SimpleNamespace(
             target=folder_uri,
             name=tmp_path.name,
             icon_name="folder",
@@ -560,10 +628,43 @@ class TestDropAndReceive:
         assert item.kind == FOLDER_KIND
         assert item.target == folder_uri
 
+    def test_item_from_uri_resolves_nested_desktop_path_through_registry(
+        self, monkeypatch, tmp_path
+    ):
+        registry = MagicMock()
+        registry.resolve.return_value = None
+        nested_path = tmp_path / "applications" / "kde" / "org.kde.kwrite.desktop"
+        application = _application(
+            "kde-org.kde.kwrite.desktop",
+            name="KWrite",
+            icon_name="org.kde.kwrite",
+            wm_class="kwrite",
+            desktop_file=nested_path,
+        )
+        registry.resolve_by_desktop_file.return_value = application
+        icon_loader = MagicMock()
+        icon = object()
+        icon_loader.load_desktop_icon.return_value = icon
+        handler = _make_handler(
+            monkeypatch,
+            application_registry=registry,
+            icon_loader=icon_loader,
+        )
+
+        item = handler._item_from_uri(nested_path.as_uri())
+
+        assert item is not None
+        assert item.desktop_id == "kde-org.kde.kwrite.desktop"
+        assert item.target == "kde-org.kde.kwrite.desktop"
+        assert item.icon is icon
+        registry.resolve_by_desktop_file.assert_called_once_with(nested_path)
+        icon_loader.load_desktop_icon.assert_called_once_with(application, 96)
+        handler._target_service.resolve_file.assert_not_called()
+
     def test_item_from_uri_builds_file_item(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)
         file_uri = (tmp_path / "notes.txt").as_uri()
-        handler._launcher.resolve_file.return_value = SimpleNamespace(
+        handler._target_service.resolve_file.return_value = SimpleNamespace(
             target=file_uri,
             name="notes.txt",
             icon_name="text-x-generic",
@@ -588,7 +689,8 @@ class TestDropAndReceive:
             name="tool",
             icon_name="application-x-executable",
         )
-        resolved = SimpleNamespace(
+        resolved = _application(
+            generated.desktop_id,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
@@ -598,9 +700,11 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._launcher.resolve.return_value = resolved
+        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+            resolved if target == generated.desktop_id else None
+        )
         icon = object()
-        handler._launcher.load_desktop_icon.return_value = icon
+        handler._icon_loader.load_desktop_icon.return_value = icon
 
         item = handler._item_from_uri(binary.as_uri())
 
@@ -610,8 +714,13 @@ class TestDropAndReceive:
         assert item.target == generated.desktop_id
         assert item.name == "tool"
         assert item.icon is icon
-        handler._launcher.refresh_desktop_entries.assert_called_once_with()
-        handler._launcher.resolve.assert_called_once_with(generated.desktop_id)
+        handler._application_registry.refresh.assert_called_once_with()
+        assert handler._application_registry.method_calls.index(
+            call.refresh()
+        ) < handler._application_registry.method_calls.index(
+            call.resolve(generated.desktop_id)
+        )
+        handler._icon_loader.load_desktop_icon.assert_called_once_with(resolved, 96)
 
     def test_item_from_uri_confirms_chmod_for_non_executable_appimage(
         self, monkeypatch, tmp_path
@@ -630,10 +739,15 @@ class TestDropAndReceive:
             "MessageDialog",
             lambda **_kwargs: dialog,
         )
-        handler._launcher.resolve.return_value = SimpleNamespace(
-            name="GIMP 3.2.4 x86 64",
-            icon_name="application-x-appimage",
-            wm_class="GIMP-3.2.4-x86_64",
+        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+            _application(
+                target,
+                name="GIMP 3.2.4 x86 64",
+                icon_name="application-x-appimage",
+                wm_class="GIMP-3.2.4-x86_64",
+            )
+            if target.startswith("docking-generated-")
+            else None
         )
 
         item = handler._item_from_uri(appimage.as_uri())
@@ -643,7 +757,7 @@ class TestDropAndReceive:
         assert item.desktop_id.startswith("docking-generated-gimp-3-2-4-x86-64-")
         assert appimage.stat().st_mode & stat.S_IXUSR
         assert dialog.destroyed
-        handler._launcher.refresh_desktop_entries.assert_called_once_with()
+        handler._application_registry.refresh.assert_called_once_with()
 
     def test_item_from_uri_cancelled_appimage_permission_does_not_pin_file(
         self, monkeypatch, tmp_path
@@ -663,8 +777,8 @@ class TestDropAndReceive:
 
         assert item is None
         assert not (appimage.stat().st_mode & stat.S_IXUSR)
-        handler._launcher.resolve_file.assert_not_called()
-        handler._launcher.refresh_desktop_entries.assert_not_called()
+        handler._target_service.resolve_file.assert_not_called()
+        handler._application_registry.refresh.assert_not_called()
 
     def test_drag_data_received_pins_generated_launcher_for_executable(
         self, monkeypatch, tmp_path
@@ -681,7 +795,8 @@ class TestDropAndReceive:
             name="tool",
             icon_name="application-x-executable",
         )
-        resolved = SimpleNamespace(
+        resolved = _application(
+            generated.desktop_id,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
@@ -691,7 +806,9 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._launcher.resolve.return_value = resolved
+        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+            resolved if target == generated.desktop_id else None
+        )
         selection = MagicMock()
         selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]
         finish = MagicMock()
@@ -734,7 +851,8 @@ class TestDropAndReceive:
             name="tool",
             icon_name="application-x-executable",
         )
-        resolved = SimpleNamespace(
+        resolved = _application(
+            generated.desktop_id,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
@@ -744,7 +862,9 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._launcher.resolve.return_value = resolved
+        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+            resolved if target == generated.desktop_id else None
+        )
         handler._model.find_by_desktop_id.return_value = DockItem(generated.desktop_id)
         selection = MagicMock()
         selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]

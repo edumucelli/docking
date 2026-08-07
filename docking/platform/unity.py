@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -23,7 +24,11 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
+from docking.platform.applications import identity as application_identity
 from docking.platform.model import DockModel, LauncherEntryState
+
+if TYPE_CHECKING:
+    from docking.platform.applications.registry import ApplicationRegistry
 
 log = get_logger(name="unity")
 
@@ -34,7 +39,8 @@ DBUS_IFACE = "org.freedesktop.DBus"
 NAME_OWNER_CHANGED = "NameOwnerChanged"
 DBUS_OBJECT_PATH = "/org/freedesktop/DBus"
 PAYLOAD_SIGNATURE = "(sa{sv})"
-APP_URI_PREFIX = "application://"
+APP_URI_PREFIX = application_identity.APP_URI_PREFIX
+parse_application_uri = application_identity.parse_application_uri
 THROTTLE_FAST_COUNT = 3
 THROTTLE_WINDOW_MS = 32
 THROTTLE_WINDOW_US = THROTTLE_WINDOW_MS * 1000
@@ -76,22 +82,12 @@ def _as_int(value: object, *, default: int = 0) -> int:
 
 def _as_float(value: object, *, default: float = 0.0) -> float:
     unpacked = _unpack(value)
-    if isinstance(unpacked, (int, float)) and not isinstance(unpacked, bool):
+    if isinstance(unpacked, int | float) and not isinstance(unpacked, bool):
         return float(unpacked)
     try:
         return float(str(unpacked).strip())
     except (TypeError, ValueError):
         return default
-
-
-def parse_application_uri(app_uri: str) -> str | None:
-    """Return desktop_id from application:// URI, or None if invalid."""
-    if not app_uri.startswith(APP_URI_PREFIX):
-        return None
-    desktop_id = app_uri[len(APP_URI_PREFIX) :].strip()
-    if not desktop_id or "/" in desktop_id or not desktop_id.endswith(".desktop"):
-        return None
-    return desktop_id
 
 
 @dataclass
@@ -107,8 +103,14 @@ class _SenderEntry:
 class UnityLauncherListener:
     """Listen for Unity LauncherEntry updates and feed them into DockModel."""
 
-    def __init__(self, *, model: DockModel) -> None:
+    def __init__(
+        self,
+        *,
+        model: DockModel,
+        application_registry: ApplicationRegistry,
+    ) -> None:
         self._model = model
+        self._application_registry = application_registry
         self._connection: Gio.DBusConnection | None = None
         self._owner_id: int = 0
         self._update_signal_id: int = 0
@@ -206,11 +208,19 @@ class UnityLauncherListener:
         app_uri, props = unpacked
         if not isinstance(app_uri, str) or not isinstance(props, dict):
             return None
+        desktop_id = parse_application_uri(app_uri)
+        if desktop_id is not None:
+            application = self._application_registry.resolve(
+                desktop_id,
+                log_failures=False,
+            )
+            if application is not None:
+                desktop_id = application.desktop_id
         normalized_props = {str(key): value for key, value in props.items()}
         return LauncherEntryState(
             sender_name=sender_name,
             app_uri=app_uri,
-            desktop_id=parse_application_uri(app_uri),
+            desktop_id=desktop_id,
             badge_count=max(0, _as_int(normalized_props.get("count"), default=0)),
             badge_visible=_as_bool(
                 normalized_props.get("count-visible"),

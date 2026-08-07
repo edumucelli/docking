@@ -141,11 +141,11 @@ If these invariants hold, the rest of the dock can remain much simpler.
 
 from __future__ import annotations
 
-import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -165,12 +165,24 @@ from docking.core.items import (
     FILE_KIND,
     FOLDER_KIND,
     DockItem,
+    IconPixmapLike,
 )
 from docking.core.math import clamp
 from docking.log import get_logger, with_context
-from docking.platform import desktop_entries, icon_overrides
-from docking.platform.launcher import fallback_file_icon_name
-from docking.platform.running import RunningAppInfo
+from docking.platform import icon_overrides
+from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.projections import dock_metadata
+from docking.platform.applications.recents import (
+    RecentApplications,
+    RecentApplicationsPersistence,
+)
+from docking.platform.applications.running import RunningAppInfo
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
+from docking.platform.icons import fallback_file_icon_name
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
@@ -178,7 +190,9 @@ from gi.repository import GLib
 if TYPE_CHECKING:
     from docking.applets.base import Applet
     from docking.core.config import Config
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import FileTargetInfo, TargetService
 
 log = with_context(get_logger(name="model"))
 
@@ -231,18 +245,102 @@ def launcher_state_shows_effective_overlay(
     )
 
 
+class _RecentApplicationResolver:
+    """Adapt the legacy model resolver for isolated compatibility tests."""
+
+    def __init__(
+        self,
+        *,
+        resolve: Callable[..., ApplicationInfo | None],
+    ) -> None:
+        self._resolve = resolve
+
+    def resolve(
+        self,
+        desktop_id: str,
+        *,
+        log_failures: bool = True,
+    ) -> ApplicationInfo | None:
+        return self._resolve(desktop_id, log_failures=log_failures)
+
+
+def _legacy_application_info(value: object) -> ApplicationInfo | None:
+    """Canonicalize a DesktopInfo-like result from the legacy Launcher facade."""
+    desktop_id = getattr(value, "desktop_id", None)
+    if not isinstance(desktop_id, str) or not desktop_id:
+        return None
+
+    def text_field(name: str) -> str:
+        field = getattr(value, name, "")
+        return field if isinstance(field, str) else ""
+
+    name = text_field("name") or desktop_id
+    icon_name = text_field("icon_name")
+    wm_class = text_field("wm_class")
+    exec_line = text_field("exec_line")
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name=name,
+        declared_icon=icon_name,
+        wm_class=wm_class,
+        exec_line=exec_line,
+        origin=(
+            ApplicationOrigin.GENERATED
+            if desktop_id.startswith(desktop_entries.GENERATED_DESKTOP_PREFIX)
+            else ApplicationOrigin.INSTALLED
+        ),
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=None,
+        executable_path=desktop_entries.executable_path_from_exec_line(exec_line),
+        aliases=tuple(
+            desktop_entries.match_aliases(
+                desktop_id=desktop_id,
+                wm_class=wm_class,
+                exec_line=exec_line,
+            )
+        ),
+        visible=True,
+        has_gio_source=False,
+    )
+
+
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
     def __init__(
         self,
         config: Config,
-        launcher: Launcher,
-        applet_services: AppletServices,
+        application_services: object | None = None,
+        applet_services: AppletServices | None = None,
+        *,
+        application_registry: ApplicationRegistry | None = None,
+        icon_loader: IconLoader | None = None,
+        target_service: TargetService | None = None,
+        recent_applications: RecentApplications | None = None,
     ) -> None:
+        uses_legacy_application_services = (
+            application_registry is None and application_services is not None
+        )
+        if application_registry is None and application_services is not None:
+            application_registry = cast("ApplicationRegistry", application_services)
+        if icon_loader is None and application_services is not None:
+            icon_loader = cast("IconLoader", application_services)
+        if target_service is None and application_services is not None:
+            target_service = cast("TargetService", application_services)
+        if (
+            application_registry is None
+            or icon_loader is None
+            or target_service is None
+        ):
+            raise TypeError(
+                "application_registry, icon_loader, and target_service are required"
+            )
         self._config = config
-        self._launcher = launcher
-        self._applet_services = applet_services
+        self._application_registry = application_registry
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        self._uses_legacy_application_services = uses_legacy_application_services
+        self._applet_services = applet_services or AppletServices()
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
@@ -253,14 +351,84 @@ class DockModel:
         self._launcher_item_by_sender: dict[str, str] = {}
         self._status_notifier_entries: dict[str, StatusNotifierOverlayState] = {}
         self._recent_apps: list[DockItem] = []
-        self._recent_closed_at: dict[str, int] = {}
-        self._prev_running_ids: set[str] = set()
+        self._recent_item_overrides: dict[str, DockItem] = {}
+        self._recent_updates_suspended = 0
+        self._recent_sync_pending = False
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
-        self._rebuild_recent_apps()
+        if recent_applications is None:
+            resolver = _RecentApplicationResolver(resolve=self._resolve_application)
+            recent_applications = RecentApplications(
+                resolver,
+                RecentApplicationsPersistence(self._config),
+            )
+        self._recent_applications = recent_applications
+        self._recent_applications.load(pinned_ids=self._pinned_ids())
+        self._materialize_recent_apps()
+        self._unsubscribe_recent_applications: Callable[[], None] | None = (
+            self._recent_applications.subscribe(self._on_recent_applications_changed)
+        )
+
+    @property
+    def application_registry(self) -> ApplicationRegistry:
+        """Return the canonical registry borrowed by production composition."""
+        return self._application_registry
+
+    @property
+    def icon_loader(self) -> IconLoader:
+        """Return the canonical icon loader borrowed by production composition."""
+        return self._icon_loader
+
+    @property
+    def target_service(self) -> TargetService:
+        """Return the canonical target service borrowed by production composition."""
+        return self._target_service
+
+    @property
+    def recent_applications(self) -> RecentApplications:
+        """Return the shared recent-applications service."""
+        return self._recent_applications
+
+    def _resolve_application(
+        self,
+        desktop_id: str,
+        *,
+        log_failures: bool = True,
+    ) -> ApplicationInfo | None:
+        resolved: object | None = self._application_registry.resolve(
+            desktop_id,
+            log_failures=log_failures,
+        )
+        if resolved is None or isinstance(resolved, ApplicationInfo):
+            return resolved
+        if self._uses_legacy_application_services:
+            return _legacy_application_info(resolved)
+        return cast("ApplicationInfo", resolved)
+
+    def _load_application_icon(
+        self,
+        application: ApplicationInfo,
+        size: int,
+    ) -> IconPixmapLike | None:
+        return self._icon_loader.load_desktop_icon(info=application, size=size)
+
+    def _load_icon(self, icon_name: str, size: int) -> IconPixmapLike | None:
+        return self._icon_loader.load_icon(icon_name=icon_name, size=size)
+
+    def _load_icon_file(self, path: Path, size: int) -> IconPixmapLike | None:
+        return self._icon_loader.load_icon_file(path=path, size=size)
+
+    def _resolve_file(self, target: str, size: int) -> FileTargetInfo | None:
+        return self._target_service.resolve_file(target=target, size=size)
+
+    def _refresh_application_registry(self) -> None:
+        if self._uses_legacy_application_services:
+            self._application_registry.refresh_desktop_entries()
+            return
+        self._application_registry.refresh()
 
     def add_change_listener(self, callback: Callable[[], None]) -> None:
         """Register a callback fired whenever model-visible state changes.
@@ -297,147 +465,60 @@ class DockModel:
                 self.pinned_items.append(item)
 
     def rebuild_recent_apps(self) -> None:
-        """Clear and rebuild the recent-apps list from config (public entry point)."""
-        self._recent_apps.clear()
-        self._recent_closed_at.clear()
-        if self._config.show_recent_apps:
-            self._rebuild_recent_apps()
-        else:
-            self._config.recent_apps.clear()
-            self._config.save()
+        """Reload recent-app enabled state or announce policy changes."""
+        self._recent_applications.reload_policy(pinned_ids=self._pinned_ids())
+
+    def _pinned_ids(self) -> set[str]:
+        return {item.desktop_id for item in self.pinned_items}
+
+    def _materialize_recent_apps(self) -> None:
+        """Project service records into model-owned DockItems."""
+        existing = {item.desktop_id: item for item in self._recent_apps}
+        recent_apps: list[DockItem] = []
+        for record in self._recent_applications.snapshot():
+            item = self._recent_item_overrides.get(record.desktop_id)
+            should_set_last_closed = item is not None
+            if item is None:
+                item = existing.get(record.desktop_id)
+            if item is None:
+                item = self._make_app_item(
+                    desktop_id=record.desktop_id,
+                    is_pinned=False,
+                    running_info=None,
+                )
+                should_set_last_closed = True
+            item.is_pinned = False
+            item.is_running = False
+            item.is_active = False
+            item.instance_count = 0
+            item.is_recent = True
+            if should_set_last_closed:
+                item.last_closed = float(record.last_closed)
+            recent_apps.append(item)
+
+        retained = {id(item) for item in recent_apps}
+        for item in self._recent_apps:
+            if id(item) not in retained:
+                item.is_recent = False
+        self._recent_apps = recent_apps
+
+    def _on_recent_applications_changed(self) -> None:
+        if self._recent_updates_suspended:
+            self._recent_sync_pending = True
+            return
+        self._materialize_recent_apps()
         self.notify()
 
-    def _rebuild_recent_apps(self) -> None:
-        """Load recent apps from config, resolve, prune expired, and build items."""
-        self._recent_apps.clear()
-        self._recent_closed_at.clear()
-        if not self._config.show_recent_apps:
-            return
-        pinned_ids = {item.desktop_id for item in self.pinned_items}
-        cutoff = time.time() - (self._config.recent_apps_retention_days * 86400)
-        seen: set[str] = set()
-        for entry in self._config.recent_apps:
-            desktop_id = entry.get("desktop_id")
-            last_closed = entry.get("last_closed")
-            if not isinstance(desktop_id, str) or not desktop_id:
-                continue
-            if desktop_id in pinned_ids or desktop_id in seen:
-                continue
-            if isinstance(last_closed, (int, float)) and last_closed < cutoff:
-                continue
-            resolved = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
-            if resolved is None:
-                continue
-            icon_size = self._config.scaled_icon_size
-            icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
-            item = DockItem(
-                desktop_id=desktop_id,
-                kind=APP_KIND,
-                target=desktop_id,
-                name=resolved.name,
-                icon_name=resolved.icon_name,
-                wm_class=resolved.wm_class,
-                exec_line=resolved.exec_line,
-                is_pinned=False,
-                is_running=False,
-                is_recent=True,
-                last_closed=(
-                    float(last_closed)
-                    if isinstance(last_closed, (int, float))
-                    else time.time()
-                ),
-                icon=icon,
-            )
-            self._apply_icon_override(item=item)
-            self._recent_apps.append(item)
-            if isinstance(last_closed, (int, float)):
-                self._recent_closed_at[desktop_id] = int(last_closed)
-            seen.add(desktop_id)
-        self._prune_recent_apps()
-        self._sync_recent_apps_to_config()
-
-    def _record_app_closed(self, desktop_id: str) -> None:
-        """Record that an app's last window closed, for the recent-apps list."""
-        if not self._config.show_recent_apps:
-            return
-        # Never track applets or files/folders.
-        pinned_item = next(
-            (i for i in self.pinned_items if i.desktop_id == desktop_id), None
-        )
-        if pinned_item is not None and pinned_item.kind != APP_KIND:
-            return
-        # Pinned apps don't appear in recents.
-        if pinned_item is not None:
-            return
-        # Already tracked: update timestamp.
-        for item in self._recent_apps:
-            if item.desktop_id == desktop_id:
-                self._recent_apps.remove(item)
-                self._recent_apps.insert(0, item)
-                self._recent_closed_at[desktop_id] = int(time.time())
-                self._persist_recent_apps()
-                self._prune_recent_apps()
-                self.notify()
-                return
-        # New entry: resolve and add.
-        resolved = self._launcher.resolve(desktop_id=desktop_id, log_failures=False)
-        if resolved is None:
-            return
-        icon_size = self._config.scaled_icon_size
-        icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
-        item = DockItem(
-            desktop_id=desktop_id,
-            kind=APP_KIND,
-            target=desktop_id,
-            name=resolved.name,
-            icon_name=resolved.icon_name,
-            wm_class=resolved.wm_class,
-            exec_line=resolved.exec_line,
-            is_pinned=False,
-            is_running=False,
-            is_recent=True,
-            last_closed=time.time(),
-            icon=icon,
-        )
-        self._apply_icon_override(item=item)
-        self._recent_apps.insert(0, item)
-        self._recent_closed_at[desktop_id] = int(time.time())
-        self._persist_recent_apps()
-        self._prune_recent_apps()
-        self.notify()
-
-    def _prune_recent_apps(self) -> None:
-        """Enforce cap and retention period on recent apps."""
-        max_count = self._config.recent_apps_max
-        cutoff = time.time() - (self._config.recent_apps_retention_days * 86400)
-        kept: list[DockItem] = []
-        pruned: set[str] = set()
-        for item in self._recent_apps:
-            last_closed = self._recent_closed_at.get(item.desktop_id)
-            if last_closed is not None and last_closed < cutoff:
-                pruned.add(item.desktop_id)
-                continue
-            kept.append(item)
-        for desktop_id in pruned:
-            self._recent_closed_at.pop(desktop_id, None)
-        self._recent_apps = kept[:max_count]
-
-    def _sync_recent_apps_to_config(self) -> None:
-        """Write current _recent_apps order back to config (does not save)."""
-        self._config.recent_apps = [
-            {
-                "desktop_id": item.desktop_id,
-                "last_closed": self._recent_closed_at.get(
-                    item.desktop_id, int(time.time())
-                ),
-            }
-            for item in self._recent_apps
-        ]
-
-    def _persist_recent_apps(self) -> None:
-        """Sync recent apps to config and flush to disk."""
-        self._sync_recent_apps_to_config()
-        self._config.save()
+    @contextmanager
+    def _defer_recent_application_updates(self) -> Iterator[None]:
+        self._recent_updates_suspended += 1
+        try:
+            yield
+        finally:
+            self._recent_updates_suspended -= 1
+            if not self._recent_updates_suspended and self._recent_sync_pending:
+                self._recent_sync_pending = False
+                self._materialize_recent_apps()
 
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = self._config.scaled_icon_size
@@ -469,24 +550,26 @@ class DockModel:
             return None
 
         if entry.kind == APP_KIND:
-            info = self._launcher.resolve(desktop_id=entry.target)
-            if info is None:
+            application = self._resolve_application(entry.target)
+            if application is None:
                 return None
-            icon = self._launcher.load_desktop_icon(info=info, size=icon_size)
+            metadata = dock_metadata(application)
+            icon = self._load_application_icon(application, icon_size)
             item = DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
                 target=entry.target,
-                name=info.name,
-                icon_name=info.icon_name,
-                wm_class=info.wm_class,
-                exec_line=info.exec_line,
+                name=metadata.name,
+                icon_name=metadata.icon_name,
+                wm_class=metadata.wm_class,
+                exec_line=metadata.exec_line,
+                application_info=application,
                 is_pinned=True,
                 icon=icon,
             )
             return self._apply_icon_override(item=item)
 
-        info = self._launcher.resolve_file(target=entry.target, size=icon_size)
+        info = self._resolve_file(entry.target, icon_size)
         if info is None:
             icon_name = fallback_file_icon_name(is_dir=entry.kind == FOLDER_KIND)
             item = DockItem(
@@ -496,7 +579,7 @@ class DockModel:
                 name=entry.target,
                 icon_name=icon_name,
                 is_pinned=True,
-                icon=self._launcher.load_icon(icon_name=icon_name, size=icon_size),
+                icon=self._load_icon(icon_name, icon_size),
                 prefs_key=entry.target,
             )
             return self._apply_icon_override(item=item)
@@ -515,50 +598,39 @@ class DockModel:
     def _make_app_item(
         self, *, desktop_id: str, is_pinned: bool, running_info: RunningAppInfo | None
     ) -> DockItem:
-        resolved = self._launcher.resolve(
-            desktop_id=desktop_id,
+        runtime = running_info.runtime_app if running_info is not None else None
+        application = runtime or self._resolve_application(
+            desktop_id,
             log_failures=False,
         )
-        # A path-disambiguated process has no desktop file yet. Its structured
-        # runtime metadata supplies a useful name/icon and keeps the executable
-        # available for an eventual "Keep in Dock" promotion.
-        runtime = running_info.runtime_app if running_info is not None else None
         icon_size = self._config.scaled_icon_size
-        icon_name = (
-            resolved.icon_name
-            if resolved
-            else (
-                runtime.icon_name
-                if runtime is not None and runtime.icon_name
-                else "application-x-executable"
-            )
-        )
+        metadata = dock_metadata(application) if application is not None else None
         icon = (
-            self._launcher.load_desktop_icon(info=resolved, size=icon_size)
-            if resolved
-            else self._launcher.load_icon(icon_name=icon_name, size=icon_size)
+            self._load_application_icon(application, icon_size)
+            if application is not None
+            else self._load_icon("application-x-executable", icon_size)
+        )
+        runtime_executable = (
+            str(application.executable_path)
+            if application is not None
+            and application.origin is ApplicationOrigin.RUNTIME
+            and application.executable_path is not None
+            else ""
         )
         item = DockItem(
             desktop_id=desktop_id,
             kind=APP_KIND,
             target=desktop_id,
-            name=(
-                resolved.name
-                if resolved
-                else (runtime.name if runtime is not None else desktop_id)
+            name=metadata.name if metadata is not None else desktop_id,
+            icon_name=(
+                metadata.icon_name
+                if metadata is not None
+                else "application-x-executable"
             ),
-            icon_name=icon_name,
-            wm_class=(
-                resolved.wm_class
-                if resolved
-                else (runtime.wm_class if runtime is not None else "")
-            ),
-            exec_line=(
-                resolved.exec_line
-                if resolved
-                else (runtime.executable_path if runtime is not None else "")
-            ),
-            runtime_executable=(runtime.executable_path if runtime is not None else ""),
+            wm_class=metadata.wm_class if metadata is not None else "",
+            exec_line=metadata.exec_line if metadata is not None else "",
+            runtime_executable=runtime_executable,
+            application_info=application,
             is_pinned=is_pinned,
             is_running=running_info is not None,
             is_active=running_info.active if running_info is not None else False,
@@ -573,34 +645,39 @@ class DockModel:
         """Reload an item's default icon fields without replacing the item."""
         icon_size = self._config.scaled_icon_size
         if item.kind == APP_KIND:
-            resolved = self._launcher.resolve(
-                desktop_id=item.target or item.desktop_id,
-                log_failures=False,
-            )
-            if resolved is None:
-                item.icon_name = item.icon_name or "application-x-executable"
-                item.icon = self._launcher.load_icon(
-                    icon_name=item.icon_name,
-                    size=icon_size,
+            current_application = item.application_info
+            application = (
+                current_application
+                if current_application is not None
+                and current_application.origin is ApplicationOrigin.GENERATED
+                else (
+                    self._resolve_application(
+                        item.target or item.desktop_id,
+                        log_failures=False,
+                    )
+                    or current_application
                 )
+            )
+            if application is None:
+                item.icon_name = item.icon_name or "application-x-executable"
+                item.icon = self._load_icon(item.icon_name, icon_size)
                 return
-            item.name = resolved.name
-            item.icon_name = resolved.icon_name
-            item.wm_class = resolved.wm_class
-            item.exec_line = resolved.exec_line
-            item.icon = self._launcher.load_desktop_icon(info=resolved, size=icon_size)
+            metadata = dock_metadata(application)
+            item.application_info = application
+            item.name = metadata.name
+            item.icon_name = metadata.icon_name
+            item.wm_class = metadata.wm_class
+            item.exec_line = metadata.exec_line
+            item.icon = self._load_application_icon(application, icon_size)
             return
 
         if item.kind in {FILE_KIND, FOLDER_KIND}:
-            info = self._launcher.resolve_file(target=item.target, size=icon_size)
+            info = self._resolve_file(item.target, icon_size)
             if info is None:
                 item.icon_name = fallback_file_icon_name(
                     is_dir=item.kind == FOLDER_KIND,
                 )
-                item.icon = self._launcher.load_icon(
-                    icon_name=item.icon_name,
-                    size=icon_size,
-                )
+                item.icon = self._load_icon(item.icon_name, icon_size)
                 return
             item.target = info.target
             item.name = info.name
@@ -614,10 +691,7 @@ class DockModel:
         path = icon_overrides.custom_icon_path(config=self._config, item=item)
         if path is None:
             return item
-        icon = self._launcher.load_icon_file(
-            path=path,
-            size=self._config.scaled_icon_size,
-        )
+        icon = self._load_icon_file(path, self._config.scaled_icon_size)
         if icon is not None:
             item.icon = icon
             item.icon_name = path.name
@@ -722,11 +796,11 @@ class DockModel:
         ):
             item = self.find_by_desktop_id(desktop_id=state.desktop_id)
             if item is None:
-                resolved = self._launcher.resolve(
-                    desktop_id=state.desktop_id,
+                application = self._resolve_application(
+                    state.desktop_id,
                     log_failures=False,
                 )
-                if resolved is not None:
+                if application is not None:
                     item = self._make_app_item(
                         desktop_id=state.desktop_id,
                         is_pinned=False,
@@ -786,11 +860,11 @@ class DockModel:
             ):
                 item = existing_transient.get(desktop_id)
                 if item is None:
-                    resolved = self._launcher.resolve(
-                        desktop_id=desktop_id,
+                    application = self._resolve_application(
+                        desktop_id,
                         log_failures=False,
                     )
-                    if resolved is not None:
+                    if application is not None:
                         item = self._make_app_item(
                             desktop_id=desktop_id,
                             is_pinned=False,
@@ -1063,6 +1137,14 @@ class DockModel:
         for desktop_id, applet in list(self._applets.items()):
             self._stop_applet(desktop_id=desktop_id, applet=applet)
 
+    def close(self) -> None:
+        """Release model-owned subscriptions once runtime producers have stopped."""
+        unsubscribe = self._unsubscribe_recent_applications
+        if unsubscribe is None:
+            return
+        self._unsubscribe_recent_applications = None
+        unsubscribe()
+
     def _start_applet(self, *, desktop_id: str, applet: Applet) -> bool:
         """Start one applet without letting it break the dock lifecycle."""
         try:
@@ -1165,11 +1247,7 @@ class DockModel:
         if (
             not selected.is_absolute()
             or not selected.is_file()
-            or self._launcher.load_icon_file(
-                path=selected,
-                size=self._config.scaled_icon_size,
-            )
-            is None
+            or self._load_icon_file(selected, self._config.scaled_icon_size) is None
         ):
             return False
         icon_overrides.set_custom_icon(config=self._config, item=item, path=selected)
@@ -1205,54 +1283,34 @@ class DockModel:
         Args:
             running: Desktop ID to latest running-app aggregate.
         """
-        # Detect apps whose last window just closed and record them for the
-        # recent-apps section. Only consider APP_KIND IDs that were running in
-        # the previous scan and are no longer running now.
-        if self._config.show_recent_apps:
-            current_ids = set(running.keys())
-            closed_ids = self._prev_running_ids - current_ids
-            for closed_id in closed_ids:
-                # Only record if the item isn't a pinned non-app (applet, file, folder).
-                pinned = next(
-                    (i for i in self.pinned_items if i.desktop_id == closed_id), None
-                )
-                if pinned is not None and pinned.kind != APP_KIND:
-                    continue
-                self._record_app_closed(closed_id)
-            # Remove from recent list any apps that are now running (they appear in
-            # pinned or transient sections instead).
-            for running_id in current_ids:
-                recent = next(
-                    (i for i in self._recent_apps if i.desktop_id == running_id), None
-                )
-                if recent is not None:
-                    self._recent_apps.remove(recent)
-                    self._recent_closed_at.pop(running_id, None)
-                    self._sync_recent_apps_to_config()
+        with self._defer_recent_application_updates():
+            self._recent_applications.reconcile_running(
+                running.keys(),
+                pinned_ids=self._pinned_ids(),
+            )
 
-        # Keep the old transient objects available while rebuilding the list.
-        # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
-        # animation fields already attached to the DockItem.
-        existing_transient = {item.desktop_id: item for item in self._transient}
-        self._reset_pinned_running_state()
-        matched_ids = self._apply_running_to_pinned(running=running)
-        new_transient = self._build_running_transients(
-            running=running,
-            matched_ids=matched_ids,
-            existing_transient=existing_transient,
-        )
+            # Keep the old transient objects available while rebuilding the list.
+            # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
+            # animation fields already attached to the DockItem.
+            existing_transient = {item.desktop_id: item for item in self._transient}
+            self._reset_pinned_running_state()
+            matched_ids = self._apply_running_to_pinned(running=running)
+            new_transient = self._build_running_transients(
+                running=running,
+                matched_ids=matched_ids,
+                existing_transient=existing_transient,
+            )
 
-        items_by_desktop_id = {
-            item.desktop_id: item for item in self.pinned_items + new_transient
-        }
-        self._apply_launcher_entries(
-            items_by_desktop_id=items_by_desktop_id,
-            new_transient=new_transient,
-            existing_transient=existing_transient,
-        )
+            items_by_desktop_id = {
+                item.desktop_id: item for item in self.pinned_items + new_transient
+            }
+            self._apply_launcher_entries(
+                items_by_desktop_id=items_by_desktop_id,
+                new_transient=new_transient,
+                existing_transient=existing_transient,
+            )
 
-        self._transient = new_transient
-        self._prev_running_ids = set(running.keys())
+            self._transient = new_transient
         self.notify()
 
     def _reset_pinned_running_state(self) -> None:
@@ -1317,6 +1375,31 @@ class DockModel:
 
     def _apply_running_state(self, *, item: DockItem, info: RunningAppInfo) -> None:
         """Apply one running aggregate to one dock item."""
+        runtime = info.runtime_app
+        if (
+            runtime is not None
+            and item.application_info != runtime
+            and (
+                item.application_info is None
+                or item.application_info.origin is not ApplicationOrigin.GENERATED
+            )
+        ):
+            metadata = dock_metadata(runtime)
+            item.application_info = runtime
+            item.name = metadata.name
+            item.icon_name = metadata.icon_name
+            item.wm_class = metadata.wm_class
+            item.exec_line = metadata.exec_line
+            item.runtime_executable = (
+                str(runtime.executable_path)
+                if runtime.executable_path is not None
+                else ""
+            )
+            item.icon = self._load_application_icon(
+                runtime,
+                self._config.scaled_icon_size,
+            )
+            self._apply_icon_override(item=item)
         item.is_running = True
         item.is_active = info.active
         item.instance_count = info.count
@@ -1396,11 +1479,11 @@ class DockModel:
             # Only create launcher-only transients for desktop files we can
             # resolve. Otherwise a stale LauncherEntry sender could create a
             # generic, unlaunchable item that has no real app identity.
-            resolved = self._launcher.resolve(
-                desktop_id=state.desktop_id,
+            application = self._resolve_application(
+                state.desktop_id,
                 log_failures=False,
             )
-            if resolved is None:
+            if application is None:
                 return None
             item = self._make_app_item(
                 desktop_id=state.desktop_id,
@@ -1424,18 +1507,23 @@ class DockModel:
             item = next(
                 (r for r in self._recent_apps if r.desktop_id == desktop_id), None
             )
-            if item is not None:
-                self._recent_apps.remove(item)
-                self._sync_recent_apps_to_config()
         if item:
             if not self._prepare_runtime_item_for_pinning(item):
                 return
-            if item in self._transient:
-                self._transient.remove(item)
-            item.is_pinned = True
-            self.pinned_items.append(item)
-            self._persist_pinned_changes()
+            with self._defer_recent_application_updates():
+                self._promote_to_pinned(item)
+                self._persist_pinned_changes()
             self.notify()
+
+    def _promote_to_pinned(self, item: DockItem) -> None:
+        """Move an app item into pinned ownership without persisting order."""
+        if item in self._transient:
+            self._transient.remove(item)
+        self._recent_applications.discard(item.desktop_id)
+        item.is_recent = False
+        item.is_pinned = True
+        if item not in self.pinned_items:
+            self.pinned_items.append(item)
 
     def _prepare_runtime_item_for_pinning(self, item: DockItem) -> bool:
         """Persist a safe launcher before a runtime-only item becomes pinned."""
@@ -1448,26 +1536,27 @@ class DockModel:
             item.runtime_executable,
             startup_wm_class=item.wm_class,
         )
-        if generated is None:
+        if generated is None or generated.desktop_id != item.desktop_id:
             return False
-        self._launcher.refresh_desktop_entries()
-        resolved = self._launcher.resolve(
+        self._refresh_application_registry()
+        application = self._resolve_application(
             generated.desktop_id,
             log_failures=False,
         )
-        if resolved is None:
+        if application is None:
             return False
-        item.desktop_id = generated.desktop_id
+        metadata = dock_metadata(application)
         item.target = generated.desktop_id
         item.prefs_key = generated.desktop_id
-        item.name = resolved.name
-        item.icon_name = resolved.icon_name
-        item.wm_class = resolved.wm_class
-        item.exec_line = resolved.exec_line
+        item.application_info = application
+        item.name = metadata.name
+        item.icon_name = metadata.icon_name
+        item.wm_class = metadata.wm_class
+        item.exec_line = metadata.exec_line
         item.runtime_executable = ""
-        item.icon = self._launcher.load_desktop_icon(
-            info=resolved,
-            size=self._config.scaled_icon_size,
+        item.icon = self._load_application_icon(
+            application,
+            self._config.scaled_icon_size,
         )
         return True
 
@@ -1479,15 +1568,17 @@ class DockModel:
                 return False
             self.pin_item(desktop_id)
             return existing.is_pinned
-        if self._launcher.resolve(desktop_id=desktop_id, log_failures=False) is None:
+        if self._resolve_application(desktop_id, log_failures=False) is None:
             return False
         item = self._make_app_item(
             desktop_id=desktop_id,
             is_pinned=True,
             running_info=None,
         )
-        self.pinned_items.append(item)
-        self._persist_pinned_changes()
+        with self._defer_recent_application_updates():
+            self._recent_applications.discard(desktop_id)
+            self.pinned_items.append(item)
+            self._persist_pinned_changes()
         self.notify()
         return True
 
@@ -1497,11 +1588,14 @@ class DockModel:
             return False
         if self.find_by_desktop_id(item.desktop_id) is not None:
             return False
-        item.is_pinned = True
-        self._apply_icon_override(item=item)
-        insert_at = max(0, min(index, len(self.pinned_items)))
-        self.pinned_items.insert(insert_at, item)
-        self._persist_pinned_changes()
+        with self._defer_recent_application_updates():
+            self._recent_applications.discard(item.desktop_id)
+            item.is_recent = False
+            item.is_pinned = True
+            self._apply_icon_override(item=item)
+            insert_at = max(0, min(index, len(self.pinned_items)))
+            self.pinned_items.insert(insert_at, item)
+            self._persist_pinned_changes()
         self.notify()
         return True
 
@@ -1517,27 +1611,29 @@ class DockModel:
         item = next((p for p in self.pinned_items if p.desktop_id == desktop_id), None)
         if item:
             visible_index = self.visible_items().index(item)
-            self.pinned_items.remove(item)
-            item.is_pinned = False
-            if item.kind == APP_KIND and (
-                item.is_running or self._is_launcher_only_transient(item)
-            ):
-                item.removal_index = -1
-                self._transient.append(item)
-            elif item.kind == APP_KIND and self._config.show_recent_apps:
-                # Transition unpinned apps into the recent section so they
-                # remain discoverable without being permanently pinned.
-                item.is_recent = True
-                item.is_pinned = False
-                item.last_closed = time.time()
-                self._recent_apps.insert(0, item)
-                self._recent_closed_at[desktop_id] = int(time.time())
-                self._persist_recent_apps()
-                self._prune_recent_apps()
-            else:
-                item.removal_index = visible_index
-                self._animating_out.append(item)
-            self._persist_pinned_changes()
+            self._recent_item_overrides[desktop_id] = item
+            try:
+                with self._defer_recent_application_updates():
+                    self.pinned_items.remove(item)
+                    item.is_pinned = False
+                    item.is_recent = False
+                    if item.kind == APP_KIND and (
+                        item.is_running or self._is_launcher_only_transient(item)
+                    ):
+                        item.removal_index = -1
+                        self._transient.append(item)
+                    elif (
+                        item.kind == APP_KIND
+                        and self._config.show_recent_apps
+                        and self._recent_applications.record_unpinned(desktop_id)
+                    ):
+                        pass
+                    else:
+                        item.removal_index = visible_index
+                        self._animating_out.append(item)
+                    self._persist_pinned_changes()
+            finally:
+                self._recent_item_overrides.pop(desktop_id, None)
             self.notify()
 
     def reorder_visible(self, from_index: int, to_index: int) -> None:
@@ -1558,33 +1654,27 @@ class DockModel:
             ):
                 return
 
-        # Auto-pin transient items so they can be reordered among pinned items
-        if not item.is_pinned:
-            if item in self._transient:
-                self._transient.remove(item)
-            item.is_pinned = True
-            self.pinned_items.append(item)
+        with self._defer_recent_application_updates():
+            # Auto-pin either endpoint through the same transition as explicit pinning.
+            if not item.is_pinned:
+                self._promote_to_pinned(item)
 
-        # Map visible index -> pinned index for the source item
-        pinned_from = self.pinned_items.index(item)
+            # Map visible index -> pinned index for the source item
+            pinned_from = self.pinned_items.index(item)
 
-        # Map visible target index -> pinned index (auto-pin target if transient)
-        if not target_item.is_pinned:
-            if target_item in self._transient:
-                self._transient.remove(target_item)
-            target_item.is_pinned = True
-            self.pinned_items.append(target_item)
+            if not target_item.is_pinned:
+                self._promote_to_pinned(target_item)
 
-        if target_item in self.pinned_items:
-            pinned_to = self.pinned_items.index(target_item)
-        else:
-            pinned_to = len(self.pinned_items) - 1
+            if target_item in self.pinned_items:
+                pinned_to = self.pinned_items.index(target_item)
+            else:
+                pinned_to = len(self.pinned_items) - 1
 
-        if pinned_from != pinned_to:
-            self.pinned_items.pop(pinned_from)
-            self.pinned_items.insert(pinned_to, item)
+            if pinned_from != pinned_to:
+                self.pinned_items.pop(pinned_from)
+                self.pinned_items.insert(pinned_to, item)
 
-        self._persist_pinned_changes()
+            self._persist_pinned_changes()
         self.notify()
 
     def sync_pinned_to_config(self) -> None:

@@ -16,6 +16,7 @@ from docking.platform.backends.wayland.treeland import (
     TreelandWindowManagementAdapter,
 )
 from docking.platform.backends.wayland.treeland_session import TreelandSessionBackend
+from tests.platform.application_fakes import identity_services
 
 
 def _layer_shell() -> SimpleNamespace:
@@ -56,7 +57,7 @@ def test_treeland_session_decorates_generic_wayland_services():
     backend = TreelandSessionBackend(
         layer_shell=_layer_shell(),
         model=MagicMock(),
-        launcher=MagicMock(),
+        **identity_services(),
         protocol_runtime=_runtime(),
     )
 

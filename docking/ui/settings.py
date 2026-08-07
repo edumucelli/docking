@@ -89,6 +89,7 @@ from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.recents import RecentApplications
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
@@ -242,15 +243,19 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
+        recent_applications: RecentApplications | None = None,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._recent_applications = recent_applications
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
-        self._actions.add_search_shortcut_status_listener(
-            self._update_search_shortcut_status
+        self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
+            self._actions.add_search_shortcut_status_listener(
+                self._update_search_shortcut_status
+            )
         )
 
         self._hide_mode_combo: Any = None
@@ -310,6 +315,19 @@ class SettingsWindowController:
         self._rebuild_applet_tab()
         self._window.show_all()
         self._window.present()
+
+    def close(self) -> None:
+        """Release the status subscription and destroy the preferences window."""
+        unsubscribe = self._unsubscribe_search_shortcut_status
+        self._unsubscribe_search_shortcut_status = None
+        window = self._window
+        self._window = None
+        try:
+            if unsubscribe is not None:
+                unsubscribe()
+        finally:
+            if window is not None:
+                window.destroy()
 
     def _build_window(self) -> Gtk.Window:
         window = Gtk.Window(
@@ -1323,12 +1341,12 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_apps_max",
                 widget=self._recent_apps_max_spin,
-                on_change=self._actions.queue_draw,
+                on_change=self._after_recent_apps_policy_changed,
             ),
             self._register_int_binding(
                 config_attr="recent_apps_retention_days",
                 widget=self._recent_apps_retention_spin,
-                on_change=self._actions.queue_draw,
+                on_change=self._after_recent_apps_policy_changed,
             ),
             # Recent Documents
             self._register_switch_binding(
@@ -1685,11 +1703,31 @@ class SettingsWindowController:
 
     def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
-        if not self._config.show_recent_apps:
-            self._config.recent_apps.clear()
-            self._config.save()
+        if self._recent_applications is not None:
+            self._recent_applications.reload_policy(
+                pinned_ids=self._recent_pinned_ids()
+            )
+        else:
+            # Compatibility path for isolated settings tests and embedders.
+            if not self._config.show_recent_apps:
+                self._config.recent_apps.clear()
+                self._config.save()
+            rebuild = getattr(self._model, "rebuild_recent_apps", None)
+            if callable(rebuild):
+                rebuild()
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
+
+    def _after_recent_apps_policy_changed(self) -> None:
+        """Notify the service without adding eager pruning or durability."""
+        if self._recent_applications is not None:
+            self._recent_applications.reload_policy(
+                pinned_ids=self._recent_pinned_ids()
+            )
+        self._actions.queue_draw()
+
+    def _recent_pinned_ids(self) -> set[str]:
+        return {item.desktop_id for item in self._model.pinned_items}
 
     def _after_hide_mode_changed(self) -> None:
         self._actions.on_hide_mode_changed()

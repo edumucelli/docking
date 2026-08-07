@@ -147,6 +147,7 @@ import json
 import os
 import tempfile
 import threading
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -342,12 +343,33 @@ class HideMode(str, Enum):
 DEFAULT_HIDE_MODE = HideMode.NONE.value
 
 
-def _build_initial_pinned() -> list[PinnedEntry]:
+def _desktop_id_never_exists(_desktop_id: str) -> bool:
+    return False
+
+
+def _no_default_desktop_id(_content_type: str) -> str | None:
+    return None
+
+
+def build_initial_pinned(
+    *,
+    desktop_id_exists: Callable[[str], bool] = _desktop_id_never_exists,
+    default_desktop_id_for: Callable[[str], str | None] = _no_default_desktop_id,
+) -> list[PinnedEntry]:
+    """Build first-run pins using only caller-provided application lookups.
+
+    The pure defaults intentionally seed applets only. The process composition
+    root injects desktop-aware callbacks after its application registry has
+    completed an initial refresh.
+    """
     applications_entry = PinnedEntry(
         kind=APPLET_KIND,
         target=applet_desktop_id(applet_id=STARTER_APPLET_IDS[0]),
     )
-    launcher_entries = _build_initial_launcher_entries()
+    launcher_entries = _build_initial_launcher_entries(
+        desktop_id_exists=desktop_id_exists,
+        default_desktop_id_for=default_desktop_id_for,
+    )
     applet_entries = [
         PinnedEntry(kind=APPLET_KIND, target=applet_desktop_id(applet_id=applet_id))
         for applet_id in STARTER_APPLET_IDS[1:]
@@ -355,7 +377,11 @@ def _build_initial_pinned() -> list[PinnedEntry]:
     return [applications_entry, *launcher_entries, *applet_entries]
 
 
-def _build_initial_launcher_entries() -> list[PinnedEntry]:
+def _build_initial_launcher_entries(
+    *,
+    desktop_id_exists: Callable[[str], bool],
+    default_desktop_id_for: Callable[[str], str | None],
+) -> list[PinnedEntry]:
     entries: list[PinnedEntry] = []
     seen_targets: set[str] = set()
     slots: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -371,6 +397,8 @@ def _build_initial_launcher_entries() -> list[PinnedEntry]:
         desktop_id = _resolve_initial_desktop_id(
             candidates=candidates,
             fallback_content_types=fallback_content_types,
+            desktop_id_exists=desktop_id_exists,
+            default_desktop_id_for=default_desktop_id_for,
         )
         if desktop_id is None or desktop_id in seen_targets:
             continue
@@ -383,42 +411,17 @@ def _resolve_initial_desktop_id(
     *,
     candidates: tuple[str, ...],
     fallback_content_types: tuple[str, ...],
+    desktop_id_exists: Callable[[str], bool],
+    default_desktop_id_for: Callable[[str], str | None],
 ) -> str | None:
     for desktop_id in candidates:
-        if _desktop_id_exists(desktop_id):
+        if desktop_id_exists(desktop_id):
             return desktop_id
     for content_type in fallback_content_types:
-        desktop_id = _default_desktop_id_for(content_type)
-        if desktop_id and _desktop_id_exists(desktop_id):
+        desktop_id = default_desktop_id_for(content_type)
+        if desktop_id and desktop_id_exists(desktop_id):
             return desktop_id
     return None
-
-
-def _desktop_id_exists(desktop_id: str) -> bool:
-    from docking.platform.launcher import Launcher
-
-    return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
-
-
-def _default_desktop_id_for(content_type: str) -> str | None:
-    import gi
-
-    gi.require_version("Gio", "2.0")
-    from gi.repository import Gio, GLib
-
-    try:
-        app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-    except GLib.Error as exc:
-        logger.warning(
-            "Failed to resolve default app for %s while seeding first-run pins: %s",
-            content_type,
-            exc,
-        )
-        return None
-    if app_info is None:
-        return None
-    desktop_id = app_info.get_id()
-    return desktop_id if isinstance(desktop_id, str) and desktop_id else None
 
 
 def _normalize_hide_mode(value: object) -> str:
@@ -748,7 +751,7 @@ def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
         last_closed = entry.get("last_closed")
         if not isinstance(desktop_id, str) or not desktop_id:
             continue
-        if not isinstance(last_closed, (int, float)):
+        if not isinstance(last_closed, int | float):
             continue
         result.append({"desktop_id": desktop_id, "last_closed": int(last_closed)})
     return result
@@ -1046,11 +1049,21 @@ class Config:
         )
 
     @classmethod
-    def load(cls, path: Path | str | None = None) -> Config:
+    def load(
+        cls,
+        path: Path | str | None = None,
+        *,
+        initial_pinned_factory: Callable[[], Iterable[PinnedEntry]] | None = None,
+    ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
         if not path.exists():
-            config = cls(pinned=_build_initial_pinned())
+            factory = (
+                build_initial_pinned
+                if initial_pinned_factory is None
+                else initial_pinned_factory
+            )
+            config = cls(pinned=list(factory()))
             config._path = path
             config.save(path=path)
             return config

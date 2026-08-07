@@ -19,12 +19,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from os.path import normpath
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from urllib.parse import unquote, urlparse
 
 from docking.applets.devices.unix_mounts import NativeNetworkMount
 from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
+
+if TYPE_CHECKING:
+    from gi.repository import Gio
 
 
 class RootLike(Protocol):
@@ -35,7 +38,7 @@ class RootLike(Protocol):
 class MountLike(Protocol):
     def get_name(self) -> str | None: ...
     def get_root(self) -> RootLike: ...
-    def get_icon(self) -> object: ...
+    def get_icon(self) -> Gio.Icon: ...
     def get_uuid(self) -> str | None: ...
 
 
@@ -51,7 +54,7 @@ class MountedDevice:
     name: str
     uri: str
     mount_path: str
-    icon: object | None
+    icon: Gio.Icon | None
     is_network: bool = False
 
 
@@ -155,7 +158,7 @@ def _mount_name(*, mount: MountLike, uri: str) -> str:
     return path_name or parsed.hostname or _("Mounted Device")
 
 
-def _mount_icon(mount: MountLike) -> object | None:
+def _mount_icon(mount: MountLike) -> Gio.Icon | None:
     try:
         return mount.get_icon()
     except Exception:

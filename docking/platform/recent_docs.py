@@ -26,7 +26,6 @@ user actually used.  ``has_application()`` records the ground truth.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import gi
 
@@ -34,10 +33,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.log import get_logger
-from docking.platform import desktop_entries
-
-if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationInfo
 
 log = get_logger(name="recent_docs")
 
@@ -53,33 +50,37 @@ class RecentDoc:
 
 
 def recent_docs_for_app(
-    desktop_id: str,
-    launcher: Launcher,
+    application: ApplicationInfo | str | None = None,
+    launcher: object | None = None,
     limit: int = 10,
+    *,
+    registry: ApplicationRegistry | None = None,
+    desktop_id: str = "",
 ) -> list[RecentDoc]:
-    """Return recent documents associated with *desktop_id*, most-recent first.
+    """Return recent documents associated with an app, most-recent first.
 
     Only returns files where ``has_application()`` confirms the app actually
     opened them.  No MIME-type fallback - that produces identical noise across
     all apps sharing the same broad type registrations.
 
     Args:
-        desktop_id: The app's desktop-file ID (e.g. ``firefox.desktop``).
-        launcher: Resolver for desktop metadata and display names.
+        application: Canonical application metadata, or a legacy desktop ID.
+        launcher: Deprecated launcher position/keyword, ignored. An integer in
+            this position retains the canonical second-positional limit shape.
         limit: Maximum number of documents to return (per-app cap).
+        registry: Registry used to resolve a supplied desktop ID without Gio.
+        desktop_id: Compatibility keyword for the former first argument.
     """
-    if not desktop_id:
-        return []
-
-    resolved = desktop_entries.resolve_app_info(
-        desktop_id,
-        action="recent_docs_for_app",
-        log_failures=False,
+    effective_limit = (
+        launcher
+        if isinstance(launcher, int) and not isinstance(launcher, bool)
+        else limit
     )
-    if resolved is None:
-        return []
 
-    display_name = resolved.app_info.get_display_name()
+    selected: ApplicationInfo | str | None = application or desktop_id
+    display_name = _application_display_name(selected, registry=registry)
+    if not display_name:
+        return []
 
     rm = Gtk.RecentManager.get_default()
     all_items = rm.get_items()
@@ -102,10 +103,36 @@ def recent_docs_for_app(
             continue
 
         docs.append(_doc_from_item(item, mime))
-        if len(docs) >= limit:
+        if len(docs) >= effective_limit:
             break
 
     return docs
+
+
+def _application_display_name(
+    application: ApplicationInfo | str | None,
+    *,
+    registry: ApplicationRegistry | None,
+) -> str:
+    if isinstance(application, ApplicationInfo):
+        return application.name
+    desktop_id = str(application or "").strip()
+    if not desktop_id:
+        return ""
+    # Keep the public desktop-ID form working for legacy callers. New
+    # composition passes canonical metadata (or a registry) so it cannot drift
+    # to a second Gio generation between result creation and preview/refine.
+    resolver = registry
+    if resolver is None:
+        resolver = ApplicationRegistry()
+        resolver.refresh()
+    resolved = resolver.resolve(
+        desktop_id,
+        log_failures=False,
+    )
+    if resolved is None:
+        return ""
+    return resolved.name
 
 
 def _doc_from_item(item, mime: str) -> RecentDoc:

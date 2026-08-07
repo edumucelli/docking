@@ -5,7 +5,44 @@ from __future__ import annotations
 import stat
 from types import SimpleNamespace
 
-from docking.platform import desktop_entries
+from docking.platform.applications import entries as desktop_entries
+
+
+def test_canonical_exports_cover_public_and_tested_helpers():
+    expected = {
+        "DesktopAction",
+        "DesktopAppListing",
+        "DesktopInfo",
+        "GeneratedDesktopEntry",
+        "ResolvedAppInfo",
+        "ResolvedDesktopLaunch",
+        "_generated_desktop_entry_content",
+        "_refresh_desktop_database",
+        "all_desktop_app_listings",
+        "create_desktop_entry_for_executable",
+        "desktop_dirs",
+        "desktop_info_from_file",
+        "desktop_listing_from_file",
+        "desktop_match_aliases",
+        "generated_desktop_id_for_path",
+        "load_desktop_key_file",
+        "match_aliases",
+        "resolve_app_info",
+        "resolve_desktop_launch",
+    }
+
+    assert expected <= set(desktop_entries.__all__)
+    assert len(desktop_entries.__all__) == len(set(desktop_entries.__all__))
+
+
+def test_legacy_module_explicitly_reexports_canonical_objects():
+    from docking.platform import desktop_entries as compatibility
+
+    assert compatibility.DesktopInfo is desktop_entries.DesktopInfo
+    assert (
+        compatibility.create_desktop_entry_for_executable
+        is desktop_entries.create_desktop_entry_for_executable
+    )
 
 
 def _make_executable(path) -> None:
@@ -30,6 +67,119 @@ class TestExecutablePath:
             desktop_entries.executable_path_from_exec_line(str(tmp_path / "missing"))
             is None
         )
+
+
+class TestDesktopEntryProjections:
+    def test_direct_resolution_and_visible_listing_apply_distinct_visibility_rules(
+        self, tmp_path, monkeypatch
+    ):
+        apps_dir = tmp_path / "applications"
+        apps_dir.mkdir()
+        entries = {
+            "visible.desktop": "",
+            "no-display.desktop": "NoDisplay=true\n",
+            "hidden.desktop": "Hidden=true\n",
+        }
+        for desktop_id, visibility in entries.items():
+            (apps_dir / desktop_id).write_text(
+                "[Desktop Entry]\n"
+                "Type=Application\n"
+                f"Name={desktop_id}\n"
+                "Exec=example\n"
+                f"{visibility}",
+                encoding="utf-8",
+            )
+
+        visible = desktop_entries.desktop_info_from_file(
+            desktop_id="visible.desktop",
+            path=apps_dir / "visible.desktop",
+        )
+        no_display = desktop_entries.desktop_info_from_file(
+            desktop_id="no-display.desktop",
+            path=apps_dir / "no-display.desktop",
+        )
+        hidden = desktop_entries.desktop_info_from_file(
+            desktop_id="hidden.desktop",
+            path=apps_dir / "hidden.desktop",
+        )
+        monkeypatch.setattr(desktop_entries.Gio.AppInfo, "get_all", list)
+        monkeypatch.setattr(
+            desktop_entries.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: None,
+        )
+        monkeypatch.setattr(desktop_entries, "desktop_dirs", lambda: [apps_dir])
+
+        listings = desktop_entries.all_desktop_app_listings()
+
+        assert visible is not None
+        assert no_display is not None
+        assert hidden is None
+        assert [listing.desktop_id for listing in listings] == ["visible.desktop"]
+
+    def test_missing_icon_falls_back_only_for_desktop_info(self, tmp_path):
+        desktop_file = tmp_path / "org.example.NoIcon.desktop"
+        desktop_file.write_text(
+            "[Desktop Entry]\nType=Application\nName=No Icon\nExec=no-icon\n",
+            encoding="utf-8",
+        )
+
+        info = desktop_entries.desktop_info_from_file(
+            desktop_id=desktop_file.name,
+            path=desktop_file,
+        )
+        listing = desktop_entries.desktop_listing_from_file(
+            desktop_id=desktop_file.name,
+            path=desktop_file,
+        )
+
+        assert info is not None
+        assert info.icon_name == desktop_entries.FALLBACK_ICON
+        assert listing is not None
+        assert listing.icon_name == ""
+
+    def test_visible_listing_keeps_first_source_for_duplicate_desktop_id(
+        self, tmp_path, monkeypatch
+    ):
+        first_apps = tmp_path / "first" / "applications"
+        second_apps = tmp_path / "second" / "applications"
+        first_apps.mkdir(parents=True)
+        second_apps.mkdir(parents=True)
+        desktop_id = "org.example.Duplicate.desktop"
+        (first_apps / desktop_id).write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=First Source\n"
+            "Exec=first-source\n"
+            "Icon=first-icon\n",
+            encoding="utf-8",
+        )
+        (second_apps / desktop_id).write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=Second Source\n"
+            "Exec=second-source\n"
+            "Icon=second-icon\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(desktop_entries.Gio.AppInfo, "get_all", list)
+        monkeypatch.setattr(
+            desktop_entries.Gio.DesktopAppInfo,
+            "new_from_filename",
+            lambda _path: None,
+        )
+        monkeypatch.setattr(
+            desktop_entries,
+            "desktop_dirs",
+            lambda: [first_apps, second_apps],
+        )
+
+        listings = desktop_entries.all_desktop_app_listings()
+
+        assert len(listings) == 1
+        assert listings[0].desktop_id == desktop_id
+        assert listings[0].name == "First Source"
+        assert listings[0].icon_name == "first-icon"
 
 
 class TestWineDesktopAliases:
@@ -79,6 +229,11 @@ class TestWineDesktopAliases:
             "wine-program",
             "tool",
         ]
+        assert desktop_entries.match_aliases(
+            info.desktop_id,
+            info.wm_class,
+            info.exec_line,
+        ) == desktop_entries.desktop_match_aliases(info)
 
     def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
         desktop_file = tmp_path / "wine-program.desktop"

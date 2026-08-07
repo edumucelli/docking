@@ -6,7 +6,7 @@ import struct
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
 from docking.platform.backends.base import ActionResult, DisplayServer
 from docking.platform.backends.wayland.toplevels import (
     STATE_ACTIVATED,
@@ -14,29 +14,21 @@ from docking.platform.backends.wayland.toplevels import (
     STATE_MINIMIZED,
     WaylandForeignToplevelWindowService,
 )
+from tests.platform.application_fakes import application, identity_services
 
 
 def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
-    return SimpleNamespace(desktop_id=desktop_id, wm_class=wm_class)
+    return SimpleNamespace(desktop_id=desktop_id, kind="app", wm_class=wm_class)
 
 
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "org.gnome.Nautilus.desktop": SimpleNamespace(
-            desktop_id="org.gnome.Nautilus.desktop"
-        ),
-        "firefox.desktop": SimpleNamespace(desktop_id="firefox.desktop"),
-    }
-    aliases = {
-        "firefox": SimpleNamespace(desktop_id="firefox.desktop"),
-        "nautilus": SimpleNamespace(desktop_id="org.gnome.Nautilus.desktop"),
-    }
-
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(
-            side_effect=lambda wm_class: aliases.get(wm_class.lower())
-        ),
+def _matcher() -> AppIdMatcher:
+    services = identity_services(
+        application("firefox.desktop", wm_class="Firefox"),
+        application("org.gnome.Nautilus.desktop", wm_class="Nautilus"),
+    )
+    return AppIdMatcher(
+        registry=services["application_registry"],
+        process_identity_service=services["process_identity_service"],
     )
 
 
@@ -58,17 +50,14 @@ def _protocol() -> SimpleNamespace:
 
 
 def test_wayland_app_id_matcher_prefers_visible_items():
-    launcher = _launcher()
-    matcher = AppIdMatcher(launcher=launcher)
+    matcher = _matcher()
     matcher.sync_visible_items([_item("org.gnome.Nautilus.desktop")])
 
     assert matcher.match("org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
-    launcher.resolve.assert_not_called()
 
 
-def test_wayland_app_id_matcher_falls_back_to_launcher_aliases():
-    launcher = _launcher()
-    matcher = AppIdMatcher(launcher=launcher)
+def test_wayland_app_id_matcher_falls_back_to_registry_aliases():
+    matcher = _matcher()
     matcher.sync_visible_items([])
 
     assert matcher.match("firefox") == "firefox.desktop"
@@ -76,8 +65,7 @@ def test_wayland_app_id_matcher_falls_back_to_launcher_aliases():
 
 
 def test_wayland_app_id_matcher_handles_snap_container_app_ids():
-    launcher = _launcher()
-    matcher = AppIdMatcher(launcher=launcher)
+    matcher = _matcher()
     matcher.sync_visible_items([])
 
     assert matcher.match("firefox_firefox.desktop") == "firefox.desktop"
@@ -89,7 +77,7 @@ def test_foreign_toplevel_service_publishes_running_state_and_snapshots():
     protocol = _protocol()
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=protocol,
     )
     handle = object()
@@ -129,7 +117,7 @@ def test_foreign_toplevel_service_marks_snapshots_previewable_when_matched():
     )
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=_protocol(),
         preview_handles=preview_handles,
     )
@@ -156,7 +144,7 @@ def test_foreign_toplevel_service_can_mark_snapshots_previewable_without_tracker
     model = _model(_item("firefox.desktop"))
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=_protocol(),
         can_preview=True,
     )
@@ -174,7 +162,7 @@ def test_foreign_toplevel_service_actions_call_protocol_methods():
     protocol = _protocol()
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=protocol,
     )
     handle = object()
@@ -202,7 +190,7 @@ def test_foreign_toplevel_service_respects_protocol_action_support():
     )
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=protocol,
     )
     handle = object()
@@ -221,7 +209,7 @@ def test_foreign_toplevel_service_decodes_protocol_state_bytes():
     model = _model(_item("firefox.desktop"))
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=_protocol(),
     )
     handle = object()
@@ -247,7 +235,7 @@ def test_foreign_toplevel_service_removes_closed_windows():
     model = _model(_item("firefox.desktop"))
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         protocol=_protocol(),
     )
     handle = object()
@@ -264,7 +252,7 @@ def test_foreign_toplevel_service_removes_closed_windows():
 def test_foreign_toplevel_service_returns_not_found_for_missing_windows():
     service = WaylandForeignToplevelWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         protocol=_protocol(),
     )
 

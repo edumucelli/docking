@@ -162,20 +162,25 @@ import gi
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform import desktop_entries
+from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.projections import dock_metadata
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.applications.types import ApplicationInfo
+    from docking.platform.icons import IconLoader
     from docking.platform.model import DockModel
+    from docking.platform.targets import TargetService
     from docking.ui.dock_window import DockWindow
     from docking.ui.folder.stack import FolderStackController
     from docking.ui.renderer import DockRenderer
@@ -205,9 +210,12 @@ class DnDHandler:
         config: Config,
         renderer: DockRenderer,
         theme: Theme,
-        launcher: Launcher,
         geometry_builder: DockGeometryBuilder,
         folder_stack: FolderStackController,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
     ) -> None:
         self._drawing_area = drawing_area
         self._window = window
@@ -215,7 +223,10 @@ class DnDHandler:
         self._config = config
         self._renderer = renderer
         self._theme = theme
-        self._launcher = launcher
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        self._icon_loader = icon_loader
+        self._target_service = target_service
         self._geometry_builder = geometry_builder
         self._folder_stack = folder_stack
 
@@ -559,25 +570,10 @@ class DnDHandler:
         if not launchable:
             return False
 
-        try:
-            app_info = Gio.DesktopAppInfo.new(item.desktop_id)
-        except (TypeError, GLib.Error) as exc:
-            log.debug(
-                "Failed to resolve desktop app info for drop target %s: %s",
-                item.desktop_id,
-                exc,
-            )
-            return False
-        if not app_info:
-            return False
-
-        try:
-            app_info.launch_uris(launchable, None)
-            log.debug("Opened %d file(s) with %s", len(launchable), item.desktop_id)
-            return True
-        except GLib.Error as exc:
-            log.warning("Failed to open with %s: %s", item.desktop_id, exc)
-            return False
+        return self._application_launcher.launch_app_uris(
+            item.desktop_id,
+            launchable,
+        )
 
     def _drop_target_item_at_point(
         self,
@@ -745,66 +741,80 @@ class DnDHandler:
 
     def _item_from_uri(self, uri: str) -> DockItem | None:
         """Build a pinned DockItem from an external URI drop."""
-        desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
         icon_size = self._config.scaled_icon_size
-        log.debug("_item_from_uri: uri=%s desktop_id=%s", uri, desktop_id)
-        if desktop_id:
-            resolved = self._launcher.resolve(desktop_id)
-            if resolved is None:
-                log.debug("_item_from_uri: resolve returned None for %s", desktop_id)
-                return None
-            icon = self._launcher.load_desktop_icon(resolved, icon_size)
+        application = self._resolve_desktop_application(uri)
+        desktop_path = desktop_entries.local_path_from_uri_or_path(uri)
+        is_desktop_target = (
+            desktop_path is not None
+            and desktop_path.suffix == desktop_entries.DESKTOP_SUFFIX
+        )
+        log.debug(
+            "_item_from_uri: uri=%s desktop_id=%s",
+            uri,
+            application.desktop_id if application is not None else None,
+        )
+        if application is not None:
+            metadata = dock_metadata(application)
+            icon = self._icon_loader.load_desktop_icon(application, icon_size)
             log.debug(
                 "_item_from_uri: desktop_id=%s icon_name=%s icon_loaded=%s",
-                desktop_id,
-                resolved.icon_name,
+                metadata.desktop_id,
+                metadata.icon_name,
                 icon is not None,
             )
             return DockItem(
-                desktop_id=desktop_id,
+                desktop_id=metadata.desktop_id,
                 kind=APP_KIND,
-                target=desktop_id,
-                name=resolved.name,
-                icon_name=resolved.icon_name,
-                wm_class=resolved.wm_class,
-                exec_line=getattr(resolved, "exec_line", "") or "",
+                target=metadata.desktop_id,
+                name=metadata.name,
+                icon_name=metadata.icon_name,
+                wm_class=metadata.wm_class,
+                exec_line=metadata.exec_line,
+                application_info=application,
                 is_pinned=True,
                 icon=icon,
             )
+        if is_desktop_target:
+            desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
+            if desktop_id is not None:
+                log.debug("_item_from_uri: resolve returned None for %s", desktop_id)
+                return None
 
         if not self._prepare_appimage_for_generation(uri):
             return None
 
         generated = desktop_entries.create_desktop_entry_for_executable(uri)
         if generated is not None:
-            self._launcher.refresh_desktop_entries()
-            resolved = self._launcher.resolve(generated.desktop_id)
-            if resolved is None:
+            self._application_registry.refresh()
+            application = self._application_registry.resolve(generated.desktop_id)
+            if application is None:
                 log.debug(
                     "_item_from_uri: generated desktop entry did not resolve: %s",
                     generated.desktop_id,
                 )
                 return None
-            icon = self._launcher.load_desktop_icon(resolved, icon_size)
+            metadata = dock_metadata(application)
+            icon = self._icon_loader.load_desktop_icon(application, icon_size)
             log.debug(
                 "_item_from_uri: generated desktop_id=%s icon_name=%s icon_loaded=%s",
-                generated.desktop_id,
-                resolved.icon_name,
+                metadata.desktop_id,
+                metadata.icon_name,
                 icon is not None,
             )
             return DockItem(
-                desktop_id=generated.desktop_id,
+                desktop_id=metadata.desktop_id,
                 kind=APP_KIND,
-                target=generated.desktop_id,
-                name=resolved.name,
-                icon_name=resolved.icon_name,
-                wm_class=resolved.wm_class,
-                exec_line=getattr(resolved, "exec_line", "") or "",
+                target=metadata.desktop_id,
+                name=metadata.name,
+                icon_name=metadata.icon_name,
+                wm_class=metadata.wm_class,
+                exec_line=metadata.exec_line,
+                application_info=application,
                 is_pinned=True,
                 icon=icon,
             )
 
-        info = self._launcher.resolve_file(target=uri, size=icon_size)
+        info = self._target_service.resolve_file(target=uri, size=icon_size)
         if info is None:
             return None
         return DockItem(
@@ -817,6 +827,25 @@ class DnDHandler:
             icon=info.icon,
             prefs_key=info.target,
         )
+
+    def _resolve_desktop_application(self, target: str) -> ApplicationInfo | None:
+        """Resolve desktop drops without flattening nested desktop IDs."""
+        exact = self._application_registry.resolve(target, log_failures=False)
+        if exact is not None:
+            return exact
+
+        path = desktop_entries.local_path_from_uri_or_path(target)
+        if path is None or path.suffix != desktop_entries.DESKTOP_SUFFIX:
+            return None
+
+        application = self._application_registry.resolve_by_desktop_file(path)
+        if application is not None:
+            return application
+
+        desktop_id = desktop_entries.desktop_id_from_uri_or_path(target)
+        if desktop_id is None:
+            return None
+        return self._application_registry.resolve(desktop_id)
 
     def _prepare_appimage_for_generation(self, uri: str) -> bool:
         appimage = desktop_entries.appimage_path_needing_executable_permission(uri)

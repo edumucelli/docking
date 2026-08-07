@@ -156,6 +156,7 @@ class FakeWindow:
         self.callbacks: dict[str, object] = {}
         self.show_count = 0
         self.present_count = 0
+        self.destroy_count = 0
         self.position = None
         self.default_size = None
 
@@ -188,6 +189,12 @@ class FakeWindow:
 
     def present(self) -> None:
         self.present_count += 1
+
+    def destroy(self) -> None:
+        self.destroy_count += 1
+        callback = self.callbacks.get("destroy")
+        if callback is not None:
+            callback(self)
 
 
 class FakeNotebook:
@@ -917,6 +924,67 @@ class TestSettingsWindowController:
         )
         assert controller._global_search_status_label.tooltip_text == (
             "Permission denied"
+        )
+
+    def test_close_unsubscribes_status_listener_and_destroys_window_once(
+        self,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        listeners = []
+        actions = MagicMock()
+        actions.search_shortcut_status.return_value = "Assigned: Super+Space"
+        actions.search_shortcut_status_summary.return_value = "Active"
+
+        def subscribe(listener):
+            listeners.append(listener)
+            subscribed = True
+
+            def unsubscribe():
+                nonlocal subscribed
+                if not subscribed:
+                    return
+                subscribed = False
+                listeners.remove(listener)
+
+            return unsubscribe
+
+        actions.add_search_shortcut_status_listener.side_effect = subscribe
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=_config(),
+        )
+        controller.show()
+        window = controller._window
+        assert window is not None
+        assert len(listeners) == 1
+
+        actions.search_shortcut_status.return_value = "Permission denied"
+        actions.search_shortcut_status_summary.return_value = "Denied"
+        listeners[0]()
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Denied"
+        )
+
+        controller.close()
+        controller.close()
+
+        assert listeners == []
+        assert controller._window is None
+        assert window.destroy_count == 1
+        actions.search_shortcut_status.return_value = "Unexpected callback"
+        actions.search_shortcut_status_summary.return_value = "Failed"
+        for listener in tuple(listeners):
+            listener()
+        assert controller._global_search_status_label.get_label() == (
+            "Shortcut Status: Denied"
         )
 
     def test_web_search_engine_setting_is_bound(self, monkeypatch):
@@ -1842,6 +1910,104 @@ class TestRecentSettingsBehavior:
         assert config.recent_apps_retention_days == 23
         config.save.assert_called_once()
         runtime.queue_draw.assert_called_once()
+
+    def test_recent_apps_max_and_retention_only_save_and_redraw(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+
+        config = _config()
+        runtime = MagicMock()
+        model = MagicMock()
+        model.pinned_items = []
+        recent_applications = MagicMock()
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=runtime,
+            model=model,
+            config=config,
+            recent_applications=recent_applications,
+        )
+        controller.show()
+        config.save.reset_mock()
+        runtime.reset_mock()
+        model.reset_mock()
+
+        assert controller._recent_apps_max_spin.range == (1, 15, 1)
+        controller._recent_apps_max_spin.set_value(3)
+        controller._recent_apps_max_spin.emit_value_changed()
+        controller._recent_apps_retention_spin.set_value(7)
+        controller._recent_apps_retention_spin.emit_value_changed()
+
+        assert config.recent_apps_max == 3
+        assert config.recent_apps_retention_days == 7
+        assert config.save.call_count == 2
+        assert runtime.queue_draw.call_count == 2
+        assert recent_applications.reload_policy.call_count == 2
+        recent_applications.reload_policy.assert_called_with(pinned_ids=set())
+        model.rebuild_recent_apps.assert_not_called()
+
+    def test_recent_apps_toggle_clears_config_and_refreshes_model(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+
+        config = _config()
+        config.recent_apps = [{"desktop_id": "stale.desktop", "last_closed": 1000}]
+        runtime = MagicMock()
+        stale_item = object()
+        model = MagicMock()
+        model.pinned_items = []
+        model._recent_apps = [stale_item]
+        recent_applications = MagicMock()
+
+        def reload_policy(*, pinned_ids):
+            assert pinned_ids == set()
+            if not config.show_recent_apps:
+                config.recent_apps.clear()
+                config.save()
+                model._recent_apps = []
+
+        recent_applications.reload_policy.side_effect = reload_policy
+        controller = settings_mod.SettingsWindowController(
+            parent=_parent_window(),
+            actions=runtime,
+            model=model,
+            config=config,
+            recent_applications=recent_applications,
+        )
+        controller.show()
+        config.save.reset_mock()
+        runtime.reset_mock()
+        model.reset_mock()
+        saved_states: list[tuple[bool, list[str]]] = []
+        config.save.side_effect = lambda: saved_states.append(
+            (
+                config.show_recent_apps,
+                [entry["desktop_id"] for entry in config.recent_apps],
+            )
+        )
+
+        controller._recent_apps_switch.set_active(False)
+        controller._recent_apps_switch.emit_notify_active()
+        controller._recent_apps_switch.set_active(True)
+        controller._recent_apps_switch.emit_notify_active()
+
+        assert saved_states == [
+            (False, ["stale.desktop"]),
+            (False, []),
+            (True, []),
+        ]
+        assert model._recent_apps == []
+        assert recent_applications.reload_policy.call_count == 2
+        model.rebuild_recent_apps.assert_not_called()
+        assert runtime.queue_draw.call_count == 2
 
     def test_show_recent_apps_changed_disabled_clears_and_redraws(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

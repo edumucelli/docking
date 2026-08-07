@@ -48,6 +48,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
+    applications_pkg = types.ModuleType("docking.platform.applications")
+    applications_pkg.__path__ = []
+    monkeypatch.setitem(
+        sys.modules,
+        "docking.platform.applications",
+        applications_pkg,
+    )
+
     backends_pkg = types.ModuleType("docking.platform.backends")
     backends_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform.backends", backends_pkg)
@@ -60,16 +68,89 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
 
+    class _RecentApplicationsPersistence:
+        def __init__(self, config):
+            self.config = config
+
+    class _RecentApplications:
+        def __init__(self, registry, persistence):
+            self.registry = registry
+            self.persistence = persistence
+
+    configured_application_launcher = None
+
+    def _configure_application_launcher(application_launcher):
+        nonlocal configured_application_launcher
+        previous = configured_application_launcher
+        configured_application_launcher = application_launcher
+        return previous
+
+    def _reset_application_launcher(previous=None):
+        nonlocal configured_application_launcher
+        configured_application_launcher = previous
+
+    default_process_identity_service = object()
+    configured_process_identity_service = default_process_identity_service
+
+    def _configure_process_identity_service(service):
+        nonlocal configured_process_identity_service
+        previous = configured_process_identity_service
+        configured_process_identity_service = service
+        return previous
+
+    def _reset_process_identity_service(previous=None):
+        nonlocal configured_process_identity_service
+        configured_process_identity_service = (
+            default_process_identity_service if previous is None else previous
+        )
+
     stub_modules = {
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
+        },
+        "docking.platform.launcher": {
+            "configure_application_launcher": _configure_application_launcher,
+            "reset_application_launcher": _reset_application_launcher,
+        },
+        "docking.platform.process_identity": {
+            "configure_process_identity_service": _configure_process_identity_service,
+            "reset_process_identity_service": _reset_process_identity_service,
         },
         "docking.platform.environment": {
             "apply_tweaks": lambda **_kwargs: None,
             "detect_desktop": lambda: "test",
         },
-        "docking.platform.launcher": {
-            "Launcher": type("Launcher", (), {}),
+        "docking.platform.applications.registry": {
+            "ApplicationRegistry": type("ApplicationRegistry", (), {}),
+        },
+        "docking.platform.applications.identity": {
+            "LaunchProvenanceStore": type("LaunchProvenanceStore", (), {}),
+            "ProcessIdentityService": type(
+                "ProcessIdentityService",
+                (),
+                {"__init__": lambda self, _store: None},
+            ),
+        },
+        "docking.platform.applications.launcher": {
+            "ApplicationLauncher": type(
+                "ApplicationLauncher",
+                (),
+                {"__init__": lambda self, _registry, _store: None},
+            ),
+        },
+        "docking.platform.applications.recents": {
+            "RecentApplications": _RecentApplications,
+            "RecentApplicationsPersistence": _RecentApplicationsPersistence,
+        },
+        "docking.platform.icons": {
+            "IconLoader": type("IconLoader", (), {}),
+        },
+        "docking.platform.targets": {
+            "TargetService": type(
+                "TargetService",
+                (),
+                {"__init__": lambda self, **_kwargs: None},
+            ),
         },
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
@@ -114,6 +195,8 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         for name, value in members.items():
             setattr(stub_mod, name, value)
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
+    platform_pkg.launcher = sys.modules["docking.platform.launcher"]
+    platform_pkg.process_identity = sys.modules["docking.platform.process_identity"]
 
     vendor_dir = "/usr/lib/docking/vendor"
     path_is_dir = Path.is_dir
@@ -260,10 +343,14 @@ def test_app_main_smoke(monkeypatch):
         icon_size=48,
         transparency=1.0,
         startup_tips_enabled=True,
+        show_recent_apps=False,
+        recent_apps_max=7,
+        recent_apps_retention_days=30,
+        recent_apps=[],
     )
     theme = MagicMock()
     theme.with_opacity.return_value = object()
-    launcher = MagicMock()
+    registry = MagicMock()
     model = MagicMock()
     renderer = MagicMock()
     tracker = MagicMock()
@@ -283,6 +370,7 @@ def test_app_main_smoke(monkeypatch):
         stop=MagicMock(),
     )
     items_service = MagicMock()
+    registry.generation = 0
 
     config_cls = MagicMock()
     config_cls.load.return_value = config
@@ -292,7 +380,8 @@ def test_app_main_smoke(monkeypatch):
     theme_cls.load.return_value = theme
     monkeypatch.setattr(app_mod, "Theme", theme_cls)
 
-    monkeypatch.setattr(app_mod, "Launcher", MagicMock(return_value=launcher))
+    registry_cls = MagicMock(return_value=registry)
+    monkeypatch.setattr(app_mod, "ApplicationRegistry", registry_cls)
     monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
     monkeypatch.setattr(
@@ -314,12 +403,29 @@ def test_app_main_smoke(monkeypatch):
     def idle_add(callback, *args):
         return callback(*args)
 
+    def refresh_registry():
+        registry.generation = 1
+        return True
+
+    registry.refresh.side_effect = refresh_registry
     fake_glib.idle_add.side_effect = idle_add
 
     app_mod.main()
 
     ui.start.assert_called_once()
     ui.stop.assert_called_once()
+    registry_cls.assert_called_once_with()
+    registry.refresh.assert_called_once_with()
+    registry.start.assert_called_once_with()
+    registry.stop.assert_called_once_with()
+    app_mod.UnityLauncherListener.assert_called_once_with(
+        model=model,
+        application_registry=registry,
+    )
+    app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
+        model=model,
+        application_registry=registry,
+    )
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2

@@ -54,7 +54,8 @@ from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceS
 from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -79,7 +80,8 @@ class HyprlandSessionBackend(SessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
@@ -92,7 +94,8 @@ class HyprlandSessionBackend(SessionBackend):
 
         windows = window_service or load_hyprland_window_service(
             model=model,
-            launcher=launcher,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
         )
         if windows is None:
             windows = ReducedWindowService()
@@ -104,7 +107,8 @@ class HyprlandSessionBackend(SessionBackend):
         if isinstance(windows, HyprlandWindowService) and foreign_toplevel is not None:
             preview_handles = WaylandPreviewHandleTracker(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=foreign_toplevel,
             )
             windows.set_preview_handle_source(preview_handles)

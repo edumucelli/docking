@@ -24,7 +24,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlparse
 
 import gi
@@ -35,6 +35,9 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, GLib, Gtk
 
 from docking.log import get_logger, with_context
+
+if TYPE_CHECKING:
+    from docking.platform.targets import TargetService
 
 DEFAULT_MAX_ENTRIES = 15
 
@@ -67,10 +70,21 @@ class RecentFilesCatalog:
     are capped. Listeners run only when the resulting immutable tuple changes.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        target_opener: Callable[[str], object] | None = None,
+        *,
+        target_service: TargetService | None = None,
+    ) -> None:
         """Initialize an empty snapshot and lazy recent-manager connection."""
         self._manager_factory = Gtk.RecentManager.get_default
-        self._uri_launcher = _launch_default_for_uri
+        self._uri_launcher = (
+            target_opener
+            if target_opener is not None
+            else target_service.open_target
+            if target_service is not None
+            else _launch_default_for_uri
+        )
         self._max_entries = DEFAULT_MAX_ENTRIES
 
         self._entries: tuple[RecentFileSnapshot, ...] = ()
@@ -205,14 +219,14 @@ class RecentFilesCatalog:
         if not clean_uri:
             return False
         try:
-            self._uri_launcher(clean_uri)
+            opened = self._uri_launcher(clean_uri)
         except Exception as exc:
             log.bind(action="open_recent", uri=clean_uri).warning(
                 "Failed to open recent file: %s",
                 exc,
             )
             return False
-        return True
+        return opened if isinstance(opened, bool) else True
 
     def clear(self) -> bool:
         """Purge recent files and immediately refresh the cache."""

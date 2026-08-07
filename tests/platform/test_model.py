@@ -17,9 +17,15 @@ from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.desktop_entries import DesktopInfo, GeneratedDesktopEntry
+from docking.platform.applications.entries import DesktopInfo, GeneratedDesktopEntry
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.running import RunningAppInfo
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
-from docking.platform.running import RunningAppInfo, RuntimeAppIdentity
 
 
 def _make_launcher(*desktop_ids: str):
@@ -27,13 +33,21 @@ def _make_launcher(*desktop_ids: str):
     launcher = MagicMock()
     infos = {}
     for did in desktop_ids:
-        info = MagicMock()
-        info.desktop_id = did
-        info.name = did.removesuffix(".desktop")
-        info.icon_name = "test-icon"
-        info.wm_class = did.removesuffix(".desktop")
-        info.exec_line = did.removesuffix(".desktop")
-        infos[did] = info
+        stem = did.removesuffix(".desktop")
+        infos[did] = ApplicationInfo(
+            desktop_id=did,
+            name=stem,
+            declared_icon="test-icon",
+            wm_class=stem,
+            exec_line=stem,
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(stem.casefold(),),
+            visible=True,
+            has_gio_source=False,
+        )
 
     def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)
@@ -69,6 +83,32 @@ def _running(
     return RunningAppInfo(count=count, active=active, urgent=urgent)
 
 
+def _runtime_application(
+    *,
+    desktop_id: str,
+    executable_path: Path,
+) -> ApplicationInfo:
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name="Shared Tool",
+        declared_icon="shared-tool",
+        wm_class="SharedTool",
+        exec_line=str(executable_path),
+        origin=ApplicationOrigin.RUNTIME,
+        location=ApplicationLocation.HOST,
+        desktop_file=None,
+        executable_path=executable_path,
+        aliases=("sharedtool",),
+        visible=True,
+        has_gio_source=False,
+        generic_name="Tool",
+        description="Runtime metadata",
+        categories=("Utility",),
+        categories_raw="Utility;",
+        keywords=("shared",),
+    )
+
+
 class TestDockModelInit:
     def test_loads_pinned_items(self):
         # Given
@@ -100,6 +140,40 @@ class TestDockModelInit:
         model = DockModel(config, launcher, AppletServices())
         # Then
         assert model.visible_items() == []
+
+    def test_uses_injected_recent_applications_instance(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop")
+        recent_applications = MagicMock()
+        recent_applications.snapshot.return_value = ()
+
+        model = DockModel(
+            config,
+            launcher,
+            AppletServices(),
+            recent_applications=recent_applications,
+        )
+
+        assert model.recent_applications is recent_applications
+        recent_applications.load.assert_called_once_with(pinned_ids={"a.desktop"})
+        recent_applications.subscribe.assert_called_once()
+
+    def test_close_unsubscribes_from_recent_applications_once(self):
+        config = _make_config([])
+        recent_applications = MagicMock()
+        recent_applications.snapshot.return_value = ()
+        unsubscribe = recent_applications.subscribe.return_value
+        model = DockModel(
+            config,
+            _make_launcher(),
+            AppletServices(),
+            recent_applications=recent_applications,
+        )
+
+        model.close()
+        model.close()
+
+        unsubscribe.assert_called_once_with()
 
 
 class TestUpdateRunning:
@@ -139,12 +213,9 @@ class TestUpdateRunning:
         executable = tmp_path / "tool-v2" / "bin" / "tool"
         executable.parent.mkdir(parents=True)
         executable.write_bytes(b"\x7fELF")
-        runtime = RuntimeAppIdentity(
+        runtime = _runtime_application(
             desktop_id="docking-generated-tool-runtime.desktop",
-            executable_path=str(executable),
-            name="Shared Tool",
-            icon_name="shared-tool",
-            wm_class="SharedTool",
+            executable_path=executable,
         )
         config = _make_config([])
         launcher = _make_launcher()
@@ -214,12 +285,9 @@ class TestPinUnpin:
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
         runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
-        runtime = RuntimeAppIdentity(
+        runtime = _runtime_application(
             desktop_id=runtime_id,
-            executable_path=str(executable),
-            name="Shared Tool",
-            icon_name="shared-tool",
-            wm_class="SharedTool",
+            executable_path=executable,
         )
         config = _make_config([])
         launcher = _make_launcher()
@@ -261,11 +329,99 @@ class TestPinUnpin:
         assert item.is_pinned
         assert item.runtime_executable == ""
         assert item.target == runtime_id
+        assert isinstance(item.application_info, ApplicationInfo)
+        assert item.application_info.origin is ApplicationOrigin.GENERATED
+        assert item.application_info.aliases == tuple(
+            model_mod.desktop_entries.match_aliases(
+                desktop_id=runtime_id,
+                wm_class="tool",
+                exec_line=str(executable),
+            )
+        )
         create.assert_called_once_with(
             str(executable),
             startup_wm_class="SharedTool",
         )
         launcher.refresh_desktop_entries.assert_called_once_with()
+
+    def test_runtime_pin_uses_generated_metadata_stably_across_restart(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        executable = tmp_path / "tool"
+        executable.write_bytes(b"\x7fELF")
+        executable.chmod(0o755)
+        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime = _runtime_application(
+            desktop_id=runtime_id,
+            executable_path=executable,
+        )
+        applications_dir = tmp_path / "applications"
+        monkeypatch.setattr(
+            model_mod.desktop_entries,
+            "user_applications_dir",
+            lambda: applications_dir,
+        )
+        monkeypatch.setattr(
+            model_mod.desktop_entries,
+            "_refresh_desktop_database",
+            lambda _directory: None,
+        )
+        registry = ApplicationRegistry(
+            application_source=lambda: (),
+            desktop_directories_source=lambda: (applications_dir,),
+        )
+        config = _make_config([])
+        icon_loader = MagicMock()
+        model = DockModel(
+            config,
+            applet_services=AppletServices(),
+            application_registry=registry,
+            icon_loader=icon_loader,
+            target_service=MagicMock(),
+        )
+        running = {
+            runtime_id: RunningAppInfo(
+                count=1,
+                runtime_app=runtime,
+            )
+        }
+        model.update_running(running)
+
+        model.pin_item(runtime_id)
+        model.update_running(running)
+
+        promoted = model.visible_items()[0]
+        promoted_application = promoted.application_info
+        assert promoted.is_pinned
+        assert promoted.runtime_executable == ""
+        assert promoted_application is registry.resolve(runtime_id)
+        assert promoted_application is not None
+        assert promoted_application.origin is ApplicationOrigin.GENERATED
+        assert promoted.name == promoted_application.name
+        assert promoted.icon_name == promoted_application.declared_icon
+        assert promoted_application.description != runtime.description
+
+        fresh_registry = ApplicationRegistry(
+            application_source=lambda: (),
+            desktop_directories_source=lambda: (applications_dir,),
+        )
+        fresh_registry.refresh()
+        fresh_model = DockModel(
+            config,
+            applet_services=AppletServices(),
+            application_registry=fresh_registry,
+            icon_loader=MagicMock(),
+            target_service=MagicMock(),
+        )
+        restarted = fresh_model.visible_items()[0]
+
+        assert restarted.application_info == promoted_application
+        assert restarted.name == promoted.name
+        assert restarted.icon_name == promoted.icon_name
+        assert restarted.wm_class == promoted.wm_class
+        assert restarted.exec_line == promoted.exec_line
 
     def test_unpin_running_becomes_transient(self):
         # Given
@@ -1615,6 +1771,103 @@ class TestRecentAppsIntegration:
             i for i in items_after if i.desktop_id == "b.desktop" and i.is_recent
         ]
         assert len(b_items) >= 1
+        assert b_items[0].last_closed > 0
+
+    def test_existing_recent_reorder_preserves_materialized_last_closed(self):
+        config = _make_config([], show_recent_apps=True)
+        original_last_closed = 9_999_999_998
+        config.recent_apps = [
+            {"desktop_id": "a.desktop", "last_closed": 9_999_999_999},
+            {
+                "desktop_id": "b.desktop",
+                "last_closed": original_last_closed,
+            },
+        ]
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        existing_item = model.find_by_desktop_id("b.desktop")
+        assert existing_item is not None
+        assert existing_item.last_closed == float(original_last_closed)
+
+        model.recent_applications.record_closed("b.desktop")
+
+        recent = [item for item in model.visible_items() if item.is_recent]
+        assert [item.desktop_id for item in recent] == ["b.desktop", "a.desktop"]
+        assert recent[0] is existing_item
+        assert existing_item.last_closed == float(original_last_closed)
+        assert config.recent_apps[0]["last_closed"] != original_last_closed
+
+    def test_service_policy_change_after_close_does_not_update_model(self):
+        config = _make_config([], show_recent_apps=True)
+        config.recent_apps = [{"desktop_id": "a.desktop", "last_closed": 9_999_999_999}]
+        model = DockModel(
+            config,
+            _make_launcher("a.desktop"),
+            AppletServices(),
+        )
+        existing_item = model.find_by_desktop_id("a.desktop")
+        assert existing_item is not None
+        listener = MagicMock()
+        model.add_change_listener(listener)
+        model._materialize_recent_apps = MagicMock()
+        model.close()
+
+        config.show_recent_apps = False
+        model.recent_applications.reload_policy()
+
+        assert model.recent_applications.snapshot() == ()
+        assert model._recent_apps == [existing_item]
+        model._materialize_recent_apps.assert_not_called()
+        listener.assert_not_called()
+
+    def test_simultaneous_closes_are_saved_one_at_a_time(self):
+        config = _make_config([], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        saved_orders: list[list[str]] = []
+        config.save.side_effect = lambda: saved_orders.append(
+            [entry["desktop_id"] for entry in config.recent_apps]
+        )
+
+        model.update_running(
+            {
+                "a.desktop": _running(),
+                "b.desktop": _running(),
+            }
+        )
+        config.save.assert_not_called()
+
+        model.update_running({})
+
+        assert config.save.call_count == 2
+        assert [len(order) for order in saved_orders] == [1, 2]
+        assert set(saved_orders[-1]) == {"a.desktop", "b.desktop"}
+        assert saved_orders[-1][1:] == saved_orders[0]
+        assert [
+            item.desktop_id for item in model.visible_items() if item.is_recent
+        ] == saved_orders[-1]
+
+    def test_close_saves_before_applying_the_maximum(self):
+        config = _make_config([], show_recent_apps=True)
+        config.recent_apps_max = 1
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running({"a.desktop": _running()})
+        model.update_running({})
+        model.update_running({"b.desktop": _running()})
+        config.save.reset_mock()
+        saved_orders: list[list[str]] = []
+        config.save.side_effect = lambda: saved_orders.append(
+            [entry["desktop_id"] for entry in config.recent_apps]
+        )
+
+        model.update_running({})
+
+        assert saved_orders == [["b.desktop", "a.desktop"]]
+        assert [
+            item.desktop_id for item in model.visible_items() if item.is_recent
+        ] == ["b.desktop"]
+        assert [entry["desktop_id"] for entry in config.recent_apps] == saved_orders[-1]
 
     def test_recent_app_not_duplicated_when_pinned(self):
         config = _make_config(["firefox.desktop"], show_recent_apps=True)
@@ -1643,6 +1896,63 @@ class TestRecentAppsIntegration:
         items = model.visible_items()
         pinned_ids = [i.desktop_id for i in items if i.is_pinned]
         assert "b.desktop" in pinned_ids
+
+    def test_explicit_pin_removes_recent_before_saving_pinned_order(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running({"b.desktop": _running()})
+        model.update_running({})
+        recent_item = model.find_by_desktop_id("b.desktop")
+        assert recent_item is not None
+        config.save.reset_mock()
+        saved_recent_ids: list[list[str]] = []
+        config.save.side_effect = lambda: saved_recent_ids.append(
+            [entry["desktop_id"] for entry in config.recent_apps]
+        )
+
+        model.pin_item("b.desktop")
+
+        assert saved_recent_ids == [[]]
+        assert model._recent_apps == []
+        assert [entry.target for entry in config.pinned] == [
+            "a.desktop",
+            "b.desktop",
+        ]
+        matching = [
+            item for item in model.visible_items() if item.desktop_id == "b.desktop"
+        ]
+        assert matching == [recent_item]
+        assert recent_item.is_pinned is True
+
+    def test_unpin_inserts_at_front_and_saves_recent_before_pinned_order(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9_999_999_999}]
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        unpinned_item = model.find_by_desktop_id("a.desktop")
+        assert unpinned_item is not None
+        saved_states: list[tuple[list[str], list[str]]] = []
+        config.save.side_effect = lambda: saved_states.append(
+            (
+                [entry["desktop_id"] for entry in config.recent_apps],
+                [entry.target for entry in config.pinned],
+            )
+        )
+
+        model.unpin_item("a.desktop")
+
+        assert saved_states == [
+            (["a.desktop", "b.desktop"], ["a.desktop"]),
+            (["a.desktop", "b.desktop"], []),
+        ]
+        assert [
+            item.desktop_id for item in model.visible_items() if item.is_recent
+        ] == ["a.desktop", "b.desktop"]
+        assert model.find_by_desktop_id("a.desktop") is unpinned_item
+        assert unpinned_item.last_closed == float(config.recent_apps[0]["last_closed"])
+        assert unpinned_item.last_closed > 0
+        assert model.pinned_items == []
 
     def test_recent_app_max_limit(self):
         config = _make_config(["pinned.desktop"], show_recent_apps=True)
@@ -1676,6 +1986,34 @@ class TestRecentAppsIntegration:
         b_item = next(i for i in items if i.desktop_id == "b.desktop")
         assert not b_item.is_recent
         assert b_item.is_running
+
+    def test_running_recent_removal_updates_config_without_saving(self):
+        config = _make_config([], show_recent_apps=True)
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        model.update_running({"a.desktop": _running()})
+        model.update_running({})
+        assert [entry["desktop_id"] for entry in config.recent_apps] == ["a.desktop"]
+        config.save.reset_mock()
+
+        model.update_running({"a.desktop": _running()})
+
+        assert config.recent_apps == []
+        assert all(item.is_recent is False for item in model.visible_items())
+        config.save.assert_not_called()
+
+    def test_running_state_is_remembered_while_recent_apps_are_disabled(self):
+        config = _make_config([], show_recent_apps=False)
+        launcher = _make_launcher("a.desktop")
+        model = DockModel(config, launcher, AppletServices())
+
+        model.update_running({"a.desktop": _running()})
+        config.show_recent_apps = True
+        model.update_running({})
+
+        recent = [item for item in model.visible_items() if item.is_recent]
+        assert [item.desktop_id for item in recent] == ["a.desktop"]
+        config.save.assert_called_once()
 
     def test_rebuild_recent_apps_public_method(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
@@ -1726,3 +2064,25 @@ class TestRecentAppsIntegration:
         # old.desktop should be pruned (older than 1 day), new.desktop should remain
         recent_ids = [i.desktop_id for i in recent]
         assert "new.desktop" in recent_ids
+
+    def test_reorder_recent_auto_pins_without_duplicate_recent_placement(self):
+        config = _make_config(["a.desktop"], show_recent_apps=True)
+        config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9_999_999_999}]
+        launcher = _make_launcher("a.desktop", "b.desktop")
+        model = DockModel(config, launcher, AppletServices())
+        recent_item = model.find_by_desktop_id("b.desktop")
+        assert recent_item is not None
+
+        model.reorder_visible(1, 0)
+
+        items = model.visible_items()
+        assert [item.desktop_id for item in items] == ["b.desktop", "a.desktop"]
+        assert items[0] is recent_item
+        assert recent_item.is_pinned is True
+        assert recent_item.is_recent is False
+        assert [entry.target for entry in config.pinned] == [
+            "b.desktop",
+            "a.desktop",
+        ]
+        assert config.recent_apps == []
+        config.save.assert_called_once()

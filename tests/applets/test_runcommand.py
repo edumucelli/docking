@@ -10,55 +10,52 @@ import docking.applets.runcommand.state as runcommand_state_mod
 from docking.applets import get_applet_catalog, load_applet_class
 from docking.applets.runcommand.applet import RunCommandApplet
 from docking.applets.runcommand.state import (
-    TERMINAL_CANDIDATES,
-    _flatpak_host_terminal_name,
     app_command_text,
     app_description,
-    append_file_argument,
-    build_shell_argv,
-    build_terminal_argv,
-    launch_command,
     match_application,
     normalize_history,
     updated_history,
 )
+from docking.applets.services import AppletServices
 from docking.core.config import Config
+from docking.platform import commands as commands_mod
+from docking.platform.applications.registry import UnidentifiedApplicationListing
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 
 
-class _FakeAppInfo:
-    def __init__(self, command: str = "", description: str = "") -> None:
-        self.command = command
-        self.description = description
-
-    def get_commandline(self) -> str:
-        return self.command
-
-    def get_description(self) -> str:
-        return self.description
-
-
-class _FakeApp:
-    def __init__(
-        self,
-        name: str,
-        *,
-        command: str = "",
-        description: str = "",
-        icon: object | None = None,
-    ) -> None:
-        self.name = name
-        self.app_info = _FakeAppInfo(command=command, description=description)
-        self.icon = icon
-        self.launched = False
-
-    def get_display_name(self) -> str:
-        return self.name
-
-    def get_icon(self) -> object | None:
-        return self.icon
-
-    def launch(self, _files: list[object], _context: object | None) -> None:
-        self.launched = True
+def _fake_app(
+    name: str,
+    *,
+    desktop_id: str | None = None,
+    command: str = "",
+    description: str = "",
+    generic_name: str = "",
+    icon: str = "",
+    has_gio_source: bool = True,
+) -> ApplicationInfo:
+    identifier = desktop_id or f"org.example.{name.replace(' ', '')}.desktop"
+    return ApplicationInfo(
+        desktop_id=identifier,
+        name=name,
+        declared_icon=icon,
+        wm_class=identifier.removesuffix(".desktop"),
+        exec_line=command,
+        origin=ApplicationOrigin.INSTALLED,
+        location=(
+            ApplicationLocation.SANDBOX if has_gio_source else ApplicationLocation.HOST
+        ),
+        desktop_file=None,
+        executable_path=None,
+        aliases=(),
+        visible=True,
+        has_gio_source=has_gio_source,
+        generic_name=generic_name,
+        description=description,
+    )
 
 
 class _FakeEntry:
@@ -129,7 +126,10 @@ class _FakeDialog:
 
 
 class _FakeRow:
-    def __init__(self, app: _FakeApp) -> None:
+    def __init__(
+        self,
+        app: ApplicationInfo | UnidentifiedApplicationListing,
+    ) -> None:
         self.app = app
         self.visible = True
 
@@ -140,15 +140,83 @@ class _FakeRow:
         self.visible = False
 
 
+class _Registry:
+    def __init__(
+        self,
+        applications: tuple[ApplicationInfo, ...],
+        unidentified: tuple[UnidentifiedApplicationListing, ...] = (),
+    ) -> None:
+        self.applications = applications
+        self.unidentified = unidentified
+
+    def snapshot(self) -> tuple[ApplicationInfo, ...]:
+        return self.applications
+
+    def unidentified_snapshot(
+        self,
+    ) -> tuple[UnidentifiedApplicationListing, ...]:
+        return self.unidentified
+
+
 def _make_applet() -> RunCommandApplet:
     return RunCommandApplet(48, config=Config())
 
 
 class TestRunCommandState:
     def test_app_description_handles_missing_optional_gio_metadata_methods(self):
-        app = _FakeApp("Fallback application")
+        app = _fake_app("Fallback application")
 
         assert app_description(app) == "Fallback application"
+
+    def test_gio_backed_description_prefers_description_then_generic_name(self):
+        described = _fake_app(
+            "Described",
+            description="Primary description",
+            generic_name="Generic description",
+        )
+        generic = _fake_app("Generic", generic_name="Generic description")
+
+        assert app_description(described) == "Primary description"
+        assert app_description(generic) == "Generic description"
+
+    def test_file_only_metadata_keeps_legacy_display_name_fallback(self):
+        app = _fake_app(
+            "Host File Tool",
+            command="/opt/host-file-tool --open %U",
+            description="Parsed desktop Comment",
+            generic_name="Parsed GenericName",
+            has_gio_source=False,
+        )
+
+        assert app_command_text(app) == "Host File Tool"
+        assert app_description(app) == "Host File Tool"
+
+    def test_idless_listing_preserves_gio_command_and_description_fallbacks(self):
+        listing = UnidentifiedApplicationListing(
+            listing_key="opaque",
+            name="ID-less Tool",
+            categories="Utility;",
+            icon_name="",
+            desktop_file=None,
+            exec_line="idless-tool %U",
+            description="Launch an ID-less tool",
+            generic_name="Generic ID-less Tool",
+        )
+        generic_only = UnidentifiedApplicationListing(
+            listing_key="generic",
+            name="Generic Fallback",
+            categories="Utility;",
+            icon_name="",
+            desktop_file=None,
+            exec_line="",
+            description="",
+            generic_name="Generic description",
+        )
+
+        assert app_command_text(listing) == "idless-tool"
+        assert app_description(listing) == "Launch an ID-less tool"
+        assert app_command_text(generic_only) == "Generic Fallback"
+        assert app_description(generic_only) == "Generic description"
 
     def test_normalize_history_filters_deduplicates_and_caps(self):
         raw = [" firefox ", "", "calc", "firefox", 1, *[f"cmd{i}" for i in range(30)]]
@@ -164,138 +232,37 @@ class TestRunCommandState:
             "one",
         ]
 
-    def test_build_shell_argv(self):
-        assert build_shell_argv(command="echo ok", shell="/bin/zsh") == [
-            "/bin/zsh",
-            "-lc",
-            "echo ok",
-        ]
-
-    def test_build_terminal_argv_uses_first_available_terminal(self):
-        def resolver(name: str) -> str | None:
-            return name if name == "x-terminal-emulator" else None
-
-        assert build_terminal_argv(
-            command="echo ok",
-            shell="/bin/sh",
-            resolver=resolver,
-        ) == [
-            "x-terminal-emulator",
-            "-e",
-            "/bin/sh",
-            "-lc",
-            "echo ok",
-        ]
-
-    def test_build_terminal_argv_supports_multi_arg_terminal_prefix(self):
-        def resolver(name: str) -> str | None:
-            return name if name == "wezterm" else None
-
-        assert build_terminal_argv(
-            command="echo ok",
-            shell="/bin/sh",
-            resolver=resolver,
-        ) == [
-            "wezterm",
-            "start",
-            "--",
-            "/bin/sh",
-            "-lc",
-            "echo ok",
-        ]
-
-    def test_build_terminal_argv_supports_command_string_terminals(self):
-        def resolver(name: str) -> str | None:
-            return name if name == "xfce4-terminal" else None
-
-        assert build_terminal_argv(
-            command="echo ok",
-            shell="/bin/sh",
-            resolver=resolver,
-        ) == [
-            "xfce4-terminal",
-            "-e",
-            "/bin/sh -lc 'echo ok'",
-        ]
-
-    def test_terminal_candidates_cover_common_desktops_and_wayland(self):
-        names = {candidate.executable for candidate in TERMINAL_CANDIDATES}
-
-        assert {
-            "x-terminal-emulator",
-            "gnome-terminal",
-            "kgx",
-            "ptyxis",
-            "konsole",
-            "qterminal",
-            "foot",
-            "kitty",
-            "alacritty",
-            "wezterm",
-            "xterm",
-        }.issubset(names)
-
-    def test_flatpak_host_terminal_lookup_is_cached_single_scan(self, monkeypatch):
-        _flatpak_host_terminal_name.cache_clear()
-        calls = []
-
-        monkeypatch.setattr(
-            runcommand_state_mod.flatpak,
-            "spawn_path",
-            lambda: "/usr/bin/flatpak-spawn",
-        )
-        monkeypatch.setattr(
-            runcommand_state_mod.flatpak,
-            "host_command",
-            lambda cmd, sanitize_env: ["flatpak-spawn", *cmd],
+    def test_generic_command_api_remains_a_direct_compatibility_reexport(self):
+        moved_names = (
+            "TERMINAL_LOOKUP_TIMEOUT_SECONDS",
+            "TerminalMode",
+            "TerminalCandidate",
+            "ResolvedTerminal",
+            "TERMINAL_CANDIDATES",
+            "DESKTOP_EXEC_FIELD_CODES_RE",
+            "shell_path",
+            "build_shell_argv",
+            "_flatpak_host_terminal_name",
+            "resolve_terminal_executable",
+            "find_terminal",
+            "build_terminal_argv",
+            "launch_command",
+            "append_file_argument",
+            "clean_desktop_exec",
         )
 
-        def run(cmd, **_kwargs):
-            calls.append(cmd)
-            return SimpleNamespace(stdout="konsole\n")
+        for name in moved_names:
+            assert getattr(runcommand_state_mod, name) is getattr(commands_mod, name)
 
-        monkeypatch.setattr(runcommand_state_mod.subprocess, "run", run)
-
-        assert _flatpak_host_terminal_name() == "konsole"
-        assert _flatpak_host_terminal_name() == "konsole"
-        assert len(calls) == 1
-        _flatpak_host_terminal_name.cache_clear()
-
-    def test_launch_command_rejects_empty_command(self):
-        popen = MagicMock()
-
-        assert launch_command(command=" ", run_in_terminal=False, popen=popen) is False
-        popen.assert_not_called()
-
-    def test_launch_command_starts_shell_process(self, monkeypatch):
-        monkeypatch.setenv("SHELL", "/bin/zsh")
-        popen = MagicMock()
-
-        monkeypatch.setattr(
-            "docking.applets.runcommand.state.flatpak.host_command",
-            lambda argv: None,
-        )
-
-        assert launch_command(command="echo ok", run_in_terminal=False, popen=popen)
-
-        argv = popen.call_args.args[0]
-        assert argv == ["/bin/zsh", "-lc", "echo ok"]
-        assert popen.call_args.kwargs["start_new_session"] is True
-
-    def test_append_file_argument_quotes_path(self):
-        assert append_file_argument(command="atril", path="/tmp/report one.pdf") == (
-            "atril '/tmp/report one.pdf'"
-        )
-
-    def test_app_command_text_removes_desktop_placeholders(self):
-        app = _FakeApp("Atril", command="atril %U")
+    def test_gio_backed_command_text_removes_desktop_placeholders(self):
+        app = _fake_app("Atril", command="atril %U")
 
         assert app_command_text(app) == "atril"
 
     def test_match_application_exact_then_unique_prefix(self):
-        calc = _FakeApp("Calculator")
-        calendar = _FakeApp("Calendar")
-        firefox = _FakeApp("Firefox")
+        calc = _fake_app("Calculator")
+        calendar = _fake_app("Calendar")
+        firefox = _fake_app("Firefox")
 
         assert match_application(apps=[calc, calendar, firefox], text="fire") is firefox
         assert match_application(apps=[calc, calendar], text="calc") is calc
@@ -332,7 +299,7 @@ class TestRunCommandApplet:
 
     def test_select_application_updates_entry_description_and_icon(self):
         applet = _make_applet()
-        app = _FakeApp(
+        app = _fake_app(
             "Atril Document Viewer",
             command="atril %U",
             description="View documents",
@@ -347,13 +314,13 @@ class TestRunCommandApplet:
 
         assert applet._entry.get_text() == "atril"
         assert applet._entry.position == -1
-        assert applet._left_icon.gicon == "atril-icon"
+        assert applet._left_icon.gicon.to_string() == "atril-icon"
         assert applet._description_label.text == "View documents"
         assert applet._run_button.sensitive is True
 
     def test_typing_matching_app_name_updates_left_icon(self):
         applet = _make_applet()
-        applet._apps = [_FakeApp("Calculator", description="Calculate", icon="calc")]
+        applet._apps = [_fake_app("Calculator", description="Calculate", icon="calc")]
         applet._app_rows = [_FakeRow(applet._apps[0])]
         applet._entry = _FakeEntry("calc")
         applet._left_icon = _FakeIcon()
@@ -363,12 +330,12 @@ class TestRunCommandApplet:
         applet._on_entry_changed(applet._entry)
 
         assert applet._selected_app is applet._apps[0]
-        assert applet._left_icon.gicon == "calc"
+        assert applet._left_icon.gicon.to_string() == "calc"
         assert applet._description_label.text == "Calculate"
 
     def test_typing_unknown_text_restores_default_left_icon(self):
         applet = _make_applet()
-        applet._apps = [_FakeApp("Calculator", icon="calc")]
+        applet._apps = [_fake_app("Calculator", icon="calc")]
         applet._app_rows = [_FakeRow(applet._apps[0])]
         applet._entry = _FakeEntry("unknown")
         applet._left_icon = _FakeIcon()
@@ -383,8 +350,8 @@ class TestRunCommandApplet:
 
     def test_typing_filters_application_rows_without_resizing_list(self):
         applet = _make_applet()
-        engrampa = _FakeApp("Engrampa Archive Manager", command="engrampa %U")
-        cairo = _FakeApp("Cairo-Dock", command="cairo-dock")
+        engrampa = _fake_app("Engrampa Archive Manager", command="engrampa %U")
+        cairo = _fake_app("Cairo-Dock", command="cairo-dock")
         applet._apps = [engrampa, cairo]
         applet._app_rows = [_FakeRow(engrampa), _FakeRow(cairo)]
         applet._entry = _FakeEntry("engrampa")
@@ -397,37 +364,89 @@ class TestRunCommandApplet:
         assert applet._app_rows[0].visible is True
         assert applet._app_rows[1].visible is False
 
+    def test_refresh_lists_visible_and_idless_registry_entries(self, monkeypatch):
+        class _Row:
+            def __init__(self, app):
+                self.app = app
+
+            def add(self, _child):
+                return
+
+            def show(self):
+                return
+
+            def hide(self):
+                return
+
+        applet = _make_applet()
+        identified = _fake_app("Calculator")
+        idless = UnidentifiedApplicationListing(
+            listing_key="gio-idless:1",
+            name="ID-less",
+            categories="Utility;",
+            icon_name="",
+            desktop_file=None,
+        )
+        registry = _Registry((identified,), (idless,))
+        applet.set_services(
+            AppletServices(
+                application_registry=registry,  # type: ignore[arg-type]
+            )
+        )
+        applet._app_list = MagicMock()
+        applet._app_list.get_children.return_value = []
+        applet._build_app_row = MagicMock(return_value=MagicMock())
+        monkeypatch.setattr(runcommand_applet_mod, "_ApplicationRow", _Row)
+
+        applet._refresh_app_list()
+
+        assert applet._apps == [identified, idless]
+        assert len(applet._app_rows) == 2
+
     def test_run_current_launches_selected_application(self, monkeypatch):
         applet = _make_applet()
-        app = _FakeApp("Calculator", command="gnome-calculator")
+        app = _fake_app(
+            "Calculator",
+            desktop_id="org.gnome.Calculator.desktop",
+            command="gnome-calculator",
+        )
         applet._entry = _FakeEntry("gnome-calculator")
         applet._selected_app = app
         applet._selected_entry_text = "gnome-calculator"
         applet._dialog = _FakeDialog()
-        launch = MagicMock(return_value=True)
-        monkeypatch.setattr(runcommand_applet_mod, "launch_application", launch)
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet.set_services(AppletServices(application_launcher=launcher))
+        command_launch = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            runcommand_applet_mod.commands,
+            "launch_command",
+            command_launch,
+        )
 
         applet._run_current()
 
-        launch.assert_called_once_with(app)
+        launcher.launch.assert_called_once_with("org.gnome.Calculator.desktop")
+        command_launch.assert_not_called()
         assert applet._history == ["gnome-calculator"]
         assert applet._dialog.hidden is True
 
     def test_run_current_terminal_mode_overrides_matched_application(self, monkeypatch):
         applet = _make_applet()
-        app = _FakeApp("Calculator", command="gnome-calculator")
+        app = _fake_app("Calculator", command="gnome-calculator")
         applet._entry = _FakeEntry("gnome-calculator")
         applet._terminal_check = _FakeCheck(active=True)
         applet._selected_app = app
         applet._selected_entry_text = "gnome-calculator"
         applet._dialog = _FakeDialog()
         launch_command = MagicMock(return_value=True)
-        launch_application = MagicMock(return_value=True)
-        monkeypatch.setattr(runcommand_applet_mod, "launch_command", launch_command)
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet.set_services(AppletServices(application_launcher=launcher))
         monkeypatch.setattr(
-            runcommand_applet_mod,
-            "launch_application",
-            launch_application,
+            runcommand_applet_mod.commands,
+            "launch_command",
+            launch_command,
         )
 
         applet._run_current()
@@ -436,22 +455,46 @@ class TestRunCommandApplet:
             command="gnome-calculator",
             run_in_terminal=True,
         )
-        launch_application.assert_not_called()
+        launcher.launch.assert_not_called()
 
     def test_run_current_launches_shell_command_when_no_app_matches(self, monkeypatch):
         applet = _make_applet()
-        applet._apps = [_FakeApp("Calculator")]
+        applet._apps = [_fake_app("Calculator")]
         applet._entry = _FakeEntry("echo ok")
         applet._terminal_check = _FakeCheck(active=True)
         applet._dialog = _FakeDialog()
         launch = MagicMock(return_value=True)
-        monkeypatch.setattr(runcommand_applet_mod, "launch_command", launch)
+        monkeypatch.setattr(
+            runcommand_applet_mod.commands,
+            "launch_command",
+            launch,
+        )
 
         applet._run_current()
 
         launch.assert_called_once_with(command="echo ok", run_in_terminal=True)
         assert applet._history == ["echo ok"]
         assert applet._dialog.hidden is True
+
+    def test_run_current_launches_idless_selection_by_opaque_key(self):
+        applet = _make_applet()
+        app = UnidentifiedApplicationListing(
+            listing_key="gio-idless:3",
+            name="ID-less Tool",
+            categories="Utility;",
+            icon_name="",
+            desktop_file=None,
+        )
+        applet._entry = _FakeEntry("ID-less Tool")
+        applet._selected_app = app
+        applet._selected_entry_text = "ID-less Tool"
+        launcher = MagicMock()
+        launcher.launch_listing.return_value = True
+        applet.set_services(AppletServices(application_launcher=launcher))
+
+        applet._run_current()
+
+        launcher.launch_listing.assert_called_once_with("gio-idless:3")
 
     def test_show_dialog_refreshes_apps_and_history(self, monkeypatch):
         applet = _make_applet()

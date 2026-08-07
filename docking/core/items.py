@@ -17,7 +17,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
+
+if TYPE_CHECKING:
+    from docking.platform.applications.types import ApplicationInfo
 
 ItemKind = Literal["app", "applet", "file", "folder"]
 
@@ -57,6 +60,8 @@ class DockItem:
     exec_line: str = ""
     # Direct executable backing a runtime-only transient item.
     runtime_executable: str = ""
+    # Canonical application metadata. Non-application items leave this unset.
+    application_info: ApplicationInfo | None = None
     is_pinned: bool = False
     is_running: bool = False
     is_active: bool = False

@@ -24,10 +24,12 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -36,11 +38,10 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import (
-    RunningAppInfo,
-    RunningWindowInfo,
-    RuntimeAppIdentity,
-)
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
 
 log = get_logger(name="hyprland_ipc")
 
@@ -89,7 +90,7 @@ class HyprlandWindowRecord:
     address: str
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     urgent: bool
     minimized: bool | None
@@ -98,11 +99,18 @@ class HyprlandWindowRecord:
     geometry: Rect | None
     workspace_id: str | None
     pid: int | None
-    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.address)
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 class HyprlandIpcClient:
@@ -219,7 +227,8 @@ class HyprlandWindowService(WindowService):
         self,
         *,
         model,
-        launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         client: HyprlandIpcClient,
         event_stream_factory: Callable[
             [Callable[[HyprlandEvent], None]], HyprlandEventStream | None
@@ -227,7 +236,10 @@ class HyprlandWindowService(WindowService):
         preview_handle_source: object | None = None,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._event_stream_factory = event_stream_factory
         self._event_stream: HyprlandEventStream | None = None
@@ -406,7 +418,11 @@ class HyprlandWindowService(WindowService):
                     active=record.active,
                     urgent=record.urgent,
                     window=record.address,
-                    runtime_app=record.runtime_app,
+                    runtime_app=(
+                        record.application_match.runtime_app
+                        if record.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -469,7 +485,12 @@ class HyprlandWindowService(WindowService):
             stop()
 
 
-def load_hyprland_window_service(*, model, launcher) -> HyprlandWindowService | None:
+def load_hyprland_window_service(
+    *,
+    model,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> HyprlandWindowService | None:
     """Return a Hyprland WindowService when IPC sockets are detectable."""
     paths = hyprland_socket_paths()
     if paths is None or not paths.command.exists() or not paths.events.exists():
@@ -477,7 +498,8 @@ def load_hyprland_window_service(*, model, launcher) -> HyprlandWindowService | 
     client = HyprlandIpcClient(paths=paths)
     return HyprlandWindowService(
         model=model,
-        launcher=launcher,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
         client=client,
         event_stream_factory=lambda callback: HyprlandEventStream(
             paths=paths,
@@ -530,7 +552,6 @@ def _record_from_client(
     ).strip()
     pid = _optional_int(_mapping_value(item, "pid", None))
     match = matcher.match_result(app_id, process_id=pid) if app_id else None
-    desktop_id = match.desktop_id if match is not None else None
     workspace = _mapping_value(item, "workspace", {})
     workspace_id = None
     if isinstance(workspace, Mapping):
@@ -541,7 +562,7 @@ def _record_from_client(
         address=address,
         title=str(_mapping_value(item, "title", "") or "Window"),
         app_id=app_id,
-        desktop_id=desktop_id,
+        application_match=match,
         active=address == active_address,
         urgent=bool(_mapping_value(item, "urgent", False)),
         minimized=_optional_bool(_mapping_value(item, "minimized", None)),
@@ -550,7 +571,6 @@ def _record_from_client(
         geometry=geometry,
         workspace_id=workspace_id,
         pid=pid,
-        runtime_app=match.runtime_app if match is not None else None,
     )
 
 

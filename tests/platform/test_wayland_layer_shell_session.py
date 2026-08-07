@@ -42,6 +42,7 @@ from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
 )
 from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
+from tests.platform.application_fakes import identity_services
 
 
 def _layer_shell() -> SimpleNamespace:
@@ -115,7 +116,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
     )
@@ -143,7 +144,7 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
@@ -172,7 +173,7 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
@@ -201,7 +202,7 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
@@ -260,14 +261,14 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         client=SimpleNamespace(paths=HyprlandSocketPaths(command="", events="")),
         event_stream_factory=lambda _callback: None,
     )
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         window_service=window_service,
     )
@@ -300,7 +301,7 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 
@@ -439,14 +440,14 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         client=MagicMock(),
         event_stream_factory=lambda _callback: None,
     )
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         window_service=window_service,
     )
@@ -478,7 +479,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 

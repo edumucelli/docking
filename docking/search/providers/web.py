@@ -17,7 +17,7 @@ import hashlib
 from collections.abc import Callable
 
 from docking.i18n import _
-from docking.platform.launcher import open_target
+from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
 from docking.search.providers.base import action, action_parts, metadata
 from docking.search.recognizers.web import get_web_engine, normalize_web_target
@@ -29,8 +29,14 @@ class WebSearchProvider:
 
     provider_id = "web"
 
-    def __init__(self, *, copy_text: Callable[[str], None]) -> None:
+    def __init__(
+        self,
+        *,
+        target_service: TargetService,
+        copy_text: Callable[[str], None],
+    ) -> None:
         """Bind clipboard output and initialize the active target cache."""
+        self._target_service = target_service
         self._copy_text = copy_text
         self._targets: dict[str, str] = {}
 
@@ -158,7 +164,7 @@ class WebSearchProvider:
         if target is None:
             return False
         if parts[1] == "open":
-            return open_target(target)
+            return self._target_service.open_target(target)
         if parts[1] == "copy":
             self._copy_text(target.removeprefix("mailto:"))
             return True

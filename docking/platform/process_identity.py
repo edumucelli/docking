@@ -1,40 +1,70 @@
-"""Runtime process identity and Docking launch provenance."""
+"""Compatibility facade for process identity and launch provenance."""
 
 from __future__ import annotations
 
 import subprocess
-from collections import OrderedDict
-from dataclasses import dataclass
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
-_MAX_LAUNCH_RECORDS = 256
+from docking.platform.applications import identity as _identity
+from docking.platform.applications.identity import (
+    DEFAULT_MAX_LAUNCH_RECORDS,
+    LaunchProvenance,
+    LaunchProvenanceStore,
+    ProcessIdentity,
+    ProcessIdentityService,
+)
+
+_MAX_LAUNCH_RECORDS = DEFAULT_MAX_LAUNCH_RECORDS
+_DEFAULT_PROVENANCE_STORE = LaunchProvenanceStore()
+_DEFAULT_PROCESS_IDENTITY_SERVICE = ProcessIdentityService(
+    _DEFAULT_PROVENANCE_STORE,
+)
+_service_lock = RLock()
+_service = _DEFAULT_PROCESS_IDENTITY_SERVICE
 
 
-@dataclass(frozen=True)
-class LaunchProvenance:
-    """Desktop launcher identity retained for a process started by Docking."""
-
-    desktop_id: str
-    executable_path: Path | None = None
+def get_process_identity_service() -> ProcessIdentityService:
+    """Return the compatibility service currently installed for this process."""
+    with _service_lock:
+        return _service
 
 
-@dataclass(frozen=True)
-class ProcessIdentity:
-    """Process evidence that can refine application-family matching."""
-
-    pid: int
-    executable_path: Path | None = None
-    launch: LaunchProvenance | None = None
-
-
-@dataclass
-class _LaunchRecord:
-    process: subprocess.Popen[Any]
-    provenance: LaunchProvenance
+def configure_process_identity_service(
+    service: ProcessIdentityService,
+) -> ProcessIdentityService:
+    """Install *service* and return the previous compatibility service."""
+    global _service
+    with _service_lock:
+        previous = _service
+        _service = service
+        return previous
 
 
-_launches: OrderedDict[int, _LaunchRecord] = OrderedDict()
+def reset_process_identity_service(
+    previous: ProcessIdentityService | None = None,
+) -> None:
+    """Restore a previous service, or the module's standalone default."""
+    global _service
+    with _service_lock:
+        _service = (
+            previous if previous is not None else _DEFAULT_PROCESS_IDENTITY_SERVICE
+        )
+
+
+@contextmanager
+def use_process_identity_service(
+    service: ProcessIdentityService,
+) -> Iterator[ProcessIdentityService]:
+    """Temporarily install one service for legacy free-function consumers."""
+    previous = configure_process_identity_service(service)
+    try:
+        yield service
+    finally:
+        reset_process_identity_service(previous)
 
 
 def record_launch(
@@ -43,72 +73,55 @@ def record_launch(
     desktop_id: str,
     executable_path: Path | None,
 ) -> None:
-    """Remember the exact process created for a desktop launcher.
-
-    Shell launchers commonly replace themselves with ``exec``. The PID remains
-    stable across that replacement, so retaining the ``Popen`` PID preserves
-    the original desktop identity without leaking it to unrelated descendants.
-    """
-    pid = getattr(process, "pid", None)
-    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
-        return
-    _prune_finished_launches()
-    _launches[pid] = _LaunchRecord(
+    """Record a launch in the currently installed shared store."""
+    get_process_identity_service().provenance_store.record_launch(
         process=process,
-        provenance=LaunchProvenance(
-            desktop_id=desktop_id,
-            executable_path=executable_path,
-        ),
+        desktop_id=desktop_id,
+        executable_path=executable_path,
     )
-    _launches.move_to_end(pid)
-    while len(_launches) > _MAX_LAUNCH_RECORDS:
-        _launches.popitem(last=False)
 
 
 def identity_for_pid(pid: int | None) -> ProcessIdentity | None:
-    """Return available identity evidence for *pid* without raising."""
-    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
-        return None
-    return ProcessIdentity(
-        pid=pid,
-        executable_path=_process_executable_path(pid),
-        launch=_launch_provenance(pid),
-    )
+    """Delegate process lookup to the currently installed service."""
+    return get_process_identity_service().identity_for_pid(pid)
 
 
 def clear_launches_for_tests() -> None:
-    """Clear process launch records between isolated tests."""
-    _launches.clear()
+    """Clear records from the currently installed compatibility service."""
+    get_process_identity_service().provenance_store.clear()
 
 
 def _launch_provenance(pid: int) -> LaunchProvenance | None:
-    record = _launches.get(pid)
-    if record is None:
-        return None
-    if _process_finished(record.process):
-        _launches.pop(pid, None)
-        return None
-    _launches.move_to_end(pid)
-    return record.provenance
+    return get_process_identity_service().provenance_store.provenance_for_pid(pid)
 
 
 def _process_finished(process: subprocess.Popen[Any]) -> bool:
-    try:
-        status = process.poll()
-    except (OSError, ValueError):
-        return False
-    return isinstance(status, int) and not isinstance(status, bool)
+    return _identity._process_finished(process)
 
 
 def _prune_finished_launches() -> None:
-    for pid, record in list(_launches.items()):
-        if _process_finished(record.process):
-            _launches.pop(pid, None)
+    get_process_identity_service().provenance_store.prune_finished()
 
 
 def _process_executable_path(pid: int) -> Path | None:
-    try:
-        path = (Path("/proc") / str(pid) / "exe").resolve(strict=True)
-    except (OSError, RuntimeError):
-        return None
-    return path if path.is_file() else None
+    return _identity._process_executable_path(pid)
+
+
+configure_service = configure_process_identity_service
+reset_service = reset_process_identity_service
+
+__all__ = [
+    "LaunchProvenance",
+    "LaunchProvenanceStore",
+    "ProcessIdentity",
+    "ProcessIdentityService",
+    "clear_launches_for_tests",
+    "configure_process_identity_service",
+    "configure_service",
+    "get_process_identity_service",
+    "identity_for_pid",
+    "record_launch",
+    "reset_process_identity_service",
+    "reset_service",
+    "use_process_identity_service",
+]

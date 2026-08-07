@@ -1,30 +1,30 @@
-# Author: Eduardo Mucelli Rezende Oliveira
-# E-mail: edumucelli@gmail.com
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-
-"""Typed running-window state shared by window tracking and the dock model."""
+"""Compatibility values for canonical running-application state."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.running import (
+    RunningAppInfo as _CanonicalRunningAppInfo,
+)
+from docking.platform.applications.running import (
+    RunningWindowInfo as _CanonicalRunningWindowInfo,
+)
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.backends.base import WindowId
 
 
 @dataclass(frozen=True)
 class RuntimeAppIdentity:
-    """Metadata for a running executable without a matching desktop entry."""
+    """Historical runtime identity retained only for import compatibility."""
 
     desktop_id: str
     executable_path: str
@@ -33,63 +33,121 @@ class RuntimeAppIdentity:
     wm_class: str
 
 
-@dataclass(frozen=True)
-class RunningWindowInfo:
-    """One matched live window from the latest tracker scan."""
+def _canonical_runtime_application(
+    runtime_app: RuntimeAppIdentity | ApplicationInfo | None,
+) -> ApplicationInfo | None:
+    """Convert a legacy runtime identity at the compatibility boundary."""
+    if runtime_app is None or isinstance(runtime_app, ApplicationInfo):
+        return runtime_app
+    executable = runtime_app.executable_path
+    executable_path = Path(executable).expanduser() if executable else None
+    return ApplicationInfo(
+        desktop_id=runtime_app.desktop_id,
+        name=runtime_app.name or runtime_app.desktop_id,
+        declared_icon=runtime_app.icon_name,
+        wm_class=runtime_app.wm_class,
+        exec_line=executable,
+        origin=ApplicationOrigin.RUNTIME,
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=None,
+        executable_path=executable_path,
+        aliases=tuple(
+            desktop_entries.match_aliases(
+                desktop_id=runtime_app.desktop_id,
+                wm_class=runtime_app.wm_class,
+                exec_line=executable,
+            )
+        ),
+        visible=True,
+        has_gio_source=False,
+    )
 
-    # desktop_id is the model identity after WM_CLASS matching. It is not
-    # necessarily derived directly from the window; WindowMatcher may resolve it
-    # through desktop-file candidates or the launcher WM_CLASS index.
-    desktop_id: str
-    # Keep the raw XID alongside the Wnck object because hover previews and
-    # focus actions use XIDs as a stable handoff between scans. Wnck objects
-    # themselves can become stale at any time.
-    xid: int
-    # Backend-neutral ID for future non-X11 window services. X11 callers should
-    # keep using xid until the UI is migrated to WindowService methods.
-    window_id: WindowId
-    # These are per-window booleans. RunningAppInfo folds them with any(), so one
-    # active or urgent window makes the app active or urgent.
-    active: bool
-    urgent: bool
-    # The live Wnck window is intentionally carried through for callers that
-    # need titles, focus, or close/minimize operations. Do not serialize it.
-    window: Any
-    # Present only when strong executable evidence deliberately separated this
-    # window from a family-level desktop entry.
-    runtime_app: RuntimeAppIdentity | None = None
+
+def _legacy_runtime_identity(
+    application: ApplicationInfo | None,
+) -> RuntimeAppIdentity | None:
+    """Project canonical runtime metadata onto the historical value."""
+    if application is None or application.origin is not ApplicationOrigin.RUNTIME:
+        return None
+    executable = (
+        str(application.executable_path)
+        if application.executable_path is not None
+        else application.exec_line
+    )
+    return RuntimeAppIdentity(
+        desktop_id=application.desktop_id,
+        executable_path=executable,
+        name=application.name,
+        icon_name=application.declared_icon,
+        wm_class=application.wm_class,
+    )
 
 
-@dataclass(frozen=True)
-class RunningAppInfo:
-    """Aggregated running state for one desktop ID."""
+class RunningWindowInfo(_CanonicalRunningWindowInfo):
+    """Legacy constructor that publishes canonical runtime metadata."""
 
-    # count mirrors how many valid window snapshots survived the scan. It can be
-    # zero when a window matched a desktop ID but vanished before its XID could
-    # be read; that preserves the old WindowTracker aggregate behavior.
-    count: int = 0
-    active: bool = False
-    urgent: bool = False
-    # Tuples make the aggregate immutable once published to DockModel. This
-    # avoids accidental mutation between tracker scan, model reconciliation, and
-    # UI consumers.
-    windows: tuple[Any, ...] = ()
-    xids: tuple[int, ...] = ()
-    window_ids: tuple[WindowId, ...] = ()
-    runtime_app: RuntimeAppIdentity | None = None
+    __slots__ = ()
+
+    def __init__(
+        self,
+        desktop_id: str,
+        xid: int,
+        window_id: WindowId,
+        active: bool,
+        urgent: bool,
+        window: Any,
+        runtime_app: RuntimeAppIdentity | ApplicationInfo | None = None,
+    ) -> None:
+        super().__init__(
+            desktop_id=desktop_id,
+            xid=xid,
+            window_id=window_id,
+            active=active,
+            urgent=urgent,
+            window=window,
+            runtime_app=_canonical_runtime_application(runtime_app),
+        )
+
+
+class RunningAppInfo(_CanonicalRunningAppInfo):
+    """Legacy aggregate constructor with a canonical runtime boundary."""
+
+    __slots__ = ()
+
+    def __init__(
+        self,
+        count: int = 0,
+        active: bool = False,
+        urgent: bool = False,
+        windows: tuple[Any, ...] = (),
+        xids: tuple[int, ...] = (),
+        window_ids: tuple[WindowId, ...] = (),
+        runtime_app: RuntimeAppIdentity | ApplicationInfo | None = None,
+    ) -> None:
+        super().__init__(
+            count=count,
+            active=active,
+            urgent=urgent,
+            windows=windows,
+            xids=xids,
+            window_ids=window_ids,
+            runtime_app=_canonical_runtime_application(runtime_app),
+        )
 
     @classmethod
-    def from_windows(cls, windows: Iterable[RunningWindowInfo]) -> RunningAppInfo:
-        """Build one app aggregate from matched window snapshots."""
-        # Materialize once because the iterable feeds count, folded booleans,
-        # windows, and XIDs. Keeping all fields derived from the same snapshot
-        # tuple prevents subtle mismatches if a generator were consumed twice.
+    def from_windows(
+        cls,
+        windows: Iterable[_CanonicalRunningWindowInfo],
+    ) -> RunningAppInfo:
+        """Aggregate legacy or canonical windows into canonical model values."""
         snapshots = tuple(windows)
         runtime_app = next(
             (
-                snapshot.runtime_app
+                application
                 for snapshot in snapshots
-                if snapshot.runtime_app is not None
+                if (application := _canonical_runtime_application(snapshot.runtime_app))
+                is not None
+                and application.origin is ApplicationOrigin.RUNTIME
             ),
             None,
         )
@@ -102,3 +160,10 @@ class RunningAppInfo:
             window_ids=tuple(snapshot.window_id for snapshot in snapshots),
             runtime_app=runtime_app,
         )
+
+
+__all__ = [
+    "RunningAppInfo",
+    "RunningWindowInfo",
+    "RuntimeAppIdentity",
+]

@@ -7,7 +7,7 @@ previously split across X11 and Wayland test files.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -15,14 +15,17 @@ from unittest.mock import MagicMock
 import docking.platform.app_matcher as app_matcher_mod
 from docking.platform.app_matcher import (
     AppIdMatcher,
+    AppMatch,
     _app_id_candidates,
     _class_group_candidates,
     _ensure_desktop_suffix,
     _normalize_alias,
     _wine_aliases_from_instance,
 )
+from docking.platform.applications.types import ApplicationInfo, MatchMethod
 from docking.platform.launcher import GNOME_APP_PREFIX
 from docking.platform.process_identity import LaunchProvenance, ProcessIdentity
+from docking.platform.running import RuntimeAppIdentity
 
 
 def _launcher(*, resolve_by_wm_class=None, resolve=None):
@@ -197,6 +200,20 @@ class TestClassGroupCandidates:
         assert len(result) == len(set(result))
 
 
+def test_positional_legacy_launcher_constructor_is_adapted():
+    application = _FakeDesktopInfo(desktop_id="legacy.desktop")
+    launcher = _launcher(resolve=application)
+
+    matcher = AppIdMatcher(launcher)
+    result = matcher.match_result("legacy")
+
+    assert matcher.match("legacy") == "legacy.desktop"
+    assert isinstance(result, AppMatch)
+    assert [field.name for field in fields(result)] == ["desktop_id", "runtime_app"]
+    assert isinstance(result.application, ApplicationInfo)
+    assert result.evidence.method is MatchMethod.DESKTOP_ID
+
+
 class TestVisibleAliases:
     def test_direct_wm_class_hit(self):
         launcher = _launcher()
@@ -285,6 +302,108 @@ class TestExecutableIdentity:
         assert result.desktop_id == "tool-v1.desktop"
         assert result.runtime_app is None
 
+    def test_shared_wm_class_duplicate_paths_keep_first_indexed_launcher(
+        self, tmp_path, monkeypatch
+    ):
+        executable = self._binary(tmp_path, "shared")
+        first = _FakeDesktopInfo(
+            desktop_id="first.desktop",
+            wm_class="SharedTool",
+            exec_line=str(executable),
+        )
+        second = _FakeDesktopInfo(
+            desktop_id="second.desktop",
+            wm_class="SharedTool",
+            exec_line=str(executable),
+        )
+        launcher = _launcher()
+        launcher.resolve_all_by_wm_class.side_effect = lambda alias: (
+            (first, second) if alias.casefold() == "sharedtool" else ()
+        )
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=48, executable_path=executable),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=48)
+
+        assert result is not None
+        assert result.desktop_id == "first.desktop"
+        assert result.runtime_app is None
+
+    def test_alias_candidate_order_precedes_later_shared_class_path_match(
+        self, tmp_path, monkeypatch
+    ):
+        executable = self._binary(tmp_path, "exact")
+        earlier_alias = _FakeDesktopInfo(
+            desktop_id="vendor.SharedTool.desktop",
+            wm_class="SharedTool",
+        )
+        later_exact = _FakeDesktopInfo(
+            desktop_id="shared-tool-exact.desktop",
+            wm_class="SharedTool",
+            exec_line=str(executable),
+        )
+        launcher = _launcher()
+
+        def resolve_all(alias):
+            normalized = alias.casefold()
+            if normalized == "vendor.sharedtool":
+                return (earlier_alias,)
+            if normalized == "sharedtool":
+                return (earlier_alias, later_exact)
+            return ()
+
+        launcher.resolve_all_by_wm_class.side_effect = resolve_all
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=49, executable_path=executable),
+        )
+
+        result = matcher.match_result("vendor.SharedTool", process_id=49)
+
+        assert result is not None
+        assert result.desktop_id == "vendor.SharedTool.desktop"
+        assert result.runtime_app is None
+
+    def test_exact_path_outside_alias_candidates_does_not_override_match(
+        self, tmp_path, monkeypatch
+    ):
+        executable = self._binary(tmp_path, "unrelated")
+        alias_candidate = _FakeDesktopInfo(
+            desktop_id="shared-tool.desktop",
+            wm_class="SharedTool",
+        )
+        unrelated_exact = _FakeDesktopInfo(
+            desktop_id="other-family.desktop",
+            wm_class="OtherFamily",
+            exec_line=str(executable),
+        )
+        launcher = _launcher()
+        launcher.resolve_all_by_wm_class.side_effect = lambda alias: (
+            (alias_candidate,) if alias.casefold() == "sharedtool" else ()
+        )
+        launcher.resolve_by_executable_path.return_value = unrelated_exact
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(pid=50, executable_path=executable),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=50)
+
+        assert result is not None
+        assert result.desktop_id == "shared-tool.desktop"
+        assert result.runtime_app is None
+
     def test_conflicting_direct_process_path_creates_runtime_identity(
         self, tmp_path, monkeypatch
     ):
@@ -310,10 +429,21 @@ class TestExecutableIdentity:
         result = matcher.match_result("SharedTool", process_id=43)
 
         assert result is not None
-        assert result.desktop_id != "tool-v1.desktop"
+        expected_id = app_matcher_mod.desktop_entries.generated_desktop_id_for_path(
+            running
+        )
+        assert result.desktop_id == expected_id
+        assert isinstance(result, AppMatch)
         assert result.runtime_app is not None
+        assert type(result.runtime_app) is RuntimeAppIdentity
+        assert result.runtime_app.desktop_id == expected_id
         assert result.runtime_app.executable_path == str(running)
         assert result.runtime_app.name == "Shared Tool"
+        assert result.runtime_app.icon_name == "test-icon"
+        assert result.runtime_app.wm_class == "SharedTool"
+        assert isinstance(result.application, ApplicationInfo)
+        assert result.application.executable_path == running
+        assert result.evidence.method is MatchMethod.RUNTIME_PATH_SPLIT
 
     def test_missing_process_path_preserves_visible_alias_fallback(
         self, tmp_path, monkeypatch
@@ -445,6 +575,31 @@ class TestExecutableIdentity:
         )
 
         assert matcher.match("SharedTool", process_id=45) == "tool-wrapper.desktop"
+
+    def test_unresolved_launch_provenance_still_yields_desktop_id(
+        self, tmp_path, monkeypatch
+    ):
+        runtime = self._binary(tmp_path, "removed-launcher")
+        launcher = _launcher()
+        matcher = AppIdMatcher(launcher=launcher)
+        matcher.sync_visible_items([])
+        monkeypatch.setattr(
+            app_matcher_mod,
+            "identity_for_pid",
+            lambda _pid: ProcessIdentity(
+                pid=51,
+                executable_path=runtime,
+                launch=LaunchProvenance(
+                    desktop_id="removed-launcher.desktop",
+                ),
+            ),
+        )
+
+        result = matcher.match_result("SharedTool", process_id=51)
+
+        assert result is not None
+        assert result.desktop_id == "removed-launcher.desktop"
+        assert result.runtime_app is None
 
 
 class TestWineMatching:
@@ -711,6 +866,26 @@ class TestMissedCandidates:
         ready = True
         assert matcher.match("FutureApp") == "FutureApp.desktop"
         assert launcher.resolve.call_count > first_count
+
+    def test_x11_cached_miss_survives_visible_resync_before_registry_migration(self):
+        ready = False
+
+        def resolve(desktop_id, **_):
+            if ready and desktop_id == "FutureApp.desktop":
+                return _FakeDesktopInfo(desktop_id=desktop_id)
+            return None
+
+        launcher = _launcher(resolve=resolve)
+        matcher = AppIdMatcher(launcher=launcher, cache_missed_desktop_ids=True)
+        matcher.sync_visible_items([])
+
+        assert matcher.match("FutureApp") is None
+        first_count = launcher.resolve.call_count
+
+        ready = True
+        matcher.sync_visible_items([])
+        assert matcher.match("FutureApp") is None
+        assert launcher.resolve.call_count == first_count
 
     def test_successful_wm_class_match_uses_launcher_index(self):
         launcher = _launcher(

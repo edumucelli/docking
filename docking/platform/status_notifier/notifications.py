@@ -16,6 +16,7 @@ from docking.platform.status_notifier.backend import (
 )
 
 if TYPE_CHECKING:
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 POLL_INTERVAL_S = 3
@@ -69,8 +70,10 @@ class StatusNotifierNotificationBridge:
         self,
         *,
         model: DockModel,
+        application_registry: ApplicationRegistry,
     ) -> None:
         self._model = model
+        self._application_registry = application_registry
         self._backend = StatusNotifierBackend()
         self._worker = BackgroundWorker(logger=log)
         self._timer_id = 0
@@ -112,6 +115,17 @@ class StatusNotifierNotificationBridge:
             on_error=self._on_poll_error,
         )
 
+    def _canonical_desktop_id(self, desktop_id: str) -> str:
+        application = self._application_registry.resolve(
+            desktop_id,
+            log_failures=False,
+        )
+        if application is None:
+            application = self._application_registry.resolve_by_wm_class(
+                desktop_id.removesuffix(".desktop")
+            )
+        return application.desktop_id if application is not None else desktop_id
+
     def _on_state_result(self, state: StatusTrayState) -> bool:
         if not self._running:
             return False
@@ -127,6 +141,7 @@ class StatusNotifierNotificationBridge:
             desktop_id = status_notifier_desktop_id(item)
             if desktop_id is None:
                 continue
+            desktop_id = self._canonical_desktop_id(desktop_id)
             current_source_ids.add(item.identifier)
             count = parse_slack_notification_count(item)
             if count is None:

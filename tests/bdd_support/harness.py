@@ -15,6 +15,11 @@ import docking.ui.preview as preview_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.geometry import Rect
 from docking.ui.hover import HoverManager
@@ -139,6 +144,8 @@ def _controller(stub) -> SimpleNamespace:
     controller = SimpleNamespace(
         _window=stub,
         _interactions=stub._interactions,
+        _application_launcher=getattr(stub, "_application_launcher", MagicMock()),
+        _target_service=getattr(stub, "_target_service", MagicMock()),
         _click_x=getattr(stub, "_click_x", -1.0),
         _click_y=getattr(stub, "_click_y", -1.0),
         _click_button=getattr(stub, "_click_button", 0),
@@ -253,7 +260,7 @@ class DockHarness:
         self._build_hover_harness()
 
     def start(self) -> None:
-        self._patchers = [
+        patchers = [
             patch.object(
                 autohide_mod.GLib,
                 "timeout_add",
@@ -274,9 +281,15 @@ class DockHarness:
             patch.object(dnd_mod.Gtk, "drag_finish", lambda *_args: None),
             patch.object(dnd_mod, "show_poof", MagicMock()),
         ]
-        for patcher in self._patchers:
-            patcher.start()
-        self._build_drag_handler()
+        self._patchers = []
+        try:
+            for patcher in patchers:
+                patcher.start()
+                self._patchers.append(patcher)
+            self._build_drag_handler()
+        except Exception:
+            self.stop()
+            raise
 
     def stop(self) -> None:
         for patcher in reversed(self._patchers):
@@ -442,12 +455,21 @@ class DockHarness:
             return True
 
         self._drag_handler._model.insert_pinned_item.side_effect = insert_pinned_item
-        self._drag_handler._launcher.resolve.return_value = SimpleNamespace(
+        self._drag_handler._application_registry.resolve.return_value = ApplicationInfo(
+            desktop_id="firefox.desktop",
             name="Firefox",
-            icon_name="firefox",
+            declared_icon="firefox",
             wm_class="firefox",
+            exec_line="/usr/bin/firefox",
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(),
+            visible=True,
+            has_gio_source=True,
         )
-        self._drag_handler._launcher.load_icon.return_value = object()
+        self._drag_handler._icon_loader.load_desktop_icon.return_value = object()
         selection = MagicMock()
         selection.get_uris.return_value = [uri]
         self._drag_handler._on_drag_data_received(
@@ -497,7 +519,13 @@ class DockHarness:
         model = MagicMock()
         renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_registry.resolve.return_value = None
+        application_registry.resolve_by_desktop_file.return_value = None
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        target_service.resolve_file.return_value = None
         pointer = MagicMock()
         pointer.get_position.return_value = (None, 0, 0)
         seat = MagicMock()
@@ -532,11 +560,14 @@ class DockHarness:
             config,
             renderer,
             theme,
-            launcher,
             geometry_builder=SimpleNamespace(
                 build_frame=lambda **_kwargs: self._dnd_frame
             ),
             folder_stack=folder_stack,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
         )
 
     def _mark_drag_reorder(self, *_args, **_kwargs) -> None:

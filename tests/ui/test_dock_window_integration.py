@@ -83,6 +83,8 @@ def _controller(stub):
     controller = SimpleNamespace(
         _window=stub,
         _interactions=interactions,
+        _application_launcher=getattr(stub, "_application_launcher", MagicMock()),
+        _target_service=getattr(stub, "_target_service", MagicMock()),
         _click_x=getattr(stub, "_click_x", -1.0),
         _click_y=getattr(stub, "_click_y", -1.0),
         _click_button=getattr(stub, "_click_button", 0),
@@ -334,29 +336,50 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
+    def test_left_click_stopped_app_uses_application_launcher(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=False)
+        stub, _ = _make_stub(item=item)
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 1515
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._application_launcher.launch.assert_called_once_with(
+            "firefox.desktop"
+        )
+        assert item.last_clicked == 1515
+        assert item.last_launched == 1515
+        stub.hover.start_anim_pump.assert_called_once_with(700)
+
     def test_middle_click_new_window_launches_running_app(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
         )
-        launch_calls: list[str] = []
         monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
         monkeypatch.setattr(
             input_controller_mod.GLib, "get_monotonic_time", lambda: 2020
         )
-        monkeypatch.setattr(
-            input_controller_mod,
-            "launch_new_window",
-            lambda desktop_id: launch_calls.append(desktop_id),
-        )
+        controller = _controller(stub)
 
         handled = input_controller_mod.DockInputController._on_button_release(
-            _controller(stub), MagicMock(), event
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert launch_calls == ["firefox.desktop"]
+        controller._application_launcher.launch_new_window.assert_called_once_with(
+            "firefox.desktop"
+        )
         assert item.last_launched == 2020
         stub.hover.start_anim_pump.assert_called_once_with(700)
 
@@ -457,23 +480,20 @@ class TestButtonReleaseFlow:
             button=dock_window_mod.MOUSE_LEFT,
             state=dock_window_mod.Gdk.ModifierType.CONTROL_MASK,
         )
-        launch_calls: list[str] = []
         monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
         monkeypatch.setattr(
             input_controller_mod.GLib, "get_monotonic_time", lambda: 2323
         )
-        monkeypatch.setattr(
-            input_controller_mod,
-            "launch_new_window",
-            lambda desktop_id: launch_calls.append(desktop_id),
-        )
+        controller = _controller(stub)
 
         handled = input_controller_mod.DockInputController._on_button_release(
-            _controller(stub), MagicMock(), event
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert launch_calls == ["firefox.desktop"]
+        controller._application_launcher.launch_new_window.assert_called_once_with(
+            "firefox.desktop"
+        )
         stub.window_tracker.cycle.assert_not_called()
         assert item.last_launched == 2323
 
@@ -490,17 +510,16 @@ class TestButtonReleaseFlow:
         monkeypatch.setattr(
             input_controller_mod.GLib, "get_monotonic_time", lambda: 3030
         )
-        opened: list[str] = []
-        monkeypatch.setattr(
-            input_controller_mod, "open_target", lambda target: opened.append(target)
-        )
+        controller = _controller(stub)
 
         handled = input_controller_mod.DockInputController._on_button_release(
-            _controller(stub), MagicMock(), event
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert opened == ["file:///tmp/notes.txt"]
+        controller._target_service.open_target.assert_called_once_with(
+            "file:///tmp/notes.txt"
+        )
         assert item.last_launched == 3030
 
     def test_left_click_folder_item_opens_folder_stack(self, monkeypatch):

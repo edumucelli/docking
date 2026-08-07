@@ -23,19 +23,15 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
-from docking.applets.apps import all_desktop_app_infos
 from docking.applets.base import Applet
 from docking.applets.popup import prepare_dialog_content
 from docking.applets.runcommand import meta
 from docking.applets.runcommand.render import create_icon
 from docking.applets.runcommand.state import (
-    ApplicationLike,
     app_command_text,
     app_description,
     app_display_name,
-    append_file_argument,
     launch_application,
-    launch_command,
     match_application,
     normalize_history,
     prefs_payload,
@@ -43,8 +39,17 @@ from docking.applets.runcommand.state import (
 )
 from docking.core.icons import IconSource
 from docking.i18n import _
+from docking.platform import commands
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.listing import (
+    ApplicationListing,
+    listing_gicon,
+    visible_listings,
+)
+from docking.platform.applications.registry import ApplicationRegistry
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
 
 RUN_DIALOG_WIDTH_PX = 575
@@ -59,7 +64,7 @@ COMMAND_WIDTH_CHARS = 48
 class _ApplicationRow(Gtk.ListBoxRow):
     """List row that retains the application represented by its child widgets."""
 
-    def __init__(self, app: ApplicationLike) -> None:
+    def __init__(self, app: ApplicationListing) -> None:
         super().__init__()
         self.app = app
 
@@ -82,10 +87,12 @@ class RunCommandApplet(Applet):
         self._run_button: Gtk.Widget | None = None
         self._left_icon: Gtk.Image | None = None
         self._description_label: Gtk.Label | None = None
-        self._apps: list[ApplicationLike] = []
+        self._application_registry: ApplicationRegistry | None = None
+        self._application_launcher: ApplicationLauncher | None = None
+        self._apps: list[ApplicationListing] = []
         self._app_list: Gtk.ListBox | None = None
         self._app_rows: list[_ApplicationRow] = []
-        self._selected_app: ApplicationLike | None = None
+        self._selected_app: ApplicationListing | None = None
         self._selected_entry_text = ""
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -95,6 +102,10 @@ class RunCommandApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         self.item.name = _("Run Application")
+
+    def set_services(self, services: AppletServices) -> None:
+        self._application_registry = services.application_registry
+        self._application_launcher = services.application_launcher
 
     def on_clicked(self) -> None:
         if self._dialog and self._dialog.get_visible():
@@ -213,7 +224,7 @@ class RunCommandApplet(Applet):
         for child in list(app_list.get_children()):
             app_list.remove(child)
 
-        self._apps = list(all_desktop_app_infos())
+        self._apps = list(visible_listings(self._application_registry))
         self._app_rows = []
         for app in self._apps:
             row = _ApplicationRow(app)
@@ -222,10 +233,10 @@ class RunCommandApplet(Applet):
             self._app_rows.append(row)
         self._apply_app_filter(self._entry.get_text() if self._entry else "")
 
-    def _build_app_row(self, app: ApplicationLike) -> Gtk.Box:
+    def _build_app_row(self, app: ApplicationListing) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         icon = Gtk.Image()
-        gicon = app.get_icon()
+        gicon = listing_gicon(self._application_registry, app)
         if gicon is not None:
             icon.set_from_gicon(gicon, Gtk.IconSize.MENU)
         icon.set_pixel_size(16)
@@ -312,7 +323,7 @@ class RunCommandApplet(Applet):
             return
         self._select_application(row.app)
 
-    def _select_application(self, app: ApplicationLike) -> None:
+    def _select_application(self, app: ApplicationListing) -> None:
         self._selected_app = app
         self._selected_entry_text = app_command_text(app)
         if self._entry is not None:
@@ -323,10 +334,12 @@ class RunCommandApplet(Applet):
             self._description_label.set_text(app_description(app))
         self._sync_run_state()
 
-    def _update_left_icon(self, app: ApplicationLike | None) -> None:
+    def _update_left_icon(self, app: ApplicationListing | None) -> None:
         if self._left_icon is None:
             return
-        gicon = app.get_icon() if app is not None else None
+        gicon = (
+            listing_gicon(self._application_registry, app) if app is not None else None
+        )
         if gicon is not None:
             self._left_icon.set_from_gicon(gicon, Gtk.IconSize.DIALOG)
         else:
@@ -355,7 +368,7 @@ class RunCommandApplet(Applet):
             if filename:
                 command = self._entry.get_text()
                 self._entry.set_text(
-                    append_file_argument(command=command, path=filename),
+                    commands.append_file_argument(command=command, path=filename),
                 )
                 self._entry.set_position(-1)
         dialog.destroy()
@@ -376,14 +389,17 @@ class RunCommandApplet(Applet):
             self._terminal_check and self._terminal_check.get_active()
         )
         if run_in_terminal:
-            launched = launch_command(
+            launched = commands.launch_command(
                 command=app_command_text(app) if app is not None else command,
                 run_in_terminal=True,
             )
         elif app is not None:
-            launched = launch_application(app)
+            launched = launch_application(
+                app=app,
+                launcher=self._application_launcher,
+            )
         else:
-            launched = launch_command(
+            launched = commands.launch_command(
                 command=command,
                 run_in_terminal=False,
             )
@@ -395,7 +411,7 @@ class RunCommandApplet(Applet):
                 self._dialog.hide()
 
 
-def _app_matches_filter(*, app: ApplicationLike, query: str) -> bool:
+def _app_matches_filter(*, app: ApplicationListing, query: str) -> bool:
     if not query:
         return True
     name = app_display_name(app).casefold()

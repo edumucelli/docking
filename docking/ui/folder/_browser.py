@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 import gi
 
@@ -25,13 +25,10 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import GdkPixbuf, Gio
 
-import docking.platform.launcher as launcher_mod
 from docking.i18n import _
 from docking.log import get_logger
-
-if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
-
+from docking.platform.icons import IconLoader
+from docking.platform.targets import TargetService
 
 FOLDER_DIRECTORY_CACHE_MAX_ENTRIES = 48
 FOLDER_SMALL_ICON_PX = 16
@@ -107,8 +104,20 @@ class FolderRow:
 class FolderBrowser:
     """List folder children with bounded caching and stable sort behavior."""
 
-    def __init__(self, launcher: Launcher) -> None:
-        self._launcher = launcher
+    def __init__(
+        self,
+        *,
+        target_service: TargetService | None = None,
+        icon_loader: IconLoader | None = None,
+    ) -> None:
+        if target_service is None:
+            icon_loader = icon_loader or IconLoader()
+            target_service = TargetService(icon_loader=icon_loader)
+        elif icon_loader is None:
+            icon_loader = target_service.icon_loader
+        assert icon_loader is not None
+        self._target_service = target_service
+        self._icon_loader = icon_loader
         self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
 
     @staticmethod
@@ -125,14 +134,14 @@ class FolderBrowser:
             cache.pop(next(iter(cache)))
 
     def invalidate_target(self, target: str) -> None:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         for key in [key for key in self._directory_rows if key[0] == uri]:
             self._directory_rows.pop(key, None)
 
     def target_state(self, target: str) -> str:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return "missing"
         try:
@@ -143,7 +152,7 @@ class FolderBrowser:
             return "missing"
 
     def cache_stamp(self, target: str) -> int:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return 0
         try:
@@ -164,7 +173,7 @@ class FolderBrowser:
         prefs: FolderPrefs,
         icon_px: int | None = None,
     ) -> list[FolderRow]:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return []
         resolved_icon_px = FOLDER_SMALL_ICON_PX if icon_px is None else max(icon_px, 1)
@@ -230,7 +239,7 @@ class FolderBrowser:
                     size=int(info.get_size()),
                     created=int(info.get_attribute_uint64("time::created")),
                     modified=int(info.get_attribute_uint64("time::modified")),
-                    icon=self._launcher.resolve_file_icon(
+                    icon=self._icon_loader.resolve_file_icon(
                         target=child_uri,
                         gicon=icon,
                         content_type=info.get_content_type() or "",
@@ -249,7 +258,7 @@ class FolderBrowser:
         return rows
 
     def directory_has_visible_children(self, target: str, show_hidden: bool) -> bool:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return False
         try:

@@ -9,6 +9,10 @@ from types import SimpleNamespace
 import pytest
 
 from docking.platform import process_identity
+from docking.platform.applications.identity import (
+    LaunchProvenanceStore,
+    ProcessIdentityService,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -55,3 +59,30 @@ def test_finished_launch_record_is_discarded():
 
     assert identity is not None
     assert identity.launch is None
+
+
+def test_compatibility_facade_temporarily_uses_installed_service():
+    shared_store = LaunchProvenanceStore()
+    service = ProcessIdentityService(
+        shared_store,
+        executable_resolver=lambda _pid: Path("/opt/shared"),
+    )
+    previous = process_identity.configure_process_identity_service(service)
+    try:
+        process_identity.record_launch(
+            process=SimpleNamespace(pid=99, poll=lambda: None),
+            desktop_id="shared.desktop",
+            executable_path=Path("/opt/shared"),
+        )
+
+        identity = process_identity.identity_for_pid(99)
+
+        assert identity is not None
+        assert identity.executable_path == Path("/opt/shared")
+        assert identity.launch is not None
+        assert identity.launch.desktop_id == "shared.desktop"
+        assert service.provenance_store is shared_store
+    finally:
+        process_identity.reset_process_identity_service(previous)
+
+    assert process_identity.get_process_identity_service() is previous

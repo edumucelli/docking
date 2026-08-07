@@ -159,12 +159,12 @@ class TestApplet:
 
         # When
         with patch(
-            "docking.applets.recentfiles.applet.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+            "docking.applets.recentfiles.applet.targets.open_target"
+        ) as open_target:
             applet.on_clicked()
 
         # Then
-        launch.assert_called_once_with("file:///a.txt", None)
+        open_target.assert_called_once_with("file:///a.txt")
 
     def test_on_clicked_noop_when_empty(self):
         # Given no entries
@@ -180,17 +180,15 @@ class TestApplet:
 
         # When
         with patch(
-            "docking.applets.recentfiles.applet.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+            "docking.applets.recentfiles.applet.targets.open_target"
+        ) as open_target:
             applet.on_clicked()
 
         # Then
-        launch.assert_not_called()
+        open_target.assert_not_called()
 
     def test_on_clicked_handles_launch_error(self):
         # Given
-        from gi.repository import GLib
-
         manager = MagicMock()
         manager.get_items.return_value = [
             self._make_recent_info("a.txt", "file:///a.txt", 200),
@@ -205,8 +203,8 @@ class TestApplet:
 
         # When / Then (no exception raised)
         with patch(
-            "docking.applets.recentfiles.applet.Gio.AppInfo.launch_default_for_uri",
-            side_effect=GLib.Error("boom"),
+            "docking.applets.recentfiles.applet.targets.open_target",
+            return_value=False,
         ):
             applet.on_clicked()
 

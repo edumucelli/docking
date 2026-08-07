@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.platform.application_fakes import application, identity_services
+
 pytest.importorskip("pywayland")
 
 ExtForeignToplevelListV1 = pytest.importorskip(
@@ -517,10 +519,9 @@ def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
         ),
         update_running=MagicMock(),
     )
-    launcher = SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock())
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=launcher,
+        **identity_services(application("foot.desktop", wm_class="foot")),
         protocol=adapter,
     )
     adapter.start(service)

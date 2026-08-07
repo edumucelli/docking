@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import docking.applets.bookmarks.applet as bookmarks_applet_mod
 from docking.applets.bookmarks.state import (
@@ -113,20 +112,22 @@ class TestApplet:
         applet = BookmarksApplet(icon_size=48, config=Config())
         applet._bookmarks = [Bookmark(name="Ex", url="https://example.com")]
 
-        with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
+        with patch(
+            "docking.applets.bookmarks.applet.targets.open_target"
+        ) as open_target:
             applet.on_clicked()
-            mock_gio.AppInfo.launch_default_for_uri.assert_called_once_with(
-                "https://example.com", None
-            )
+            open_target.assert_called_once_with("https://example.com")
 
     def test_on_clicked_noop_when_empty(self):
         """Given no bookmarks, when clicked, then no-op."""
         from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48, config=Config())
-        with patch("docking.applets.bookmarks.applet.Gio") as mock_gio:
+        with patch(
+            "docking.applets.bookmarks.applet.targets.open_target"
+        ) as open_target:
             applet.on_clicked()
-            mock_gio.AppInfo.launch_default_for_uri.assert_not_called()
+            open_target.assert_not_called()
 
     def test_menu_items_open_remove_and_add_callbacks(self, monkeypatch):
         from docking.applets.bookmarks.applet import BookmarksApplet
@@ -168,24 +169,16 @@ class TestApplet:
         assert add_calls == [True]
         assert remove_calls == [True]
 
-    def test_open_url_logs_glib_error(self, monkeypatch):
+    def test_open_url_handles_target_failure(self, monkeypatch):
         from docking.applets.bookmarks.applet import BookmarksApplet
 
         applet = BookmarksApplet(icon_size=48, config=Config())
-        logger = SimpleNamespace(warning=lambda *_args, **_kwargs: None)
-
-        def bind(**_kwargs):
-            return logger
-
-        monkeypatch.setattr(bookmarks_applet_mod.GLib, "Error", RuntimeError)
-        monkeypatch.setattr(
-            bookmarks_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
-        )
-        monkeypatch.setattr(bookmarks_applet_mod.log, "bind", bind)
+        open_target = MagicMock(return_value=False)
+        monkeypatch.setattr(bookmarks_applet_mod.targets, "open_target", open_target)
 
         applet._open_url("https://example.com")
+
+        open_target.assert_called_once_with("https://example.com")
 
     def test_show_add_dialog_persists_valid_bookmark(self, monkeypatch):
         from docking.applets.bookmarks.applet import BookmarksApplet
