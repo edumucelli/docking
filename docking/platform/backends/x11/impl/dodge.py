@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from contextlib import suppress
 from typing import TYPE_CHECKING, NamedTuple
@@ -23,7 +24,8 @@ import gi
 
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Wnck
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Wnck
 
 from docking.core.config import HideMode
 from docking.log import get_logger, with_context
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="dodge"))
 
 DEBOUNCE_MS = 200
+_OWN_PID = os.getpid()
 
 _SKIP_TYPES = frozenset(
     {
@@ -85,6 +88,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
         self._screen = Wnck.Screen.get_default()
         if not self._screen:
             return
+        self._force_screen_update()
         self._connect(self._screen, "active-window-changed", self._on_window_event)
         self._connect(self._screen, "window-opened", self._on_window_opened)
         self._connect(self._screen, "window-closed", self._on_window_closed)
@@ -109,7 +113,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
         self._screen = None
 
     def _connect(self, obj: object, signal: str, handler: Callable) -> None:
-        sid = obj.connect(signal, handler)
+        sid = obj.connect_after(signal, handler)
         self._signal_ids.append((obj, sid))
 
     def _connect_window(self, window: Wnck.Window) -> None:
@@ -122,8 +126,8 @@ class WindowDodgeMonitor(VisibilityMonitor):
             return
         sids: list[int] = []
         try:
-            sids.append(window.connect("geometry-changed", self._on_window_event))
-            sids.append(window.connect("state-changed", self._on_window_event))
+            sids.append(window.connect_after("geometry-changed", self._on_window_event))
+            sids.append(window.connect_after("state-changed", self._on_window_event))
         except Exception as exc:
             log.debug("Failed to connect dodge monitor window signals: %s", exc)
         self._window_signal_ids[xid] = (window, sids)
@@ -153,6 +157,25 @@ class WindowDodgeMonitor(VisibilityMonitor):
     def _on_window_event(self, *_args: object) -> None:
         self._schedule_evaluate()
 
+    def _force_screen_update(self) -> None:
+        """Ask libwnck to flush pending X11 state before reading windows."""
+        if self._screen is None:
+            return
+        trapped = False
+        try:
+            Gdk.error_trap_push()
+            trapped = True
+            self._screen.force_update()
+            Gdk.flush()
+            if Gdk.error_trap_pop() != 0:
+                log.debug("Wnck force_update produced an X11 error")
+            trapped = False
+        except Exception as exc:
+            if trapped:
+                with suppress(Exception):
+                    Gdk.error_trap_pop()
+            log.debug("Failed to force Wnck update before dodge evaluation: %s", exc)
+
     def _schedule_evaluate(self) -> None:
         if self._debounce_id:
             GLib.source_remove(self._debounce_id)
@@ -167,6 +190,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
 
     def _do_evaluate(self) -> bool:
         self._debounce_id = 0
+        self._force_screen_update()
         should_hide = self._evaluate()
         if should_hide != self._should_hide:
             self._should_hide = should_hide
@@ -197,7 +221,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
                 active_workspace,
             )
         if mode == HideMode.DODGE_ACTIVE:
-            return self._eval_dodge_active(dock_rect, active_window)
+            return self._eval_dodge_active(dock_rect, active_window, active_workspace)
         if mode == HideMode.WINDOW_DODGE:
             return self._eval_window_dodge(dock_rect, screen, active_workspace)
         if mode == HideMode.DODGE_MAXIMIZED:
@@ -219,19 +243,28 @@ class WindowDodgeMonitor(VisibilityMonitor):
         """Hide if any window from the active app overlaps dock."""
         if not active_window:
             return False
-        try:
-            active_class = active_window.get_class_group_name()
-        except Exception as exc:
-            log.debug(
-                "Failed to read active window class for intelligent dodge: %s",
-                exc,
-            )
+
+        if self._is_dodge_candidate(active_window, active_workspace) and (
+            self._window_overlaps(active_window, dock_rect)
+        ):
+            return True
+
+        active_pid = self._window_pid(active_window)
+        active_class = self._window_class(active_window)
+        if active_pid is None and not active_class:
             return False
-        if not active_class:
-            return False
+
         for win in self._visible_windows(screen, active_workspace):
             try:
-                if win.get_class_group_name() != active_class:
+                win_pid = self._window_pid(win)
+                win_class = self._window_class(win)
+                same_process = (
+                    active_pid is not None
+                    and win_pid is not None
+                    and win_pid == active_pid
+                )
+                same_class = bool(active_class and win_class == active_class)
+                if not (same_process or same_class):
                     continue
                 if self._window_overlaps(win, dock_rect):
                     return True
@@ -243,13 +276,33 @@ class WindowDodgeMonitor(VisibilityMonitor):
                 continue
         return False
 
+    @staticmethod
+    def _window_pid(window: Wnck.Window) -> int | None:
+        try:
+            pid = int(window.get_pid())
+        except Exception as exc:
+            log.debug("Failed to read window pid for dodge overlap: %s", exc)
+            return None
+        return pid if pid > 0 else None
+
+    @staticmethod
+    def _window_class(window: Wnck.Window) -> str | None:
+        try:
+            return window.get_class_group_name() or None
+        except Exception as exc:
+            log.debug("Failed to read window class for dodge overlap: %s", exc)
+            return None
+
     def _eval_dodge_active(
         self,
         dock_rect: ScreenRect,
         active_window: Wnck.Window | None,
+        active_workspace: Wnck.Workspace | None,
     ) -> bool:
         """Hide if the active window overlaps dock."""
         if not active_window:
+            return False
+        if not self._is_dodge_candidate(active_window, active_workspace):
             return False
         return self._window_overlaps(active_window, dock_rect)
 
@@ -273,11 +326,17 @@ class WindowDodgeMonitor(VisibilityMonitor):
         active_workspace: Wnck.Workspace | None,
     ) -> bool:
         """Hide if active window is maximized or a dialog overlaps."""
+        active_pid = self._window_pid(active_window) if active_window else None
+        active_class = self._window_class(active_window) if active_window else None
         if active_window:
             try:
-                if active_window.is_maximized() and self._window_overlaps(
-                    active_window,
-                    dock_rect,
+                if (
+                    self._is_dodge_candidate(active_window, active_workspace)
+                    and self._window_is_maximized(active_window)
+                    and self._window_overlaps(
+                        active_window,
+                        dock_rect,
+                    )
                 ):
                     return True
             except Exception as exc:
@@ -286,6 +345,11 @@ class WindowDodgeMonitor(VisibilityMonitor):
             try:
                 if (
                     win.get_window_type() == Wnck.WindowType.DIALOG
+                    and self._matches_active_app(
+                        win,
+                        active_pid=active_pid,
+                        active_class=active_class,
+                    )
                     and self._window_overlaps(win, dock_rect)
                 ):
                     return True
@@ -305,21 +369,62 @@ class WindowDodgeMonitor(VisibilityMonitor):
         """Yield normal windows on active workspace that aren't minimized."""
         for win in screen.get_windows():
             try:
-                if win.is_minimized():
-                    continue
-                if win.get_window_type() in _SKIP_TYPES:
-                    continue
-                if active_workspace and not win.is_visible_on_workspace(
-                    active_workspace,
-                ):
-                    continue
-                yield win
+                if self._is_dodge_candidate(win, active_workspace):
+                    yield win
             except Exception as exc:
                 log.debug(
                     "Failed to inspect window while listing visible windows: %s",
                     exc,
                 )
                 continue
+
+    def _is_dodge_candidate(
+        self,
+        window: Wnck.Window,
+        active_workspace: Wnck.Workspace | None,
+    ) -> bool:
+        try:
+            if window.is_minimized():
+                return False
+            if window.get_window_type() in _SKIP_TYPES:
+                return False
+            if active_workspace and not window.is_visible_on_workspace(
+                active_workspace,
+            ):
+                return False
+        except Exception as exc:
+            log.debug("Failed to inspect dodge candidate window: %s", exc)
+            return False
+
+        pid = self._window_pid(window)
+        return pid != _OWN_PID
+
+    def _matches_active_app(
+        self,
+        window: Wnck.Window,
+        *,
+        active_pid: int | None,
+        active_class: str | None,
+    ) -> bool:
+        win_pid = self._window_pid(window)
+        win_class = self._window_class(window)
+        same_process = (
+            active_pid is not None and win_pid is not None and win_pid == active_pid
+        )
+        same_class = bool(active_class and win_class == active_class)
+        return same_process or same_class
+
+    @staticmethod
+    def _window_is_maximized(window: Wnck.Window) -> bool:
+        try:
+            return bool(
+                window.is_maximized()
+                or window.is_maximized_vertically()
+                or window.is_maximized_horizontally()
+            )
+        except Exception as exc:
+            log.debug("Failed to read window maximized state: %s", exc)
+        return False
 
     def _window_overlaps(
         self,
