@@ -150,7 +150,7 @@ import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
@@ -604,7 +604,7 @@ class PinnedEntry:
             return None
         if kind_raw not in {APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND}:
             return None
-        return cls(kind=cast(ItemKind, kind_raw), target=target_raw)
+        return cls(kind=kind_raw, target=target_raw)
 
 
 def _uri_is_dir(target: str) -> bool:
