@@ -306,9 +306,15 @@ class TestBuildDockWindow:
         window = _window()
         window.get_realized.return_value = True
         window.get_position.return_value = (10, 20)
-        window.geometry.build_frame.return_value.background_rect = SimpleNamespace(
+        window.geometry.build_frame.return_value.static_dock_rect = SimpleNamespace(
             x=100,
             y=30,
+            w=300,
+            h=40,
+        )
+        window.geometry.build_frame.return_value.background_rect = SimpleNamespace(
+            x=100,
+            y=230,
             w=300,
             h=40,
         )

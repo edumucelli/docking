@@ -1,3 +1,15 @@
+docking (2.12.1-1) stable; urgency=medium
+
+  * Release 2.12.1.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 11 Aug 2026 20:24:02 +0200
+
+docking (2.12.0-1) stable; urgency=medium
+
+  * Release 2.12.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 05 Aug 2026 17:43:32 +0200
+
 docking (2.11.0-1) stable; urgency=medium
 
   * Release 2.11.0.
@@ -880,4 +892,3 @@ docking (0.1.0-1) stable; urgency=medium
   * Use workspace-local artifacts path for deb build/upload/release
 
  -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Feb 2026 23:59:53 +0100
-
