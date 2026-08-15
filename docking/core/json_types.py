@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TypeAlias, cast
 
-JsonScalar: TypeAlias = None | bool | int | float | str
+JsonScalar: TypeAlias = bool | int | float | str | None
 JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 JsonObject: TypeAlias = dict[str, JsonValue]
 
