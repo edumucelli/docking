@@ -11,12 +11,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""COSMIC protocol adapters for toplevel info/management, workspace, and overlap.
+"""COSMIC protocol adapters for toplevel info/management and overlap.
 
 These adapters translate raw Wayland protocol events into calls on Docking
 service objects (WindowService, WorkspaceService, VisibilityMonitor). They
 follow the same adapter pattern as the generic ForeignToplevelProtocolAdapter
-and WorkspaceProtocolAdapter, but target COSMIC-specific protocol families.
+but target COSMIC-specific protocol families.
 
 COSMIC protocol composition:
 
@@ -24,8 +24,6 @@ COSMIC protocol composition:
   zcosmic_toplevel_info_v1          done, closed)
   zcosmic_toplevel_manager_v1  +--- window actions (activate, close,
                                      minimize, maximize, fullscreen)
-
-  zcosmic_workspace_manager_v2 +--- workspace listing and switching
 
   zcosmic_overlap_notify_v1    +--- overlap-driven dock visibility
 """
@@ -37,25 +35,14 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
+from docking.platform.backends.base import Rect
 
 if TYPE_CHECKING:
     from docking.platform.backends.wayland.toplevels import (
         WaylandForeignToplevelWindowService,
     )
-    from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 log = get_logger(name="cosmic_protocols")
-
-
-def _workspace_flags(value: object) -> Iterable[object] | int | None:
-    """Return a workspace flag payload accepted by the service contract."""
-    if isinstance(value, int):
-        return value
-    if isinstance(value, (str, bytes, bytearray)):
-        return None
-    if isinstance(value, Iterable):
-        return value
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -78,10 +65,6 @@ _CAP_FULLSCREEN = 5
 _CAP_MOVE_TO_WORKSPACE = 6
 _CAP_STICKY = 7
 _CAP_MOVE_TO_EXT_WORKSPACE = 8
-
-# Overlap-active workspace state bit
-_OVERLAP_ACTIVE_BIT = 1
-
 
 # ---------------------------------------------------------------------------
 # COSMIC Toplevel Adapter (info + management)
@@ -115,6 +98,7 @@ class CosmicToplevelAdapter:
 
         # Management capabilities
         self._capabilities: set[int] = set()
+        self._dirty_toplevels: set[object] = set()
 
         self.available = False
 
@@ -182,6 +166,15 @@ class CosmicToplevelAdapter:
                 service.title_changed(toplevel, str(data["title"]))
             if "app_id" in data:
                 service.app_id_changed(toplevel, str(data["app_id"]))
+            state = data.get("state")
+            if isinstance(state, Iterable):
+                service.state_changed(toplevel, state)
+            geometry = data.get("geometry")
+            if isinstance(geometry, Rect):
+                service.geometry_changed(toplevel, geometry)
+            workspace = data.get("ext_workspace")
+            if workspace is not None:
+                service.workspace_changed(toplevel, _workspace_id(workspace))
             if data.get("done"):
                 service.done(toplevel)
         # Request COSMIC info extensions for known toplevels (v2+)
@@ -214,6 +207,7 @@ class CosmicToplevelAdapter:
         self._cosmic_handles.clear()
         self._ext_handles.clear()
         self._capabilities.clear()
+        self._dirty_toplevels.clear()
         self.available = False
 
     # -- Action checks -------------------------------------------------------
@@ -308,7 +302,10 @@ class CosmicToplevelAdapter:
         if toplevel in self._pending_toplevels:
             self._pending_toplevels.remove(toplevel)
         self._pending_data.pop(toplevel, None)
-        self._cosmic_handles.pop(toplevel, None)
+        cosmic_handle = self._cosmic_handles.pop(toplevel, None)
+        if cosmic_handle is not None:
+            self._ext_handles.pop(cosmic_handle, None)
+        self._dirty_toplevels.discard(toplevel)
         if self._service is not None:
             self._service.closed(toplevel)
 
@@ -318,7 +315,12 @@ class CosmicToplevelAdapter:
     # -- zcosmic_toplevel_info_v1 events -------------------------------------
 
     def _on_info_done(self, manager) -> None:
-        pass  # Single atomic batch complete
+        service = self._service
+        if service is None:
+            return
+        for toplevel in tuple(self._dirty_toplevels):
+            service.done(toplevel)
+        self._dirty_toplevels.clear()
 
     # -- zcosmic_toplevel_manager_v1 events ----------------------------------
 
@@ -365,6 +367,8 @@ class CosmicToplevelAdapter:
         )
 
     def _on_cosmic_state(self, toplevel: object, states) -> None:
+        self._pending_data.setdefault(toplevel, {})["state"] = states
+        self._dirty_toplevels.add(toplevel)
         if self._service is not None:
             self._service.state_changed(toplevel, states)
 
@@ -377,178 +381,26 @@ class CosmicToplevelAdapter:
         width: int,
         height: int,
     ) -> None:
-        # Store geometry on pending data for future use
-        self._pending_data.setdefault(toplevel, {})["geometry"] = (
-            output,
-            x,
-            y,
-            width,
-            height,
-        )
+        geometry = Rect(x=x, y=y, width=width, height=height)
+        self._pending_data.setdefault(toplevel, {})["geometry"] = geometry
+        if self._service is not None:
+            self._service.geometry_changed(toplevel, geometry)
 
     def _on_cosmic_workspace_enter(self, toplevel: object, workspace) -> None:
         self._pending_data.setdefault(toplevel, {})["ext_workspace"] = workspace
+        if self._service is not None:
+            self._service.workspace_changed(toplevel, _workspace_id(workspace))
 
     def _on_cosmic_workspace_leave(self, toplevel: object, workspace) -> None:
         data = self._pending_data.get(toplevel, {})
         if data.get("ext_workspace") is workspace:
             data.pop("ext_workspace", None)
+            if self._service is not None:
+                self._service.workspace_changed(toplevel, None)
 
     def _flush_pending(self) -> None:
         if self._flush is not None:
             self._flush()
-
-
-# ---------------------------------------------------------------------------
-# COSMIC Workspace Adapter
-# ---------------------------------------------------------------------------
-
-
-class CosmicWorkspaceAdapter:
-    """Binds zcosmic_workspace_manager_v2 and feeds a WorkspaceService.
-
-    COSMIC workspaces are structured as:
-      zcosmic_workspace_manager_v2
-        └── zcosmic_workspace_group_handle_v1  (one per output group)
-              └── zcosmic_workspace_handle_v1   (individual workspaces)
-
-    We flatten all workspace handles across groups into a single list,
-    using the workspace handle as the protocol object.
-    """
-
-    def __init__(self) -> None:
-        self._manager = None
-        self._flush: Callable[[], None] | None = None
-        self._service: WaylandWorkspaceService | None = None
-
-        self._pending_workspaces: list[object] = []
-        self._pending_groups: list[object] = []
-        self._pending_data: dict[object, dict[str, object]] = {}
-        self._pending_done = False
-
-        self.available = False
-
-    def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
-        self._flush = callback
-
-    def bind(self, *, registry, name: int, version: int) -> None:
-        from docking.platform.backends.wayland.protocols.cosmic_workspace_v1 import (
-            ZcosmicWorkspaceManagerV2,
-        )
-
-        bind_version = min(version, ZcosmicWorkspaceManagerV2.version)
-        self._manager = registry.bind(name, ZcosmicWorkspaceManagerV2, bind_version)
-        self._manager.dispatcher["workspace_group"] = self._on_workspace_group
-        self._manager.dispatcher["done"] = self._on_done
-        self._manager.dispatcher["finished"] = self._on_finished
-        self.available = True
-
-    def start(self, service: WaylandWorkspaceService) -> None:
-        self._service = service
-        for workspace in tuple(self._pending_workspaces):
-            service.workspace_created(workspace)
-            data = self._pending_data.get(workspace, {})
-            if "name" in data:
-                service.name_changed(workspace, str(data["name"]))
-            if "state" in data:
-                states = _workspace_flags(data["state"])
-                if states is not None:
-                    service.state_changed(workspace, states)
-            if "capabilities" in data:
-                capabilities = _workspace_flags(data["capabilities"])
-                if capabilities is not None:
-                    service.capabilities_changed(workspace, capabilities)
-        if self._pending_done:
-            service.done()
-
-    def stop(self) -> None:
-        manager = self._manager
-        if manager is not None:
-            stop = getattr(manager, "stop", None)
-            if callable(stop):
-                stop()
-        self._manager = None
-        self._flush = None
-        self._service = None
-        self._pending_workspaces.clear()
-        self._pending_groups.clear()
-        self._pending_data.clear()
-        self._pending_done = False
-        self.available = False
-
-    def activate(self, handle: object) -> None:
-        activate_method = getattr(handle, "activate", None)
-        if callable(activate_method):
-            activate_method()
-        manager = self._manager
-        commit = getattr(manager, "commit", None) if manager is not None else None
-        if callable(commit):
-            commit()
-        if self._flush is not None:
-            self._flush()
-
-    # -- zcosmic_workspace_manager_v2 events ---------------------------------
-
-    def _on_workspace_group(self, manager, group) -> None:
-        if group not in self._pending_groups:
-            self._pending_groups.append(group)
-        group.dispatcher["workspace"] = lambda _g, ws: self._on_workspace(ws)
-        group.dispatcher["remove"] = lambda _g: None  # Group removal handled later
-
-    def _on_workspace(self, workspace: object) -> None:
-        if workspace not in self._pending_workspaces:
-            self._pending_workspaces.append(workspace)
-        self._pending_data.setdefault(workspace, {})
-        service = self._service
-        if service is not None:
-            service.workspace_created(workspace)
-
-        workspace.dispatcher["name"] = lambda _h, name: self._on_workspace_name(
-            workspace, name
-        )
-        workspace.dispatcher["state"] = lambda _h, states: self._on_workspace_state(
-            workspace, states
-        )
-        workspace.dispatcher["capabilities"] = lambda _h, caps: (
-            self._on_workspace_capabilities(workspace, caps)
-        )
-        workspace.dispatcher["remove"] = lambda _h: self._on_workspace_removed(
-            workspace
-        )
-
-    def _on_workspace_name(self, workspace: object, name: str) -> None:
-        self._pending_data.setdefault(workspace, {})["name"] = name
-        if self._service is not None:
-            self._service.name_changed(workspace, name)
-
-    def _on_workspace_state(
-        self, workspace: object, states: Iterable[object] | int
-    ) -> None:
-        self._pending_data.setdefault(workspace, {})["state"] = states
-        if self._service is not None:
-            self._service.state_changed(workspace, states)
-
-    def _on_workspace_capabilities(
-        self, workspace: object, caps: Iterable[object] | int
-    ) -> None:
-        self._pending_data.setdefault(workspace, {})["capabilities"] = caps
-        if self._service is not None:
-            self._service.capabilities_changed(workspace, caps)
-
-    def _on_workspace_removed(self, workspace: object) -> None:
-        if workspace in self._pending_workspaces:
-            self._pending_workspaces.remove(workspace)
-        self._pending_data.pop(workspace, None)
-        if self._service is not None:
-            self._service.removed(workspace)
-
-    def _on_done(self, manager) -> None:
-        self._pending_done = True
-        if self._service is not None:
-            self._service.done()
-
-    def _on_finished(self, manager) -> None:
-        self.available = False
 
 
 # ---------------------------------------------------------------------------
@@ -623,6 +475,8 @@ class CosmicOverlapAdapter:
         self._overlapping_layers.clear()
         if self._overlap_notify is not None:
             self._overlap_notify = None
+        self._flush = None
+        self.available = False
 
     def evaluate_now(self) -> None:
         """Force evaluation is a no-op; the compositor pushes events."""
@@ -693,6 +547,13 @@ def _array_to_bytes(value) -> bytes:
     if hasattr(value, "data"):
         return bytes(value.data)
     return bytes(value)
+
+
+def _workspace_id(workspace: object) -> str:
+    identifier = getattr(workspace, "id", None)
+    if identifier is not None:
+        return str(identifier)
+    return str(id(workspace))
 
 
 def _parse_capabilities(caps_bytes: bytes) -> set[int]:

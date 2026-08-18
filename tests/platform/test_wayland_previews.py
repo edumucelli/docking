@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.backends.base import DisplayServer, PreviewImage, WindowId
 from docking.platform.backends.wayland import previews as preview_mod
 from docking.platform.backends.wayland.previews import (
@@ -126,6 +128,10 @@ def test_wayland_preview_service_starts_once_and_returns_cached_frame(monkeypatc
 
     assert service.capture(window_id, width=100, height=60) is image
 
+    session.frame.dispatcher["failed"](session.frame, 1)
+    assert service.capture(window_id, width=100, height=60) is image
+    assert session.frame.destroy.call_count == 1
+
 
 def test_hyprland_preview_service_uses_wlr_handle_and_returns_cached_frame(
     monkeypatch,
@@ -192,3 +198,46 @@ def test_phoc_preview_service_copies_thumbnail_frame_immediately(monkeypatch):
     frame.dispatcher["ready"](frame, 0, 0, 0)
 
     assert service.thumbnail(window_id, width=96, height=64) is image
+
+
+def test_capture_allocation_failure_releases_partial_resources(monkeypatch) -> None:
+    mmap_obj = SimpleNamespace(close=MagicMock())
+    close = MagicMock()
+    monkeypatch.setattr(preview_mod.os, "memfd_create", MagicMock(return_value=51))
+    monkeypatch.setattr(preview_mod.os, "ftruncate", MagicMock())
+    monkeypatch.setattr(preview_mod.mmap, "mmap", MagicMock(return_value=mmap_obj))
+    monkeypatch.setattr(preview_mod.os, "close", close)
+    request = preview_mod._HyprlandCaptureRequest(
+        window_id=WindowId(backend=DisplayServer.WAYLAND, value=9),
+        requested_width=100,
+        requested_height=60,
+        frame=FakeFrame(),
+    )
+    protocol = SimpleNamespace(
+        create_shm_pool=MagicMock(side_effect=RuntimeError("pool failed"))
+    )
+
+    with pytest.raises(RuntimeError, match="pool failed"):
+        preview_mod._allocate_shm_buffer(
+            request,
+            protocol=protocol,
+            label="test-preview",
+            width=100,
+            height=60,
+            stride=400,
+            format_=SHM_ARGB8888,
+        )
+
+    preview_mod._cleanup_capture_request(
+        request,
+        object_attributes=("buffer",),
+    )
+    preview_mod._cleanup_capture_request(
+        request,
+        object_attributes=("buffer",),
+    )
+
+    mmap_obj.close.assert_called_once_with()
+    close.assert_called_once_with(51)
+    assert request.fd is None
+    assert request.mmap_obj is None

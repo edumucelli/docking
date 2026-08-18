@@ -760,13 +760,11 @@ class WaylandProtocolRuntime:
         phoc_preview_adapter: PhocPreviewProtocolAdapter | None = None,
         idle_adapter: IdleProtocolAdapter | None = None,
         cosmic_toplevel_adapter: object | None = None,
-        cosmic_workspace_adapter: object | None = None,
         cosmic_overlap_adapter: object | None = None,
     ) -> None:
         from docking.platform.backends.wayland.cosmic import (
             CosmicOverlapAdapter,
             CosmicToplevelAdapter,
-            CosmicWorkspaceAdapter,
         )
         from docking.platform.backends.wayland.treeland import (
             TreelandOverlapAdapter,
@@ -783,7 +781,6 @@ class WaylandProtocolRuntime:
         self.phoc_previews = phoc_preview_adapter or PhocPreviewProtocolAdapter()
         self.idle = idle_adapter or IdleProtocolAdapter()
         self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
-        self.cosmic_workspace = cosmic_workspace_adapter or CosmicWorkspaceAdapter()
         self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
         self.treeland_overlap = TreelandOverlapAdapter()
         self.treeland_window_management = TreelandWindowManagementAdapter()
@@ -823,10 +820,6 @@ class WaylandProtocolRuntime:
         return self.cosmic_toplevel if self.cosmic_toplevel.available else None
 
     @property
-    def cosmic_workspace_protocol(self) -> object | None:
-        return self.cosmic_workspace if self.cosmic_workspace.available else None
-
-    @property
     def cosmic_overlap_protocol(self) -> object | None:
         return self.cosmic_overlap if self.cosmic_overlap.available else None
 
@@ -864,7 +857,6 @@ class WaylandProtocolRuntime:
             self.phoc_previews.set_flush_callback(display.flush)
             self.idle.set_flush_callback(display.flush)
             self.cosmic_toplevel.set_flush_callback(display.flush)
-            self.cosmic_workspace.set_flush_callback(display.flush)
             self.cosmic_overlap.set_flush_callback(display.flush)
             self.treeland_overlap.set_flush_callback(display.flush)
             self.treeland_window_management.set_flush_callback(display.flush)
@@ -878,11 +870,10 @@ class WaylandProtocolRuntime:
             self._running = True
             log.info(
                 "Wayland protocol runtime started: foreign_toplevel=%s workspaces=%s "
-                "cosmic_toplevel=%s cosmic_workspaces=%s cosmic_overlap=%s",
+                "cosmic_toplevel=%s cosmic_overlap=%s",
                 self.foreign_toplevel.available,
                 self.workspaces.available,
                 self.cosmic_toplevel.available,
-                self.cosmic_workspace.available,
                 self.cosmic_overlap.available,
             )
             return True
@@ -899,7 +890,6 @@ class WaylandProtocolRuntime:
         self.phoc_previews.stop()
         self.idle.stop()
         self.cosmic_toplevel.stop()
-        self.cosmic_workspace.stop()
         self.cosmic_overlap.stop()
         self.treeland_overlap.stop()
         self.treeland_window_management.stop()
@@ -963,12 +953,6 @@ class WaylandProtocolRuntime:
             )
         elif interface == "zcosmic_toplevel_manager_v1":
             self.cosmic_toplevel.bind_toplevel_manager(
-                registry=registry,
-                name=name,
-                version=version,
-            )
-        elif interface == "zcosmic_workspace_manager_v2":
-            self.cosmic_workspace.bind(
                 registry=registry,
                 name=name,
                 version=version,
