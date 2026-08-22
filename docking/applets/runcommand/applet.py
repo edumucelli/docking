@@ -23,7 +23,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.applets.popup import prepare_dialog_content
 from docking.applets.runcommand import meta
 from docking.applets.runcommand.render import create_icon
@@ -49,7 +49,6 @@ from docking.platform.applications.listing import (
 from docking.platform.applications.registry import ApplicationRegistry
 
 if TYPE_CHECKING:
-    from docking.applets.services import AppletServices
     from docking.core.config import Config
 
 RUN_DIALOG_WIDTH_PX = 575
@@ -69,7 +68,7 @@ class _ApplicationRow(Gtk.ListBoxRow):
         self.app = app
 
 
-class RunCommandApplet(Applet):
+class RunCommandApplet(ApplicationServicesApplet):
     """Alt+F2-style command/application launcher."""
 
     id = meta.id
@@ -77,7 +76,14 @@ class RunCommandApplet(Applet):
     icon_name = "system-run"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
         prefs = config.applet_prefs.get(meta.id, {})
         self._history = normalize_history(prefs.get("history"))
         self._dialog: Gtk.Dialog | None = None
@@ -87,14 +93,17 @@ class RunCommandApplet(Applet):
         self._run_button: Gtk.Widget | None = None
         self._left_icon: Gtk.Image | None = None
         self._description_label: Gtk.Label | None = None
-        self._application_registry: ApplicationRegistry | None = None
-        self._application_launcher: ApplicationLauncher | None = None
         self._apps: list[ApplicationListing] = []
         self._app_list: Gtk.ListBox | None = None
         self._app_rows: list[_ApplicationRow] = []
         self._selected_app: ApplicationListing | None = None
         self._selected_entry_text = ""
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self.present()
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -102,10 +111,6 @@ class RunCommandApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         self.item.name = _("Run Application")
-
-    def set_services(self, services: AppletServices) -> None:
-        self._application_registry = services.application_registry
-        self._application_launcher = services.application_launcher
 
     def on_clicked(self) -> None:
         if self._dialog and self._dialog.get_visible():

@@ -205,16 +205,12 @@ def main() -> None:
         theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
             config.transparency
         )
-        applet_services = AppletServices(
-            application_registry=registry,
-            application_launcher=application_launcher,
-            icon_loader=icon_loader,
-            target_service=target_service,
-        )
+        applet_services = AppletServices()
         model = DockModel(
             config=config,
             applet_services=applet_services,
             application_registry=registry,
+            application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
             recent_applications=recent_applications,

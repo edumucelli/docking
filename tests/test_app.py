@@ -491,12 +491,10 @@ class TestAppMain:
         registry_cls.assert_called_once_with()
         config_cls.load.assert_called_once()
         assert callable(config_cls.load.call_args.kwargs["initial_pinned_factory"])
-        initial_services = model_cls.call_args.kwargs["applet_services"]
-        application_launcher = initial_services.application_launcher
+        application_launcher = model_cls.call_args.kwargs["application_launcher"]
         icon_loader = model_cls.call_args.kwargs["icon_loader"]
         target_service = model_cls.call_args.kwargs["target_service"]
         assert target_service.icon_loader is icon_loader
-        assert initial_services.application_registry is registry
         assert application_launcher.registry is registry
         assert application_launcher.provenance_store is not None
         process_identity_service = app_mod.create_session_backend.call_args.kwargs[
@@ -507,6 +505,9 @@ class TestAppMain:
             is application_launcher.provenance_store
         )
         assert model_cls.call_args.kwargs["application_registry"] is registry
+        assert (
+            model_cls.call_args.kwargs["application_launcher"] is application_launcher
+        )
         assert model_cls.call_args.kwargs["icon_loader"] is icon_loader
         assert model_cls.call_args.kwargs["target_service"] is target_service
         recent_applications = model_cls.call_args.kwargs["recent_applications"]
@@ -517,10 +518,6 @@ class TestAppMain:
         assert backend_call["process_identity_service"] is process_identity_service
         assert "launcher" not in backend_call
         assert len(model.set_applet_services.call_args_list) == 2
-        assert all(
-            call.args[0].application_registry is registry
-            for call in model.set_applet_services.call_args_list
-        )
         services = model.set_applet_services.call_args.args[0]
         assert services.desktop_actions is None
         assert services.workspaces is None
@@ -528,8 +525,6 @@ class TestAppMain:
         assert services.idle is None
         assert services.screen_capture is None
         assert services.search is ui.search
-        assert services.application_registry is registry
-        assert services.application_launcher is application_launcher
         app_mod.UnityLauncherListener.assert_called_once_with(
             model=model,
             application_registry=registry,

@@ -16,7 +16,6 @@ from docking.applets.runcommand.state import (
     normalize_history,
     updated_history,
 )
-from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.platform import commands as commands_mod
 from docking.platform.applications.registry import UnidentifiedApplicationListing
@@ -158,8 +157,17 @@ class _Registry:
         return self.unidentified
 
 
-def _make_applet() -> RunCommandApplet:
-    return RunCommandApplet(48, config=Config())
+def _make_applet(
+    *,
+    registry: _Registry | None = None,
+    launcher: object | None = None,
+) -> RunCommandApplet:
+    return RunCommandApplet(
+        48,
+        config=Config(),
+        application_registry=registry or _Registry(()),  # ty: ignore[invalid-argument-type]
+        application_launcher=launcher or MagicMock(),  # ty: ignore[invalid-argument-type]
+    )
 
 
 class TestRunCommandState:
@@ -378,7 +386,6 @@ class TestRunCommandApplet:
             def hide(self):
                 return
 
-        applet = _make_applet()
         identified = _fake_app("Calculator")
         idless = UnidentifiedApplicationListing(
             listing_key="gio-idless:1",
@@ -388,11 +395,7 @@ class TestRunCommandApplet:
             desktop_file=None,
         )
         registry = _Registry((identified,), (idless,))
-        applet.set_services(
-            AppletServices(
-                application_registry=registry,  # type: ignore[arg-type]
-            )
-        )
+        applet = _make_applet(registry=registry)
         applet._app_list = MagicMock()
         applet._app_list.get_children.return_value = []
         applet._build_app_row = MagicMock(return_value=MagicMock())
@@ -404,7 +407,9 @@ class TestRunCommandApplet:
         assert len(applet._app_rows) == 2
 
     def test_run_current_launches_selected_application(self, monkeypatch):
-        applet = _make_applet()
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet = _make_applet(launcher=launcher)
         app = _fake_app(
             "Calculator",
             desktop_id="org.gnome.Calculator.desktop",
@@ -414,9 +419,6 @@ class TestRunCommandApplet:
         applet._selected_app = app
         applet._selected_entry_text = "gnome-calculator"
         applet._dialog = _FakeDialog()
-        launcher = MagicMock()
-        launcher.launch.return_value = True
-        applet.set_services(AppletServices(application_launcher=launcher))
         command_launch = MagicMock(return_value=True)
         monkeypatch.setattr(
             runcommand_applet_mod.commands,
@@ -432,7 +434,9 @@ class TestRunCommandApplet:
         assert applet._dialog.hidden is True
 
     def test_run_current_terminal_mode_overrides_matched_application(self, monkeypatch):
-        applet = _make_applet()
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet = _make_applet(launcher=launcher)
         app = _fake_app("Calculator", command="gnome-calculator")
         applet._entry = _FakeEntry("gnome-calculator")
         applet._terminal_check = _FakeCheck(active=True)
@@ -440,9 +444,6 @@ class TestRunCommandApplet:
         applet._selected_entry_text = "gnome-calculator"
         applet._dialog = _FakeDialog()
         launch_command = MagicMock(return_value=True)
-        launcher = MagicMock()
-        launcher.launch.return_value = True
-        applet.set_services(AppletServices(application_launcher=launcher))
         monkeypatch.setattr(
             runcommand_applet_mod.commands,
             "launch_command",
@@ -477,7 +478,9 @@ class TestRunCommandApplet:
         assert applet._dialog.hidden is True
 
     def test_run_current_launches_idless_selection_by_opaque_key(self):
-        applet = _make_applet()
+        launcher = MagicMock()
+        launcher.launch_listing.return_value = True
+        applet = _make_applet(launcher=launcher)
         app = UnidentifiedApplicationListing(
             listing_key="gio-idless:3",
             name="ID-less Tool",
@@ -488,10 +491,6 @@ class TestRunCommandApplet:
         applet._entry = _FakeEntry("ID-less Tool")
         applet._selected_app = app
         applet._selected_entry_text = "ID-less Tool"
-        launcher = MagicMock()
-        launcher.launch_listing.return_value = True
-        applet.set_services(AppletServices(application_launcher=launcher))
-
         applet._run_current()
 
         launcher.launch_listing.assert_called_once_with("gio-idless:3")

@@ -150,6 +150,11 @@ from typing import TYPE_CHECKING, cast
 import gi
 
 import docking.applets as applets
+from docking.applets.base import (
+    Applet,
+    ApplicationServicesApplet,
+    TargetServicesApplet,
+)
 from docking.applets.identity import (
     APPLET_PREFIX,
     applet_desktop_id,
@@ -188,8 +193,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
 if TYPE_CHECKING:
-    from docking.applets.base import Applet
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.icons import IconLoader
     from docking.platform.targets import FileTargetInfo, TargetService
@@ -314,6 +319,7 @@ class DockModel:
         applet_services: AppletServices | None = None,
         *,
         application_registry: ApplicationRegistry | None = None,
+        application_launcher: ApplicationLauncher | None = None,
         icon_loader: IconLoader | None = None,
         target_service: TargetService | None = None,
         recent_applications: RecentApplications | None = None,
@@ -323,20 +329,25 @@ class DockModel:
         )
         if application_registry is None and application_services is not None:
             application_registry = cast("ApplicationRegistry", application_services)
+        if application_launcher is None and application_services is not None:
+            application_launcher = cast("ApplicationLauncher", application_services)
         if icon_loader is None and application_services is not None:
             icon_loader = cast("IconLoader", application_services)
         if target_service is None and application_services is not None:
             target_service = cast("TargetService", application_services)
         if (
             application_registry is None
+            or application_launcher is None
             or icon_loader is None
             or target_service is None
         ):
             raise TypeError(
-                "application_registry, icon_loader, and target_service are required"
+                "application_registry, application_launcher, icon_loader, and "
+                "target_service are required"
             )
         self._config = config
         self._application_registry = application_registry
+        self._application_launcher = application_launcher
         self._icon_loader = icon_loader
         self._target_service = target_service
         self._uses_legacy_application_services = uses_legacy_application_services
@@ -527,7 +538,7 @@ class DockModel:
             cls = applets.load_applet_class(did)
             if cls:
                 try:
-                    applet = cls(icon_size=icon_size, config=self._config)
+                    applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
                     applet.set_services(self._applet_services)
                     applet.item.desktop_id = entry.id
                     applet.item.kind = APPLET_KIND
@@ -1026,6 +1037,24 @@ class DockModel:
         for applet in self._applets.values():
             applet.set_services(services)
 
+    def _instantiate_applet(self, *, cls: type[Applet], icon_size: int) -> Applet:
+        """Construct an applet with every service required by its declared type."""
+        if isinstance(cls, type) and issubclass(cls, ApplicationServicesApplet):
+            return cls(
+                icon_size=icon_size,
+                config=self._config,
+                application_registry=self._application_registry,
+                application_launcher=self._application_launcher,
+            )
+        if isinstance(cls, type) and issubclass(cls, TargetServicesApplet):
+            return cls(
+                icon_size=icon_size,
+                config=self._config,
+                icon_loader=self._icon_loader,
+                target_service=self._target_service,
+            )
+        return cls(icon_size=icon_size, config=self._config)
+
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
         did = applet_id
@@ -1049,7 +1078,7 @@ class DockModel:
             return
         icon_size = self._config.scaled_icon_size
         try:
-            applet = cls(icon_size=icon_size, config=self._config)
+            applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
             applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id=str(did), action="add_applet").exception(
@@ -1086,7 +1115,7 @@ class DockModel:
 
         icon_size = self._config.scaled_icon_size
         try:
-            applet = cls(icon_size=icon_size, config=self._config)
+            applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
             applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id="separator", action="add_separator").exception(

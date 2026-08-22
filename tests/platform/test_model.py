@@ -378,6 +378,7 @@ class TestPinUnpin:
             config,
             applet_services=AppletServices(),
             application_registry=registry,
+            application_launcher=MagicMock(),
             icon_loader=icon_loader,
             target_service=MagicMock(),
         )
@@ -412,6 +413,7 @@ class TestPinUnpin:
             config,
             applet_services=AppletServices(),
             application_registry=fresh_registry,
+            application_launcher=MagicMock(),
             icon_loader=MagicMock(),
             target_service=MagicMock(),
         )

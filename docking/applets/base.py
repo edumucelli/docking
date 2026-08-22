@@ -86,6 +86,10 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import TargetService
     from docking.ui.stack import StackContent
 
 log = get_logger("applets.base")
@@ -516,3 +520,35 @@ class Applet(ABC):
         self.refresh_tooltip()
         if self._notify:
             self._notify()
+
+
+class ApplicationServicesApplet(Applet):
+    """Applet base that guarantees application services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        super().__init__(icon_size=icon_size, config=config)
+
+
+class TargetServicesApplet(Applet):
+    """Applet base that guarantees icon and target services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+    ) -> None:
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        super().__init__(icon_size=icon_size, config=config)

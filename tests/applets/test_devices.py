@@ -11,7 +11,6 @@ from docking.applets.devices.applet import DevicesApplet
 from docking.applets.devices.render import create_devices_icon
 from docking.applets.devices.state import devices_tooltip, mounted_devices
 from docking.applets.devices.unix_mounts import NativeNetworkMount
-from docking.applets.services import AppletServices
 from docking.core.config import Config
 
 
@@ -136,18 +135,16 @@ def _applet(
         "get_mount_monitor",
         lambda: unix_monitor,
     )
-    applet = DevicesApplet(48, config=Config())
     icon_loader = MagicMock()
     target_service = MagicMock()
     target_service.icon_loader = icon_loader
     target_service.open_target.return_value = False
-    applet.set_services(
-        AppletServices(
-            icon_loader=icon_loader,
-            target_service=target_service,
-        )
+    return DevicesApplet(
+        48,
+        config=Config(),
+        icon_loader=icon_loader,
+        target_service=target_service,
     )
-    return applet
 
 
 def test_mounted_devices_includes_local_network_and_unbacked_mounts():

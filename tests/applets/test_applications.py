@@ -9,9 +9,8 @@ import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
 import docking.applets.apps as apps_shared
 from docking.applets.applications.applet import ApplicationsApplet
-from docking.applets.applications.state import _build_app_categories
+from docking.applets.applications.state import build_app_categories
 from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
-from docking.applets.services import AppletServices
 from docking.core.config import Config
 from docking.platform.applications import entries as canonical_entries
 from docking.platform.applications.registry import UnidentifiedApplicationListing
@@ -85,13 +84,27 @@ class _Registry:
         return self.listing_handles.get(listing_key)
 
 
+def _make_applet(
+    size: int = 48,
+    *,
+    registry: _Registry | None = None,
+    launcher: object | None = None,
+) -> ApplicationsApplet:
+    return ApplicationsApplet(
+        size,
+        config=Config(),
+        application_registry=registry or _Registry(),  # ty: ignore[invalid-argument-type]
+        application_launcher=launcher or MagicMock(),  # ty: ignore[invalid-argument-type]
+    )
+
+
 class TestBuildAppCategories:
     def test_legacy_facade_names_are_direct_aliases(self):
         assert apps_shared.desktop_entries is canonical_entries
         assert apps_shared.launch_desktop_id is apps_shared.launcher_facade.launch
 
     def test_returns_dict(self):
-        categories = _build_app_categories()
+        categories = build_app_categories()
         assert isinstance(categories, dict)
         assert categories == {}
 
@@ -115,7 +128,7 @@ class TestBuildAppCategories:
         )
         registry = _Registry((host, file_only), (idless,))
 
-        categories = _build_app_categories(
+        categories = build_app_categories(
             registry  # ty: ignore[invalid-argument-type]
         )
 
@@ -137,7 +150,7 @@ class TestBuildAppCategories:
             )
         )
 
-        categories = _build_app_categories(
+        categories = build_app_categories(
             registry  # ty: ignore[invalid-argument-type]
         )
 
@@ -548,12 +561,12 @@ class TestApplicationsApplet:
         )
 
     def test_creates_with_icon(self):
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         assert d.item.icon is not None
 
     def test_left_click_opens_launcher_menu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         d.on_clicked()
 
         assert d._popup_menu is not None
@@ -562,7 +575,7 @@ class TestApplicationsApplet:
 
     def test_launcher_menu_contains_search_entry(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         menu = d._build_launcher_menu()
         items = menu.get_children()
         assert items[0]._child.children[0].placeholder == "Search applications..."
@@ -570,12 +583,12 @@ class TestApplicationsApplet:
         assert isinstance(menu, applications_applet_mod.Gtk.Menu)
 
     def test_right_click_menu_items_are_empty(self):
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         assert d.get_menu_items() == []
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            d = ApplicationsApplet(size, config=Config())
+            d = _make_applet(size)
             pixbuf = d.create_icon(size)
             assert pixbuf is not None
 
@@ -601,12 +614,9 @@ class TestApplicationsApplet:
         launcher = MagicMock()
         launcher.launch.return_value = True
 
-        applet = ApplicationsApplet(48, config=Config())
-        applet.set_services(
-            AppletServices(
-                application_registry=registry,  # ty: ignore[invalid-argument-type]
-                application_launcher=launcher,
-            )
+        applet = _make_applet(
+            registry=registry,
+            launcher=launcher,
         )
         menu = applet._build_launcher_menu()
         items = menu.get_children()

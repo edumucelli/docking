@@ -19,8 +19,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from docking.platform.applications.launcher import ApplicationLauncher
-    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import (
         DesktopActionService,
         IdleService,
@@ -28,14 +26,12 @@ if TYPE_CHECKING:
         WindowPickService,
         WorkspaceService,
     )
-    from docking.platform.icons import IconLoader
-    from docking.platform.targets import TargetService
     from docking.search.presenter import SearchPresenter
 
 
 @dataclass(frozen=True)
 class AppletServices:
-    """Optional backend services consumed by platform-sensitive applets."""
+    """Late-bound backend capabilities consumed by platform-sensitive applets."""
 
     desktop_actions: DesktopActionService | None = None
     workspaces: WorkspaceService | None = None
@@ -43,7 +39,3 @@ class AppletServices:
     idle: IdleService | None = None
     screen_capture: ScreenCaptureService | None = None
     search: SearchPresenter | None = None
-    application_registry: ApplicationRegistry | None = None
-    application_launcher: ApplicationLauncher | None = None
-    icon_loader: IconLoader | None = None
-    target_service: TargetService | None = None

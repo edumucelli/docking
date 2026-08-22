@@ -68,7 +68,7 @@ def _map_category(categories: str) -> str:
     return display_cat
 
 
-def _build_app_categories(
+def build_app_categories(
     registry: ApplicationRegistry | None = None,
 ) -> dict[str, list[ApplicationListing]]:
     """Group installed apps by FreeDesktop category.

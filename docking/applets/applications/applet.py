@@ -28,9 +28,9 @@ from docking.applets.applications import meta
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
 from docking.applets.applications.state import (
     CATEGORY_ICONS,
-    _build_app_categories,
+    build_app_categories,
 )
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.platform.applications.launcher import ApplicationLauncher
@@ -45,14 +45,13 @@ from docking.platform.applications.listing import (
 from docking.platform.applications.registry import ApplicationRegistry
 
 if TYPE_CHECKING:
-    from docking.applets.services import AppletServices
     from docking.core.config import Config
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
 
 
-class ApplicationsApplet(Applet):
+class ApplicationsApplet(ApplicationServicesApplet):
     """Categorized application launcher via left-click menu."""
 
     id = meta.id
@@ -60,10 +59,20 @@ class ApplicationsApplet(Applet):
     icon_name = "view-app-grid"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._application_registry: ApplicationRegistry | None = None
-        self._application_launcher: ApplicationLauncher | None = None
-        super().__init__(icon_size=icon_size, config=config)
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self._popup_menu: Gtk.Menu | None = None
         self.present()
 
@@ -90,14 +99,10 @@ class ApplicationsApplet(Applet):
         """Use left-click for the launcher menu; keep right-click minimal."""
         return []
 
-    def set_services(self, services: AppletServices) -> None:
-        self._application_registry = services.application_registry
-        self._application_launcher = services.application_launcher
-
     def _build_launcher_menu(self) -> Gtk.Menu:
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
-        categories = _build_app_categories(self._application_registry)
+        categories = build_app_categories(self._application_registry)
         category_rows: list[tuple[Gtk.MenuItem, list[ApplicationListing]]] = []
 
         search_entry = Gtk.Entry()
