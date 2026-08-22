@@ -468,7 +468,10 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(tmp_pa
         registry.applications_by_id["other.desktop"] = shared[0]  # type: ignore[index]
 
 
-def test_alias_candidates_follow_directory_source_order_not_snapshot_names(tmp_path):
+def test_alias_candidates_follow_directory_source_order_not_snapshot_names(
+    tmp_path,
+    monkeypatch,
+):
     first = tmp_path / "first" / "applications"
     second = tmp_path / "second" / "applications"
     _write_desktop(
@@ -491,6 +494,16 @@ def test_alias_candidates_follow_directory_source_order_not_snapshot_names(tmp_p
         name="Duplicate Lower",
         extra="StartupWMClass=SharedAlias\n",
     )
+    original_rglob = Path.rglob
+
+    def source_order(path: Path, pattern: str):
+        if path == first:
+            return iter((first / "duplicate.desktop", first / "zulu.desktop"))
+        if path == second:
+            return iter((second / "alpha.desktop", second / "duplicate.desktop"))
+        return original_rglob(path, pattern)
+
+    monkeypatch.setattr(Path, "rglob", source_order)
     registry = _registry(directories=[first, second])
 
     registry.refresh()

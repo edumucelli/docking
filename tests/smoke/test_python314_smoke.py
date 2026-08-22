@@ -37,6 +37,9 @@ def _install_fake_gi(monkeypatch):
 
 def _import_about_module(monkeypatch):
     _install_fake_gi(monkeypatch)
+    targets_module = types.ModuleType("docking.platform.targets")
+    targets_module.open_target = MagicMock()
+    monkeypatch.setitem(sys.modules, "docking.platform.targets", targets_module)
     sys.modules.pop("docking.ui.about", None)
     return importlib.import_module("docking.ui.about")
 
