@@ -540,12 +540,13 @@ class TestHttpLimit:
 
 class TestNewsApplet:
     def test_loads_cached_article_from_config(self):
+        article = _article()
         config = Config(
             applet_prefs={
                 "news": prefs_payload(
                     sources=(_source(),),
                     active_source_index=0,
-                    articles=(_article(),),
+                    articles=(article,),
                     active_article_index=0,
                     fetched_at=dt.datetime.now(dt.timezone.utc),
                 )
@@ -554,7 +555,7 @@ class TestNewsApplet:
 
         applet = _make_applet(config)
 
-        assert applet._current_article == _article()
+        assert applet._current_article == article
         assert "A useful headline" in applet.item.name
         assert applet.item.icon is not None
 

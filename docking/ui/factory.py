@@ -234,7 +234,7 @@ def build_dock_window(
             return None
         window_pos = window_screen_position(window)
         wx, wy = window_pos.x, window_pos.y
-        dock_rect = window.geometry.build_frame().background_rect
+        dock_rect = window.geometry.build_frame().static_dock_rect
         return Rect(
             x=wx + dock_rect.x,
             y=wy + dock_rect.y,
