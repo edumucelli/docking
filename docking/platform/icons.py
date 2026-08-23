@@ -26,8 +26,6 @@ HOST_FILESYSTEM_ROOT = desktop_entries.HOST_FILESYSTEM_ROOT
 ICON_FILE_EXTENSIONS = (".png", ".svg", ".xpm")
 
 FileTargetNormalizer = Callable[[str], str | None]
-DesktopIconInfo = desktop_entries.DesktopInfo | ApplicationInfo
-
 log = with_context(get_logger(name="icons"))
 
 
@@ -90,11 +88,9 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
         return None
 
 
-def _desktop_icon_fields(info: DesktopIconInfo) -> tuple[str, str, str]:
-    if isinstance(info, ApplicationInfo):
-        metadata = dock_metadata(info)
-        return metadata.desktop_id, metadata.icon_name, metadata.exec_line
-    return info.desktop_id, info.icon_name, info.exec_line
+def _application_icon_fields(info: ApplicationInfo) -> tuple[str, str, str]:
+    metadata = dock_metadata(info)
+    return metadata.desktop_id, metadata.icon_name, metadata.exec_line
 
 
 class IconLoader:
@@ -138,11 +134,11 @@ class IconLoader:
 
     def load_desktop_icon(
         self,
-        info: DesktopIconInfo,
+        info: ApplicationInfo,
         size: int,
     ) -> GdkPixbuf.Pixbuf | None:
-        """Load a legacy or canonical application icon with fallbacks."""
-        desktop_id, icon_name, exec_line = _desktop_icon_fields(info)
+        """Load an application icon from canonical metadata with fallbacks."""
+        desktop_id, icon_name, exec_line = _application_icon_fields(info)
         key = (f"desktop:{desktop_id}:{icon_name}:{exec_line}", size)
         if key in self._icon_cache:
             return self._icon_cache[key]

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import docking.platform.applications.launcher as launcher_mod
 from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.projections import DesktopActionProjection
 from docking.platform.applications.types import (
     ActionSource,
     ApplicationAction,
@@ -102,10 +103,12 @@ def test_quicklist_uses_gio_only_when_application_is_gio_backed():
         _application(has_gio_source=False, actions=actions)
     )
 
-    assert gio_launcher.get_actions("example.desktop") == [("shared", "Shared")]
-    assert file_launcher.get_actions("example.desktop") == [
-        ("shared", "Shared"),
-        ("file-only", "File Only"),
+    assert gio_launcher.quicklist_actions("example.desktop") == [
+        DesktopActionProjection(action_id="shared", name="Shared")
+    ]
+    assert file_launcher.quicklist_actions("example.desktop") == [
+        DesktopActionProjection(action_id="shared", name="Shared"),
+        DesktopActionProjection(action_id="file-only", name="File Only"),
     ]
 
 
@@ -192,7 +195,7 @@ def test_gio_backed_file_only_merged_action_still_routes_through_gio():
     handle = MagicMock()
     registry.handles["example.desktop"] = handle
 
-    assert launcher.get_actions("example.desktop") == []
+    assert launcher.quicklist_actions("example.desktop") == []
     assert launcher.launch_action("example.desktop", "private") is True
 
     handle.launch_action.assert_called_once_with("private", None)

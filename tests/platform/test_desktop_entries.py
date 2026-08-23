@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import stat
-from types import SimpleNamespace
 
 from docking.platform.applications import entries as desktop_entries
 
@@ -32,119 +31,6 @@ class TestExecutablePath:
         )
 
 
-class TestDesktopEntryProjections:
-    def test_direct_resolution_and_visible_listing_apply_distinct_visibility_rules(
-        self, tmp_path, monkeypatch
-    ):
-        apps_dir = tmp_path / "applications"
-        apps_dir.mkdir()
-        entries = {
-            "visible.desktop": "",
-            "no-display.desktop": "NoDisplay=true\n",
-            "hidden.desktop": "Hidden=true\n",
-        }
-        for desktop_id, visibility in entries.items():
-            (apps_dir / desktop_id).write_text(
-                "[Desktop Entry]\n"
-                "Type=Application\n"
-                f"Name={desktop_id}\n"
-                "Exec=example\n"
-                f"{visibility}",
-                encoding="utf-8",
-            )
-
-        visible = desktop_entries.desktop_info_from_file(
-            desktop_id="visible.desktop",
-            path=apps_dir / "visible.desktop",
-        )
-        no_display = desktop_entries.desktop_info_from_file(
-            desktop_id="no-display.desktop",
-            path=apps_dir / "no-display.desktop",
-        )
-        hidden = desktop_entries.desktop_info_from_file(
-            desktop_id="hidden.desktop",
-            path=apps_dir / "hidden.desktop",
-        )
-        monkeypatch.setattr(desktop_entries.Gio.AppInfo, "get_all", list)
-        monkeypatch.setattr(
-            desktop_entries.Gio.DesktopAppInfo,
-            "new_from_filename",
-            lambda _path: None,
-        )
-        monkeypatch.setattr(desktop_entries, "desktop_dirs", lambda: [apps_dir])
-
-        listings = desktop_entries.all_desktop_app_listings()
-
-        assert visible is not None
-        assert no_display is not None
-        assert hidden is None
-        assert [listing.desktop_id for listing in listings] == ["visible.desktop"]
-
-    def test_missing_icon_falls_back_only_for_desktop_info(self, tmp_path):
-        desktop_file = tmp_path / "org.example.NoIcon.desktop"
-        desktop_file.write_text(
-            "[Desktop Entry]\nType=Application\nName=No Icon\nExec=no-icon\n",
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id=desktop_file.name,
-            path=desktop_file,
-        )
-        listing = desktop_entries.desktop_listing_from_file(
-            desktop_id=desktop_file.name,
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.icon_name == desktop_entries.FALLBACK_ICON
-        assert listing is not None
-        assert listing.icon_name == ""
-
-    def test_visible_listing_keeps_first_source_for_duplicate_desktop_id(
-        self, tmp_path, monkeypatch
-    ):
-        first_apps = tmp_path / "first" / "applications"
-        second_apps = tmp_path / "second" / "applications"
-        first_apps.mkdir(parents=True)
-        second_apps.mkdir(parents=True)
-        desktop_id = "org.example.Duplicate.desktop"
-        (first_apps / desktop_id).write_text(
-            "[Desktop Entry]\n"
-            "Type=Application\n"
-            "Name=First Source\n"
-            "Exec=first-source\n"
-            "Icon=first-icon\n",
-            encoding="utf-8",
-        )
-        (second_apps / desktop_id).write_text(
-            "[Desktop Entry]\n"
-            "Type=Application\n"
-            "Name=Second Source\n"
-            "Exec=second-source\n"
-            "Icon=second-icon\n",
-            encoding="utf-8",
-        )
-        monkeypatch.setattr(desktop_entries.Gio.AppInfo, "get_all", list)
-        monkeypatch.setattr(
-            desktop_entries.Gio.DesktopAppInfo,
-            "new_from_filename",
-            lambda _path: None,
-        )
-        monkeypatch.setattr(
-            desktop_entries,
-            "desktop_dirs",
-            lambda: [first_apps, second_apps],
-        )
-
-        listings = desktop_entries.all_desktop_app_listings()
-
-        assert len(listings) == 1
-        assert listings[0].desktop_id == desktop_id
-        assert listings[0].name == "First Source"
-        assert listings[0].icon_name == "first-icon"
-
-
 class TestWineDesktopAliases:
     def test_wine_executable_aliases_extract_windows_path(self):
         aliases = desktop_entries.wine_executable_aliases(
@@ -163,64 +49,6 @@ class TestWineDesktopAliases:
 
     def test_wine_executable_aliases_ignores_non_wine_exec(self):
         assert desktop_entries.wine_executable_aliases("mono /tmp/tool.exe") == []
-
-    def test_desktop_info_replaces_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=env WINEPREFIX="/home/user/.wine" wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=Wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
-        assert desktop_entries.desktop_match_aliases(info) == [
-            "tool.exe",
-            "wine-program",
-            "tool",
-        ]
-        assert desktop_entries.match_aliases(
-            info.desktop_id,
-            info.wm_class,
-            info.exec_line,
-        ) == desktop_entries.desktop_match_aliases(info)
-
-    def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
 
 
 class TestGeneratedDesktopEntries:
@@ -263,15 +91,6 @@ class TestGeneratedDesktopEntries:
         assert "X-Docking-Generated=true\n" in text
         assert f"X-Docking-Source-Path={binary.resolve()}\n" in text
 
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id=generated.desktop_id,
-            path=generated.path,
-        )
-        assert info is not None
-        assert info.name == "my tool"
-        assert info.icon_name == "application-x-executable"
-        assert info.exec_line == f'"{binary.resolve()}"'
-
     def test_generated_file_can_preserve_runtime_wm_class(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"
         binary.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -306,26 +125,6 @@ class TestGeneratedDesktopEntries:
         assert generated is not None
         text = generated.path.read_text(encoding="utf-8")
         assert f"Icon={icon.resolve()}\n" in text
-
-    def test_existing_generated_app_info_recovers_sibling_icon(self, tmp_path):
-        binary = tmp_path / "tool"
-        binary.write_bytes(b"\x7fELF")
-        icon_path = tmp_path / "tool.svg"
-        icon_path.write_text("<svg/>", encoding="utf-8")
-        fallback_icon = SimpleNamespace(to_string=lambda: desktop_entries.FALLBACK_ICON)
-        app_info = SimpleNamespace(
-            get_icon=lambda: fallback_icon,
-            get_commandline=lambda: str(binary),
-            get_startup_wm_class=lambda: "SharedTool",
-            get_display_name=lambda: "Tool",
-        )
-
-        info = desktop_entries.desktop_info_from_app_info(
-            desktop_id="docking-generated-tool-123.desktop",
-            app_info=app_info,
-        )
-
-        assert info.icon_name == str(icon_path.resolve())
 
     def test_repeated_generation_is_idempotent(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.projections import (
     DesktopActionProjection,
     IconDescriptor,
@@ -46,7 +45,7 @@ def _application(**changes) -> ApplicationInfo:
     return replace(base, **changes)
 
 
-def test_dock_and_listing_match_distinct_legacy_file_views(tmp_path):
+def test_dock_and_listing_apply_distinct_icon_fallbacks(tmp_path):
     path = tmp_path / "org.example.NoIcon.desktop"
     path.write_text(
         "[Desktop Entry]\n"
@@ -56,28 +55,19 @@ def test_dock_and_listing_match_distinct_legacy_file_views(tmp_path):
         "Categories=Utility;\n",
         encoding="utf-8",
     )
-    legacy_dock = desktop_entries.desktop_info_from_file(
-        desktop_id=path.name,
-        path=path,
-    )
-    legacy_listing = desktop_entries.desktop_listing_from_file(
-        desktop_id=path.name,
-        path=path,
-    )
-    assert legacy_dock is not None
-    assert legacy_listing is not None
     canonical = _application(
         desktop_id=path.name,
-        name=legacy_dock.name,
-        declared_icon=legacy_listing.icon_name,
-        wm_class=legacy_dock.wm_class,
-        exec_line=legacy_dock.exec_line,
+        name="No Icon",
+        declared_icon="",
+        wm_class="no-icon",
+        exec_line="no-icon",
         desktop_file=path,
         categories=("Utility",),
-        categories_raw=legacy_listing.categories,
+        categories_raw="Utility;",
     )
 
-    assert dock_metadata(canonical) == legacy_dock
+    dock = dock_metadata(canonical)
+    assert dock.icon_name == "application-x-executable"
     listing = visible_listing(canonical)
     assert listing is not None
     assert (
@@ -85,7 +75,7 @@ def test_dock_and_listing_match_distinct_legacy_file_views(tmp_path):
         listing.name,
         listing.categories,
         listing.icon_name,
-    ) == legacy_listing[:4]
+    ) == (path.name, "No Icon", "Utility;", "")
     assert listing.desktop_file == path
 
 

@@ -62,11 +62,6 @@ class ApplicationInfo:
     keywords: tuple[str, ...] = ()
     actions: tuple[ApplicationAction, ...] = ()
 
-    @property
-    def icon_name(self) -> str:
-        """Compatibility spelling for the canonical declared icon."""
-        return self.declared_icon
-
 
 class MatchMethod(Enum):
     """Evidence route that selected an application identity."""

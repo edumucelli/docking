@@ -450,11 +450,6 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(tmp_pa
         "a-shared.desktop",
         "b-shared.desktop",
     ]
-    assert (
-        registry.resolve_by_executable_path(executable_path=executable)
-        is by_executable[0]
-    )
-
     action = shared[0].actions[0]
     assert action.action_id == "open-special"
     assert action.sources == frozenset({ActionSource.DESKTOP_FILE})

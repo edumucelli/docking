@@ -20,7 +20,7 @@ NEW_WINDOW_ACTION_ID = "new-window"
 
 
 class DockMetadata(NamedTuple):
-    """Dock metadata with the legacy ``DesktopInfo`` value shape."""
+    """Presentation fields copied from an application into a dock item."""
 
     desktop_id: str
     name: str
@@ -69,17 +69,6 @@ class SearchApplication:
     keywords: tuple[str, ...] = ()
     actions: tuple[DesktopActionProjection, ...] = ()
 
-    @property
-    def icon_descriptor(self) -> IconDescriptor:
-        """Expose the icon under the legacy explicit descriptor name."""
-        return self.icon
-
-
-ApplicationListing = VisibleApplication
-ApplicationSnapshot = SearchApplication
-DesktopActionSnapshot = DesktopActionProjection
-DockApplicationInfo = DockMetadata
-
 
 def normalize_search_text(value: str) -> str:
     """Return stable Unicode- and case-normalized search text."""
@@ -115,7 +104,7 @@ def dock_icon_name(info: ApplicationInfo) -> str:
 
 
 def dock_metadata(info: ApplicationInfo) -> DockMetadata:
-    """Project canonical metadata onto the legacy dock value shape."""
+    """Project canonical metadata into dock presentation fields."""
     return DockMetadata(
         desktop_id=info.desktop_id,
         name=info.name,
@@ -123,11 +112,6 @@ def dock_metadata(info: ApplicationInfo) -> DockMetadata:
         wm_class=info.wm_class,
         exec_line=info.exec_line,
     )
-
-
-def project_dock_metadata(info: ApplicationInfo) -> DockMetadata:
-    """Named projection alias for :func:`dock_metadata`."""
-    return dock_metadata(info)
 
 
 def visible_listing(info: ApplicationInfo) -> VisibleApplication | None:
@@ -141,11 +125,6 @@ def visible_listing(info: ApplicationInfo) -> VisibleApplication | None:
         icon_name=info.declared_icon,
         desktop_file=info.desktop_file,
     )
-
-
-def project_visible_listing(info: ApplicationInfo) -> VisibleApplication | None:
-    """Named projection alias for :func:`visible_listing`."""
-    return visible_listing(info)
 
 
 def visible_listings(
@@ -189,13 +168,6 @@ def quicklist_actions(
     )
 
 
-def project_quicklist_actions(
-    info: ApplicationInfo,
-) -> tuple[DesktopActionProjection, ...]:
-    """Named projection alias for :func:`quicklist_actions`."""
-    return quicklist_actions(info)
-
-
 def new_window_action(info: ApplicationInfo) -> ApplicationAction | None:
     """Return the Gio-routable new-window action, when present."""
     if not info.has_gio_source:
@@ -226,11 +198,6 @@ def search_metadata(info: ApplicationInfo) -> SearchApplication:
         keywords=_normalise_values(info.keywords),
         actions=search_actions(info),
     )
-
-
-def project_search_metadata(info: ApplicationInfo) -> SearchApplication:
-    """Named projection alias for :func:`search_metadata`."""
-    return search_metadata(info)
 
 
 def search_applications(
@@ -286,11 +253,7 @@ def _clean_text(value: object) -> str:
 __all__ = [
     "FALLBACK_ICON",
     "NEW_WINDOW_ACTION_ID",
-    "ApplicationListing",
-    "ApplicationSnapshot",
     "DesktopActionProjection",
-    "DesktopActionSnapshot",
-    "DockApplicationInfo",
     "DockMetadata",
     "IconDescriptor",
     "SearchApplication",
@@ -299,10 +262,6 @@ __all__ = [
     "dock_metadata",
     "new_window_action",
     "normalize_search_text",
-    "project_dock_metadata",
-    "project_quicklist_actions",
-    "project_search_metadata",
-    "project_visible_listing",
     "quicklist_actions",
     "search_actions",
     "search_applications",

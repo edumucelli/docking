@@ -22,6 +22,7 @@ import docking.ui.menu as menu_mod
 import docking.ui.stack as stack_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform import targets as targets_mod
+from docking.platform.applications.projections import DesktopActionProjection
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -765,7 +766,7 @@ def handler(monkeypatch):
     preview_service.thumbnail.return_value = None
     application_registry = MagicMock()
     application_launcher = MagicMock()
-    application_launcher.get_actions.return_value = []
+    application_launcher.quicklist_actions.return_value = []
     icon_loader = MagicMock()
     target_service = MagicMock(icon_loader=icon_loader)
     target_service.normalize_file_target.side_effect = lambda target: (
@@ -1629,15 +1630,15 @@ class TestMenuCallbacks:
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given
         menu = FakeMenu()
-        handler._application_launcher.get_actions.return_value = [
-            ("new-window", "New Window")
+        handler._application_launcher.quicklist_actions.return_value = [
+            DesktopActionProjection(action_id="new-window", name="New Window")
         ]
 
         handler._append_desktop_actions(menu=menu, desktop_id="firefox.desktop")
         # When
         next(mi for mi in menu.children if mi.get_label() == "New Window").activate()
         # Then
-        handler._application_launcher.get_actions.assert_called_once_with(
+        handler._application_launcher.quicklist_actions.assert_called_once_with(
             "firefox.desktop"
         )
         handler._application_launcher.launch_action.assert_called_once_with(

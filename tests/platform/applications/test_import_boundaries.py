@@ -13,7 +13,22 @@ OLD_APPLICATION_MODULES = {
     "docking.platform.desktop_entries",
     "docking.platform.launcher",
     "docking.platform.process_identity",
+    "docking.platform.recent_docs",
     "docking.platform.running",
+    "docking.search.services.application_catalog",
+}
+OLD_APPLICATION_TYPE_NAMES = {
+    "AppMatch",
+    "ApplicationCatalog",
+    "ApplicationSnapshot",
+    "DesktopAction",
+    "DesktopActionSnapshot",
+    "DesktopAppListing",
+    "DesktopInfo",
+    "DockApplicationInfo",
+    "ResolvedAppInfo",
+    "ResolvedDesktopLaunch",
+    "RuntimeAppIdentity",
 }
 
 
@@ -92,7 +107,7 @@ def test_application_modules_do_not_reach_consumer_layers():
             ), path.name
 
 
-def test_removed_launcher_compatibility_modules_stay_removed():
+def test_removed_application_compatibility_modules_stay_removed():
     removed = (
         DOCKING / "applets" / "apps.py",
         DOCKING / "platform" / "app_matcher.py",
@@ -129,6 +144,18 @@ def test_application_applets_do_not_import_removed_apps_adapter():
 def test_internal_production_has_zero_old_application_imports():
     for path in DOCKING.rglob("*.py"):
         hits = _imported_modules(path) & OLD_APPLICATION_MODULES
+        assert not hits, (path.relative_to(DOCKING), hits)
+
+
+def test_internal_production_has_zero_old_application_type_names():
+    for path in DOCKING.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        names = {
+            name
+            for node in ast.walk(tree)
+            if (name := getattr(node, "id", getattr(node, "attr", None))) is not None
+        }
+        hits = names & OLD_APPLICATION_TYPE_NAMES
         assert not hits, (path.relative_to(DOCKING), hits)
 
 

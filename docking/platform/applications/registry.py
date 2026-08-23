@@ -155,11 +155,6 @@ class ApplicationRegistry:
         return self._started
 
     @property
-    def applications(self) -> tuple[ApplicationInfo, ...]:
-        """Compatibility alias for the visible application snapshot."""
-        return self._state.visible
-
-    @property
     def applications_by_id(self) -> Mapping[str, ApplicationInfo]:
         """Return the immutable resolver map for the current generation."""
         return self._state.applications_by_id
@@ -228,14 +223,6 @@ class ApplicationRegistry:
         except (OSError, RuntimeError):
             return ()
         return self._state.executable_path_index.get(canonical, ())
-
-    def resolve_by_executable_path(
-        self,
-        executable_path: Path,
-    ) -> ApplicationInfo | None:
-        """Compatibility singular executable-path resolver."""
-        matches = self.resolve_all_by_executable_path(executable_path)
-        return matches[0] if matches else None
 
     def resolve_by_desktop_file(self, path: Path) -> ApplicationInfo | None:
         """Resolve an application by its exact or canonical desktop-file path."""

@@ -21,10 +21,9 @@ from . import entries as desktop_entries
 from .identity import LaunchProvenanceStore
 from .projections import (
     NEW_WINDOW_ACTION_ID,
+    DesktopActionProjection,
     new_window_action,
-)
-from .projections import (
-    quicklist_actions as project_quicklist_actions,
+    quicklist_actions,
 )
 from .registry import ApplicationRegistry
 from .types import ApplicationAction, ApplicationInfo, ApplicationLocation
@@ -79,22 +78,15 @@ class ApplicationLauncher:
         """Return the launch store shared with process identity matching."""
         return self._provenance_store
 
-    def get_actions(self, desktop_id: str) -> list[desktop_entries.DesktopAction]:
-        """Return source-exclusive dock quicklist actions."""
-        return self.quicklist_actions(desktop_id)
-
     def quicklist_actions(
         self,
         desktop_id: str,
-    ) -> list[desktop_entries.DesktopAction]:
+    ) -> list[DesktopActionProjection]:
         """Enumerate source-exclusive dock quicklist actions."""
         application = self._registry.resolve(desktop_id, log_failures=False)
         if application is None:
             return []
-        return [
-            desktop_entries.DesktopAction(action.action_id, action.name)
-            for action in project_quicklist_actions(application)
-        ]
+        return list(quicklist_actions(application))
 
     def launch(self, desktop_id: str) -> bool:
         """Launch a selected desktop application through its direct Exec line."""

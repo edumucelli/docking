@@ -15,7 +15,6 @@ except Exception:
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.platform import icons as icons_mod
-from docking.platform.applications.entries import DesktopInfo
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -137,10 +136,10 @@ def test_desktop_icon_tries_executable_basename_before_generic_fallback(
     fallback = MagicMock()
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lookup)
     monkeypatch.setattr(loader, "_try_load_fallback_icon", fallback)
-    info = DesktopInfo(
+    info = _application(
         desktop_id="org.example.Archive.desktop",
         name="Archive",
-        icon_name="missing-archive",
+        declared_icon="missing-archive",
         wm_class="Archive",
         exec_line="/usr/bin/file-roller %U",
     )
@@ -210,22 +209,14 @@ def test_file_thumbnail_cache_is_lru(tmp_path, monkeypatch):
     assert pixbuf_cls.new_from_file_at_scale.call_count == 4
 
 
-def test_canonical_and_legacy_metadata_share_desktop_cache_identity(monkeypatch):
+def test_application_metadata_reuses_desktop_cache_identity(monkeypatch):
     loader = IconLoader()
     pixbuf = object()
     lookup = MagicMock(return_value=pixbuf)
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lookup)
     canonical = _application()
-    legacy = DesktopInfo(
-        desktop_id=canonical.desktop_id,
-        name=canonical.name,
-        icon_name=canonical.declared_icon,
-        wm_class=canonical.wm_class,
-        exec_line=canonical.exec_line,
-    )
-
     first = loader.load_desktop_icon(canonical, 48)
-    second = loader.load_desktop_icon(legacy, 48)
+    second = loader.load_desktop_icon(canonical, 48)
 
     assert first is pixbuf
     assert second is first

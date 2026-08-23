@@ -734,15 +734,15 @@ class MenuHandler:
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
         """Append desktop actions (quicklists) from .desktop file, if any."""
-        actions = self._application_launcher.get_actions(desktop_id)
+        actions = self._application_launcher.quicklist_actions(desktop_id)
         if not actions:
             return
-        for action_id, label in actions:
-            mi = Gtk.MenuItem(label=label)
+        for action in actions:
+            mi = Gtk.MenuItem(label=action.name)
             # Capture by value via default arg
             mi.connect(
                 "activate",
-                lambda _, did=desktop_id, aid=action_id: (
+                lambda _, did=desktop_id, aid=action.action_id: (
                     self._application_launcher.launch_action(did, aid)
                 ),
             )

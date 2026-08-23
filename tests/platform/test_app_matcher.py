@@ -414,16 +414,10 @@ class TestExecutableIdentity:
             desktop_id="shared-tool.desktop",
             wm_class="SharedTool",
         )
-        unrelated_exact = _application(
-            desktop_id="other-family.desktop",
-            wm_class="OtherFamily",
-            exec_line=str(executable),
-        )
         launcher = _registry()
         launcher.resolve_all_by_wm_class.side_effect = lambda alias: (
             (alias_candidate,) if alias.casefold() == "sharedtool" else ()
         )
-        launcher.resolve_by_executable_path.return_value = unrelated_exact
         matcher = _matcher(launcher)
         matcher.sync_visible_items([])
         monkeypatch.setattr(
