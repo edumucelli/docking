@@ -77,7 +77,6 @@ omit = [
     "docking/platform/icon_overrides.py",
     "docking/platform/model.py",
     "docking/platform/process_identity.py",
-    "docking/platform/recent_docs.py",
     "docking/platform/running.py",
     "docking/platform/unity.py",
     "docking/platform/backends/**",

@@ -26,11 +26,11 @@ from docking.platform.applications.projections import (
     search_applications,
     search_metadata,
 )
+from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationInfo
 from docking.platform.backends.base import WindowId, WindowService
 from docking.platform.model import DockModel
-from docking.platform.recent_docs import recent_docs_for_app
 from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
 from docking.search.providers.base import (
@@ -226,7 +226,7 @@ class ApplicationSearchProvider:
         application = self._projected_application(desktop_id, canonical=canonical)
         windows = self._windows.list_windows(desktop_id)
         documents = (
-            recent_docs_for_app(
+            recent_documents_for(
                 canonical,
                 limit=min(5, self._recent_docs_limit),
             )
@@ -295,7 +295,7 @@ class ApplicationSearchProvider:
                 label=_("Open Recent: {name}").format(name=document.name),
             )
             for document in (
-                recent_docs_for_app(canonical, limit=self._recent_docs_limit)
+                recent_documents_for(canonical, limit=self._recent_docs_limit)
                 if canonical is not None
                 else []
             )

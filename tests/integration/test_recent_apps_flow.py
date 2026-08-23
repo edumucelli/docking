@@ -1,6 +1,6 @@
 """Integration tests for the recent apps end-to-end flow.
 
-Exercises the model, config, dependencies, and recent_docs modules together.
+Exercises the model, config, dependencies, and recent-applications service together.
 """
 
 from __future__ import annotations

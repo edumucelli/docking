@@ -10,6 +10,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, call
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND
+from docking.platform.applications.recent_documents import RecentDocument
 from docking.platform.applications.types import (
     ActionSource,
     ApplicationAction,
@@ -23,7 +24,6 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.recent_docs import RecentDoc
 from docking.platform.targets import FileTargetInfo
 from docking.search.coordinator import SearchCancellation, SearchRequest
 from docking.search.providers import (
@@ -188,7 +188,7 @@ def test_application_provider_merges_dock_state_and_actions(monkeypatch) -> None
     def recent_docs(application, **_kwargs):
         seen_recent_applications.append(application)
         return [
-            RecentDoc(
+            RecentDocument(
                 uri="file:///tmp/guide.pdf",
                 name="guide.pdf",
                 mime_type="application/pdf",
@@ -197,7 +197,7 @@ def test_application_provider_merges_dock_state_and_actions(monkeypatch) -> None
         ]
 
     monkeypatch.setattr(
-        "docking.search.providers.applications.recent_docs_for_app",
+        "docking.search.providers.applications.recent_documents_for",
         recent_docs,
     )
 
@@ -278,7 +278,7 @@ def test_application_provider_uses_canonical_search_projection_order(
         recent_docs_limit=5,
     )
     monkeypatch.setattr(
-        "docking.search.providers.applications.recent_docs_for_app",
+        "docking.search.providers.applications.recent_documents_for",
         lambda *_args, **_kwargs: [],
     )
 
@@ -336,14 +336,14 @@ def test_application_provider_dispatches_through_injected_services(
         windows=cast(Any, _Windows()),
         recent_docs_limit=5,
     )
-    document = RecentDoc(
+    document = RecentDocument(
         uri="file:///tmp/report.txt",
         name="report.txt",
         mime_type="text/plain",
         modified=10,
     )
     monkeypatch.setattr(
-        "docking.search.providers.applications.recent_docs_for_app",
+        "docking.search.providers.applications.recent_documents_for",
         lambda *_args, **_kwargs: [document],
     )
     result = _results(provider, "example")[0]

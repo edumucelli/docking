@@ -183,8 +183,8 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import icon_overrides
+from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.backends.base import DisplayServer
-from docking.platform.recent_docs import recent_docs_for_app
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -754,7 +754,7 @@ class MenuHandler:
         application = self._application_registry.get(desktop_id)
         if application is None:
             return
-        docs = recent_docs_for_app(
+        docs = recent_documents_for(
             application,
             limit=self._config.recent_docs_max,
         )
