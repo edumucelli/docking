@@ -191,10 +191,6 @@ class ApplicationLauncher:
             return False
         return True
 
-    def launch_unidentified(self, listing_key: str) -> bool:
-        """Compatibility alias for launching an opaque listing token."""
-        return self.launch_listing(listing_key)
-
     def _run_gio_action(
         self,
         *,

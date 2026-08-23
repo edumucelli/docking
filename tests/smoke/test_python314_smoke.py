@@ -80,18 +80,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.registry = registry
             self.persistence = persistence
 
-    configured_application_launcher = None
-
-    def _configure_application_launcher(application_launcher):
-        nonlocal configured_application_launcher
-        previous = configured_application_launcher
-        configured_application_launcher = application_launcher
-        return previous
-
-    def _reset_application_launcher(previous=None):
-        nonlocal configured_application_launcher
-        configured_application_launcher = previous
-
     default_process_identity_service = object()
     configured_process_identity_service = default_process_identity_service
 
@@ -110,10 +98,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     stub_modules = {
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
-        },
-        "docking.platform.launcher": {
-            "configure_application_launcher": _configure_application_launcher,
-            "reset_application_launcher": _reset_application_launcher,
         },
         "docking.platform.process_identity": {
             "configure_process_identity_service": _configure_process_identity_service,
@@ -198,7 +182,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         for name, value in members.items():
             setattr(stub_mod, name, value)
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
-    platform_pkg.launcher = sys.modules["docking.platform.launcher"]
     platform_pkg.process_identity = sys.modules["docking.platform.process_identity"]
 
     vendor_dir = "/usr/lib/docking/vendor"

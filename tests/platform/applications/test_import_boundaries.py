@@ -8,10 +8,8 @@ from pathlib import Path
 PACKAGE = Path(__file__).parents[3] / "docking" / "platform" / "applications"
 DOCKING = Path(__file__).parents[3] / "docking"
 COMPATIBILITY_MODULES = {
-    DOCKING / "applets" / "apps.py",
     DOCKING / "platform" / "app_matcher.py",
     DOCKING / "platform" / "desktop_entries.py",
-    DOCKING / "platform" / "launcher.py",
     DOCKING / "platform" / "process_identity.py",
     DOCKING / "platform" / "running.py",
 }
@@ -23,10 +21,7 @@ OLD_APPLICATION_MODULES = {
     "docking.platform.process_identity",
     "docking.platform.running",
 }
-APP_FACADE_MODULES = {
-    "docking.platform.launcher",
-    "docking.platform.process_identity",
-}
+APP_FACADE_MODULES = {"docking.platform.process_identity"}
 
 
 def _tree(filename: str) -> ast.Module:
@@ -104,7 +99,12 @@ def test_application_modules_do_not_reach_consumer_layers():
             ), path.name
 
 
-def test_application_applets_do_not_import_legacy_apps_adapter():
+def test_removed_launcher_compatibility_modules_stay_removed():
+    assert not (DOCKING / "applets" / "apps.py").exists()
+    assert not (DOCKING / "platform" / "launcher.py").exists()
+
+
+def test_application_applets_do_not_import_removed_apps_adapter():
     consumers = (
         DOCKING / "applets" / "applications" / "state.py",
         DOCKING / "applets" / "applications" / "applet.py",
@@ -132,41 +132,20 @@ def test_internal_production_has_zero_old_application_imports():
         assert hits == expected, (path.relative_to(DOCKING), hits)
 
 
-def test_app_uses_old_facades_only_for_explicit_binding_and_reset():
+def test_app_uses_process_identity_facade_only_for_explicit_binding_and_reset():
     tree = ast.parse((DOCKING / "app.py").read_text(encoding="utf-8"))
     references = {
         (node.value.id, node.attr)
         for node in ast.walk(tree)
         if isinstance(node, ast.Attribute)
         and isinstance(node.value, ast.Name)
-        and node.value.id in {"launcher_facade", "process_identity_facade"}
+        and node.value.id == "process_identity_facade"
     }
 
     assert references == {
-        ("launcher_facade", "configure_application_launcher"),
-        ("launcher_facade", "reset_application_launcher"),
         ("process_identity_facade", "configure_process_identity_service"),
         ("process_identity_facade", "reset_process_identity_service"),
     }
-
-
-def test_legacy_free_launch_result_is_not_consumed_by_apps_adapter():
-    tree = ast.parse((DOCKING / "applets" / "apps.py").read_text(encoding="utf-8"))
-    parents = {
-        child: parent
-        for parent in ast.walk(tree)
-        for child in ast.iter_child_nodes(parent)
-    }
-    calls = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "launch_desktop_id"
-    ]
-
-    assert len(calls) == 1
-    assert isinstance(parents[calls[0]], ast.Expr)
 
 
 def test_canonical_matcher_has_no_legacy_constructor_or_match_subclass():

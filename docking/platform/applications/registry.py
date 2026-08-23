@@ -322,10 +322,6 @@ class ApplicationRegistry:
             self._sync_directory_monitors()
         return changed
 
-    def refresh_desktop_entries(self) -> bool:
-        """Compatibility alias for a synchronous registry refresh."""
-        return self.refresh()
-
     def start(self) -> None:
         """Start monitors and synchronously populate the registry."""
         self._assert_owner_thread("start")

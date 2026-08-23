@@ -95,21 +95,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.registry = registry
             self.persistence = persistence
 
-    configured_application_launcher = None
-
-    def _configure_application_launcher(application_launcher):
-        nonlocal configured_application_launcher
-        previous = configured_application_launcher
-        configured_application_launcher = application_launcher
-        return previous
-
-    def _reset_application_launcher(previous=None):
-        nonlocal configured_application_launcher
-        configured_application_launcher = previous
-
-    def _get_configured_application_launcher():
-        return configured_application_launcher
-
     default_process_identity_service = object()
     configured_process_identity_service = default_process_identity_service
 
@@ -131,13 +116,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     stub_modules = {
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
-        },
-        "docking.platform.launcher": {
-            "configure_application_launcher": _configure_application_launcher,
-            "get_configured_application_launcher": (
-                _get_configured_application_launcher
-            ),
-            "reset_application_launcher": _reset_application_launcher,
         },
         "docking.platform.process_identity": {
             "configure_process_identity_service": _configure_process_identity_service,
@@ -202,7 +180,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         for name, value in members.items():
             setattr(stub_mod, name, value)
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
-    platform_pkg.launcher = sys.modules["docking.platform.launcher"]
     platform_pkg.process_identity = sys.modules["docking.platform.process_identity"]
 
     vendor_dir = "/usr/lib/docking/vendor"
@@ -315,11 +292,7 @@ class TestAppMain:
         registry_active = False
         registry.generation = 0
 
-        previous_application_launcher = object()
         previous_process_identity_service = object()
-        app_mod.launcher_facade.configure_application_launcher(
-            previous_application_launcher
-        )
         app_mod.process_identity_facade.configure_process_identity_service(
             previous_process_identity_service
         )
@@ -361,7 +334,6 @@ class TestAppMain:
             "ui_stop",
             "backend_stop",
             "applets_stop",
-            "application_facade_reset",
         }
 
         def cleanup_event(name):
@@ -376,24 +348,14 @@ class TestAppMain:
         )
         items_service.stop.side_effect = lambda: cleanup_event("items_stop")
 
-        reset_application_launcher = app_mod.launcher_facade.reset_application_launcher
         reset_process_identity_service = (
             app_mod.process_identity_facade.reset_process_identity_service
         )
-
-        def restore_application_launcher(previous=None):
-            reset_application_launcher(previous)
-            cleanup_event("application_facade_reset")
 
         def restore_process_identity_service(previous=None):
             reset_process_identity_service(previous)
             cleanup_event("process_identity_facade_reset")
 
-        monkeypatch.setattr(
-            app_mod.launcher_facade,
-            "reset_application_launcher",
-            restore_application_launcher,
-        )
         monkeypatch.setattr(
             app_mod.process_identity_facade,
             "reset_process_identity_service",
@@ -464,10 +426,6 @@ class TestAppMain:
         )
 
         def build_ui(**kwargs):
-            assert (
-                app_mod.launcher_facade.get_configured_application_launcher()
-                is kwargs["application_launcher"]
-            )
             assert (
                 app_mod.process_identity_facade.get_process_identity_service()
                 is app_mod.create_session_backend.call_args.kwargs[
@@ -597,7 +555,6 @@ class TestAppMain:
                 "backend_stop",
                 "applets_stop",
                 "model_close",
-                "application_facade_reset",
                 "process_identity_facade_reset",
                 "registry_stop",
             ]
@@ -626,17 +583,10 @@ class TestAppMain:
         assert call_order.index("backend_stop") < call_order.index("applets_stop")
         assert call_order.index("applets_stop") < call_order.index("model_close")
         assert call_order.index("model_close") < call_order.index(
-            "application_facade_reset"
-        )
-        assert call_order.index("application_facade_reset") < call_order.index(
             "process_identity_facade_reset"
         )
         assert call_order.index("process_identity_facade_reset") < call_order.index(
             "registry_stop"
-        )
-        assert (
-            app_mod.launcher_facade.get_configured_application_launcher()
-            is previous_application_launcher
         )
         assert (
             app_mod.process_identity_facade.get_process_identity_service()
@@ -764,32 +714,18 @@ class TestAppMain:
         model.close.side_effect = lambda: cleanup_order.append("model listener")
         registry.stop.side_effect = lambda: cleanup_order.append("registry")
 
-        previous_application_launcher = object()
         previous_process_identity_service = object()
-        app_mod.launcher_facade.configure_application_launcher(
-            previous_application_launcher
-        )
         app_mod.process_identity_facade.configure_process_identity_service(
             previous_process_identity_service
         )
-        reset_application_launcher = app_mod.launcher_facade.reset_application_launcher
         reset_process_identity_service = (
             app_mod.process_identity_facade.reset_process_identity_service
         )
-
-        def restore_application_launcher(previous=None):
-            reset_application_launcher(previous)
-            cleanup_order.append("application facade")
 
         def restore_process_identity_service(previous=None):
             reset_process_identity_service(previous)
             cleanup_order.append("process facade")
 
-        monkeypatch.setattr(
-            app_mod.launcher_facade,
-            "reset_application_launcher",
-            restore_application_launcher,
-        )
         monkeypatch.setattr(
             app_mod.process_identity_facade,
             "reset_process_identity_service",
@@ -821,15 +757,10 @@ class TestAppMain:
         assert cleanup_order == [
             "applets",
             "model listener",
-            "application facade",
             "process facade",
             "registry",
         ]
         registry.start.assert_not_called()
-        assert (
-            app_mod.launcher_facade.get_configured_application_launcher()
-            is previous_application_launcher
-        )
         assert (
             app_mod.process_identity_facade.get_process_identity_service()
             is previous_process_identity_service

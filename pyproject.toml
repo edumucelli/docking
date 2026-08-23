@@ -75,7 +75,6 @@ omit = [
     "docking/platform/diagnostics.py",
     "docking/platform/gamescope.py",
     "docking/platform/icon_overrides.py",
-    "docking/platform/launcher.py",
     "docking/platform/model.py",
     "docking/platform/process_identity.py",
     "docking/platform/recent_docs.py",

@@ -22,8 +22,8 @@ from docking.platform.app_matcher import (
     _normalize_alias,
     _wine_aliases_from_instance,
 )
+from docking.platform.applications.constants import GNOME_APP_PREFIX
 from docking.platform.applications.types import ApplicationInfo, MatchMethod
-from docking.platform.launcher import GNOME_APP_PREFIX
 from docking.platform.process_identity import LaunchProvenance, ProcessIdentity
 from docking.platform.running import RuntimeAppIdentity
 

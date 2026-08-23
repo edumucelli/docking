@@ -7,12 +7,9 @@ from unittest.mock import MagicMock
 
 import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
-import docking.applets.apps as apps_shared
 from docking.applets.applications.applet import ApplicationsApplet
 from docking.applets.applications.state import build_app_categories
-from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
 from docking.core.config import Config
-from docking.platform.applications import entries as canonical_entries
 from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
@@ -57,17 +54,10 @@ class _Registry:
         unidentified: tuple[UnidentifiedApplicationListing, ...] = (),
         *,
         handles: dict[str, object] | None = None,
-        listing_handles: dict[str, object] | None = None,
     ) -> None:
         self.applications = applications
         self.unidentified = unidentified
         self.handles = handles or {}
-        self.listing_handles = listing_handles or {}
-        self.refreshed = False
-
-    def refresh(self) -> bool:
-        self.refreshed = True
-        return True
 
     def snapshot(self) -> tuple[ApplicationInfo, ...]:
         return self.applications
@@ -79,9 +69,6 @@ class _Registry:
 
     def _gio_handle_for(self, desktop_id: str) -> object | None:
         return self.handles.get(desktop_id)
-
-    def _gio_handle_for_unidentified(self, listing_key: str) -> object | None:
-        return self.listing_handles.get(listing_key)
 
 
 def _make_applet(
@@ -99,10 +86,6 @@ def _make_applet(
 
 
 class TestBuildAppCategories:
-    def test_legacy_facade_names_are_direct_aliases(self):
-        assert apps_shared.desktop_entries is canonical_entries
-        assert apps_shared.launch_desktop_id is apps_shared.launcher_facade.launch
-
     def test_returns_dict(self):
         categories = build_app_categories(
             _Registry()  # ty: ignore[invalid-argument-type]
@@ -157,278 +140,6 @@ class TestBuildAppCategories:
         )
 
         assert list(categories) == ["Other"]
-
-    def test_compatibility_adapter_borrows_registry_and_launcher(
-        self, tmp_path, monkeypatch
-    ):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        identified = _application(
-            "org.example.Tool.desktop",
-            "Example Tool",
-            categories="Utility;",
-            icon="applications-utilities",
-            desktop_file=desktop_file,
-        )
-        idless = UnidentifiedApplicationListing(
-            listing_key="gio-idless:4",
-            name="ID-less Tool",
-            categories="Development;",
-            icon_name="applications-development",
-            desktop_file=None,
-        )
-        registry = _Registry((identified,), (idless,))
-        launcher = MagicMock()
-        desktop_file_lookup = MagicMock(
-            side_effect=AssertionError("canonical listing path was rediscovered")
-        )
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            desktop_file_lookup,
-        )
-        monkeypatch.setattr(
-            apps_shared.launcher_facade,
-            "get_configured_application_launcher",
-            lambda: launcher,
-        )
-
-        apps = all_desktop_app_infos(
-            registry  # ty: ignore[invalid-argument-type]
-        )
-
-        assert registry.refreshed is False
-        assert [app.get_display_name() for app in apps] == [
-            "Example Tool",
-            "ID-less Tool",
-        ]
-        assert apps[0].desktop_file_uri() == desktop_file.as_uri()
-        apps[0].launch([], None)
-        apps[1].launch([], None)
-        launcher.launch.assert_called_once_with("org.example.Tool.desktop")
-        launcher.launch_listing.assert_called_once_with("gio-idless:4")
-        desktop_file_lookup.assert_not_called()
-
-    def test_compatibility_entries_launch_without_composed_launcher(self, monkeypatch):
-        identified = _application(
-            "org.example.Standalone.desktop",
-            "Standalone",
-        )
-        idless = UnidentifiedApplicationListing(
-            listing_key="gio-idless:8",
-            name="ID-less Standalone",
-            categories="Utility;",
-            icon_name="",
-            desktop_file=None,
-        )
-        app_info = MagicMock()
-        registry = _Registry(
-            (identified,),
-            (idless,),
-            listing_handles={"gio-idless:8": app_info},
-        )
-        legacy_launch = MagicMock()
-        monkeypatch.setattr(
-            apps_shared.launcher_facade,
-            "get_configured_application_launcher",
-            lambda: None,
-        )
-        monkeypatch.setattr(
-            apps_shared,
-            "launch_desktop_id",
-            legacy_launch,
-        )
-        files = [object()]
-        context = object()
-
-        apps = all_desktop_app_infos(
-            registry  # ty: ignore[invalid-argument-type]
-        )
-        apps[0].launch(files, context)
-        apps[1].launch(files, context)
-
-        legacy_launch.assert_called_once_with(
-            desktop_id="org.example.Standalone.desktop"
-        )
-        app_info.launch.assert_called_once_with(files, context)
-
-    def test_no_arg_compatibility_listing_discovers_once_and_remains_launchable(
-        self,
-        monkeypatch,
-    ):
-        identified = _application(
-            "org.example.Discovered.desktop",
-            "Discovered",
-        )
-        idless = UnidentifiedApplicationListing(
-            listing_key="gio-idless:standalone",
-            name="ID-less Discovered",
-            categories="Utility;",
-            icon_name="",
-            desktop_file=None,
-        )
-        app_info = MagicMock()
-        first_registry = _Registry(
-            (identified,),
-            (idless,),
-            listing_handles={"gio-idless:standalone": app_info},
-        )
-        second_registry = _Registry()
-        registry_factory = MagicMock(
-            side_effect=(first_registry, second_registry),
-        )
-        legacy_launch = MagicMock()
-        monkeypatch.setattr(apps_shared, "ApplicationRegistry", registry_factory)
-        monkeypatch.setattr(
-            apps_shared.launcher_facade,
-            "get_configured_application_launcher",
-            lambda: None,
-        )
-        monkeypatch.setattr(
-            apps_shared,
-            "launch_desktop_id",
-            legacy_launch,
-        )
-
-        apps = all_desktop_app_infos()
-        assert all_desktop_app_infos() == []
-
-        assert registry_factory.call_count == 2
-        assert first_registry.refreshed is True
-        assert second_registry.refreshed is True
-        assert [app.name for app in apps] == [
-            "Discovered",
-            "ID-less Discovered",
-        ]
-
-        files = [object()]
-        context = object()
-        apps[0].launch(files, context)
-        apps[1].launch(files, context)
-        legacy_launch.assert_called_once_with(
-            desktop_id="org.example.Discovered.desktop"
-        )
-        app_info.launch.assert_called_once_with(files, context)
-
-    def test_manual_idless_entry_launches_app_info_with_configured_launcher(
-        self, monkeypatch
-    ):
-        launcher = MagicMock()
-        app_info = MagicMock()
-        monkeypatch.setattr(
-            apps_shared.launcher_facade,
-            "get_configured_application_launcher",
-            lambda: launcher,
-        )
-        entry = ApplicationEntry(
-            desktop_id="",
-            name="ID-less Tool",
-            categories="Utility;",
-            icon_name="",
-            app_info=app_info,
-        )
-        files = [object()]
-        context = object()
-
-        entry.launch(files, context)
-
-        launcher.launch.assert_not_called()
-        launcher.launch_listing.assert_not_called()
-        app_info.launch.assert_called_once_with(files, context)
-
-    def test_application_entry_desktop_file_uri_uses_app_info_filename(self, tmp_path):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        app_info = MagicMock()
-        app_info.get_filename.return_value = str(desktop_file)
-        entry = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
-            categories="Utility;",
-            icon_name="",
-            app_info=app_info,
-        )
-
-        assert entry.desktop_file_uri() == desktop_file.as_uri()
-
-    def test_application_entry_relative_recorded_file_returns_absolute_uri(
-        self, tmp_path, monkeypatch
-    ):
-        desktop_file = Path("org.example.Relative.desktop")
-        monkeypatch.chdir(tmp_path)
-        entry = ApplicationEntry(
-            desktop_id="org.example.Relative.desktop",
-            name="Relative Tool",
-            categories="Utility;",
-            icon_name="",
-            desktop_file=desktop_file,
-        )
-
-        assert entry.desktop_file_uri() == (tmp_path / desktop_file).as_uri()
-
-    def test_application_entry_without_recorded_file_uses_canonical_lookup(
-        self, tmp_path, monkeypatch
-    ):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        desktop_file_lookup = MagicMock(return_value=desktop_file)
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            desktop_file_lookup,
-        )
-        entry = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
-            categories="Utility;",
-            icon_name="",
-        )
-
-        assert entry.desktop_file_uri() == desktop_file.as_uri()
-        desktop_file_lookup.assert_called_once_with("org.example.Tool.desktop")
-
-    def test_application_entry_filename_errors_fall_back_to_canonical_lookup(
-        self, tmp_path, monkeypatch
-    ):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        desktop_file_lookup = MagicMock(return_value=desktop_file)
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            desktop_file_lookup,
-        )
-
-        for error in (AttributeError("missing"), TypeError("unsupported")):
-            app_info = MagicMock()
-            app_info.get_filename.side_effect = error
-            entry = ApplicationEntry(
-                desktop_id="org.example.Tool.desktop",
-                name="Example Tool",
-                categories="Utility;",
-                icon_name="",
-                app_info=app_info,
-            )
-
-            assert entry.desktop_file_uri() == desktop_file.as_uri()
-
-        assert desktop_file_lookup.call_count == 2
-
-    def test_application_entry_lookup_miss_has_no_drag_uri(self, monkeypatch):
-        desktop_file_lookup = MagicMock(return_value=None)
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            desktop_file_lookup,
-        )
-        entry = ApplicationEntry(
-            desktop_id="org.example.Missing.desktop",
-            name="Missing Tool",
-            categories="Utility;",
-            icon_name="",
-        )
-
-        assert entry.desktop_file_uri() is None
-        desktop_file_lookup.assert_called_once_with("org.example.Missing.desktop")
 
 
 class TestApplicationsApplet:

@@ -95,7 +95,6 @@ from docking.applets.services import AppletServices
 from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
-from docking.platform import launcher as launcher_facade
 from docking.platform import process_identity as process_identity_facade
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
@@ -183,18 +182,6 @@ def main() -> None:
                 previous_process_identity,
             ),
         )
-        previous_application_launcher = launcher_facade.configure_application_launcher(
-            application_launcher
-        )
-        cleanup.callback(
-            _safe_stop,
-            "application launcher facade",
-            partial(
-                launcher_facade.reset_application_launcher,
-                previous_application_launcher,
-            ),
-        )
-
         config = Config.load(
             initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
         )

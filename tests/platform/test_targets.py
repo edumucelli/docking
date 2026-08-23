@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import inspect
 import subprocess
 import sys
 from pathlib import Path
@@ -21,10 +20,8 @@ except Exception:
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 from docking.platform import icons as icons_mod
-from docking.platform import launcher as launcher_mod
 from docking.platform import targets as targets_mod
 from docking.platform.icons import IconLoader
-from docking.platform.launcher import Launcher
 from docking.platform.targets import (
     FileTargetInfo,
     TargetService,
@@ -344,26 +341,3 @@ def test_default_directory_handler_name_and_error(monkeypatch):
         MagicMock(side_effect=RuntimeError("lookup failed")),
     )
     assert service.default_directory_app_name() is None
-
-
-def test_launcher_and_target_service_share_icon_loader():
-    launcher = Launcher()
-
-    assert launcher._target_service._icon_loader is launcher._icon_loader
-
-
-def test_launcher_target_api_is_aliases_and_delegates(monkeypatch):
-    assert launcher_mod.FileTargetInfo is targets_mod.FileTargetInfo
-    assert launcher_mod.normalize_file_target is targets_mod.normalize_file_target
-    assert launcher_mod.open_target is targets_mod.open_target
-    assert "def normalize_file_target" not in inspect.getsource(launcher_mod)
-    assert "def open_target" not in inspect.getsource(launcher_mod)
-    assert "Gio.File" not in inspect.getsource(Launcher.resolve_file)
-
-    launcher = Launcher()
-    resolved = FileTargetInfo("file:///tmp/a", "a", "text-x-generic", None, False)
-    resolve = MagicMock(return_value=resolved)
-    monkeypatch.setattr(launcher._target_service, "resolve_file", resolve)
-
-    assert launcher.resolve_file("/tmp/a", 32) is resolved
-    resolve.assert_called_once_with(target="/tmp/a", size=32)

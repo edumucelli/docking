@@ -1114,7 +1114,6 @@ def test_owner_thread_contract_rejects_mutating_gio_operations_from_workers():
 
     operations: tuple[tuple[str, Callable[[], object]], ...] = (
         ("refresh", registry.refresh),
-        ("refresh_desktop_entries", registry.refresh_desktop_entries),
         ("start", registry.start),
         ("stop", registry.stop),
         (

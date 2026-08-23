@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.platform.backends.x11.impl.window_tracker as tracker_mod
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
+from docking.platform.applications.constants import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 
 if _CREATED_GI_FALLBACK:
     sys.modules.pop("gi", None)
