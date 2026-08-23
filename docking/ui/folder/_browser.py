@@ -27,7 +27,6 @@ from gi.repository import GdkPixbuf, Gio
 
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.icons import IconLoader
 from docking.platform.targets import TargetService
 
 FOLDER_DIRECTORY_CACHE_MAX_ENTRIES = 48
@@ -107,17 +106,10 @@ class FolderBrowser:
     def __init__(
         self,
         *,
-        target_service: TargetService | None = None,
-        icon_loader: IconLoader | None = None,
+        target_service: TargetService,
     ) -> None:
-        if target_service is None:
-            icon_loader = icon_loader or IconLoader()
-            target_service = TargetService(icon_loader=icon_loader)
-        elif icon_loader is None:
-            icon_loader = target_service.icon_loader
-        assert icon_loader is not None
         self._target_service = target_service
-        self._icon_loader = icon_loader
+        self._icon_loader = target_service.icon_loader
         self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
 
     @staticmethod

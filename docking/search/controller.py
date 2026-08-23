@@ -32,7 +32,6 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from docking.core.items import APPLET_KIND
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.icons import IconLoader
@@ -112,42 +111,20 @@ class GlobalSearchController:
         model: DockModel,
         windows: WindowService,
         preview_service: PreviewService,
-        application_registry: ApplicationRegistry | None = None,
-        application_launcher: ApplicationLauncher | None = None,
-        icon_loader: IconLoader | None = None,
-        target_service: TargetService | None = None,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._config = config
         self._model = model
         self._windows = windows
         self._preview_service = preview_service
-        self._owns_application_registry = application_registry is None
-        self._application_registry = (
-            application_registry
-            if application_registry is not None
-            else ApplicationRegistry()
-        )
-        if icon_loader is None:
-            icon_loader = (
-                target_service.icon_loader
-                if target_service is not None
-                else IconLoader()
-            )
+        self._application_registry = application_registry
         self._icon_loader = icon_loader
-        self._target_service = (
-            target_service
-            if target_service is not None
-            else TargetService(icon_loader=self._icon_loader)
-        )
-        self._application_launcher = (
-            application_launcher
-            if application_launcher is not None
-            else ApplicationLauncher(
-                self._application_registry,
-                LaunchProvenanceStore(),
-            )
-        )
+        self._target_service = target_service
+        self._application_launcher = application_launcher
         self._application_registry_unsubscribe: Callable[[], None] | None = None
         self._recent_files = RecentFilesCatalog(target_service=self._target_service)
         self._started = False
@@ -335,8 +312,6 @@ class GlobalSearchController:
         self._application_registry_unsubscribe = self._application_registry.subscribe(
             self._refresh_visible
         )
-        if self._owns_application_registry:
-            self._application_registry.start()
         self._recent_files.start()
         self._model_signature = self._searchable_model_signature()
         self._recent_files.add_listener(self._refresh_visible)
@@ -363,8 +338,6 @@ class GlobalSearchController:
         self._currency_rates.remove_listener(self._refresh_visible)
         self._currency_rates.stop()
         self._recent_files.stop()
-        if self._owns_application_registry:
-            self._application_registry.stop()
         self.window.destroy()
 
     def show(

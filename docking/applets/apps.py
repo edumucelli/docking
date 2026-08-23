@@ -30,7 +30,6 @@ from docking.platform.applications.listing import (
     listing_gicon,
     listing_icon_name,
     listing_key,
-    listing_name,
     visible_listings,
 )
 from docking.platform.applications.registry import (
@@ -158,7 +157,7 @@ def _application_entry(
         app_info = registry._gio_handle_for(listing.desktop_id)
     return ApplicationEntry(
         desktop_id=listing_desktop_id(listing) or "",
-        name=listing_name(listing),
+        name=listing.name,
         categories=listing_categories(listing),
         icon_name=listing_icon_name(listing),
         app_info=app_info,

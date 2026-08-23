@@ -249,7 +249,7 @@ def _folder_stack_handler() -> MenuHandler:
         save=MagicMock(),
     )
     icon_loader = MagicMock()
-    target_service = MagicMock()
+    target_service = MagicMock(icon_loader=icon_loader)
     target_service.default_directory_app_name.return_value = "Caja"
     runtime = MagicMock()
     folder_stack = FolderStackController(
@@ -257,7 +257,6 @@ def _folder_stack_handler() -> MenuHandler:
         runtime=runtime,
         dock_window=runtime.window,
         target_service=target_service,
-        icon_loader=icon_loader,
     )
     handler = MenuHandler(
         about=MagicMock(),

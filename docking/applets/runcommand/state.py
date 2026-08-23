@@ -21,12 +21,7 @@ from docking.platform import commands as _commands
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
     ApplicationListing,
-    listing_description,
-    listing_desktop_id,
-    listing_exec_line,
-    listing_generic_name,
-    listing_key,
-    listing_name,
+    activate_listing,
 )
 from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import ApplicationInfo
@@ -88,7 +83,7 @@ def updated_history(
 
 
 def app_display_name(app: ApplicationListing) -> str:
-    return listing_name(app).strip()
+    return app.name.strip()
 
 
 def app_command_text(app: ApplicationListing) -> str:
@@ -96,7 +91,7 @@ def app_command_text(app: ApplicationListing) -> str:
     if isinstance(app, UnidentifiedApplicationListing) or (
         isinstance(app, ApplicationInfo) and app.has_gio_source
     ):
-        commandline = clean_desktop_exec(listing_exec_line(app))
+        commandline = clean_desktop_exec(app.exec_line)
         if commandline:
             return commandline
     return app_display_name(app)
@@ -108,8 +103,8 @@ def app_description(app: ApplicationListing) -> str:
         isinstance(app, ApplicationInfo) and app.has_gio_source
     ):
         for text in (
-            listing_description(app).strip(),
-            listing_generic_name(app).strip(),
+            app.description.strip(),
+            app.generic_name.strip(),
         ):
             if text:
                 return text
@@ -147,13 +142,7 @@ def launch_application(
     """Launch a matched canonical or ID-less registry listing."""
     if launcher is None:
         return False
-    desktop_id = listing_desktop_id(app)
-    if desktop_id is not None:
-        return launcher.launch(desktop_id)
-    if isinstance(app, UnidentifiedApplicationListing):
-        opaque_key = listing_key(app)
-        return opaque_key is not None and launcher.launch_listing(opaque_key)
-    return False
+    return activate_listing(launcher, app)
 
 
 def prefs_payload(*, history: Iterable[str]) -> dict[str, list[str]]:

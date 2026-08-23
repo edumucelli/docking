@@ -20,6 +20,12 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.ui.settings as settings_mod
 
 
+def _settings_controller(**kwargs):
+    """Build the controller with an explicit recents collaborator by default."""
+    kwargs.setdefault("recent_applications", MagicMock())
+    return settings_mod.SettingsWindowController(**kwargs)
+
+
 def _catalog_entry(*, applet_id, name: str, category=None):
     return settings_mod.AppletMeta(
         id=str(applet_id),
@@ -782,7 +788,7 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -865,7 +871,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
         actions = MagicMock()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=actions,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
@@ -895,7 +901,7 @@ class TestSettingsWindowController:
         actions = MagicMock()
         actions.search_shortcut_status.return_value = "Assigned: Super+Space"
         actions.search_shortcut_status_summary.return_value = "Active"
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=actions,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
@@ -955,7 +961,7 @@ class TestSettingsWindowController:
             return unsubscribe
 
         actions.add_search_shortcut_status_listener.side_effect = subscribe
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=actions,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
@@ -996,7 +1002,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
         actions = MagicMock()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=actions,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
@@ -1023,7 +1029,7 @@ class TestSettingsWindowController:
             get_display=lambda: display,
             get_window=lambda: object(),
         )
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=parent,
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1045,7 +1051,7 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         FakeGtkSettings.current = None
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1075,7 +1081,7 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1124,7 +1130,7 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1219,7 +1225,7 @@ class TestSettingsWindowController:
         ]
         runtime.current_monitor_choice.return_value = 0
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1253,7 +1259,7 @@ class TestSettingsWindowController:
         config = _config()
         config.monitor_index = 1
         config.monitor_connector = "DP-1"
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1278,7 +1284,7 @@ class TestSettingsWindowController:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1346,7 +1352,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1377,7 +1383,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod.Theme, "load", lambda name, size: base_theme)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1403,7 +1409,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1429,7 +1435,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1452,7 +1458,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1478,7 +1484,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1505,7 +1511,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         actions = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=actions,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1533,7 +1539,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1557,7 +1563,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1581,7 +1587,7 @@ class TestSettingsWindowController:
         config = _config()
         config.hide_mode = "none"
         config.zoom_enabled = False
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1602,7 +1608,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1632,7 +1638,7 @@ class TestSettingsWindowController:
         )
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1678,7 +1684,7 @@ class TestSettingsWindowController:
         model = MagicMock()
         model.pinned_items = []
         model.get_applet.return_value = None
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=model,
@@ -1718,7 +1724,7 @@ class TestSettingsWindowController:
                 ),
             },
         )
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1785,7 +1791,7 @@ class TestSettingsWindowController:
                 item=SimpleNamespace(icon=FakePixbuf("live-clock", width=32, height=32))
             ),
         )
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=model,
@@ -1822,7 +1828,7 @@ class TestSettingsWindowController:
                 "pomodoro": _catalog_entry(applet_id="pomodoro", name="Pomodoro"),
             },
         )
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1854,7 +1860,7 @@ class TestSettingsWindowController:
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1888,7 +1894,7 @@ class TestRecentSettingsBehavior:
 
         config = _config()
         runtime = MagicMock()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -1924,7 +1930,7 @@ class TestRecentSettingsBehavior:
         model = MagicMock()
         model.pinned_items = []
         recent_applications = MagicMock()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=model,
@@ -1975,7 +1981,7 @@ class TestRecentSettingsBehavior:
                 model._recent_apps = []
 
         recent_applications.reload_policy.side_effect = reload_policy
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=model,
@@ -2009,7 +2015,9 @@ class TestRecentSettingsBehavior:
         model.rebuild_recent_apps.assert_not_called()
         assert runtime.queue_draw.call_count == 2
 
-    def test_show_recent_apps_changed_disabled_clears_and_redraws(self, monkeypatch):
+    def test_show_recent_apps_changed_delegates_to_service_and_redraws(
+        self, monkeypatch
+    ):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
@@ -2021,20 +2029,26 @@ class TestRecentSettingsBehavior:
         config.show_recent_apps = True
         config.recent_apps = [{"desktop_id": "test.desktop", "last_closed": 1000}]
         runtime = MagicMock()
-        controller = settings_mod.SettingsWindowController(
+        recent_applications = MagicMock()
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            recent_applications=recent_applications,
         )
         controller.show()
+        config.save.reset_mock()
 
         # Disable recent apps
         config.show_recent_apps = False
         controller._after_show_recent_apps_changed()
 
-        assert config.recent_apps == []
-        config.save.assert_called()
+        recent_applications.reload_policy.assert_called_once_with(pinned_ids=set())
+        assert config.recent_apps == [
+            {"desktop_id": "test.desktop", "last_closed": 1000}
+        ]
+        config.save.assert_not_called()
         runtime.queue_draw.assert_called()
 
 
@@ -2048,7 +2062,7 @@ class TestBindingEdgeCases:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2066,7 +2080,7 @@ class TestBindingEdgeCases:
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2091,7 +2105,7 @@ class TestBindingEdgeCases:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
         config.save.reset_mock()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2114,7 +2128,7 @@ class TestBindingEdgeCases:
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2138,7 +2152,7 @@ class TestSettingsRuntimeCallbacks:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2159,7 +2173,7 @@ class TestSettingsRuntimeCallbacks:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2180,7 +2194,7 @@ class TestSettingsRuntimeCallbacks:
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         runtime = MagicMock()
         config = _config()
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=runtime,
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2199,7 +2213,7 @@ class TestSettingsRuntimeCallbacks:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
@@ -2216,7 +2230,7 @@ class TestSettingsRuntimeCallbacks:
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
-        controller = settings_mod.SettingsWindowController(
+        controller = _settings_controller(
             parent=MagicMock(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),

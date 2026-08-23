@@ -243,7 +243,7 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
-        recent_applications: RecentApplications | None = None,
+        recent_applications: RecentApplications,
     ) -> None:
         self._parent = parent
         self._actions = actions
@@ -1703,27 +1703,13 @@ class SettingsWindowController:
 
     def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
-        if self._recent_applications is not None:
-            self._recent_applications.reload_policy(
-                pinned_ids=self._recent_pinned_ids()
-            )
-        else:
-            # Compatibility path for isolated settings tests and embedders.
-            if not self._config.show_recent_apps:
-                self._config.recent_apps.clear()
-                self._config.save()
-            rebuild = getattr(self._model, "rebuild_recent_apps", None)
-            if callable(rebuild):
-                rebuild()
+        self._recent_applications.reload_policy(pinned_ids=self._recent_pinned_ids())
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
 
     def _after_recent_apps_policy_changed(self) -> None:
         """Notify the service without adding eager pruning or durability."""
-        if self._recent_applications is not None:
-            self._recent_applications.reload_policy(
-                pinned_ids=self._recent_pinned_ids()
-            )
+        self._recent_applications.reload_policy(pinned_ids=self._recent_pinned_ids())
         self._actions.queue_draw()
 
     def _recent_pinned_ids(self) -> set[str]:

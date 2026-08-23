@@ -36,11 +36,9 @@ from docking.i18n import _
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
     ApplicationListing,
+    activate_listing,
     listing_desktop_file_uri,
-    listing_desktop_id,
     listing_gicon,
-    listing_key,
-    listing_name,
 )
 from docking.platform.applications.registry import ApplicationRegistry
 
@@ -181,7 +179,7 @@ class ApplicationsApplet(ApplicationServicesApplet):
 
 
 def _app_name(app_info: ApplicationListing) -> str:
-    return listing_name(app_info) or "Unknown"
+    return app_info.name or "Unknown"
 
 
 def _clear_menu(*, menu: Gtk.Menu) -> None:
@@ -301,8 +299,4 @@ def _launch_app(
     """Launch a registry listing through the injected application launcher."""
     if launcher is None:
         return False
-    desktop_id = listing_desktop_id(app_info)
-    if desktop_id is not None:
-        return launcher.launch(desktop_id)
-    opaque_key = listing_key(app_info)
-    return opaque_key is not None and launcher.launch_listing(opaque_key)
+    return activate_listing(launcher, app_info)

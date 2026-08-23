@@ -1,14 +1,20 @@
 """Integration tests for the recent apps end-to-end flow.
 
-Exercises the model, config, launcher, and recent_docs modules together.
+Exercises the model, config, dependencies, and recent_docs modules together.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 from docking.applets.services import AppletServices
 from docking.core.config import Config
+from docking.platform.applications.recents import (
+    RecentApplications,
+    RecentApplicationsPersistence,
+)
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.running import RunningAppInfo
 from docking.platform.applications.types import (
     ApplicationInfo,
@@ -23,8 +29,16 @@ def _make_running(**kw) -> RunningAppInfo:
     return RunningAppInfo(**(defaults | kw))
 
 
-def _make_launcher(*desktop_ids: str):
-    launcher = MagicMock()
+@dataclass(frozen=True)
+class _ModelDependencies:
+    application_registry: ApplicationRegistry
+    application_launcher: MagicMock
+    icon_loader: MagicMock
+    target_service: MagicMock
+
+
+def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
+    registry = MagicMock(spec=ApplicationRegistry)
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -46,9 +60,36 @@ def _make_launcher(*desktop_ids: str):
     def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)
 
-    launcher.resolve.side_effect = resolve
-    launcher.load_icon.return_value = MagicMock()
-    return launcher
+    registry.resolve.side_effect = resolve
+    icon_loader = MagicMock()
+    icon_loader.load_icon.return_value = MagicMock()
+    icon_loader.load_desktop_icon.return_value = MagicMock()
+    return _ModelDependencies(
+        application_registry=registry,
+        application_launcher=MagicMock(),
+        icon_loader=icon_loader,
+        target_service=MagicMock(icon_loader=icon_loader),
+    )
+
+
+def _make_model(
+    config: Config,
+    dependencies: _ModelDependencies,
+    applet_services: AppletServices,
+) -> DockModel:
+    recent_applications = RecentApplications(
+        dependencies.application_registry,
+        RecentApplicationsPersistence(config),
+    )
+    return DockModel(
+        config=config,
+        applet_services=applet_services,
+        application_registry=dependencies.application_registry,
+        application_launcher=dependencies.application_launcher,
+        icon_loader=dependencies.icon_loader,
+        target_service=dependencies.target_service,
+        recent_applications=recent_applications,
+    )
 
 
 class TestRecentAppsFullFlow:
@@ -61,8 +102,8 @@ class TestRecentAppsFullFlow:
         config.recent_apps_max = 5
         config.recent_apps_retention_days = 14
         config.pinned = []
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("firefox.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         # App appears running
         model.update_running({"firefox.desktop": _make_running()})
@@ -91,8 +132,8 @@ class TestRecentAppsFullFlow:
         config.recent_apps_max = 10
         config.recent_apps_retention_days = 30
         config.pinned = []
-        launcher = _make_launcher("gedit.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("gedit.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         # Launch and close to get it in recent
         model.update_running({"gedit.desktop": _make_running()})
@@ -117,8 +158,8 @@ class TestRecentAppsFullFlow:
         )
         # Set recent_apps via constructor won't work directly, use the
         # model's mechanism
-        launcher = _make_launcher("old.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("old.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Start with recent apps enabled and an app in recent
         model.update_running({"old.desktop": _make_running()})
         model.update_running({})
@@ -133,7 +174,7 @@ class TestRecentAppsFullFlow:
         assert not any(i.is_recent for i in items_after)
 
     def test_unresolvable_recent_entry_is_skipped(self):
-        """A recent app entry for a nonexistent launcher is skipped gracefully."""
+        """A recent app entry for a nonexistent dependencies is skipped gracefully."""
         config = Config()
         config.show_recent_apps = True
         config.recent_apps_max = 10
@@ -142,8 +183,8 @@ class TestRecentAppsFullFlow:
         config.recent_apps = [
             {"desktop_id": "ghost.desktop", "last_closed": 999999},
         ]
-        launcher = _make_launcher()  # No launchers
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()  # No launchers
+        model = _make_model(config, dependencies, AppletServices())
 
         items = model.visible_items()
         recent = [i for i in items if i.is_recent]
@@ -157,8 +198,8 @@ class TestRecentAppsFullFlow:
             recent_apps_retention_days=30,
             pinned=[],
         )
-        launcher = _make_launcher("gedit.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("gedit.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Get gedit into recent by launching and closing it
         model.update_running({"gedit.desktop": _make_running()})
         model.update_running({})

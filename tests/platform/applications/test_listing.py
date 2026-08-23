@@ -9,17 +9,14 @@ from unittest.mock import MagicMock
 from gi.repository import Gio
 
 from docking.platform.applications.listing import (
+    activate_listing,
     gicon_from_icon_name,
     listing_categories,
-    listing_description,
     listing_desktop_file_uri,
     listing_desktop_id,
-    listing_exec_line,
-    listing_generic_name,
     listing_gicon,
     listing_icon_name,
     listing_key,
-    listing_name,
     visible_listings,
 )
 from docking.platform.applications.registry import UnidentifiedApplicationListing
@@ -78,28 +75,43 @@ def test_visible_listings_preserves_both_registry_snapshot_orders() -> None:
     )
 
     assert visible_listings(registry) == (application, unidentified)
-    assert visible_listings(None) == ()
 
 
 def test_listing_facts_distinguish_canonical_and_idless_records() -> None:
     application = _application(declared_icon="host-tool")
     unidentified = _unidentified()
 
-    assert listing_name(application) == "Host Tool"
+    assert application.name == "Host Tool"
     assert listing_categories(application) == "Development;IDE;"
     assert listing_icon_name(application) == "host-tool"
     assert listing_desktop_id(application) == "org.example.Host.desktop"
     assert listing_key(application) is None
 
-    assert listing_name(unidentified) == "ID-less Tool"
+    assert unidentified.name == "ID-less Tool"
     assert listing_categories(unidentified) == "Utility;"
     assert listing_icon_name(unidentified) == "applications-utilities"
     assert listing_desktop_id(unidentified) is None
     assert listing_key(unidentified) == "gio-idless:17"
-    assert listing_exec_line(unidentified) == "idless-tool %U"
-    assert listing_description(unidentified) == "Run the ID-less tool"
-    assert listing_generic_name(unidentified) == "Utility Tool"
-    assert listing_exec_line(application) == "host-tool %U"
+    assert unidentified.exec_line == "idless-tool %U"
+    assert unidentified.description == "Run the ID-less tool"
+    assert unidentified.generic_name == "Utility Tool"
+    assert application.exec_line == "host-tool %U"
+
+
+def test_activate_listing_uses_exactly_one_launch_mechanism() -> None:
+    launcher = MagicMock()
+    launcher.launch.return_value = True
+    launcher.launch_listing.return_value = True
+
+    assert activate_listing(launcher, _application())
+    launcher.launch.assert_called_once_with("org.example.Host.desktop")
+    launcher.launch_listing.assert_not_called()
+
+    launcher.reset_mock()
+
+    assert activate_listing(launcher, _unidentified())
+    launcher.launch.assert_not_called()
+    launcher.launch_listing.assert_called_once_with("gio-idless:17")
 
 
 def test_listing_gicon_prefers_private_registry_handles_for_both_forms() -> None:

@@ -20,7 +20,6 @@ from collections import defaultdict
 from docking.platform.applications.listing import (
     ApplicationListing,
     listing_categories,
-    listing_name,
     visible_listings,
 )
 from docking.platform.applications.registry import ApplicationRegistry
@@ -69,7 +68,7 @@ def _map_category(categories: str) -> str:
 
 
 def build_app_categories(
-    registry: ApplicationRegistry | None = None,
+    registry: ApplicationRegistry,
 ) -> dict[str, list[ApplicationListing]]:
     """Group installed apps by FreeDesktop category.
 
@@ -85,6 +84,6 @@ def build_app_categories(
 
     # Sort apps within each category by display name
     for apps in categories.values():
-        apps.sort(key=lambda app: listing_name(app).lower())
+        apps.sort(key=lambda app: app.name.lower())
 
     return dict(categories)

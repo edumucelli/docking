@@ -145,7 +145,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -179,12 +179,10 @@ from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.projections import dock_metadata
 from docking.platform.applications.recents import (
     RecentApplications,
-    RecentApplicationsPersistence,
 )
 from docking.platform.applications.running import RunningAppInfo
 from docking.platform.applications.types import (
     ApplicationInfo,
-    ApplicationLocation,
     ApplicationOrigin,
 )
 from docking.platform.icons import fallback_file_icon_name
@@ -250,108 +248,26 @@ def launcher_state_shows_effective_overlay(
     )
 
 
-class _RecentApplicationResolver:
-    """Adapt the legacy model resolver for isolated compatibility tests."""
-
-    def __init__(
-        self,
-        *,
-        resolve: Callable[..., ApplicationInfo | None],
-    ) -> None:
-        self._resolve = resolve
-
-    def resolve(
-        self,
-        desktop_id: str,
-        *,
-        log_failures: bool = True,
-    ) -> ApplicationInfo | None:
-        return self._resolve(desktop_id, log_failures=log_failures)
-
-
-def _legacy_application_info(value: object) -> ApplicationInfo | None:
-    """Canonicalize a DesktopInfo-like result from the legacy Launcher facade."""
-    desktop_id = getattr(value, "desktop_id", None)
-    if not isinstance(desktop_id, str) or not desktop_id:
-        return None
-
-    def text_field(name: str) -> str:
-        field = getattr(value, name, "")
-        return field if isinstance(field, str) else ""
-
-    name = text_field("name") or desktop_id
-    icon_name = text_field("icon_name")
-    wm_class = text_field("wm_class")
-    exec_line = text_field("exec_line")
-    return ApplicationInfo(
-        desktop_id=desktop_id,
-        name=name,
-        declared_icon=icon_name,
-        wm_class=wm_class,
-        exec_line=exec_line,
-        origin=(
-            ApplicationOrigin.GENERATED
-            if desktop_id.startswith(desktop_entries.GENERATED_DESKTOP_PREFIX)
-            else ApplicationOrigin.INSTALLED
-        ),
-        location=ApplicationLocation.SANDBOX,
-        desktop_file=None,
-        executable_path=desktop_entries.executable_path_from_exec_line(exec_line),
-        aliases=tuple(
-            desktop_entries.match_aliases(
-                desktop_id=desktop_id,
-                wm_class=wm_class,
-                exec_line=exec_line,
-            )
-        ),
-        visible=True,
-        has_gio_source=False,
-    )
-
-
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
     def __init__(
         self,
-        config: Config,
-        application_services: object | None = None,
-        applet_services: AppletServices | None = None,
         *,
-        application_registry: ApplicationRegistry | None = None,
-        application_launcher: ApplicationLauncher | None = None,
-        icon_loader: IconLoader | None = None,
-        target_service: TargetService | None = None,
-        recent_applications: RecentApplications | None = None,
+        config: Config,
+        applet_services: AppletServices,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+        recent_applications: RecentApplications,
     ) -> None:
-        uses_legacy_application_services = (
-            application_registry is None and application_services is not None
-        )
-        if application_registry is None and application_services is not None:
-            application_registry = cast("ApplicationRegistry", application_services)
-        if application_launcher is None and application_services is not None:
-            application_launcher = cast("ApplicationLauncher", application_services)
-        if icon_loader is None and application_services is not None:
-            icon_loader = cast("IconLoader", application_services)
-        if target_service is None and application_services is not None:
-            target_service = cast("TargetService", application_services)
-        if (
-            application_registry is None
-            or application_launcher is None
-            or icon_loader is None
-            or target_service is None
-        ):
-            raise TypeError(
-                "application_registry, application_launcher, icon_loader, and "
-                "target_service are required"
-            )
         self._config = config
         self._application_registry = application_registry
         self._application_launcher = application_launcher
         self._icon_loader = icon_loader
         self._target_service = target_service
-        self._uses_legacy_application_services = uses_legacy_application_services
-        self._applet_services = applet_services or AppletServices()
+        self._applet_services = applet_services
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
@@ -370,12 +286,6 @@ class DockModel:
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
-        if recent_applications is None:
-            resolver = _RecentApplicationResolver(resolve=self._resolve_application)
-            recent_applications = RecentApplications(
-                resolver,
-                RecentApplicationsPersistence(self._config),
-            )
         self._recent_applications = recent_applications
         self._recent_applications.load(pinned_ids=self._pinned_ids())
         self._materialize_recent_apps()
@@ -409,15 +319,10 @@ class DockModel:
         *,
         log_failures: bool = True,
     ) -> ApplicationInfo | None:
-        resolved: object | None = self._application_registry.resolve(
+        return self._application_registry.resolve(
             desktop_id,
             log_failures=log_failures,
         )
-        if resolved is None or isinstance(resolved, ApplicationInfo):
-            return resolved
-        if self._uses_legacy_application_services:
-            return _legacy_application_info(resolved)
-        return cast("ApplicationInfo", resolved)
 
     def _load_application_icon(
         self,
@@ -436,9 +341,6 @@ class DockModel:
         return self._target_service.resolve_file(target=target, size=size)
 
     def _refresh_application_registry(self) -> None:
-        if self._uses_legacy_application_services:
-            self._application_registry.refresh_desktop_entries()
-            return
         self._application_registry.refresh()
 
     def add_change_listener(self, callback: Callable[[], None]) -> None:
@@ -539,7 +441,6 @@ class DockModel:
             if cls:
                 try:
                     applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
-                    applet.set_services(self._applet_services)
                     applet.item.desktop_id = entry.id
                     applet.item.kind = APPLET_KIND
                     applet.item.target = entry.target
@@ -1040,20 +941,23 @@ class DockModel:
     def _instantiate_applet(self, *, cls: type[Applet], icon_size: int) -> Applet:
         """Construct an applet with every service required by its declared type."""
         if isinstance(cls, type) and issubclass(cls, ApplicationServicesApplet):
-            return cls(
+            applet = cls(
                 icon_size=icon_size,
                 config=self._config,
                 application_registry=self._application_registry,
                 application_launcher=self._application_launcher,
             )
-        if isinstance(cls, type) and issubclass(cls, TargetServicesApplet):
-            return cls(
+        elif isinstance(cls, type) and issubclass(cls, TargetServicesApplet):
+            applet = cls(
                 icon_size=icon_size,
                 config=self._config,
                 icon_loader=self._icon_loader,
                 target_service=self._target_service,
             )
-        return cls(icon_size=icon_size, config=self._config)
+        else:
+            applet = cls(icon_size=icon_size, config=self._config)
+        applet.set_services(self._applet_services)
+        return applet
 
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
@@ -1079,7 +983,6 @@ class DockModel:
         icon_size = self._config.scaled_icon_size
         try:
             applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
-            applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id=str(did), action="add_applet").exception(
                 f"Failed to create applet {did}"
@@ -1116,7 +1019,6 @@ class DockModel:
         icon_size = self._config.scaled_icon_size
         try:
             applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
-            applet.set_services(self._applet_services)
         except Exception:
             log.bind(applet_id="separator", action="add_separator").exception(
                 "Failed to create separator",

@@ -162,7 +162,7 @@ class _ScenarioHarness:
         self.application_registry.resolve_by_desktop_file.return_value = None
         self.application_launcher = MagicMock()
         self.icon_loader = MagicMock()
-        self.target_service = MagicMock()
+        self.target_service = MagicMock(icon_loader=self.icon_loader)
         self.window_tracker = MagicMock()
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
@@ -450,7 +450,6 @@ class TestMenuLifecycleScenarios:
             runtime=runtime,
             dock_window=cast(Any, harness),
             target_service=harness.target_service,
-            icon_loader=harness.icon_loader,
         )
         handler = MenuHandler(
             about=MagicMock(),

@@ -1,6 +1,7 @@
 """Tests for the dock data model."""
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -17,7 +18,11 @@ from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.applications.entries import DesktopInfo, GeneratedDesktopEntry
+from docking.platform.applications.entries import GeneratedDesktopEntry
+from docking.platform.applications.recents import (
+    RecentApplications,
+    RecentApplicationsPersistence,
+)
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.running import RunningAppInfo
 from docking.platform.applications.types import (
@@ -28,9 +33,17 @@ from docking.platform.applications.types import (
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
 
 
-def _make_launcher(*desktop_ids: str):
-    """Create a mock Launcher that resolves given desktop IDs."""
-    launcher = MagicMock()
+@dataclass(frozen=True)
+class _ModelDependencies:
+    application_registry: ApplicationRegistry
+    application_launcher: MagicMock
+    icon_loader: MagicMock
+    target_service: MagicMock
+
+
+def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
+    """Create distinct model collaborators that resolve given desktop IDs."""
+    registry = MagicMock(spec=ApplicationRegistry)
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -52,11 +65,54 @@ def _make_launcher(*desktop_ids: str):
     def resolve(desktop_id, **_kwargs):
         return infos.get(desktop_id)
 
-    launcher.resolve.side_effect = resolve
-    launcher.load_icon.return_value = MagicMock()  # fake pixbuf
-    launcher.load_desktop_icon.return_value = MagicMock()
-    launcher.load_icon_file.return_value = None
-    return launcher
+    registry.resolve.side_effect = resolve
+    icon_loader = MagicMock()
+    icon_loader.load_icon.return_value = MagicMock()  # fake pixbuf
+    icon_loader.load_desktop_icon.return_value = MagicMock()
+    icon_loader.load_icon_file.return_value = None
+    return _ModelDependencies(
+        application_registry=registry,
+        application_launcher=MagicMock(),
+        icon_loader=icon_loader,
+        target_service=MagicMock(icon_loader=icon_loader),
+    )
+
+
+def _make_model(
+    config,
+    dependencies: _ModelDependencies | None = None,
+    applet_services: AppletServices | None = None,
+    *,
+    application_registry: ApplicationRegistry | None = None,
+    application_launcher=None,
+    icon_loader=None,
+    target_service=None,
+    recent_applications: RecentApplications | None = None,
+) -> DockModel:
+    """Compose a model explicitly while keeping individual tests concise."""
+    if dependencies is not None:
+        application_registry = dependencies.application_registry
+        application_launcher = dependencies.application_launcher
+        icon_loader = dependencies.icon_loader
+        target_service = dependencies.target_service
+    assert application_registry is not None
+    assert application_launcher is not None
+    assert icon_loader is not None
+    assert target_service is not None
+    if recent_applications is None:
+        recent_applications = RecentApplications(
+            application_registry,
+            RecentApplicationsPersistence(config),
+        )
+    return DockModel(
+        config=config,
+        applet_services=applet_services or AppletServices(),
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        icon_loader=icon_loader,
+        target_service=target_service,
+        recent_applications=recent_applications,
+    )
 
 
 def _make_config(pinned: list[str], *, show_recent_apps: bool = False):
@@ -113,9 +169,9 @@ class TestDockModelInit:
     def test_loads_pinned_items(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
         # When
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
         items = model.visible_items()
         # Then
         assert len(items) == 2
@@ -126,30 +182,30 @@ class TestDockModelInit:
     def test_skips_unresolvable_desktop_ids(self):
         # Given
         config = _make_config(["a.desktop", "missing.desktop"])
-        launcher = _make_launcher("a.desktop")
+        dependencies = _make_dependencies("a.desktop")
         # When
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
         # Then
         assert len(model.visible_items()) == 1
 
     def test_empty_pinned(self):
         # Given
         config = _make_config([])
-        launcher = _make_launcher()
+        dependencies = _make_dependencies()
         # When
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
         # Then
         assert model.visible_items() == []
 
     def test_uses_injected_recent_applications_instance(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop")
+        dependencies = _make_dependencies("a.desktop")
         recent_applications = MagicMock()
         recent_applications.snapshot.return_value = ()
 
-        model = DockModel(
+        model = _make_model(
             config,
-            launcher,
+            dependencies,
             AppletServices(),
             recent_applications=recent_applications,
         )
@@ -163,9 +219,9 @@ class TestDockModelInit:
         recent_applications = MagicMock()
         recent_applications.snapshot.return_value = ()
         unsubscribe = recent_applications.subscribe.return_value
-        model = DockModel(
+        model = _make_model(
             config,
-            _make_launcher(),
+            _make_dependencies(),
             AppletServices(),
             recent_applications=recent_applications,
         )
@@ -180,8 +236,8 @@ class TestUpdateRunning:
     def test_marks_pinned_as_running(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.update_running({"a.desktop": _running(count=2, active=True)})
         # Then
@@ -193,8 +249,8 @@ class TestUpdateRunning:
     def test_adds_transient_for_unknown_running(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.update_running(
             {
@@ -218,8 +274,8 @@ class TestUpdateRunning:
             executable_path=executable,
         )
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
 
         model.update_running(
             {
@@ -239,8 +295,8 @@ class TestUpdateRunning:
     def test_removes_transient_when_no_longer_running(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         # When
@@ -253,8 +309,8 @@ class TestUpdateRunning:
     def test_resets_running_state_on_update(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"a.desktop": _running(active=True)})
         assert model.visible_items()[0].is_running
         # When
@@ -267,8 +323,8 @@ class TestPinUnpin:
     def test_pin_transient_item(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"b.desktop": _running()})
         # When
         model.pin_item("b.desktop")
@@ -290,8 +346,8 @@ class TestPinUnpin:
             executable_path=executable,
         )
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running(
             {
                 runtime_id: RunningAppInfo(
@@ -306,12 +362,25 @@ class TestPinUnpin:
             name="tool",
             icon_name="application-x-executable",
         )
-        resolved = DesktopInfo(
+        resolved = ApplicationInfo(
             desktop_id=runtime_id,
             name="tool",
-            icon_name="application-x-executable",
+            declared_icon="application-x-executable",
             wm_class="tool",
             exec_line=str(executable),
+            origin=ApplicationOrigin.GENERATED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=generated.path,
+            executable_path=executable,
+            aliases=tuple(
+                model_mod.desktop_entries.match_aliases(
+                    desktop_id=runtime_id,
+                    wm_class="tool",
+                    exec_line=str(executable),
+                )
+            ),
+            visible=True,
+            has_gio_source=False,
         )
         create = MagicMock(return_value=generated)
         monkeypatch.setattr(
@@ -319,7 +388,7 @@ class TestPinUnpin:
             "create_desktop_entry_for_executable",
             create,
         )
-        launcher.resolve.side_effect = lambda desktop_id, **_: (
+        dependencies.application_registry.resolve.side_effect = lambda desktop_id, **_: (
             resolved if desktop_id == runtime_id else None
         )
 
@@ -342,7 +411,7 @@ class TestPinUnpin:
             str(executable),
             startup_wm_class="SharedTool",
         )
-        launcher.refresh_desktop_entries.assert_called_once_with()
+        dependencies.application_registry.refresh.assert_called_once_with()
 
     def test_runtime_pin_uses_generated_metadata_stably_across_restart(
         self,
@@ -374,7 +443,7 @@ class TestPinUnpin:
         )
         config = _make_config([])
         icon_loader = MagicMock()
-        model = DockModel(
+        model = _make_model(
             config,
             applet_services=AppletServices(),
             application_registry=registry,
@@ -409,7 +478,7 @@ class TestPinUnpin:
             desktop_directories_source=lambda: (applications_dir,),
         )
         fresh_registry.refresh()
-        fresh_model = DockModel(
+        fresh_model = _make_model(
             config,
             applet_services=AppletServices(),
             application_registry=fresh_registry,
@@ -428,8 +497,8 @@ class TestPinUnpin:
     def test_unpin_running_becomes_transient(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"a.desktop": _running()})
         # When
         model.unpin_item("a.desktop")
@@ -443,8 +512,8 @@ class TestPinUnpin:
     def test_unpin_not_running_removes(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.unpin_item("b.desktop")
         # Then - item is animating out, flush animation to complete removal
@@ -463,24 +532,24 @@ class TestCustomIcons:
                 CUSTOM_ICON_PATH_KEY: "/home/user/a.png",
             }
         }
-        launcher = _make_launcher("a.desktop")
+        dependencies = _make_dependencies("a.desktop")
         custom_icon = object()
-        launcher.load_icon_file.return_value = custom_icon
+        dependencies.icon_loader.load_icon_file.return_value = custom_icon
 
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
 
         item = model.visible_items()[0]
         assert item.icon is custom_icon
         assert item.icon_name == "a.png"
-        launcher.load_icon_file.assert_called_once_with(
+        dependencies.icon_loader.load_icon_file.assert_called_once_with(
             path=Path("/home/user/a.png"),
             size=48,
         )
 
     def test_set_custom_icon_persists_and_refreshes_matching_items(self, tmp_path):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         pinned = model.visible_items()[0]
         recent = DockItem(
             desktop_id="a.desktop",
@@ -493,7 +562,7 @@ class TestCustomIcons:
         custom_path = tmp_path / "custom.png"
         custom_path.write_bytes(b"not actually decoded in this unit test")
         custom_icon = object()
-        launcher.load_icon_file.return_value = custom_icon
+        dependencies.icon_loader.load_icon_file.return_value = custom_icon
         callback = MagicMock()
         model.add_change_listener(callback)
 
@@ -510,8 +579,8 @@ class TestCustomIcons:
 
     def test_refresh_item_icons_preserves_runtime_state(self, tmp_path):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         item = model.visible_items()[0]
         item.is_running = True
         item.instance_count = 2
@@ -526,7 +595,7 @@ class TestCustomIcons:
             }
         }
         custom_icon = object()
-        launcher.load_icon_file.return_value = custom_icon
+        dependencies.icon_loader.load_icon_file.return_value = custom_icon
 
         model.refresh_item_icons(item)
 
@@ -546,10 +615,10 @@ class TestCustomIcons:
                 CUSTOM_ICON_PATH_KEY: "/home/user/tool.png",
             }
         }
-        launcher = _make_launcher("tool.desktop")
+        dependencies = _make_dependencies("tool.desktop")
         custom_icon = object()
-        launcher.load_icon_file.return_value = custom_icon
-        model = DockModel(config, launcher, AppletServices())
+        dependencies.icon_loader.load_icon_file.return_value = custom_icon
+        model = _make_model(config, dependencies, AppletServices())
         item = DockItem(
             desktop_id="tool.desktop",
             kind=APP_KIND,
@@ -570,9 +639,9 @@ class TestReorderVisible:
     def test_pinned_items_list_accessible(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
         # When
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
         # Then
         assert isinstance(model.pinned_items, list)
         assert all(isinstance(it, DockItem) for it in model.pinned_items)
@@ -581,8 +650,8 @@ class TestReorderVisible:
     def test_sync_and_notify(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
@@ -596,8 +665,8 @@ class TestReorderVisible:
     def test_reorder_pinned_items(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop", "c.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop", "c.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop", "c.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.reorder_visible(0, 2)
         # Then
@@ -608,8 +677,8 @@ class TestReorderVisible:
     def test_reorder_auto_pins_transient(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"b.desktop": _running()})
         assert len(model.visible_items()) == 2
         assert not model.visible_items()[1].is_pinned
@@ -625,8 +694,8 @@ class TestReorderVisible:
     def test_reorder_both_transients(self):
         # Given
         config = _make_config([])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running(
             {
                 "a.desktop": _running(),
@@ -645,8 +714,8 @@ class TestReorderVisible:
     def test_reorder_visible_out_of_bounds_noop(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.reorder_visible(0, 5)
         # Then
@@ -661,8 +730,8 @@ class TestReorderVisible:
             PinnedEntry(kind=FOLDER_KIND, target="file:///tmp/docs"),
         ]
         config.anchor_files = True
-        launcher = _make_launcher("a.desktop")
-        launcher.resolve_file.side_effect = [
+        dependencies = _make_dependencies("a.desktop")
+        dependencies.target_service.resolve_file.side_effect = [
             MagicMock(
                 target="file:///tmp/readme.txt",
                 name="readme.txt",
@@ -679,7 +748,7 @@ class TestReorderVisible:
             ),
         ]
 
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
 
         assert [item.kind for item in model.visible_items()] == [
             APP_KIND,
@@ -692,8 +761,8 @@ class TestCallbacks:
     def test_change_listener_fires(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         # When
@@ -703,8 +772,8 @@ class TestCallbacks:
 
     def test_removed_change_listener_does_not_fire(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         model.remove_change_listener(callback)
@@ -715,8 +784,8 @@ class TestCallbacks:
 
     def test_change_listeners_fire_in_registration_order(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         calls: list[str] = []
 
         model.add_change_listener(lambda: calls.append("first"))
@@ -728,8 +797,8 @@ class TestCallbacks:
 
     def test_failing_change_listener_does_not_block_later_listener(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         good = MagicMock()
 
         def bad() -> None:
@@ -744,8 +813,8 @@ class TestCallbacks:
 
     def test_multiple_failing_change_listeners_do_not_block_later_listener(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         good = MagicMock()
 
         def first_bad() -> None:
@@ -764,8 +833,8 @@ class TestCallbacks:
 
     def test_listener_can_remove_itself_during_notify(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         calls: list[str] = []
 
         def first() -> None:
@@ -793,7 +862,7 @@ class TestAppletLifecycleIntegration:
         config.anchor_applets = False
         config.anchor_files = False
         config.item_prefs = {}
-        launcher = _make_launcher()
+        dependencies = _make_dependencies()
 
         fake_item = DockItem(desktop_id="applet://session", name="Session")
         fake_applet = MagicMock()
@@ -804,9 +873,11 @@ class TestAppletLifecycleIntegration:
         loader = MagicMock(return_value=lambda icon_size, config: fake_applet)
         monkeypatch.setattr(applets_mod, "load_applet_class", loader)
 
-        model = DockModel(config, launcher, AppletServices())
+        services = AppletServices()
+        model = _make_model(config, dependencies, services)
 
         loader.assert_called_once_with("session")
+        fake_applet.set_services.assert_called_once_with(services)
         assert model.pinned_items == [fake_item]
         assert model.get_applet("applet://session") is fake_applet
 
@@ -815,8 +886,8 @@ class TestAppletLifecycleIntegration:
     ):
         # Given
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
 
@@ -838,6 +909,7 @@ class TestAppletLifecycleIntegration:
         # When
         model.add_applet("session")
         # Then
+        fake_applet.set_services.assert_called_once_with(model._applet_services)
         assert fake_applet.start.called
         assert "applet://session" in config.pinned
         assert config.save.called
@@ -855,8 +927,8 @@ class TestAppletLifecycleIntegration:
     def test_add_separator_assigns_instance_and_inserts_at_index(self, monkeypatch):
         # Given
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
 
         import docking.applets as applets_mod
 
@@ -877,6 +949,7 @@ class TestAppletLifecycleIntegration:
         # When
         model.add_separator(index=0)
         # Then
+        created[0].set_services.assert_called_once_with(model._applet_services)
         assert len(model.pinned_items) == 1
         assert model.pinned_items[0].desktop_id.startswith("applet://separator#")
         created[0].apply_prefs.assert_called_once()
@@ -887,8 +960,8 @@ class TestAppletLifecycleIntegration:
         self, monkeypatch
     ):
         config = _make_config(["a.desktop", "b.desktop"])
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         import docking.applets as applets_mod
 
@@ -918,8 +991,8 @@ class TestAppletLifecycleIntegration:
     def test_start_stop_applets_and_get_applet(self):
         # Given
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         applet = MagicMock()
         applet.item = DockItem(desktop_id="applet://x", name="X")
         model._applets["applet://x"] = applet
@@ -934,8 +1007,8 @@ class TestAppletLifecycleIntegration:
 
     def test_start_applets_continues_after_failure(self):
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         failing = MagicMock()
         failing.item = DockItem(desktop_id="applet://bad", name="Bad")
         failing.start.side_effect = RuntimeError("boom")
@@ -951,8 +1024,8 @@ class TestAppletLifecycleIntegration:
 
     def test_stop_applets_continues_after_failure(self):
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         failing = MagicMock()
         failing.item = DockItem(desktop_id="applet://bad", name="Bad")
         failing.stop.side_effect = RuntimeError("boom")
@@ -968,8 +1041,8 @@ class TestAppletLifecycleIntegration:
 
     def test_add_applet_start_failure_rolls_back_without_persisting(self, monkeypatch):
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         fake_item = DockItem(desktop_id="applet://session", name="Session")
         fake_applet = MagicMock()
         fake_applet.item = fake_item
@@ -1000,12 +1073,45 @@ class TestAppletLifecycleIntegration:
         assert model.pinned_items == []
         config.save.assert_not_called()
 
+    def test_add_applet_service_attachment_failure_never_registers(self, monkeypatch):
+        config = _make_config([])
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
+        fake_applet = MagicMock()
+        fake_applet.item = DockItem(desktop_id="applet://session", name="Session")
+        fake_applet.set_services.side_effect = RuntimeError("attachment failed")
+
+        class FakeAppletClass:
+            def __new__(cls, icon_size, config):
+                return fake_applet
+
+        import docking.applets as applets_mod
+
+        monkeypatch.setattr(
+            applets_mod,
+            "get_applet_catalog",
+            lambda: {"session": object()},
+        )
+        monkeypatch.setattr(
+            applets_mod,
+            "load_applet_class",
+            lambda applet_id: FakeAppletClass if applet_id == "session" else None,
+        )
+
+        model.add_applet("session")
+
+        fake_applet.set_services.assert_called_once_with(model._applet_services)
+        fake_applet.start.assert_not_called()
+        assert model.get_applet("applet://session") is None
+        assert model.pinned_items == []
+        config.save.assert_not_called()
+
     def test_add_separator_start_failure_rolls_back_without_persisting(
         self, monkeypatch
     ):
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         fake_item = DockItem(desktop_id="applet://separator", name="Separator")
         fake_applet = MagicMock()
         fake_applet.item = fake_item
@@ -1033,8 +1139,8 @@ class TestAppletLifecycleIntegration:
 
     def test_remove_applet_continues_when_stop_fails(self):
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         applet = MagicMock()
@@ -1054,8 +1160,8 @@ class TestAppletLifecycleIntegration:
     def test_start_applets_passes_notify_callback(self):
         # Given
         config = _make_config([])
-        launcher = _make_launcher()
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
         callback = MagicMock()
         model.add_change_listener(callback)
         applet_callback = MagicMock()
@@ -1088,8 +1194,8 @@ class TestAppletLifecycleIntegration:
     def test_find_by_desktop_id_and_unpin_applet_route(self, monkeypatch):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         item = model.find_by_desktop_id("a.desktop")
         # Then
         assert item is not None
@@ -1106,8 +1212,8 @@ class TestAppletLifecycleIntegration:
 class TestLauncherEntryState:
     def test_apply_launcher_entry_updates_existing_item(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         applied = model.apply_launcher_entry(
             sender_name=":1.7",
@@ -1136,8 +1242,8 @@ class TestLauncherEntryState:
     def test_hidden_badge_retains_count_on_existing_item(self):
         config = _make_config(["a.desktop"])
         config.show_launcher_badges = False
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         model.apply_launcher_entry(
             sender_name=":1.7",
@@ -1158,8 +1264,8 @@ class TestLauncherEntryState:
     def test_hidden_progress_retains_value_on_existing_item(self):
         config = _make_config(["a.desktop"])
         config.show_launcher_progress = False
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         model.apply_launcher_entry(
             sender_name=":1.7",
@@ -1181,8 +1287,8 @@ class TestLauncherEntryState:
         config = _make_config([])
         config.show_launcher_badges = False
         config.show_launcher_progress = False
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1216,8 +1322,8 @@ class TestLauncherEntryState:
 
     def test_zero_count_badge_does_not_create_launcher_only_transient(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1238,8 +1344,8 @@ class TestLauncherEntryState:
 
     def test_refresh_hides_transient_and_reenabling_restores_cached_state(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1270,8 +1376,8 @@ class TestLauncherEntryState:
 
     def test_refresh_keeps_urgent_transient_when_visual_overlays_are_hidden(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1299,8 +1405,8 @@ class TestLauncherEntryState:
 
     def test_refresh_preserves_latest_sender_urgency(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         urgent_state = LauncherEntryState(
             sender_name=":1.7",
             app_uri="application://a.desktop",
@@ -1341,8 +1447,8 @@ class TestLauncherEntryState:
 
     def test_launcher_entry_urgent_survives_running_rescan(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.apply_launcher_entry(
             sender_name=":1.7",
             app_uri="application://a.desktop",
@@ -1363,8 +1469,8 @@ class TestLauncherEntryState:
 
     def test_apply_launcher_entry_creates_transient_after_retry_phase(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1396,8 +1502,8 @@ class TestLauncherEntryState:
 
     def test_apply_launcher_entry_creates_urgent_only_transient(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1422,8 +1528,8 @@ class TestLauncherEntryState:
 
     def test_remove_launcher_entry_drops_launcher_only_transient(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1444,8 +1550,8 @@ class TestLauncherEntryState:
 
     def test_update_running_preserves_launcher_only_transient(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1470,8 +1576,8 @@ class TestLauncherEntryState:
 
     def test_update_running_preserves_urgent_only_launcher_transient(self):
         config = _make_config([])
-        launcher = _make_launcher("mail.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("mail.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
             app_uri="application://mail.desktop",
@@ -1495,8 +1601,8 @@ class TestLauncherEntryState:
 
     def test_unpin_with_launcher_overlay_becomes_transient(self):
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.7",
             app_uri="application://a.desktop",
@@ -1522,8 +1628,8 @@ class TestLauncherEntryState:
 class TestStatusNotifierOverlayState:
     def test_applies_badge_and_urgency_to_pinned_item(self, monkeypatch):
         config = _make_config(["slack.desktop"])
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         monkeypatch.setattr(
             "docking.platform.model.GLib.get_monotonic_time",
             lambda: 100,
@@ -1546,8 +1652,8 @@ class TestStatusNotifierOverlayState:
 
     def test_count_increase_retriggers_urgent_timestamp(self, monkeypatch):
         config = _make_config(["slack.desktop"])
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         timestamps = iter((100, 200))
         monkeypatch.setattr(
             "docking.platform.model.GLib.get_monotonic_time",
@@ -1578,8 +1684,8 @@ class TestStatusNotifierOverlayState:
 
     def test_zero_count_clears_badge_and_status_notifier_urgency(self):
         config = _make_config(["slack.desktop"])
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.apply_status_notifier_overlay(
             source_id="slack-item",
             desktop_id="slack.desktop",
@@ -1600,8 +1706,8 @@ class TestStatusNotifierOverlayState:
 
     def test_unity_and_status_notifier_badges_do_not_overwrite_each_other(self):
         config = _make_config(["slack.desktop"])
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.apply_status_notifier_overlay(
             source_id="slack-item",
             desktop_id="slack.desktop",
@@ -1634,8 +1740,8 @@ class TestStatusNotifierOverlayState:
 
     def test_multiple_tray_sources_use_highest_count_and_fall_back(self):
         config = _make_config(["slack.desktop"])
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.apply_status_notifier_overlay(
             source_id="slack-one",
             desktop_id="slack.desktop",
@@ -1661,8 +1767,8 @@ class TestStatusNotifierOverlayState:
     def test_badge_preference_hides_but_retains_status_notifier_count(self):
         config = _make_config(["slack.desktop"])
         config.show_launcher_badges = False
-        launcher = _make_launcher("slack.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("slack.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         model.apply_status_notifier_overlay(
             source_id="slack-item",
@@ -1689,8 +1795,8 @@ class TestDockItemAnimationFields:
     def test_urgent_state_tracked(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.update_running({"a.desktop": _running(urgent=True)})
         # Then
@@ -1701,8 +1807,8 @@ class TestDockItemAnimationFields:
     def test_urgent_timestamp_set_only_on_transition(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # When
         model.update_running({"a.desktop": _running(urgent=True)})
         first_ts = model.visible_items()[0].last_urgent
@@ -1715,8 +1821,8 @@ class TestDockItemAnimationFields:
     def test_urgent_clears(self):
         # Given
         config = _make_config(["a.desktop"])
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"a.desktop": _running(urgent=True)})
         # When
         model.update_running({"a.desktop": _running(urgent=False)})
@@ -1741,24 +1847,24 @@ class TestRecentAppsIntegration:
 
     def test_recent_apps_disabled_no_section_appears(self):
         config = _make_config(["a.desktop"], show_recent_apps=False)
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # No recent apps in visible items
         items = model.visible_items()
         assert all(not item.is_recent for item in items)
 
     def test_recent_apps_enabled_empty_by_default(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Only pinned items, no recent section because no apps closed
         items = model.visible_items()
         assert all(not item.is_recent for item in items)
 
     def test_app_closed_appears_in_recent(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # App b is running
         model.update_running({"b.desktop": _running()})
         items_before = model.visible_items()
@@ -1785,8 +1891,8 @@ class TestRecentAppsIntegration:
                 "last_closed": original_last_closed,
             },
         ]
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         existing_item = model.find_by_desktop_id("b.desktop")
         assert existing_item is not None
         assert existing_item.last_closed == float(original_last_closed)
@@ -1802,9 +1908,9 @@ class TestRecentAppsIntegration:
     def test_service_policy_change_after_close_does_not_update_model(self):
         config = _make_config([], show_recent_apps=True)
         config.recent_apps = [{"desktop_id": "a.desktop", "last_closed": 9_999_999_999}]
-        model = DockModel(
+        model = _make_model(
             config,
-            _make_launcher("a.desktop"),
+            _make_dependencies("a.desktop"),
             AppletServices(),
         )
         existing_item = model.find_by_desktop_id("a.desktop")
@@ -1824,8 +1930,8 @@ class TestRecentAppsIntegration:
 
     def test_simultaneous_closes_are_saved_one_at_a_time(self):
         config = _make_config([], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         saved_orders: list[list[str]] = []
         config.save.side_effect = lambda: saved_orders.append(
             [entry["desktop_id"] for entry in config.recent_apps]
@@ -1852,8 +1958,8 @@ class TestRecentAppsIntegration:
     def test_close_saves_before_applying_the_maximum(self):
         config = _make_config([], show_recent_apps=True)
         config.recent_apps_max = 1
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"a.desktop": _running()})
         model.update_running({})
         model.update_running({"b.desktop": _running()})
@@ -1873,8 +1979,8 @@ class TestRecentAppsIntegration:
 
     def test_recent_app_not_duplicated_when_pinned(self):
         config = _make_config(["firefox.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("firefox.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("firefox.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"firefox.desktop": _running()})
         model.update_running({})
         items = model.visible_items()
@@ -1884,8 +1990,8 @@ class TestRecentAppsIntegration:
 
     def test_pin_recent_item_moves_it_to_pinned(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"b.desktop": _running()})
         model.update_running({})
         # b.desktop should be in recent
@@ -1901,8 +2007,8 @@ class TestRecentAppsIntegration:
 
     def test_explicit_pin_removes_recent_before_saving_pinned_order(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"b.desktop": _running()})
         model.update_running({})
         recent_item = model.find_by_desktop_id("b.desktop")
@@ -1930,8 +2036,8 @@ class TestRecentAppsIntegration:
     def test_unpin_inserts_at_front_and_saves_recent_before_pinned_order(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9_999_999_999}]
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         unpinned_item = model.find_by_desktop_id("a.desktop")
         assert unpinned_item is not None
         saved_states: list[tuple[list[str], list[str]]] = []
@@ -1959,10 +2065,10 @@ class TestRecentAppsIntegration:
     def test_recent_app_max_limit(self):
         config = _make_config(["pinned.desktop"], show_recent_apps=True)
         config.recent_apps_max = 2
-        launcher = _make_launcher(
+        dependencies = _make_dependencies(
             "pinned.desktop", "a.desktop", "b.desktop", "c.desktop"
         )
-        model = DockModel(config, launcher, AppletServices())
+        model = _make_model(config, dependencies, AppletServices())
         # Close three apps
         for did in ["a.desktop", "b.desktop", "c.desktop"]:
             model.update_running({did: _running()})
@@ -1972,8 +2078,8 @@ class TestRecentAppsIntegration:
 
     def test_recent_app_running_not_in_recent_section(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # b closes
         model.update_running({"b.desktop": _running()})
         model.update_running({})
@@ -1991,8 +2097,8 @@ class TestRecentAppsIntegration:
 
     def test_running_recent_removal_updates_config_without_saving(self):
         config = _make_config([], show_recent_apps=True)
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         model.update_running({"a.desktop": _running()})
         model.update_running({})
         assert [entry["desktop_id"] for entry in config.recent_apps] == ["a.desktop"]
@@ -2006,8 +2112,8 @@ class TestRecentAppsIntegration:
 
     def test_running_state_is_remembered_while_recent_apps_are_disabled(self):
         config = _make_config([], show_recent_apps=False)
-        launcher = _make_launcher("a.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
 
         model.update_running({"a.desktop": _running()})
         config.show_recent_apps = True
@@ -2020,8 +2126,8 @@ class TestRecentAppsIntegration:
     def test_rebuild_recent_apps_public_method(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Clear via rebuild
         config.show_recent_apps = False
         model.rebuild_recent_apps()
@@ -2037,8 +2143,8 @@ class TestRecentAppsIntegration:
     def test_find_by_desktop_id_searches_recent(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Find recent item
         item = model.find_by_desktop_id("b.desktop")
         assert item is not None
@@ -2050,8 +2156,8 @@ class TestRecentAppsIntegration:
         config = _make_config(["a.desktop"], show_recent_apps=True)
         config.recent_apps_retention_days = 1
         config.recent_apps_max = 10
-        launcher = _make_launcher("a.desktop", "old.desktop", "new.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "old.desktop", "new.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         # Close an app with old timestamp
         model.update_running({"old.desktop": _running()})
         model.update_running({})
@@ -2070,8 +2176,8 @@ class TestRecentAppsIntegration:
     def test_reorder_recent_auto_pins_without_duplicate_recent_placement(self):
         config = _make_config(["a.desktop"], show_recent_apps=True)
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9_999_999_999}]
-        launcher = _make_launcher("a.desktop", "b.desktop")
-        model = DockModel(config, launcher, AppletServices())
+        dependencies = _make_dependencies("a.desktop", "b.desktop")
+        model = _make_model(config, dependencies, AppletServices())
         recent_item = model.find_by_desktop_id("b.desktop")
         assert recent_item is not None
 

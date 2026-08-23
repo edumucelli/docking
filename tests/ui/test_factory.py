@@ -156,7 +156,7 @@ class TestBuildDockWindow:
         application_registry = MagicMock()
         application_launcher = MagicMock()
         icon_loader = MagicMock()
-        target_service = MagicMock()
+        target_service = MagicMock(icon_loader=icon_loader)
         recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
@@ -229,7 +229,6 @@ class TestBuildDockWindow:
             runtime=components.runtime,
             dock_window=window,
             target_service=target_service,
-            icon_loader=icon_loader,
         )
         factory_mod.DnDHandler.assert_called_once_with(
             drawing_area=window.drawing_area,
@@ -289,10 +288,7 @@ class TestBuildDockWindow:
             factory_mod.FolderStackController.call_args.kwargs["target_service"]
             is target_service
         )
-        assert (
-            factory_mod.FolderStackController.call_args.kwargs["icon_loader"]
-            is icon_loader
-        )
+        assert target_service.icon_loader is icon_loader
         assert (
             factory_mod.DnDHandler.call_args.kwargs["application_registry"]
             is application_registry

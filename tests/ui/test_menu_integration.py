@@ -767,7 +767,7 @@ def handler(monkeypatch):
     application_launcher = MagicMock()
     application_launcher.get_actions.return_value = []
     icon_loader = MagicMock()
-    target_service = MagicMock()
+    target_service = MagicMock(icon_loader=icon_loader)
     target_service.normalize_file_target.side_effect = lambda target: (
         targets_mod.normalize_file_target(target)
     )
@@ -777,7 +777,6 @@ def handler(monkeypatch):
         runtime=runtime,
         dock_window=runtime.window,
         target_service=target_service,
-        icon_loader=icon_loader,
     )
     return menu_mod.MenuHandler(
         about=about,

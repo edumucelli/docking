@@ -160,7 +160,6 @@ def build_dock_window(
         runtime=runtime,
         dock_window=window,
         target_service=target_service,
-        icon_loader=icon_loader,
     )
     dnd = DnDHandler(
         drawing_area=window.drawing_area,

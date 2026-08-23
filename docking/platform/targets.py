@@ -126,14 +126,8 @@ def default_directory_app_name() -> str | None:
 class TargetService:
     """Resolve target metadata using one composed icon-loading service."""
 
-    def __init__(self, icon_loader: IconLoader | None = None) -> None:
-        self._icon_loader = (
-            icon_loader
-            if icon_loader is not None
-            else IconLoader(
-                normalize_file_target=lambda target: normalize_file_target(target)
-            )
-        )
+    def __init__(self, *, icon_loader: IconLoader) -> None:
+        self._icon_loader = icon_loader
 
     @property
     def icon_loader(self) -> IconLoader:

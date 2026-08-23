@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Protocol
 
 import gi
 
@@ -15,18 +16,17 @@ from .types import ApplicationInfo
 ApplicationListing = ApplicationInfo | UnidentifiedApplicationListing
 
 
-def visible_listings(
-    registry: ApplicationRegistry | None,
-) -> tuple[ApplicationListing, ...]:
+class ApplicationListingLauncher(Protocol):
+    """Narrow launcher boundary shared by canonical and ID-less listings."""
+
+    def launch(self, desktop_id: str) -> bool: ...
+
+    def launch_listing(self, listing_key: str) -> bool: ...
+
+
+def visible_listings(registry: ApplicationRegistry) -> tuple[ApplicationListing, ...]:
     """Return the registry's visible and ID-less presentation snapshots."""
-    if registry is None:
-        return ()
     return (*registry.snapshot(), *registry.unidentified_snapshot())
-
-
-def listing_name(listing: ApplicationListing) -> str:
-    """Return the recorded display name."""
-    return listing.name
 
 
 def listing_categories(listing: ApplicationListing) -> str:
@@ -57,19 +57,14 @@ def listing_key(listing: ApplicationListing) -> str | None:
     return None
 
 
-def listing_exec_line(listing: ApplicationListing) -> str:
-    """Return the source-faithful desktop command line."""
-    return listing.exec_line
-
-
-def listing_description(listing: ApplicationListing) -> str:
-    """Return the source-faithful application description."""
-    return listing.description
-
-
-def listing_generic_name(listing: ApplicationListing) -> str:
-    """Return the source-faithful generic application name."""
-    return listing.generic_name
+def activate_listing(
+    launcher: ApplicationListingLauncher,
+    listing: ApplicationListing,
+) -> bool:
+    """Launch either listing form through one validated activation boundary."""
+    if isinstance(listing, ApplicationInfo):
+        return launcher.launch(listing.desktop_id)
+    return launcher.launch_listing(listing.listing_key)
 
 
 def listing_gicon(
@@ -129,16 +124,14 @@ def _gio_handle(
 
 __all__ = [
     "ApplicationListing",
+    "ApplicationListingLauncher",
+    "activate_listing",
     "gicon_from_icon_name",
     "listing_categories",
-    "listing_description",
     "listing_desktop_file_uri",
     "listing_desktop_id",
-    "listing_exec_line",
-    "listing_generic_name",
     "listing_gicon",
     "listing_icon_name",
     "listing_key",
-    "listing_name",
     "visible_listings",
 ]

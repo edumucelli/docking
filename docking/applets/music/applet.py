@@ -35,8 +35,7 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.applications.listing import (
     ApplicationListing,
-    listing_desktop_id,
-    listing_key,
+    activate_listing,
 )
 
 from .artwork import CoverArtResolver
@@ -344,11 +343,7 @@ class MusicApplet(ApplicationServicesApplet):
         application = self._find_media_application()
         if application is None:
             return False
-        desktop_id = listing_desktop_id(application)
-        if desktop_id is not None:
-            return launcher.launch(desktop_id)
-        opaque_key = listing_key(application)
-        return opaque_key is not None and launcher.launch_listing(opaque_key)
+        return activate_listing(launcher, application)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:

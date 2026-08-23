@@ -104,7 +104,9 @@ class TestBuildAppCategories:
         assert apps_shared.launch_desktop_id is apps_shared.launcher_facade.launch
 
     def test_returns_dict(self):
-        categories = build_app_categories()
+        categories = build_app_categories(
+            _Registry()  # ty: ignore[invalid-argument-type]
+        )
         assert isinstance(categories, dict)
         assert categories == {}
 

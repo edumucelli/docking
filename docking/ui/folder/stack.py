@@ -25,7 +25,6 @@ from docking.core.items import FOLDER_KIND
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.icons import IconLoader
 from docking.platform.targets import TargetService
 from docking.ui.folder._browser import (
     FOLDER_SMALL_ICON_PX,
@@ -134,25 +133,17 @@ class FolderStackController(StackPopupController):
         config: Config,
         runtime: DockRuntime,
         dock_window: Gtk.Window,
-        target_service: TargetService | None = None,
-        icon_loader: IconLoader | None = None,
+        target_service: TargetService,
     ) -> None:
         super().__init__(
             config=config,
             runtime=runtime,
             dock_window=dock_window,
         )
-        if target_service is None:
-            icon_loader = icon_loader or IconLoader()
-            target_service = TargetService(icon_loader=icon_loader)
-        elif icon_loader is None:
-            icon_loader = target_service.icon_loader
-        assert icon_loader is not None
         self._target_service = target_service
-        self._icon_loader = icon_loader
+        self._icon_loader = target_service.icon_loader
         self._browser = FolderBrowser(
             target_service=target_service,
-            icon_loader=icon_loader,
         )
         self._folder_stack_cache = FolderStackCache(target_service)
         self._folder_content_cache: dict[tuple[object, ...], StackContent] = {}

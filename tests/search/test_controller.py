@@ -180,12 +180,6 @@ def _make_controller(
             callback(*args)
             return 1
 
-    application_registry_factory = MagicMock(return_value=applications)
-    monkeypatch.setattr(
-        controller_mod,
-        "ApplicationRegistry",
-        application_registry_factory,
-    )
     monkeypatch.setattr(
         controller_mod,
         "RecentFilesCatalog",
@@ -216,34 +210,30 @@ def _make_controller(
 
     icon_loader = MagicMock()
     target_service = MagicMock(icon_loader=icon_loader)
+    active_registry = (
+        applications if application_registry is None else application_registry
+    )
     controller = GlobalSearchController(
         config=config,
         model=cast(Any, model),
         windows=cast(Any, windows),
         preview_service=MagicMock(),
-        application_registry=application_registry,
+        application_registry=active_registry,
         application_launcher=MagicMock(),
         icon_loader=icon_loader,
         target_service=target_service,
     )
-    if application_registry is None:
-        application_registry_factory.assert_called_once_with()
-    else:
-        application_registry_factory.assert_not_called()
-    active_registry = (
-        applications if application_registry is None else application_registry
-    )
     return controller, created[0], active_registry, recent, shortcuts
 
 
-def test_controller_starts_catalogs_and_searches(monkeypatch) -> None:
+def test_controller_borrows_registry_and_starts_owned_catalogs(monkeypatch) -> None:
     controller, window, applications, recent, shortcuts = _make_controller(monkeypatch)
 
     controller.start()
     controller.show(initial_query="fire")
 
-    assert applications.started
-    assert applications.start_calls == 1
+    assert not applications.started
+    assert applications.start_calls == 0
     assert recent.started
     shortcuts.start.assert_called_once_with()
     assert window.visible
@@ -255,7 +245,7 @@ def test_controller_starts_catalogs_and_searches(monkeypatch) -> None:
     controller.stop()
     shortcuts.stop.assert_called_once_with()
     assert not applications.started
-    assert applications.stop_calls == 1
+    assert applications.stop_calls == 0
     assert not recent.started
 
 
