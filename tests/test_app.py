@@ -95,32 +95,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.registry = registry
             self.persistence = persistence
 
-    default_process_identity_service = object()
-    configured_process_identity_service = default_process_identity_service
-
-    def _configure_process_identity_service(service):
-        nonlocal configured_process_identity_service
-        previous = configured_process_identity_service
-        configured_process_identity_service = service
-        return previous
-
-    def _reset_process_identity_service(previous=None):
-        nonlocal configured_process_identity_service
-        configured_process_identity_service = (
-            default_process_identity_service if previous is None else previous
-        )
-
-    def _get_process_identity_service():
-        return configured_process_identity_service
-
     stub_modules = {
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
-        },
-        "docking.platform.process_identity": {
-            "configure_process_identity_service": _configure_process_identity_service,
-            "get_process_identity_service": _get_process_identity_service,
-            "reset_process_identity_service": _reset_process_identity_service,
         },
         "docking.platform.environment": {
             "apply_tweaks": lambda **_kwargs: None,
@@ -180,7 +157,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         for name, value in members.items():
             setattr(stub_mod, name, value)
         monkeypatch.setitem(sys.modules, module_name, stub_mod)
-    platform_pkg.process_identity = sys.modules["docking.platform.process_identity"]
 
     vendor_dir = "/usr/lib/docking/vendor"
     path_is_dir = Path.is_dir
@@ -292,11 +268,6 @@ class TestAppMain:
         registry_active = False
         registry.generation = 0
 
-        previous_process_identity_service = object()
-        app_mod.process_identity_facade.configure_process_identity_service(
-            previous_process_identity_service
-        )
-
         def refresh_registry():
             registry.generation = 1
             call_order.append("registry_refresh")
@@ -347,20 +318,6 @@ class TestAppMain:
             "status_notifications_stop"
         )
         items_service.stop.side_effect = lambda: cleanup_event("items_stop")
-
-        reset_process_identity_service = (
-            app_mod.process_identity_facade.reset_process_identity_service
-        )
-
-        def restore_process_identity_service(previous=None):
-            reset_process_identity_service(previous)
-            cleanup_event("process_identity_facade_reset")
-
-        monkeypatch.setattr(
-            app_mod.process_identity_facade,
-            "reset_process_identity_service",
-            restore_process_identity_service,
-        )
 
         def runtime_start(name):
             assert registry_active
@@ -426,12 +383,6 @@ class TestAppMain:
         )
 
         def build_ui(**kwargs):
-            assert (
-                app_mod.process_identity_facade.get_process_identity_service()
-                is app_mod.create_session_backend.call_args.kwargs[
-                    "process_identity_service"
-                ]
-            )
             return ui
 
         factory = MagicMock(side_effect=build_ui)
@@ -555,7 +506,6 @@ class TestAppMain:
                 "backend_stop",
                 "applets_stop",
                 "model_close",
-                "process_identity_facade_reset",
                 "registry_stop",
             ]
             assert "first_run_resolve" in call_order
@@ -582,16 +532,7 @@ class TestAppMain:
         assert call_order.index("unity_stop") < call_order.index("backend_stop")
         assert call_order.index("backend_stop") < call_order.index("applets_stop")
         assert call_order.index("applets_stop") < call_order.index("model_close")
-        assert call_order.index("model_close") < call_order.index(
-            "process_identity_facade_reset"
-        )
-        assert call_order.index("process_identity_facade_reset") < call_order.index(
-            "registry_stop"
-        )
-        assert (
-            app_mod.process_identity_facade.get_process_identity_service()
-            is previous_process_identity_service
-        )
+        assert call_order.index("model_close") < call_order.index("registry_stop")
 
         assert fake_glib.unix_signal_add.call_count == 2
         sig_calls = [c.args[1] for c in fake_glib.unix_signal_add.call_args_list]
@@ -714,23 +655,6 @@ class TestAppMain:
         model.close.side_effect = lambda: cleanup_order.append("model listener")
         registry.stop.side_effect = lambda: cleanup_order.append("registry")
 
-        previous_process_identity_service = object()
-        app_mod.process_identity_facade.configure_process_identity_service(
-            previous_process_identity_service
-        )
-        reset_process_identity_service = (
-            app_mod.process_identity_facade.reset_process_identity_service
-        )
-
-        def restore_process_identity_service(previous=None):
-            reset_process_identity_service(previous)
-            cleanup_order.append("process facade")
-
-        monkeypatch.setattr(
-            app_mod.process_identity_facade,
-            "reset_process_identity_service",
-            restore_process_identity_service,
-        )
         monkeypatch.setattr(
             app_mod,
             "ApplicationRegistry",
@@ -757,14 +681,9 @@ class TestAppMain:
         assert cleanup_order == [
             "applets",
             "model listener",
-            "process facade",
             "registry",
         ]
         registry.start.assert_not_called()
-        assert (
-            app_mod.process_identity_facade.get_process_identity_service()
-            is previous_process_identity_service
-        )
 
     def test_module_entrypoint_invokes_main(self, monkeypatch):
         # Given

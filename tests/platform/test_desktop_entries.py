@@ -8,43 +8,6 @@ from types import SimpleNamespace
 from docking.platform.applications import entries as desktop_entries
 
 
-def test_canonical_exports_cover_public_and_tested_helpers():
-    expected = {
-        "DesktopAction",
-        "DesktopAppListing",
-        "DesktopInfo",
-        "GeneratedDesktopEntry",
-        "ResolvedAppInfo",
-        "ResolvedDesktopLaunch",
-        "_generated_desktop_entry_content",
-        "_refresh_desktop_database",
-        "all_desktop_app_listings",
-        "create_desktop_entry_for_executable",
-        "desktop_dirs",
-        "desktop_info_from_file",
-        "desktop_listing_from_file",
-        "desktop_match_aliases",
-        "generated_desktop_id_for_path",
-        "load_desktop_key_file",
-        "match_aliases",
-        "resolve_app_info",
-        "resolve_desktop_launch",
-    }
-
-    assert expected <= set(desktop_entries.__all__)
-    assert len(desktop_entries.__all__) == len(set(desktop_entries.__all__))
-
-
-def test_legacy_module_explicitly_reexports_canonical_objects():
-    from docking.platform import desktop_entries as compatibility
-
-    assert compatibility.DesktopInfo is desktop_entries.DesktopInfo
-    assert (
-        compatibility.create_desktop_entry_for_executable
-        is desktop_entries.create_desktop_entry_for_executable
-    )
-
-
 def _make_executable(path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 

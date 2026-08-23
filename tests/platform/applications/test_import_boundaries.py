@@ -7,12 +7,6 @@ from pathlib import Path
 
 PACKAGE = Path(__file__).parents[3] / "docking" / "platform" / "applications"
 DOCKING = Path(__file__).parents[3] / "docking"
-COMPATIBILITY_MODULES = {
-    DOCKING / "platform" / "app_matcher.py",
-    DOCKING / "platform" / "desktop_entries.py",
-    DOCKING / "platform" / "process_identity.py",
-    DOCKING / "platform" / "running.py",
-}
 OLD_APPLICATION_MODULES = {
     "docking.applets.apps",
     "docking.platform.app_matcher",
@@ -21,7 +15,6 @@ OLD_APPLICATION_MODULES = {
     "docking.platform.process_identity",
     "docking.platform.running",
 }
-APP_FACADE_MODULES = {"docking.platform.process_identity"}
 
 
 def _tree(filename: str) -> ast.Module:
@@ -100,8 +93,18 @@ def test_application_modules_do_not_reach_consumer_layers():
 
 
 def test_removed_launcher_compatibility_modules_stay_removed():
-    assert not (DOCKING / "applets" / "apps.py").exists()
-    assert not (DOCKING / "platform" / "launcher.py").exists()
+    removed = (
+        DOCKING / "applets" / "apps.py",
+        DOCKING / "platform" / "app_matcher.py",
+        DOCKING / "platform" / "desktop_entries.py",
+        DOCKING / "platform" / "launcher.py",
+        DOCKING / "platform" / "process_identity.py",
+        DOCKING / "platform" / "recent_docs.py",
+        DOCKING / "platform" / "running.py",
+        DOCKING / "search" / "services" / "application_catalog.py",
+    )
+
+    assert not [path.relative_to(DOCKING) for path in removed if path.exists()]
 
 
 def test_application_applets_do_not_import_removed_apps_adapter():
@@ -125,27 +128,8 @@ def test_application_applets_do_not_import_removed_apps_adapter():
 
 def test_internal_production_has_zero_old_application_imports():
     for path in DOCKING.rglob("*.py"):
-        if path in COMPATIBILITY_MODULES:
-            continue
         hits = _imported_modules(path) & OLD_APPLICATION_MODULES
-        expected = APP_FACADE_MODULES if path == DOCKING / "app.py" else set()
-        assert hits == expected, (path.relative_to(DOCKING), hits)
-
-
-def test_app_uses_process_identity_facade_only_for_explicit_binding_and_reset():
-    tree = ast.parse((DOCKING / "app.py").read_text(encoding="utf-8"))
-    references = {
-        (node.value.id, node.attr)
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "process_identity_facade"
-    }
-
-    assert references == {
-        ("process_identity_facade", "configure_process_identity_service"),
-        ("process_identity_facade", "reset_process_identity_service"),
-    }
+        assert not hits, (path.relative_to(DOCKING), hits)
 
 
 def test_canonical_matcher_has_no_legacy_constructor_or_match_subclass():

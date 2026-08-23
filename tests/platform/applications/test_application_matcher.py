@@ -18,23 +18,6 @@ from docking.platform.applications.types import (
 )
 
 
-def test_legacy_matcher_and_running_imports_remain_compatible() -> None:
-    from docking.platform.app_matcher import (
-        AppIdMatcher as LegacyAppIdMatcher,
-    )
-    from docking.platform.app_matcher import (
-        AppMatch,
-    )
-    from docking.platform.applications.running import (
-        RunningAppInfo as CanonicalRunningAppInfo,
-    )
-    from docking.platform.running import RunningAppInfo as LegacyRunningAppInfo
-
-    assert issubclass(LegacyAppIdMatcher, AppIdMatcher)
-    assert issubclass(LegacyRunningAppInfo, CanonicalRunningAppInfo)
-    assert AppMatch("legacy.desktop").desktop_id == "legacy.desktop"
-
-
 class _Registry:
     def __init__(self) -> None:
         self.generation = 1

@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.platform import commands as commands_mod
-from docking.platform import process_identity
 from docking.platform.commands import (
     DESKTOP_EXEC_FIELD_CODES_RE,
     TERMINAL_CANDIDATES,
@@ -339,20 +338,6 @@ def test_launch_command_logs_spawn_failure(monkeypatch, caplog):
     assert launched is False
     assert "Failed to launch command echo ok: boom" in caplog.text
     assert caplog.records[-1].action == "launch_command"
-
-
-def test_arbitrary_command_launch_does_not_record_application_provenance(monkeypatch):
-    monkeypatch.setattr(commands_mod.flatpak, "host_command", lambda _argv: None)
-    record_launch = MagicMock()
-    monkeypatch.setattr(process_identity, "record_launch", record_launch)
-
-    assert launch_command(
-        command="echo ok",
-        run_in_terminal=False,
-        popen=MagicMock(return_value=SimpleNamespace(pid=1234)),
-    )
-
-    record_launch.assert_not_called()
 
 
 def test_append_file_argument_quotes_path_and_handles_empty_command():

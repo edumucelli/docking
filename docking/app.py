@@ -55,7 +55,6 @@ import sys
 from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import replace
-from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -95,7 +94,6 @@ from docking.applets.services import AppletServices
 from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
-from docking.platform import process_identity as process_identity_facade
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
@@ -169,19 +167,6 @@ def main() -> None:
 
         _refresh_initial_registry(registry)
 
-        previous_process_identity = (
-            process_identity_facade.configure_process_identity_service(
-                process_identity_service
-            )
-        )
-        cleanup.callback(
-            _safe_stop,
-            "process identity facade",
-            partial(
-                process_identity_facade.reset_process_identity_service,
-                previous_process_identity,
-            ),
-        )
         config = Config.load(
             initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
         )
