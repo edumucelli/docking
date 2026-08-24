@@ -358,7 +358,10 @@ def test_unchanged_refresh_atomically_replaces_private_gio_handles():
     assert registry._gio_handle_for("stable.desktop") is replacement
 
 
-def test_file_discovery_preserves_visibility_precedence_order_and_indexes(tmp_path):
+def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
+    tmp_path,
+    monkeypatch,
+):
     first = tmp_path / "first" / "applications"
     second = tmp_path / "second" / "applications"
     first.mkdir(parents=True)
@@ -412,6 +415,30 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(tmp_pa
         extra="NoDisplay=true\n",
     )
     _write_desktop(first / "no-icon.desktop", name="No Icon")
+    original_rglob = Path.rglob
+
+    def source_order(path: Path, pattern: str):
+        if path == first:
+            return iter(
+                (
+                    first / "a-shared.desktop",
+                    first / "b-shared.desktop",
+                    first / "duplicate.desktop",
+                    first / "hidden-duplicate.desktop",
+                    first / "no-display.desktop",
+                    first / "no-icon.desktop",
+                )
+            )
+        if path == second:
+            return iter(
+                (
+                    second / "duplicate.desktop",
+                    second / "hidden-duplicate.desktop",
+                )
+            )
+        return original_rglob(path, pattern)
+
+    monkeypatch.setattr(Path, "rglob", source_order)
 
     registry = _registry(directories=[first, second])
 
