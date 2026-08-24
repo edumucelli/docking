@@ -540,6 +540,16 @@ def _make_applet(monkeypatch, config, worker=_ImmediateWorker):
 
 
 class TestLastfmAppletLifecycle:
+    def test_open_uri_uses_target_service(self):
+        with patch.object(
+            lastfm_applet_mod.targets,
+            "open_target",
+            return_value=True,
+        ) as open_target:
+            lastfm_applet_mod._open_uri("lastfm://track/example")
+
+        open_target.assert_called_once_with("lastfm://track/example")
+
     def test_unconfigured_applet_shows_default_icon(self, monkeypatch, empty_config):
         applet = _make_applet(monkeypatch, empty_config)
         assert applet.item.name == "Last.fm: not configured"

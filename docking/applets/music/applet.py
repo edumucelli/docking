@@ -24,23 +24,27 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.music import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.launcher import launch as launch_desktop_id
+from docking.platform.applications.listing import (
+    activate_listing,
+)
+from docking.platform.applications.types import ApplicationListing
 
 from .artwork import CoverArtResolver
 from .render import create_music_icon
 from .state import (
+    _MPRIS_PREFIX,
     VOLUME_STEP,
     HybridBackend,
     MusicState,
+    _normalize_desktop_entry,
     clamp_percent,
     has_active_media,
     play_pause_menu_label,
@@ -50,6 +54,8 @@ from .state import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
 
 POLL_INTERVAL_S = 1
 SCROLL_SYNC_DELAY_MS = 220
@@ -63,68 +69,56 @@ MEDIA_CONTENT_TYPES = (
 log = with_context(get_logger(name="music"), applet_id=meta.id)
 
 
-def _find_media_app() -> Gio.AppInfo | None:
-    """Find the default or another installed application for common media."""
-    for content_type in MEDIA_CONTENT_TYPES:
-        try:
-            app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-        except GLib.Error as exc:
-            log.bind(action="find_media_app", content_type=content_type).debug(
-                "Failed to resolve default media application: %s",
-                exc,
-            )
-            continue
-        if app_info is not None:
-            return app_info
+def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
+    """Return registry desktop-ID candidates without consulting platform APIs."""
+    value = raw.strip()
+    if not value:
+        return ()
 
-    for lookup_name in ("get_recommended_for_type", "get_all_for_type"):
-        lookup = getattr(Gio.AppInfo, lookup_name, None)
-        if not callable(lookup):
-            continue
-        for content_type in MEDIA_CONTENT_TYPES:
-            try:
-                candidates = lookup(content_type)
-            except GLib.Error as exc:
-                log.bind(action="find_media_app", content_type=content_type).debug(
-                    "Failed to list media applications: %s",
-                    exc,
-                )
-                continue
-            for app_info in candidates or ():
-                if app_info is not None and app_info.should_show():
-                    return app_info
-    return None
+    value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if value.lower().endswith(".desktop"):
+        value = value[: -len(".desktop")]
+    if value.startswith(_MPRIS_PREFIX):
+        value = value[len(_MPRIS_PREFIX) :]
+
+    candidates: list[str] = []
+
+    def add(desktop_id: str) -> None:
+        if desktop_id and desktop_id not in candidates:
+            candidates.append(desktop_id)
+
+    if value:
+        add(f"{value}.desktop")
+
+    normalized = _normalize_desktop_entry(raw)
+    if normalized:
+        add(f"{normalized}.desktop")
+    if normalized == "rhythmbox":
+        add("org.gnome.Rhythmbox3.desktop")
+    return tuple(candidates)
 
 
-def launch_default_media_app() -> bool:
-    """Launch an installed media application, preferring desktop defaults."""
-    app_info = _find_media_app()
-    if app_info is None:
-        return False
-
-    desktop_id = app_info.get_id()
-    if desktop_id:
-        launch_desktop_id(desktop_id=desktop_id)
-        return True
-
-    try:
-        return bool(app_info.launch([], None))
-    except GLib.Error as exc:
-        log.bind(action="launch_media_app").warning(
-            "Failed to launch media application: %s",
-            exc,
-        )
-        return False
-
-
-class MusicApplet(Applet):
+class MusicApplet(ApplicationServicesApplet):
     """Media control applet with album-art rendering."""
 
     id = meta.id
     name = _("Music")
     icon_name = "audio-x-generic"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self._backend = HybridBackend()
         self._cover_art = CoverArtResolver()
         self._state = unavailable_state()
@@ -133,9 +127,8 @@ class MusicApplet(Applet):
         self._scroll_sync_id: int = 0
         self._worker = BackgroundWorker()
 
-        self._state = self._backend.poll()
+        self._state = self._state_with_registry_icon(self._backend.poll())
         self._album_art = self._cover_art.resolve(state=self._state)
-        super().__init__(icon_size=icon_size, config=config)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -166,7 +159,7 @@ class MusicApplet(Applet):
 
     def on_clicked(self) -> None:
         if not has_active_media(self._state):
-            launch_default_media_app()
+            self._launch_default_media_app()
             return
         if self._backend.play_pause(state=self._state):
             self._refresh_now()
@@ -261,12 +254,38 @@ class MusicApplet(Applet):
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
     ) -> bool:
+        state = self._state_with_registry_icon(state)
         if state == self._state and art is self._album_art:
             return False
         self._state = state
         self._album_art = art
         self.present()
         return False
+
+    def _state_with_registry_icon(self, state: MusicState) -> MusicState:
+        registry = self._application_registry
+        if not state.player_desktop_entry:
+            return state
+        for desktop_id in _desktop_entry_candidates(state.player_desktop_entry):
+            application = registry.get(desktop_id)
+            if application is None:
+                continue
+            if application.declared_icon:
+                return replace(state, player_icon_name=application.declared_icon)
+            return state
+        return state
+
+    def _find_media_application(self) -> ApplicationListing | None:
+        return self._application_registry.preferred_listing_for_content_types(
+            MEDIA_CONTENT_TYPES
+        )
+
+    def _launch_default_media_app(self) -> bool:
+        launcher = self._application_launcher
+        application = self._find_media_application()
+        if application is None:
+            return False
+        return activate_listing(launcher, application)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:

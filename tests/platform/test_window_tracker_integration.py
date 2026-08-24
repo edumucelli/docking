@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.platform.application_fakes import application, identity_services
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environments
@@ -16,13 +18,24 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.app_matcher as app_matcher_mod
 import docking.platform.backends.x11.impl.window_tracker as window_tracker_mod
 from docking.core.config import Config
+from docking.platform.applications.identity import ProcessIdentity
+from docking.platform.applications.matcher import ApplicationMatch
+from docking.platform.applications.types import MatchEvidence, MatchMethod
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
-from docking.platform.desktop_entries import DesktopInfo
 from docking.platform.model import DockItem
-from docking.platform.process_identity import ProcessIdentity
+
+
+def _match(desktop_id: str) -> ApplicationMatch:
+    return ApplicationMatch(
+        desktop_id=desktop_id,
+        application=None,
+        evidence=MatchEvidence(
+            method=MatchMethod.DESKTOP_ID,
+            raw_app_id=desktop_id,
+        ),
+    )
 
 
 class FakeWindow:
@@ -121,6 +134,11 @@ class FakeScreen:
         return self._active_workspace
 
 
+def _matched_desktop_id(matcher, window) -> str | None:
+    result = matcher.match_result(window)
+    return result.desktop_id if result is not None else None
+
+
 @pytest.fixture
 def tracker_env(monkeypatch):
     monkeypatch.setattr(
@@ -138,14 +156,17 @@ def tracker_env(monkeypatch):
         DockItem(desktop_id="code.desktop", wm_class="Code"),
         DockItem(desktop_id="no-class.desktop", wm_class=""),
     ]
-    launcher = MagicMock()
-    launcher.resolve_by_wm_class.return_value = None
+    services = identity_services(
+        application("firefox.desktop", wm_class="Firefox"),
+        application("code.desktop", wm_class="Code"),
+        application("no-class.desktop", wm_class="no-class"),
+    )
     tracker = window_tracker_mod.WindowTracker(
         model=model,
-        launcher=launcher,
         config=Config(),
+        **services,
     )
-    return tracker, model, launcher
+    return tracker, model, services["application_registry"]
 
 
 class TestWindowTrackerInit:
@@ -156,8 +177,8 @@ class TestWindowTrackerInit:
         code = FakeWindow(11, class_group="Code")
         # When
         # Then
-        assert tracker._matcher.match(firefox) == "firefox.desktop"
-        assert tracker._matcher.match(code) == "code.desktop"
+        assert _matched_desktop_id(tracker._matcher, firefox) == "firefox.desktop"
+        assert _matched_desktop_id(tracker._matcher, code) == "code.desktop"
 
     def test_init_screen_returns_false_when_screen_missing(
         self, tracker_env, monkeypatch
@@ -243,7 +264,7 @@ class TestWindowTrackerRunningAggregation:
         mapping = {w1: "firefox.desktop", w2: "firefox.desktop", w3: "code.desktop"}
         tracker._matcher.match_result = MagicMock(
             side_effect=lambda window: (
-                app_matcher_mod.AppMatch(mapping[window]) if window in mapping else None
+                _match(mapping[window]) if window in mapping else None
             )
         )
         # When
@@ -288,7 +309,7 @@ class TestWindowTrackerRunningAggregation:
         window = FakeWindow(20, class_group="SharedTool", pid=4243)
         tracker._screen = FakeScreen(windows=[window], active_window=window)
         monkeypatch.setattr(
-            app_matcher_mod,
+            tracker._matcher._app_matcher._process_identity_service,
             "identity_for_pid",
             lambda pid: ProcessIdentity(
                 pid=pid,
@@ -302,7 +323,7 @@ class TestWindowTrackerRunningAggregation:
         assert "tool-v1.desktop" not in published
         runtime_info = next(iter(published.values()))
         assert runtime_info.runtime_app is not None
-        assert runtime_info.runtime_app.executable_path == str(running.resolve())
+        assert runtime_info.runtime_app.executable_path == running.resolve()
 
     def test_update_running_filters_to_current_workspace(self, tracker_env):
         tracker, model, _launcher = tracker_env
@@ -327,9 +348,7 @@ class TestWindowTrackerRunningAggregation:
         )
         tracker._matcher.match_result = MagicMock(
             side_effect=lambda window: (
-                app_matcher_mod.AppMatch("firefox.desktop")
-                if window in {current, other}
-                else None
+                _match("firefox.desktop") if window in {current, other} else None
             )
         )
 
@@ -430,7 +449,7 @@ class TestWindowTrackerRunningAggregation:
         tracker._screen = FakeScreen(windows=[BrokenWindow(), good], active_window=good)
         tracker._matcher.match_result = MagicMock(
             side_effect=lambda window: (
-                app_matcher_mod.AppMatch("firefox.desktop") if window is good else None
+                _match("firefox.desktop") if window is good else None
             )
         )
         # When
@@ -453,7 +472,7 @@ class TestWindowTrackerRunningAggregation:
         broken = BrokenXidWindow(10, class_group="Firefox")
         tracker._screen = FakeScreen(windows=[broken], active_window=None)
         tracker._matcher.match_result = MagicMock(
-            return_value=app_matcher_mod.AppMatch("firefox.desktop")
+            return_value=_match("firefox.desktop")
         )
 
         tracker._update_running()
@@ -471,7 +490,7 @@ class TestWindowMatching:
         win = FakeWindow(10, class_group="Firefox")
         # When
         # Then
-        assert tracker._matcher.match(win) == "firefox.desktop"
+        assert _matched_desktop_id(tracker._matcher, win) == "firefox.desktop"
 
     def test_match_separates_same_class_with_different_direct_exec(
         self, tracker_env, tmp_path, monkeypatch
@@ -494,7 +513,7 @@ class TestWindowMatching:
             ]
         )
         monkeypatch.setattr(
-            app_matcher_mod,
+            tracker._matcher._app_matcher._process_identity_service,
             "identity_for_pid",
             lambda pid: ProcessIdentity(
                 pid=pid,
@@ -513,91 +532,76 @@ class TestWindowMatching:
         assert match is not None
         assert match.desktop_id != "tool-v1.desktop"
         assert match.runtime_app is not None
-        assert match.runtime_app.executable_path == str(running.resolve())
+        assert match.runtime_app.executable_path == running.resolve()
 
     def test_match_uses_class_instance_map(self, tracker_env):
         # Given
-        tracker, _model, _launcher = tracker_env
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application("firefox.desktop", wm_class="Firefox-Bin"),
+        )
         tracker._matcher.sync_visible_items(
-            [DockItem(desktop_id="firefox.desktop", wm_class="Firefox-Bin")]
+            [
+                DockItem(
+                    desktop_id="firefox.desktop",
+                    kind="app",
+                    wm_class="Firefox-Bin",
+                )
+            ]
         )
         win = FakeWindow(11, class_group="Unknown", class_instance="Firefox-Bin")
         # When
         # Then
-        assert tracker._matcher.match(win) == "firefox.desktop"
+        assert _matched_desktop_id(tracker._matcher, win) == "firefox.desktop"
 
     def test_match_prefers_wine_exe_instance_over_generic_wine(self, tracker_env):
-        tracker, _model, launcher = tracker_env
-        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
-            SimpleNamespace(desktop_id="wine.desktop")
-            if desktop_id == "wine.desktop"
-            else None
-        )
-        launcher.resolve_by_wm_class.side_effect = lambda wm_class: (
-            DesktopInfo(
-                desktop_id="wine-program.desktop",
-                name="Wine Program",
-                icon_name="wine-program",
-                wm_class="tool.exe",
-                exec_line='wine "C:\\App\\Tool.exe"',
-            )
-            if wm_class.lower() in {"tool.exe", "tool"}
-            else None
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application("wine-program.desktop", wm_class="tool.exe"),
         )
         win = FakeWindow(17, class_group="Wine", class_instance="C:\\App\\Tool.exe")
 
-        assert tracker._matcher.match(win) == "wine-program.desktop"
-        launcher.resolve.assert_not_called()
+        assert _matched_desktop_id(tracker._matcher, win) == "wine-program.desktop"
 
-    def test_match_uses_launcher_candidates(self, tracker_env):
+    def test_match_uses_registry_candidates(self, tracker_env):
         # Given
-        tracker, _model, launcher = tracker_env
-        info = SimpleNamespace(desktop_id="mongodb-compass.desktop")
-        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
-            info if desktop_id == "mongodb-compass.desktop" else None
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application("mongodb-compass.desktop", wm_class="MongoDB Compass"),
         )
         win = FakeWindow(12, class_group="MongoDB Compass")
 
         # When
         # Then
-        assert tracker._matcher.match(win) == "mongodb-compass.desktop"
+        assert _matched_desktop_id(tracker._matcher, win) == "mongodb-compass.desktop"
 
     def test_match_uses_gnome_prefix_fallback(self, tracker_env):
         # Given
-        tracker, _model, launcher = tracker_env
-        info = SimpleNamespace(desktop_id="org.gnome.Terminal.desktop")
-        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
-            info if desktop_id == "org.gnome.Terminal.desktop" else None
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application("org.gnome.Terminal.desktop", wm_class="Terminal"),
         )
         win = FakeWindow(13, class_group="Terminal")
 
         # When
         # Then
-        assert tracker._matcher.match(win) == "org.gnome.Terminal.desktop"
+        assert (
+            _matched_desktop_id(tracker._matcher, win) == "org.gnome.Terminal.desktop"
+        )
 
     def test_match_defers_reverse_wm_class_until_after_direct_candidates(
         self, tracker_env
     ):
-        tracker, _model, launcher = tracker_env
-        launcher.resolve.side_effect = lambda desktop_id, **_kwargs: (
-            SimpleNamespace(desktop_id="org.gnome.Terminal.desktop")
-            if desktop_id == "org.gnome.Terminal.desktop"
-            else None
-        )
-        launcher.resolve_by_wm_class.side_effect = lambda wm_class: (
-            DesktopInfo(
-                desktop_id="terminal-wm-class.desktop",
-                name="Terminal Alias",
-                icon_name="terminal",
-                wm_class="terminal",
-                exec_line="terminal",
-            )
-            if wm_class == "terminal"
-            else None
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application("org.gnome.Terminal.desktop", wm_class="Terminal"),
+            application("terminal-wm-class.desktop", wm_class="terminal"),
         )
         win = FakeWindow(18, class_group="Terminal")
 
-        assert tracker._matcher.match(win) == "org.gnome.Terminal.desktop"
+        assert (
+            _matched_desktop_id(tracker._matcher, win) == "org.gnome.Terminal.desktop"
+        )
 
     def test_match_returns_none_for_empty_class_group(self, tracker_env):
         # Given
@@ -605,7 +609,7 @@ class TestWindowMatching:
         win = FakeWindow(14, class_group="")
         # When
         # Then
-        assert tracker._matcher.match(win) is None
+        assert _matched_desktop_id(tracker._matcher, win) is None
 
     def test_match_returns_none_when_class_group_lookup_raises(self, tracker_env):
         # Given
@@ -618,21 +622,21 @@ class TestWindowMatching:
         win = BrokenClassWindow(15, class_group="Firefox")
         # When
         # Then
-        assert tracker._matcher.match(win) is None
+        assert _matched_desktop_id(tracker._matcher, win) is None
 
     def test_match_uses_reverse_wm_class_lookup_for_unpinned_apps(self, tracker_env):
-        tracker, _model, launcher = tracker_env
-        launcher.resolve.return_value = None
-        launcher.resolve_by_wm_class.return_value = DesktopInfo(
-            desktop_id="org.gnome.Calculator.desktop",
-            name="Calculator",
-            icon_name="org.gnome.Calculator",
-            wm_class="gnome-calculator",
-            exec_line="gnome-calculator",
+        tracker, _model, registry = tracker_env
+        registry.publish(
+            application(
+                "org.gnome.Calculator.desktop",
+                wm_class="gnome-calculator",
+            )
         )
         win = FakeWindow(16, class_group="gnome-calculator")
 
-        assert tracker._matcher.match(win) == "org.gnome.Calculator.desktop"
+        assert (
+            _matched_desktop_id(tracker._matcher, win) == "org.gnome.Calculator.desktop"
+        )
 
 
 class TestWindowActions:

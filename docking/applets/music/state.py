@@ -55,6 +55,7 @@ class MusicState:
     available: bool = False
     player_name: str = ""
     player_icon_name: str = ""
+    player_desktop_entry: str = ""
     player_bus_name: str = ""
     playback_status: str = "Stopped"
     title: str = ""
@@ -398,14 +399,15 @@ class MprisBackend:
         if self._get_props_proxy(bus_name=bus_name) is None:
             return None
 
-        player_icon_name = _normalize_desktop_entry(
-            _as_str(
-                self._get_property(
-                    bus_name=bus_name,
-                    interface_name=_MPRIS_ROOT_IFACE,
-                    property_name="DesktopEntry",
-                )
+        player_desktop_entry = _as_str(
+            self._get_property(
+                bus_name=bus_name,
+                interface_name=_MPRIS_ROOT_IFACE,
+                property_name="DesktopEntry",
             )
+        )
+        player_icon_name = _normalize_desktop_entry(
+            player_desktop_entry
         ) or _icon_name_from_bus_name(bus_name)
 
         metadata_raw = self._get_property(
@@ -468,6 +470,7 @@ class MprisBackend:
             available=True,
             player_name=self._player_display_name(bus_name=bus_name),
             player_icon_name=player_icon_name,
+            player_desktop_entry=player_desktop_entry,
             player_bus_name=bus_name,
             playback_status=playback_status,
             title=_metadata_str(metadata=metadata, key="xesam:title"),
@@ -711,6 +714,7 @@ class PlayerctlBackend:
                 _normalize_desktop_entry(desktop_entry)
                 or _normalize_desktop_entry(player)
             ),
+            player_desktop_entry=desktop_entry or player,
             player_bus_name=player,
             playback_status=playback_status,
             title=title,
@@ -876,6 +880,7 @@ class RhythmboxClientBackend:
             available=True,
             player_name="Rhythmbox",
             player_icon_name="rhythmbox",
+            player_desktop_entry="org.gnome.Rhythmbox3",
             player_bus_name=_RB_SERVICE,
             playback_status=playback_status,
             title=title,

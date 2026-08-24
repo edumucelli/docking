@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.status_notifier.notifications as status_mod
@@ -21,6 +22,7 @@ from docking.platform.status_notifier import (
 def _tray_item(
     *,
     item_id: str = "Slack_status_icon_1",
+    title: str = "",
     tooltip_title: str = "You have 2 notifications",
     tooltip_text: str = "",
 ):
@@ -31,6 +33,7 @@ def _tray_item(
         ),
         properties={
             "Id": item_id,
+            "Title": title,
             "Status": "Active",
             "ToolTip": ("", [], tooltip_title, tooltip_text),
         },
@@ -85,14 +88,53 @@ class _ImmediateWorker:
         return True
 
 
-def _bridge(monkeypatch, *, model, backend) -> StatusNotifierNotificationBridge:
+class _DeferredWorker:
+    def __init__(self) -> None:
+        self._fn = None
+        self._on_result = None
+        self._result = None
+
+    def run_guarded(self, *, fn, on_result=None, **_kwargs) -> bool:
+        self._fn = fn
+        self._on_result = on_result
+        return True
+
+    def run_background(self) -> None:
+        assert self._fn is not None
+        self._result = self._fn()
+
+    def deliver_result(self) -> None:
+        assert self._on_result is not None
+        self._on_result(self._result)
+
+
+def _registry(*, exact=None, alias=None):
+    registry = MagicMock()
+    registry.get.return_value = exact
+    registry.resolve_by_wm_class.return_value = alias
+    return registry
+
+
+def _bridge(
+    monkeypatch,
+    *,
+    model,
+    backend,
+    application_registry=None,
+    worker=None,
+) -> StatusNotifierNotificationBridge:
+    registry = application_registry if application_registry is not None else _registry()
+    bridge_worker = worker if worker is not None else _ImmediateWorker()
     monkeypatch.setattr(status_mod, "StatusNotifierBackend", lambda: backend)
     monkeypatch.setattr(
         status_mod,
         "BackgroundWorker",
-        lambda **_kwargs: _ImmediateWorker(),
+        lambda **_kwargs: bridge_worker,
     )
-    return StatusNotifierNotificationBridge(model=model)
+    return StatusNotifierNotificationBridge(
+        model=model,
+        application_registry=registry,
+    )
 
 
 class TestSlackTrayParsing:
@@ -201,6 +243,101 @@ class TestStatusNotifierNotificationBridge:
         assert removed_timers == [77]
         assert backend.close_calls == 1
 
+    def test_exact_registry_match_uses_canonical_desktop_id(self, monkeypatch):
+        model = MagicMock()
+        installed = SimpleNamespace(desktop_id="com.slack.Slack.desktop")
+        registry = _registry(exact=installed)
+        bridge = _bridge(
+            monkeypatch,
+            model=model,
+            backend=_Backend(_available_state()),
+            application_registry=registry,
+        )
+        bridge._running = True
+
+        bridge._on_state_result(_available_state(_tray_item()))
+
+        registry.get.assert_called_once_with(SLACK_DESKTOP_ID)
+        registry.resolve_by_wm_class.assert_not_called()
+        model.apply_status_notifier_overlay.assert_called_once_with(
+            source_id=":1.42/StatusNotifierItem",
+            desktop_id="com.slack.Slack.desktop",
+            badge_count=2,
+        )
+
+    def test_alias_registry_match_uses_canonical_desktop_id(self, monkeypatch):
+        model = MagicMock()
+        installed = SimpleNamespace(desktop_id="com.slack.Slack.desktop")
+        registry = _registry(alias=installed)
+        bridge = _bridge(
+            monkeypatch,
+            model=model,
+            backend=_Backend(_available_state()),
+            application_registry=registry,
+        )
+        bridge._running = True
+
+        bridge._on_state_result(_available_state(_tray_item()))
+
+        registry.resolve_by_wm_class.assert_called_once_with("slack")
+        model.apply_status_notifier_overlay.assert_called_once_with(
+            source_id=":1.42/StatusNotifierItem",
+            desktop_id="com.slack.Slack.desktop",
+            badge_count=2,
+        )
+
+    def test_unresolved_registry_lookup_keeps_exact_slack_fallback(
+        self,
+        monkeypatch,
+    ):
+        model = MagicMock()
+        registry = _registry()
+        bridge = _bridge(
+            monkeypatch,
+            model=model,
+            backend=_Backend(_available_state()),
+            application_registry=registry,
+        )
+        bridge._running = True
+
+        bridge._on_state_result(_available_state(_tray_item()))
+
+        registry.resolve_by_wm_class.assert_called_once_with("slack")
+        model.apply_status_notifier_overlay.assert_called_once_with(
+            source_id=":1.42/StatusNotifierItem",
+            desktop_id=SLACK_DESKTOP_ID,
+            badge_count=2,
+        )
+
+    def test_registry_lookup_waits_for_main_thread_result_callback(
+        self,
+        monkeypatch,
+    ):
+        model = MagicMock()
+        backend = _Backend(_available_state(_tray_item()))
+        registry = _registry()
+        worker = _DeferredWorker()
+        bridge = _bridge(
+            monkeypatch,
+            model=model,
+            backend=backend,
+            application_registry=registry,
+            worker=worker,
+        )
+        bridge._running = True
+
+        bridge._poll_async()
+        worker.run_background()
+
+        assert backend.get_state_calls == 1
+        registry.get.assert_not_called()
+        registry.resolve_by_wm_class.assert_not_called()
+
+        worker.deliver_result()
+
+        registry.get.assert_called_once_with(SLACK_DESKTOP_ID)
+        model.apply_status_notifier_overlay.assert_called_once()
+
     def test_disappearing_item_removes_overlay(self, monkeypatch):
         model = MagicMock()
         bridge = _bridge(
@@ -254,18 +391,25 @@ class TestStatusNotifierNotificationBridge:
 
     def test_unknown_tray_items_are_ignored(self, monkeypatch):
         model = MagicMock()
+        registry = _registry()
         bridge = _bridge(
             monkeypatch,
             model=model,
             backend=_Backend(_available_state()),
+            application_registry=registry,
         )
         bridge._running = True
 
         bridge._on_state_result(
-            _available_state(_tray_item(item_id="Example_status_icon"))
+            _available_state(
+                _tray_item(item_id="Example_status_icon"),
+                _tray_item(item_id="", title="Slack"),
+            )
         )
 
         model.apply_status_notifier_overlay.assert_not_called()
+        registry.get.assert_not_called()
+        registry.resolve_by_wm_class.assert_not_called()
 
     def test_poll_failure_preserves_overlays_and_keeps_timer_alive(self, monkeypatch):
         model = MagicMock()

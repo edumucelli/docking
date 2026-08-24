@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
     DesktopActionService,
@@ -58,6 +59,10 @@ from docking.platform.backends.wayland.workspaces import (
     load_workspace_protocol,
 )
 
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
+
 
 @dataclass(frozen=True)
 class WaylandLayerShellRuntimeServices:
@@ -80,8 +85,9 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         self,
         *,
         layer_shell: object,
-        model=None,
-        launcher=None,
+        model,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         foreign_toplevel_protocol: object | None = None,
         workspace_protocol: object | None = None,
         screen_capture: ScreenCaptureService | None = None,
@@ -127,16 +133,18 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
-        if foreign_protocol is not None and model is not None and launcher is not None:
+        if foreign_protocol is not None:
             if preview_protocol is not None:
                 preview_handles = WaylandPreviewHandleTracker(
                     model=model,
-                    launcher=launcher,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
                     protocol=preview_protocol,
                 )
             windows = WaylandForeignToplevelWindowService(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=foreign_protocol,
                 preview_handles=preview_handles,
                 can_preview=preview_protocol is None

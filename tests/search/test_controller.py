@@ -11,6 +11,11 @@ from gi.repository import GdkPixbuf
 import docking.search.controller as controller_mod
 from docking.core.config import Config
 from docking.core.items import APPLET_KIND
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -18,10 +23,6 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.search.controller import GlobalSearchController
-from docking.search.services.application_catalog import (
-    ApplicationSnapshot,
-    IconDescriptor,
-)
 from docking.search.services.global_shortcuts import (
     GlobalShortcutBinding,
     GlobalShortcutsState,
@@ -40,14 +41,18 @@ class _Catalog:
         self.values = tuple(values)
         self.listeners = []
         self.started = False
+        self.start_calls = 0
+        self.stop_calls = 0
 
     def snapshot(self):
         return self.values
 
     def start(self):
+        self.start_calls += 1
         self.started = True
 
     def stop(self):
+        self.stop_calls += 1
         self.started = False
 
     def add_listener(self, callback):
@@ -55,6 +60,24 @@ class _Catalog:
 
     def remove_listener(self, callback):
         self.listeners.remove(callback)
+
+    def subscribe(self, callback):
+        self.add_listener(callback)
+        subscribed = True
+
+        def unsubscribe():
+            nonlocal subscribed
+            if subscribed:
+                subscribed = False
+                self.remove_listener(callback)
+
+        return unsubscribe
+
+    def get(self, desktop_id):
+        return next(
+            (value for value in self.values if value.desktop_id == desktop_id),
+            None,
+        )
 
 
 class _Window:
@@ -102,6 +125,7 @@ def _make_controller(
     shortcut_fallback=None,
     currency_rates=None,
     usage_store=None,
+    application_registry=None,
 ):
     created = []
 
@@ -114,12 +138,20 @@ def _make_controller(
         "docking.search.controller.SearchWindow",
         _window_factory,
     )
-    app = ApplicationSnapshot(
+    app = ApplicationInfo(
         desktop_id="firefox.desktop",
         name="Firefox",
-        normalized_name="firefox",
+        declared_icon="firefox",
+        wm_class="Firefox",
+        exec_line="firefox",
+        origin=ApplicationOrigin.INSTALLED,
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=None,
+        executable_path=None,
+        aliases=("firefox",),
+        visible=True,
+        has_gio_source=True,
         categories=("Network",),
-        icon=IconDescriptor("themed", "firefox"),
     )
     applications = _Catalog((app,))
     recent = _Catalog()
@@ -148,8 +180,11 @@ def _make_controller(
             callback(*args)
             return 1
 
-    monkeypatch.setattr(controller_mod, "ApplicationCatalog", lambda: applications)
-    monkeypatch.setattr(controller_mod, "RecentFilesCatalog", lambda: recent)
+    monkeypatch.setattr(
+        controller_mod,
+        "RecentFilesCatalog",
+        lambda **_kwargs: recent,
+    )
     monkeypatch.setattr(controller_mod.GLib, "idle_add", schedule_idle)
     monkeypatch.setattr(
         GlobalSearchController,
@@ -173,23 +208,32 @@ def _make_controller(
             lambda **_kwargs: currency_rates,
         )
 
+    icon_loader = MagicMock()
+    target_service = MagicMock(icon_loader=icon_loader)
+    active_registry = (
+        applications if application_registry is None else application_registry
+    )
     controller = GlobalSearchController(
         config=config,
-        launcher=MagicMock(),
         model=cast(Any, model),
         windows=cast(Any, windows),
         preview_service=MagicMock(),
+        application_registry=active_registry,
+        application_launcher=MagicMock(),
+        icon_loader=icon_loader,
+        target_service=target_service,
     )
-    return controller, created[0], applications, recent, shortcuts
+    return controller, created[0], active_registry, recent, shortcuts
 
 
-def test_controller_starts_catalogs_and_searches(monkeypatch) -> None:
+def test_controller_borrows_registry_and_starts_owned_catalogs(monkeypatch) -> None:
     controller, window, applications, recent, shortcuts = _make_controller(monkeypatch)
 
     controller.start()
     controller.show(initial_query="fire")
 
-    assert applications.started
+    assert not applications.started
+    assert applications.start_calls == 0
     assert recent.started
     shortcuts.start.assert_called_once_with()
     assert window.visible
@@ -201,7 +245,47 @@ def test_controller_starts_catalogs_and_searches(monkeypatch) -> None:
     controller.stop()
     shortcuts.stop.assert_called_once_with()
     assert not applications.started
+    assert applications.stop_calls == 0
     assert not recent.started
+
+
+def test_controller_stop_unsubscribes_catalog_listeners(monkeypatch) -> None:
+    controller, _window, applications, recent, _shortcuts = _make_controller(
+        monkeypatch
+    )
+
+    controller.start()
+
+    assert applications.listeners == [controller._refresh_visible]
+    assert recent.listeners == [controller._refresh_visible]
+
+    controller.stop()
+    controller.stop()
+
+    assert applications.listeners == []
+    assert recent.listeners == []
+
+
+def test_controller_borrows_injected_application_registry(monkeypatch) -> None:
+    registry = _Catalog()
+
+    controller, _window, applications, _recent, _shortcuts = _make_controller(
+        monkeypatch,
+        application_registry=registry,
+    )
+
+    controller.start()
+
+    assert controller._application_registry is applications
+    assert registry.started is False
+    assert registry.start_calls == 0
+    assert registry.listeners == [controller._refresh_visible]
+
+    controller.stop()
+
+    assert registry.started is False
+    assert registry.stop_calls == 0
+    assert registry.listeners == []
 
 
 def test_controller_toggle_and_disabled_setting(monkeypatch) -> None:

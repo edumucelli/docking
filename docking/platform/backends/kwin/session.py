@@ -69,7 +69,8 @@ from docking.platform.backends.reduced.services import (
 )
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 import contextlib
@@ -249,15 +250,20 @@ class KWinSessionBackend(SessionBackend):
         self,
         *,
         layer_shell: object,
-        launcher: Launcher,
         model: DockModel,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
     ) -> None:
         from docking.platform.backends.wayland.services import (
             WaylandLayerShellSurfaceService,
         )
 
         self._surface = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-        self._windows = AtspiWindowService(launcher=launcher, model=model)
+        self._windows = AtspiWindowService(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+            model=model,
+        )
         self._workspaces = KWinWorkspaceService()
         self._visibility = ReducedVisibilityService()
         self._previews = ReducedPreviewService()

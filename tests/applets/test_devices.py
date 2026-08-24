@@ -135,7 +135,16 @@ def _applet(
         "get_mount_monitor",
         lambda: unix_monitor,
     )
-    return DevicesApplet(48, config=Config())
+    icon_loader = MagicMock()
+    target_service = MagicMock()
+    target_service.icon_loader = icon_loader
+    target_service.open_target.return_value = False
+    return DevicesApplet(
+        48,
+        config=Config(),
+        icon_loader=icon_loader,
+        target_service=target_service,
+    )
 
 
 def test_mounted_devices_includes_local_network_and_unbacked_mounts():
@@ -210,13 +219,17 @@ def test_mounted_devices_merges_native_network_mounts_and_prefers_gio_entry():
 def test_native_network_mount_uses_remote_icon_fallback(monkeypatch):
     device = mounted_devices(_FakeMonitor(), [_native_mount()])[0]
     fallback = object()
-    load_theme_icon = MagicMock(return_value=fallback)
-    monkeypatch.setattr(devices_applet_mod, "load_theme_icon", load_theme_icon)
+    icon_loader = MagicMock()
+    icon_loader.load_icon.return_value = fallback
 
-    icon = devices_applet_mod._load_mount_icon(device=device, size=32)
+    icon = devices_applet_mod._load_mount_icon(
+        device=device,
+        size=32,
+        icon_loader=icon_loader,
+    )
 
     assert icon is fallback
-    load_theme_icon.assert_called_once_with(name="folder-remote", size=32)
+    icon_loader.load_icon.assert_called_once_with("folder-remote", 32)
 
 
 def test_devices_tooltip_empty_and_populated():
@@ -261,11 +274,7 @@ class TestDevicesApplet:
             lambda **_kwargs: icon,
         )
         open_target = MagicMock(return_value=True)
-        monkeypatch.setattr(
-            devices_applet_mod.launcher_mod,
-            "open_target",
-            open_target,
-        )
+        applet._target_service.open_target = open_target
 
         content = applet.stack_content(32)
 
@@ -274,21 +283,17 @@ class TestDevicesApplet:
         content.entries[0].activate()
         open_target.assert_called_once_with("file:///mnt/data")
 
-    def test_remote_stack_entry_opens_with_gio(self, monkeypatch):
+    def test_remote_stack_entry_uses_target_service(self, monkeypatch):
         monitor = _FakeMonitor(
             [_mount("Team Share", path=None, uri="smb://fileserver/team")]
         )
         applet = _applet(monkeypatch, monitor)
-        launch = MagicMock()
-        monkeypatch.setattr(
-            devices_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            launch,
-        )
 
         applet.stack_content(32).entries[0].activate()
 
-        launch.assert_called_once_with("smb://fileserver/team", None)
+        applet._target_service.open_target.assert_called_once_with(
+            "smb://fileserver/team"
+        )
 
     def test_empty_stack_is_suppressed(self, monkeypatch):
         applet = _applet(monkeypatch, _FakeMonitor())
@@ -336,11 +341,7 @@ class TestDevicesApplet:
         )
         notify = MagicMock()
         open_target = MagicMock(return_value=True)
-        monkeypatch.setattr(
-            devices_applet_mod.launcher_mod,
-            "open_target",
-            open_target,
-        )
+        applet._target_service.open_target = open_target
         applet.start(notify)
 
         native_mounts.append(_native_mount())

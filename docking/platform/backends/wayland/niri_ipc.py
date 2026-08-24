@@ -27,9 +27,9 @@ import tempfile
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -38,7 +38,9 @@ from gi.repository import GdkPixbuf
 
 from docking.core.json_types import JsonObject, JsonValue, as_json_object
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -53,11 +55,10 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import (
-    RunningAppInfo,
-    RunningWindowInfo,
-    RuntimeAppIdentity,
-)
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
 
 log = get_logger(name="niri_ipc")
 
@@ -104,17 +105,24 @@ class NiriWindowRecord:
     id: int
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     urgent: bool
     workspace_id: int | None
     geometry: Rect | None
     pid: int | None
-    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=str(self.id))
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 @dataclass(frozen=True)
@@ -290,14 +298,18 @@ class NiriWindowService(WindowService):
         self,
         *,
         model,
-        launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         client: NiriIpcClient,
         event_stream_factory: Callable[
             [Callable[[NiriEvent], None]], NiriEventStream | None
         ],
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._event_stream_factory = event_stream_factory
         self._event_stream: NiriEventStream | None = None
@@ -507,18 +519,7 @@ class NiriWindowService(WindowService):
             record = self._records[record.id]
             active = record.id == focused_id
             if record.active != active:
-                self._records[record.id] = NiriWindowRecord(
-                    id=record.id,
-                    title=record.title,
-                    app_id=record.app_id,
-                    desktop_id=record.desktop_id,
-                    active=active,
-                    urgent=record.urgent,
-                    workspace_id=record.workspace_id,
-                    geometry=record.geometry,
-                    pid=record.pid,
-                    runtime_app=record.runtime_app,
-                )
+                self._records[record.id] = replace(record, active=active)
 
     def _apply_urgency_change(self, data: Mapping[str, JsonValue]) -> None:
         window_id = data.get("id")
@@ -528,18 +529,7 @@ class NiriWindowService(WindowService):
         record = self._records.get(window_id)
         if record is None or record.urgent == urgent:
             return
-        self._records[window_id] = NiriWindowRecord(
-            id=record.id,
-            title=record.title,
-            app_id=record.app_id,
-            desktop_id=record.desktop_id,
-            active=record.active,
-            urgent=urgent,
-            workspace_id=record.workspace_id,
-            geometry=record.geometry,
-            pid=record.pid,
-            runtime_app=record.runtime_app,
-        )
+        self._records[window_id] = replace(record, urgent=urgent)
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
@@ -554,7 +544,11 @@ class NiriWindowService(WindowService):
                     active=record.active,
                     urgent=record.urgent,
                     window=str(record.id),
-                    runtime_app=record.runtime_app,
+                    runtime_app=(
+                        record.application_match.runtime_app
+                        if record.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -787,7 +781,12 @@ class NiriDesktopActionService(DesktopActionService):
 # ---------------------------------------------------------------------------
 
 
-def load_niri_window_service(*, model, launcher) -> NiriWindowService | None:
+def load_niri_window_service(
+    *,
+    model,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> NiriWindowService | None:
     """Return a Niri WindowService when the IPC socket is detectable."""
     socket_path = _niri_socket_path()
     if socket_path is None or not socket_path.exists():
@@ -795,7 +794,8 @@ def load_niri_window_service(*, model, launcher) -> NiriWindowService | None:
     client = NiriIpcClient(socket_path=socket_path)
     return NiriWindowService(
         model=model,
-        launcher=launcher,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
         client=client,
         event_stream_factory=lambda callback: NiriEventStream(
             socket_path=socket_path,
@@ -1093,7 +1093,6 @@ def _record_from_window(
         else None
     )
     match = matcher.match_result(app_id, process_id=pid) if app_id else None
-    desktop_id = match.desktop_id if match is not None else None
     workspace_id = item.get("workspace_id")
     if not isinstance(workspace_id, int):
         workspace_id = None
@@ -1102,13 +1101,12 @@ def _record_from_window(
         id=window_id,
         title=str(item.get("title") or "Window"),
         app_id=app_id,
-        desktop_id=desktop_id,
+        application_match=match,
         active=bool(item.get("is_focused", False)),
         urgent=bool(item.get("is_urgent", False)),
         workspace_id=workspace_id,
         geometry=geometry,
         pid=pid,
-        runtime_app=match.runtime_app if match is not None else None,
     )
 
 

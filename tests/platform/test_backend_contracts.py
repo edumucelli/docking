@@ -2,6 +2,7 @@
 
 import pytest
 
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -13,7 +14,6 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 
 class TestWindowId:

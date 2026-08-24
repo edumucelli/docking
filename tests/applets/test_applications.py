@@ -1,149 +1,145 @@
 """Tests for the Applications applet."""
 
+from collections.abc import Callable
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
-import docking.applets.apps as apps_shared
 from docking.applets.applications.applet import ApplicationsApplet
-from docking.applets.applications.state import _build_app_categories
-from docking.applets.apps import ApplicationEntry, all_desktop_app_infos
+from docking.applets.applications.state import build_app_categories
 from docking.core.config import Config
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+    TransientApplicationInfo,
+)
+
+
+def _application(
+    desktop_id: str,
+    name: str,
+    *,
+    categories: str = "",
+    icon: str = "",
+    desktop_file: Path | None = None,
+    exec_line: str = "example",
+    visible: bool = True,
+    has_gio_source: bool = False,
+) -> ApplicationInfo:
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name=name,
+        declared_icon=icon,
+        wm_class=desktop_id.removesuffix(".desktop"),
+        exec_line=exec_line,
+        origin=ApplicationOrigin.INSTALLED,
+        location=ApplicationLocation.HOST,
+        desktop_file=desktop_file,
+        executable_path=None,
+        aliases=(),
+        visible=visible,
+        has_gio_source=has_gio_source,
+        categories=tuple(filter(None, categories.split(";"))),
+        categories_raw=categories,
+    )
+
+
+class _Registry:
+    def __init__(
+        self,
+        applications: tuple[ApplicationInfo, ...] = (),
+        unidentified: tuple[TransientApplicationInfo, ...] = (),
+        *,
+        handles: dict[str, object] | None = None,
+    ) -> None:
+        self.applications = applications
+        self.unidentified = unidentified
+        self.handles = handles or {}
+
+    def snapshot(self) -> tuple[ApplicationInfo, ...]:
+        return self.applications
+
+    def unidentified_snapshot(
+        self,
+    ) -> tuple[TransientApplicationInfo, ...]:
+        return self.unidentified
+
+    def _gio_handle_for(self, desktop_id: str) -> object | None:
+        return self.handles.get(desktop_id)
+
+
+def _make_applet(
+    size: int = 48,
+    *,
+    registry: _Registry | None = None,
+    launcher: object | None = None,
+) -> ApplicationsApplet:
+    return ApplicationsApplet(
+        size,
+        config=Config(),
+        application_registry=registry or _Registry(),  # ty: ignore[invalid-argument-type]
+        application_launcher=launcher or MagicMock(),  # ty: ignore[invalid-argument-type]
+    )
 
 
 class TestBuildAppCategories:
     def test_returns_dict(self):
-        categories = _build_app_categories()
+        categories = build_app_categories(
+            _Registry()  # ty: ignore[invalid-argument-type]
+        )
         assert isinstance(categories, dict)
+        assert categories == {}
 
-    def test_excludes_hidden_apps(self):
-        mock_app = MagicMock()
-        mock_app.get_is_hidden.return_value = True
-        mock_app.get_nodisplay.return_value = False
-
-        with (
-            patch(
-                "docking.platform.desktop_entries.Gio.AppInfo.get_all",
-                return_value=[mock_app],
-            ),
-            patch(
-                "docking.platform.desktop_entries.desktop_dirs",
-                return_value=[],
-            ),
-        ):
-            cats = _build_app_categories()
-        # Hidden app should not appear in any category
-        total = sum(len(apps) for apps in cats.values())
-        assert total == 0
-
-    def test_includes_host_desktop_files_not_returned_by_gio(
-        self, tmp_path, monkeypatch
-    ):
-        host_apps = tmp_path / "run" / "host" / "usr" / "share" / "applications"
-        host_apps.mkdir(parents=True)
-        desktop_file = host_apps / "org.example.Tool.desktop"
-        desktop_file.write_text(
-            "[Desktop Entry]\n"
-            "Type=Application\n"
-            "Name=Example Tool\n"
-            "Exec=example-tool\n"
-            "Categories=Development;IDE;\n",
-            encoding="utf-8",
+    def test_uses_visible_and_idless_registry_snapshots_and_sorts_names(self):
+        host = _application(
+            "org.example.Host.desktop",
+            "zeta Host Tool",
+            categories="Development;IDE;",
         )
-        monkeypatch.setattr(
-            "docking.platform.desktop_entries.Gio.AppInfo.get_all",
-            list,
+        file_only = _application(
+            "org.example.File.desktop",
+            "Alpha File Tool",
+            categories="Development;",
         )
-        monkeypatch.setattr(
-            "docking.platform.desktop_entries.desktop_dirs",
-            lambda: [host_apps],
+        idless = TransientApplicationInfo(
+            listing_key="opaque:7",
+            name="Middle ID-less",
+            categories_raw="Development;",
+            declared_icon="",
+            desktop_file=None,
         )
+        registry = _Registry((host, file_only), (idless,))
 
-        categories = _build_app_categories()
+        categories = build_app_categories(
+            registry  # ty: ignore[invalid-argument-type]
+        )
 
         assert list(categories) == ["Development"]
-        assert categories["Development"][0].get_display_name() == "Example Tool"
+        assert [app.name for app in categories["Development"]] == [
+            "Alpha File Tool",
+            "Middle ID-less",
+            "zeta Host Tool",
+        ]
 
-    def test_all_desktop_app_infos_deduplicates_desktop_ids(
-        self, tmp_path, monkeypatch
-    ):
-        first_apps = tmp_path / "first" / "applications"
-        second_apps = tmp_path / "second" / "applications"
-        first_apps.mkdir(parents=True)
-        second_apps.mkdir(parents=True)
-        for apps_dir in (first_apps, second_apps):
-            (apps_dir / "org.example.Tool.desktop").write_text(
-                "[Desktop Entry]\n"
-                "Type=Application\n"
-                "Name=Example Tool\n"
-                "Exec=example-tool\n",
-                encoding="utf-8",
+    def test_maps_unknown_category_to_other(self):
+        registry = _Registry(
+            (
+                _application(
+                    "org.example.Other.desktop",
+                    "Other",
+                    categories="X-Custom;",
+                ),
             )
-        monkeypatch.setattr(
-            "docking.platform.desktop_entries.Gio.AppInfo.get_all",
-            list,
-        )
-        monkeypatch.setattr(
-            "docking.platform.desktop_entries.desktop_dirs",
-            lambda: [first_apps, second_apps],
         )
 
-        apps = all_desktop_app_infos()
-
-        assert [app.get_id() for app in apps] == ["org.example.Tool.desktop"]
-
-    def test_application_entry_launch_uses_launcher_bridge(self, monkeypatch):
-        launched: list[str] = []
-        monkeypatch.setattr(
-            apps_shared,
-            "launch_desktop_id",
-            lambda *, desktop_id: launched.append(desktop_id),
-        )
-        entry = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
-            categories="Utility;",
-            icon_name="",
+        categories = build_app_categories(
+            registry  # ty: ignore[invalid-argument-type]
         )
 
-        entry.launch([], None)
-
-        assert launched == ["org.example.Tool.desktop"]
-
-    def test_application_entry_desktop_file_uri_uses_app_info_filename(self, tmp_path):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        app_info = MagicMock()
-        app_info.get_filename.return_value = str(desktop_file)
-        entry = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
-            categories="Utility;",
-            icon_name="",
-            app_info=app_info,
-        )
-
-        assert entry.desktop_file_uri() == desktop_file.as_uri()
-
-    def test_application_entry_desktop_file_uri_falls_back_to_lookup(
-        self, tmp_path, monkeypatch
-    ):
-        desktop_file = tmp_path / "org.example.Tool.desktop"
-        desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            lambda _desktop_id: desktop_file,
-        )
-        entry = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
-            categories="Utility;",
-            icon_name="",
-        )
-
-        assert entry.desktop_file_uri() == desktop_file.as_uri()
+        assert list(categories) == ["Other"]
 
 
 class TestApplicationsApplet:
@@ -231,7 +227,7 @@ class TestApplicationsApplet:
                 self.width_chars = 0
                 self.text = ""
                 self.focused = False
-                self._signals: dict[str, list[object]] = {}
+                self._signals: dict[str, list[Callable[[object], None]]] = {}
 
             def set_placeholder_text(self, text: str) -> None:
                 self.placeholder = text
@@ -239,7 +235,11 @@ class TestApplicationsApplet:
             def set_width_chars(self, value: int) -> None:
                 self.width_chars = value
 
-            def connect(self, signal: str, callback) -> None:
+            def connect(
+                self,
+                signal: str,
+                callback: Callable[[object], None],
+            ) -> None:
                 self._signals.setdefault(signal, []).append(callback)
 
             def get_text(self) -> str:
@@ -274,12 +274,12 @@ class TestApplicationsApplet:
         )
 
     def test_creates_with_icon(self):
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         assert d.item.icon is not None
 
     def test_left_click_opens_launcher_menu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         d.on_clicked()
 
         assert d._popup_menu is not None
@@ -288,7 +288,7 @@ class TestApplicationsApplet:
 
     def test_launcher_menu_contains_search_entry(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         menu = d._build_launcher_menu()
         items = menu.get_children()
         assert items[0]._child.children[0].placeholder == "Search applications..."
@@ -296,39 +296,41 @@ class TestApplicationsApplet:
         assert isinstance(menu, applications_applet_mod.Gtk.Menu)
 
     def test_right_click_menu_items_are_empty(self):
-        d = ApplicationsApplet(48, config=Config())
+        d = _make_applet()
         assert d.get_menu_items() == []
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            d = ApplicationsApplet(size, config=Config())
+            d = _make_applet(size)
             pixbuf = d.create_icon(size)
             assert pixbuf is not None
 
     def test_search_shows_direct_results_without_losing_focus(self, monkeypatch):
         self._fake_gtk(monkeypatch)
 
-        firefox = MagicMock()
-        firefox.get_display_name.return_value = "Firefox"
-        firefox.get_icon.return_value = None
-        chrome = MagicMock()
-        chrome.get_display_name.return_value = "Google Chrome"
-        chrome.get_icon.return_value = None
-        writer = MagicMock()
-        writer.get_display_name.return_value = "LibreOffice Writer"
-        writer.get_icon.return_value = None
-        monkeypatch.setattr(
-            applications_applet_mod,
-            "_build_app_categories",
-            lambda: {
-                "Internet": [firefox, chrome],
-                "Office": [writer],
-            },
+        firefox = _application(
+            "org.mozilla.Firefox.desktop",
+            "Firefox",
+            categories="Network;",
         )
-        launch = MagicMock()
-        monkeypatch.setattr(applications_applet_mod, "_launch_app", launch)
+        chrome = _application(
+            "com.google.Chrome.desktop",
+            "Google Chrome",
+            categories="Network;",
+        )
+        writer = _application(
+            "org.libreoffice.Writer.desktop",
+            "LibreOffice Writer",
+            categories="Office;",
+        )
+        registry = _Registry((firefox, chrome, writer))
+        launcher = MagicMock()
+        launcher.launch.return_value = True
 
-        applet = ApplicationsApplet(48, config=Config())
+        applet = _make_applet(
+            registry=registry,
+            launcher=launcher,
+        )
         menu = applet._build_launcher_menu()
         items = menu.get_children()
         search_entry = items[0]._child.children[0]
@@ -364,7 +366,7 @@ class TestApplicationsApplet:
 
         callback, args = result._signals["activate"][0]
         callback(result, *args)
-        launch.assert_called_once_with(app_info=firefox)
+        launcher.launch.assert_called_once_with("org.mozilla.Firefox.desktop")
 
         search_entry.set_text("writer")
         search_entry.emit("changed")
@@ -388,23 +390,20 @@ class TestApplicationsApplet:
         self._fake_gtk(monkeypatch)
         desktop_file = tmp_path / "org.example.Tool.desktop"
         desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        app = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
+        app = _application(
+            "org.example.Tool.desktop",
+            "Example Tool",
             categories="Utility;",
-            icon_name="",
-        )
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            lambda _desktop_id: desktop_file,
+            desktop_file=desktop_file,
         )
         submenu = applications_applet_mod.Gtk.Menu()
 
         applications_applet_mod._populate_app_submenu(
             submenu=submenu,
             apps=[app],
-            config=None,
+            config=SimpleNamespace(lock_icons=False),
+            registry=MagicMock(),
+            launcher=MagicMock(),
         )
 
         menu_item = submenu.get_children()[0]
@@ -420,14 +419,17 @@ class TestApplicationsApplet:
         desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
         icon = MagicMock()
         gio_app_info = MagicMock()
-        gio_app_info.get_filename.return_value = str(desktop_file)
         gio_app_info.get_icon.return_value = icon
-        app = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
+        app = _application(
+            "org.example.Tool.desktop",
+            "Example Tool",
             categories="Utility;",
-            icon_name="",
-            app_info=gio_app_info,
+            desktop_file=desktop_file,
+            has_gio_source=True,
+        )
+        registry = _Registry(
+            (app,),
+            handles={"org.example.Tool.desktop": gio_app_info},
         )
         submenu = applications_applet_mod.Gtk.Menu()
         set_drag_icon = MagicMock()
@@ -441,7 +443,9 @@ class TestApplicationsApplet:
         applications_applet_mod._populate_app_submenu(
             submenu=submenu,
             apps=[app],
-            config=None,
+            config=SimpleNamespace(lock_icons=False),
+            registry=registry,  # ty: ignore[invalid-argument-type]
+            launcher=MagicMock(),
         )
 
         menu_item = submenu.get_children()[0]
@@ -457,26 +461,48 @@ class TestApplicationsApplet:
         self._fake_gtk(monkeypatch)
         desktop_file = tmp_path / "org.example.Tool.desktop"
         desktop_file.write_text("[Desktop Entry]\nType=Application\n", encoding="utf-8")
-        app = ApplicationEntry(
-            desktop_id="org.example.Tool.desktop",
-            name="Example Tool",
+        app = _application(
+            "org.example.Tool.desktop",
+            "Example Tool",
             categories="Utility;",
-            icon_name="",
-        )
-        monkeypatch.setattr(
-            apps_shared.desktop_entries,
-            "find_desktop_file",
-            lambda _desktop_id: desktop_file,
+            desktop_file=desktop_file,
         )
         submenu = applications_applet_mod.Gtk.Menu()
 
         applications_applet_mod._populate_app_submenu(
             submenu=submenu,
             apps=[app],
-            config=SimpleNamespace(lock_icons=True),
+            config=SimpleNamespace(  # ty: ignore[invalid-argument-type]
+                lock_icons=True
+            ),
+            registry=MagicMock(),
+            launcher=MagicMock(),
         )
 
         assert submenu.get_children()[0].drag_source_args is None
+
+    def test_idless_menu_row_launches_by_opaque_listing_key(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        app = TransientApplicationInfo(
+            listing_key="gio-idless:9",
+            name="ID-less",
+            categories_raw="Utility;",
+            declared_icon="",
+            desktop_file=None,
+        )
+        launcher = MagicMock()
+        launcher.launch_listing.return_value = True
+        item = applications_applet_mod._application_menu_item(
+            app_info=app,
+            config=SimpleNamespace(lock_icons=False),
+            registry=MagicMock(),
+            launcher=launcher,
+        )
+
+        callback, args = item._signals["activate"][0]
+        callback(item, *args)
+
+        launcher.launch_listing.assert_called_once_with("gio-idless:9")
 
 
 class TestApplicationsRenderHelpers:

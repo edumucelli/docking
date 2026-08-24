@@ -30,13 +30,19 @@ from __future__ import annotations
 import contextlib
 import os
 from collections.abc import Sequence
-from threading import Lock, Thread
+from threading import RLock, Thread
 from typing import TYPE_CHECKING
 
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import (
+    ApplicationMatch,
+    MatchEvidence,
+    MatchMethod,
+)
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -45,14 +51,10 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import (
-    RunningAppInfo,
-    RunningWindowInfo,
-    RuntimeAppIdentity,
-)
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 log = get_logger(name="atspi_window")
@@ -97,6 +99,7 @@ class _AtspiWindow:
         "active",
         "app_id",
         "app_name",
+        "application_match",
         "fullscreen",
         "height",
         "minimized",
@@ -110,6 +113,7 @@ class _AtspiWindow:
 
     def __init__(self, internal_id: str) -> None:
         self.window_id = WindowId(backend=DisplayServer.WAYLAND, value=internal_id)
+        self.application_match: ApplicationMatch | None = None
         self.title: str = ""
         self.app_name: str = ""
         self.app_id: str | None = None
@@ -142,15 +146,22 @@ class AtspiWindowService(WindowService):
     def __init__(
         self,
         *,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         model: DockModel,
     ) -> None:
         self._connection: Gio.DBusConnection | None = None
         self._windows: dict[str, _AtspiWindow] = {}
-        self._lock = Lock()
-        self._refresh_running = False
+        self._lock = RLock()
+        self._running = False
+        self._lifecycle_token = 0
+        self._refresh_token: int | None = None
+        self._refresh_source_id = 0
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -174,7 +185,15 @@ class AtspiWindowService(WindowService):
 
     def start(self) -> None:
         """Connect to the AT-SPI bus and perform an initial enumeration."""
+        with self._lock:
+            if self._running:
+                return
+            self._running = True
+            self._lifecycle_token += 1
+            lifecycle_token = self._lifecycle_token
+
         addr = _at_spi_address()
+        conn: Gio.DBusConnection | None = None
         try:
             conn = Gio.DBusConnection.new_for_address_sync(
                 addr,
@@ -194,32 +213,65 @@ class AtspiWindowService(WindowService):
                 2000,
                 None,
             )
-            self._connection = conn
-            # Initial refresh in a background thread so the main loop
-            # stays responsive during startup.
-            self._schedule_refresh()
-            # Start periodic refresh (runs in background thread)
-            self._refresh_source_id = GLib.timeout_add(
-                self._REFRESH_INTERVAL_MS,
-                self._on_refresh_timer,
-            )
-            log.info("AT-SPI window service: connected")
         except Exception:
             log.exception("AT-SPI window service: failed to connect")
-            self._connection = None
-            self._refresh_source_id: int = 0
+            if conn is not None:
+                with contextlib.suppress(Exception):
+                    conn.close_sync(None)
+            with self._lock:
+                if lifecycle_token == self._lifecycle_token:
+                    self._running = False
+                    self._lifecycle_token += 1
+            return
+
+        assert conn is not None
+        with self._lock:
+            accepted = self._running and lifecycle_token == self._lifecycle_token
+            if accepted:
+                self._connection = conn
+        if not accepted:
+            with contextlib.suppress(Exception):
+                conn.close_sync(None)
+            return
+
+        # Initial refresh stays off the GTK loop.
+        self._schedule_refresh()
+        source_id = GLib.timeout_add(
+            self._REFRESH_INTERVAL_MS,
+            self._on_refresh_timer,
+        )
+        with self._lock:
+            keep_source = self._running and lifecycle_token == self._lifecycle_token
+            if keep_source:
+                self._refresh_source_id = source_id
+        if not keep_source:
+            GLib.source_remove(source_id)
+            return
+        log.info("AT-SPI window service: connected")
 
     def stop(self) -> None:
-        sid = getattr(self, "_refresh_source_id", 0)
-        if sid:
-            GLib.source_remove(sid)
-            self._refresh_source_id = 0
-        if self._connection is not None:
-            with contextlib.suppress(Exception):
-                self._connection.close_sync(None)
-            self._connection = None
         with self._lock:
+            if (
+                not self._running
+                and self._connection is None
+                and not self._refresh_source_id
+                and self._refresh_token is None
+                and not self._windows
+            ):
+                return
+            self._running = False
+            self._lifecycle_token += 1
+            source_id = self._refresh_source_id
+            self._refresh_source_id = 0
+            connection = self._connection
+            self._connection = None
+            self._refresh_token = None
             self._windows.clear()
+        if source_id:
+            GLib.source_remove(source_id)
+        if connection is not None:
+            with contextlib.suppress(Exception):
+                connection.close_sync(None)
 
     # ------------------------------------------------------------------
     # WindowService implementation
@@ -242,10 +294,11 @@ class AtspiWindowService(WindowService):
         return self.list_windows(desktop_id)
 
     def icon_name_for_desktop(self, desktop_id: str) -> str:
-        for w in self._windows.values():
-            snap = self._to_snapshot(w)
-            if snap.desktop_id == desktop_id and w.app_name:
-                return w.app_name.lower()
+        with self._lock:
+            for w in self._windows.values():
+                snap = self._to_snapshot(w)
+                if snap.desktop_id == desktop_id and w.app_name:
+                    return w.app_name.lower()
         return ""
 
     def activate(self, window_id: WindowId) -> ActionResult:
@@ -278,23 +331,48 @@ class AtspiWindowService(WindowService):
 
     def _on_refresh_timer(self) -> bool:
         """GLib timer callback - runs refresh in a background thread."""
+        with self._lock:
+            if not self._running:
+                self._refresh_source_id = 0
+                return False
         self._schedule_refresh()
-        return True  # keep timer running
+        with self._lock:
+            keep_source = self._running
+            if not keep_source:
+                self._refresh_source_id = 0
+            return keep_source
 
     def _schedule_refresh(self) -> None:
         """Run _refresh in a background thread, skipping if one is already in flight."""
-        if self._refresh_running:
-            return
-        thread = Thread(target=self._refresh, daemon=True)
-        thread.start()
+        with self._lock:
+            connection = self._connection
+            if (
+                not self._running
+                or connection is None
+                or self._refresh_token is not None
+            ):
+                return
+            lifecycle_token = self._lifecycle_token
+            self._refresh_token = lifecycle_token
+        thread = Thread(
+            target=self._refresh,
+            args=(lifecycle_token, connection),
+            daemon=True,
+        )
+        try:
+            thread.start()
+        except Exception:
+            with self._lock:
+                if self._refresh_token == lifecycle_token:
+                    self._refresh_token = None
+            log.exception("AT-SPI window service: failed to start refresh worker")
 
-    def _refresh(self) -> None:
+    def _refresh(
+        self,
+        lifecycle_token: int,
+        conn: Gio.DBusConnection,
+    ) -> None:
         """Re-enumerate all windows from the AT-SPI bus."""
-        conn = self._connection
-        if conn is None:
-            return
-
-        self._refresh_running = True
         try:
             new_windows: dict[str, _AtspiWindow] = {}
 
@@ -320,19 +398,35 @@ class AtspiWindowService(WindowService):
             for svc in names:
                 if not svc.startswith(":") or svc == ":1.0":
                     continue
+                with self._lock:
+                    if not self._is_current_lifecycle_locked(
+                        lifecycle_token,
+                        conn,
+                    ):
+                        return
                 with contextlib.suppress(Exception):
                     self._enumerate_service(conn, svc, new_windows)
 
             with self._lock:
+                if not self._is_current_lifecycle_locked(
+                    lifecycle_token,
+                    conn,
+                ):
+                    return
                 self._windows = new_windows
-
-            # Publish running windows to the model so indicators appear
-            self._publish_running()
+                # Model publication and visible-item access belong to the GTK loop.
+                GLib.idle_add(self._publish_running, lifecycle_token)
         finally:
-            self._refresh_running = False
+            with self._lock:
+                if self._refresh_token == lifecycle_token:
+                    self._refresh_token = None
 
-    def _publish_running(self) -> None:
+    def _publish_running(self, lifecycle_token: int | None = None) -> bool:
         """Build RunningAppInfo per desktop_id and push to the model."""
+        if lifecycle_token is not None:
+            with self._lock:
+                if not self._is_current_lifecycle_locked(lifecycle_token):
+                    return False
         model = self._model
         matcher = self._matcher
 
@@ -341,27 +435,21 @@ class AtspiWindowService(WindowService):
             matcher.sync_visible_items(model.visible_items())
 
         # Group windows by resolved desktop_id
-        by_desktop: dict[
-            str,
-            list[tuple[_AtspiWindow, RuntimeAppIdentity | None]],
-        ] = {}
+        by_desktop: dict[str, list[_AtspiWindow]] = {}
         with self._lock:
+            if lifecycle_token is not None and not self._is_current_lifecycle_locked(
+                lifecycle_token
+            ):
+                return False
             for w in self._windows.values():
-                match = None
-                if w.app_name:
-                    match = matcher.match_result(w.app_name, process_id=w.pid)
-                desktop_id = match.desktop_id if match is not None else None
-                if not desktop_id:
-                    desktop_id = f"kwin:{w.app_name or w.window_id.value}"
-                by_desktop.setdefault(desktop_id, []).append(
-                    (w, match.runtime_app if match is not None else None)
-                )
+                match = self._application_match_for(w)
+                by_desktop.setdefault(match.desktop_id, []).append(w)
 
         # Build RunningAppInfo per desktop_id
         running: dict[str, RunningAppInfo] = {}
         for desktop_id, windows in by_desktop.items():
             rwis = []
-            for w, runtime_app in windows:
+            for w in windows:
                 rwis.append(
                     RunningWindowInfo(
                         desktop_id=desktop_id,
@@ -370,15 +458,61 @@ class AtspiWindowService(WindowService):
                         active=w.active,
                         urgent=False,
                         window=None,
-                        runtime_app=runtime_app,
+                        runtime_app=(
+                            w.application_match.runtime_app
+                            if w.application_match is not None
+                            else None
+                        ),
                     )
                 )
             running[desktop_id] = RunningAppInfo.from_windows(rwis)
 
-        try:
-            model.update_running(running=running)
-        except Exception:
-            log.exception("AT-SPI: update_running failed")
+        if lifecycle_token is None:
+            try:
+                model.update_running(running=running)
+            except Exception:
+                log.exception("AT-SPI: update_running failed")
+        else:
+            with self._lock:
+                if not self._is_current_lifecycle_locked(lifecycle_token):
+                    return False
+                try:
+                    model.update_running(running=running)
+                except Exception:
+                    log.exception("AT-SPI: update_running failed")
+        return False
+
+    def _is_current_lifecycle_locked(
+        self,
+        lifecycle_token: int,
+        connection: Gio.DBusConnection | None = None,
+    ) -> bool:
+        return bool(
+            self._running
+            and lifecycle_token == self._lifecycle_token
+            and (connection is None or connection is self._connection)
+        )
+
+    def _application_match_for(self, window: _AtspiWindow) -> ApplicationMatch:
+        match = window.application_match
+        if match is None and window.app_name:
+            match = self._matcher.match_result(
+                window.app_name,
+                process_id=window.pid,
+            )
+        if match is None:
+            fallback_id = f"kwin:{window.app_name or window.window_id.value}"
+            match = ApplicationMatch(
+                desktop_id=fallback_id,
+                application=None,
+                evidence=MatchEvidence(
+                    method=MatchMethod.DESKTOP_ID,
+                    raw_app_id=window.app_name,
+                    pid=window.pid or None,
+                ),
+            )
+        window.application_match = match
+        return match
 
     def _enumerate_service(
         self,
@@ -630,20 +764,11 @@ class AtspiWindowService(WindowService):
     # ------------------------------------------------------------------
 
     def _to_snapshot(self, w: _AtspiWindow) -> WindowSnapshot:
-        # Resolve to a proper .desktop ID via the matcher, falling back to
-        # app_name with a kwin: prefix so the UI can still show something.
-        desktop_id = None
-        if w.app_name:
-            desktop_id = self._matcher.match(
-                w.app_name,
-                process_id=w.pid,
-            )
-        if not desktop_id:
-            desktop_id = f"kwin:{w.app_name or w.window_id.value}"
+        match = self._application_match_for(w)
 
         return WindowSnapshot(
             id=w.window_id,
-            desktop_id=desktop_id,
+            desktop_id=match.desktop_id,
             title=w.title or "Window",
             app_id=w.app_id,
             wm_class=w.app_name or None,

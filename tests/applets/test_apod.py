@@ -329,14 +329,14 @@ class TestAppletFetch:
     def test_open_page_and_copy_explanation(self, monkeypatch):
         applet = _make_applet()
         applet._result = _sample_result(page_url="https://example.test/apod")
-        opened: list[str] = []
+        open_target = MagicMock(return_value=True)
         monkeypatch.setattr(
-            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
-            lambda url, _ctx: opened.append(url),
+            "docking.applets.apod.applet.targets.open_target",
+            open_target,
         )
 
         applet.on_clicked()
-        assert opened == ["https://example.test/apod"]
+        open_target.assert_called_once_with("https://example.test/apod")
 
         copied: list[str] = []
 
@@ -354,27 +354,17 @@ class TestAppletFetch:
 
         assert copied == ["A distant spiral galaxy.", "-1"]
 
-    def test_open_page_uses_default_and_swallows_launch_error(self, monkeypatch):
+    def test_open_page_uses_default_and_handles_target_failure(self, monkeypatch):
         applet = _make_applet()
-        opened: list[str] = []
+        open_target = MagicMock(return_value=False)
         monkeypatch.setattr(
-            "docking.applets.apod.applet.GLib.Error",
-            RuntimeError,
-            raising=False,
-        )
-
-        def launch(url, _ctx):
-            opened.append(url)
-            raise RuntimeError("no handler")
-
-        monkeypatch.setattr(
-            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
-            launch,
+            "docking.applets.apod.applet.targets.open_target",
+            open_target,
         )
 
         applet._open_page()
 
-        assert opened == ["https://apod.nasa.gov/"]
+        open_target.assert_called_once_with("https://apod.nasa.gov/")
 
     def test_needs_fetch_when_date_stale(self):
         applet = _make_applet()

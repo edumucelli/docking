@@ -12,7 +12,9 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -21,14 +23,10 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import (
-    RunningAppInfo,
-    RunningWindowInfo,
-    RuntimeAppIdentity,
-)
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 log = get_logger(name="backend.cinnamon.muffin")
@@ -89,19 +87,26 @@ class _MuffinWindow:
     muffin_id: int
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     urgent: bool
     geometry: Rect | None
     workspace_id: str | None
     pid: int | None
-    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(
             backend=DisplayServer.WAYLAND,
             value=f"muffin:{self.muffin_id}",
+        )
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
         )
 
 
@@ -112,11 +117,15 @@ class MuffinWindowService(WindowService):
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         client: MuffinDebugClient,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._windows: dict[int, _MuffinWindow] = {}
         self._poll_source_id = 0
@@ -208,20 +217,15 @@ class MuffinWindowService(WindowService):
         if pid is not None and pid <= 0:
             pid = None
         match = None
-        desktop_id = None
         for identity in identities:
-            if pid is None:
-                desktop_id = self._matcher.match(identity)
-            else:
-                match = self._matcher.match_result(identity, process_id=pid)
-                desktop_id = match.desktop_id if match is not None else None
-            if desktop_id is not None:
+            match = self._matcher.match_result(identity, process_id=pid)
+            if match is not None:
                 break
         return _MuffinWindow(
             muffin_id=muffin_id,
             title=_text(row, "title") or "Window",
             app_id=app_id,
-            desktop_id=desktop_id,
+            application_match=match,
             active=_bool(row, "focused"),
             urgent=_bool(row, "demands-attention"),
             geometry=_rect(row.get("frame-rect")),
@@ -231,7 +235,6 @@ class MuffinWindowService(WindowService):
                 else None
             ),
             pid=pid,
-            runtime_app=match.runtime_app if match is not None else None,
         )
 
     def _publish_running(self) -> None:
@@ -247,7 +250,11 @@ class MuffinWindowService(WindowService):
                     active=window.active,
                     urgent=window.urgent,
                     window=window.muffin_id,
-                    runtime_app=window.runtime_app,
+                    runtime_app=(
+                        window.application_match.runtime_app
+                        if window.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -306,7 +313,7 @@ def _bool(row: Mapping[str, Any], key: str) -> bool:
 
 def _rect(value: Any) -> Rect | None:
     value = _unpack(value)
-    if not isinstance(value, (tuple, list)) or len(value) != 4:
+    if not isinstance(value, tuple | list) or len(value) != 4:
         return None
     try:
         x, y, width, height = (int(part) for part in value)

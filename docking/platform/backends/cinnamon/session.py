@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import PlatformCapabilities
 from docking.platform.backends.cinnamon.muffin import (
@@ -11,17 +12,33 @@ from docking.platform.backends.cinnamon.muffin import (
 )
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
+
 
 class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
     def __init__(
-        self, *, layer_shell: object, model, launcher, client: MuffinDebugClient
+        self,
+        *,
+        layer_shell: object,
+        model,
+        client: MuffinDebugClient,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
     ):
-        super().__init__(layer_shell=layer_shell, model=model, launcher=launcher)
+        super().__init__(
+            layer_shell=layer_shell,
+            model=model,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._services = replace(
             self._services,
             windows=MuffinWindowService(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 client=client,
             ),
         )

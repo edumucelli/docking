@@ -23,12 +23,12 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import Gio, GLib, Gtk
+from gi.repository import Gtk
 
 from docking import __version__ as docking_version
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import targets
 
 PROJECT_VERSION_FALLBACK = docking_version
 PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
@@ -106,10 +106,7 @@ class AboutDialogController:
             self._dialog = None
 
     def _open_project_github(self) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(PROJECT_GITHUB_URL, None)
-        except GLib.Error as exc:
-            log.warning("Failed to open project GitHub URL: %s", exc)
+        targets.open_target(PROJECT_GITHUB_URL)
 
 
 def _logo_icon_name() -> str:

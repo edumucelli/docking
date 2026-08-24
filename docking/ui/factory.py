@@ -34,7 +34,9 @@ controllers receive the smallest collaborator set they need.
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from docking.core.config import Config
 from docking.core.theme import Theme
@@ -46,7 +48,6 @@ from docking.platform.backends.base import (
     VisibilityService,
     WindowService,
 )
-from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
 from docking.search.controller import GlobalSearchController
 from docking.ui.about import AboutDialogController
@@ -66,6 +67,12 @@ from docking.ui.startup_popups import StartupPopupCoordinator
 from docking.ui.startup_tips import StartupTipsController
 from docking.ui.update_popup import UpdateCheckController
 
+if TYPE_CHECKING:
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import TargetService
+
 
 @dataclass(slots=True)
 class DockUi:
@@ -81,6 +88,7 @@ class DockUi:
     startup_popups: StartupPopupCoordinator
     input_controller: DockInputController
     search: GlobalSearchController
+    settings: SettingsWindowController
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
@@ -90,9 +98,11 @@ class DockUi:
 
     def stop(self) -> None:
         """Stop the composed dock UI lifecycle."""
-        self.startup_popups.stop()
-        self.search.stop()
-        self.input_controller.stop()
+        with ExitStack() as cleanup:
+            cleanup.callback(self.input_controller.stop)
+            cleanup.callback(self.search.stop)
+            cleanup.callback(self.settings.close)
+            cleanup.callback(self.startup_popups.stop)
 
 
 def build_dock_window(
@@ -105,8 +115,11 @@ def build_dock_window(
     preview_service: PreviewService,
     surface_service: SurfaceService,
     visibility_service: VisibilityService,
-    launcher: Launcher,
+    application_registry: ApplicationRegistry,
     session_backend: SessionBackend,
+    application_launcher: ApplicationLauncher,
+    icon_loader: IconLoader,
+    target_service: TargetService,
 ) -> DockUi:
     """Build a fully wired dock window and its UI collaborators.
 
@@ -132,16 +145,19 @@ def build_dock_window(
     )
     search = GlobalSearchController(
         config=config,
-        launcher=launcher,
         model=model,
         windows=window_tracker,
         preview_service=preview_service,
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        icon_loader=icon_loader,
+        target_service=target_service,
     )
     folder_stack = FolderStackController(
         config=config,
         runtime=runtime,
-        launcher=launcher,
         dock_window=window,
+        target_service=target_service,
     )
     dnd = DnDHandler(
         drawing_area=window.drawing_area,
@@ -150,9 +166,12 @@ def build_dock_window(
         config=config,
         renderer=renderer,
         theme=theme,
-        launcher=launcher,
         geometry_builder=window.geometry,
         folder_stack=folder_stack,
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        icon_loader=icon_loader,
+        target_service=target_service,
     )
     settings_actions = SettingsActions(
         runtime=runtime,
@@ -176,9 +195,11 @@ def build_dock_window(
         window_tracker=window_tracker,
         preview_service=preview_service,
         folder_stack=folder_stack,
-        launcher=launcher,
         dock_window=window,
         search=search,
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        target_service=target_service,
     )
     interactions = DockInteractions(
         menu=menu,
@@ -188,6 +209,8 @@ def build_dock_window(
         window=window,
         interactions=interactions,
         dnd=dnd,
+        application_launcher=application_launcher,
+        target_service=target_service,
     )
     startup_popups = StartupPopupCoordinator()
     new_year = NewYearGreetingController(window=window)
@@ -227,4 +250,5 @@ def build_dock_window(
         startup_popups=startup_popups,
         input_controller=input_controller,
         search=search,
+        settings=settings,
     )

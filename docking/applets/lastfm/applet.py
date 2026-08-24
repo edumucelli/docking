@@ -22,7 +22,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.http import http_get_bytes, http_get_json
@@ -61,6 +61,7 @@ from docking.applets.popup import (
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -502,10 +503,7 @@ def _fetch_tracks_blocking(*, prefs: LastfmPrefs) -> list[PlayedTrack]:
 
 
 def _open_uri(uri: str) -> None:
-    try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
-    except GLib.Error as exc:
-        log.warning("Failed to open URI %s: %s", uri, exc)
+    targets.open_target(uri)
 
 
 def _pango_ellipsize_end():

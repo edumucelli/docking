@@ -28,7 +28,13 @@ import docking.ui.input_controller as input_controller_mod
 import docking.ui.menu as menu_mod
 import docking.ui.placement as placement_mod
 from docking.core.config import PinnedEntry
+from docking.core.items import APP_KIND
 from docking.core.position import Position
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.model import DockItem
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.dnd import DnDHandler
@@ -113,6 +119,17 @@ class _ScenarioHarness:
             return True
 
         self.model.insert_pinned_item.side_effect = insert_pinned_item
+        self.model.insert_pinned_application.side_effect = lambda *, desktop_id, index: (
+            insert_pinned_item(
+                item=DockItem(
+                    desktop_id=desktop_id,
+                    kind=APP_KIND,
+                    target=desktop_id,
+                    is_pinned=True,
+                ),
+                index=index,
+            )
+        )
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
@@ -152,7 +169,12 @@ class _ScenarioHarness:
             geometry_builder=self.geometry,
         )
         self.interaction = DockInteractionCoordinator(cast(Any, self))
-        self.launcher = MagicMock()
+        self.application_registry = MagicMock()
+        self.application_registry.get.return_value = None
+        self.application_registry.resolve_by_desktop_file.return_value = None
+        self.application_launcher = MagicMock()
+        self.icon_loader = MagicMock()
+        self.target_service = MagicMock(icon_loader=self.icon_loader)
         self.window_tracker = MagicMock()
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
@@ -161,9 +183,12 @@ class _ScenarioHarness:
             config=cast(Any, self.config),
             renderer=cast(Any, self.renderer),
             theme=cast(Any, self.theme),
-            launcher=self.launcher,
             geometry_builder=self.geometry,
             folder_stack=self._interactions,
+            application_registry=self.application_registry,
+            application_launcher=self.application_launcher,
+            icon_loader=self.icon_loader,
+            target_service=self.target_service,
         )
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
@@ -435,8 +460,8 @@ class TestMenuLifecycleScenarios:
         folder_stack = FolderStackController(
             config=cast(Any, harness.config),
             runtime=runtime,
-            launcher=harness.launcher,
             dock_window=cast(Any, harness),
+            target_service=harness.target_service,
         )
         handler = MenuHandler(
             about=MagicMock(),
@@ -448,9 +473,11 @@ class TestMenuLifecycleScenarios:
             preview_service=MagicMock(),
             folder_stack=folder_stack,
             diagnostics=MagicMock(),
-            launcher=harness.launcher,
             dock_window=cast(Any, harness),
             search=MagicMock(),
+            application_registry=harness.application_registry,
+            application_launcher=harness.application_launcher,
+            target_service=harness.target_service,
         )
         created: list[_FakePopupMenu] = []
 
@@ -598,9 +625,22 @@ class TestDragDropScenarios:
         selection.get_uris.return_value = [
             "file:///usr/share/applications/firefox.desktop"
         ]
-        resolved = SimpleNamespace(name="Firefox", icon_name="firefox", wm_class="ff")
-        harness.launcher.resolve.return_value = resolved
-        harness.launcher.load_icon.return_value = object()
+        resolved = ApplicationInfo(
+            desktop_id="firefox.desktop",
+            name="Firefox",
+            declared_icon="firefox",
+            wm_class="ff",
+            exec_line="/usr/bin/firefox",
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(),
+            visible=True,
+            has_gio_source=True,
+        )
+        harness.application_registry.get.return_value = resolved
+        harness.icon_loader.load_desktop_icon.return_value = object()
         finish = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
         monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args, **_kwargs: None)

@@ -69,7 +69,15 @@ markers = [
 
 [tool.coverage.run]
 omit = [
-    "docking/platform/*",
+    "docking/platform/__init__.py",
+    "docking/platform/diagnostics.py",
+    "docking/platform/gamescope.py",
+    "docking/platform/icon_overrides.py",
+    "docking/platform/model.py",
+    "docking/platform/unity.py",
+    "docking/platform/backends/**",
+    "docking/platform/environment/**",
+    "docking/platform/status_notifier/**",
     "docking/ui/preview.py",
     "docking/ui/renderer.py",
 ]

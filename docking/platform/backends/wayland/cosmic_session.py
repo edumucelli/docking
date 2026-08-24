@@ -69,7 +69,8 @@ from docking.platform.backends.wayland.toplevels import (
 )
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -159,7 +160,8 @@ class CosmicSessionBackend(SessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
     ) -> None:
@@ -188,7 +190,8 @@ class CosmicSessionBackend(SessionBackend):
         if preview_protocol is not None:
             preview_handles = WaylandPreviewHandleTracker(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=preview_protocol,
             )
 
@@ -199,7 +202,8 @@ class CosmicSessionBackend(SessionBackend):
             # (for listing) and zcosmic_toplevel_info_v1 (for richer info)
             windows = WaylandForeignToplevelWindowService(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=cosmic_toplevel,
                 preview_handles=preview_handles,
                 can_preview=preview_protocol is None
@@ -213,7 +217,8 @@ class CosmicSessionBackend(SessionBackend):
             if generic_toplevel is not None:
                 windows = WaylandForeignToplevelWindowService(
                     model=model,
-                    launcher=launcher,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
                     protocol=generic_toplevel,
                     preview_handles=preview_handles,
                 )

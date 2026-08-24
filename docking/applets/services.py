@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class AppletServices:
-    """Optional backend services consumed by platform-sensitive applets."""
+    """Late-bound backend capabilities consumed by platform-sensitive applets."""
 
     desktop_actions: DesktopActionService | None = None
     workspaces: WorkspaceService | None = None

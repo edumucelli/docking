@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import FrozenInstanceError
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -11,6 +12,10 @@ from docking.search.services.recent_files import (
     RecentFilesCatalog,
     RecentFileSnapshot,
 )
+
+
+def _catalog() -> RecentFilesCatalog:
+    return RecentFilesCatalog(target_service=MagicMock())
 
 
 class _FakeRecentItem:
@@ -110,7 +115,7 @@ def test_lists_existing_files_most_recent_first_as_frozen_snapshots():
             ),
         ]
     )
-    catalog = RecentFilesCatalog()
+    catalog = _catalog()
     catalog._manager_factory = lambda: manager
     catalog._max_entries = 2
     generations: list[int] = []
@@ -145,7 +150,7 @@ def test_lists_existing_files_most_recent_first_as_frozen_snapshots():
 
 def test_manager_changes_advance_generation_only_for_new_data():
     manager = _FakeRecentManager()
-    catalog = RecentFilesCatalog()
+    catalog = _catalog()
     catalog._manager_factory = lambda: manager
     notifications: list[int] = []
     unsubscribe = catalog.subscribe(
@@ -184,7 +189,7 @@ def test_open_and_clear_helpers_update_the_catalog():
         [_FakeRecentItem("notes.txt", "file:///notes.txt", 42)]
     )
     launched: list[str] = []
-    catalog = RecentFilesCatalog()
+    catalog = _catalog()
     catalog._manager_factory = lambda: manager
     catalog._uri_launcher = launched.append
     catalog.start()
@@ -211,12 +216,25 @@ def test_open_and_clear_failures_are_contained():
     def fail_to_launch(_uri: str) -> None:
         raise RuntimeError("launch failed")
 
-    catalog = RecentFilesCatalog()
+    catalog = _catalog()
     catalog._manager_factory = lambda: manager
     catalog._uri_launcher = fail_to_launch
 
     assert catalog.open_uri("file:///notes.txt") is False
     assert catalog.clear_recent() is False
+
+
+def test_injected_target_service_controls_exact_open_result():
+    target_service = MagicMock()
+    target_service.open_target.side_effect = [True, False]
+    catalog = RecentFilesCatalog(target_service=target_service)
+
+    assert catalog.open_uri(" file:///opened.txt ") is True
+    assert catalog.open_uri("file:///rejected.txt") is False
+    assert target_service.open_target.call_args_list == [
+        call("file:///opened.txt"),
+        call("file:///rejected.txt"),
+    ]
 
 
 def test_skips_invalid_items_deduplicates_uris_and_falls_back_to_uri_name():
@@ -231,7 +249,7 @@ def test_skips_invalid_items_deduplicates_uris_and_falls_back_to_uri_name():
         10,
     )
     manager = _FakeRecentManager([_BrokenItem(), duplicate, first])
-    catalog = RecentFilesCatalog()
+    catalog = _catalog()
     catalog._manager_factory = lambda: manager
 
     catalog.refresh()

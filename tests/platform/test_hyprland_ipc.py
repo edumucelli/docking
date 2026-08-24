@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandEvent,
@@ -16,25 +17,15 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     hyprland_socket_paths,
     parse_hyprland_event,
 )
-
-
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "Alacritty.desktop": SimpleNamespace(desktop_id="Alacritty.desktop"),
-        "firefox.desktop": SimpleNamespace(desktop_id="firefox.desktop"),
-    }
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(return_value=None),
-    )
+from tests.platform.application_fakes import identity_services
 
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox"),
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
             ]
         ),
         update_running=MagicMock(),
@@ -180,7 +171,7 @@ def test_hyprland_window_service_publishes_snapshot_and_actions():
     )
     service = HyprlandWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -227,7 +218,7 @@ def test_hyprland_window_service_resolves_preview_handle_from_companion_source()
     )
     service = HyprlandWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         preview_handle_source=source,
         event_stream_factory=lambda _callback: None,
@@ -276,7 +267,7 @@ def test_hyprland_window_service_refreshes_on_taskbar_event():
 
     service = HyprlandWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=stream_factory,
     )
@@ -299,7 +290,7 @@ def test_hyprland_window_service_ignores_other_backend_window_ids():
     client = FakeIpcClient([([], {})])
     service = HyprlandWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )

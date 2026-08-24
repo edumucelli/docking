@@ -663,32 +663,20 @@ class TestHackerNewsApplet:
 
         applet._open_url.assert_not_called()
 
-    def test_open_current_comments_and_url_error(self, monkeypatch):
+    def test_open_current_comments_and_target_failure(self, monkeypatch):
         applet = _make_applet()
         applet._stories = [_story(hn_url="https://news.ycombinator.com/item?id=1")]
-        opened: list[str] = []
-        monkeypatch.setattr(
-            hackernews_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda url, _ctx: opened.append(url),
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(hackernews_applet_mod.targets, "open_target", open_target)
 
         applet._open_current_comments()
 
-        assert opened == ["https://news.ycombinator.com/item?id=1"]
+        open_target.assert_called_once_with("https://news.ycombinator.com/item?id=1")
 
-        monkeypatch.setattr(
-            hackernews_applet_mod.GLib,
-            "Error",
-            RuntimeError,
-            raising=False,
-        )
-        monkeypatch.setattr(
-            hackernews_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
-        )
+        open_target.return_value = False
         applet._open_url("https://example.test")
+
+        assert open_target.call_args_list[-1].args == ("https://example.test",)
 
     def test_menu_contains_hn_actions(self):
         applet = _make_applet()

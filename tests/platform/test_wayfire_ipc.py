@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.backends.wayland.wayfire_ipc as wayfire_ipc
+from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireIpcClient,
@@ -16,25 +17,15 @@ from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireWorkspaceService,
     wayfire_socket_path,
 )
-
-
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "Alacritty.desktop": SimpleNamespace(desktop_id="Alacritty.desktop"),
-        "firefox.desktop": SimpleNamespace(desktop_id="firefox.desktop"),
-    }
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(return_value=None),
-    )
+from tests.platform.application_fakes import identity_services
 
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox"),
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
             ]
         ),
         update_running=MagicMock(),
@@ -132,7 +123,7 @@ def test_wayfire_ipc_client_uses_length_prefixed_json():
     assert sock.closed is True
 
 
-def test_wayfire_window_service_publishes_snapshot_and_actions():
+def test_wayfire_window_service_publishes_snapshot_and_actions(monkeypatch):
     model = _model()
     client = FakeIpcClient(
         {
@@ -163,9 +154,15 @@ def test_wayfire_window_service_publishes_snapshot_and_actions():
     )
     service = WayfireWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
     )
+    application_match = service._matcher.match_result(
+        "Alacritty",
+        process_id=1234,
+    )
+    match_result = MagicMock(return_value=application_match)
+    monkeypatch.setattr(service._matcher, "match_result", match_result)
 
     service.start()
 
@@ -177,6 +174,8 @@ def test_wayfire_window_service_publishes_snapshot_and_actions():
     assert windows[0].geometry is not None
     assert windows[0].workspace_id == "1"
     assert windows[0].can_minimize is True
+    assert service._records[7].application_match is application_match
+    match_result.assert_called_once_with("Alacritty", process_id=1234)
     model.update_running.assert_called()
 
     assert service.activate(windows[0].id) is ActionResult.OK
@@ -208,7 +207,7 @@ def test_wayfire_window_service_polls_for_late_window_changes(monkeypatch):
     )
     service = WayfireWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
     )
 
@@ -269,9 +268,10 @@ def test_wayfire_workspace_service_lists_grid_cells_and_marks_active():
     assert service.active_workspace() == workspaces[1]
     result = service.activate(workspaces[0].id)
     assert result is ActionResult.OK
-    assert ("vswitch/set-workspace", {"output-id": 1, "x": 0, "y": 0}) in [
-        (m, d) for m, d in client.actions
-    ]
+    assert (
+        "vswitch/set-workspace",
+        {"output-id": 1, "x": 0, "y": 0},
+    ) in client.actions
 
 
 def test_wayfire_window_picker_uses_geometry_and_pid(monkeypatch):
@@ -339,7 +339,7 @@ def test_wayfire_window_service_minimize_all_and_toggle_focus():
     )
     service = WayfireWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
     )
 
@@ -347,16 +347,18 @@ def test_wayfire_window_service_minimize_all_and_toggle_focus():
 
     result = service.minimize_all("Alacritty.desktop")
     assert result is ActionResult.OK
-    assert ("wm-actions/set-minimized", {"view_id": 7, "state": True}) in [
-        (m, d) for m, d in client.actions
-    ]
+    assert (
+        "wm-actions/set-minimized",
+        {"view_id": 7, "state": True},
+    ) in client.actions
 
     client.actions.clear()
     result = service.toggle_focus("Alacritty.desktop")
     assert result is ActionResult.OK
-    assert ("wm-actions/set-minimized", {"view_id": 7, "state": True}) in [
-        (m, d) for m, d in client.actions
-    ]
+    assert (
+        "wm-actions/set-minimized",
+        {"view_id": 7, "state": True},
+    ) in client.actions
 
 
 def test_wayfire_desktop_action_service_show_desktop():
@@ -368,9 +370,10 @@ def test_wayfire_desktop_action_service_show_desktop():
     # Toggle None: should call wm-actions/toggle_showdesktop (state → True)
     result = service.show_desktop(None)
     assert result is ActionResult.OK
-    assert ("wm-actions/toggle_showdesktop", {"output-id": 1}) in [
-        (m, d) for m, d in client.actions
-    ]
+    assert (
+        "wm-actions/toggle_showdesktop",
+        {"output-id": 1},
+    ) in client.actions
 
     # Explicit True when already True: no-op (no duplicate toggle)
     client.actions.clear()
@@ -382,9 +385,10 @@ def test_wayfire_desktop_action_service_show_desktop():
     client.actions.clear()
     result = service.show_desktop(False)
     assert result is ActionResult.OK
-    assert ("wm-actions/toggle_showdesktop", {"output-id": 1}) in [
-        (m, d) for m, d in client.actions
-    ]
+    assert (
+        "wm-actions/toggle_showdesktop",
+        {"output-id": 1},
+    ) in client.actions
 
     # Explicit False when already False: no-op
     client.actions.clear()
@@ -473,7 +477,7 @@ def test_wayfire_event_watcher_dispatches_events_to_handler():
     model = _model()
     service = WayfireWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=FakeIpcClient({}),
     )
 
@@ -570,7 +574,7 @@ def test_wayfire_window_service_falls_back_to_polling_without_watcher(monkeypatc
     )
     service = WayfireWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         watcher=None,
     )

@@ -11,6 +11,7 @@ from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireWindowService,
     WayfireWorkspaceService,
 )
+from tests.platform.application_fakes import identity_services
 
 
 def _service() -> SimpleNamespace:
@@ -40,7 +41,7 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     backend = wayfire_session.WayfireSessionBackend(
         layer_shell=object(),
         model=MagicMock(),
-        launcher=MagicMock(),
+        **identity_services(),
         config=MagicMock(),
         protocol_runtime=None,
         screen_capture=None,

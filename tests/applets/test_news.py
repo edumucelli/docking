@@ -573,12 +573,10 @@ class TestNewsApplet:
         fetch.assert_called_once()
 
         applet._articles = [_article()]
-        launch = MagicMock()
-        monkeypatch.setattr(
-            news_applet_mod.Gio.AppInfo, "launch_default_for_uri", launch
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(news_applet_mod.targets, "open_target", open_target)
         applet.on_clicked()
-        launch.assert_called_once_with(_article().url, None)
+        open_target.assert_called_once_with(_article().url)
 
     def test_scroll_moves_and_clamps_articles(self):
         applet = _make_applet()

@@ -755,27 +755,22 @@ class TestUpdateCheckHideAndDismiss:
         controller._popup = None
         controller._hide_popup()  # Should not raise
 
-    def test_open_url_calls_gio_launch(self, monkeypatch):
+    def test_open_url_uses_target_service(self, monkeypatch):
         window = MagicMock()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(mod.targets, "open_target", open_target)
 
         controller._open_url("https://example.com")
 
-        mod.Gio.AppInfo.launch_default_for_uri.assert_called_once_with(
-            "https://example.com", None
-        )
+        open_target.assert_called_once_with("https://example.com")
 
-    def test_open_url_exception_is_handled(self, monkeypatch):
+    def test_open_url_target_failure_is_handled(self, monkeypatch):
         window = MagicMock()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
-        monkeypatch.setattr(
-            mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            MagicMock(side_effect=RuntimeError("no browser")),
-        )
+        monkeypatch.setattr(mod.targets, "open_target", MagicMock(return_value=False))
 
         # Should not raise
         controller._open_url("https://example.com")
@@ -791,7 +786,7 @@ class TestUpdateCheckHideAndDismiss:
         )
         fake_popup = MagicMock()
         controller._popup = fake_popup
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        monkeypatch.setattr(mod.targets, "open_target", MagicMock(return_value=True))
 
         controller._on_view_release(MagicMock())
 
@@ -804,12 +799,13 @@ class TestUpdateCheckHideAndDismiss:
         controller._latest_release = None
         fake_popup = MagicMock()
         controller._popup = fake_popup
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(mod.targets, "open_target", open_target)
 
         controller._on_view_release(MagicMock())
 
         fake_popup.hide.assert_called_once()
-        mod.Gio.AppInfo.launch_default_for_uri.assert_not_called()
+        open_target.assert_not_called()
 
     def test_on_later_saves_reminder_and_hides(self, monkeypatch):
         window = MagicMock()

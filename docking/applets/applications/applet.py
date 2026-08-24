@@ -22,33 +22,34 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.applications import meta
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
 from docking.applets.applications.state import (
     CATEGORY_ICONS,
-    ApplicationEntry,
-    _build_app_categories,
+    build_app_categories,
 )
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.core.icons import IconSource
 from docking.i18n import _
-from docking.log import get_logger, with_context
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.listing import (
+    activate_listing,
+    listing_desktop_file_uri,
+    listing_gicon,
+)
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-
-log = with_context(
-    get_logger(name="applications"),
-    applet_id=meta.id,
-)
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
 
 
-class ApplicationsApplet(Applet):
+class ApplicationsApplet(ApplicationServicesApplet):
     """Categorized application launcher via left-click menu."""
 
     id = meta.id
@@ -56,8 +57,20 @@ class ApplicationsApplet(Applet):
     icon_name = "view-app-grid"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        super().__init__(icon_size=icon_size, config=config)
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self._popup_menu: Gtk.Menu | None = None
         self.present()
 
@@ -87,8 +100,8 @@ class ApplicationsApplet(Applet):
     def _build_launcher_menu(self) -> Gtk.Menu:
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
-        categories = _build_app_categories()
-        category_rows: list[tuple[Gtk.MenuItem, list[ApplicationEntry]]] = []
+        categories = build_app_categories(self._application_registry)
+        category_rows: list[tuple[Gtk.MenuItem, list[ApplicationListing]]] = []
 
         search_entry = Gtk.Entry()
         search_entry.set_placeholder_text(_("Search applications..."))
@@ -112,7 +125,13 @@ class ApplicationsApplet(Applet):
             )
             submenu = Gtk.Menu()
 
-            _populate_app_submenu(submenu=submenu, apps=apps, config=self._config)
+            _populate_app_submenu(
+                submenu=submenu,
+                apps=apps,
+                config=self._config,
+                registry=self._application_registry,
+                launcher=self._application_launcher,
+            )
 
             cat_item.set_submenu(submenu)
             menu.append(cat_item)
@@ -127,7 +146,7 @@ class ApplicationsApplet(Applet):
                 menu.remove(result)
             search_results = []
 
-            matches: list[ApplicationEntry] = []
+            matches: list[ApplicationListing] = []
             for cat_item, apps in category_rows:
                 if lowered:
                     cat_item.hide()
@@ -139,6 +158,8 @@ class ApplicationsApplet(Applet):
                 result = _application_menu_item(
                     app_info=app_info,
                     config=self._config,
+                    registry=self._application_registry,
+                    launcher=self._application_launcher,
                 )
                 menu.append(result)
                 result.show_all()
@@ -157,8 +178,8 @@ class ApplicationsApplet(Applet):
         return menu
 
 
-def _app_name(app_info: ApplicationEntry) -> str:
-    return app_info.get_display_name() or "Unknown"
+def _app_name(app_info: ApplicationListing) -> str:
+    return app_info.name or "Unknown"
 
 
 def _clear_menu(*, menu: Gtk.Menu) -> None:
@@ -169,8 +190,10 @@ def _clear_menu(*, menu: Gtk.Menu) -> None:
 def _populate_app_submenu(
     *,
     submenu: Gtk.Menu,
-    apps: Iterable[ApplicationEntry],
-    config: Config | None,
+    apps: Iterable[ApplicationListing],
+    config: Config,
+    registry: ApplicationRegistry,
+    launcher: ApplicationLauncher,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -178,6 +201,8 @@ def _populate_app_submenu(
             _application_menu_item(
                 app_info=app_info,
                 config=config,
+                registry=registry,
+                launcher=launcher,
             )
         )
     submenu.show_all()
@@ -185,21 +210,27 @@ def _populate_app_submenu(
 
 def _application_menu_item(
     *,
-    app_info: ApplicationEntry,
-    config: Config | None,
+    app_info: ApplicationListing,
+    config: Config,
+    registry: ApplicationRegistry,
+    launcher: ApplicationLauncher,
 ) -> Gtk.MenuItem:
     menu_item = make_menu_item_with_icon(
         label=_app_name(app_info),
-        gicon=app_info.get_icon(),
+        gicon=listing_gicon(registry, app_info),
     )
     menu_item.connect(
         "activate",
-        lambda _, info=app_info: _launch_app(app_info=info),
+        lambda _, info=app_info: _launch_app(
+            app_info=info,
+            launcher=launcher,
+        ),
     )
     _configure_drag_source(
         menu_item=menu_item,
         app_info=app_info,
         config=config,
+        registry=registry,
     )
     return menu_item
 
@@ -207,13 +238,14 @@ def _application_menu_item(
 def _configure_drag_source(
     *,
     menu_item: Gtk.MenuItem,
-    app_info: ApplicationEntry,
-    config: Config | None,
+    app_info: ApplicationListing,
+    config: Config,
+    registry: ApplicationRegistry,
 ) -> None:
     """Make a launchable menu row draggable to the dock as a desktop URI."""
-    if config is not None and config.lock_icons:
+    if config.lock_icons:
         return
-    uri = app_info.desktop_file_uri()
+    uri = listing_desktop_file_uri(app_info)
     if uri is None:
         return
     menu_item.drag_source_set(
@@ -221,17 +253,18 @@ def _configure_drag_source(
         [_URI_TARGET],
         Gdk.DragAction.COPY,
     )
-    menu_item.connect("drag-begin", _on_drag_begin, app_info)
+    menu_item.connect("drag-begin", _on_drag_begin, app_info, registry)
     menu_item.connect("drag-data-get", _on_drag_data_get, uri)
 
 
 def _on_drag_begin(
     _menu_item: Gtk.MenuItem,
     context: Gdk.DragContext,
-    app_info: ApplicationEntry,
+    app_info: ApplicationListing,
+    registry: ApplicationRegistry,
 ) -> None:
     """Show the application's icon beside the pointer while it is dragged."""
-    icon = app_info.get_icon()
+    icon = listing_gicon(registry, app_info)
     if icon is not None:
         Gtk.drag_set_icon_gicon(context, icon, 0, 0)
 
@@ -250,23 +283,18 @@ def _on_drag_data_get(
 
 def _filter_apps(
     *,
-    apps: Iterable[ApplicationEntry],
+    apps: Iterable[ApplicationListing],
     query: str,
-) -> Iterable[ApplicationEntry]:
+) -> Iterable[ApplicationListing]:
     if not query:
         return apps
     return [app for app in apps if query in _app_name(app).lower()]
 
 
-def _launch_app(app_info: ApplicationEntry) -> None:
-    """Launch an application from its DesktopAppInfo."""
-    desktop_id = app_info.get_id() if app_info else None
-    try:
-        app_info.launch([], None)
-    except GLib.Error as exc:
-        app_name = app_info.get_display_name() if app_info else None
-        log.bind(desktop_id=desktop_id, action="launch_app").warning(
-            "Failed to launch application %s: %s",
-            app_name,
-            exc,
-        )
+def _launch_app(
+    *,
+    app_info: ApplicationListing,
+    launcher: ApplicationLauncher,
+) -> bool:
+    """Launch a registry listing through the injected application launcher."""
+    return activate_listing(launcher, app_info)

@@ -32,6 +32,10 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from docking.core.items import APPLET_KIND
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.icons import IconLoader
+from docking.platform.targets import TargetService
 from docking.search.app_identity import application_id
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
@@ -56,7 +60,6 @@ from docking.search.providers import (
     WebSearchProvider,
     WindowSearchProvider,
 )
-from docking.search.services.application_catalog import ApplicationCatalog
 from docking.search.services.currency_rates import CurrencyRatesCatalog
 from docking.search.services.global_shortcuts import (
     GlobalShortcutActivation,
@@ -88,7 +91,6 @@ log = get_logger("search.controller")
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.backends.base import PreviewService, WindowService
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
 
@@ -106,18 +108,25 @@ class GlobalSearchController:
         self,
         *,
         config: Config,
-        launcher: Launcher,
         model: DockModel,
         windows: WindowService,
         preview_service: PreviewService,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._config = config
         self._model = model
         self._windows = windows
         self._preview_service = preview_service
-        self._application_catalog = ApplicationCatalog()
-        self._recent_files = RecentFilesCatalog()
+        self._application_registry = application_registry
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        self._application_launcher = application_launcher
+        self._application_registry_unsubscribe: Callable[[], None] | None = None
+        self._recent_files = RecentFilesCatalog(target_service=self._target_service)
         self._started = False
         self._current_query = ""
         self._selected_identity: SearchIdentity | None = None
@@ -139,13 +148,17 @@ class GlobalSearchController:
         # still be selected directly by the intent router.
         providers: tuple[InvokableSearchProvider, ...] = (
             ApplicationSearchProvider(
-                catalog=self._application_catalog,
-                launcher=launcher,
+                registry=self._application_registry,
+                application_launcher=self._application_launcher,
+                target_service=self._target_service,
                 model=model,
                 windows=windows,
                 recent_docs_limit=config.recent_docs_max,
             ),
-            DockSearchProvider(model=model),
+            DockSearchProvider(
+                model=model,
+                target_service=self._target_service,
+            ),
             WindowSearchProvider(windows=windows),
             CalculatorSearchProvider(copy_text=copy_text),
             ConverterSearchProvider(
@@ -155,11 +168,14 @@ class GlobalSearchController:
             RecentFilesSearchProvider(catalog=self._recent_files),
             TemporalSearchProvider(copy_text=copy_text),
             PathSearchProvider(
-                launcher=launcher,
+                target_service=self._target_service,
                 copy_text=copy_text,
                 icon_size=config.icon_size,
             ),
-            WebSearchProvider(copy_text=copy_text),
+            WebSearchProvider(
+                target_service=self._target_service,
+                copy_text=copy_text,
+            ),
         )
         self._provider_by_id = {
             provider.provider_id: provider for provider in providers
@@ -167,7 +183,7 @@ class GlobalSearchController:
         self._enabled_provider_ids: tuple[str, ...] = ()
         self._coordinator = self._new_coordinator()
         self.window = SearchWindow(
-            launcher=launcher,
+            icon_loader=self._icon_loader,
             on_query_changed=self._search,
             on_result_selected=self._select,
             on_result_activated=self._activate_primary,
@@ -293,10 +309,11 @@ class GlobalSearchController:
             return
         self._started = True
         self._shortcut_suspended = False
-        self._application_catalog.start()
+        self._application_registry_unsubscribe = self._application_registry.subscribe(
+            self._refresh_visible
+        )
         self._recent_files.start()
         self._model_signature = self._searchable_model_signature()
-        self._application_catalog.add_listener(self._refresh_visible)
         self._recent_files.add_listener(self._refresh_visible)
         self._currency_rates.add_listener(self._refresh_visible)
         self._model.add_change_listener(self._refresh_for_model_change)
@@ -313,11 +330,13 @@ class GlobalSearchController:
         self._shortcut_suspended = True
         self._stop_shortcut_services()
         self._model.remove_change_listener(self._refresh_for_model_change)
-        self._application_catalog.remove_listener(self._refresh_visible)
+        registry_unsubscribe = self._application_registry_unsubscribe
+        self._application_registry_unsubscribe = None
+        if registry_unsubscribe is not None:
+            registry_unsubscribe()
         self._recent_files.remove_listener(self._refresh_visible)
         self._currency_rates.remove_listener(self._refresh_visible)
         self._currency_rates.stop()
-        self._application_catalog.stop()
         self._recent_files.stop()
         self.window.destroy()
 

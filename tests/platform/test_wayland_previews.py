@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
 from docking.platform.backends.base import DisplayServer, PreviewImage, WindowId
 from docking.platform.backends.wayland import previews as preview_mod
 from docking.platform.backends.wayland.previews import (
@@ -14,25 +15,14 @@ from docking.platform.backends.wayland.previews import (
     WaylandPreviewHandleTracker,
     WaylandPreviewService,
 )
-
-
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "org.gnome.Nautilus.desktop": SimpleNamespace(
-            desktop_id="org.gnome.Nautilus.desktop"
-        ),
-    }
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(return_value=None),
-    )
+from tests.platform.application_fakes import identity_services
 
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(
+                DockItem(
                     desktop_id="org.gnome.Nautilus.desktop",
                     wm_class="org.gnome.Nautilus",
                 )
@@ -70,7 +60,7 @@ def test_wayland_preview_handle_tracker_matches_windows_to_capture_handles():
     protocol = SimpleNamespace(capture_available=True, start=MagicMock())
     tracker = WaylandPreviewHandleTracker(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         protocol=protocol,
     )
     handle = object()

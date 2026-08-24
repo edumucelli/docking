@@ -9,10 +9,9 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
@@ -26,12 +25,10 @@ from docking.applets.whatsapp.state import (
     tooltip_text,
 )
 from docking.i18n import _
-from docking.log import get_logger, with_context
+from docking.platform import targets
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-
-log = with_context(get_logger("whatsapp"), applet_id=meta.id)
 
 STARTUP_DELAY_S = 2
 
@@ -158,10 +155,7 @@ class WhatsAppApplet(Applet):
         self.present()
 
     def _open_in_browser(self) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(WHATSAPP_WEB_URL, None)
-        except GLib.Error as exc:
-            log.warning("Could not open WhatsApp Web in the browser: %s", exc)
+        targets.open_target(WHATSAPP_WEB_URL)
 
     def _confirm_disconnect(self) -> None:
         parent = self.popup_anchor.parent if self.popup_anchor else None

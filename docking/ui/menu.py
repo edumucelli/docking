@@ -162,7 +162,6 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
-import docking.platform.launcher as launcher_mod
 from docking.applets import get_applet_catalog
 from docking.applets.base import (
     ICON_SOURCE_DOCKING,
@@ -184,8 +183,8 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import icon_overrides
+from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.backends.base import DisplayServer
-from docking.platform.recent_docs import recent_docs_for_app
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -196,14 +195,16 @@ from docking.ui.settings import SettingsWindowController
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import (
         PreviewService,
         WindowId,
         WindowService,
         WindowSnapshot,
     )
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+    from docking.platform.targets import TargetService
     from docking.search.presenter import SearchPresenter
 
 
@@ -309,9 +310,11 @@ class MenuHandler:
         preview_service: PreviewService,
         folder_stack: FolderStackController,
         diagnostics: DiagnosticsDialogController,
-        launcher: Launcher,
         dock_window: Gtk.Window,
         search: SearchPresenter,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        target_service: TargetService,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -321,9 +324,11 @@ class MenuHandler:
         self._config = config
         self._tracker = window_tracker
         self._preview_service = preview_service
-        self._launcher = launcher
         self._dock_window = dock_window
         self._search = search
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        self._target_service = target_service
         self._folder_stack = folder_stack
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
@@ -530,7 +535,7 @@ class MenuHandler:
         if item.kind == FILE_KIND:
             open_item = Gtk.MenuItem(label=_("Open"))
             open_item.connect(
-                "activate", lambda _: launcher_mod.open_target(item.target)
+                "activate", lambda _: self._target_service.open_target(item.target)
             )
             menu.append(open_item)
             if item.is_pinned:
@@ -718,7 +723,7 @@ class MenuHandler:
         # Support
         support_item = Gtk.MenuItem(label=_("Get Support"))
         support_item.connect(
-            "activate", lambda _: launcher_mod.open_target(SUPPORT_URL)
+            "activate", lambda _: self._target_service.open_target(SUPPORT_URL)
         )
         menu.append(support_item)
 
@@ -729,19 +734,16 @@ class MenuHandler:
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
         """Append desktop actions (quicklists) from .desktop file, if any."""
-        if not self._launcher:
-            return
-
-        actions = launcher_mod.get_actions(desktop_id=desktop_id)
+        actions = self._application_launcher.quicklist_actions(desktop_id)
         if not actions:
             return
-        for action_id, label in actions:
-            mi = Gtk.MenuItem(label=label)
+        for action in actions:
+            mi = Gtk.MenuItem(label=action.name)
             # Capture by value via default arg
             mi.connect(
                 "activate",
-                lambda _, did=desktop_id, aid=action_id: launcher_mod.launch_action(
-                    desktop_id=did, action_id=aid
+                lambda _, did=desktop_id, aid=action.action_id: (
+                    self._application_launcher.launch_action(did, aid)
                 ),
             )
             menu.append(mi)
@@ -749,11 +751,11 @@ class MenuHandler:
 
     def _append_recent_docs(self, menu: Gtk.Menu, desktop_id: str) -> None:
         """Append a "Recent Documents" submenu for apps with recent file history."""
-        if not self._launcher:
+        application = self._application_registry.get(desktop_id)
+        if application is None:
             return
-        docs = recent_docs_for_app(
-            desktop_id=desktop_id,
-            launcher=self._launcher,
+        docs = recent_documents_for(
+            application,
             limit=self._config.recent_docs_max,
         )
         if not docs:
@@ -785,7 +787,10 @@ class MenuHandler:
             box.pack_start(ts, False, False, 0)
             row.add(box)
             uri = doc.uri
-            row.connect("activate", lambda _, u=uri: launcher_mod.open_target(u))
+            row.connect(
+                "activate",
+                lambda _, u=uri: self._target_service.open_target(u),
+            )
             submenu.append(row)
 
         submenu.append(Gtk.SeparatorMenuItem())
@@ -951,8 +956,8 @@ class MenuHandler:
             if not child.get("has_children", False):
                 row.connect(
                     "activate",
-                    lambda _, child_target=child["target"]: launcher_mod.open_target(
-                        child_target
+                    lambda _, child_target=child["target"]: (
+                        self._target_service.open_target(child_target)
                     ),
                 )
                 menu.append(row)
@@ -968,8 +973,8 @@ class MenuHandler:
         else:
             row.connect(
                 "activate",
-                lambda _, child_target=child["target"]: launcher_mod.open_target(
-                    child_target
+                lambda _, child_target=child["target"]: (
+                    self._target_service.open_target(child_target)
                 ),
             )
         menu.append(row)
@@ -997,7 +1002,7 @@ class MenuHandler:
         if menu_id in self._folder_menu_monitors:
             return
 
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         try:

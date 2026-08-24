@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import stat
-from types import SimpleNamespace
 
-from docking.platform import desktop_entries
+from docking.platform.applications import entries as desktop_entries
 
 
 def _make_executable(path) -> None:
@@ -51,59 +50,6 @@ class TestWineDesktopAliases:
     def test_wine_executable_aliases_ignores_non_wine_exec(self):
         assert desktop_entries.wine_executable_aliases("mono /tmp/tool.exe") == []
 
-    def test_desktop_info_replaces_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=env WINEPREFIX="/home/user/.wine" wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=Wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
-        assert desktop_entries.desktop_match_aliases(info) == [
-            "tool.exe",
-            "wine-program",
-            "tool",
-        ]
-
-    def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
-
 
 class TestGeneratedDesktopEntries:
     def test_appimage_path_creates_stable_desktop_id(self, tmp_path, monkeypatch):
@@ -145,15 +91,6 @@ class TestGeneratedDesktopEntries:
         assert "X-Docking-Generated=true\n" in text
         assert f"X-Docking-Source-Path={binary.resolve()}\n" in text
 
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id=generated.desktop_id,
-            path=generated.path,
-        )
-        assert info is not None
-        assert info.name == "my tool"
-        assert info.icon_name == "application-x-executable"
-        assert info.exec_line == f'"{binary.resolve()}"'
-
     def test_generated_file_can_preserve_runtime_wm_class(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"
         binary.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -188,26 +125,6 @@ class TestGeneratedDesktopEntries:
         assert generated is not None
         text = generated.path.read_text(encoding="utf-8")
         assert f"Icon={icon.resolve()}\n" in text
-
-    def test_existing_generated_app_info_recovers_sibling_icon(self, tmp_path):
-        binary = tmp_path / "tool"
-        binary.write_bytes(b"\x7fELF")
-        icon_path = tmp_path / "tool.svg"
-        icon_path.write_text("<svg/>", encoding="utf-8")
-        fallback_icon = SimpleNamespace(to_string=lambda: desktop_entries.FALLBACK_ICON)
-        app_info = SimpleNamespace(
-            get_icon=lambda: fallback_icon,
-            get_commandline=lambda: str(binary),
-            get_startup_wm_class=lambda: "SharedTool",
-            get_display_name=lambda: "Tool",
-        )
-
-        info = desktop_entries.desktop_info_from_app_info(
-            desktop_id="docking-generated-tool-123.desktop",
-            app_info=app_info,
-        )
-
-        assert info.icon_name == str(icon_path.resolve())
 
     def test_repeated_generation_is_idempotent(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"

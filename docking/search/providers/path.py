@@ -1,11 +1,12 @@
 """Resolve explicit local paths without crawling or indexing the filesystem.
 
 Participation requires path-shaped syntax such as an absolute path, home
-prefix, relative path, or local file URI. The launcher resolves and validates
-the target, then the provider emits one high-confidence file or folder result.
+prefix, relative path, or local file URI. The target service resolves and
+validates the target, then the provider emits one high-confidence file or
+folder result.
 Ordinary words never trigger directory traversal.
 
-Opening delegates to the platform launcher, copying uses the shared clipboard
+Opening delegates to the shared target service, copying uses the clipboard
 callback, and preview metadata is bounded by the preview subsystem. The target
 itself is the stable identity and canonical deduplication key.
 """
@@ -17,7 +18,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from docking.i18n import _
-from docking.platform.launcher import Launcher, normalize_file_target, open_target
+from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
 from docking.search.preview import preview_local_descriptor
 from docking.search.providers.base import action, action_parts, metadata
@@ -32,23 +33,29 @@ class PathSearchProvider:
     def __init__(
         self,
         *,
-        launcher: Launcher,
+        target_service: TargetService,
         copy_text: Callable[[str], None],
         icon_size: int,
     ) -> None:
         """Bind path resolution, open, copy, and icon-size dependencies."""
-        self._launcher = launcher
+        self._target_service = target_service
         self._copy_text = copy_text
         self._icon_size = icon_size
 
     def search(self, request: SearchRequest):
         """Resolve and yield one result when the query is an existing path."""
         text = request.query.text.strip()
-        target = _path_target(text)
+        target = _path_target(
+            text,
+            normalize=self._target_service.normalize_file_target,
+        )
         if target is None:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
-        info = self._launcher.resolve_file(target=target, size=self._icon_size)
+        info = self._target_service.resolve_file(
+            target=target,
+            size=self._icon_size,
+        )
         if info is None:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
@@ -102,7 +109,7 @@ class PathSearchProvider:
         ):
             return False
         if parts[1] == "open":
-            return open_target(parts[0])
+            return self._target_service.open_target(parts[0])
         if parts[1] == "copy":
             parsed = urlparse(parts[0])
             value = unquote(parsed.path) if parsed.scheme == "file" else parts[0]
@@ -111,15 +118,19 @@ class PathSearchProvider:
         return False
 
 
-def _path_target(text: str) -> str | None:
+def _path_target(
+    text: str,
+    *,
+    normalize: Callable[[str], str | None],
+) -> str | None:
     if text.startswith("file://"):
-        return normalize_file_target(text)
+        return normalize(text)
     if not text.startswith(("/", "~/", "./", "../")):
         return None
     path = Path(text).expanduser()
     if not path.exists():
         return None
-    return normalize_file_target(str(path))
+    return normalize(str(path))
 
 
 __all__ = ["PathSearchProvider"]

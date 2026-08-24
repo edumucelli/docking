@@ -5,24 +5,25 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
+from docking.platform.applications.types import (
+    ApplicationMatch,
+    MatchEvidence,
+    MatchMethod,
+)
 from docking.platform.backends.base import ActionResult
 from docking.platform.backends.cinnamon.muffin import MuffinWindowService
 from docking.platform.backends.cinnamon.session import CinnamonWaylandSessionBackend
+from tests.platform.application_fakes import identity_services
 
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
-            return_value=[
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox")
-            ]
+            return_value=[DockItem(desktop_id="firefox.desktop", wm_class="firefox")]
         ),
         update_running=MagicMock(),
     )
-
-
-def _launcher() -> SimpleNamespace:
-    return SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock())
 
 
 def _layer_shell() -> SimpleNamespace:
@@ -62,17 +63,28 @@ def test_muffin_window_service_publishes_read_only_state(monkeypatch):
     )
     service = MuffinWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
     )
+    application_match = ApplicationMatch(
+        desktop_id="firefox.desktop",
+        application=None,
+        evidence=MatchEvidence(
+            method=MatchMethod.DESKTOP_ID,
+            raw_app_id="firefox",
+        ),
+    )
+    match_result = MagicMock(return_value=application_match)
     monkeypatch.setattr(
         service._matcher,
-        "match",
-        MagicMock(return_value="firefox.desktop"),
+        "match_result",
+        match_result,
     )
 
     service.refresh()
 
+    match_result.assert_called_once_with("firefox", process_id=None)
+    assert service._windows[42].application_match is application_match
     snapshot = service.list_windows("firefox.desktop")[0]
     assert snapshot.active is True
     assert snapshot.urgent is True
@@ -105,15 +117,24 @@ def test_muffin_window_service_uses_snapshot_identity_fallbacks(monkeypatch):
     )
     service = MuffinWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
     )
-    match = MagicMock(return_value="firefox.desktop")
-    monkeypatch.setattr(service._matcher, "match", match)
+    application_match = ApplicationMatch(
+        desktop_id="firefox.desktop",
+        application=None,
+        evidence=MatchEvidence(
+            method=MatchMethod.WM_CLASS,
+            raw_app_id="Firefox",
+        ),
+    )
+    match_result = MagicMock(return_value=application_match)
+    monkeypatch.setattr(service._matcher, "match_result", match_result)
 
     service.refresh()
 
-    match.assert_called_once_with("Firefox")
+    match_result.assert_called_once_with("Firefox", process_id=None)
+    assert service._windows[42].application_match is application_match
     snapshot = service.list_windows("firefox.desktop")[0]
     assert snapshot.app_id == "Firefox"
 
@@ -126,7 +147,7 @@ def test_cinnamon_session_advertises_only_available_window_capabilities(monkeypa
     backend = CinnamonWaylandSessionBackend(
         layer_shell=_layer_shell(),
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=SimpleNamespace(list_windows=MagicMock(return_value=())),
     )
 

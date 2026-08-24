@@ -21,6 +21,8 @@ import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 import docking.ui.stack as stack_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
+from docking.platform import targets as targets_mod
+from docking.platform.applications.types import ActionSource, ApplicationAction
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -762,13 +764,20 @@ def handler(monkeypatch):
     tracker.list_windows.return_value = []
     preview_service = MagicMock()
     preview_service.thumbnail.return_value = None
-    launcher = MagicMock()
-    launcher.default_directory_app_name.return_value = None
+    application_registry = MagicMock()
+    application_launcher = MagicMock()
+    application_launcher.quicklist_actions.return_value = []
+    icon_loader = MagicMock()
+    target_service = MagicMock(icon_loader=icon_loader)
+    target_service.normalize_file_target.side_effect = lambda target: (
+        targets_mod.normalize_file_target(target)
+    )
+    target_service.default_directory_app_name.return_value = None
     folder_stack = folder_stack_mod.FolderStackController(
         config=config,
         runtime=runtime,
-        launcher=launcher,
         dock_window=runtime.window,
+        target_service=target_service,
     )
     return menu_mod.MenuHandler(
         about=about,
@@ -780,9 +789,11 @@ def handler(monkeypatch):
         preview_service=preview_service,
         folder_stack=folder_stack,
         diagnostics=MagicMock(),
-        launcher=launcher,
         dock_window=MagicMock(),
         search=MagicMock(),
+        application_registry=application_registry,
+        application_launcher=application_launcher,
+        target_service=target_service,
     )
 
 
@@ -1050,9 +1061,7 @@ class TestItemMenus:
             is_pinned=True,
         )
         opened: list[str] = []
-        monkeypatch.setattr(
-            menu_mod.launcher_mod, "open_target", lambda target: opened.append(target)
-        )
+        handler._target_service.open_target.side_effect = opened.append
 
         handler._append_directory_row(
             menu=menu,
@@ -1096,7 +1105,9 @@ class TestItemMenus:
             "directory_has_visible_children",
             lambda **_kwargs: False,
         )
-        handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
+        handler._folder_stack._icon_loader.resolve_file_icon.return_value = (
+            "folder-pixbuf"
+        )
         item = DockItem(
             desktop_id="file:///tmp/root",
             kind=FOLDER_KIND,
@@ -1109,7 +1120,7 @@ class TestItemMenus:
         )
 
         assert rows[0]["icon"] == "folder-pixbuf"
-        handler._launcher.resolve_file_icon.assert_called_once_with(
+        handler._folder_stack._icon_loader.resolve_file_icon.assert_called_once_with(
             target="file:///tmp/docs",
             gicon=gicon,
             content_type="inode/directory",
@@ -1143,7 +1154,9 @@ class TestItemMenus:
             "directory_has_visible_children",
             lambda **_kwargs: False,
         )
-        handler._launcher.resolve_file_icon.return_value = "folder-pixbuf"
+        handler._folder_stack._icon_loader.resolve_file_icon.return_value = (
+            "folder-pixbuf"
+        )
         item = DockItem(
             desktop_id="file:///tmp/root",
             kind=FOLDER_KIND,
@@ -1160,7 +1173,7 @@ class TestItemMenus:
 
         assert first == second
         folder.enumerate_children.assert_called_once()
-        handler._launcher.resolve_file_icon.assert_called_once()
+        handler._folder_stack._icon_loader.resolve_file_icon.assert_called_once()
 
     def test_file_item_menu_opens_target(self, handler, monkeypatch):
         menu = FakeMenu()
@@ -1172,9 +1185,7 @@ class TestItemMenus:
             is_pinned=True,
         )
         opened: list[str] = []
-        monkeypatch.setattr(
-            menu_mod.launcher_mod, "open_target", lambda target: opened.append(target)
-        )
+        handler._target_service.open_target.side_effect = opened.append
 
         handler._build_item_menu(menu=menu, item=item)
 
@@ -1204,8 +1215,6 @@ class TestItemMenus:
             width=menu_mod.WINDOW_MENU_THUMB_W,
             height=menu_mod.WINDOW_MENU_THUMB_H,
         )
-        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
-
         handler._build_item_menu(menu=menu, item=item)
 
         row = menu.children[0]
@@ -1267,7 +1276,6 @@ class TestItemMenus:
             )
         ]
         handler._preview_service.thumbnail.return_value = None
-        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
         idle_calls: list[tuple[object, tuple[object, ...]]] = []
         monkeypatch.setattr(
             menu_mod.GLib,
@@ -1317,8 +1325,6 @@ class TestItemMenus:
             ),
         ]
         handler._config.window_list_sort = "default"
-        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
-
         handler._build_item_menu(menu=menu, item=item)
 
         rows = [c for c in menu.children if getattr(c, "_window_row", False)]
@@ -1344,8 +1350,6 @@ class TestItemMenus:
             ),
         ]
         handler._config.window_list_sort = "alphabetical"
-        monkeypatch.setattr(menu_mod.launcher_mod, "get_actions", lambda **_kwargs: [])
-
         handler._build_item_menu(menu=menu, item=item)
 
         rows = [c for c in menu.children if getattr(c, "_window_row", False)]
@@ -1409,7 +1413,7 @@ class TestDockMenu:
         show_settings = MagicMock()
         handler._settings.show = show_settings
         open_target = MagicMock()
-        menu_mod.launcher_mod.open_target = open_target
+        handler._target_service.open_target = open_target
         next(mi for mi in menu.children if mi.get_label() == "Diagnostics").activate()
         show_diagnostics.assert_called_once()
 
@@ -1626,21 +1630,25 @@ class TestMenuCallbacks:
     def test_append_desktop_actions_triggers_launch_action(self, handler, monkeypatch):
         # Given
         menu = FakeMenu()
-        launch_calls: list[tuple[str, str]] = []
-        monkeypatch.setattr(
-            "docking.platform.launcher.get_actions",
-            lambda desktop_id: [("new-window", "New Window")],
-        )
-        monkeypatch.setattr(
-            "docking.platform.launcher.launch_action",
-            lambda desktop_id, action_id: launch_calls.append((desktop_id, action_id)),
-        )
+        handler._application_launcher.quicklist_actions.return_value = [
+            ApplicationAction(
+                action_id="new-window",
+                name="New Window",
+                sources=frozenset({ActionSource.GIO}),
+            )
+        ]
 
         handler._append_desktop_actions(menu=menu, desktop_id="firefox.desktop")
         # When
         next(mi for mi in menu.children if mi.get_label() == "New Window").activate()
         # Then
-        assert launch_calls == [("firefox.desktop", "new-window")]
+        handler._application_launcher.quicklist_actions.assert_called_once_with(
+            "firefox.desktop"
+        )
+        handler._application_launcher.launch_action.assert_called_once_with(
+            "firefox.desktop",
+            "new-window",
+        )
 
     def test_insert_index(self, handler):
         frame = _frame(item_index=0, insert_index=1)
@@ -1794,7 +1802,7 @@ class TestMenuCallbacks:
         monkeypatch.setattr(
             handler._folder_stack._browser, "target_state", lambda _target: "ok"
         )
-        handler._launcher.default_directory_app_name.return_value = "Caja"
+        handler._target_service.default_directory_app_name.return_value = "Caja"
         monkeypatch.setattr(
             handler._folder_stack,
             "_list_directory_rows",
@@ -1838,7 +1846,7 @@ class TestMenuCallbacks:
         monkeypatch.setattr(
             handler._folder_stack._browser, "target_state", lambda _target: "ok"
         )
-        handler._launcher.default_directory_app_name.return_value = None
+        handler._target_service.default_directory_app_name.return_value = None
         monkeypatch.setattr(
             handler._folder_stack,
             "_list_directory_rows",
@@ -2160,7 +2168,7 @@ class TestMenuCallbacks:
         self, handler, monkeypatch
     ):
         monkeypatch.setattr(
-            menu_mod.launcher_mod, "normalize_file_target", lambda _t: None
+            handler._target_service, "normalize_file_target", lambda _t: None
         )
         handler._folder_stack._track_folder_stack("invalid")
         assert handler._folder_stack._folder_stack_monitor is None
@@ -2168,7 +2176,7 @@ class TestMenuCallbacks:
         warned = MagicMock()
         monkeypatch.setattr(folder_stack_mod.log, "warning", warned)
         monkeypatch.setattr(
-            menu_mod.launcher_mod,
+            handler._target_service,
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )
@@ -2187,7 +2195,7 @@ class TestMenuCallbacks:
     def test_track_folder_stack_connects_monitor(self, handler, monkeypatch):
         monitor = FakeMonitor()
         monkeypatch.setattr(
-            menu_mod.launcher_mod,
+            handler._target_service,
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )
@@ -2208,7 +2216,7 @@ class TestMenuCallbacks:
         replacement = FakeMonitor()
         handler._folder_stack._folder_stack_monitor = previous
         monkeypatch.setattr(
-            menu_mod.launcher_mod,
+            handler._target_service,
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )
@@ -2609,7 +2617,7 @@ class TestMenuCallbacks:
         )
 
         opened: list[str] = []
-        monkeypatch.setattr(menu_mod.launcher_mod, "open_target", opened.append)
+        monkeypatch.setattr(handler._target_service, "open_target", opened.append)
         monkeypatch.setattr(
             handler._folder_stack,
             "_close_stack",
@@ -2619,12 +2627,12 @@ class TestMenuCallbacks:
         assert opened == ["file:///tmp/docs", "closed"]
 
         monkeypatch.setattr(
-            menu_mod.launcher_mod, "normalize_file_target", lambda _t: None
+            handler._target_service, "normalize_file_target", lambda _t: None
         )
         assert handler._folder_stack._browser.target_state("invalid") == "missing"
 
         monkeypatch.setattr(
-            menu_mod.launcher_mod,
+            handler._target_service,
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )
@@ -2719,7 +2727,7 @@ class TestMenuCallbacks:
                 return _Enumerator(self._infos)
 
         monkeypatch.setattr(
-            menu_mod.launcher_mod,
+            handler._target_service,
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )

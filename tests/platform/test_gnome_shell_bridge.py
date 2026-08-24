@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.backends.gnome.bridge as bridge_mod
+from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -19,29 +20,11 @@ from docking.platform.backends.gnome.bridge import (
     GnomeShellBridgeWindowService,
     GnomeShellBridgeWorkspaceService,
 )
+from tests.platform.application_fakes import identity_services
 
 
-def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
-    return SimpleNamespace(desktop_id=desktop_id, wm_class=wm_class)
-
-
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "org.gnome.Nautilus.desktop": SimpleNamespace(
-            desktop_id="org.gnome.Nautilus.desktop"
-        ),
-        "firefox.desktop": SimpleNamespace(desktop_id="firefox.desktop"),
-    }
-    aliases = {
-        "firefox": SimpleNamespace(desktop_id="firefox.desktop"),
-        "nautilus": SimpleNamespace(desktop_id="org.gnome.Nautilus.desktop"),
-    }
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(
-            side_effect=lambda wm_class: aliases.get(wm_class.lower())
-        ),
-    )
+def _item(desktop_id: str, wm_class: str = "") -> DockItem:
+    return DockItem(desktop_id=desktop_id, wm_class=wm_class)
 
 
 def _model(*items: SimpleNamespace) -> SimpleNamespace:
@@ -106,7 +89,7 @@ def test_gnome_shell_bridge_window_service_publishes_running_state_and_snapshots
     bridge = _bridge()
     service = GnomeShellBridgeWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         bridge=bridge,
     )
 
@@ -138,7 +121,7 @@ def test_gnome_shell_bridge_window_service_actions_call_bridge():
     bridge = _bridge()
     service = GnomeShellBridgeWindowService(
         model=_model(_item("org.gnome.Nautilus.desktop")),
-        launcher=_launcher(),
+        **identity_services(),
         bridge=bridge,
     )
     service.refresh()
@@ -159,7 +142,7 @@ def test_gnome_shell_bridge_window_service_actions_call_bridge():
 def test_gnome_shell_bridge_window_service_returns_not_found_for_unknown_window():
     service = GnomeShellBridgeWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         bridge=_bridge(),
     )
 

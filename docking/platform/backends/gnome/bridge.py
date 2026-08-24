@@ -32,7 +32,9 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -49,14 +51,10 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import (
-    RunningAppInfo,
-    RunningWindowInfo,
-    RuntimeAppIdentity,
-)
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 log = get_logger(name="backend.gnome.bridge")
@@ -228,7 +226,7 @@ class _BridgeWindow:
     bridge_id: int
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     minimized: bool
     maximized: bool
@@ -237,11 +235,18 @@ class _BridgeWindow:
     workspace_id: str | None
     geometry: Rect | None
     pid: int | None
-    runtime_app: RuntimeAppIdentity | None
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=f"gnome:{self.bridge_id}")
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 class GnomeShellBridgeWindowService(WindowService):
@@ -251,11 +256,15 @@ class GnomeShellBridgeWindowService(WindowService):
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         bridge: object,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._bridge = bridge
         self._windows_by_id: dict[int, _BridgeWindow] = {}
         self._changed_handle: object | None = None
@@ -378,13 +387,12 @@ class GnomeShellBridgeWindowService(WindowService):
         if pid is not None and pid <= 0:
             pid = None
         match = self._matcher.match_result(app_id, process_id=pid) if app_id else None
-        desktop_id = match.desktop_id if match is not None else None
         geometry = _rect_from_row(row)
         return _BridgeWindow(
             bridge_id=bridge_id,
             title=_str_from_row(row, "title") or "Window",
             app_id=app_id,
-            desktop_id=desktop_id,
+            application_match=match,
             active=_bool_from_row(row, "active"),
             minimized=_bool_from_row(row, "minimized"),
             maximized=_bool_from_row(row, "maximized"),
@@ -393,7 +401,6 @@ class GnomeShellBridgeWindowService(WindowService):
             workspace_id=_workspace_id_from_row(row),
             geometry=geometry,
             pid=pid,
-            runtime_app=match.runtime_app if match is not None else None,
         )
 
     def _publish_running(self) -> None:
@@ -409,7 +416,11 @@ class GnomeShellBridgeWindowService(WindowService):
                     active=window.active,
                     urgent=False,
                     window=window.bridge_id,
-                    runtime_app=window.runtime_app,
+                    runtime_app=(
+                        window.application_match.runtime_app
+                        if window.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
