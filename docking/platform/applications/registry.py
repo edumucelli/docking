@@ -232,19 +232,19 @@ class ApplicationRegistry:
                 return application
         return None
 
-    def add_listener(self, callback: RegistryListener) -> None:
+    def _add_listener(self, callback: RegistryListener) -> None:
         """Register a listener once."""
         if callback not in self._listeners:
             self._listeners.append(callback)
 
-    def remove_listener(self, callback: RegistryListener) -> None:
+    def _remove_listener(self, callback: RegistryListener) -> None:
         """Remove a listener if currently registered."""
         with suppress(ValueError):
             self._listeners.remove(callback)
 
     def subscribe(self, callback: RegistryListener) -> Callable[[], None]:
         """Register a listener and return an idempotent unsubscribe."""
-        self.add_listener(callback)
+        self._add_listener(callback)
         subscribed = True
 
         def unsubscribe() -> None:
@@ -252,7 +252,7 @@ class ApplicationRegistry:
             if not subscribed:
                 return
             subscribed = False
-            self.remove_listener(callback)
+            self._remove_listener(callback)
 
         return unsubscribe
 
@@ -390,7 +390,7 @@ class ApplicationRegistry:
             result.append(application)
         return tuple(result)
 
-    def default_listing_for_content_type(
+    def _default_listing_for_content_type(
         self,
         content_type: str,
     ) -> ApplicationInfo | UnidentifiedApplicationListing | None:
@@ -409,7 +409,7 @@ class ApplicationRegistry:
             return None
         return self._listing_for_content_type_result(app_info)
 
-    def recommended_listings_for_content_type(
+    def _recommended_listings_for_content_type(
         self,
         content_type: str,
     ) -> tuple[ApplicationInfo | UnidentifiedApplicationListing, ...]:
@@ -420,7 +420,7 @@ class ApplicationRegistry:
             action="recommended_listings_for_content_type",
         )
 
-    def all_listings_for_content_type(
+    def _all_listings_for_content_type(
         self,
         content_type: str,
     ) -> tuple[ApplicationInfo | UnidentifiedApplicationListing, ...]:
@@ -445,12 +445,12 @@ class ApplicationRegistry:
         self._assert_owner_thread("preferred_listing_for_content_types")
         ordered_types = tuple(content_types)
         for content_type in ordered_types:
-            listing = self.default_listing_for_content_type(content_type)
+            listing = self._default_listing_for_content_type(content_type)
             if listing is not None:
                 return listing
         for lookup in (
-            self.recommended_listings_for_content_type,
-            self.all_listings_for_content_type,
+            self._recommended_listings_for_content_type,
+            self._all_listings_for_content_type,
         ):
             for content_type in ordered_types:
                 listings = lookup(content_type)

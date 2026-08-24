@@ -303,7 +303,7 @@ def test_idless_tokens_rotate_without_public_change_and_reject_stale_rows():
     applications: list[object] = [first, second]
     registry = _registry(applications=applications)
     notifications: list[int] = []
-    registry.add_listener(lambda: notifications.append(registry.generation))
+    registry.subscribe(lambda: notifications.append(registry.generation))
 
     assert registry.refresh() is True
     generation = registry.generation
@@ -342,7 +342,7 @@ def test_unchanged_refresh_atomically_replaces_private_gio_handles():
     applications: list[object] = [first]
     registry = _registry(applications=applications)
     notifications: list[int] = []
-    registry.add_listener(lambda: notifications.append(registry.generation))
+    registry.subscribe(lambda: notifications.append(registry.generation))
 
     assert registry.refresh() is True
     generation = registry.generation
@@ -762,7 +762,7 @@ def test_failed_refresh_rolls_back_every_published_value(tmp_path):
     _write_desktop(apps / "stable.desktop", name="Stable")
     registry = _registry(directories=[apps])
     generations: list[int] = []
-    registry.add_listener(lambda: generations.append(registry.generation))
+    registry.subscribe(lambda: generations.append(registry.generation))
     assert registry.refresh() is True
     published_snapshot = registry.snapshot()
     published_map = registry.applications_by_id
@@ -789,15 +789,14 @@ def test_listener_subscription_is_unique_removable_and_idempotent(tmp_path):
     def listener() -> None:
         calls.append(registry.generation)
 
-    registry.add_listener(listener)
-    registry.add_listener(listener)
     unsubscribe = registry.subscribe(listener)
+    duplicate_unsubscribe = registry.subscribe(listener)
     assert registry.refresh() is True
     unsubscribe()
     unsubscribe()
     _write_desktop(apps / "second.desktop", name="Second")
     assert registry.refresh() is True
-    registry.remove_listener(listener)
+    duplicate_unsubscribe()
 
     assert calls == [1]
 
@@ -1005,7 +1004,7 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
         lambda _content_type, _must_support_uris: handler,
     )
 
-    listing = registry.default_listing_for_content_type("application/example")
+    listing = registry._default_listing_for_content_type("application/example")
 
     assert isinstance(listing, UnidentifiedApplicationListing)
     assert listing.name == "External Handler"
@@ -1050,7 +1049,7 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
         ],
     )
 
-    listings = registry.recommended_listings_for_content_type("application/example")
+    listings = registry._recommended_listings_for_content_type("application/example")
 
     assert listings[0] is registered
     assert [
@@ -1148,7 +1147,7 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
     )
 
     listings = [
-        registry.default_listing_for_content_type("application/example")
+        registry._default_listing_for_content_type("application/example")
         for _handler in handlers
     ]
     assert all(
@@ -1199,7 +1198,7 @@ def test_owner_thread_contract_rejects_mutating_gio_operations_from_workers():
     )
     registry = _registry(applications=[application])
     listener_threads: list[int] = []
-    registry.add_listener(lambda: listener_threads.append(get_ident()))
+    registry.subscribe(lambda: listener_threads.append(get_ident()))
     registry.refresh()
     owner_thread = get_ident()
 
@@ -1217,11 +1216,11 @@ def test_owner_thread_contract_rejects_mutating_gio_operations_from_workers():
         ),
         (
             "default_listing_for_content_type",
-            lambda: registry.default_listing_for_content_type("application/example"),
+            lambda: registry._default_listing_for_content_type("application/example"),
         ),
         (
             "recommended_listings_for_content_type",
-            lambda: registry.recommended_listings_for_content_type(
+            lambda: registry._recommended_listings_for_content_type(
                 "application/example"
             ),
         ),

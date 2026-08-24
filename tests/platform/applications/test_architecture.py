@@ -8,6 +8,7 @@ from pathlib import Path
 
 from docking.platform.applications.identity import ProcessIdentityService
 from docking.platform.applications.recents import RecentApplications
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 from docking.search.services.recent_files import RecentFilesCatalog
 
@@ -27,6 +28,16 @@ def test_stable_application_dependencies_are_required() -> None:
     )
     _required_parameter(RecentFilesCatalog, "target_service")
     _required_parameter(RecentApplications, "persistence")
+
+
+def test_registry_implementation_helpers_are_private() -> None:
+    assert {
+        "add_listener",
+        "remove_listener",
+        "default_listing_for_content_type",
+        "recommended_listings_for_content_type",
+        "all_listings_for_content_type",
+    }.isdisjoint(ApplicationRegistry.__dict__)
 
 
 def test_dnd_does_not_materialize_application_items_or_resolve_gio_apps() -> None:
