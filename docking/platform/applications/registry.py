@@ -32,6 +32,14 @@ RegistryListener = Callable[[], None]
 log = with_context(get_logger(name="application_registry"))
 
 
+def _content_handler_is_visible(app_info: object) -> bool:
+    return (
+        discovery.safe_call(app_info, "should_show") is not False
+        and not bool(discovery.safe_call(app_info, "get_is_hidden"))
+        and not bool(discovery.safe_call(app_info, "get_nodisplay"))
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class _RegistryState:
     generation: int
@@ -80,6 +88,7 @@ class ApplicationRegistry:
         self._desktop_directories_source = (
             desktop_directories_source or desktop_entries.desktop_dirs
         )
+        self._desktop_app_info_for_id = Gio.DesktopAppInfo.new
         self._desktop_app_info_from_filename = Gio.DesktopAppInfo.new_from_filename
         self._app_monitor_factory = Gio.AppInfoMonitor.get
         self._directory_monitor_factory = _monitor_directory
@@ -330,10 +339,7 @@ class ApplicationRegistry:
         retained_count = 0
         retained_limit = max(1, MAX_CONTENT_HANDLER_TOKENS)
         for app_info in app_infos or ():
-            should_show = discovery.safe_call(app_info, "should_show")
-            if should_show is False or bool(
-                discovery.safe_call(app_info, "get_is_hidden")
-            ):
+            if not _content_handler_is_visible(app_info):
                 continue
             registered = self._registered_application_for_content_type_result(app_info)
             if registered is not None:
@@ -343,8 +349,6 @@ class ApplicationRegistry:
                 result.append(registered)
                 continue
 
-            if bool(discovery.safe_call(app_info, "get_nodisplay")):
-                continue
             desktop_id = discovery.desktop_id(app_info)
             identity: tuple[str, object] = (
                 ("desktop-id", desktop_id) if desktop_id else ("object", id(app_info))
@@ -373,6 +377,7 @@ class ApplicationRegistry:
         result = discovery.discover(
             application_source=self._application_source,
             desktop_directories_source=self._desktop_directories_source,
+            desktop_app_info_for_id=self._desktop_app_info_for_id,
             desktop_app_info_from_filename=self._desktop_app_info_from_filename,
             handle_epoch=handle_epoch,
         )
@@ -435,11 +440,11 @@ class ApplicationRegistry:
         self,
         app_info: object | None,
     ) -> ApplicationInfo | TransientApplicationInfo | None:
-        if app_info is None:
+        if app_info is None or not _content_handler_is_visible(app_info):
             return None
         registered = self._registered_application_for_content_type_result(app_info)
         if registered is not None:
-            return registered
+            return registered if registered.visible else None
         return self._retain_content_listing(app_info)
 
     def _retain_content_listing(

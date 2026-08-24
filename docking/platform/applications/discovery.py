@@ -78,6 +78,7 @@ def discover(
     *,
     application_source: Callable[[], Iterable[object]],
     desktop_directories_source: Callable[[], Iterable[Path]],
+    desktop_app_info_for_id: Callable[[str], object | None],
     desktop_app_info_from_filename: Callable[[str], object | None],
     handle_epoch: int,
 ) -> DiscoveryResult:
@@ -119,10 +120,12 @@ def discover(
 
         app_info = gio_by_id.get(application_id)
         if app_info is None:
-            app_info = _app_info_from_filename(
-                path,
-                desktop_app_info_from_filename,
-            )
+            app_info = _app_info_for_id(application_id, desktop_app_info_for_id)
+            if app_info is None:
+                app_info = _app_info_from_filename(
+                    path,
+                    desktop_app_info_from_filename,
+                )
         else:
             consumed_gio_ids.add(application_id)
 
@@ -303,6 +306,7 @@ def application_from_gio(
 
     filename = desktop_filename(app_info)
     desktop_file = Path(filename).expanduser() if filename else fallback_path
+    visibility_facts = fallback_facts
     facts = fallback_facts
     if desktop_file is not None and desktop_file != fallback_path:
         facts = file_facts(desktop_file)
@@ -346,6 +350,7 @@ def application_from_gio(
         desktop_file=desktop_file,
         visible=(
             not _safe_bool_call(app_info, "get_nodisplay")
+            and (visibility_facts is None or not visibility_facts.no_display)
             and (facts is None or not facts.no_display)
         ),
         has_gio_source=True,
@@ -389,6 +394,20 @@ def _app_info_from_filename(
     except Exception as exc:
         log.bind(action="load_desktop_app_info", path=str(path)).debug(
             "Gio could not load desktop file: %s",
+            exc,
+        )
+        return None
+
+
+def _app_info_for_id(
+    desktop_id: str,
+    loader: Callable[[str], object | None],
+) -> object | None:
+    try:
+        return loader(desktop_id)
+    except Exception as exc:
+        log.bind(action="load_desktop_app_info", desktop_id=desktop_id).debug(
+            "Gio could not load desktop ID: %s",
             exc,
         )
         return None

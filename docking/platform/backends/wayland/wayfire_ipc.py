@@ -1064,7 +1064,7 @@ def _read_exact(sock: socket.socket, size: int) -> bytes:
 def _record_from_view(
     view: Mapping[str, JsonValue],
     *,
-    matcher: object,
+    matcher: AppIdMatcher | _NullMatcher,
     focused_id: int | None,
 ) -> WayfireWindowRecord | None:
     if not bool(view.get("mapped", True)):
@@ -1079,12 +1079,7 @@ def _record_from_view(
         return None
     app_id = str(view.get("app-id", "") or "").strip()
     pid = _optional_int(view.get("pid"))
-    match_result = getattr(matcher, "match_result", None)
-    match = (
-        match_result(app_id, process_id=pid)
-        if app_id and callable(match_result)
-        else None
-    )
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
     wset_index = view.get("wset-index")
     workspace_id = str(wset_index) if wset_index not in (None, -1, "") else None
     return WayfireWindowRecord(
@@ -1178,7 +1173,11 @@ class _NullMatcher:
     """Matcher used by picking, where desktop-id resolution is optional."""
 
     @staticmethod
-    def match(_app_id: str) -> str | None:
+    def match_result(
+        _app_id: str,
+        *,
+        process_id: int | None = None,
+    ) -> ApplicationMatch | None:
         return None
 
 

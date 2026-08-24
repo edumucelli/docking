@@ -48,6 +48,7 @@ class _GioApplication:
         actions: dict[str, str] | None = None,
         hidden: bool = False,
         no_display: bool = False,
+        should_show: bool = True,
     ) -> None:
         self.desktop_id = desktop_id
         self.name = name
@@ -62,6 +63,7 @@ class _GioApplication:
         self.actions = actions or {}
         self.hidden = hidden
         self.no_display = no_display
+        self.visible_in_menus = should_show
 
     def get_id(self) -> str:
         return self.desktop_id
@@ -104,6 +106,9 @@ class _GioApplication:
 
     def get_nodisplay(self) -> bool:
         return self.no_display
+
+    def should_show(self) -> bool:
+        return self.visible_in_menus
 
 
 class _SignalSource:
@@ -163,6 +168,7 @@ def _registry(
         application_source=lambda: list(applications or ()),
         desktop_directories_source=lambda: list(directories or ()),
     )
+    registry._desktop_app_info_for_id = lambda _desktop_id: None
     registry._desktop_app_info_from_filename = lambda _path: None
     return registry
 
@@ -482,6 +488,52 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
         "First Source",
         "No Icon",
     ]
+
+
+def test_file_only_id_uses_canonical_gio_metadata_without_losing_xdg_mask(
+    tmp_path,
+):
+    first = tmp_path / "first" / "applications"
+    second = tmp_path / "second" / "applications"
+    first_path = first / "duplicate.desktop"
+    second_path = second / "duplicate.desktop"
+    _write_desktop(
+        first_path,
+        name="Higher-priority masked entry",
+        exec_line="higher-priority",
+        extra="NoDisplay=true\n",
+    )
+    _write_desktop(
+        second_path,
+        name="Lower-priority entry",
+        exec_line="lower-priority",
+    )
+    canonical = _GioApplication(
+        "duplicate.desktop",
+        name="Gio canonical entry",
+        filename=str(second_path),
+        icon="canonical-icon",
+        wm_class="CanonicalClass",
+        commandline="canonical-command",
+    )
+    registry = _registry(directories=[first, second])
+    registry._desktop_app_info_for_id = lambda _desktop_id: canonical
+    from_filename = MagicMock()
+    registry._desktop_app_info_from_filename = from_filename
+
+    registry.refresh()
+
+    application = registry.get("duplicate.desktop")
+    assert application is not None
+    assert application.name == "Gio canonical entry"
+    assert application.desktop_file == second_path
+    assert application.exec_line == "canonical-command"
+    assert application.declared_icon == "canonical-icon"
+    assert application.wm_class == "CanonicalClass"
+    assert application.visible is False
+    assert application not in registry.snapshot()
+    assert registry._gio_handle_for("duplicate.desktop") is canonical
+    from_filename.assert_not_called()
 
 
 def test_alias_candidates_follow_directory_source_order_not_snapshot_names(
@@ -990,6 +1042,71 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
     assert listing.generic_name == "Media Handler"
     assert registry._gio_handle_for_unidentified(listing.listing_key) is handler
     assert registry.get(desktop_id) is None
+
+
+def test_default_listing_skips_registered_application_masked_by_no_display(
+    tmp_path,
+    monkeypatch,
+):
+    applications = tmp_path / "applications"
+    _write_desktop(
+        applications / "masked.desktop",
+        name="Masked",
+        extra="NoDisplay=true\n",
+    )
+    masked_handler = _GioApplication(
+        "masked.desktop",
+        name="Masked",
+        commandline="masked",
+    )
+    fallback_handler = _GioApplication(
+        "fallback.desktop",
+        name="Fallback",
+        commandline="fallback",
+    )
+    registry = _registry(
+        applications=[masked_handler, fallback_handler],
+        directories=[applications],
+    )
+    registry.refresh()
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_default_for_type",
+        lambda _content_type, _must_support_uris: masked_handler,
+    )
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_recommended_for_type",
+        lambda _content_type: [fallback_handler],
+    )
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_all_for_type",
+        lambda _content_type: [],
+    )
+
+    listing = registry.preferred_listing_for_content_types(("audio/mpeg",))
+
+    assert listing is registry.get("fallback.desktop")
+
+
+def test_default_listing_skips_unregistered_handler_when_gio_hides_it(monkeypatch):
+    registry = _registry()
+    registry.refresh()
+    hidden_handler = _GioApplication(
+        "unregistered.desktop",
+        name="Hidden",
+        commandline="hidden",
+        should_show=False,
+    )
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_default_for_type",
+        lambda _content_type, _must_support_uris: hidden_handler,
+    )
+
+    assert registry._default_listing_for_content_type("audio/mpeg") is None
+    assert registry._content_gio_handles == {}
 
 
 def test_launchable_recommended_handlers_include_registered_idless_and_unregistered(
