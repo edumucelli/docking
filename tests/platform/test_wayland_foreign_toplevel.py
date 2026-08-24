@@ -18,7 +18,15 @@ from tests.platform.application_fakes import application, identity_services
 
 
 def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
-    return SimpleNamespace(desktop_id=desktop_id, kind="app", wm_class=wm_class)
+    return SimpleNamespace(
+        desktop_id=desktop_id,
+        kind="app",
+        name=desktop_id,
+        icon_name="",
+        wm_class=wm_class,
+        exec_line="",
+        application_info=None,
+    )
 
 
 def _matcher() -> AppIdMatcher:
@@ -30,6 +38,11 @@ def _matcher() -> AppIdMatcher:
         registry=services["application_registry"],
         process_identity_service=services["process_identity_service"],
     )
+
+
+def _match_id(matcher: AppIdMatcher, app_id: str) -> str | None:
+    result = matcher.match_result(app_id)
+    return result.desktop_id if result is not None else None
 
 
 def _model(*items: SimpleNamespace) -> SimpleNamespace:
@@ -53,23 +66,23 @@ def test_wayland_app_id_matcher_prefers_visible_items():
     matcher = _matcher()
     matcher.sync_visible_items([_item("org.gnome.Nautilus.desktop")])
 
-    assert matcher.match("org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
+    assert _match_id(matcher, "org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
 
 
 def test_wayland_app_id_matcher_falls_back_to_registry_aliases():
     matcher = _matcher()
     matcher.sync_visible_items([])
 
-    assert matcher.match("firefox") == "firefox.desktop"
-    assert matcher.match("unknown") is None
+    assert _match_id(matcher, "firefox") == "firefox.desktop"
+    assert _match_id(matcher, "unknown") is None
 
 
 def test_wayland_app_id_matcher_handles_snap_container_app_ids():
     matcher = _matcher()
     matcher.sync_visible_items([])
 
-    assert matcher.match("firefox_firefox.desktop") == "firefox.desktop"
-    assert matcher.match("firefox_firefox") == "firefox.desktop"
+    assert _match_id(matcher, "firefox_firefox.desktop") == "firefox.desktop"
+    assert _match_id(matcher, "firefox_firefox") == "firefox.desktop"
 
 
 def test_foreign_toplevel_service_publishes_running_state_and_snapshots():

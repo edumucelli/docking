@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.backends.wayland.wayfire_ipc as wayfire_ipc
+from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireIpcClient,
@@ -23,8 +24,8 @@ def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox"),
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
             ]
         ),
         update_running=MagicMock(),

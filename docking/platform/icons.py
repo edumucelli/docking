@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -25,7 +24,6 @@ HOST_PIXMAP_DIRS = tuple(f"{data_dir}/pixmaps" for data_dir in HOST_XDG_DATA_DIR
 HOST_FILESYSTEM_ROOT = desktop_entries.HOST_FILESYSTEM_ROOT
 ICON_FILE_EXTENSIONS = (".png", ".svg", ".xpm")
 
-FileTargetNormalizer = Callable[[str], str | None]
 log = with_context(get_logger(name="icons"))
 
 
@@ -88,21 +86,10 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
         return None
 
 
-def _application_icon_fields(info: ApplicationInfo) -> tuple[str, str, str]:
-    return info.desktop_id, dock_icon_name(info), info.exec_line
-
-
 class IconLoader:
     """Load and cache desktop, theme, GIcon, and file thumbnail icons."""
 
-    def __init__(
-        self,
-        *,
-        normalize_file_target: FileTargetNormalizer | None = None,
-    ) -> None:
-        self._normalize_file_target = (
-            normalize_file_target or _normalize_file_target_for_icon
-        )
+    def __init__(self) -> None:
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
@@ -137,7 +124,9 @@ class IconLoader:
         size: int,
     ) -> GdkPixbuf.Pixbuf | None:
         """Load an application icon from canonical metadata with fallbacks."""
-        desktop_id, icon_name, exec_line = _application_icon_fields(info)
+        desktop_id = info.desktop_id
+        icon_name = dock_icon_name(info)
+        exec_line = info.exec_line
         key = (f"desktop:{desktop_id}:{icon_name}:{exec_line}", size)
         if key in self._icon_cache:
             return self._icon_cache[key]
@@ -196,7 +185,7 @@ class IconLoader:
     ) -> GdkPixbuf.Pixbuf | None:
         """Resolve a file target icon, preferring image thumbnails when possible."""
         if not is_dir and content_type.lower().startswith("image/"):
-            uri = self._normalize_file_target(target)
+            uri = _normalize_file_target_for_icon(target)
             if uri is not None:
                 path = Path(unquote(urlparse(uri).path))
                 if path.exists():

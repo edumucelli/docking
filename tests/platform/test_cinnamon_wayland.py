@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
 from docking.platform.applications.types import (
     ApplicationMatch,
     MatchEvidence,
@@ -19,9 +20,7 @@ from tests.platform.application_fakes import identity_services
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
-            return_value=[
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox")
-            ]
+            return_value=[DockItem(desktop_id="firefox.desktop", wm_class="firefox")]
         ),
         update_running=MagicMock(),
     )

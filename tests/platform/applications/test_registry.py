@@ -813,7 +813,6 @@ def test_monitoring_debounces_and_rejects_stale_lifecycle_callbacks(tmp_path):
     registry.start()
     registry.start()
 
-    assert registry.started is True
     assert generations == [1]
     assert len(app_monitor.callbacks) == 1
     assert len(directory_monitors) == 1
@@ -831,7 +830,6 @@ def test_monitoring_debounces_and_rejects_stale_lifecycle_callbacks(tmp_path):
     registry.stop()
     registry.stop()
 
-    assert registry.started is False
     assert scheduler.cancelled == [2]
     assert app_monitor.disconnected == [1]
     assert directory_monitors[0].cancelled is True

@@ -268,8 +268,9 @@ class RecentApplications:
 
     def _is_resolvable(self, desktop_id: str) -> bool:
         application = self._registry.get(desktop_id)
-        return application is not None and (
-            getattr(application, "origin", None) is not ApplicationOrigin.RUNTIME
+        return (
+            application is not None
+            and application.origin is not ApplicationOrigin.RUNTIME
         )
 
 

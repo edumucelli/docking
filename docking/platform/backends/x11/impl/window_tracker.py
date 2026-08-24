@@ -218,11 +218,6 @@ class WindowMatcher:
         """Refresh pinned/transient alias hints from current dock items."""
         self._app_matcher.sync_visible_items(items)
 
-    def match(self, window: Wnck.Window) -> str | None:
-        """Return the desktop ID for a window, or None when no match is known."""
-        result = self.match_result(window)
-        return result.desktop_id if result is not None else None
-
     def match_result(self, window: Wnck.Window) -> ApplicationMatch | None:
         """Return structured identity, including runtime-only app metadata."""
         class_group = self._class_group_for(window=window)

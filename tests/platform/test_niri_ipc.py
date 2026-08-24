@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -35,8 +36,8 @@ def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox"),
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
             ]
         ),
         update_running=MagicMock(),

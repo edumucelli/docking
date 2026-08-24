@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -105,11 +105,6 @@ class ApplicationRegistry:
         """Return the current immutable generation number."""
         return self._state.generation
 
-    @property
-    def started(self) -> bool:
-        """Return whether application monitoring is active."""
-        return self._started
-
     def snapshot(self) -> tuple[ApplicationInfo, ...]:
         """Return visible applications in stable presentation order."""
         return self._state.visible
@@ -150,19 +145,10 @@ class ApplicationRegistry:
                 return application
         return None
 
-    def _add_listener(self, callback: RegistryListener) -> None:
-        """Register a listener once."""
-        if callback not in self._listeners:
-            self._listeners.append(callback)
-
-    def _remove_listener(self, callback: RegistryListener) -> None:
-        """Remove a listener if currently registered."""
-        with suppress(ValueError):
-            self._listeners.remove(callback)
-
     def subscribe(self, callback: RegistryListener) -> Callable[[], None]:
         """Register a listener and return an idempotent unsubscribe."""
-        self._add_listener(callback)
+        if callback not in self._listeners:
+            self._listeners.append(callback)
         subscribed = True
 
         def unsubscribe() -> None:
@@ -170,7 +156,8 @@ class ApplicationRegistry:
             if not subscribed:
                 return
             subscribed = False
-            self._remove_listener(callback)
+            with suppress(ValueError):
+                self._listeners.remove(callback)
 
         return unsubscribe
 
@@ -191,26 +178,15 @@ class ApplicationRegistry:
         self._loaded = True
         self._content_token_serial = 0
         if changed:
-            self._state = _RegistryState(
+            self._state = replace(
+                built,
                 generation=current.generation + 1,
-                handle_epoch=handle_epoch,
-                applications_by_id=built.applications_by_id,
-                visible=built.visible,
-                wm_class_index=built.wm_class_index,
-                desktop_file_index=built.desktop_file_index,
-                gio_handles=built.gio_handles,
-                unidentified=built.unidentified,
-                unidentified_gio_handles=built.unidentified_gio_handles,
             )
             self._notify_listeners()
         else:
-            self._state = _RegistryState(
-                generation=current.generation,
+            self._state = replace(
+                current,
                 handle_epoch=handle_epoch,
-                applications_by_id=current.applications_by_id,
-                visible=current.visible,
-                wm_class_index=current.wm_class_index,
-                desktop_file_index=current.desktop_file_index,
                 gio_handles=built.gio_handles,
                 unidentified=built.unidentified,
                 unidentified_gio_handles=built.unidentified_gio_handles,
@@ -382,11 +358,11 @@ class ApplicationRegistry:
             retained_count += 1
         return tuple(result)
 
-    def _gio_handle_for(self, desktop_id: str) -> object | None:
+    def _gio_handle_for(self, desktop_id: str) -> Any | None:
         """Return a generation-owned Gio handle for future main-thread services."""
         return self._state.gio_handles.get(desktop_id)
 
-    def _gio_handle_for_unidentified(self, listing_key: str) -> object | None:
+    def _gio_handle_for_unidentified(self, listing_key: str) -> Any | None:
         """Return the private Gio handle for an opaque launchable listing."""
         handle = self._state.unidentified_gio_handles.get(listing_key)
         if handle is not None:

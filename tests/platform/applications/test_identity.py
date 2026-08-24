@@ -66,15 +66,22 @@ def test_service_uses_injected_executable_resolver_and_shared_store():
     assert identity.executable_path == executable
     assert identity.launch is not None
     assert identity.launch.desktop_id == "tool.desktop"
-    assert service.provenance_store is store
 
 
 def test_service_preserves_an_explicit_empty_store_instance():
     store = LaunchProvenanceStore()
-
     service = ProcessIdentityService(store)
+    store.record_launch(
+        process=SimpleNamespace(pid=42, poll=lambda: None),
+        desktop_id="tool.desktop",
+        executable_path=None,
+    )
 
-    assert service.provenance_store is store
+    identity = service.identity_for_pid(42)
+
+    assert identity is not None
+    assert identity.launch is not None
+    assert identity.launch.desktop_id == "tool.desktop"
 
 
 def test_identity_reads_current_process_executable():
@@ -105,7 +112,6 @@ def test_store_is_bounded_and_live_reads_refresh_order():
     assert store.provenance_for_pid(1) is not None
     assert store.provenance_for_pid(2) is None
     assert store.provenance_for_pid(3) is not None
-    assert len(store) == 2
 
 
 def test_finished_pruning_preserves_legacy_poll_semantics():
@@ -145,7 +151,7 @@ def test_finished_pruning_preserves_legacy_poll_semantics():
     assert store.provenance_for_pid(4) is not None
 
 
-def test_concurrent_record_read_prune_and_clear_remain_consistent():
+def test_concurrent_record_read_and_prune_remain_consistent():
     store = LaunchProvenanceStore(max_records=32)
 
     def exercise(pid: int) -> None:
@@ -159,6 +165,5 @@ def test_concurrent_record_read_prune_and_clear_remain_consistent():
     with ThreadPoolExecutor(max_workers=12) as executor:
         tuple(executor.map(exercise, range(1, 257)))
 
-    assert len(store) <= 32
-    store.clear()
-    assert len(store) == 0
+    retained = sum(store.provenance_for_pid(pid) is not None for pid in range(1, 257))
+    assert retained <= 32

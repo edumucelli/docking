@@ -169,7 +169,6 @@ from docking.core.items import (
     FILE_KIND,
     FOLDER_KIND,
     DockItem,
-    IconPixmapLike,
 )
 from docking.core.math import clamp
 from docking.log import get_logger, with_context
@@ -194,7 +193,7 @@ if TYPE_CHECKING:
     from docking.platform.applications.launcher import ApplicationLauncher
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.icons import IconLoader
-    from docking.platform.targets import FileTargetInfo, TargetService
+    from docking.platform.targets import TargetService
 
 log = with_context(get_logger(name="model"))
 
@@ -287,28 +286,6 @@ class DockModel:
         self._recent_applications.load(pinned_ids=self._pinned_ids())
         self._materialize_recent_apps()
 
-    @property
-    def application_registry(self) -> ApplicationRegistry:
-        """Return the canonical registry borrowed by production composition."""
-        return self._application_registry
-
-    @property
-    def icon_loader(self) -> IconLoader:
-        """Return the canonical icon loader borrowed by production composition."""
-        return self._icon_loader
-
-    @property
-    def target_service(self) -> TargetService:
-        """Return the canonical target service borrowed by production composition."""
-        return self._target_service
-
-    def _load_application_icon(
-        self,
-        application: ApplicationInfo,
-        size: int,
-    ) -> IconPixmapLike | None:
-        return self._icon_loader.load_desktop_icon(info=application, size=size)
-
     @staticmethod
     def _apply_application_metadata(
         item: DockItem,
@@ -319,18 +296,6 @@ class DockModel:
         item.icon_name = dock_icon_name(application)
         item.wm_class = application.wm_class
         item.exec_line = application.exec_line
-
-    def _load_icon(self, icon_name: str, size: int) -> IconPixmapLike | None:
-        return self._icon_loader.load_icon(icon_name=icon_name, size=size)
-
-    def _load_icon_file(self, path: Path, size: int) -> IconPixmapLike | None:
-        return self._icon_loader.load_icon_file(path=path, size=size)
-
-    def _resolve_file(self, target: str, size: int) -> FileTargetInfo | None:
-        return self._target_service.resolve_file(target=target, size=size)
-
-    def _refresh_application_registry(self) -> None:
-        self._application_registry.refresh()
 
     def add_change_listener(self, callback: Callable[[], None]) -> None:
         """Register a callback fired whenever model-visible state changes.
@@ -438,7 +403,10 @@ class DockModel:
             application = self._application_registry.get(entry.target)
             if application is None:
                 return None
-            icon = self._load_application_icon(application, icon_size)
+            icon = self._icon_loader.load_desktop_icon(
+                info=application,
+                size=icon_size,
+            )
             item = DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
@@ -453,7 +421,10 @@ class DockModel:
             )
             return self._apply_icon_override(item=item)
 
-        info = self._resolve_file(entry.target, icon_size)
+        info = self._target_service.resolve_file(
+            target=entry.target,
+            size=icon_size,
+        )
         if info is None:
             icon_name = fallback_file_icon_name(is_dir=entry.kind == FOLDER_KIND)
             item = DockItem(
@@ -463,7 +434,10 @@ class DockModel:
                 name=entry.target,
                 icon_name=icon_name,
                 is_pinned=True,
-                icon=self._load_icon(icon_name, icon_size),
+                icon=self._icon_loader.load_icon(
+                    icon_name=icon_name,
+                    size=icon_size,
+                ),
                 prefs_key=entry.target,
             )
             return self._apply_icon_override(item=item)
@@ -486,9 +460,12 @@ class DockModel:
         application = runtime or self._application_registry.get(desktop_id)
         icon_size = self._config.scaled_icon_size
         icon = (
-            self._load_application_icon(application, icon_size)
+            self._icon_loader.load_desktop_icon(info=application, size=icon_size)
             if application is not None
-            else self._load_icon("application-x-executable", icon_size)
+            else self._icon_loader.load_icon(
+                icon_name="application-x-executable",
+                size=icon_size,
+            )
         )
         runtime_executable = (
             str(application.executable_path)
@@ -537,19 +514,31 @@ class DockModel:
             )
             if application is None:
                 item.icon_name = item.icon_name or "application-x-executable"
-                item.icon = self._load_icon(item.icon_name, icon_size)
+                item.icon = self._icon_loader.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
                 return
             self._apply_application_metadata(item, application)
-            item.icon = self._load_application_icon(application, icon_size)
+            item.icon = self._icon_loader.load_desktop_icon(
+                info=application,
+                size=icon_size,
+            )
             return
 
         if item.kind in {FILE_KIND, FOLDER_KIND}:
-            info = self._resolve_file(item.target, icon_size)
+            info = self._target_service.resolve_file(
+                target=item.target,
+                size=icon_size,
+            )
             if info is None:
                 item.icon_name = fallback_file_icon_name(
                     is_dir=item.kind == FOLDER_KIND,
                 )
-                item.icon = self._load_icon(item.icon_name, icon_size)
+                item.icon = self._icon_loader.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
                 return
             item.target = info.target
             item.name = info.name
@@ -563,7 +552,10 @@ class DockModel:
         path = icon_overrides.custom_icon_path(config=self._config, item=item)
         if path is None:
             return item
-        icon = self._load_icon_file(path, self._config.scaled_icon_size)
+        icon = self._icon_loader.load_icon_file(
+            path=path,
+            size=self._config.scaled_icon_size,
+        )
         if icon is not None:
             item.icon = icon
             item.icon_name = path.name
@@ -1124,7 +1116,11 @@ class DockModel:
         if (
             not selected.is_absolute()
             or not selected.is_file()
-            or self._load_icon_file(selected, self._config.scaled_icon_size) is None
+            or self._icon_loader.load_icon_file(
+                path=selected,
+                size=self._config.scaled_icon_size,
+            )
+            is None
         ):
             return False
         icon_overrides.set_custom_icon(config=self._config, item=item, path=selected)
@@ -1267,9 +1263,9 @@ class DockModel:
                 if runtime.executable_path is not None
                 else ""
             )
-            item.icon = self._load_application_icon(
-                runtime,
-                self._config.scaled_icon_size,
+            item.icon = self._icon_loader.load_desktop_icon(
+                info=runtime,
+                size=self._config.scaled_icon_size,
             )
             self._apply_icon_override(item=item)
         item.is_running = True
@@ -1407,7 +1403,7 @@ class DockModel:
         )
         if generated is None or generated.desktop_id != item.desktop_id:
             return False
-        self._refresh_application_registry()
+        self._application_registry.refresh()
         application = self._application_registry.get(generated.desktop_id)
         if application is None:
             return False
@@ -1415,9 +1411,9 @@ class DockModel:
         item.prefs_key = generated.desktop_id
         self._apply_application_metadata(item, application)
         item.runtime_executable = ""
-        item.icon = self._load_application_icon(
-            application,
-            self._config.scaled_icon_size,
+        item.icon = self._icon_loader.load_desktop_icon(
+            info=application,
+            size=self._config.scaled_icon_size,
         )
         return True
 

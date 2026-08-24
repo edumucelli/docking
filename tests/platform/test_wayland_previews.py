@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
 from docking.platform.backends.base import DisplayServer, PreviewImage, WindowId
 from docking.platform.backends.wayland import previews as preview_mod
 from docking.platform.backends.wayland.previews import (
@@ -21,7 +22,7 @@ def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(
+                DockItem(
                     desktop_id="org.gnome.Nautilus.desktop",
                     wm_class="org.gnome.Nautilus",
                 )

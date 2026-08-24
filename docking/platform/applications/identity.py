@@ -50,7 +50,7 @@ def parse_application_uri(app_uri: str) -> str | None:
 
 
 def _valid_pid(pid: object) -> TypeGuard[int]:
-    """Preserve the legacy positive-int PID contract, excluding booleans."""
+    """Accept only positive integer PIDs, excluding booleans."""
     return isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
 
 
@@ -76,12 +76,6 @@ class LaunchProvenanceStore:
         self._max_records = max_records
         self._records: OrderedDict[int, _LaunchRecord] = OrderedDict()
         self._lock = RLock()
-
-    @property
-    def max_records(self) -> int:
-        """Return the configured record bound."""
-        with self._lock:
-            return self._max_records
 
     def record_launch(
         self,
@@ -123,16 +117,6 @@ class LaunchProvenanceStore:
             self._records.move_to_end(pid)
             return record.provenance
 
-    def clear(self) -> None:
-        """Discard all records."""
-        with self._lock:
-            self._records.clear()
-
-    def __len__(self) -> int:
-        """Return the current record count under the store lock."""
-        with self._lock:
-            return len(self._records)
-
     def _prune_finished_locked(self) -> None:
         """Prune records while the caller holds ``_lock``."""
         for pid, record in tuple(self._records.items()):
@@ -155,11 +139,6 @@ class ProcessIdentityService:
             if executable_resolver is not None
             else _process_executable_path
         )
-
-    @property
-    def provenance_store(self) -> LaunchProvenanceStore:
-        """Return the store shared with the application launcher."""
-        return self._provenance_store
 
     def identity_for_pid(self, pid: int | None) -> ProcessIdentity | None:
         """Return available identity evidence for *pid* without raising."""

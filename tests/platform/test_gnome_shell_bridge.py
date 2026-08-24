@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.backends.gnome.bridge as bridge_mod
+from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -22,8 +23,8 @@ from docking.platform.backends.gnome.bridge import (
 from tests.platform.application_fakes import identity_services
 
 
-def _item(desktop_id: str, wm_class: str = "") -> SimpleNamespace:
-    return SimpleNamespace(desktop_id=desktop_id, wm_class=wm_class)
+def _item(desktop_id: str, wm_class: str = "") -> DockItem:
+    return DockItem(desktop_id=desktop_id, wm_class=wm_class)
 
 
 def _model(*items: SimpleNamespace) -> SimpleNamespace:

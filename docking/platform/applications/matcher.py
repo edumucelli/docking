@@ -125,7 +125,7 @@ _GENERIC_BUNDLE_ROOTS = frozenset(
 
 
 def _application_executable_path(application: ApplicationInfo) -> Path | None:
-    """Resolve the current executable target declared by an application."""
+    """Resolve the application's current executable target."""
     return desktop_entries.executable_path_from_exec_line(application.exec_line)
 
 
@@ -214,51 +214,32 @@ class AppIdMatcher:
         self._missed_candidates: set[str] = set()
         self._registry_generation = self._registry.generation
 
-    @property
-    def registry(self) -> ApplicationRegistry:
-        """Return the exact registry borrowed by this matcher."""
-        return self._registry
-
-    @property
-    def process_identity_service(self) -> ProcessIdentityService:
-        """Return the exact process identity service borrowed by this matcher."""
-        return self._process_identity_service
-
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
         """Rebuild application-only aliases from the current dock projection."""
         self._sync_registry_generation()
         self._visible_aliases.clear()
         for item in items:
-            kind = getattr(item, "kind", None)
-            if kind != APP_KIND:
+            if item.kind != APP_KIND:
                 continue
-            desktop_id = getattr(item, "desktop_id", "")
-            if not isinstance(desktop_id, str) or not desktop_id:
+            desktop_id = item.desktop_id
+            if not desktop_id:
                 continue
-            application = getattr(item, "application_info", None)
-            if not isinstance(application, ApplicationInfo):
+            application = item.application_info
+            if application is None:
                 application = self._registry.get(desktop_id)
             name = (
-                application.name
-                if application is not None
-                else getattr(item, "name", "") or desktop_id
+                application.name if application is not None else item.name or desktop_id
             )
             icon_name = (
-                application.declared_icon
-                if application is not None
-                else getattr(item, "icon_name", "") or ""
+                application.declared_icon if application is not None else item.icon_name
             )
             wm_class = (
-                application.wm_class
-                if application is not None
-                else getattr(item, "wm_class", "") or ""
+                application.wm_class if application is not None else item.wm_class
             )
             executable_path = (
                 _application_executable_path(application)
                 if application is not None
-                else desktop_entries.executable_path_from_exec_line(
-                    getattr(item, "exec_line", "") or ""
-                )
+                else desktop_entries.executable_path_from_exec_line(item.exec_line)
             )
             identity = _VisibleAppIdentity(
                 desktop_id=desktop_id,
@@ -284,25 +265,6 @@ class AppIdMatcher:
                     if match.desktop_id != identity.desktop_id
                 ]
                 matches.append(identity)
-
-    def match(
-        self,
-        app_id: str,
-        *,
-        instance_hint: str | None = None,
-        prefer_raw_app_id: bool = True,
-        defer_wm_class_lookup: bool = False,
-        process_id: int | None = None,
-    ) -> str | None:
-        """Return only the selected desktop ID."""
-        result = self.match_result(
-            app_id,
-            instance_hint=instance_hint,
-            prefer_raw_app_id=prefer_raw_app_id,
-            defer_wm_class_lookup=defer_wm_class_lookup,
-            process_id=process_id,
-        )
-        return result.desktop_id if result is not None else None
 
     def match_result(
         self,
@@ -720,7 +682,7 @@ class AppIdMatcher:
         instance_hint: str | None,
         prefer_raw_app_id: bool,
     ) -> list[str]:
-        """Merge legacy X11 and Wayland candidates without changing order."""
+        """Merge X11 and Wayland candidates without changing backend order."""
         x11_candidates = _class_group_candidates(
             class_lower=app_id_lower,
             class_group=app_id,

@@ -154,9 +154,9 @@ def test_constructor_reuses_canonical_identity_services(monkeypatch):
         process_identity_service=process_identity_service,
     )
 
-    assert service._matcher._app_matcher.registry is registry
+    assert service._matcher._app_matcher._registry is registry
     assert (
-        service._matcher._app_matcher.process_identity_service
+        service._matcher._app_matcher._process_identity_service
         is process_identity_service
     )
 

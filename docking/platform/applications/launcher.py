@@ -29,23 +29,8 @@ from .registry import ApplicationRegistry
 from .types import ApplicationAction, ApplicationInfo, ApplicationLocation
 
 PopenFactory = Callable[..., subprocess.Popen[Any]]
-GioLaunch = Callable[[object], object]
-GioActionLaunch = Callable[[object, str], object]
-GioUrisLaunch = Callable[[object, list[str]], object]
 
 log = with_context(get_logger(name="application_launcher"))
-
-
-def _launch_gio_application(handle: object) -> object:
-    return handle.launch([], None)
-
-
-def _launch_gio_action(handle: object, action_id: str) -> object:
-    return handle.launch_action(action_id, None)
-
-
-def _launch_gio_uris(handle: object, uris: list[str]) -> object:
-    return handle.launch_uris(uris, None)
 
 
 class ApplicationLauncher:
@@ -57,30 +42,10 @@ class ApplicationLauncher:
         provenance_store: LaunchProvenanceStore,
         *,
         popen: PopenFactory | None = None,
-        gio_launch: GioLaunch | None = None,
-        gio_launch_action: GioActionLaunch | None = None,
-        gio_launch_uris: GioUrisLaunch | None = None,
     ) -> None:
         self._registry = registry
         self._provenance_store = provenance_store
         self._popen = subprocess.Popen if popen is None else popen
-        self._gio_launch = _launch_gio_application if gio_launch is None else gio_launch
-        self._gio_launch_action = (
-            _launch_gio_action if gio_launch_action is None else gio_launch_action
-        )
-        self._gio_launch_uris = (
-            _launch_gio_uris if gio_launch_uris is None else gio_launch_uris
-        )
-
-    @property
-    def registry(self) -> ApplicationRegistry:
-        """Return the borrowed application registry."""
-        return self._registry
-
-    @property
-    def provenance_store(self) -> LaunchProvenanceStore:
-        """Return the launch store shared with process identity matching."""
-        return self._provenance_store
 
     def quicklist_actions(
         self,
@@ -109,24 +74,38 @@ class ApplicationLauncher:
         if application is None:
             return False
 
-        action = _action_for(application, action_id)
+        action = next(
+            (
+                candidate
+                for candidate in application.actions
+                if candidate.action_id == action_id
+            ),
+            None,
+        )
         if (
             application.location is ApplicationLocation.SANDBOX
             and application.has_gio_source
         ):
             handle = self._registry._gio_handle_for(desktop_id)
             if handle is not None:
-                return self._run_gio_action(
-                    handle=handle,
-                    desktop_id=desktop_id,
-                    action_id=action_id,
-                )
+                try:
+                    handle.launch_action(action_id, None)
+                except GLib.Error as exc:
+                    log.bind(desktop_id=desktop_id, action="launch_action").warning(
+                        "Failed to launch action %s for %s: %s",
+                        action_id,
+                        desktop_id,
+                        exc,
+                    )
+                    return False
+                return True
 
-        exec_line = _file_action_exec_line(
-            application=application,
-            action=action,
-            action_id=action_id,
-        )
+        exec_line = action.file_exec_line if action is not None else ""
+        if not exec_line and application.desktop_file is not None:
+            exec_line = desktop_entries.desktop_file_action_exec(
+                application.desktop_file,
+                action_id,
+            )
         return self._launch_exec_line(
             application=application,
             exec_line=exec_line,
@@ -144,8 +123,8 @@ class ApplicationLauncher:
             if self.launch_action(desktop_id, NEW_WINDOW_ACTION_ID):
                 return True
             if application.location is ApplicationLocation.HOST:
-                # Preserve the legacy host-action route: once the action exists,
-                # a missing host Exec/flatpak-spawn does not launch the base app.
+                # Once the host action exists, a missing Exec/flatpak-spawn
+                # route does not launch the base application instead.
                 return False
         return self.launch(desktop_id)
 
@@ -170,7 +149,7 @@ class ApplicationLauncher:
         if handle is None:
             return False
         try:
-            self._gio_launch_uris(handle, launchable)
+            handle.launch_uris(launchable, None)
         except GLib.Error as exc:
             log.bind(desktop_id=desktop_id, action="launch_app_uris").warning(
                 "Failed to open URI list with %s: %s",
@@ -234,30 +213,11 @@ class ApplicationLauncher:
         if handle is None:
             return False
         try:
-            self._gio_launch(handle)
+            handle.launch([], None)
         except GLib.Error as exc:
             log.bind(listing_key=listing_key, action="launch_listing").warning(
                 "Failed to launch application listing %s: %s",
                 listing_key,
-                exc,
-            )
-            return False
-        return True
-
-    def _run_gio_action(
-        self,
-        *,
-        handle: object,
-        desktop_id: str,
-        action_id: str,
-    ) -> bool:
-        try:
-            self._gio_launch_action(handle, action_id)
-        except GLib.Error as exc:
-            log.bind(desktop_id=desktop_id, action="launch_action").warning(
-                "Failed to launch action %s for %s: %s",
-                action_id,
-                desktop_id,
                 exc,
             )
             return False
@@ -336,32 +296,6 @@ class ApplicationLauncher:
             executable_path=executable_path,
         )
         return True
-
-
-def _action_for(
-    application: ApplicationInfo,
-    action_id: str,
-) -> ApplicationAction | None:
-    return next(
-        (action for action in application.actions if action.action_id == action_id),
-        None,
-    )
-
-
-def _file_action_exec_line(
-    *,
-    application: ApplicationInfo,
-    action: ApplicationAction | None,
-    action_id: str,
-) -> str:
-    if action is not None and action.file_exec_line:
-        return action.file_exec_line
-    if application.desktop_file is None:
-        return ""
-    return desktop_entries.desktop_file_action_exec(
-        application.desktop_file,
-        action_id,
-    )
 
 
 __all__ = ["ApplicationLauncher"]

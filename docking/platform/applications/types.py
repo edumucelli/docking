@@ -116,7 +116,7 @@ class ApplicationMatch:
 
     @property
     def runtime_app(self) -> ApplicationInfo | None:
-        """Expose runtime-only metadata under the migration-era name."""
+        """Return metadata only when this is a runtime-only identity."""
         if (
             self.application is not None
             and self.application.origin is ApplicationOrigin.RUNTIME
