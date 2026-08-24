@@ -6,7 +6,6 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from threading import get_ident
 from types import MappingProxyType
 from typing import Any
 
@@ -61,7 +60,11 @@ def _empty_state() -> _RegistryState:
 
 
 class ApplicationRegistry:
-    """Discover applications and publish complete immutable generations."""
+    """Discover applications and publish complete immutable generations.
+
+    Lifecycle and Gio-backed operations belong to the GTK main-loop composition;
+    immutable application snapshots may also be read by worker code.
+    """
 
     def __init__(
         self,
@@ -69,7 +72,6 @@ class ApplicationRegistry:
         application_source: Callable[[], Iterable[object]] | None = None,
         desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
     ) -> None:
-        self._owner_thread_id = get_ident()
         self._application_source = (
             discovery.default_gio_applications
             if application_source is None
@@ -174,7 +176,6 @@ class ApplicationRegistry:
 
     def refresh(self) -> bool:
         """Build and atomically publish a complete generation."""
-        self._assert_owner_thread("refresh")
         current = self._state
         handle_epoch = current.handle_epoch + 1
         try:
@@ -222,7 +223,6 @@ class ApplicationRegistry:
 
     def start(self) -> None:
         """Start monitors and synchronously populate the registry."""
-        self._assert_owner_thread("start")
         if self._started:
             return
         self._started = True
@@ -233,7 +233,6 @@ class ApplicationRegistry:
 
     def stop(self) -> None:
         """Stop monitors while retaining the last immutable generation."""
-        self._assert_owner_thread("stop")
         if not self._started:
             return
         self._started = False
@@ -247,7 +246,6 @@ class ApplicationRegistry:
         content_type: str,
     ) -> ApplicationInfo | None:
         """Resolve the desktop's default handler on the calling main thread."""
-        self._assert_owner_thread("default_for_content_type")
         try:
             app_info = Gio.AppInfo.get_default_for_type(content_type, False)
         except Exception as exc:
@@ -266,7 +264,6 @@ class ApplicationRegistry:
         content_type: str,
     ) -> ApplicationInfo | TransientApplicationInfo | None:
         """Return a launchable default handler with any Gio handle retained."""
-        self._assert_owner_thread("default_listing_for_content_type")
         try:
             app_info = Gio.AppInfo.get_default_for_type(content_type, False)
         except Exception as exc:
@@ -313,7 +310,6 @@ class ApplicationRegistry:
         lists. This preserves the established media-launcher fallback order while
         keeping Gio association policy inside the registry.
         """
-        self._assert_owner_thread("preferred_listing_for_content_types")
         ordered_types = tuple(content_types)
         for content_type in ordered_types:
             listing = self._default_listing_for_content_type(content_type)
@@ -337,7 +333,6 @@ class ApplicationRegistry:
         action: str,
     ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
         """Convert one Gio association result into canonical visible listings."""
-        self._assert_owner_thread(action)
         lookup = getattr(Gio.AppInfo, lookup_name, None)
         if not callable(lookup):
             return ()
@@ -389,12 +384,10 @@ class ApplicationRegistry:
 
     def _gio_handle_for(self, desktop_id: str) -> object | None:
         """Return a generation-owned Gio handle for future main-thread services."""
-        self._assert_owner_thread("_gio_handle_for")
         return self._state.gio_handles.get(desktop_id)
 
     def _gio_handle_for_unidentified(self, listing_key: str) -> object | None:
         """Return the private Gio handle for an opaque launchable listing."""
-        self._assert_owner_thread("_gio_handle_for_unidentified")
         handle = self._state.unidentified_gio_handles.get(listing_key)
         if handle is not None:
             return handle
@@ -492,13 +485,6 @@ class ApplicationRegistry:
         while len(self._content_gio_handles) > max(1, MAX_CONTENT_HANDLER_TOKENS):
             self._content_gio_handles.pop(next(iter(self._content_gio_handles)))
         return listing
-
-    def _assert_owner_thread(self, operation: str) -> None:
-        if get_ident() == self._owner_thread_id:
-            return
-        raise RuntimeError(
-            f"ApplicationRegistry.{operation} must run on its owner thread"
-        )
 
     def _connect_app_monitor(self) -> None:
         try:

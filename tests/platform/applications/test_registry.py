@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from threading import Thread, get_ident
+from threading import Thread
 from unittest.mock import MagicMock
 
 import pytest
@@ -1164,72 +1164,6 @@ def test_content_type_lookup_can_project_an_unlisted_gio_handler(monkeypatch):
     assert application.desktop_id == "unlisted.desktop"
     assert application.has_gio_source is True
     assert registry.get("unlisted.desktop") is None
-
-
-def test_owner_thread_contract_rejects_mutating_gio_operations_from_workers():
-    application = _GioApplication(
-        "worker-readable.desktop",
-        name="Worker Readable",
-        commandline="worker-readable",
-        wm_class="WorkerReadable",
-    )
-    registry = _registry(applications=[application])
-    listener_threads: list[int] = []
-    registry.subscribe(lambda: listener_threads.append(get_ident()))
-    registry.refresh()
-    owner_thread = get_ident()
-
-    operations: tuple[tuple[str, Callable[[], object]], ...] = (
-        ("refresh", registry.refresh),
-        ("start", registry.start),
-        ("stop", registry.stop),
-        (
-            "default_for_content_type",
-            lambda: registry.default_for_content_type("application/example"),
-        ),
-        (
-            "default_listing_for_content_type",
-            lambda: registry._default_listing_for_content_type("application/example"),
-        ),
-        (
-            "recommended_listings_for_content_type",
-            lambda: registry._recommended_listings_for_content_type(
-                "application/example"
-            ),
-        ),
-        (
-            "_gio_handle_for",
-            lambda: registry._gio_handle_for("worker-readable.desktop"),
-        ),
-        (
-            "_gio_handle_for_unidentified",
-            lambda: registry._gio_handle_for_unidentified("missing"),
-        ),
-    )
-
-    errors: list[tuple[str, Exception]] = []
-    for name, operation in operations:
-
-        def run(
-            operation: Callable[[], object] = operation,
-            name: str = name,
-        ) -> None:
-            try:
-                operation()
-            except Exception as exc:
-                errors.append((name, exc))
-
-        thread = Thread(target=run)
-        thread.start()
-        thread.join()
-
-    assert [name for name, _error in errors] == [
-        name for name, _operation in operations
-    ]
-    assert all(isinstance(error, RuntimeError) for _name, error in errors)
-    assert all("owner thread" in str(error) for _name, error in errors)
-    assert registry.started is False
-    assert listener_threads == [owner_thread]
 
 
 def test_snapshot_and_resolver_reads_remain_available_from_worker_threads():
