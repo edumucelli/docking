@@ -123,7 +123,7 @@ def test_wayfire_ipc_client_uses_length_prefixed_json():
     assert sock.closed is True
 
 
-def test_wayfire_window_service_publishes_snapshot_and_actions(monkeypatch):
+def test_wayfire_payload_with_pid_flows_through_real_matcher_to_model():
     model = _model()
     client = FakeIpcClient(
         {
@@ -152,17 +152,12 @@ def test_wayfire_window_service_publishes_snapshot_and_actions(monkeypatch):
             "window-rules/get-focused-view": {"result": "ok", "info": {"id": 7}},
         }
     )
+    services = identity_services()
     service = WayfireWindowService(
         model=model,
-        **identity_services(),
+        **services,
         client=client,
     )
-    application_match = service._matcher.match_result(
-        "Alacritty",
-        process_id=1234,
-    )
-    match_result = MagicMock(return_value=application_match)
-    monkeypatch.setattr(service._matcher, "match_result", match_result)
 
     service.start()
 
@@ -174,8 +169,12 @@ def test_wayfire_window_service_publishes_snapshot_and_actions(monkeypatch):
     assert windows[0].geometry is not None
     assert windows[0].workspace_id == "1"
     assert windows[0].can_minimize is True
-    assert service._records[7].application_match is application_match
-    match_result.assert_called_once_with("Alacritty", process_id=1234)
+    application_match = service._records[7].application_match
+    assert application_match is not None
+    assert application_match.desktop_id == "Alacritty.desktop"
+    assert application_match.application is services["application_registry"].get(
+        "Alacritty.desktop"
+    )
     model.update_running.assert_called()
 
     assert service.activate(windows[0].id) is ActionResult.OK

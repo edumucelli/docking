@@ -10,6 +10,7 @@ import pytest
 
 import docking.applets.music.applet as music_applet_mod
 import docking.applets.music.state as music_state_mod
+import docking.platform.applications.registry as registry_mod
 from docking.applets.music.applet import MusicApplet
 from docking.applets.music.render import create_music_icon
 from docking.applets.music.state import (
@@ -30,6 +31,10 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
     TransientApplicationInfo,
+)
+from tests.platform.application_fakes import (
+    ApplicationRegistryHarness,
+    GioApplicationFake,
 )
 
 
@@ -895,6 +900,53 @@ class TestMusicApplet:
 
         launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
         backend.play_pause.assert_not_called()
+
+    def test_media_complete_handler_flows_through_real_registry_to_applet(
+        self, monkeypatch
+    ):
+        handler = GioApplicationFake(
+            "org.videolan.VLC.desktop",
+            name="VLC",
+            icon="vlc-canonical",
+            commandline="vlc %U",
+            categories="AudioVideo;",
+        )
+        harness = ApplicationRegistryHarness((handler,))
+        get_recommended = MagicMock(return_value=[])
+        get_all = MagicMock(return_value=[handler])
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_default_for_type",
+            lambda _content_type, _must_support_uris: None,
+        )
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_recommended_for_type",
+            get_recommended,
+        )
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_all_for_type",
+            get_all,
+        )
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=harness.registry,
+            launcher=launcher,
+        )
+
+        selected = harness.registry.get("org.videolan.VLC.desktop")
+        applet.on_clicked()
+
+        assert selected is not None
+        assert selected.declared_icon == "vlc-canonical"
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
+        assert get_recommended.call_count == len(music_applet_mod.MEDIA_CONTENT_TYPES)
+        get_all.assert_called_once_with("audio/mpeg")
 
     def test_on_clicked_ignores_idle_empty_browser_mpris_service(self, monkeypatch):
         idle_browser = _state(
