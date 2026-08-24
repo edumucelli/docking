@@ -10,11 +10,11 @@ import docking.applets.applications.render as applications_render_mod
 from docking.applets.applications.applet import ApplicationsApplet
 from docking.applets.applications.state import build_app_categories
 from docking.core.config import Config
-from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
+    TransientApplicationInfo,
 )
 
 
@@ -51,7 +51,7 @@ class _Registry:
     def __init__(
         self,
         applications: tuple[ApplicationInfo, ...] = (),
-        unidentified: tuple[UnidentifiedApplicationListing, ...] = (),
+        unidentified: tuple[TransientApplicationInfo, ...] = (),
         *,
         handles: dict[str, object] | None = None,
     ) -> None:
@@ -64,7 +64,7 @@ class _Registry:
 
     def unidentified_snapshot(
         self,
-    ) -> tuple[UnidentifiedApplicationListing, ...]:
+    ) -> tuple[TransientApplicationInfo, ...]:
         return self.unidentified
 
     def _gio_handle_for(self, desktop_id: str) -> object | None:
@@ -104,11 +104,11 @@ class TestBuildAppCategories:
             "Alpha File Tool",
             categories="Development;",
         )
-        idless = UnidentifiedApplicationListing(
+        idless = TransientApplicationInfo(
             listing_key="opaque:7",
             name="Middle ID-less",
-            categories="Development;",
-            icon_name="",
+            categories_raw="Development;",
+            declared_icon="",
             desktop_file=None,
         )
         registry = _Registry((host, file_only), (idless,))
@@ -483,11 +483,11 @@ class TestApplicationsApplet:
 
     def test_idless_menu_row_launches_by_opaque_listing_key(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        app = UnidentifiedApplicationListing(
+        app = TransientApplicationInfo(
             listing_key="gio-idless:9",
             name="ID-less",
-            categories="Utility;",
-            icon_name="",
+            categories_raw="Utility;",
+            declared_icon="",
             desktop_file=None,
         )
         launcher = MagicMock()

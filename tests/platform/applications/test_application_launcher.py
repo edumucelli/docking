@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import docking.platform.applications.launcher as launcher_mod
 from docking.platform.applications.launcher import ApplicationLauncher
-from docking.platform.applications.projections import DesktopActionProjection
 from docking.platform.applications.types import (
     ActionSource,
     ApplicationAction,
@@ -27,13 +26,7 @@ class _Registry:
         self.handles: dict[str, object] = {}
         self.listing_handles: dict[str, object] = {}
 
-    def resolve(
-        self,
-        desktop_id: str,
-        *,
-        log_failures: bool = True,
-    ) -> ApplicationInfo | None:
-        _ = log_failures
+    def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self.applications.get(desktop_id)
 
     def _gio_handle_for(self, desktop_id: str) -> object | None:
@@ -104,12 +97,10 @@ def test_quicklist_uses_gio_only_when_application_is_gio_backed():
         _application(has_gio_source=False, actions=actions)
     )
 
-    assert gio_launcher.quicklist_actions("example.desktop") == [
-        DesktopActionProjection(action_id="shared", name="Shared")
-    ]
+    assert gio_launcher.quicklist_actions("example.desktop") == [actions[0]]
     assert file_launcher.quicklist_actions("example.desktop") == [
-        DesktopActionProjection(action_id="shared", name="Shared"),
-        DesktopActionProjection(action_id="file-only", name="File Only"),
+        actions[0],
+        actions[1],
     ]
 
 

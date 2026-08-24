@@ -12,7 +12,7 @@ def _service() -> tuple[atspi_window.AtspiWindowService, MagicMock]:
     registry = MagicMock()
     registry.generation = 1
     registry.get.return_value = None
-    registry.resolve.return_value = None
+    registry.get.return_value = None
     registry.resolve_all_by_wm_class.return_value = ()
     process_identity_service = MagicMock()
     process_identity_service.identity_for_pid.return_value = None

@@ -9,17 +9,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import docking.platform.applications.discovery as discovery_mod
 import docking.platform.applications.registry as registry_mod
-from docking.platform.applications.projections import search_metadata
 from docking.platform.applications.registry import (
     DEFAULT_DEBOUNCE_MS,
     ApplicationRegistry,
-    UnidentifiedApplicationListing,
 )
 from docking.platform.applications.types import (
     ActionSource,
     ApplicationLocation,
     ApplicationOrigin,
+    TransientApplicationInfo,
 )
 
 
@@ -221,8 +221,8 @@ def test_default_gio_source_filters_non_desktop_app_infos_but_injection_does_not
         lambda: [generic, desktop],
     )
     monkeypatch.setattr(
-        registry_mod,
-        "_is_gio_desktop_app_info",
+        discovery_mod,
+        "is_gio_desktop_app_info",
         lambda app_info: app_info is desktop,
     )
     default_registry = ApplicationRegistry(
@@ -266,7 +266,7 @@ def test_idless_gio_entries_have_distinct_listing_side_table_records():
 
     listings = registry.unidentified_snapshot()
     assert [listing.name for listing in listings] == ["ID-less", "ID-less"]
-    assert [listing.categories for listing in listings] == [
+    assert [listing.categories_raw for listing in listings] == [
         "Utility;",
         "Development;",
     ]
@@ -278,7 +278,6 @@ def test_idless_gio_entries_have_distinct_listing_side_table_records():
     assert registry._gio_handle_for_unidentified(listings[1].listing_key) is second
     assert registry.get("") is None
     assert registry.snapshot() == ()
-    assert registry.resolvable_snapshot() == ()
 
 
 def test_idless_tokens_rotate_without_public_change_and_reject_stale_rows():
@@ -447,7 +446,7 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
     assert registry.generation == 1
 
     assert registry.get("hidden-duplicate.desktop") is None
-    direct_only = registry.resolve("no-display.desktop")
+    direct_only = registry.get("no-display.desktop")
     assert direct_only is not None
     assert direct_only.visible is False
     assert "no-display.desktop" not in {
@@ -473,11 +472,6 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
         "b-shared.desktop",
     ]
     assert registry.resolve_by_wm_class("sharedtool") is shared[0]
-    by_executable = registry.resolve_all_by_executable_path(executable)
-    assert [application.desktop_id for application in by_executable] == [
-        "a-shared.desktop",
-        "b-shared.desktop",
-    ]
     action = shared[0].actions[0]
     assert action.action_id == "open-special"
     assert action.sources == frozenset({ActionSource.DESKTOP_FILE})
@@ -488,9 +482,6 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
         "First Source",
         "No Icon",
     ]
-
-    with pytest.raises(TypeError):
-        registry.applications_by_id["other.desktop"] = shared[0]  # type: ignore[index]
 
 
 def test_alias_candidates_follow_directory_source_order_not_snapshot_names(
@@ -701,7 +692,7 @@ def test_registry_preserves_legacy_search_description_fallback(
     assert application is not None
     assert application.generic_name == "Gio Generic Must Not Leak Into Search"
     assert application.description == expected
-    assert search_metadata(application).description == expected
+    assert application.description == expected
 
 
 def test_gio_hidden_and_no_display_are_distinct_from_resolvability():
@@ -765,7 +756,6 @@ def test_failed_refresh_rolls_back_every_published_value(tmp_path):
     registry.subscribe(lambda: generations.append(registry.generation))
     assert registry.refresh() is True
     published_snapshot = registry.snapshot()
-    published_map = registry.applications_by_id
     generation = registry.generation
 
     def fail_discovery():
@@ -775,7 +765,6 @@ def test_failed_refresh_rolls_back_every_published_value(tmp_path):
 
     assert registry.refresh() is False
     assert registry.snapshot() is published_snapshot
-    assert registry.applications_by_id is published_map
     assert registry.generation == generation
     assert generations == [1]
 
@@ -946,7 +935,6 @@ def test_read_apis_use_snapshots_and_content_type_lookups_canonicalize(
         AssertionError("read path rediscovered applications")
     )
     assert registry.get("visible.desktop") is not None
-    assert registry.resolve("visible.desktop") is not None
     assert registry.resolve_all_by_wm_class("shared")[0].desktop_id == (
         "visible.desktop"
     )
@@ -963,17 +951,8 @@ def test_read_apis_use_snapshots_and_content_type_lookups_canonicalize(
         "get_default_for_type",
         get_default,
     )
-    monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
-        "get_recommended_for_type",
-        lambda _content_type: [visible, direct_only, visible],
-    )
-
     assert registry.default_for_content_type("audio/mpeg") is registry.get(
         "direct.desktop"
-    )
-    assert registry.recommended_for_content_type("audio/mpeg") == (
-        registry.get("visible.desktop"),
     )
     assert default_calls == [("audio/mpeg", False)]
 
@@ -1006,7 +985,7 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
 
     listing = registry._default_listing_for_content_type("application/example")
 
-    assert isinstance(listing, UnidentifiedApplicationListing)
+    assert isinstance(listing, TransientApplicationInfo)
     assert listing.name == "External Handler"
     assert listing.exec_line == "external-handler %U"
     assert listing.description == "Handles external media"
@@ -1055,13 +1034,13 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
     assert [
         listing.name
         for listing in listings[1:]
-        if isinstance(listing, UnidentifiedApplicationListing)
+        if isinstance(listing, TransientApplicationInfo)
     ] == ["ID-less Recommended", "Unregistered Recommended"]
     assert all(
         registry._gio_handle_for_unidentified(listing.listing_key)
         in {idless, unregistered}
         for listing in listings[1:]
-        if isinstance(listing, UnidentifiedApplicationListing)
+        if isinstance(listing, TransientApplicationInfo)
     )
 
 
@@ -1150,13 +1129,11 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
         registry._default_listing_for_content_type("application/example")
         for _handler in handlers
     ]
-    assert all(
-        isinstance(listing, UnidentifiedApplicationListing) for listing in listings
-    )
+    assert all(isinstance(listing, TransientApplicationInfo) for listing in listings)
     first, second, third = listings
-    assert isinstance(first, UnidentifiedApplicationListing)
-    assert isinstance(second, UnidentifiedApplicationListing)
-    assert isinstance(third, UnidentifiedApplicationListing)
+    assert isinstance(first, TransientApplicationInfo)
+    assert isinstance(second, TransientApplicationInfo)
+    assert isinstance(third, TransientApplicationInfo)
     assert registry._gio_handle_for_unidentified(first.listing_key) is None
     assert registry._gio_handle_for_unidentified(second.listing_key) is handlers[1]
     assert registry._gio_handle_for_unidentified(third.listing_key) is handlers[2]
@@ -1209,10 +1186,6 @@ def test_owner_thread_contract_rejects_mutating_gio_operations_from_workers():
         (
             "default_for_content_type",
             lambda: registry.default_for_content_type("application/example"),
-        ),
-        (
-            "recommended_for_content_type",
-            lambda: registry.recommended_for_content_type("application/example"),
         ),
         (
             "default_listing_for_content_type",
@@ -1276,12 +1249,9 @@ def test_snapshot_and_resolver_reads_remain_available_from_worker_threads():
             outcomes.extend(
                 (
                     registry.snapshot(),
-                    registry.resolvable_snapshot(),
                     registry.unidentified_snapshot(),
                     registry.get("worker-readable.desktop"),
-                    registry.resolve("worker-readable.desktop"),
                     registry.resolve_by_wm_class("workerreadable"),
-                    registry.resolve_all_by_executable_path(Path("/missing")),
                     registry.resolve_by_desktop_file(Path("/missing.desktop")),
                 )
             )
@@ -1294,10 +1264,7 @@ def test_snapshot_and_resolver_reads_remain_available_from_worker_threads():
 
     assert errors == []
     assert outcomes[0] == registry.snapshot()
-    assert outcomes[1] == registry.resolvable_snapshot()
-    assert outcomes[2] == ()
+    assert outcomes[1] == ()
+    assert outcomes[2] is registry.get("worker-readable.desktop")
     assert outcomes[3] is registry.get("worker-readable.desktop")
-    assert outcomes[4] is registry.get("worker-readable.desktop")
-    assert outcomes[5] is registry.get("worker-readable.desktop")
-    assert outcomes[6] == ()
-    assert outcomes[7] is None
+    assert outcomes[4] is None

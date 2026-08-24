@@ -17,12 +17,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from docking.platform.applications.listing import (
-    ApplicationListing,
-    listing_categories,
-    visible_listings,
-)
+from docking.platform.applications.listing import visible_listings
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationListing
 
 # FreeDesktop main categories -> display label
 CATEGORY_LABELS: dict[str, str] = {
@@ -79,8 +76,7 @@ def build_app_categories(
     categories: dict[str, list[ApplicationListing]] = defaultdict(list)
 
     for app_info in visible_listings(registry):
-        cats = listing_categories(app_info)
-        categories[_map_category(categories=cats)].append(app_info)
+        categories[_map_category(categories=app_info.categories_raw)].append(app_info)
 
     # Sort apps within each category by display name
     for apps in categories.values():

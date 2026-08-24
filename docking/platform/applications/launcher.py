@@ -22,7 +22,6 @@ from . import entries as desktop_entries
 from .identity import LaunchProvenanceStore
 from .projections import (
     NEW_WINDOW_ACTION_ID,
-    DesktopActionProjection,
     new_window_action,
     quicklist_actions,
 )
@@ -86,16 +85,16 @@ class ApplicationLauncher:
     def quicklist_actions(
         self,
         desktop_id: str,
-    ) -> list[DesktopActionProjection]:
+    ) -> list[ApplicationAction]:
         """Enumerate source-exclusive dock quicklist actions."""
-        application = self._registry.resolve(desktop_id, log_failures=False)
+        application = self._registry.get(desktop_id)
         if application is None:
             return []
         return list(quicklist_actions(application))
 
     def launch(self, desktop_id: str) -> bool:
         """Launch a selected desktop application through its direct Exec line."""
-        application = self._registry.resolve(desktop_id)
+        application = self._registry.get(desktop_id)
         if application is None:
             return False
         return self._launch_exec_line(
@@ -106,7 +105,7 @@ class ApplicationLauncher:
 
     def launch_action(self, desktop_id: str, action_id: str) -> bool:
         """Launch a source-aware desktop action."""
-        application = self._registry.resolve(desktop_id, log_failures=False)
+        application = self._registry.get(desktop_id)
         if application is None:
             return False
 
@@ -136,7 +135,7 @@ class ApplicationLauncher:
 
     def launch_new_window(self, desktop_id: str) -> bool:
         """Open a new window when Gio declares that action, else launch normally."""
-        application = self._registry.resolve(desktop_id, log_failures=False)
+        application = self._registry.get(desktop_id)
         if application is None:
             return self.launch(desktop_id)
 
@@ -155,7 +154,7 @@ class ApplicationLauncher:
         launchable = list(uris)
         if not launchable:
             return False
-        application = self._registry.resolve(desktop_id, log_failures=False)
+        application = self._registry.get(desktop_id)
         if application is None:
             return False
 

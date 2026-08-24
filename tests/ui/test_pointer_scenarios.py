@@ -170,7 +170,7 @@ class _ScenarioHarness:
         )
         self.interaction = DockInteractionCoordinator(cast(Any, self))
         self.application_registry = MagicMock()
-        self.application_registry.resolve.return_value = None
+        self.application_registry.get.return_value = None
         self.application_registry.resolve_by_desktop_file.return_value = None
         self.application_launcher = MagicMock()
         self.icon_loader = MagicMock()
@@ -639,7 +639,7 @@ class TestDragDropScenarios:
             visible=True,
             has_gio_source=True,
         )
-        harness.application_registry.resolve.return_value = resolved
+        harness.application_registry.get.return_value = resolved
         harness.icon_loader.load_desktop_icon.return_value = object()
         finish = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)

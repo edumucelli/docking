@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
@@ -63,6 +63,26 @@ class ApplicationInfo:
     actions: tuple[ApplicationAction, ...] = ()
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TransientApplicationInfo:
+    """Launchable Gio metadata without a stable desktop application ID."""
+
+    listing_key: str = field(compare=False)
+    name: str
+    declared_icon: str
+    desktop_file: Path | None
+    exec_line: str = ""
+    description: str = ""
+    generic_name: str = ""
+    categories: tuple[str, ...] = ()
+    categories_raw: str = ""
+    desktop_id: None = field(default=None, init=False, compare=False)
+    has_gio_source: bool = field(default=True, init=False, compare=False)
+
+
+ApplicationListing = ApplicationInfo | TransientApplicationInfo
+
+
 class MatchMethod(Enum):
     """Evidence route that selected an application identity."""
 
@@ -109,9 +129,11 @@ __all__ = [
     "ActionSource",
     "ApplicationAction",
     "ApplicationInfo",
+    "ApplicationListing",
     "ApplicationLocation",
     "ApplicationMatch",
     "ApplicationOrigin",
     "MatchEvidence",
     "MatchMethod",
+    "TransientApplicationInfo",
 ]

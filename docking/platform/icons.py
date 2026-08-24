@@ -16,7 +16,7 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 from docking.log import get_logger, with_context
 from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PREFIX
-from docking.platform.applications.projections import dock_metadata
+from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
@@ -89,8 +89,7 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
 
 
 def _application_icon_fields(info: ApplicationInfo) -> tuple[str, str, str]:
-    metadata = dock_metadata(info)
-    return metadata.desktop_id, metadata.icon_name, metadata.exec_line
+    return info.desktop_id, dock_icon_name(info), info.exec_line
 
 
 class IconLoader:

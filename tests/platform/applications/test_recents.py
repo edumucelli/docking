@@ -37,10 +37,10 @@ class _Config:
 class _Registry:
     def __init__(self, origins: dict[str, ApplicationOrigin]) -> None:
         self.origins = origins
-        self.resolve_calls: list[tuple[str, bool]] = []
+        self.get_calls: list[str] = []
 
-    def resolve(self, desktop_id: str, *, log_failures: bool = True) -> object | None:
-        self.resolve_calls.append((desktop_id, log_failures))
+    def get(self, desktop_id: str) -> object | None:
+        self.get_calls.append(desktop_id)
         origin = self.origins.get(desktop_id)
         return SimpleNamespace(origin=origin) if origin is not None else None
 
@@ -145,9 +145,7 @@ def test_load_filters_in_order_and_rewrites_memory_without_saving():
         ("second.desktop", NOW - 2),
     )
     assert config.saved_values == []
-    assert all(
-        log_failures is False for _desktop_id, log_failures in registry.resolve_calls
-    )
+    assert registry.get_calls
 
 
 def test_load_applies_maximum_and_retention_without_saving():

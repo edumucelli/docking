@@ -25,11 +25,11 @@ from docking.applets.music.state import (
     unavailable_state,
 )
 from docking.core.config import Config
-from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
+    TransientApplicationInfo,
 )
 
 
@@ -763,7 +763,7 @@ def _make_applet(
     monkeypatch.setattr(music_applet_mod, "CoverArtResolver", lambda: resolver)
     if registry is None:
         registry = MagicMock()
-        registry.resolve.return_value = None
+        registry.get.return_value = None
         registry.preferred_listing_for_content_types.return_value = None
     return (
         MusicApplet(
@@ -801,7 +801,7 @@ class TestMusicApplet:
         )
         application = SimpleNamespace(declared_icon="vlc-installed")
         registry = MagicMock()
-        registry.resolve.return_value = application
+        registry.get.return_value = application
         launcher = MagicMock()
         applet, _backend, _resolver = _make_applet(
             monkeypatch,
@@ -810,10 +810,7 @@ class TestMusicApplet:
             launcher=launcher,
         )
 
-        registry.resolve.assert_called_once_with(
-            "org.videolan.VLC.desktop",
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with("org.videolan.VLC.desktop")
         registry.refresh.assert_not_called()
         assert applet._state.player_icon_name == "vlc-installed"
         assert applet._state.player_desktop_entry == "org.videolan.VLC"
@@ -843,7 +840,7 @@ class TestMusicApplet:
         )
         application = SimpleNamespace(declared_icon=f"installed:{installed_id}")
         registry = MagicMock()
-        registry.resolve.side_effect = lambda desktop_id, **_kwargs: (
+        registry.get.side_effect = lambda desktop_id: (
             application if desktop_id == installed_id else None
         )
 
@@ -865,7 +862,7 @@ class TestMusicApplet:
             player_desktop_entry="org.example.MissingPlayer",
         )
         registry = MagicMock()
-        registry.resolve.return_value = None
+        registry.get.return_value = None
         applet, _backend, _resolver = _make_applet(
             monkeypatch,
             initial,
@@ -1059,7 +1056,7 @@ class TestMusicApplet:
             player_desktop_entry="org.example.Player",
         )
         registry = MagicMock()
-        registry.resolve.return_value = SimpleNamespace(declared_icon="installed")
+        registry.get.return_value = SimpleNamespace(declared_icon="installed")
         applet, backend, resolver = _make_applet(
             monkeypatch,
             initial,
@@ -1077,15 +1074,12 @@ class TestMusicApplet:
         result = applet._poll_worker()
 
         assert result == (updated, resolver.resolve.return_value)
-        registry.resolve.assert_not_called()
+        registry.get.assert_not_called()
         registry.refresh.assert_not_called()
         theme_lookup.assert_not_called()
 
         applet._on_poll_result(result)
-        registry.resolve.assert_called_once_with(
-            "org.example.Player.desktop",
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with("org.example.Player.desktop")
         assert applet._state.player_icon_name == "installed"
 
     def test_sync_refresh_resolves_registry_icon_on_calling_thread(self, monkeypatch):
@@ -1096,7 +1090,7 @@ class TestMusicApplet:
             player_desktop_entry="org.example.Player",
         )
         registry = MagicMock()
-        registry.resolve.return_value = SimpleNamespace(declared_icon="installed")
+        registry.get.return_value = SimpleNamespace(declared_icon="installed")
         applet, backend, resolver = _make_applet(
             monkeypatch,
             initial,
@@ -1109,10 +1103,7 @@ class TestMusicApplet:
 
         applet._refresh_now()
 
-        registry.resolve.assert_called_once_with(
-            "org.example.Player.desktop",
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with("org.example.Player.desktop")
         registry.refresh.assert_not_called()
         assert applet._state.player_icon_name == "installed"
 
@@ -1294,11 +1285,11 @@ class TestMusicApplet:
     def test_click_launches_transient_media_handler_by_opaque_listing_key(
         self, monkeypatch
     ):
-        listing = UnidentifiedApplicationListing(
+        listing = TransientApplicationInfo(
             listing_key="gio-content:4:2",
             name="Unregistered Media Handler",
-            categories="AudioVideo;",
-            icon_name="media-handler",
+            categories_raw="AudioVideo;",
+            declared_icon="media-handler",
             desktop_file=None,
             exec_line="media-handler %U",
             description="Play media",

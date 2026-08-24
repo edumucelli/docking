@@ -175,7 +175,7 @@ from docking.core.math import clamp
 from docking.log import get_logger, with_context
 from docking.platform import icon_overrides
 from docking.platform.applications import entries as desktop_entries
-from docking.platform.applications.projections import dock_metadata
+from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.recents import (
     RecentApplications,
 )
@@ -302,23 +302,23 @@ class DockModel:
         """Return the canonical target service borrowed by production composition."""
         return self._target_service
 
-    def _resolve_application(
-        self,
-        desktop_id: str,
-        *,
-        log_failures: bool = True,
-    ) -> ApplicationInfo | None:
-        return self._application_registry.resolve(
-            desktop_id,
-            log_failures=log_failures,
-        )
-
     def _load_application_icon(
         self,
         application: ApplicationInfo,
         size: int,
     ) -> IconPixmapLike | None:
         return self._icon_loader.load_desktop_icon(info=application, size=size)
+
+    @staticmethod
+    def _apply_application_metadata(
+        item: DockItem,
+        application: ApplicationInfo,
+    ) -> None:
+        item.application_info = application
+        item.name = application.name
+        item.icon_name = dock_icon_name(application)
+        item.wm_class = application.wm_class
+        item.exec_line = application.exec_line
 
     def _load_icon(self, icon_name: str, size: int) -> IconPixmapLike | None:
         return self._icon_loader.load_icon(icon_name=icon_name, size=size)
@@ -435,19 +435,18 @@ class DockModel:
             return None
 
         if entry.kind == APP_KIND:
-            application = self._resolve_application(entry.target)
+            application = self._application_registry.get(entry.target)
             if application is None:
                 return None
-            metadata = dock_metadata(application)
             icon = self._load_application_icon(application, icon_size)
             item = DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
                 target=entry.target,
-                name=metadata.name,
-                icon_name=metadata.icon_name,
-                wm_class=metadata.wm_class,
-                exec_line=metadata.exec_line,
+                name=application.name,
+                icon_name=dock_icon_name(application),
+                wm_class=application.wm_class,
+                exec_line=application.exec_line,
                 application_info=application,
                 is_pinned=True,
                 icon=icon,
@@ -484,12 +483,8 @@ class DockModel:
         self, *, desktop_id: str, is_pinned: bool, running_info: RunningAppInfo | None
     ) -> DockItem:
         runtime = running_info.runtime_app if running_info is not None else None
-        application = runtime or self._resolve_application(
-            desktop_id,
-            log_failures=False,
-        )
+        application = runtime or self._application_registry.get(desktop_id)
         icon_size = self._config.scaled_icon_size
-        metadata = dock_metadata(application) if application is not None else None
         icon = (
             self._load_application_icon(application, icon_size)
             if application is not None
@@ -506,14 +501,14 @@ class DockModel:
             desktop_id=desktop_id,
             kind=APP_KIND,
             target=desktop_id,
-            name=metadata.name if metadata is not None else desktop_id,
+            name=application.name if application is not None else desktop_id,
             icon_name=(
-                metadata.icon_name
-                if metadata is not None
+                dock_icon_name(application)
+                if application is not None
                 else "application-x-executable"
             ),
-            wm_class=metadata.wm_class if metadata is not None else "",
-            exec_line=metadata.exec_line if metadata is not None else "",
+            wm_class=application.wm_class if application is not None else "",
+            exec_line=application.exec_line if application is not None else "",
             runtime_executable=runtime_executable,
             application_info=application,
             is_pinned=is_pinned,
@@ -536,10 +531,7 @@ class DockModel:
                 if current_application is not None
                 and current_application.origin is ApplicationOrigin.GENERATED
                 else (
-                    self._resolve_application(
-                        item.target or item.desktop_id,
-                        log_failures=False,
-                    )
+                    self._application_registry.get(item.target or item.desktop_id)
                     or current_application
                 )
             )
@@ -547,12 +539,7 @@ class DockModel:
                 item.icon_name = item.icon_name or "application-x-executable"
                 item.icon = self._load_icon(item.icon_name, icon_size)
                 return
-            metadata = dock_metadata(application)
-            item.application_info = application
-            item.name = metadata.name
-            item.icon_name = metadata.icon_name
-            item.wm_class = metadata.wm_class
-            item.exec_line = metadata.exec_line
+            self._apply_application_metadata(item, application)
             item.icon = self._load_application_icon(application, icon_size)
             return
 
@@ -681,10 +668,7 @@ class DockModel:
         ):
             item = self.find_by_desktop_id(desktop_id=state.desktop_id)
             if item is None:
-                application = self._resolve_application(
-                    state.desktop_id,
-                    log_failures=False,
-                )
+                application = self._application_registry.get(state.desktop_id)
                 if application is not None:
                     item = self._make_app_item(
                         desktop_id=state.desktop_id,
@@ -745,10 +729,7 @@ class DockModel:
             ):
                 item = existing_transient.get(desktop_id)
                 if item is None:
-                    application = self._resolve_application(
-                        desktop_id,
-                        log_failures=False,
-                    )
+                    application = self._application_registry.get(desktop_id)
                     if application is not None:
                         item = self._make_app_item(
                             desktop_id=desktop_id,
@@ -1280,12 +1261,7 @@ class DockModel:
                 or item.application_info.origin is not ApplicationOrigin.GENERATED
             )
         ):
-            metadata = dock_metadata(runtime)
-            item.application_info = runtime
-            item.name = metadata.name
-            item.icon_name = metadata.icon_name
-            item.wm_class = metadata.wm_class
-            item.exec_line = metadata.exec_line
+            self._apply_application_metadata(item, runtime)
             item.runtime_executable = (
                 str(runtime.executable_path)
                 if runtime.executable_path is not None
@@ -1375,10 +1351,7 @@ class DockModel:
             # Only create launcher-only transients for desktop files we can
             # resolve. Otherwise a stale LauncherEntry sender could create a
             # generic, unlaunchable item that has no real app identity.
-            application = self._resolve_application(
-                state.desktop_id,
-                log_failures=False,
-            )
+            application = self._application_registry.get(state.desktop_id)
             if application is None:
                 return None
             item = self._make_app_item(
@@ -1435,20 +1408,12 @@ class DockModel:
         if generated is None or generated.desktop_id != item.desktop_id:
             return False
         self._refresh_application_registry()
-        application = self._resolve_application(
-            generated.desktop_id,
-            log_failures=False,
-        )
+        application = self._application_registry.get(generated.desktop_id)
         if application is None:
             return False
-        metadata = dock_metadata(application)
         item.target = generated.desktop_id
         item.prefs_key = generated.desktop_id
-        item.application_info = application
-        item.name = metadata.name
-        item.icon_name = metadata.icon_name
-        item.wm_class = metadata.wm_class
-        item.exec_line = metadata.exec_line
+        self._apply_application_metadata(item, application)
         item.runtime_executable = ""
         item.icon = self._load_application_icon(
             application,
@@ -1464,7 +1429,7 @@ class DockModel:
                 return False
             self.pin_item(desktop_id)
             return existing.is_pinned
-        if self._resolve_application(desktop_id, log_failures=False) is None:
+        if self._application_registry.get(desktop_id) is None:
             return False
         item = self._make_app_item(
             desktop_id=desktop_id,
@@ -1482,7 +1447,7 @@ class DockModel:
         """Resolve and insert an application at an explicit pinned position."""
         if self.find_by_desktop_id(desktop_id=desktop_id) is not None:
             return False
-        if self._resolve_application(desktop_id, log_failures=False) is None:
+        if self._application_registry.get(desktop_id) is None:
             return False
         item = self._make_app_item(
             desktop_id=desktop_id,

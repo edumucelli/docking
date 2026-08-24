@@ -20,11 +20,13 @@ from collections.abc import Iterable
 from docking.platform import commands as _commands
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
-    ApplicationListing,
     activate_listing,
 )
-from docking.platform.applications.registry import UnidentifiedApplicationListing
-from docking.platform.applications.types import ApplicationInfo
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationListing,
+    TransientApplicationInfo,
+)
 
 HISTORY_LIMIT = 20
 
@@ -69,7 +71,7 @@ def app_display_name(app: ApplicationListing) -> str:
 
 def app_command_text(app: ApplicationListing) -> str:
     """Return command text suitable for the dialog entry."""
-    if isinstance(app, UnidentifiedApplicationListing) or (
+    if isinstance(app, TransientApplicationInfo) or (
         isinstance(app, ApplicationInfo) and app.has_gio_source
     ):
         commandline = _commands.clean_desktop_exec(app.exec_line)
@@ -80,7 +82,7 @@ def app_command_text(app: ApplicationListing) -> str:
 
 def app_description(app: ApplicationListing) -> str:
     """Return the best available app description/comment."""
-    if isinstance(app, UnidentifiedApplicationListing) or (
+    if isinstance(app, TransientApplicationInfo) or (
         isinstance(app, ApplicationInfo) and app.has_gio_source
     ):
         for text in (

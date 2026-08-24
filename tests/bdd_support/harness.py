@@ -466,7 +466,7 @@ class DockHarness:
                 index=index,
             )
         )
-        self._drag_handler._application_registry.resolve.return_value = ApplicationInfo(
+        self._drag_handler._application_registry.get.return_value = ApplicationInfo(
             desktop_id="firefox.desktop",
             name="Firefox",
             declared_icon="firefox",
@@ -531,7 +531,7 @@ class DockHarness:
         renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
         application_registry = MagicMock()
-        application_registry.resolve.return_value = None
+        application_registry.get.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
         application_launcher = MagicMock()
         icon_loader = MagicMock()

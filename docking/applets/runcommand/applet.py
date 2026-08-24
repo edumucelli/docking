@@ -42,11 +42,11 @@ from docking.i18n import _
 from docking.platform import commands
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
-    ApplicationListing,
     listing_gicon,
     visible_listings,
 )
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
     from docking.core.config import Config

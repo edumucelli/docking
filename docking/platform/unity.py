@@ -210,10 +210,7 @@ class UnityLauncherListener:
             return None
         desktop_id = parse_application_uri(app_uri)
         if desktop_id is not None:
-            application = self._application_registry.resolve(
-                desktop_id,
-                log_failures=False,
-            )
+            application = self._application_registry.get(desktop_id)
             if application is not None:
                 desktop_id = application.desktop_id
         normalized_props = {str(key): value for key, value in props.items()}

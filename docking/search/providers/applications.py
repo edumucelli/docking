@@ -21,11 +21,6 @@ from urllib.parse import unquote, urlparse
 from docking.core.items import APP_KIND
 from docking.i18n import _
 from docking.platform.applications.launcher import ApplicationLauncher
-from docking.platform.applications.projections import (
-    SearchApplication,
-    search_applications,
-    search_metadata,
-)
 from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationInfo
@@ -33,6 +28,7 @@ from docking.platform.backends.base import WindowId, WindowService
 from docking.platform.model import DockModel
 from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
+from docking.search.matcher import normalize_search_text
 from docking.search.providers.base import (
     action,
     action_parts,
@@ -73,7 +69,6 @@ class ApplicationSearchProvider:
         self._refined_window_ids: dict[tuple[str, str], WindowId] = {}
         self._preview_cache: dict[str, SearchPreview] = {}
         self._applications_by_id: dict[str, ApplicationInfo] = {}
-        self._search_metadata_by_id: dict[str, SearchApplication] = {}
 
     def search(self, request: SearchRequest):
         """Yield ranked installed applications for one current request."""
@@ -93,14 +88,27 @@ class ApplicationSearchProvider:
             application.desktop_id: application
             for application in self._registry.snapshot()
         }
-        projected = search_applications(canonical.values())
+        applications = tuple(
+            sorted(
+                (
+                    application
+                    for application in canonical.values()
+                    if application.visible
+                ),
+                key=lambda application: (
+                    normalize_search_text(_application_name(application)),
+                    application.desktop_id.casefold(),
+                ),
+            )
+        )
         self._applications_by_id = canonical
-        self._search_metadata_by_id = {
-            application.desktop_id: application for application in projected
-        }
         results: list[SearchResult] = []
-        for application in projected:
+        for application in applications:
             request.raise_if_cancelled()
+            name = _application_name(application)
+            description = _clean_text(application.description)
+            categories = _normalized_values(application.categories)
+            keywords = _normalized_values(application.keywords)
             item = visible_apps.get(application.desktop_id)
             pinned = bool(item and item.is_pinned)
             running = bool(item and item.is_running)
@@ -115,10 +123,10 @@ class ApplicationSearchProvider:
                 score = score_fields(
                     request,
                     (
-                        application.name,
-                        application.description,
-                        *application.keywords,
-                        *application.categories,
+                        name,
+                        description,
+                        *keywords,
+                        *categories,
                     ),
                     source_boost=6,
                     state_boost=(12 if pinned else 0)
@@ -201,13 +209,13 @@ class ApplicationSearchProvider:
                         self.provider_id,
                         application.desktop_id,
                     ),
-                    title=application.name,
-                    description=application.description,
+                    title=name,
+                    description=description,
                     score=score,
-                    icon_name=_icon_name(application.icon.kind, application.icon.value),
+                    icon_name=_icon_name(application.declared_icon),
                     source=_("Applications"),
                     state=" · ".join(states),
-                    keywords=application.keywords,
+                    keywords=keywords,
                     actions=tuple(actions),
                     metadata=metadata(desktop_id=application.desktop_id),
                     canonical_key=f"app:{application.desktop_id}",
@@ -223,7 +231,6 @@ class ApplicationSearchProvider:
         if cached is not None:
             return cached
         canonical = self._canonical_application(desktop_id)
-        application = self._projected_application(desktop_id, canonical=canonical)
         windows = self._windows.list_windows(desktop_id)
         documents = (
             recent_documents_for(
@@ -235,18 +242,19 @@ class ApplicationSearchProvider:
         )
         lines = []
         description = (
-            application.description if application is not None else result.description
+            _clean_text(canonical.description)
+            if canonical is not None
+            else result.description
         )
         if description:
             lines.extend((description, ""))
         lines.append(_("Desktop ID: {desktop_id}").format(desktop_id=desktop_id))
         if result.state:
             lines.append(_("State: {state}").format(state=result.state))
-        if application is not None and application.categories:
+        categories = _normalized_values(canonical.categories) if canonical else ()
+        if categories:
             lines.append(
-                _("Categories: {categories}").format(
-                    categories=", ".join(application.categories)
-                )
+                _("Categories: {categories}").format(categories=", ".join(categories))
             )
         if windows:
             lines.extend(("", _("Windows")))
@@ -356,22 +364,37 @@ class ApplicationSearchProvider:
             return application
         return self._registry.get(desktop_id)
 
-    def _projected_application(
-        self,
-        desktop_id: str,
-        *,
-        canonical: ApplicationInfo | None,
-    ) -> SearchApplication | None:
-        application = self._search_metadata_by_id.get(desktop_id)
-        if application is not None:
-            return application
-        return search_metadata(canonical) if canonical is not None else None
+
+def _application_name(application: ApplicationInfo) -> str:
+    return (
+        _clean_text(application.name)
+        or application.desktop_id.removesuffix(".desktop")
+        or application.desktop_id
+    )
 
 
-def _icon_name(kind: str, value: str) -> str | None:
+def _normalized_values(values: tuple[str, ...]) -> tuple[str, ...]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        clean = _clean_text(value)
+        key = normalize_search_text(clean)
+        if clean and key not in seen:
+            seen.add(key)
+            result.append(clean)
+    return tuple(result)
+
+
+def _clean_text(value: object) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split())
+
+
+def _icon_name(value: str) -> str | None:
     if not value:
         return None
-    if kind == "file" and value.startswith("file://"):
+    if value.startswith("file://"):
         return unquote(urlparse(value).path)
     return value
 

@@ -11,19 +11,15 @@ from gi.repository import Gio
 from docking.platform.applications.listing import (
     activate_listing,
     gicon_from_icon_name,
-    listing_categories,
     listing_desktop_file_uri,
-    listing_desktop_id,
     listing_gicon,
-    listing_icon_name,
-    listing_key,
     visible_listings,
 )
-from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
+    TransientApplicationInfo,
 )
 
 
@@ -51,14 +47,12 @@ def _application(
     )
 
 
-def _unidentified(
-    *, desktop_file: Path | None = None
-) -> UnidentifiedApplicationListing:
-    return UnidentifiedApplicationListing(
+def _unidentified(*, desktop_file: Path | None = None) -> TransientApplicationInfo:
+    return TransientApplicationInfo(
         listing_key="gio-idless:17",
         name="ID-less Tool",
-        categories="Utility;",
-        icon_name="applications-utilities",
+        categories_raw="Utility;",
+        declared_icon="applications-utilities",
         desktop_file=desktop_file,
         exec_line="idless-tool %U",
         description="Run the ID-less tool",
@@ -82,16 +76,15 @@ def test_listing_facts_distinguish_canonical_and_idless_records() -> None:
     unidentified = _unidentified()
 
     assert application.name == "Host Tool"
-    assert listing_categories(application) == "Development;IDE;"
-    assert listing_icon_name(application) == "host-tool"
-    assert listing_desktop_id(application) == "org.example.Host.desktop"
-    assert listing_key(application) is None
+    assert application.categories_raw == "Development;IDE;"
+    assert application.declared_icon == "host-tool"
+    assert application.desktop_id == "org.example.Host.desktop"
 
     assert unidentified.name == "ID-less Tool"
-    assert listing_categories(unidentified) == "Utility;"
-    assert listing_icon_name(unidentified) == "applications-utilities"
-    assert listing_desktop_id(unidentified) is None
-    assert listing_key(unidentified) == "gio-idless:17"
+    assert unidentified.categories_raw == "Utility;"
+    assert unidentified.declared_icon == "applications-utilities"
+    assert unidentified.desktop_id is None
+    assert unidentified.listing_key == "gio-idless:17"
     assert unidentified.exec_line == "idless-tool %U"
     assert unidentified.description == "Run the ID-less tool"
     assert unidentified.generic_name == "Utility Tool"

@@ -68,15 +68,6 @@ class ApplicationRegistryStub:
     def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self._applications.get(desktop_id)
 
-    def resolve(
-        self,
-        desktop_id: str,
-        *,
-        log_failures: bool = True,
-    ) -> ApplicationInfo | None:
-        del log_failures
-        return self.get(desktop_id)
-
     def resolve_all_by_wm_class(
         self,
         alias: str,

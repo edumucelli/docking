@@ -22,7 +22,7 @@ import docking.ui.menu as menu_mod
 import docking.ui.stack as stack_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.platform import targets as targets_mod
-from docking.platform.applications.projections import DesktopActionProjection
+from docking.platform.applications.types import ActionSource, ApplicationAction
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -1631,7 +1631,11 @@ class TestMenuCallbacks:
         # Given
         menu = FakeMenu()
         handler._application_launcher.quicklist_actions.return_value = [
-            DesktopActionProjection(action_id="new-window", name="New Window")
+            ApplicationAction(
+                action_id="new-window",
+                name="New Window",
+                sources=frozenset({ActionSource.GIO}),
+            )
         ]
 
         handler._append_desktop_actions(menu=menu, desktop_id="firefox.desktop")

@@ -122,7 +122,7 @@ def _make_handler(
     theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
     if application_registry is None:
         application_registry = MagicMock()
-        application_registry.resolve.return_value = None
+        application_registry.get.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
     application_launcher = application_launcher or MagicMock()
     icon_loader = icon_loader or MagicMock()
@@ -466,7 +466,7 @@ class TestDropAndReceive:
             icon_name="firefox",
             wm_class="firefox",
         )
-        handler._application_registry.resolve.return_value = resolved
+        handler._application_registry.get.return_value = resolved
         handler._icon_loader.load_desktop_icon.return_value = object()
         selection = MagicMock()
         selection.get_uris.return_value = [
@@ -689,7 +689,7 @@ class TestDropAndReceive:
         self, monkeypatch, tmp_path
     ):
         registry = MagicMock()
-        registry.resolve.return_value = None
+        registry.get.return_value = None
         nested_path = tmp_path / "applications" / "kde" / "org.kde.kwrite.desktop"
         application = _application(
             "kde-org.kde.kwrite.desktop",
@@ -757,7 +757,7 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+        handler._application_registry.get.side_effect = lambda target: (
             resolved if target == generated.desktop_id else None
         )
         inserted = handler._insert_pinned_uri(uri=binary.as_uri(), index=2)
@@ -771,7 +771,7 @@ class TestDropAndReceive:
         assert handler._application_registry.method_calls.index(
             call.refresh()
         ) < handler._application_registry.method_calls.index(
-            call.resolve(generated.desktop_id)
+            call.get(generated.desktop_id)
         )
         handler._icon_loader.load_desktop_icon.assert_not_called()
 
@@ -792,7 +792,7 @@ class TestDropAndReceive:
             "MessageDialog",
             lambda **_kwargs: dialog,
         )
-        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+        handler._application_registry.get.side_effect = lambda target: (
             _application(
                 target,
                 name="GIMP 3.2.4 x86 64",
@@ -861,7 +861,7 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+        handler._application_registry.get.side_effect = lambda target: (
             resolved if target == generated.desktop_id else None
         )
         selection = MagicMock()
@@ -920,7 +920,7 @@ class TestDropAndReceive:
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
-        handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
+        handler._application_registry.get.side_effect = lambda target: (
             resolved if target == generated.desktop_id else None
         )
         handler._model.find_by_desktop_id.return_value = DockItem(generated.desktop_id)

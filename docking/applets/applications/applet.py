@@ -35,12 +35,12 @@ from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
-    ApplicationListing,
     activate_listing,
     listing_desktop_file_uri,
     listing_gicon,
 )
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
     from docking.core.config import Config

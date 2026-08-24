@@ -116,10 +116,7 @@ class StatusNotifierNotificationBridge:
         )
 
     def _canonical_desktop_id(self, desktop_id: str) -> str:
-        application = self._application_registry.resolve(
-            desktop_id,
-            log_failures=False,
-        )
+        application = self._application_registry.get(desktop_id)
         if application is None:
             application = self._application_registry.resolve_by_wm_class(
                 desktop_id.removesuffix(".desktop")

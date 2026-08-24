@@ -8,8 +8,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .registry import ApplicationRegistry
-from .types import ApplicationOrigin
+from .types import ApplicationInfo, ApplicationOrigin
 
 Clock = Callable[[], float]
 
@@ -36,12 +35,7 @@ class RecentApplicationsConfig(Protocol):
 class ApplicationResolver(Protocol):
     """Read-only registry surface used by recent-application policy."""
 
-    def resolve(
-        self,
-        desktop_id: str,
-        *,
-        log_failures: bool = True,
-    ) -> Any: ...
+    def get(self, desktop_id: str) -> ApplicationInfo | None: ...
 
 
 class RecentApplicationsPersistence:
@@ -115,7 +109,7 @@ class RecentApplications:
 
     def __init__(
         self,
-        registry: ApplicationRegistry | ApplicationResolver,
+        registry: ApplicationResolver,
         persistence: RecentApplicationsPersistence,
         *,
         clock: Clock = time.time,
@@ -273,7 +267,7 @@ class RecentApplications:
         return self._clock() - (self._persistence.retention_days * 86400)
 
     def _is_resolvable(self, desktop_id: str) -> bool:
-        application = self._registry.resolve(desktop_id, log_failures=False)
+        application = self._registry.get(desktop_id)
         return application is not None and (
             getattr(application, "origin", None) is not ApplicationOrigin.RUNTIME
         )

@@ -405,10 +405,7 @@ class AppIdMatcher:
             if not (
                 self._cache_missed_desktop_ids and desktop_id in self._missed_candidates
             ):
-                application = self._registry.resolve(
-                    desktop_id,
-                    log_failures=False,
-                )
+                application = self._registry.get(desktop_id)
                 if application is not None:
                     return self._match_application_candidates(
                         (application,),

@@ -30,14 +30,33 @@ def test_stable_application_dependencies_are_required() -> None:
     _required_parameter(RecentApplications, "persistence")
 
 
-def test_registry_implementation_helpers_are_private() -> None:
+def test_registry_exposes_only_consumer_owned_queries() -> None:
     assert {
+        "applications_by_id",
+        "resolvable_snapshot",
+        "resolve",
+        "resolve_all_by_executable_path",
+        "recommended_for_content_type",
         "add_listener",
         "remove_listener",
         "default_listing_for_content_type",
         "recommended_listings_for_content_type",
         "all_listings_for_content_type",
     }.isdisjoint(ApplicationRegistry.__dict__)
+
+
+def test_registry_delegates_desktop_discovery_and_parsing() -> None:
+    source = (
+        Path(__file__).parents[3]
+        / "docking"
+        / "platform"
+        / "applications"
+        / "registry.py"
+    ).read_text(encoding="utf-8")
+
+    assert "discovery.discover(" in source
+    assert "load_desktop_key_file" not in source
+    assert "class _FileFacts" not in source
 
 
 def test_dnd_does_not_materialize_application_items_or_resolve_gio_apps() -> None:

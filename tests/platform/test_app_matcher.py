@@ -51,15 +51,11 @@ def _registry(*, resolve_by_wm_class=None, resolve=None):
     else:
         registry.resolve_all_by_wm_class.return_value = ()
     if resolve is not None:
-        registry.resolve.side_effect = (
-            resolve if callable(resolve) else lambda _desktop_id, **_: resolve
+        registry.get.side_effect = (
+            resolve if callable(resolve) else lambda _desktop_id: resolve
         )
     else:
-        registry.resolve.return_value = None
-    registry.get.side_effect = lambda desktop_id: registry.resolve(
-        desktop_id,
-        log_failures=False,
-    )
+        registry.get.return_value = None
     return registry
 
 
@@ -256,7 +252,7 @@ class TestVisibleAliases:
 
         # wm_class "Firefox" → normalized "firefox"
         assert matcher.match("Firefox") == "firefox.desktop"
-        launcher.resolve.assert_not_called()
+        launcher.get.assert_not_called()
 
     def test_desktop_id_sans_suffix_hit(self):
         launcher = _registry()
@@ -265,7 +261,7 @@ class TestVisibleAliases:
 
         # desktop_id sans suffix "org.gnome.Nautilus" → normalized
         assert matcher.match("org.gnome.Nautilus") == ("org.gnome.Nautilus.desktop")
-        launcher.resolve.assert_not_called()
+        launcher.get.assert_not_called()
 
     def test_instance_hint_matches_visible_alias(self):
         launcher = _registry()
@@ -661,7 +657,7 @@ class TestWineMatching:
             matcher.match("Wine", instance_hint="C:\\Windows\\notepad.exe")
             == "wine-notepad.desktop"
         )
-        launcher.resolve.assert_not_called()
+        launcher.get.assert_not_called()
 
     def test_wine_class_group_without_exe_instance_falls_through(self):
         launcher = _registry(
@@ -860,7 +856,7 @@ class TestMissedCandidates:
 
         # First call - launcher.resolve returns None, candidate is memoized
         matcher.match("NoSuchApp")
-        first_call_count = launcher.resolve.call_count
+        first_call_count = launcher.get.call_count
 
         # Second call with same app_id - missed candidates are skipped
         matcher.match("NoSuchApp")
@@ -871,12 +867,12 @@ class TestMissedCandidates:
         # The key insight: "nosuchapp.desktop" is added to missed set
         # after the first match() call.  On the second match() call the
         # loop hits "nosuchapp.desktop" again and skips it.
-        assert launcher.resolve.call_count == first_call_count
+        assert launcher.get.call_count == first_call_count
 
     def test_wayland_style_misses_are_retried(self):
         ready = False
 
-        def resolve(desktop_id, **_):
+        def resolve(desktop_id):
             if ready and desktop_id == "FutureApp.desktop":
                 return _application(desktop_id=desktop_id)
             return None
@@ -886,16 +882,16 @@ class TestMissedCandidates:
         matcher.sync_visible_items([])
 
         assert matcher.match("FutureApp") is None
-        first_count = launcher.resolve.call_count
+        first_count = launcher.get.call_count
 
         ready = True
         assert matcher.match("FutureApp") == "FutureApp.desktop"
-        assert launcher.resolve.call_count > first_count
+        assert launcher.get.call_count > first_count
 
     def test_x11_cached_miss_survives_visible_resync_before_registry_migration(self):
         ready = False
 
-        def resolve(desktop_id, **_):
+        def resolve(desktop_id):
             if ready and desktop_id == "FutureApp.desktop":
                 return _application(desktop_id=desktop_id)
             return None
@@ -905,12 +901,12 @@ class TestMissedCandidates:
         matcher.sync_visible_items([])
 
         assert matcher.match("FutureApp") is None
-        first_count = launcher.resolve.call_count
+        first_count = launcher.get.call_count
 
         ready = True
         matcher.sync_visible_items([])
         assert matcher.match("FutureApp") is None
-        assert launcher.resolve.call_count == first_count
+        assert launcher.get.call_count == first_count
 
     def test_successful_wm_class_match_uses_launcher_index(self):
         launcher = _registry(

@@ -57,10 +57,10 @@ def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
             has_gio_source=False,
         )
 
-    def resolve(desktop_id, **_kwargs):
+    def get(desktop_id):
         return infos.get(desktop_id)
 
-    registry.resolve.side_effect = resolve
+    registry.get.side_effect = get
     icon_loader = MagicMock()
     icon_loader.load_icon.return_value = MagicMock()
     icon_loader.load_desktop_icon.return_value = MagicMock()

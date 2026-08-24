@@ -784,7 +784,7 @@ class DnDHandler:
         generated = desktop_entries.create_desktop_entry_for_executable(uri)
         if generated is not None:
             self._application_registry.refresh()
-            application = self._application_registry.resolve(generated.desktop_id)
+            application = self._application_registry.get(generated.desktop_id)
             if application is None:
                 log.debug(
                     "_insert_pinned_uri: generated desktop entry did not resolve: %s",
@@ -817,7 +817,7 @@ class DnDHandler:
 
     def _resolve_desktop_application(self, target: str) -> ApplicationInfo | None:
         """Resolve desktop drops without flattening nested desktop IDs."""
-        exact = self._application_registry.resolve(target, log_failures=False)
+        exact = self._application_registry.get(target)
         if exact is not None:
             return exact
 
@@ -832,7 +832,7 @@ class DnDHandler:
         desktop_id = desktop_entries.desktop_id_from_uri_or_path(target)
         if desktop_id is None:
             return None
-        return self._application_registry.resolve(desktop_id)
+        return self._application_registry.get(desktop_id)
 
     def _prepare_appimage_for_generation(self, uri: str) -> bool:
         appimage = desktop_entries.appimage_path_needing_executable_permission(uri)

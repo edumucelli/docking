@@ -33,9 +33,9 @@ from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.applications.listing import (
-    ApplicationListing,
     activate_listing,
 )
+from docking.platform.applications.types import ApplicationListing
 
 from .artwork import CoverArtResolver
 from .render import create_music_icon
@@ -267,7 +267,7 @@ class MusicApplet(ApplicationServicesApplet):
         if not state.player_desktop_entry:
             return state
         for desktop_id in _desktop_entry_candidates(state.player_desktop_entry):
-            application = registry.resolve(desktop_id, log_failures=False)
+            application = registry.get(desktop_id)
             if application is None:
                 continue
             if application.declared_icon:

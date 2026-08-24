@@ -62,10 +62,10 @@ def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
             has_gio_source=False,
         )
 
-    def resolve(desktop_id, **_kwargs):
+    def get(desktop_id):
         return infos.get(desktop_id)
 
-    registry.resolve.side_effect = resolve
+    registry.get.side_effect = get
     icon_loader = MagicMock()
     icon_loader.load_icon.return_value = MagicMock()  # fake pixbuf
     icon_loader.load_desktop_icon.return_value = MagicMock()
@@ -369,7 +369,7 @@ class TestPinUnpin:
             "create_desktop_entry_for_executable",
             create,
         )
-        dependencies.application_registry.resolve.side_effect = lambda desktop_id, **_: (
+        dependencies.application_registry.get.side_effect = lambda desktop_id: (
             resolved if desktop_id == runtime_id else None
         )
 
@@ -447,7 +447,7 @@ class TestPinUnpin:
         promoted_application = promoted.application_info
         assert promoted.is_pinned
         assert promoted.runtime_executable == ""
-        assert promoted_application is registry.resolve(runtime_id)
+        assert promoted_application is registry.get(runtime_id)
         assert promoted_application is not None
         assert promoted_application.origin is ApplicationOrigin.GENERATED
         assert promoted.name == promoted_application.name
@@ -626,7 +626,7 @@ class TestCustomIcons:
         item = model.pinned_items[0]
         assert item.desktop_id == "tool.desktop"
         assert item.kind == APP_KIND
-        assert item.application_info is dependencies.application_registry.resolve(
+        assert item.application_info is dependencies.application_registry.get(
             "tool.desktop"
         )
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]

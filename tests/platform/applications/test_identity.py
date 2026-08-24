@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -76,6 +77,15 @@ def test_service_preserves_an_explicit_empty_store_instance():
     assert service.provenance_store is store
 
 
+def test_identity_reads_current_process_executable():
+    identity = ProcessIdentityService(LaunchProvenanceStore()).identity_for_pid(
+        os.getpid()
+    )
+
+    assert identity is not None
+    assert identity.executable_path == Path("/proc/self/exe").resolve()
+
+
 def test_store_is_bounded_and_live_reads_refresh_order():
     store = LaunchProvenanceStore(max_records=2)
     for pid in (1, 2):
@@ -123,7 +133,11 @@ def test_finished_pruning_preserves_legacy_poll_semantics():
         executable_path=None,
     )
 
-    store.prune_finished()
+    store.record_launch(
+        process=SimpleNamespace(pid=5, poll=lambda: None),
+        desktop_id="5.desktop",
+        executable_path=None,
+    )
 
     assert store.provenance_for_pid(1) is None
     assert store.provenance_for_pid(2) is not None
@@ -141,7 +155,6 @@ def test_concurrent_record_read_prune_and_clear_remain_consistent():
             executable_path=None,
         )
         store.provenance_for_pid(pid)
-        store.prune_finished()
 
     with ThreadPoolExecutor(max_workers=12) as executor:
         tuple(executor.map(exercise, range(1, 257)))

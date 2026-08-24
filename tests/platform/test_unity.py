@@ -62,7 +62,7 @@ def _variant_payload(
 
 def _registry():
     registry = MagicMock()
-    registry.resolve.return_value = None
+    registry.get.return_value = None
     return registry
 
 
@@ -127,9 +127,7 @@ class TestUnityLauncherListener:
 
     def test_parse_payload_uses_canonical_id_for_exact_registry_match(self):
         registry = _registry()
-        registry.resolve.return_value = MagicMock(
-            desktop_id="org.mozilla.firefox.desktop"
-        )
+        registry.get.return_value = MagicMock(desktop_id="org.mozilla.firefox.desktop")
         listener = unity_mod.UnityLauncherListener(
             model=MagicMock(),
             application_registry=registry,
@@ -142,10 +140,7 @@ class TestUnityLauncherListener:
 
         assert state is not None
         assert state.desktop_id == "org.mozilla.firefox.desktop"
-        registry.resolve.assert_called_once_with(
-            "firefox.desktop",
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with("firefox.desktop")
 
     def test_parse_payload_keeps_unresolved_id_without_alias_broadening(self):
         registry = _registry()
@@ -161,10 +156,7 @@ class TestUnityLauncherListener:
 
         assert state is not None
         assert state.desktop_id == "Vendor-Firefox.desktop"
-        registry.resolve.assert_called_once_with(
-            "Vendor-Firefox.desktop",
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with("Vendor-Firefox.desktop")
         registry.resolve_by_wm_class.assert_not_called()
 
     def test_invalid_payload_signature_is_ignored(self):

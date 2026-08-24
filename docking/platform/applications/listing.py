@@ -10,10 +10,8 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio
 
-from .registry import ApplicationRegistry, UnidentifiedApplicationListing
-from .types import ApplicationInfo
-
-ApplicationListing = ApplicationInfo | UnidentifiedApplicationListing
+from .registry import ApplicationRegistry
+from .types import ApplicationInfo, ApplicationListing
 
 
 class ApplicationListingLauncher(Protocol):
@@ -27,34 +25,6 @@ class ApplicationListingLauncher(Protocol):
 def visible_listings(registry: ApplicationRegistry) -> tuple[ApplicationListing, ...]:
     """Return the registry's visible and ID-less presentation snapshots."""
     return (*registry.snapshot(), *registry.unidentified_snapshot())
-
-
-def listing_categories(listing: ApplicationListing) -> str:
-    """Return the source-faithful freedesktop category field."""
-    if isinstance(listing, ApplicationInfo):
-        return listing.categories_raw
-    return listing.categories
-
-
-def listing_icon_name(listing: ApplicationListing) -> str:
-    """Return the recorded icon fact without adding a generic fallback."""
-    if isinstance(listing, ApplicationInfo):
-        return listing.declared_icon
-    return listing.icon_name
-
-
-def listing_desktop_id(listing: ApplicationListing) -> str | None:
-    """Return a canonical desktop ID, or ``None`` for an ID-less listing."""
-    if isinstance(listing, ApplicationInfo):
-        return listing.desktop_id
-    return None
-
-
-def listing_key(listing: ApplicationListing) -> str | None:
-    """Return the opaque key used for a Gio-backed transient listing."""
-    if isinstance(listing, UnidentifiedApplicationListing):
-        return listing.listing_key
-    return None
 
 
 def activate_listing(
@@ -82,7 +52,7 @@ def listing_gicon(
                 icon = None
             if icon is not None:
                 return icon
-    return gicon_from_icon_name(listing_icon_name(listing))
+    return gicon_from_icon_name(listing.declared_icon)
 
 
 def gicon_from_icon_name(icon_name: str) -> Gio.Icon | None:
@@ -123,11 +93,7 @@ __all__ = [
     "ApplicationListingLauncher",
     "activate_listing",
     "gicon_from_icon_name",
-    "listing_categories",
     "listing_desktop_file_uri",
-    "listing_desktop_id",
     "listing_gicon",
-    "listing_icon_name",
-    "listing_key",
     "visible_listings",
 ]

@@ -123,11 +123,6 @@ class LaunchProvenanceStore:
             self._records.move_to_end(pid)
             return record.provenance
 
-    def prune_finished(self) -> None:
-        """Discard every record whose exact process has finished."""
-        with self._lock:
-            self._prune_finished_locked()
-
     def clear(self) -> None:
         """Discard all records."""
         with self._lock:

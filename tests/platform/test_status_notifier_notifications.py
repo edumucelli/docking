@@ -110,7 +110,7 @@ class _DeferredWorker:
 
 def _registry(*, exact=None, alias=None):
     registry = MagicMock()
-    registry.resolve.return_value = exact
+    registry.get.return_value = exact
     registry.resolve_by_wm_class.return_value = alias
     return registry
 
@@ -257,10 +257,7 @@ class TestStatusNotifierNotificationBridge:
 
         bridge._on_state_result(_available_state(_tray_item()))
 
-        registry.resolve.assert_called_once_with(
-            SLACK_DESKTOP_ID,
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with(SLACK_DESKTOP_ID)
         registry.resolve_by_wm_class.assert_not_called()
         model.apply_status_notifier_overlay.assert_called_once_with(
             source_id=":1.42/StatusNotifierItem",
@@ -333,15 +330,12 @@ class TestStatusNotifierNotificationBridge:
         worker.run_background()
 
         assert backend.get_state_calls == 1
-        registry.resolve.assert_not_called()
+        registry.get.assert_not_called()
         registry.resolve_by_wm_class.assert_not_called()
 
         worker.deliver_result()
 
-        registry.resolve.assert_called_once_with(
-            SLACK_DESKTOP_ID,
-            log_failures=False,
-        )
+        registry.get.assert_called_once_with(SLACK_DESKTOP_ID)
         model.apply_status_notifier_overlay.assert_called_once()
 
     def test_disappearing_item_removes_overlay(self, monkeypatch):
@@ -414,7 +408,7 @@ class TestStatusNotifierNotificationBridge:
         )
 
         model.apply_status_notifier_overlay.assert_not_called()
-        registry.resolve.assert_not_called()
+        registry.get.assert_not_called()
         registry.resolve_by_wm_class.assert_not_called()
 
     def test_poll_failure_preserves_overlays_and_keeps_timer_alive(self, monkeypatch):

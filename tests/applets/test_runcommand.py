@@ -16,11 +16,11 @@ from docking.applets.runcommand.state import (
     updated_history,
 )
 from docking.core.config import Config
-from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
+    TransientApplicationInfo,
 )
 
 
@@ -125,7 +125,7 @@ class _FakeDialog:
 class _FakeRow:
     def __init__(
         self,
-        app: ApplicationInfo | UnidentifiedApplicationListing,
+        app: ApplicationInfo | TransientApplicationInfo,
     ) -> None:
         self.app = app
         self.visible = True
@@ -141,7 +141,7 @@ class _Registry:
     def __init__(
         self,
         applications: tuple[ApplicationInfo, ...],
-        unidentified: tuple[UnidentifiedApplicationListing, ...] = (),
+        unidentified: tuple[TransientApplicationInfo, ...] = (),
     ) -> None:
         self.applications = applications
         self.unidentified = unidentified
@@ -151,7 +151,7 @@ class _Registry:
 
     def unidentified_snapshot(
         self,
-    ) -> tuple[UnidentifiedApplicationListing, ...]:
+    ) -> tuple[TransientApplicationInfo, ...]:
         return self.unidentified
 
     def _gio_handle_for(self, _desktop_id: str) -> None:
@@ -204,21 +204,21 @@ class TestRunCommandState:
         assert app_description(app) == "Host File Tool"
 
     def test_idless_listing_preserves_gio_command_and_description_fallbacks(self):
-        listing = UnidentifiedApplicationListing(
+        listing = TransientApplicationInfo(
             listing_key="opaque",
             name="ID-less Tool",
-            categories="Utility;",
-            icon_name="",
+            categories_raw="Utility;",
+            declared_icon="",
             desktop_file=None,
             exec_line="idless-tool %U",
             description="Launch an ID-less tool",
             generic_name="Generic ID-less Tool",
         )
-        generic_only = UnidentifiedApplicationListing(
+        generic_only = TransientApplicationInfo(
             listing_key="generic",
             name="Generic Fallback",
-            categories="Utility;",
-            icon_name="",
+            categories_raw="Utility;",
+            declared_icon="",
             desktop_file=None,
             exec_line="",
             description="",
@@ -369,11 +369,11 @@ class TestRunCommandApplet:
                 return
 
         identified = _fake_app("Calculator")
-        idless = UnidentifiedApplicationListing(
+        idless = TransientApplicationInfo(
             listing_key="gio-idless:1",
             name="ID-less",
-            categories="Utility;",
-            icon_name="",
+            categories_raw="Utility;",
+            declared_icon="",
             desktop_file=None,
         )
         registry = _Registry((identified,), (idless,))
@@ -463,11 +463,11 @@ class TestRunCommandApplet:
         launcher = MagicMock()
         launcher.launch_listing.return_value = True
         applet = _make_applet(launcher=launcher)
-        app = UnidentifiedApplicationListing(
+        app = TransientApplicationInfo(
             listing_key="gio-idless:3",
             name="ID-less Tool",
-            categories="Utility;",
-            icon_name="",
+            categories_raw="Utility;",
+            declared_icon="",
             desktop_file=None,
         )
         applet._entry = _FakeEntry("ID-less Tool")
