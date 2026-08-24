@@ -246,10 +246,6 @@ class HyprlandWindowService(WindowService):
         self._preview_handle_source = preview_handle_source
         self._records_by_address: dict[str, HyprlandWindowRecord] = {}
 
-    def set_preview_handle_source(self, source: object | None) -> None:
-        """Set a companion protocol service used only for preview handle lookup."""
-        self._preview_handle_source = source
-
     def start(self) -> None:
         """Load initial clients and subscribe to taskbar-relevant changes."""
         self._start_preview_handle_source()
@@ -490,6 +486,7 @@ def load_hyprland_window_service(
     model,
     application_registry: ApplicationRegistry,
     process_identity_service: ProcessIdentityService,
+    preview_handle_source: object | None = None,
 ) -> HyprlandWindowService | None:
     """Return a Hyprland WindowService when IPC sockets are detectable."""
     paths = hyprland_socket_paths()
@@ -505,6 +502,7 @@ def load_hyprland_window_service(
             paths=paths,
             callback=callback,
         ),
+        preview_handle_source=preview_handle_source,
     )
 
 

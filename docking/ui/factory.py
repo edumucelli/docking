@@ -69,7 +69,6 @@ from docking.ui.update_popup import UpdateCheckController
 
 if TYPE_CHECKING:
     from docking.platform.applications.launcher import ApplicationLauncher
-    from docking.platform.applications.recents import RecentApplications
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.icons import IconLoader
     from docking.platform.targets import TargetService
@@ -121,7 +120,6 @@ def build_dock_window(
     application_launcher: ApplicationLauncher,
     icon_loader: IconLoader,
     target_service: TargetService,
-    recent_applications: RecentApplications,
 ) -> DockUi:
     """Build a fully wired dock window and its UI collaborators.
 
@@ -186,7 +184,6 @@ def build_dock_window(
         actions=settings_actions,
         model=model,
         config=config,
-        recent_applications=recent_applications,
     )
     menu = MenuHandler(
         about=about,

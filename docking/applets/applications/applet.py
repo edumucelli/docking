@@ -191,9 +191,9 @@ def _populate_app_submenu(
     *,
     submenu: Gtk.Menu,
     apps: Iterable[ApplicationListing],
-    config: Config | None,
-    registry: ApplicationRegistry | None = None,
-    launcher: ApplicationLauncher | None = None,
+    config: Config,
+    registry: ApplicationRegistry,
+    launcher: ApplicationLauncher,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -211,9 +211,9 @@ def _populate_app_submenu(
 def _application_menu_item(
     *,
     app_info: ApplicationListing,
-    config: Config | None,
-    registry: ApplicationRegistry | None = None,
-    launcher: ApplicationLauncher | None = None,
+    config: Config,
+    registry: ApplicationRegistry,
+    launcher: ApplicationLauncher,
 ) -> Gtk.MenuItem:
     menu_item = make_menu_item_with_icon(
         label=_app_name(app_info),
@@ -239,11 +239,11 @@ def _configure_drag_source(
     *,
     menu_item: Gtk.MenuItem,
     app_info: ApplicationListing,
-    config: Config | None,
-    registry: ApplicationRegistry | None = None,
+    config: Config,
+    registry: ApplicationRegistry,
 ) -> None:
     """Make a launchable menu row draggable to the dock as a desktop URI."""
-    if config is not None and config.lock_icons:
+    if config.lock_icons:
         return
     uri = listing_desktop_file_uri(app_info)
     if uri is None:
@@ -261,7 +261,7 @@ def _on_drag_begin(
     _menu_item: Gtk.MenuItem,
     context: Gdk.DragContext,
     app_info: ApplicationListing,
-    registry: ApplicationRegistry | None = None,
+    registry: ApplicationRegistry,
 ) -> None:
     """Show the application's icon beside the pointer while it is dragged."""
     icon = listing_gicon(registry, app_info)
@@ -294,9 +294,7 @@ def _filter_apps(
 def _launch_app(
     *,
     app_info: ApplicationListing,
-    launcher: ApplicationLauncher | None,
+    launcher: ApplicationLauncher,
 ) -> bool:
     """Launch a registry listing through the injected application launcher."""
-    if launcher is None:
-        return False
     return activate_listing(launcher, app_info)

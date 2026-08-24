@@ -150,15 +150,11 @@ class ProcessIdentityService:
 
     def __init__(
         self,
-        provenance_store: LaunchProvenanceStore | None = None,
+        provenance_store: LaunchProvenanceStore,
         *,
         executable_resolver: ExecutableResolver | None = None,
     ) -> None:
-        self._provenance_store = (
-            provenance_store
-            if provenance_store is not None
-            else LaunchProvenanceStore()
-        )
+        self._provenance_store = provenance_store
         self._executable_resolver = (
             executable_resolver
             if executable_resolver is not None

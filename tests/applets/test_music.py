@@ -331,50 +331,6 @@ class TestMusicStateHelpers:
         assert text == "Music\nOnly Title"
 
 
-class TestMediaAppDiscovery:
-    def test_prefers_default_audio_application(self, monkeypatch):
-        app_info = MagicMock()
-        get_default = MagicMock(return_value=app_info)
-        monkeypatch.setattr(
-            music_applet_mod.Gio.AppInfo,
-            "get_default_for_type",
-            get_default,
-        )
-
-        assert music_applet_mod._find_media_app() is app_info
-        get_default.assert_called_once_with("audio/mpeg", False)
-
-    def test_falls_back_to_recommended_media_application(self, monkeypatch):
-        app_info = MagicMock()
-        app_info.should_show.return_value = True
-        monkeypatch.setattr(
-            music_applet_mod.Gio.AppInfo,
-            "get_default_for_type",
-            lambda _content_type, _must_support_uris: None,
-        )
-        get_recommended = MagicMock(return_value=[app_info])
-        monkeypatch.setattr(
-            music_applet_mod.Gio.AppInfo,
-            "get_recommended_for_type",
-            get_recommended,
-        )
-
-        assert music_applet_mod._find_media_app() is app_info
-        get_recommended.assert_called_once_with("audio/mpeg")
-
-    def test_launches_media_application_directly(self, monkeypatch):
-        app_info = MagicMock()
-        app_info.get_id.return_value = "org.videolan.VLC.desktop"
-        app_info.launch.return_value = True
-        monkeypatch.setattr(
-            music_applet_mod,
-            "_find_media_app",
-            lambda: app_info,
-        )
-        assert music_applet_mod.launch_default_media_app() is True
-        app_info.launch.assert_called_once_with([], None)
-
-
 class TestMprisBackendInternals:
     def _make_backend(self):
         backend = object.__new__(music_state_mod.MprisBackend)
@@ -808,8 +764,7 @@ def _make_applet(
     if registry is None:
         registry = MagicMock()
         registry.resolve.return_value = None
-        registry.default_listing_for_content_type.return_value = None
-        registry.recommended_listings_for_content_type.return_value = ()
+        registry.preferred_listing_for_content_types.return_value = None
     return (
         MusicApplet(
             48,
@@ -929,7 +884,7 @@ class TestMusicApplet:
     def test_on_clicked_launches_media_app_when_no_player_is_open(self, monkeypatch):
         application = _application_listing()
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = application
+        registry.preferred_listing_for_content_types.return_value = application
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -957,7 +912,7 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = application
+        registry.preferred_listing_for_content_types.return_value = application
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -983,7 +938,7 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = application
+        registry.preferred_listing_for_content_types.return_value = application
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1301,13 +1256,7 @@ class TestMusicApplet:
     ):
         visible = _application_listing("visible.desktop")
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = None
-        registry.recommended_listings_for_content_type.side_effect = (
-            lambda content_type: {
-                "audio/mpeg": (),
-                "audio/flac": (visible,),
-            }.get(content_type, ())
-        )
+        registry.preferred_listing_for_content_types.return_value = visible
         applet, _backend, _resolver = _make_applet(
             monkeypatch,
             unavailable_state(),
@@ -1317,14 +1266,9 @@ class TestMusicApplet:
         selected = applet._find_media_application()
 
         assert selected is visible
-        assert [
-            call.args[0]
-            for call in registry.default_listing_for_content_type.call_args_list
-        ] == list(music_applet_mod.MEDIA_CONTENT_TYPES)
-        assert [
-            call.args[0]
-            for call in registry.recommended_listings_for_content_type.call_args_list
-        ] == ["audio/mpeg", "audio/flac"]
+        registry.preferred_listing_for_content_types.assert_called_once_with(
+            music_applet_mod.MEDIA_CONTENT_TYPES
+        )
         registry.refresh.assert_not_called()
 
     def test_click_launches_registry_selected_media_app_through_launcher(
@@ -1332,7 +1276,7 @@ class TestMusicApplet:
     ):
         application = _application_listing()
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = application
+        registry.preferred_listing_for_content_types.return_value = application
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1341,16 +1285,9 @@ class TestMusicApplet:
             registry=registry,
             launcher=launcher,
         )
-        legacy_launch = MagicMock(side_effect=AssertionError("legacy launch used"))
-        monkeypatch.setattr(
-            music_applet_mod,
-            "launch_default_media_app",
-            legacy_launch,
-        )
         applet.on_clicked()
 
         launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
-        legacy_launch.assert_not_called()
         backend.play_pause.assert_not_called()
         registry.refresh.assert_not_called()
 
@@ -1368,7 +1305,7 @@ class TestMusicApplet:
             generic_name="Media Player",
         )
         registry = MagicMock()
-        registry.default_listing_for_content_type.return_value = listing
+        registry.preferred_listing_for_content_types.return_value = listing
         launcher = MagicMock()
         launcher.launch_listing.return_value = True
         applet, backend, _resolver = _make_applet(

@@ -21,8 +21,7 @@ import docking.ui.settings as settings_mod
 
 
 def _settings_controller(**kwargs):
-    """Build the controller with an explicit recents collaborator by default."""
-    kwargs.setdefault("recent_applications", MagicMock())
+    """Build a settings controller."""
     return settings_mod.SettingsWindowController(**kwargs)
 
 
@@ -1929,13 +1928,11 @@ class TestRecentSettingsBehavior:
         runtime = MagicMock()
         model = MagicMock()
         model.pinned_items = []
-        recent_applications = MagicMock()
         controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=model,
             config=config,
-            recent_applications=recent_applications,
         )
         controller.show()
         config.save.reset_mock()
@@ -1952,8 +1949,6 @@ class TestRecentSettingsBehavior:
         assert config.recent_apps_retention_days == 7
         assert config.save.call_count == 2
         assert runtime.queue_draw.call_count == 2
-        assert recent_applications.reload_policy.call_count == 2
-        recent_applications.reload_policy.assert_called_with(pinned_ids=set())
         model.rebuild_recent_apps.assert_not_called()
 
     def test_recent_apps_toggle_clears_config_and_refreshes_model(self, monkeypatch):
@@ -1971,22 +1966,19 @@ class TestRecentSettingsBehavior:
         model = MagicMock()
         model.pinned_items = []
         model._recent_apps = [stale_item]
-        recent_applications = MagicMock()
 
-        def reload_policy(*, pinned_ids):
-            assert pinned_ids == set()
+        def rebuild_recent_apps():
             if not config.show_recent_apps:
                 config.recent_apps.clear()
                 config.save()
                 model._recent_apps = []
 
-        recent_applications.reload_policy.side_effect = reload_policy
+        model.rebuild_recent_apps.side_effect = rebuild_recent_apps
         controller = _settings_controller(
             parent=_parent_window(),
             actions=runtime,
             model=model,
             config=config,
-            recent_applications=recent_applications,
         )
         controller.show()
         config.save.reset_mock()
@@ -2011,13 +2003,10 @@ class TestRecentSettingsBehavior:
             (True, []),
         ]
         assert model._recent_apps == []
-        assert recent_applications.reload_policy.call_count == 2
-        model.rebuild_recent_apps.assert_not_called()
+        assert model.rebuild_recent_apps.call_count == 2
         assert runtime.queue_draw.call_count == 2
 
-    def test_show_recent_apps_changed_delegates_to_service_and_redraws(
-        self, monkeypatch
-    ):
+    def test_show_recent_apps_changed_rebuilds_model_and_redraws(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
@@ -2029,13 +2018,16 @@ class TestRecentSettingsBehavior:
         config.show_recent_apps = True
         config.recent_apps = [{"desktop_id": "test.desktop", "last_closed": 1000}]
         runtime = MagicMock()
-        recent_applications = MagicMock()
+        model = SimpleNamespace(
+            pinned_items=[],
+            get_applet=lambda _desktop_id: None,
+            rebuild_recent_apps=MagicMock(),
+        )
         controller = _settings_controller(
             parent=MagicMock(),
             actions=runtime,
-            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            model=model,
             config=config,
-            recent_applications=recent_applications,
         )
         controller.show()
         config.save.reset_mock()
@@ -2044,7 +2036,7 @@ class TestRecentSettingsBehavior:
         config.show_recent_apps = False
         controller._after_show_recent_apps_changed()
 
-        recent_applications.reload_policy.assert_called_once_with(pinned_ids=set())
+        model.rebuild_recent_apps.assert_called_once_with()
         assert config.recent_apps == [
             {"desktop_id": "test.desktop", "last_closed": 1000}
         ]

@@ -41,8 +41,6 @@ from docking.platform.applications.matcher import AppIdMatcher
 from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
 from docking.platform.applications.types import (
     ApplicationMatch,
-    MatchEvidence,
-    MatchMethod,
 )
 from docking.platform.backends.base import (
     ActionResult,
@@ -1087,18 +1085,6 @@ def _record_from_view(
         if app_id and callable(match_result)
         else None
     )
-    if match is None and app_id and not isinstance(matcher, AppIdMatcher):
-        legacy_match = getattr(matcher, "match", None)
-        legacy_desktop_id = legacy_match(app_id) if callable(legacy_match) else None
-        if isinstance(legacy_desktop_id, str) and legacy_desktop_id:
-            match = ApplicationMatch(
-                desktop_id=legacy_desktop_id,
-                application=None,
-                evidence=MatchEvidence(
-                    method=MatchMethod.DESKTOP_ID,
-                    raw_app_id=app_id,
-                ),
-            )
     wset_index = view.get("wset-index")
     workspace_id = str(wset_index) if wset_index not in (None, -1, "") else None
     return WayfireWindowRecord(

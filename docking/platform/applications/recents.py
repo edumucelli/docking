@@ -5,19 +5,13 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Callable, Iterable
-from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Protocol
-
-from docking.log import get_logger, with_context
 
 from .registry import ApplicationRegistry
 from .types import ApplicationOrigin
 
-RecentApplicationsListener = Callable[[], None]
 Clock = Callable[[], float]
-
-log = with_context(get_logger(name="recent_applications"))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -122,20 +116,15 @@ class RecentApplications:
     def __init__(
         self,
         registry: ApplicationRegistry | ApplicationResolver,
-        persistence: RecentApplicationsPersistence | RecentApplicationsConfig,
+        persistence: RecentApplicationsPersistence,
         *,
         clock: Clock = time.time,
     ) -> None:
         self._registry = registry
-        self._persistence = (
-            persistence
-            if isinstance(persistence, RecentApplicationsPersistence)
-            else RecentApplicationsPersistence(persistence)
-        )
+        self._persistence = persistence
         self._clock = clock
         self._records: list[RecentAppRecord] = []
         self._previous_running_ids: set[str] = set()
-        self._listeners: list[RecentApplicationsListener] = []
         self._loaded = False
         self._enabled = self._persistence.enabled
 
@@ -145,7 +134,6 @@ class RecentApplications:
         self._enabled = self._persistence.enabled
         if not self._enabled:
             self._records = []
-            self._notify_listeners()
             return
 
         pinned = set(pinned_ids)
@@ -165,7 +153,6 @@ class RecentApplications:
 
         self._records = records[: self._persistence.max_count]
         self._persistence.replace(self._records)
-        self._notify_listeners()
 
     def reload_policy(self, *, pinned_ids: Iterable[str] = ()) -> None:
         """Apply an enabled-state transition or announce a policy change.
@@ -187,7 +174,6 @@ class RecentApplications:
             return
 
         self._enabled = True
-        self._notify_listeners()
 
     def reconcile_running(
         self,
@@ -217,7 +203,6 @@ class RecentApplications:
             return
         self._records = records
         self._persistence.replace(self._records)
-        self._notify_listeners()
 
     def record_closed(
         self,
@@ -243,37 +228,16 @@ class RecentApplications:
             return False
         self._records = records
         self._persistence.replace(self._records)
-        self._notify_listeners()
         return True
 
     def clear(self) -> None:
         """Clear all records and save immediately."""
         self._records = []
         self._persistence.save(self._records)
-        self._notify_listeners()
 
     def snapshot(self) -> tuple[RecentAppRecord, ...]:
         """Return the current immutable ordered record snapshot."""
         return tuple(self._records)
-
-    def subscribe(
-        self,
-        callback: RecentApplicationsListener,
-    ) -> Callable[[], None]:
-        """Register a listener once and return an idempotent unsubscribe."""
-        if callback not in self._listeners:
-            self._listeners.append(callback)
-        subscribed = True
-
-        def unsubscribe() -> None:
-            nonlocal subscribed
-            if not subscribed:
-                return
-            subscribed = False
-            with suppress(ValueError):
-                self._listeners.remove(callback)
-
-        return unsubscribe
 
     def _record(self, desktop_id: str) -> bool:
         if (
@@ -298,7 +262,6 @@ class RecentApplications:
         # Persist before pruning to preserve the existing saved-over-cap quirk.
         self._persistence.save(self._records)
         self._prune()
-        self._notify_listeners()
         return True
 
     def _prune(self) -> None:
@@ -315,22 +278,11 @@ class RecentApplications:
             getattr(application, "origin", None) is not ApplicationOrigin.RUNTIME
         )
 
-    def _notify_listeners(self) -> None:
-        for callback in tuple(self._listeners):
-            try:
-                callback()
-            except Exception as exc:
-                log.bind(action="notify_recent_applications_listener").warning(
-                    "Recent-applications listener failed: %s",
-                    exc,
-                )
-
 
 __all__ = [
     "ApplicationResolver",
     "RecentAppRecord",
     "RecentApplications",
     "RecentApplicationsConfig",
-    "RecentApplicationsListener",
     "RecentApplicationsPersistence",
 ]

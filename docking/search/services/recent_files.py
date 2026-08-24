@@ -29,10 +29,9 @@ from urllib.parse import unquote, urlparse
 
 import gi
 
-gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gio, GLib, Gtk
+from gi.repository import GLib, Gtk
 
 from docking.log import get_logger, with_context
 
@@ -72,19 +71,11 @@ class RecentFilesCatalog:
 
     def __init__(
         self,
-        target_opener: Callable[[str], object] | None = None,
-        *,
-        target_service: TargetService | None = None,
+        target_service: TargetService,
     ) -> None:
         """Initialize an empty snapshot and lazy recent-manager connection."""
         self._manager_factory = Gtk.RecentManager.get_default
-        self._uri_launcher = (
-            target_opener
-            if target_opener is not None
-            else target_service.open_target
-            if target_service is not None
-            else _launch_default_for_uri
-        )
+        self._uri_launcher = target_service.open_target
         self._max_entries = DEFAULT_MAX_ENTRIES
 
         self._entries: tuple[RecentFileSnapshot, ...] = ()
@@ -274,10 +265,6 @@ class RecentFilesCatalog:
                     "Recent files catalog listener failed: %s",
                     exc,
                 )
-
-
-def _launch_default_for_uri(uri: str) -> object:
-    return Gio.AppInfo.launch_default_for_uri(uri, None)
 
 
 def _snapshot_from_item(item: object) -> RecentFileSnapshot | None:

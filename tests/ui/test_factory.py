@@ -157,7 +157,6 @@ class TestBuildDockWindow:
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock(icon_loader=icon_loader)
-        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -183,7 +182,6 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
 
         assert result.window is window
@@ -255,7 +253,6 @@ class TestBuildDockWindow:
             actions=components.settings_actions,
             model=model,
             config=config,
-            recent_applications=recent_applications,
         )
         factory_mod.MenuHandler.assert_called_once_with(
             about=components.about,
@@ -353,7 +350,6 @@ class TestBuildDockWindow:
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()
-        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -377,7 +373,6 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
 
         assert result.window is window
@@ -395,7 +390,6 @@ class TestBuildDockWindow:
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()
-        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -441,7 +435,6 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
@@ -458,7 +451,6 @@ class TestBuildDockWindow:
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()
-        recent_applications = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -491,7 +483,6 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])

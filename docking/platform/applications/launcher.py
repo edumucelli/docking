@@ -5,6 +5,7 @@ from __future__ import annotations
 import shlex
 import subprocess
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 import gi
@@ -15,7 +16,7 @@ from gi.repository import GLib
 
 from docking.log import get_logger, with_context
 from docking.platform import commands
-from docking.platform.environment import flatpak
+from docking.platform.environment import flatpak, is_flatpak
 
 from . import entries as desktop_entries
 from .identity import LaunchProvenanceStore
@@ -63,10 +64,14 @@ class ApplicationLauncher:
     ) -> None:
         self._registry = registry
         self._provenance_store = provenance_store
-        self._popen = popen
-        self._gio_launch = gio_launch or _launch_gio_application
-        self._gio_launch_action = gio_launch_action or _launch_gio_action
-        self._gio_launch_uris = gio_launch_uris or _launch_gio_uris
+        self._popen = subprocess.Popen if popen is None else popen
+        self._gio_launch = _launch_gio_application if gio_launch is None else gio_launch
+        self._gio_launch_action = (
+            _launch_gio_action if gio_launch_action is None else gio_launch_action
+        )
+        self._gio_launch_uris = (
+            _launch_gio_uris if gio_launch_uris is None else gio_launch_uris
+        )
 
     @property
     def registry(self) -> ApplicationRegistry:
@@ -146,12 +151,21 @@ class ApplicationLauncher:
         return self.launch(desktop_id)
 
     def launch_app_uris(self, desktop_id: str, uris: Iterable[str]) -> bool:
-        """Open a URI list with one specifically selected Gio application."""
+        """Open a URI list with one specifically selected application."""
         launchable = list(uris)
         if not launchable:
             return False
         application = self._registry.resolve(desktop_id, log_failures=False)
-        if application is None or not application.has_gio_source:
+        if application is None:
+            return False
+
+        if application.location is ApplicationLocation.HOST and is_flatpak():
+            return self._launch_host_app_uris(
+                application=application,
+                uris=launchable,
+            )
+
+        if not application.has_gio_source:
             return False
         handle = self._registry._gio_handle_for(desktop_id)
         if handle is None:
@@ -162,6 +176,54 @@ class ApplicationLauncher:
             log.bind(desktop_id=desktop_id, action="launch_app_uris").warning(
                 "Failed to open URI list with %s: %s",
                 desktop_id,
+                exc,
+            )
+            return False
+        return True
+
+    def _launch_host_app_uris(
+        self,
+        *,
+        application: ApplicationInfo,
+        uris: list[str],
+    ) -> bool:
+        """Launch host-owned desktop metadata on the host side of Flatpak."""
+        desktop_file = application.desktop_file
+        if desktop_file is None:
+            return False
+        try:
+            relative = desktop_file.relative_to(desktop_entries.HOST_FILESYSTEM_ROOT)
+        except ValueError:
+            host_desktop_file = desktop_file
+        else:
+            host_desktop_file = Path("/") / relative
+
+        argv = flatpak.host_command(["gio", "launch", str(host_desktop_file), *uris])
+        if argv is None:
+            log.bind(
+                desktop_id=application.desktop_id,
+                action="launch_app_uris",
+            ).warning(
+                "Cannot open URIs with host desktop file without flatpak-spawn: %s",
+                desktop_file,
+            )
+            return False
+        try:
+            self._popen(
+                argv,
+                shell=False,
+                start_new_session=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            log.bind(
+                desktop_id=application.desktop_id,
+                action="launch_app_uris",
+            ).warning(
+                "Failed to open URI list with host application %s: %s",
+                application.desktop_id,
                 exc,
             )
             return False
@@ -245,7 +307,7 @@ class ApplicationLauncher:
             argv = host_argv
 
         try:
-            process = (self._popen or subprocess.Popen)(
+            process = self._popen(
                 argv,
                 shell=False,
                 start_new_session=True,

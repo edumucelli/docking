@@ -53,10 +53,8 @@ def test_default_uri_launch_ownership_is_centralized():
             direct_launches.add(path.relative_to(package))
 
     assert direct_launches <= allowed
-    assert {
-        Path("platform/targets.py"),
-        Path("search/services/recent_files.py"),
-    } <= direct_launches
+    assert {Path("platform/targets.py")} <= direct_launches
+    assert Path("search/services/recent_files.py") not in direct_launches
 
 
 def test_normalize_file_target_accepts_local_path_and_file_uri(tmp_path):
@@ -98,11 +96,9 @@ def test_open_target_accepts_local_path_and_file_uri(tmp_path, monkeypatch):
         "http://example.com",
         "https://example.com/docs",
         "mailto:test@example.com",
-        "trash:///",
-        "docking-preview:document/42",
     ),
 )
-def test_open_target_accepts_any_formed_non_file_uri(target, monkeypatch):
+def test_open_target_accepts_supported_non_file_uri(target, monkeypatch):
     launch = MagicMock()
     monkeypatch.setattr(targets_mod.Gio.AppInfo, "launch_default_for_uri", launch)
 
@@ -111,14 +107,23 @@ def test_open_target_accepts_any_formed_non_file_uri(target, monkeypatch):
     launch.assert_called_once_with(target, None)
 
 
-def test_target_service_passes_custom_uri_to_default_handler(monkeypatch):
+@pytest.mark.parametrize(
+    "target",
+    (
+        "ftp://example.com",
+        "trash:///",
+        "docking-preview:document/42",
+        "custom+desktop://resource/42",
+    ),
+)
+def test_target_service_rejects_unsupported_uri_scheme(target, monkeypatch):
     launch = MagicMock()
     monkeypatch.setattr(targets_mod.Gio.AppInfo, "launch_default_for_uri", launch)
     service = TargetService(icon_loader=MagicMock())
 
-    assert service.open_target("custom+desktop://resource/42") is True
+    assert service.open_target(target) is False
 
-    launch.assert_called_once_with("custom+desktop://resource/42", None)
+    launch.assert_not_called()
 
 
 def test_open_target_normalizes_relative_path(tmp_path, monkeypatch):
@@ -207,9 +212,9 @@ def test_open_target_returns_false_for_gio_error(monkeypatch):
 
     monkeypatch.setattr(targets_mod.GLib, "Error", RuntimeError)
     launch.side_effect = RuntimeError("no handler")
-    assert open_target("ftp://example.com") is False
+    assert open_target("https://example.com") is False
 
-    launch.assert_called_once_with("ftp://example.com", None)
+    launch.assert_called_once_with("https://example.com", None)
 
 
 @pytest.mark.parametrize(

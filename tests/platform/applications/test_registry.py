@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from threading import Thread, get_ident
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -454,10 +455,12 @@ def test_file_discovery_preserves_visibility_precedence_order_and_indexes(tmp_pa
     assert action.action_id == "open-special"
     assert action.sources == frozenset({ActionSource.DESKTOP_FILE})
     assert action.file_exec_line == "shared-tool --special"
-    assert [application.name for application in registry.snapshot()] == sorted(
-        (application.name for application in registry.snapshot()),
-        key=str.casefold,
-    )
+    assert [application.name for application in registry.snapshot()] == [
+        "Zulu Shared",
+        "Alpha Shared",
+        "First Source",
+        "No Icon",
+    ]
 
     with pytest.raises(TypeError):
         registry.applications_by_id["other.desktop"] = shared[0]  # type: ignore[index]
@@ -504,9 +507,9 @@ def test_alias_candidates_follow_directory_source_order_not_snapshot_names(
     registry.refresh()
 
     assert [application.name for application in registry.snapshot()] == [
-        "Alpha",
         "Middle First",
         "Zulu",
+        "Alpha",
     ]
     assert [
         application.desktop_id
@@ -549,8 +552,8 @@ def test_alias_candidates_follow_raw_creation_order_within_one_directory(
     registry.refresh()
 
     assert [application.name for application in registry.snapshot()] == [
-        "Alpha Created Second",
         "Zulu Created First",
+        "Alpha Created Second",
     ]
     assert [
         application.desktop_id
@@ -1034,6 +1037,72 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
         for listing in listings[1:]
         if isinstance(listing, UnidentifiedApplicationListing)
     )
+
+
+def test_visible_snapshot_preserves_gio_order_then_appends_file_only_entries(
+    tmp_path,
+):
+    applications = tmp_path / "applications"
+    _write_desktop(applications / "native-a.desktop", name="Native A")
+    _write_desktop(applications / "native-b.desktop", name="Native B")
+    _write_desktop(applications / "host-only.desktop", name="Host Only")
+    native_b = _GioApplication(
+        "native-b.desktop",
+        name="Native B",
+        commandline="native-b",
+    )
+    native_a = _GioApplication(
+        "native-a.desktop",
+        name="Native A",
+        commandline="native-a",
+    )
+    registry = _registry(
+        applications=[native_b, native_a],
+        directories=[applications],
+    )
+
+    registry.refresh()
+
+    assert [application.desktop_id for application in registry.snapshot()] == [
+        "native-b.desktop",
+        "native-a.desktop",
+        "host-only.desktop",
+    ]
+
+
+def test_preferred_content_handler_falls_back_from_empty_recommended_to_all(
+    monkeypatch,
+):
+    handler = _GioApplication(
+        "all-only.desktop",
+        name="All-only Handler",
+        commandline="all-only %U",
+    )
+    registry = _registry(applications=[handler])
+    registry.refresh()
+    get_recommended = MagicMock(return_value=[])
+    get_all = MagicMock(return_value=[handler])
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_default_for_type",
+        lambda _content_type, _must_support_uris: None,
+    )
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_recommended_for_type",
+        get_recommended,
+    )
+    monkeypatch.setattr(
+        registry_mod.Gio.AppInfo,
+        "get_all_for_type",
+        get_all,
+    )
+
+    listing = registry.preferred_listing_for_content_types(("audio/mpeg", "audio/flac"))
+
+    assert listing is registry.get("all-only.desktop")
+    assert get_recommended.call_count == 2
+    get_all.assert_called_once_with("audio/mpeg")
 
 
 def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):

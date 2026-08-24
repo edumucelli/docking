@@ -17,6 +17,7 @@ from docking.platform.environment import flatpak, is_flatpak
 from docking.platform.icons import IconLoader, fallback_file_icon_name
 
 log = with_context(get_logger(name="targets"))
+ALLOWED_URI_SCHEMES = frozenset({"http", "https", "mailto"})
 
 
 class FileTargetInfo(NamedTuple):
@@ -62,7 +63,7 @@ def normalize_file_target(target: str) -> str | None:
 
 
 def open_target(target: str) -> bool:
-    """Open a local path or any formed URI with its default handler."""
+    """Open a local path or supported URI with its default handler."""
     try:
         parsed = urlparse(target)
     except ValueError as exc:
@@ -72,8 +73,10 @@ def open_target(target: str) -> bool:
             exc,
         )
         return False
-    if parsed.scheme and parsed.scheme != "file":
+    if parsed.scheme in ALLOWED_URI_SCHEMES:
         uri = target
+    elif parsed.scheme and parsed.scheme != "file":
+        return False
     else:
         uri = normalize_file_target(target)
     if uri is None:

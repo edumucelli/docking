@@ -273,13 +273,11 @@ class WindowTracker:
     def __init__(
         self,
         model: DockModel,
-        config: Config | None = None,
+        config: Config,
         *,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
     ) -> None:
-        if config is None:
-            raise TypeError("config is required")
         self._model = model
         self._config = config
         self._screen: Wnck.Screen | None = None

@@ -203,33 +203,14 @@ class TestDockModelInit:
         recent_applications = MagicMock()
         recent_applications.snapshot.return_value = ()
 
-        model = _make_model(
+        _make_model(
             config,
             dependencies,
             AppletServices(),
             recent_applications=recent_applications,
         )
 
-        assert model.recent_applications is recent_applications
         recent_applications.load.assert_called_once_with(pinned_ids={"a.desktop"})
-        recent_applications.subscribe.assert_called_once()
-
-    def test_close_unsubscribes_from_recent_applications_once(self):
-        config = _make_config([])
-        recent_applications = MagicMock()
-        recent_applications.snapshot.return_value = ()
-        unsubscribe = recent_applications.subscribe.return_value
-        model = _make_model(
-            config,
-            _make_dependencies(),
-            AppletServices(),
-            recent_applications=recent_applications,
-        )
-
-        model.close()
-        model.close()
-
-        unsubscribe.assert_called_once_with()
 
 
 class TestUpdateRunning:
@@ -631,6 +612,23 @@ class TestCustomIcons:
 
         assert model.pinned_items == [item]
         assert item.icon is custom_icon
+        assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]
+        config.save.assert_called_once()
+
+    def test_insert_pinned_application_materializes_inside_model(self):
+        config = _make_config([])
+        dependencies = _make_dependencies("tool.desktop")
+        model = _make_model(config, dependencies, AppletServices())
+
+        assert model.insert_pinned_application(desktop_id="tool.desktop", index=0)
+
+        assert len(model.pinned_items) == 1
+        item = model.pinned_items[0]
+        assert item.desktop_id == "tool.desktop"
+        assert item.kind == APP_KIND
+        assert item.application_info is dependencies.application_registry.resolve(
+            "tool.desktop"
+        )
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]
         config.save.assert_called_once()
 
@@ -1881,53 +1879,6 @@ class TestRecentAppsIntegration:
         assert len(b_items) >= 1
         assert b_items[0].last_closed > 0
 
-    def test_existing_recent_reorder_preserves_materialized_last_closed(self):
-        config = _make_config([], show_recent_apps=True)
-        original_last_closed = 9_999_999_998
-        config.recent_apps = [
-            {"desktop_id": "a.desktop", "last_closed": 9_999_999_999},
-            {
-                "desktop_id": "b.desktop",
-                "last_closed": original_last_closed,
-            },
-        ]
-        dependencies = _make_dependencies("a.desktop", "b.desktop")
-        model = _make_model(config, dependencies, AppletServices())
-        existing_item = model.find_by_desktop_id("b.desktop")
-        assert existing_item is not None
-        assert existing_item.last_closed == float(original_last_closed)
-
-        model.recent_applications.record_closed("b.desktop")
-
-        recent = [item for item in model.visible_items() if item.is_recent]
-        assert [item.desktop_id for item in recent] == ["b.desktop", "a.desktop"]
-        assert recent[0] is existing_item
-        assert existing_item.last_closed == float(original_last_closed)
-        assert config.recent_apps[0]["last_closed"] != original_last_closed
-
-    def test_service_policy_change_after_close_does_not_update_model(self):
-        config = _make_config([], show_recent_apps=True)
-        config.recent_apps = [{"desktop_id": "a.desktop", "last_closed": 9_999_999_999}]
-        model = _make_model(
-            config,
-            _make_dependencies("a.desktop"),
-            AppletServices(),
-        )
-        existing_item = model.find_by_desktop_id("a.desktop")
-        assert existing_item is not None
-        listener = MagicMock()
-        model.add_change_listener(listener)
-        model._materialize_recent_apps = MagicMock()
-        model.close()
-
-        config.show_recent_apps = False
-        model.recent_applications.reload_policy()
-
-        assert model.recent_applications.snapshot() == ()
-        assert model._recent_apps == [existing_item]
-        model._materialize_recent_apps.assert_not_called()
-        listener.assert_not_called()
-
     def test_simultaneous_closes_are_saved_one_at_a_time(self):
         config = _make_config([], show_recent_apps=True)
         dependencies = _make_dependencies("a.desktop", "b.desktop")
@@ -1936,6 +1887,8 @@ class TestRecentAppsIntegration:
         config.save.side_effect = lambda: saved_orders.append(
             [entry["desktop_id"] for entry in config.recent_apps]
         )
+        listener = MagicMock()
+        model.add_change_listener(listener)
 
         model.update_running(
             {
@@ -1944,10 +1897,12 @@ class TestRecentAppsIntegration:
             }
         )
         config.save.assert_not_called()
+        listener.reset_mock()
 
         model.update_running({})
 
         assert config.save.call_count == 2
+        listener.assert_called_once_with()
         assert [len(order) for order in saved_orders] == [1, 2]
         assert set(saved_orders[-1]) == {"a.desktop", "b.desktop"}
         assert saved_orders[-1][1:] == saved_orders[0]
@@ -2013,6 +1968,8 @@ class TestRecentAppsIntegration:
         model.update_running({})
         recent_item = model.find_by_desktop_id("b.desktop")
         assert recent_item is not None
+        listener = MagicMock()
+        model.add_change_listener(listener)
         config.save.reset_mock()
         saved_recent_ids: list[list[str]] = []
         config.save.side_effect = lambda: saved_recent_ids.append(
@@ -2022,6 +1979,7 @@ class TestRecentAppsIntegration:
         model.pin_item("b.desktop")
 
         assert saved_recent_ids == [[]]
+        listener.assert_called_once_with()
         assert model._recent_apps == []
         assert [entry.target for entry in config.pinned] == [
             "a.desktop",
@@ -2128,15 +2086,20 @@ class TestRecentAppsIntegration:
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
         dependencies = _make_dependencies("a.desktop", "b.desktop")
         model = _make_model(config, dependencies, AppletServices())
+        listener = MagicMock()
+        model.add_change_listener(listener)
         # Clear via rebuild
         config.show_recent_apps = False
         model.rebuild_recent_apps()
         assert all(not i.is_recent for i in model.visible_items())
+        listener.assert_called_once_with()
         # Re-enable
+        listener.reset_mock()
         config.show_recent_apps = True
         config.recent_apps = [{"desktop_id": "b.desktop", "last_closed": 9999999999}]
         model.rebuild_recent_apps()
         recent = [i for i in model.visible_items() if i.is_recent]
+        listener.assert_called_once_with()
         # b.desktop should be in recent (from config list)
         assert any(i.desktop_id == "b.desktop" for i in recent)
 

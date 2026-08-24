@@ -141,8 +141,7 @@ If these invariants hold, the rest of the dock can remain much simpler.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -279,8 +278,6 @@ class DockModel:
         self._status_notifier_entries: dict[str, StatusNotifierOverlayState] = {}
         self._recent_apps: list[DockItem] = []
         self._recent_item_overrides: dict[str, DockItem] = {}
-        self._recent_updates_suspended = 0
-        self._recent_sync_pending = False
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
@@ -289,9 +286,6 @@ class DockModel:
         self._recent_applications = recent_applications
         self._recent_applications.load(pinned_ids=self._pinned_ids())
         self._materialize_recent_apps()
-        self._unsubscribe_recent_applications: Callable[[], None] | None = (
-            self._recent_applications.subscribe(self._on_recent_applications_changed)
-        )
 
     @property
     def application_registry(self) -> ApplicationRegistry:
@@ -307,11 +301,6 @@ class DockModel:
     def target_service(self) -> TargetService:
         """Return the canonical target service borrowed by production composition."""
         return self._target_service
-
-    @property
-    def recent_applications(self) -> RecentApplications:
-        """Return the shared recent-applications service."""
-        return self._recent_applications
 
     def _resolve_application(
         self,
@@ -378,8 +367,10 @@ class DockModel:
                 self.pinned_items.append(item)
 
     def rebuild_recent_apps(self) -> None:
-        """Reload recent-app enabled state or announce policy changes."""
+        """Apply recent-app policy and rebuild its dock-item projection."""
         self._recent_applications.reload_policy(pinned_ids=self._pinned_ids())
+        self._materialize_recent_apps()
+        self.notify()
 
     def _pinned_ids(self) -> set[str]:
         return {item.desktop_id for item in self.pinned_items}
@@ -414,24 +405,6 @@ class DockModel:
             if id(item) not in retained:
                 item.is_recent = False
         self._recent_apps = recent_apps
-
-    def _on_recent_applications_changed(self) -> None:
-        if self._recent_updates_suspended:
-            self._recent_sync_pending = True
-            return
-        self._materialize_recent_apps()
-        self.notify()
-
-    @contextmanager
-    def _defer_recent_application_updates(self) -> Iterator[None]:
-        self._recent_updates_suspended += 1
-        try:
-            yield
-        finally:
-            self._recent_updates_suspended -= 1
-            if not self._recent_updates_suspended and self._recent_sync_pending:
-                self._recent_sync_pending = False
-                self._materialize_recent_apps()
 
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
         icon_size = self._config.scaled_icon_size
@@ -1068,14 +1041,6 @@ class DockModel:
         for desktop_id, applet in list(self._applets.items()):
             self._stop_applet(desktop_id=desktop_id, applet=applet)
 
-    def close(self) -> None:
-        """Release model-owned subscriptions once runtime producers have stopped."""
-        unsubscribe = self._unsubscribe_recent_applications
-        if unsubscribe is None:
-            return
-        self._unsubscribe_recent_applications = None
-        unsubscribe()
-
     def _start_applet(self, *, desktop_id: str, applet: Applet) -> bool:
         """Start one applet without letting it break the dock lifecycle."""
         try:
@@ -1214,34 +1179,34 @@ class DockModel:
         Args:
             running: Desktop ID to latest running-app aggregate.
         """
-        with self._defer_recent_application_updates():
-            self._recent_applications.reconcile_running(
-                running.keys(),
-                pinned_ids=self._pinned_ids(),
-            )
+        self._recent_applications.reconcile_running(
+            running.keys(),
+            pinned_ids=self._pinned_ids(),
+        )
 
-            # Keep the old transient objects available while rebuilding the list.
-            # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
-            # animation fields already attached to the DockItem.
-            existing_transient = {item.desktop_id: item for item in self._transient}
-            self._reset_pinned_running_state()
-            matched_ids = self._apply_running_to_pinned(running=running)
-            new_transient = self._build_running_transients(
-                running=running,
-                matched_ids=matched_ids,
-                existing_transient=existing_transient,
-            )
+        # Keep the old transient objects available while rebuilding the list.
+        # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
+        # animation fields already attached to the DockItem.
+        existing_transient = {item.desktop_id: item for item in self._transient}
+        self._reset_pinned_running_state()
+        matched_ids = self._apply_running_to_pinned(running=running)
+        new_transient = self._build_running_transients(
+            running=running,
+            matched_ids=matched_ids,
+            existing_transient=existing_transient,
+        )
 
-            items_by_desktop_id = {
-                item.desktop_id: item for item in self.pinned_items + new_transient
-            }
-            self._apply_launcher_entries(
-                items_by_desktop_id=items_by_desktop_id,
-                new_transient=new_transient,
-                existing_transient=existing_transient,
-            )
+        items_by_desktop_id = {
+            item.desktop_id: item for item in self.pinned_items + new_transient
+        }
+        self._apply_launcher_entries(
+            items_by_desktop_id=items_by_desktop_id,
+            new_transient=new_transient,
+            existing_transient=existing_transient,
+        )
 
-            self._transient = new_transient
+        self._transient = new_transient
+        self._materialize_recent_apps()
         self.notify()
 
     def _reset_pinned_running_state(self) -> None:
@@ -1441,9 +1406,9 @@ class DockModel:
         if item:
             if not self._prepare_runtime_item_for_pinning(item):
                 return
-            with self._defer_recent_application_updates():
-                self._promote_to_pinned(item)
-                self._persist_pinned_changes()
+            self._promote_to_pinned(item)
+            self._persist_pinned_changes()
+            self._materialize_recent_apps()
             self.notify()
 
     def _promote_to_pinned(self, item: DockItem) -> None:
@@ -1506,12 +1471,25 @@ class DockModel:
             is_pinned=True,
             running_info=None,
         )
-        with self._defer_recent_application_updates():
-            self._recent_applications.discard(desktop_id)
-            self.pinned_items.append(item)
-            self._persist_pinned_changes()
+        self._recent_applications.discard(desktop_id)
+        self.pinned_items.append(item)
+        self._persist_pinned_changes()
+        self._materialize_recent_apps()
         self.notify()
         return True
+
+    def insert_pinned_application(self, *, desktop_id: str, index: int) -> bool:
+        """Resolve and insert an application at an explicit pinned position."""
+        if self.find_by_desktop_id(desktop_id=desktop_id) is not None:
+            return False
+        if self._resolve_application(desktop_id, log_failures=False) is None:
+            return False
+        item = self._make_app_item(
+            desktop_id=desktop_id,
+            is_pinned=True,
+            running_info=None,
+        )
+        return self.insert_pinned_item(item=item, index=index)
 
     def insert_pinned_item(self, item: DockItem, index: int) -> bool:
         """Insert a resolved pinned item, applying final model-owned persistence."""
@@ -1519,14 +1497,14 @@ class DockModel:
             return False
         if self.find_by_desktop_id(item.desktop_id) is not None:
             return False
-        with self._defer_recent_application_updates():
-            self._recent_applications.discard(item.desktop_id)
-            item.is_recent = False
-            item.is_pinned = True
-            self._apply_icon_override(item=item)
-            insert_at = max(0, min(index, len(self.pinned_items)))
-            self.pinned_items.insert(insert_at, item)
-            self._persist_pinned_changes()
+        self._recent_applications.discard(item.desktop_id)
+        item.is_recent = False
+        item.is_pinned = True
+        self._apply_icon_override(item=item)
+        insert_at = max(0, min(index, len(self.pinned_items)))
+        self.pinned_items.insert(insert_at, item)
+        self._persist_pinned_changes()
+        self._materialize_recent_apps()
         self.notify()
         return True
 
@@ -1544,25 +1522,25 @@ class DockModel:
             visible_index = self.visible_items().index(item)
             self._recent_item_overrides[desktop_id] = item
             try:
-                with self._defer_recent_application_updates():
-                    self.pinned_items.remove(item)
-                    item.is_pinned = False
-                    item.is_recent = False
-                    if item.kind == APP_KIND and (
-                        item.is_running or self._is_launcher_only_transient(item)
-                    ):
-                        item.removal_index = -1
-                        self._transient.append(item)
-                    elif (
-                        item.kind == APP_KIND
-                        and self._config.show_recent_apps
-                        and self._recent_applications.record_unpinned(desktop_id)
-                    ):
-                        pass
-                    else:
-                        item.removal_index = visible_index
-                        self._animating_out.append(item)
-                    self._persist_pinned_changes()
+                self.pinned_items.remove(item)
+                item.is_pinned = False
+                item.is_recent = False
+                if item.kind == APP_KIND and (
+                    item.is_running or self._is_launcher_only_transient(item)
+                ):
+                    item.removal_index = -1
+                    self._transient.append(item)
+                elif (
+                    item.kind == APP_KIND
+                    and self._config.show_recent_apps
+                    and self._recent_applications.record_unpinned(desktop_id)
+                ):
+                    pass
+                else:
+                    item.removal_index = visible_index
+                    self._animating_out.append(item)
+                self._persist_pinned_changes()
+                self._materialize_recent_apps()
             finally:
                 self._recent_item_overrides.pop(desktop_id, None)
             self.notify()
@@ -1585,27 +1563,27 @@ class DockModel:
             ):
                 return
 
-        with self._defer_recent_application_updates():
-            # Auto-pin either endpoint through the same transition as explicit pinning.
-            if not item.is_pinned:
-                self._promote_to_pinned(item)
+        # Auto-pin either endpoint through the same transition as explicit pinning.
+        if not item.is_pinned:
+            self._promote_to_pinned(item)
 
-            # Map visible index -> pinned index for the source item
-            pinned_from = self.pinned_items.index(item)
+        # Map visible index -> pinned index for the source item
+        pinned_from = self.pinned_items.index(item)
 
-            if not target_item.is_pinned:
-                self._promote_to_pinned(target_item)
+        if not target_item.is_pinned:
+            self._promote_to_pinned(target_item)
 
-            if target_item in self.pinned_items:
-                pinned_to = self.pinned_items.index(target_item)
-            else:
-                pinned_to = len(self.pinned_items) - 1
+        if target_item in self.pinned_items:
+            pinned_to = self.pinned_items.index(target_item)
+        else:
+            pinned_to = len(self.pinned_items) - 1
 
-            if pinned_from != pinned_to:
-                self.pinned_items.pop(pinned_from)
-                self.pinned_items.insert(pinned_to, item)
+        if pinned_from != pinned_to:
+            self.pinned_items.pop(pinned_from)
+            self.pinned_items.insert(pinned_to, item)
 
-            self._persist_pinned_changes()
+        self._persist_pinned_changes()
+        self._materialize_recent_apps()
         self.notify()
 
     def sync_pinned_to_config(self) -> None:

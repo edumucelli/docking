@@ -85,9 +85,9 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         self,
         *,
         layer_shell: object,
-        model=None,
-        application_registry: ApplicationRegistry | None = None,
-        process_identity_service: ProcessIdentityService | None = None,
+        model,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         foreign_toplevel_protocol: object | None = None,
         workspace_protocol: object | None = None,
         screen_capture: ScreenCaptureService | None = None,
@@ -133,10 +133,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
-        has_identity_services = (
-            application_registry is not None and process_identity_service is not None
-        )
-        if foreign_protocol is not None and model is not None and has_identity_services:
+        if foreign_protocol is not None:
             if preview_protocol is not None:
                 preview_handles = WaylandPreviewHandleTracker(
                     model=model,

@@ -328,7 +328,6 @@ class TestAppMain:
         model.start_applets.side_effect = lambda: runtime_start("applets_start")
         model.stop_applets.side_effect = lambda: cleanup_event("applets_stop")
         backend.stop.side_effect = lambda: cleanup_event("backend_stop")
-        model.close.side_effect = lambda: cleanup_event("model_close")
         if failed_stage is not None:
             {
                 "backend": backend.start,
@@ -456,13 +455,11 @@ class TestAppMain:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
         backend.start.assert_called_once()
         backend.stop.assert_called_once()
         model.start_applets.assert_called_once()
         model.stop_applets.assert_called_once()
-        model.close.assert_called_once()
         items_service.start.assert_called_once()
         items_service.stop.assert_called_once()
         unity.start.assert_called_once()
@@ -505,7 +502,6 @@ class TestAppMain:
                 "unity_stop",
                 "backend_stop",
                 "applets_stop",
-                "model_close",
                 "registry_stop",
             ]
             assert "first_run_resolve" in call_order
@@ -520,8 +516,6 @@ class TestAppMain:
         assert call_order.index("unity_stop") < call_order.index("registry_stop")
         assert call_order.index("applets_stop") < call_order.index("registry_stop")
         assert call_order.index("backend_stop") < call_order.index("registry_stop")
-        assert call_order.index("backend_stop") < call_order.index("model_close")
-        assert call_order.index("model_close") < call_order.index("registry_stop")
         assert call_order.index("items_stop") < call_order.index("ui_stop")
         assert call_order.index("ui_stop") < call_order.index(
             "status_notifications_stop"
@@ -531,8 +525,7 @@ class TestAppMain:
         )
         assert call_order.index("unity_stop") < call_order.index("backend_stop")
         assert call_order.index("backend_stop") < call_order.index("applets_stop")
-        assert call_order.index("applets_stop") < call_order.index("model_close")
-        assert call_order.index("model_close") < call_order.index("registry_stop")
+        assert call_order.index("applets_stop") < call_order.index("registry_stop")
 
         assert fake_glib.unix_signal_add.call_count == 2
         sig_calls = [c.args[1] for c in fake_glib.unix_signal_add.call_args_list]
@@ -652,7 +645,6 @@ class TestAppMain:
         model = MagicMock()
         cleanup_order: list[str] = []
         model.stop_applets.side_effect = lambda: cleanup_order.append("applets")
-        model.close.side_effect = lambda: cleanup_order.append("model listener")
         registry.stop.side_effect = lambda: cleanup_order.append("registry")
 
         monkeypatch.setattr(
@@ -680,7 +672,6 @@ class TestAppMain:
 
         assert cleanup_order == [
             "applets",
-            "model listener",
             "registry",
         ]
         registry.start.assert_not_called()
@@ -805,10 +796,7 @@ class TestAppMain:
         assert factory.call_args.kwargs["application_launcher"] is application_launcher
         assert factory.call_args.kwargs["icon_loader"] is icon_loader
         assert factory.call_args.kwargs["target_service"] is target_service
-        assert (
-            factory.call_args.kwargs["recent_applications"]
-            is model_cls.call_args.kwargs["recent_applications"]
-        )
+        assert "recent_applications" not in factory.call_args.kwargs
         unity_cls.assert_called_once_with(
             model=model,
             application_registry=registry,

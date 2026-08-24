@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.runcommand.applet as runcommand_applet_mod
-import docking.applets.runcommand.state as runcommand_state_mod
 from docking.applets import get_applet_catalog, load_applet_class
 from docking.applets.runcommand.applet import RunCommandApplet
 from docking.applets.runcommand.state import (
@@ -17,7 +16,6 @@ from docking.applets.runcommand.state import (
     updated_history,
 )
 from docking.core.config import Config
-from docking.platform import commands as commands_mod
 from docking.platform.applications.registry import UnidentifiedApplicationListing
 from docking.platform.applications.types import (
     ApplicationInfo,
@@ -156,6 +154,12 @@ class _Registry:
     ) -> tuple[UnidentifiedApplicationListing, ...]:
         return self.unidentified
 
+    def _gio_handle_for(self, _desktop_id: str) -> None:
+        return None
+
+    def _gio_handle_for_unidentified(self, _listing_key: str) -> None:
+        return None
+
 
 def _make_applet(
     *,
@@ -239,28 +243,6 @@ class TestRunCommandState:
             "two",
             "one",
         ]
-
-    def test_generic_command_api_remains_a_direct_compatibility_reexport(self):
-        moved_names = (
-            "TERMINAL_LOOKUP_TIMEOUT_SECONDS",
-            "TerminalMode",
-            "TerminalCandidate",
-            "ResolvedTerminal",
-            "TERMINAL_CANDIDATES",
-            "DESKTOP_EXEC_FIELD_CODES_RE",
-            "shell_path",
-            "build_shell_argv",
-            "_flatpak_host_terminal_name",
-            "resolve_terminal_executable",
-            "find_terminal",
-            "build_terminal_argv",
-            "launch_command",
-            "append_file_argument",
-            "clean_desktop_exec",
-        )
-
-        for name in moved_names:
-            assert getattr(runcommand_state_mod, name) is getattr(commands_mod, name)
 
     def test_gio_backed_command_text_removes_desktop_placeholders(self):
         app = _fake_app("Atril", command="atril %U")

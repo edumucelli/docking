@@ -401,7 +401,9 @@ class TestApplicationsApplet:
         applications_applet_mod._populate_app_submenu(
             submenu=submenu,
             apps=[app],
-            config=None,
+            config=SimpleNamespace(lock_icons=False),
+            registry=MagicMock(),
+            launcher=MagicMock(),
         )
 
         menu_item = submenu.get_children()[0]
@@ -441,8 +443,9 @@ class TestApplicationsApplet:
         applications_applet_mod._populate_app_submenu(
             submenu=submenu,
             apps=[app],
-            config=None,
+            config=SimpleNamespace(lock_icons=False),
             registry=registry,  # ty: ignore[invalid-argument-type]
+            launcher=MagicMock(),
         )
 
         menu_item = submenu.get_children()[0]
@@ -472,6 +475,8 @@ class TestApplicationsApplet:
             config=SimpleNamespace(  # ty: ignore[invalid-argument-type]
                 lock_icons=True
             ),
+            registry=MagicMock(),
+            launcher=MagicMock(),
         )
 
         assert submenu.get_children()[0].drag_source_args is None
@@ -489,7 +494,8 @@ class TestApplicationsApplet:
         launcher.launch_listing.return_value = True
         item = applications_applet_mod._application_menu_item(
             app_info=app,
-            config=None,
+            config=SimpleNamespace(lock_icons=False),
+            registry=MagicMock(),
             launcher=launcher,
         )
 

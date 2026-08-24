@@ -413,21 +413,71 @@ class ApplicationRegistry:
         self,
         content_type: str,
     ) -> tuple[ApplicationInfo | UnidentifiedApplicationListing, ...]:
-        """Return visible launchable handlers with private Gio handles retained."""
-        self._assert_owner_thread("recommended_listings_for_content_type")
-        lookup = getattr(Gio.AppInfo, "get_recommended_for_type", None)
-        if not callable(lookup):
-            lookup = getattr(Gio.AppInfo, "get_all_for_type", None)
+        """Return visible recommended handlers with private Gio handles retained."""
+        return self._listings_for_content_type(
+            content_type=content_type,
+            lookup_name="get_recommended_for_type",
+            action="recommended_listings_for_content_type",
+        )
+
+    def all_listings_for_content_type(
+        self,
+        content_type: str,
+    ) -> tuple[ApplicationInfo | UnidentifiedApplicationListing, ...]:
+        """Return every visible handler with private Gio handles retained."""
+        return self._listings_for_content_type(
+            content_type=content_type,
+            lookup_name="get_all_for_type",
+            action="all_listings_for_content_type",
+        )
+
+    def preferred_listing_for_content_types(
+        self,
+        content_types: Iterable[str],
+    ) -> ApplicationInfo | UnidentifiedApplicationListing | None:
+        """Select a visible handler using desktop association precedence.
+
+        Defaults are considered for every content type first, followed by
+        recommended handlers for every type, and finally the complete handler
+        lists. This preserves the established media-launcher fallback order while
+        keeping Gio association policy inside the registry.
+        """
+        self._assert_owner_thread("preferred_listing_for_content_types")
+        ordered_types = tuple(content_types)
+        for content_type in ordered_types:
+            listing = self.default_listing_for_content_type(content_type)
+            if listing is not None:
+                return listing
+        for lookup in (
+            self.recommended_listings_for_content_type,
+            self.all_listings_for_content_type,
+        ):
+            for content_type in ordered_types:
+                listings = lookup(content_type)
+                if listings:
+                    return listings[0]
+        return None
+
+    def _listings_for_content_type(
+        self,
+        *,
+        content_type: str,
+        lookup_name: str,
+        action: str,
+    ) -> tuple[ApplicationInfo | UnidentifiedApplicationListing, ...]:
+        """Convert one Gio association result into canonical visible listings."""
+        self._assert_owner_thread(action)
+        lookup = getattr(Gio.AppInfo, lookup_name, None)
         if not callable(lookup):
             return ()
         try:
             app_infos = lookup(content_type)
         except Exception as exc:
             log.bind(
-                action="recommended_listings_for_content_type",
+                action=action,
                 content_type=content_type,
             ).debug(
-                "Failed to list recommended application listings: %s",
+                "Failed to list application handlers: %s",
                 exc,
             )
             return ()
@@ -561,6 +611,14 @@ class ApplicationRegistry:
             handles=handles,
             unidentified=unidentified,
             unidentified_handles=unidentified_handles,
+            presentation_order=(
+                *gio_order,
+                *(
+                    desktop_id
+                    for desktop_id in file_order
+                    if desktop_id not in gio_by_id
+                ),
+            ),
         )
 
     def _app_info_from_filename(self, path: Path) -> object | None:
@@ -856,6 +914,7 @@ def _build_state(
     handles: Mapping[str, object],
     unidentified: Iterable[UnidentifiedApplicationListing],
     unidentified_handles: Mapping[str, object],
+    presentation_order: Iterable[str],
 ) -> _RegistryState:
     applications_by_id: dict[str, ApplicationInfo] = {}
     resolvable: list[ApplicationInfo] = []
@@ -865,15 +924,20 @@ def _build_state(
         applications_by_id[application.desktop_id] = application
         resolvable.append(application)
 
-    visible = tuple(
-        sorted(
-            (application for application in resolvable if application.visible),
-            key=lambda application: (
-                _normalize_search_text(application.name),
-                application.desktop_id.casefold(),
-            ),
-        )
+    visible_ids: set[str] = set()
+    visible_list: list[ApplicationInfo] = []
+    for desktop_id in presentation_order:
+        application = applications_by_id.get(desktop_id)
+        if application is None or not application.visible or desktop_id in visible_ids:
+            continue
+        visible_ids.add(desktop_id)
+        visible_list.append(application)
+    visible_list.extend(
+        application
+        for application in resolvable
+        if application.visible and application.desktop_id not in visible_ids
     )
+    visible = tuple(visible_list)
 
     alias_lists: dict[str, list[ApplicationInfo]] = {}
     executable_lists: dict[Path, list[ApplicationInfo]] = {}

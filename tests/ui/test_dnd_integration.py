@@ -105,6 +105,19 @@ def _make_handler(
         return True
 
     model.insert_pinned_item.side_effect = insert_pinned_item
+
+    def insert_pinned_application(*, desktop_id: str, index: int) -> bool:
+        return insert_pinned_item(
+            item=DockItem(
+                desktop_id=desktop_id,
+                kind=APP_KIND,
+                target=desktop_id,
+                is_pinned=True,
+            ),
+            index=index,
+        )
+
+    model.insert_pinned_application.side_effect = insert_pinned_application
     renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
     theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
     if application_registry is None:
@@ -476,7 +489,10 @@ class TestDropAndReceive:
         assert [entry.target for entry in handler._config.pinned] == ["firefox.desktop"]
         assert len(handler._model.pinned_items) == 1
         handler._config.save.assert_called_once()
-        handler._model.insert_pinned_item.assert_called_once()
+        handler._model.insert_pinned_application.assert_called_once_with(
+            desktop_id="firefox.desktop",
+            index=0,
+        )
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._model.notify.assert_called_once()
@@ -536,6 +552,46 @@ class TestDropAndReceive:
         assert [entry.target for entry in handler._config.pinned] == [file_uri]
         assert len(handler._model.pinned_items) == 1
         finish.assert_called_once_with(ANY, True, False, 77)
+
+    def test_failed_open_with_does_not_fall_through_to_pinning(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._drag_from = -1
+        handler._drop_committed = True
+        handler.drop_insert_index = -1
+        handler._application_launcher.launch_app_uris.return_value = False
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        app_item = DockItem("viewer.desktop", kind=APP_KIND)
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: SimpleNamespace(
+                cursor_rect=Rect(0, 0, 400, 60),
+                item_geometries=(
+                    SimpleNamespace(item=app_item, draw_rect=Rect(0, 0, 48, 48)),
+                ),
+            )
+        )
+        selection = MagicMock()
+        selection.get_uris.return_value = [file_uri]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area,
+            MagicMock(),
+            10,
+            10,
+            selection,
+            1,
+            77,
+        )
+
+        handler._application_launcher.launch_app_uris.assert_called_once_with(
+            "viewer.desktop", [file_uri]
+        )
+        handler._model.insert_pinned_item.assert_not_called()
+        handler._target_service.resolve_file.assert_not_called()
+        finish.assert_called_once_with(ANY, False, False, 77)
 
     def test_drag_data_received_on_applet_dispatches_drop(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)
@@ -611,7 +667,7 @@ class TestDropAndReceive:
         handler._model.find_by_desktop_id.assert_not_called()
         finish.assert_called_once_with(ANY, False, False, 77)
 
-    def test_item_from_uri_builds_folder_item(self, monkeypatch, tmp_path):
+    def test_insert_pinned_uri_builds_folder_item(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)
         folder_uri = tmp_path.as_uri()
         handler._target_service.resolve_file.return_value = SimpleNamespace(
@@ -622,13 +678,14 @@ class TestDropAndReceive:
             is_dir=True,
         )
 
-        item = handler._item_from_uri(folder_uri)
+        inserted = handler._insert_pinned_uri(uri=folder_uri, index=0)
 
-        assert item is not None
+        assert inserted is True
+        item = handler._model.insert_pinned_item.call_args.kwargs["item"]
         assert item.kind == FOLDER_KIND
         assert item.target == folder_uri
 
-    def test_item_from_uri_resolves_nested_desktop_path_through_registry(
+    def test_insert_pinned_uri_resolves_nested_desktop_path_through_registry(
         self, monkeypatch, tmp_path
     ):
         registry = MagicMock()
@@ -643,25 +700,24 @@ class TestDropAndReceive:
         )
         registry.resolve_by_desktop_file.return_value = application
         icon_loader = MagicMock()
-        icon = object()
-        icon_loader.load_desktop_icon.return_value = icon
         handler = _make_handler(
             monkeypatch,
             application_registry=registry,
             icon_loader=icon_loader,
         )
 
-        item = handler._item_from_uri(nested_path.as_uri())
+        inserted = handler._insert_pinned_uri(uri=nested_path.as_uri(), index=3)
 
-        assert item is not None
-        assert item.desktop_id == "kde-org.kde.kwrite.desktop"
-        assert item.target == "kde-org.kde.kwrite.desktop"
-        assert item.icon is icon
+        assert inserted is True
+        handler._model.insert_pinned_application.assert_called_once_with(
+            desktop_id="kde-org.kde.kwrite.desktop",
+            index=3,
+        )
         registry.resolve_by_desktop_file.assert_called_once_with(nested_path)
-        icon_loader.load_desktop_icon.assert_called_once_with(application, 96)
+        icon_loader.load_desktop_icon.assert_not_called()
         handler._target_service.resolve_file.assert_not_called()
 
-    def test_item_from_uri_builds_file_item(self, monkeypatch, tmp_path):
+    def test_insert_pinned_uri_builds_file_item(self, monkeypatch, tmp_path):
         handler = _make_handler(monkeypatch)
         file_uri = (tmp_path / "notes.txt").as_uri()
         handler._target_service.resolve_file.return_value = SimpleNamespace(
@@ -672,13 +728,14 @@ class TestDropAndReceive:
             is_dir=False,
         )
 
-        item = handler._item_from_uri(file_uri)
+        inserted = handler._insert_pinned_uri(uri=file_uri, index=0)
 
-        assert item is not None
+        assert inserted is True
+        item = handler._model.insert_pinned_item.call_args.kwargs["item"]
         assert item.kind == FILE_KIND
         assert item.target == file_uri
 
-    def test_item_from_uri_builds_generated_launcher_for_executable(
+    def test_insert_pinned_uri_builds_generated_launcher_for_executable(
         self, monkeypatch, tmp_path
     ):
         handler = _make_handler(monkeypatch)
@@ -703,26 +760,22 @@ class TestDropAndReceive:
         handler._application_registry.resolve.side_effect = lambda target, **_kwargs: (
             resolved if target == generated.desktop_id else None
         )
-        icon = object()
-        handler._icon_loader.load_desktop_icon.return_value = icon
+        inserted = handler._insert_pinned_uri(uri=binary.as_uri(), index=2)
 
-        item = handler._item_from_uri(binary.as_uri())
-
-        assert item is not None
-        assert item.kind == APP_KIND
-        assert item.desktop_id == generated.desktop_id
-        assert item.target == generated.desktop_id
-        assert item.name == "tool"
-        assert item.icon is icon
+        assert inserted is True
+        handler._model.insert_pinned_application.assert_called_once_with(
+            desktop_id=generated.desktop_id,
+            index=2,
+        )
         handler._application_registry.refresh.assert_called_once_with()
         assert handler._application_registry.method_calls.index(
             call.refresh()
         ) < handler._application_registry.method_calls.index(
             call.resolve(generated.desktop_id)
         )
-        handler._icon_loader.load_desktop_icon.assert_called_once_with(resolved, 96)
+        handler._icon_loader.load_desktop_icon.assert_not_called()
 
-    def test_item_from_uri_confirms_chmod_for_non_executable_appimage(
+    def test_insert_pinned_uri_confirms_chmod_for_non_executable_appimage(
         self, monkeypatch, tmp_path
     ):
         handler = _make_handler(monkeypatch)
@@ -750,16 +803,18 @@ class TestDropAndReceive:
             else None
         )
 
-        item = handler._item_from_uri(appimage.as_uri())
+        inserted = handler._insert_pinned_uri(uri=appimage.as_uri(), index=0)
 
-        assert item is not None
-        assert item.kind == APP_KIND
-        assert item.desktop_id.startswith("docking-generated-gimp-3-2-4-x86-64-")
+        assert inserted is True
+        desktop_id = handler._model.insert_pinned_application.call_args.kwargs[
+            "desktop_id"
+        ]
+        assert desktop_id.startswith("docking-generated-gimp-3-2-4-x86-64-")
         assert appimage.stat().st_mode & stat.S_IXUSR
         assert dialog.destroyed
         handler._application_registry.refresh.assert_called_once_with()
 
-    def test_item_from_uri_cancelled_appimage_permission_does_not_pin_file(
+    def test_insert_pinned_uri_cancelled_appimage_permission_does_not_pin_file(
         self, monkeypatch, tmp_path
     ):
         handler = _make_handler(monkeypatch)
@@ -773,9 +828,9 @@ class TestDropAndReceive:
             lambda **_kwargs: dialog,
         )
 
-        item = handler._item_from_uri(appimage.as_uri())
+        inserted = handler._insert_pinned_uri(uri=appimage.as_uri(), index=0)
 
-        assert item is None
+        assert inserted is False
         assert not (appimage.stat().st_mode & stat.S_IXUSR)
         handler._target_service.resolve_file.assert_not_called()
         handler._application_registry.refresh.assert_not_called()
@@ -833,7 +888,10 @@ class TestDropAndReceive:
             generated.desktop_id
         ]
         handler._config.save.assert_called_once()
-        handler._model.insert_pinned_item.assert_called_once()
+        handler._model.insert_pinned_application.assert_called_once_with(
+            desktop_id=generated.desktop_id,
+            index=0,
+        )
         handler._model.notify.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 77)
 

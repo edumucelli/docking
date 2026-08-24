@@ -163,7 +163,6 @@ from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, Do
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.applications import entries as desktop_entries
-from docking.platform.applications.projections import dock_metadata
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.poof import show_poof
@@ -499,17 +498,23 @@ class DnDHandler:
             Gtk.drag_finish(context, applet_drop, False, time)
             return
 
-        # Check if dropped onto a launcher icon -- open files with that app
-        if uris and self._try_open_with_launcher(x=x, y=y, uris=uris):
+        # Check if dropped onto a launcher icon -- open files with that app.
+        # A targeted launch failure is still a completed routing decision: never
+        # reinterpret those files as a request to pin them to the dock.
+        launcher_drop = (
+            self._try_open_with_launcher(x=x, y=y, uris=uris) if uris else None
+        )
+        if launcher_drop is not None:
             self.drop_insert_index = -1
+            self.drop_target_id = ""
+            self._drop_committed = False
             self._reconcile_autohide_after_drag(reason="drag-data-received")
-            Gtk.drag_finish(context, True, False, time)
+            Gtk.drag_finish(context, launcher_drop, False, time)
             return
 
         added = False
         for uri in uris:
-            item = self._item_from_uri(uri=uri)
-            if item and self._model.insert_pinned_item(item=item, index=insert_at):
+            if self._insert_pinned_uri(uri=uri, index=insert_at):
                 # External insertion should snap to the new final layout.
                 # Slide offsets are useful for internal reorder, but for a
                 # completed drop they make the dock look like it is slowly
@@ -552,8 +557,10 @@ class DnDHandler:
             log.warning("Applet drop handler failed for %s: %s", item.desktop_id, exc)
             return False
 
-    def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
-        """If drop lands on an app icon, try opening the files with it."""
+    def _try_open_with_launcher(
+        self, *, x: int, y: int, uris: list[str]
+    ) -> bool | None:
+        """Return launch result on an app icon, or ``None`` when not targeted."""
         frame = self._geometry_builder.build_frame(
             main_cursor=-1.0, drop_insert_index=self.drop_insert_index
         )
@@ -564,11 +571,11 @@ class DnDHandler:
             accepted_kinds=(APP_KIND,),
         )
         if item is None:
-            return False
+            return None
 
         launchable = [u for u in uris if not u.endswith(".desktop")]
         if not launchable:
-            return False
+            return None
 
         return self._application_launcher.launch_app_uris(
             item.desktop_id,
@@ -739,8 +746,8 @@ class DnDHandler:
         self._reconcile_autohide_after_drag(reason="drag-end")
         widget.queue_draw()
 
-    def _item_from_uri(self, uri: str) -> DockItem | None:
-        """Build a pinned DockItem from an external URI drop."""
+    def _insert_pinned_uri(self, *, uri: str, index: int) -> bool:
+        """Resolve and insert one external URI through the owning model boundary."""
         icon_size = self._config.scaled_icon_size
         application = self._resolve_desktop_application(uri)
         desktop_path = desktop_entries.local_path_from_uri_or_path(uri)
@@ -749,39 +756,30 @@ class DnDHandler:
             and desktop_path.suffix == desktop_entries.DESKTOP_SUFFIX
         )
         log.debug(
-            "_item_from_uri: uri=%s desktop_id=%s",
+            "_insert_pinned_uri: uri=%s desktop_id=%s",
             uri,
             application.desktop_id if application is not None else None,
         )
         if application is not None:
-            metadata = dock_metadata(application)
-            icon = self._icon_loader.load_desktop_icon(application, icon_size)
             log.debug(
-                "_item_from_uri: desktop_id=%s icon_name=%s icon_loaded=%s",
-                metadata.desktop_id,
-                metadata.icon_name,
-                icon is not None,
+                "_insert_pinned_uri: resolved application desktop_id=%s",
+                application.desktop_id,
             )
-            return DockItem(
-                desktop_id=metadata.desktop_id,
-                kind=APP_KIND,
-                target=metadata.desktop_id,
-                name=metadata.name,
-                icon_name=metadata.icon_name,
-                wm_class=metadata.wm_class,
-                exec_line=metadata.exec_line,
-                application_info=application,
-                is_pinned=True,
-                icon=icon,
+            return self._model.insert_pinned_application(
+                desktop_id=application.desktop_id,
+                index=index,
             )
         if is_desktop_target:
             desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
             if desktop_id is not None:
-                log.debug("_item_from_uri: resolve returned None for %s", desktop_id)
-                return None
+                log.debug(
+                    "_insert_pinned_uri: resolve returned None for %s",
+                    desktop_id,
+                )
+                return False
 
         if not self._prepare_appimage_for_generation(uri):
-            return None
+            return False
 
         generated = desktop_entries.create_desktop_entry_for_executable(uri)
         if generated is not None:
@@ -789,35 +787,23 @@ class DnDHandler:
             application = self._application_registry.resolve(generated.desktop_id)
             if application is None:
                 log.debug(
-                    "_item_from_uri: generated desktop entry did not resolve: %s",
+                    "_insert_pinned_uri: generated desktop entry did not resolve: %s",
                     generated.desktop_id,
                 )
-                return None
-            metadata = dock_metadata(application)
-            icon = self._icon_loader.load_desktop_icon(application, icon_size)
+                return False
             log.debug(
-                "_item_from_uri: generated desktop_id=%s icon_name=%s icon_loaded=%s",
-                metadata.desktop_id,
-                metadata.icon_name,
-                icon is not None,
+                "_insert_pinned_uri: generated application desktop_id=%s",
+                application.desktop_id,
             )
-            return DockItem(
-                desktop_id=metadata.desktop_id,
-                kind=APP_KIND,
-                target=metadata.desktop_id,
-                name=metadata.name,
-                icon_name=metadata.icon_name,
-                wm_class=metadata.wm_class,
-                exec_line=metadata.exec_line,
-                application_info=application,
-                is_pinned=True,
-                icon=icon,
+            return self._model.insert_pinned_application(
+                desktop_id=application.desktop_id,
+                index=index,
             )
 
         info = self._target_service.resolve_file(target=uri, size=icon_size)
         if info is None:
-            return None
-        return DockItem(
+            return False
+        item = DockItem(
             desktop_id=info.target,
             kind=FOLDER_KIND if info.is_dir else FILE_KIND,
             target=info.target,
@@ -827,6 +813,7 @@ class DnDHandler:
             icon=info.icon,
             prefs_key=info.target,
         )
+        return self._model.insert_pinned_item(item=item, index=index)
 
     def _resolve_desktop_application(self, target: str) -> ApplicationInfo | None:
         """Resolve desktop drops without flattening nested desktop IDs."""

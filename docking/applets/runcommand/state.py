@@ -28,25 +28,6 @@ from docking.platform.applications.types import ApplicationInfo
 
 HISTORY_LIMIT = 20
 
-# Compatibility aliases for the generic command API now owned by the platform
-# layer. Keep these as direct aliases so callers share the same constants,
-# caches, and injection seams.
-TERMINAL_LOOKUP_TIMEOUT_SECONDS = _commands.TERMINAL_LOOKUP_TIMEOUT_SECONDS
-TerminalMode = _commands.TerminalMode
-TerminalCandidate = _commands.TerminalCandidate
-ResolvedTerminal = _commands.ResolvedTerminal
-TERMINAL_CANDIDATES = _commands.TERMINAL_CANDIDATES
-DESKTOP_EXEC_FIELD_CODES_RE = _commands.DESKTOP_EXEC_FIELD_CODES_RE
-shell_path = _commands.shell_path
-build_shell_argv = _commands.build_shell_argv
-_flatpak_host_terminal_name = _commands._flatpak_host_terminal_name
-resolve_terminal_executable = _commands.resolve_terminal_executable
-find_terminal = _commands.find_terminal
-build_terminal_argv = _commands.build_terminal_argv
-launch_command = _commands.launch_command
-append_file_argument = _commands.append_file_argument
-clean_desktop_exec = _commands.clean_desktop_exec
-
 
 def normalize_history(raw_history: object) -> list[str]:
     """Return non-empty, de-duplicated history entries."""
@@ -91,7 +72,7 @@ def app_command_text(app: ApplicationListing) -> str:
     if isinstance(app, UnidentifiedApplicationListing) or (
         isinstance(app, ApplicationInfo) and app.has_gio_source
     ):
-        commandline = clean_desktop_exec(app.exec_line)
+        commandline = _commands.clean_desktop_exec(app.exec_line)
         if commandline:
             return commandline
     return app_display_name(app)
@@ -137,11 +118,9 @@ def match_application(
 def launch_application(
     *,
     app: ApplicationListing,
-    launcher: ApplicationLauncher | None,
+    launcher: ApplicationLauncher,
 ) -> bool:
     """Launch a matched canonical or ID-less registry listing."""
-    if launcher is None:
-        return False
     return activate_listing(launcher, app)
 
 

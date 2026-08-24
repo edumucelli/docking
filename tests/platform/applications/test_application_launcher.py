@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -178,6 +179,69 @@ def test_gio_action_and_uri_launches_do_not_record_provenance():
         None,
     )
     store.record_launch.assert_not_called()
+
+
+def test_host_uri_launch_crosses_flatpak_boundary_without_using_sandbox_gio(
+    monkeypatch,
+):
+    application = replace(
+        _application(location=ApplicationLocation.HOST),
+        desktop_file=Path("/run/host/usr/share/applications/example.desktop"),
+    )
+    popen = MagicMock()
+    launcher, registry, store = _launcher(application, popen=popen)
+    handle = MagicMock()
+    registry.handles["example.desktop"] = handle
+    host_command = MagicMock(return_value=["flatpak-spawn", "--host", "gio", "launch"])
+    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+    monkeypatch.setattr(launcher_mod.flatpak, "host_command", host_command)
+    uris = ["file:///tmp/one file.txt", "file:///tmp/two.txt"]
+
+    assert launcher.launch_app_uris("example.desktop", uris) is True
+
+    host_command.assert_called_once_with(
+        [
+            "gio",
+            "launch",
+            "/usr/share/applications/example.desktop",
+            *uris,
+        ]
+    )
+    popen.assert_called_once()
+    handle.launch_uris.assert_not_called()
+    store.record_launch.assert_not_called()
+
+
+def test_host_uri_launch_outside_flatpak_uses_native_gio(monkeypatch):
+    launcher, registry, _store = _launcher(
+        _application(location=ApplicationLocation.HOST)
+    )
+    handle = MagicMock()
+    registry.handles["example.desktop"] = handle
+    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: False)
+
+    assert launcher.launch_app_uris("example.desktop", ["file:///tmp/document.txt"])
+
+    handle.launch_uris.assert_called_once_with(["file:///tmp/document.txt"], None)
+
+
+def test_host_uri_launch_fails_cleanly_when_host_command_is_unavailable(monkeypatch):
+    popen = MagicMock()
+    launcher, registry, _store = _launcher(
+        _application(location=ApplicationLocation.HOST),
+        popen=popen,
+    )
+    handle = MagicMock()
+    registry.handles["example.desktop"] = handle
+    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+    monkeypatch.setattr(launcher_mod.flatpak, "host_command", lambda _argv: None)
+
+    assert (
+        launcher.launch_app_uris("example.desktop", ["file:///tmp/document.txt"])
+        is False
+    )
+    popen.assert_not_called()
+    handle.launch_uris.assert_not_called()
 
 
 def test_gio_backed_file_only_merged_action_still_routes_through_gio():

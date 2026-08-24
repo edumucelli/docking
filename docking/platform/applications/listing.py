@@ -68,7 +68,7 @@ def activate_listing(
 
 
 def listing_gicon(
-    registry: ApplicationRegistry | None,
+    registry: ApplicationRegistry,
     listing: ApplicationListing,
 ) -> Gio.Icon | None:
     """Return the retained Gio icon, with file/themed fact fallbacks."""
@@ -110,16 +110,12 @@ def listing_desktop_file_uri(listing: ApplicationListing) -> str | None:
 
 def _gio_handle(
     *,
-    registry: ApplicationRegistry | None,
+    registry: ApplicationRegistry,
     listing: ApplicationListing,
 ) -> object | None:
-    if registry is None:
-        return None
     if isinstance(listing, ApplicationInfo):
-        getter = getattr(registry, "_gio_handle_for", None)
-        return getter(listing.desktop_id) if callable(getter) else None
-    getter = getattr(registry, "_gio_handle_for_unidentified", None)
-    return getter(listing.listing_key) if callable(getter) else None
+        return registry._gio_handle_for(listing.desktop_id)
+    return registry._gio_handle_for_unidentified(listing.listing_key)
 
 
 __all__ = [

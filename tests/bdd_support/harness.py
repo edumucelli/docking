@@ -13,7 +13,7 @@ import docking.ui.hover as hover_mod
 import docking.ui.input_controller as input_controller_mod
 import docking.ui.preview as preview_mod
 from docking.core.config import PinnedEntry
-from docking.core.items import FOLDER_KIND, DockItem
+from docking.core.items import APP_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.platform.applications.types import (
     ApplicationInfo,
@@ -455,6 +455,17 @@ class DockHarness:
             return True
 
         self._drag_handler._model.insert_pinned_item.side_effect = insert_pinned_item
+        self._drag_handler._model.insert_pinned_application.side_effect = (
+            lambda *, desktop_id, index: insert_pinned_item(
+                item=DockItem(
+                    desktop_id=desktop_id,
+                    kind=APP_KIND,
+                    target=desktop_id,
+                    is_pinned=True,
+                ),
+                index=index,
+            )
+        )
         self._drag_handler._application_registry.resolve.return_value = ApplicationInfo(
             desktop_id="firefox.desktop",
             name="Firefox",

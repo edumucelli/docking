@@ -312,7 +312,7 @@ def test_runtime_only_closure_is_excluded_until_generated_entry_resolves():
     )
 
 
-def test_reload_policy_notifies_without_eager_pruning_or_saving():
+def test_reload_policy_does_not_eagerly_prune_or_save():
     config = _Config(
         recent_apps=_wire(
             ("first.desktop", NOW),
@@ -321,8 +321,6 @@ def test_reload_policy_notifies_without_eager_pruning_or_saving():
     )
     service = _service(config, "first.desktop", "second.desktop")
     service.load()
-    listener = _Listener()
-    service.subscribe(listener)
 
     config.recent_apps_max = 1
     service.reload_policy()
@@ -330,7 +328,6 @@ def test_reload_policy_notifies_without_eager_pruning_or_saving():
     assert len(service.snapshot()) == 2
     assert len(config.recent_apps) == 2
     assert config.saved_values == []
-    assert listener.calls == 1
 
 
 def test_disabling_and_clear_save_immediately_then_reenable_loads():
@@ -356,29 +353,3 @@ def test_disabling_and_clear_save_immediately_then_reenable_loads():
 
     service.clear()
     assert config.saved_values == [[], []]
-
-
-class _Listener:
-    def __init__(self) -> None:
-        self.calls = 0
-
-    def __call__(self) -> None:
-        self.calls += 1
-
-
-def test_listeners_are_unique_and_unsubscribe_is_idempotent():
-    config = _Config()
-    service = _service(config)
-    listener = _Listener()
-    unsubscribe = service.subscribe(listener)
-    duplicate_unsubscribe = service.subscribe(listener)
-
-    service.clear()
-    assert listener.calls == 1
-
-    unsubscribe()
-    unsubscribe()
-    service.clear()
-    duplicate_unsubscribe()
-
-    assert listener.calls == 1

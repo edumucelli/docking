@@ -89,7 +89,6 @@ from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.applications.recents import RecentApplications
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
@@ -243,13 +242,11 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
-        recent_applications: RecentApplications,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
-        self._recent_applications = recent_applications
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
         self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
@@ -1703,17 +1700,13 @@ class SettingsWindowController:
 
     def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
-        self._recent_applications.reload_policy(pinned_ids=self._recent_pinned_ids())
+        self._model.rebuild_recent_apps()
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
 
     def _after_recent_apps_policy_changed(self) -> None:
-        """Notify the service without adding eager pruning or durability."""
-        self._recent_applications.reload_policy(pinned_ids=self._recent_pinned_ids())
+        """Redraw after a policy update that applies on the next reconciliation."""
         self._actions.queue_draw()
-
-    def _recent_pinned_ids(self) -> set[str]:
-        return {item.desktop_id for item in self._model.pinned_items}
 
     def _after_hide_mode_changed(self) -> None:
         self._actions.on_hide_mode_changed()

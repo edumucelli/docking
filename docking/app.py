@@ -187,7 +187,6 @@ def main() -> None:
             target_service=target_service,
             recent_applications=recent_applications,
         )
-        cleanup.callback(_safe_stop, "model listener", model.close)
         cleanup.callback(_safe_stop, "applets", model.stop_applets)
 
         renderer = DockRenderer()
@@ -238,7 +237,6 @@ def main() -> None:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            recent_applications=recent_applications,
         )
         cleanup.callback(_safe_stop, "UI", ui.stop)
 

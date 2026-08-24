@@ -24,8 +24,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import ApplicationServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
@@ -97,55 +96,6 @@ def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
     if normalized == "rhythmbox":
         add("org.gnome.Rhythmbox3.desktop")
     return tuple(candidates)
-
-
-def _find_media_app() -> Gio.AppInfo | None:
-    """Find the default or another installed application for common media."""
-    for content_type in MEDIA_CONTENT_TYPES:
-        try:
-            app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-        except GLib.Error as exc:
-            log.bind(action="find_media_app", content_type=content_type).debug(
-                "Failed to resolve default media application: %s",
-                exc,
-            )
-            continue
-        if app_info is not None:
-            return app_info
-
-    for lookup_name in ("get_recommended_for_type", "get_all_for_type"):
-        lookup = getattr(Gio.AppInfo, lookup_name, None)
-        if not callable(lookup):
-            continue
-        for content_type in MEDIA_CONTENT_TYPES:
-            try:
-                candidates = lookup(content_type)
-            except GLib.Error as exc:
-                log.bind(action="find_media_app", content_type=content_type).debug(
-                    "Failed to list media applications: %s",
-                    exc,
-                )
-                continue
-            for app_info in candidates or ():
-                if app_info is not None and app_info.should_show():
-                    return app_info
-    return None
-
-
-def launch_default_media_app() -> bool:
-    """Launch an installed media application, preferring desktop defaults."""
-    app_info = _find_media_app()
-    if app_info is None:
-        return False
-
-    try:
-        return bool(app_info.launch([], None))
-    except GLib.Error as exc:
-        log.bind(action="launch_media_app").warning(
-            "Failed to launch media application: %s",
-            exc,
-        )
-        return False
 
 
 class MusicApplet(ApplicationServicesApplet):
@@ -326,17 +276,9 @@ class MusicApplet(ApplicationServicesApplet):
         return state
 
     def _find_media_application(self) -> ApplicationListing | None:
-        registry = self._application_registry
-        for content_type in MEDIA_CONTENT_TYPES:
-            application = registry.default_listing_for_content_type(content_type)
-            if application is not None:
-                return application
-
-        for content_type in MEDIA_CONTENT_TYPES:
-            applications = registry.recommended_listings_for_content_type(content_type)
-            if applications:
-                return applications[0]
-        return None
+        return self._application_registry.preferred_listing_for_content_types(
+            MEDIA_CONTENT_TYPES
+        )
 
     def _launch_default_media_app(self) -> bool:
         launcher = self._application_launcher

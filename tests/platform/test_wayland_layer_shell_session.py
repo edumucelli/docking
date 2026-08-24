@@ -88,6 +88,11 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         screen_capture=screen_capture,
     )
@@ -224,6 +229,11 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         workspace_protocol=SimpleNamespace(),
         screen_capture=screen_capture,
         protocol_runtime=_empty_runtime(),
@@ -243,6 +253,11 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
     runtime.idle_protocol = idle_protocol
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=runtime,
     )
 
@@ -313,6 +328,11 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
 def test_wayland_layer_shell_session_lifecycle_is_safe():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 

@@ -28,6 +28,7 @@ import docking.ui.input_controller as input_controller_mod
 import docking.ui.menu as menu_mod
 import docking.ui.placement as placement_mod
 from docking.core.config import PinnedEntry
+from docking.core.items import APP_KIND
 from docking.core.position import Position
 from docking.platform.applications.types import (
     ApplicationInfo,
@@ -118,6 +119,17 @@ class _ScenarioHarness:
             return True
 
         self.model.insert_pinned_item.side_effect = insert_pinned_item
+        self.model.insert_pinned_application.side_effect = lambda *, desktop_id, index: (
+            insert_pinned_item(
+                item=DockItem(
+                    desktop_id=desktop_id,
+                    kind=APP_KIND,
+                    target=desktop_id,
+                    is_pinned=True,
+                ),
+                index=index,
+            )
+        )
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
