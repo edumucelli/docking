@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import stat
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, call
+
+import pytest
 
 try:
     import gi  # noqa: F401
@@ -15,10 +18,13 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.platform.applications.launcher as launcher_mod
 import docking.ui.dnd as dnd_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
+from docking.platform.applications.identity import LaunchProvenanceStore
+from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -26,6 +32,7 @@ from docking.platform.applications.types import (
 )
 from docking.platform.model import DockItem
 from docking.ui.geometry import Rect
+from tests.platform.application_fakes import ApplicationRegistryStub
 
 
 def _frame(*, item_index: int = -1, insert_index: int = 0, count: int = 1):
@@ -53,6 +60,7 @@ def _application(
     wm_class: str = "application",
     exec_line: str = "/usr/bin/application",
     desktop_file=None,
+    location: ApplicationLocation = ApplicationLocation.SANDBOX,
 ) -> ApplicationInfo:
     return ApplicationInfo(
         desktop_id=desktop_id,
@@ -61,7 +69,7 @@ def _application(
         wm_class=wm_class,
         exec_line=exec_line,
         origin=ApplicationOrigin.INSTALLED,
-        location=ApplicationLocation.SANDBOX,
+        location=location,
         desktop_file=desktop_file,
         executable_path=None,
         aliases=(),
@@ -195,6 +203,80 @@ def test_selected_app_uri_drop_uses_shared_application_launcher(monkeypatch):
         "item0.desktop",
         ["file:///tmp/document.txt"],
     )
+
+
+@pytest.mark.parametrize("launch_fails", [False, True], ids=["success", "failure"])
+def test_host_uri_drop_flows_through_real_launcher_without_pinning(
+    monkeypatch, tmp_path, launch_fails
+):
+    application = _application(
+        "viewer.desktop",
+        desktop_file=Path("/run/host/usr/share/applications/viewer.desktop"),
+        location=ApplicationLocation.HOST,
+    )
+    registry = ApplicationRegistryStub((application,))
+    popen = MagicMock()
+    if launch_fails:
+        popen.side_effect = OSError("host launch failed")
+    launcher = ApplicationLauncher(
+        registry,  # type: ignore[arg-type]
+        LaunchProvenanceStore(),
+        popen=popen,
+    )
+    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+    monkeypatch.setattr(
+        launcher_mod.flatpak,
+        "host_command",
+        lambda argv: ["flatpak-spawn", "--host", *argv],
+    )
+    handler = _make_handler(
+        monkeypatch,
+        application_registry=registry,
+        application_launcher=launcher,
+    )
+    handler._drag_from = -1
+    handler._drop_committed = True
+    handler.drop_insert_index = -1
+    app_item = DockItem("viewer.desktop", kind=APP_KIND)
+    handler._geometry_builder = SimpleNamespace(
+        build_frame=lambda **_kwargs: SimpleNamespace(
+            cursor_rect=Rect(0, 0, 400, 60),
+            item_geometries=(
+                SimpleNamespace(item=app_item, draw_rect=Rect(0, 0, 48, 48)),
+            ),
+        )
+    )
+    uris = [
+        (tmp_path / "one file.txt").as_uri(),
+        (tmp_path / "two.txt").as_uri(),
+    ]
+    selection = MagicMock()
+    selection.get_uris.return_value = uris
+    finish = MagicMock()
+    monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+    handler._on_drag_data_received(
+        handler._drawing_area,
+        MagicMock(),
+        10,
+        10,
+        selection,
+        1,
+        77,
+    )
+
+    assert popen.call_args.args[0] == [
+        "flatpak-spawn",
+        "--host",
+        "gio",
+        "launch",
+        "/usr/share/applications/viewer.desktop",
+        *uris,
+    ]
+    handler._model.insert_pinned_item.assert_not_called()
+    handler._model.insert_pinned_application.assert_not_called()
+    handler._target_service.resolve_file.assert_not_called()
+    finish.assert_called_once_with(ANY, not launch_fails, False, 77)
 
 
 class _FakeResponseDialog:

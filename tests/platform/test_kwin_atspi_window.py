@@ -6,23 +6,16 @@ from unittest.mock import MagicMock
 
 from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.kwin import atspi_window
+from tests.platform.application_fakes import identity_services
 
 
 def _service() -> tuple[atspi_window.AtspiWindowService, MagicMock]:
-    registry = MagicMock()
-    registry.generation = 1
-    registry.get.return_value = None
-    registry.get.return_value = None
-    registry.resolve_all_by_wm_class.return_value = ()
-    process_identity_service = MagicMock()
-    process_identity_service.identity_for_pid.return_value = None
     model = MagicMock()
     model.visible_items.return_value = []
     return (
         atspi_window.AtspiWindowService(
             model=model,
-            application_registry=registry,
-            process_identity_service=process_identity_service,
+            **identity_services(),
         ),
         model,
     )
@@ -43,6 +36,23 @@ def test_kwin_fallback_is_represented_as_application_match() -> None:
     assert window.application_match.application is None
     running = model.update_running.call_args.kwargs["running"]
     assert tuple(running) == ("kwin:Unregistered",)
+
+
+def test_kwin_payload_flows_through_real_matcher_to_model() -> None:
+    service, model = _service()
+    window = atspi_window._AtspiWindow("window-1")
+    window.app_name = "Alacritty"
+    window.pid = 73
+    service._windows[window.window_id.value] = window
+
+    keep_source = service._publish_running()
+
+    assert not keep_source
+    assert window.application_match is not None
+    assert window.application_match.desktop_id == "Alacritty.desktop"
+    assert window.application_match.application is not None
+    running = model.update_running.call_args.kwargs["running"]
+    assert tuple(running) == ("Alacritty.desktop",)
 
 
 def test_kwin_start_and_stop_are_idempotent(monkeypatch) -> None:

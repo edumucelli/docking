@@ -43,7 +43,7 @@ def _layer_shell() -> SimpleNamespace:
     )
 
 
-def test_muffin_window_service_publishes_read_only_state(monkeypatch):
+def test_muffin_payload_flows_through_real_matcher_to_model():
     model = _model()
     client = SimpleNamespace(
         list_windows=MagicMock(
@@ -61,30 +61,21 @@ def test_muffin_window_service_publishes_read_only_state(monkeypatch):
             )
         )
     )
+    services = identity_services()
     service = MuffinWindowService(
         model=model,
-        **identity_services(),
+        **services,
         client=client,
-    )
-    application_match = ApplicationMatch(
-        desktop_id="firefox.desktop",
-        application=None,
-        evidence=MatchEvidence(
-            method=MatchMethod.DESKTOP_ID,
-            raw_app_id="firefox",
-        ),
-    )
-    match_result = MagicMock(return_value=application_match)
-    monkeypatch.setattr(
-        service._matcher,
-        "match_result",
-        match_result,
     )
 
     service.refresh()
 
-    match_result.assert_called_once_with("firefox", process_id=None)
-    assert service._windows[42].application_match is application_match
+    application_match = service._windows[42].application_match
+    assert application_match is not None
+    assert application_match.desktop_id == "firefox.desktop"
+    assert application_match.application is services["application_registry"].get(
+        "firefox.desktop"
+    )
     snapshot = service.list_windows("firefox.desktop")[0]
     assert snapshot.active is True
     assert snapshot.urgent is True
