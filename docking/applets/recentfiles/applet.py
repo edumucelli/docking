@@ -25,12 +25,14 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import TargetServicesApplet
 from docking.applets.menu import menu_sections
 from docking.applets.recentfiles import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import targets
+from docking.platform.icons import IconLoader
+from docking.platform.targets import TargetService
+from docking.ui.stack import StackContent, StackEntry
 
 from .render import render_icon
 from .state import MAX_ENTRIES, RecentEntry, tooltip_text, truncate_name
@@ -41,18 +43,30 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
 
 
-class RecentFilesApplet(Applet):
-    """Shows recently opened files; click opens the most recent."""
+class RecentFilesApplet(TargetServicesApplet):
+    """Show recently opened files through the reusable item stack."""
 
     id = meta.id
     name = _("Recent Files")
     icon_name = "document-open-recent"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+    ) -> None:
         self._entries: list[RecentEntry] = []
         self._signal_id: int | None = None
         self._refresh_entries()
-        super().__init__(icon_size, config)
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            icon_loader=icon_loader,
+            target_service=target_service,
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -60,6 +74,22 @@ class RecentFilesApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         self.item.name = tooltip_text(entries=self._entries)
+
+    def stack_content(self, icon_size: int) -> StackContent | None:
+        """Return the current recent-file snapshot for the shared stack popup."""
+        if not self._entries:
+            return None
+        return StackContent(
+            entries=tuple(
+                StackEntry(
+                    key=entry.uri,
+                    label=entry.name,
+                    icon=self._stack_icon(entry=entry, size=icon_size),
+                    activate=lambda uri=entry.uri: self._open_uri(uri=uri),
+                )
+                for entry in self._entries
+            ),
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
@@ -77,8 +107,7 @@ class RecentFilesApplet(Applet):
         """Open the most recent file."""
         if not self._entries:
             return
-        uri = self._entries[0].uri
-        targets.open_target(uri)
+        self._open_uri(uri=self._entries[0].uri)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
@@ -111,7 +140,18 @@ class RecentFilesApplet(Applet):
         self.present()
 
     def _open_uri(self, *, uri: str) -> None:
-        targets.open_target(uri)
+        self._target_service.open_target(uri)
+
+    def _stack_icon(
+        self,
+        *,
+        entry: RecentEntry,
+        size: int,
+    ) -> GdkPixbuf.Pixbuf | None:
+        target = self._target_service.resolve_file(entry.uri, size)
+        if target is not None and target.icon is not None:
+            return target.icon
+        return self._icon_loader.load_icon("text-x-generic", size)
 
     def _clear_recent(self) -> None:
         try:

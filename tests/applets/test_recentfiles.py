@@ -1,5 +1,6 @@
 """Tests for the Recent Files applet."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from docking.applets.recentfiles.state import (
@@ -9,6 +10,21 @@ from docking.applets.recentfiles.state import (
     truncate_name,
 )
 from docking.core.config import Config
+
+
+def _applet(applet_class):
+    icon_loader = MagicMock()
+    icon_loader.load_icon.return_value = None
+    target_service = MagicMock()
+    target_service.icon_loader = icon_loader
+    target_service.resolve_file.return_value = None
+    target_service.open_target.return_value = False
+    return applet_class(
+        48,
+        config=Config(),
+        icon_loader=icon_loader,
+        target_service=target_service,
+    )
 
 
 class TestState:
@@ -101,7 +117,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # Then
         assert len(applet._entries) == 2
@@ -118,7 +134,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # Then
         assert applet._entries == []
@@ -137,11 +153,82 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # Then only existing entries kept
         assert len(applet._entries) == 1
         assert applet._entries[0].name == "a.txt"
+
+    def test_stack_lists_recent_files_with_target_icons_and_opens_selection(self):
+        manager = MagicMock()
+        manager.get_items.return_value = [
+            self._make_recent_info("a.txt", "file:///a.txt", 200),
+            self._make_recent_info("b.txt", "file:///b.txt", 100),
+        ]
+        with patch(
+            "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
+            return_value=manager,
+        ):
+            from docking.applets.recentfiles.applet import RecentFilesApplet
+
+            applet = _applet(RecentFilesApplet)
+        icons = {
+            "file:///a.txt": object(),
+            "file:///b.txt": object(),
+        }
+        applet._target_service.resolve_file.side_effect = lambda uri, _size: (
+            SimpleNamespace(icon=icons[uri])
+        )
+
+        content = applet.stack_content(32)
+
+        assert content is not None
+        assert [entry.key for entry in content.entries] == [
+            "file:///a.txt",
+            "file:///b.txt",
+        ]
+        assert [entry.label for entry in content.entries] == ["a.txt", "b.txt"]
+        assert [entry.icon for entry in content.entries] == list(icons.values())
+        content.entries[1].activate()
+        applet._target_service.open_target.assert_called_once_with("file:///b.txt")
+
+    def test_empty_stack_is_suppressed(self):
+        manager = MagicMock()
+        manager.get_items.return_value = []
+        with patch(
+            "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
+            return_value=manager,
+        ):
+            from docking.applets.recentfiles.applet import RecentFilesApplet
+
+            applet = _applet(RecentFilesApplet)
+
+        assert applet.stack_content(32) is None
+
+    def test_recent_manager_change_refreshes_live_stack(self):
+        manager = MagicMock()
+        manager.get_items.return_value = [
+            self._make_recent_info("a.txt", "file:///a.txt", 200),
+        ]
+        with patch(
+            "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
+            return_value=manager,
+        ):
+            from docking.applets.recentfiles.applet import RecentFilesApplet
+
+            applet = _applet(RecentFilesApplet)
+            notify = MagicMock()
+            applet.start(notify)
+            manager.get_items.return_value = [
+                self._make_recent_info("b.txt", "file:///b.txt", 300),
+            ]
+
+            applet._on_changed(manager)
+
+        content = applet.stack_content(32)
+        assert content is not None
+        assert [entry.label for entry in content.entries] == ["b.txt"]
+        notify.assert_called_once()
 
     def test_on_clicked_opens_most_recent(self):
         # Given
@@ -155,16 +242,13 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # When
-        with patch(
-            "docking.applets.recentfiles.applet.targets.open_target"
-        ) as open_target:
-            applet.on_clicked()
+        applet.on_clicked()
 
         # Then
-        open_target.assert_called_once_with("file:///a.txt")
+        applet._target_service.open_target.assert_called_once_with("file:///a.txt")
 
     def test_on_clicked_noop_when_empty(self):
         # Given no entries
@@ -176,16 +260,13 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # When
-        with patch(
-            "docking.applets.recentfiles.applet.targets.open_target"
-        ) as open_target:
-            applet.on_clicked()
+        applet.on_clicked()
 
         # Then
-        open_target.assert_not_called()
+        applet._target_service.open_target.assert_not_called()
 
     def test_on_clicked_handles_launch_error(self):
         # Given
@@ -199,14 +280,10 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # When / Then (no exception raised)
-        with patch(
-            "docking.applets.recentfiles.applet.targets.open_target",
-            return_value=False,
-        ):
-            applet.on_clicked()
+        applet.on_clicked()
 
     def test_get_menu_items_with_entries(self):
         # Given
@@ -221,7 +298,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # When
         items = applet.get_menu_items()
@@ -239,7 +316,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
         # When
         items = applet.get_menu_items()
@@ -259,7 +336,7 @@ class TestApplet:
         ):
             from docking.applets.recentfiles.applet import RecentFilesApplet
 
-            applet = RecentFilesApplet(48, config=Config())
+            applet = _applet(RecentFilesApplet)
 
             # When start
             applet.start(lambda: None)
