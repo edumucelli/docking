@@ -23,7 +23,7 @@ jobs:
     outputs:
       run_ci: ${{ steps.filter.outputs.run_ci }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -78,7 +78,7 @@ jobs:
     needs: [changes]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install i18n tooling
         run: |
@@ -135,7 +135,7 @@ jobs:
     needs: [changes, quality]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -207,7 +207,7 @@ jobs:
           - ubuntu: "24.04"
             python: "3.14"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         if: matrix.python == '3.14'
@@ -321,7 +321,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache pip downloads
         uses: actions/cache@v5
@@ -374,7 +374,7 @@ jobs:
     needs: [changes, quality]
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -428,7 +428,7 @@ jobs:
     container:
       image: fedora:41
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -468,7 +468,7 @@ jobs:
     container:
       image: opensuse/tumbleweed:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -534,7 +534,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         run: |
@@ -609,7 +609,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         run: |
@@ -687,7 +687,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install RPM tooling
         run: |
@@ -713,7 +713,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install RPM tooling
         run: |
@@ -739,7 +739,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Flatpak tooling
         run: |
@@ -769,7 +769,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Flatpak tooling
         run: |
@@ -799,7 +799,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Snapcraft
         run: |
@@ -830,7 +830,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Snapcraft
         run: |
@@ -864,7 +864,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install AppImage tooling
         run: |
@@ -893,7 +893,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install AppImage tooling
         run: |
@@ -924,7 +924,7 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Arch build tooling
         run: |
@@ -955,7 +955,7 @@ jobs:
     container:
       image: adyranov/archlinux:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Arch build tooling
         run: |
@@ -984,7 +984,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -1017,7 +1017,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [changes, test-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -1053,7 +1053,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Get version from pyproject.toml
         id: version
