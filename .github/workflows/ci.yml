@@ -1142,7 +1142,7 @@ jobs:
           git push origin "${tag}"
 
       - name: Download .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-deb
           path: artifacts/deb-amd64
@@ -1154,7 +1154,7 @@ jobs:
           path: artifacts/deb-arm64
 
       - name: Download RPM artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-rpm
           path: artifacts/rpm-amd64
@@ -1166,7 +1166,7 @@ jobs:
           path: artifacts/rpm-arm64
 
       - name: Download Flatpak artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-flatpak
           path: artifacts/flatpak-amd64
@@ -1178,7 +1178,7 @@ jobs:
           path: artifacts/flatpak-arm64
 
       - name: Download Snap artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-snap
           path: artifacts/snap-amd64
@@ -1190,7 +1190,7 @@ jobs:
           path: artifacts/snap-arm64
 
       - name: Download AppImage artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-appimage
           path: artifacts/appimage-amd64
@@ -1202,7 +1202,7 @@ jobs:
           path: artifacts/appimage-arm64
 
       - name: Download Arch artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-arch
           path: artifacts/arch-amd64
@@ -1214,7 +1214,7 @@ jobs:
           path: artifacts/arch-arm64
 
       - name: Download Nix artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-nix
           path: artifacts/nix-amd64
