@@ -767,8 +767,7 @@ def handler(monkeypatch):
     application_registry = MagicMock()
     application_launcher = MagicMock()
     application_launcher.quicklist_actions.return_value = []
-    icon_loader = MagicMock()
-    target_service = MagicMock(icon_loader=icon_loader)
+    target_service = MagicMock()
     target_service.normalize_file_target.side_effect = lambda target: (
         targets_mod.normalize_file_target(target)
     )
@@ -1105,9 +1104,7 @@ class TestItemMenus:
             "directory_has_visible_children",
             lambda **_kwargs: False,
         )
-        handler._folder_stack._icon_loader.resolve_file_icon.return_value = (
-            "folder-pixbuf"
-        )
+        handler._target_service.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
             desktop_id="file:///tmp/root",
             kind=FOLDER_KIND,
@@ -1120,7 +1117,7 @@ class TestItemMenus:
         )
 
         assert rows[0]["icon"] == "folder-pixbuf"
-        handler._folder_stack._icon_loader.resolve_file_icon.assert_called_once_with(
+        handler._target_service.resolve_file_icon.assert_called_once_with(
             target="file:///tmp/docs",
             gicon=gicon,
             content_type="inode/directory",
@@ -1154,9 +1151,7 @@ class TestItemMenus:
             "directory_has_visible_children",
             lambda **_kwargs: False,
         )
-        handler._folder_stack._icon_loader.resolve_file_icon.return_value = (
-            "folder-pixbuf"
-        )
+        handler._target_service.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
             desktop_id="file:///tmp/root",
             kind=FOLDER_KIND,
@@ -1173,7 +1168,7 @@ class TestItemMenus:
 
         assert first == second
         folder.enumerate_children.assert_called_once()
-        handler._folder_stack._icon_loader.resolve_file_icon.assert_called_once()
+        handler._target_service.resolve_file_icon.assert_called_once()
 
     def test_file_item_menu_opens_target(self, handler, monkeypatch):
         menu = FakeMenu()

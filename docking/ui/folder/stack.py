@@ -141,7 +141,6 @@ class FolderStackController(StackPopupController):
             dock_window=dock_window,
         )
         self._target_service = target_service
-        self._icon_loader = target_service.icon_loader
         self._browser = FolderBrowser(
             target_service=target_service,
         )

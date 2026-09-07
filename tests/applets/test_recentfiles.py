@@ -16,7 +16,6 @@ def _applet(applet_class):
     icon_loader = MagicMock()
     icon_loader.load_icon.return_value = None
     target_service = MagicMock()
-    target_service.icon_loader = icon_loader
     target_service.resolve_file.return_value = None
     target_service.open_target.return_value = False
     return applet_class(

@@ -137,7 +137,6 @@ def _applet(
     )
     icon_loader = MagicMock()
     target_service = MagicMock()
-    target_service.icon_loader = icon_loader
     target_service.open_target.return_value = False
     return DevicesApplet(
         48,

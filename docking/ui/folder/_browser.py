@@ -109,7 +109,6 @@ class FolderBrowser:
         target_service: TargetService,
     ) -> None:
         self._target_service = target_service
-        self._icon_loader = target_service.icon_loader
         self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
 
     @staticmethod
@@ -231,7 +230,7 @@ class FolderBrowser:
                     size=int(info.get_size()),
                     created=int(info.get_attribute_uint64("time::created")),
                     modified=int(info.get_attribute_uint64("time::modified")),
-                    icon=self._icon_loader.resolve_file_icon(
+                    icon=self._target_service.resolve_file_icon(
                         target=child_uri,
                         gicon=icon,
                         content_type=info.get_content_type() or "",

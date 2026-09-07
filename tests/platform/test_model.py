@@ -74,7 +74,7 @@ def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
         application_registry=registry,
         application_launcher=MagicMock(),
         icon_loader=icon_loader,
-        target_service=MagicMock(icon_loader=icon_loader),
+        target_service=MagicMock(),
     )
 
 

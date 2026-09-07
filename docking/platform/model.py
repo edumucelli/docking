@@ -1098,16 +1098,6 @@ class DockModel:
                 return item
         return None
 
-    def matching_icon_items(self, item: DockItem) -> list[DockItem]:
-        """Return visible model-owned items sharing an icon preference key."""
-        key = icon_overrides.item_icon_key(item=item)
-        return [
-            candidate
-            for candidate in self.pinned_items + self._recent_apps + self._transient
-            if candidate.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
-            and icon_overrides.item_icon_key(item=candidate) == key
-        ]
-
     def set_custom_icon(self, item: DockItem, path: Path) -> bool:
         """Persist a custom icon for a pinned normal item and refresh matches."""
         if not self._can_edit_custom_icon(item=item):
@@ -1138,8 +1128,15 @@ class DockModel:
 
     def refresh_item_icons(self, item: DockItem) -> None:
         """Refresh icon fields for all model items sharing the same preference key."""
+        key = icon_overrides.item_icon_key(item=item)
+        candidates = [
+            candidate
+            for candidate in self.pinned_items + self._recent_apps + self._transient
+            if candidate.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
+            and icon_overrides.item_icon_key(item=candidate) == key
+        ]
         refreshed = False
-        for candidate in self.matching_icon_items(item=item):
+        for candidate in candidates:
             self._default_icon_for_item(item=candidate)
             self._apply_icon_override(item=candidate)
             refreshed = True

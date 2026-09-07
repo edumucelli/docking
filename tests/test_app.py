@@ -402,7 +402,6 @@ class TestAppMain:
         application_launcher = model_cls.call_args.kwargs["application_launcher"]
         icon_loader = model_cls.call_args.kwargs["icon_loader"]
         target_service = model_cls.call_args.kwargs["target_service"]
-        assert target_service.icon_loader is icon_loader
         assert application_launcher.registry is registry
         assert application_launcher.provenance_store is not None
         process_identity_service = app_mod.create_session_backend.call_args.kwargs[
@@ -790,7 +789,6 @@ class TestAppMain:
         application_launcher = factory.call_args.kwargs["application_launcher"]
         icon_loader = factory.call_args.kwargs["icon_loader"]
         target_service = factory.call_args.kwargs["target_service"]
-        assert target_service.icon_loader is icon_loader
         factory.assert_called_once()
         assert factory.call_args.kwargs["application_registry"] is registry
         assert factory.call_args.kwargs["application_launcher"] is application_launcher

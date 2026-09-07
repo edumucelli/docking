@@ -209,7 +209,7 @@ def _make_controller(
         )
 
     icon_loader = MagicMock()
-    target_service = MagicMock(icon_loader=icon_loader)
+    target_service = MagicMock()
     active_registry = (
         applications if application_registry is None else application_registry
     )
