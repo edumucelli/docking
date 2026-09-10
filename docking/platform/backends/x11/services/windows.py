@@ -105,14 +105,6 @@ class X11WindowService(WindowTracker, WindowService):
             return ActionResult.NOT_FOUND
         return super().close_all(desktop_id=desktop_id)
 
-    def close_focused(self, desktop_id: str) -> ActionResult:
-        """Close the active window for a desktop ID."""
-        return super().close_focused(desktop_id=desktop_id)
-
-    def toggle_focus(self, desktop_id: str) -> ActionResult:
-        """Toggle focus/minimize behavior for a desktop ID."""
-        return super().toggle_focus(desktop_id=desktop_id)
-
     def window_for_id(self, window_id: WindowId) -> Wnck.Window | None:
         """Resolve a live Wnck window by backend-neutral X11 window ID."""
         xid = self._xid_from_window_id(window_id)

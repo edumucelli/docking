@@ -156,7 +156,7 @@ class TestBuildDockWindow:
         application_registry = MagicMock()
         application_launcher = MagicMock()
         icon_loader = MagicMock()
-        target_service = MagicMock(icon_loader=icon_loader)
+        target_service = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -285,7 +285,6 @@ class TestBuildDockWindow:
             factory_mod.FolderStackController.call_args.kwargs["target_service"]
             is target_service
         )
-        assert target_service.icon_loader is icon_loader
         assert (
             factory_mod.DnDHandler.call_args.kwargs["application_registry"]
             is application_registry

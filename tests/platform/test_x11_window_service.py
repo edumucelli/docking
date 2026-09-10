@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -19,6 +20,10 @@ from docking.core.config import Config
 from docking.platform.applications.running import RunningAppInfo
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.x11.services.windows import X11WindowService
+
+
+def test_window_service_remains_concrete() -> None:
+    assert not inspect.isabstract(X11WindowService)
 
 
 class FakeWorkspace:

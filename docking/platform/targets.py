@@ -127,15 +127,10 @@ def default_directory_app_name() -> str | None:
 
 
 class TargetService:
-    """Resolve target metadata using one composed icon-loading service."""
+    """Resolve target metadata using its owned icon-loading service."""
 
     def __init__(self, *, icon_loader: IconLoader) -> None:
         self._icon_loader = icon_loader
-
-    @property
-    def icon_loader(self) -> IconLoader:
-        """Return the icon loader shared by target metadata resolution."""
-        return self._icon_loader
 
     def normalize_file_target(self, target: str) -> str | None:
         """Delegate target normalization to the canonical module function."""
