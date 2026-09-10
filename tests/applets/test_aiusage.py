@@ -280,8 +280,17 @@ class TestProvider:
 
 
 class TestClaudeCost:
+    def test_match_fable_5_1_before_fable_5(self):
+        assert match_model_tier(model="claude-fable-5-1") == "fable-5-1"
+
+    def test_match_mythos_5_1_before_mythos_5(self):
+        assert match_model_tier(model="claude-mythos-5-1") == "mythos-5-1"
+
     def test_match_fable_5(self):
         assert match_model_tier(model="claude-fable-5") == "fable-5"
+
+    def test_match_opus_5(self):
+        assert match_model_tier(model="claude-opus-5") == "opus-5"
 
     def test_match_opus_4_6(self):
         assert match_model_tier(model="claude-opus-4-6") == "opus-4-6"
@@ -296,6 +305,18 @@ class TestClaudeCost:
     def test_cost_for_fable_5(self):
         usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
         assert cost_for_usage(model="claude-fable-5", usage=usage) == 60.0
+
+    def test_cost_for_fable_5_1_uses_lower_cache_read_rate(self):
+        usage = ModelUsage(cache_write_tokens=1_000_000, cache_read_tokens=1_000_000)
+        assert cost_for_usage(model="claude-fable-5-1", usage=usage) == 12.75
+
+    def test_cost_for_opus_5(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-opus-5", usage=usage) == 30.0
+
+    def test_cost_for_sonnet_5_standard_rate(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-sonnet-5", usage=usage) == 12.0
 
     def test_cost_for_opus_4_legacy(self):
         usage = ModelUsage(input_tokens=1_000_000)
@@ -321,6 +342,9 @@ class TestClaudeCost:
 
 
 class TestCodexCost:
+    def test_match_gpt_6_astra(self):
+        assert match_model_tier(model="gpt-6-astra") == "gpt-6-astra"
+
     def test_match_gpt_5_6_terra(self):
         assert match_model_tier(model="gpt-5.6-terra") == "gpt-5.6-terra"
 
@@ -352,7 +376,23 @@ class TestCodexCost:
             cache_read_tokens=500_000,
             output_tokens=1_000_000,
         )
-        assert cost_for_usage(model="gpt-5.6-luna", usage=usage) == 6.55
+        assert cost_for_usage(model="gpt-5.6-luna", usage=usage) == 1.31
+
+    def test_cost_gpt5_6_sol(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="gpt-5.6-sol", usage=usage) == 24.0
+
+    def test_cost_gpt5_6_terra(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="gpt-5.6-terra", usage=usage) == 14.0
+
+    def test_cost_gpt6_astra(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        assert cost_for_usage(model="gpt-6-astra", usage=usage) == 55.5
 
     def test_day_cost_mixed_providers(self):
         entry = DayEntry(
