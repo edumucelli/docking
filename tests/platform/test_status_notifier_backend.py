@@ -4,17 +4,15 @@ from __future__ import annotations
 
 from gi.repository import GLib
 
-from docking.platform.status_notifier import (
+from docking.platform.status_notifier.backend import (
     RegisteredItemAddress,
     TrayItem,
-    tray_item_from_properties,
-)
-from docking.platform.status_notifier.backend import (
     _argb_to_rgba,
     _best_icon_pixmap,
     _bytes_from_dbus_array,
     _tooltip_parts,
     _unpack_variant,
+    tray_item_from_properties,
 )
 
 

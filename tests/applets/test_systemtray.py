@@ -6,7 +6,7 @@ from gi.repository import GLib
 
 from docking.applets.systemtray.render import create_status_tray_icon
 from docking.applets.systemtray.state import tooltip_text
-from docking.platform.status_notifier import (
+from docking.platform.status_notifier.backend import (
     DEFAULT_ITEM_PATH,
     RegisteredItemAddress,
     StatusTrayState,
