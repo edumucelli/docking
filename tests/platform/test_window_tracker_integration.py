@@ -21,8 +21,11 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 import docking.platform.backends.x11.impl.window_tracker as window_tracker_mod
 from docking.core.config import Config
 from docking.platform.applications.identity import ProcessIdentity
-from docking.platform.applications.matcher import ApplicationMatch
-from docking.platform.applications.types import MatchEvidence, MatchMethod
+from docking.platform.applications.types import (
+    ApplicationMatch,
+    MatchEvidence,
+    MatchMethod,
+)
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.model import DockItem
 

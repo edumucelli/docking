@@ -7,15 +7,19 @@ from unittest.mock import MagicMock
 
 import docking.platform.status_notifier.notifications as status_mod
 from docking.platform.status_notifier import (
-    POLL_INTERVAL_S,
-    SLACK_DESKTOP_ID,
-    RegisteredItemAddress,
     StatusNotifierNotificationBridge,
     StatusTrayState,
-    parse_slack_notification_count,
-    status_notifier_desktop_id,
+)
+from docking.platform.status_notifier.backend import (
+    RegisteredItemAddress,
     tray_item_from_properties,
     unavailable_state,
+)
+from docking.platform.status_notifier.notifications import (
+    POLL_INTERVAL_S,
+    SLACK_DESKTOP_ID,
+    parse_slack_notification_count,
+    status_notifier_desktop_id,
 )
 
 

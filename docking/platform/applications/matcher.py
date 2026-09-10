@@ -794,20 +794,4 @@ def _instance_candidates(instance_hint: str) -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
-__all__ = [
-    "AppIdMatcher",
-    "ApplicationMatch",
-    "_app_id_candidates",
-    "_class_group_candidates",
-    "_ensure_desktop_suffix",
-    "_executable_paths_conflict",
-    "_instance_candidates",
-    "_is_native_executable",
-    "_launcher_path_compatibility",
-    "_normalize_alias",
-    "_runtime_application",
-    "_sibling_bundle_launchers_conflict",
-    "_specific_bundle_root",
-    "_wine_aliases_from_instance",
-    "desktop_entries",
-]
+__all__ = ["AppIdMatcher"]
