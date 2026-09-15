@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 ## Highlights
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
-- Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
+- Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, COSMIC, Hyprland, Niri, Wayfire, Treeland, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
 - Unified global search for applications, dock items, open windows, recent files, calculator expressions, and direct paths.
 - 65 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
@@ -53,6 +53,8 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension
   - KDE Plasma 6 through the native KWin backend
+  - COSMIC through native toplevel, workspace, overlap, and preview protocols
+  - Hyprland, Niri, and Wayfire through compositor-specific IPC plus layer-shell
   - wlroots-style compositors through layer-shell and advertised Wayland protocols
   - reduced mode when compositor integration is unavailable
 - System packages (Ubuntu/Debian):
@@ -101,11 +103,11 @@ The latest prebuilt packages are available on
 [GitHub Releases](https://github.com/edumucelli/docking/releases) and linked
 directly below.
 - `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
-- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
+- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64 release assets](https://github.com/edumucelli/docking/releases)
 - `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
 - `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
 - `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
-- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst)
+- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz)
 - `Nix`: [x64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt), [x64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz), [arm64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt), [arm64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz)
 
 Typical local install/run commands after downloading a release asset:
@@ -118,10 +120,13 @@ ARCH=x86_64  # Use aarch64 for ARM64.
 chmod +x "docking-latest-linux-${ARCH}.AppImage"
 ./docking-latest-linux-${ARCH}.AppImage
 
-# Debian / RPM / Arch
+# Debian / RPM
 sudo apt install "./docking-latest-linux-${ARCH}.deb"
 sudo dnf install "./docking-latest-linux-${ARCH}.rpm"
-sudo pacman -U "./docking-latest-linux-${ARCH}.pkg.tar.zst"
+
+# Arch (use the command matching your architecture)
+sudo pacman -U "./docking-latest-linux-x86_64.pkg.tar.zst"
+sudo pacman -U "./docking-latest-linux-aarch64.pkg.tar.xz"
 
 # Flatpak / Snap
 flatpak install --user "./docking-latest-linux-${ARCH}.flatpak"
@@ -181,8 +186,10 @@ one with `DOCKING_BACKEND`.
 |---|---|---|
 | **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
 | **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
+| **COSMIC** | COSMIC Wayland | Native layer-shell placement with COSMIC toplevel, workspace, overlap, and preview protocol paths where available |
 | **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
+| **Wayfire** | Wayfire Wayland | Dock placement (layer-shell), IPC window tracking and actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker |
 | **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
 | **Cinnamon Wayland** | Current Muffin | Dock placement plus read-only running, active, attention, geometry, and workspace state through Muffin's `org.cinnamon.Muffin.Debug.ListWindows` snapshot API. Muffin does not expose window actions, previews, or change signals, so Docking polls every two seconds |
 | **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
@@ -234,8 +241,10 @@ To force a specific backend for testing:
 ```bash
 DOCKING_BACKEND=gnome-shell docking          # GNOME / Mutter 45+
 DOCKING_BACKEND=kwin docking                  # KDE Plasma 6 Wayland
+DOCKING_BACKEND=cosmic docking                # COSMIC protocols + layer-shell
 DOCKING_BACKEND=hyprland docking              # Hyprland IPC + layer-shell
 DOCKING_BACKEND=niri docking                  # Niri IPC + layer-shell
+DOCKING_BACKEND=wayfire docking               # Wayfire IPC + layer-shell
 DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
 DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
 DOCKING_BACKEND=x11 docking                   # X11 (full support)
