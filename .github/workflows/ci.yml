@@ -529,10 +529,12 @@ jobs:
             tests/ui/test_menu_integration.py \
             tests/applets/test_trivia.py
 
+  # Package builds run alongside tests after quality passes. The release job
+  # below joins both branches before any tag or release can be published.
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -607,7 +609,7 @@ jobs:
   build-deb-arm64:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -685,7 +687,7 @@ jobs:
   build-rpm-arm64:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -711,7 +713,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -737,7 +739,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -767,7 +769,7 @@ jobs:
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -797,7 +799,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -828,7 +830,7 @@ jobs:
   build-snap-arm64:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -862,7 +864,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -891,7 +893,7 @@ jobs:
   build-appimage-arm64:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -920,7 +922,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     container:
       image: archlinux:latest
     steps:
@@ -951,7 +953,7 @@ jobs:
   build-arch-arm64:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -982,7 +984,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -1015,7 +1017,7 @@ jobs:
   build-nix-arm64:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -1048,7 +1050,29 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
+    needs:
+      - changes
+      - quality
+      - bdd-visual
+      - test-ubuntu
+      - test-debian
+      - test-arm64
+      - test-fedora-smoke
+      - test-opensuse-smoke
+      - build-deb
+      - build-deb-arm64
+      - build-rpm
+      - build-rpm-arm64
+      - build-flatpak
+      - build-flatpak-arm64
+      - build-snap
+      - build-snap-arm64
+      - build-appimage
+      - build-appimage-arm64
+      - build-arch
+      - build-arch-arm64
+      - build-nix
+      - build-nix-arm64
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
