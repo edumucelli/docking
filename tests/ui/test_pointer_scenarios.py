@@ -508,7 +508,9 @@ class TestMenuLifecycleScenarios:
 
 
 class TestAutohideAnimationScenarios:
-    def test_autohide_progresses_visible_to_hidden_and_back(self, monkeypatch):
+    def test_autohide_progresses_visible_to_hidden_and_back(
+        self, monkeypatch, monotonic_clock
+    ):
         window = SimpleNamespace(queue_redraw=MagicMock())
         config = SimpleNamespace(
             hide_mode="autohide",
@@ -531,18 +533,22 @@ class TestAutohideAnimationScenarios:
         scheduled.pop(0)()
         assert ctrl.state == HideState.HIDING
 
-        while ctrl.state != HideState.HIDDEN:
+        for _ in range(4):
+            monotonic_clock.now_us += 16_000
             ctrl._animation_tick()
 
+        assert ctrl.state == HideState.HIDDEN
         assert ctrl.hide_offset == 1.0
         assert ctrl.zoom_progress == 0.0
 
         ctrl.on_mouse_enter()
         assert ctrl.state == HideState.SHOWING
 
-        while ctrl.state != HideState.VISIBLE:
+        for _ in range(4):
+            monotonic_clock.now_us += 16_000
             ctrl._animation_tick()
 
+        assert ctrl.state == HideState.VISIBLE
         assert ctrl.hide_offset == 0.0
         assert ctrl.zoom_progress == 1.0
 
