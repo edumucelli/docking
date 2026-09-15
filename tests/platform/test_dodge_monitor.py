@@ -13,6 +13,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from docking.core.config import Config
 from docking.platform.backends.x11.impl.dodge import ScreenRect, WindowDodgeMonitor
+from tests.bdd_support.harness import _TimerScheduler
 
 # Dock sits at bottom of 1920x1080 screen
 DOCK_RECT = ScreenRect(x=600, y=1030, width=720, height=50)
@@ -387,7 +388,7 @@ class TestLifecycle:
         assert calls[:2] == ["force_update", "get_active_window"]
         monitor._on_change.assert_called_once_with(True)
 
-    def test_schedule_evaluate_replaces_debounce_timer(self, monkeypatch):
+    def test_schedule_evaluate_keeps_first_deadline(self, monkeypatch):
         config = Config(hide_mode="intelligent")
         monitor = WindowDodgeMonitor(
             config=config,
@@ -410,9 +411,47 @@ class TestLifecycle:
         monitor._schedule_evaluate()
         monitor._schedule_evaluate()
 
-        assert [delay for delay, _callback in added] == [200, 200]
-        assert removed == [10]
-        assert monitor._debounce_id == 11
+        assert [delay for delay, _callback in added] == [200]
+        assert removed == []
+        assert monitor._debounce_id == 10
+
+    def test_unrelated_window_motion_cannot_postpone_reveal(self, monkeypatch):
+        scheduler = _TimerScheduler()
+        monkeypatch.setattr(
+            "docking.platform.backends.x11.impl.dodge.GLib.timeout_add",
+            scheduler.timeout_add,
+        )
+        monkeypatch.setattr(
+            "docking.platform.backends.x11.impl.dodge.GLib.source_remove",
+            scheduler.source_remove,
+        )
+        active = _make_window(x=600, y=900, w=720, h=200)
+        unrelated = _make_window(x=0, y=0, w=100, h=100, class_group="Other")
+        monitor = _make_monitor(
+            config=Config(hide_mode="intelligent"),
+            windows=[active, unrelated],
+            active_window=active,
+        )
+        monitor.evaluate_now()
+        assert monitor._should_hide is True
+        monitor._on_change.reset_mock()
+
+        active.get_geometry.return_value = (600, 200, 720, 200)
+        monitor._on_window_event(active)
+        for _ in range(4):
+            scheduler.advance(40)
+            monitor._on_window_event(unrelated)
+        monitor._on_change.assert_not_called()
+
+        scheduler.advance(40)
+        monitor._on_change.assert_called_once_with(False)
+
+        # Later events still schedule evaluations after the first one fires.
+        active.get_geometry.return_value = (600, 900, 720, 200)
+        monitor._on_window_event(active)
+        scheduler.advance(200)
+        assert monitor._should_hide is True
+        assert monitor._on_change.call_count == 2
 
     def test_evaluate_now_cancels_pending_debounce_and_runs_immediately(
         self, monkeypatch

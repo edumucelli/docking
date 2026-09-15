@@ -178,7 +178,9 @@ class WindowDodgeMonitor(VisibilityMonitor):
 
     def _schedule_evaluate(self) -> None:
         if self._debounce_id:
-            GLib.source_remove(self._debounce_id)
+            # Keep the first deadline so continuous window motion cannot
+            # postpone overlap evaluation indefinitely.
+            return
         self._debounce_id = GLib.timeout_add(DEBOUNCE_MS, self._do_evaluate)
 
     def evaluate_now(self) -> None:

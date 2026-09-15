@@ -62,6 +62,9 @@ class _TimerScheduler:
     def source_exists(self, source_id: int) -> bool:
         return source_id in self._callbacks
 
+    def get_monotonic_time(self) -> int:
+        return self._now_ms * 1000
+
     def advance(self, milliseconds: int) -> None:
         target_ms = self._now_ms + max(int(milliseconds), 0)
         while True:
@@ -261,6 +264,11 @@ class DockHarness:
 
     def start(self) -> None:
         patchers = [
+            patch.object(
+                autohide_mod.GLib,
+                "get_monotonic_time",
+                side_effect=self._scheduler.get_monotonic_time,
+            ),
             patch.object(
                 autohide_mod.GLib,
                 "timeout_add",
