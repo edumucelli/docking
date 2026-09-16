@@ -176,7 +176,6 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
-from docking.core.config import effective_edge_gap
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
     RGB,
@@ -189,7 +188,7 @@ from docking.core.theme import (
 from docking.log import get_logger
 from docking.ui.autohide import HideState
 from docking.ui.effects import average_icon_color, easing_bounce
-from docking.ui.geometry import DockGeometryFrame, map_icon_position
+from docking.ui.geometry import DockGeometryFrame, dock_edge_padding, map_icon_position
 from docking.ui.overlays import draw_count_badge, draw_progress_bar
 from docking.ui.shelf import clip_shelf_background, draw_shelf_background, rounded_rect
 
@@ -674,6 +673,7 @@ class DockRenderer:
     def __init__(self) -> None:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}
+        self._slide_layout_context: tuple[Position, int] | None = None
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
         self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
@@ -777,17 +777,6 @@ class DockRenderer:
         pos = config.pos
         width = frame.window_rect.w
         height = frame.window_rect.h
-        # Offset content away from the screen edge so the gap area
-        # (at the edge) stays transparent for the autohide trigger.
-        gap = effective_edge_gap(theme, config)
-        if gap > 0:
-            if pos == Position.TOP:
-                cr.translate(0, gap)
-            elif pos == Position.LEFT:
-                cr.translate(gap, 0)
-            # BOTTOM/RIGHT: gap is at high-y/high-x end, content is
-            # already drawn from y=0/x=0 so no translate needed.
-
         items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
             return
@@ -796,6 +785,7 @@ class DockRenderer:
         icon_size = config.icon_size
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
+        content_cross_origin = frame.content_cross_origin
         icon_hide = hide_offset
 
         # Include the drop gap so shelf expands to cover displaced items
@@ -902,7 +892,13 @@ class DockRenderer:
         cr.restore()
 
         # --- Draw icons ---
-        self._update_slide_offsets(items=items, layout=layout, icon_offset=icon_offset)
+        main_extent = width if is_horizontal(pos=pos) else height
+        self._update_slide_offsets(
+            items=items,
+            layout=layout,
+            icon_offset=icon_offset,
+            layout_context=(pos, main_extent),
+        )
 
         gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         self._update_hover_lighten(items=items, hovered_id=hovered_id, theme=theme)
@@ -959,16 +955,18 @@ class DockRenderer:
                     main_size=scaled_size,
                     hide_cross=hide_cross,
                     bounce=bounce,
+                    edge_origin=content_cross_origin,
                 )
                 continue
             ix, iy = map_icon_position(
                 pos=pos,
                 main_pos=main_pos,
                 cross_size=cross_size,
-                edge_padding=theme.bottom_padding,
+                edge_padding=dock_edge_padding(theme=theme),
                 scaled_size=scaled_size,
                 hide_cross=hide_cross,
                 bounce=bounce,
+                edge_origin=content_cross_origin,
             )
             expected = frame.item_geometries[i].draw_rect
             render_x = math.floor(ix)
@@ -1042,6 +1040,7 @@ class DockRenderer:
                 hide_cross=hide_cross,
                 theme=theme,
                 pos=pos,
+                edge_origin=content_cross_origin,
             )
 
         # --- Draw per-item overlays ---
@@ -1082,10 +1081,11 @@ class DockRenderer:
                 pos=pos,
                 main_pos=main_pos,
                 cross_size=cross_size,
-                edge_padding=theme.bottom_padding,
+                edge_padding=dock_edge_padding(theme=theme),
                 scaled_size=scaled_size,
                 hide_cross=hide_cross,
                 bounce=bounce,
+                edge_origin=content_cross_origin,
             )
 
             if show_badge:
@@ -1123,7 +1123,11 @@ class DockRenderer:
                             li=li,
                             icon_size=icon_size,
                             icon_offset=icon_offset,
-                            cross_size=cross_size,
+                            cross_size=(
+                                frame.window_rect.h
+                                if is_horizontal(pos=pos)
+                                else frame.window_rect.w
+                            ),
                             pos=pos,
                             theme=theme,
                             color=color,
@@ -1183,12 +1187,34 @@ class DockRenderer:
                 del self._hover_lighten[did]
 
     def _update_slide_offsets(
-        self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float
+        self,
+        items: list[DockItem],
+        layout: list[LayoutItem],
+        icon_offset: float,
+        *,
+        layout_context: tuple[Position, int] | None = None,
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
         for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
+
+        if (
+            layout_context is not None
+            and self._slide_layout_context is not None
+            and layout_context != self._slide_layout_context
+        ):
+            log.debug(
+                "snap slide positions on layout context change: old=%s new=%s",
+                self._slide_layout_context,
+                layout_context,
+            )
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            self._slide_layout_context = layout_context
+            return
+        if layout_context is not None:
+            self._slide_layout_context = layout_context
 
         previous_ids = set(self.prev_positions)
         new_ids = set(new_positions)
@@ -1305,6 +1331,7 @@ class DockRenderer:
         main_size: float,
         hide_cross: float = 0.0,
         bounce: float = 0.0,
+        edge_origin: float = 0.0,
     ) -> None:
         style, invert_color = _separator_prefs(item=item, config=config)
         if style != STYLE_LINE:
@@ -1312,21 +1339,16 @@ class DockRenderer:
 
         render_main = max(main_size, 1.0)
         render_cross = float(config.icon_size)
-        edge_padding = theme.bottom_padding
-        cross_rest = cross_size - edge_padding - render_cross
-
-        if pos == Position.BOTTOM:
-            x = main_pos
-            y = cross_rest + hide_cross - bounce
-        elif pos == Position.TOP:
-            x = main_pos
-            y = edge_padding - hide_cross + bounce
-        elif pos == Position.LEFT:
-            x = edge_padding - hide_cross + bounce
-            y = main_pos
-        else:
-            x = cross_rest + hide_cross - bounce
-            y = main_pos
+        x, y = map_icon_position(
+            pos=pos,
+            main_pos=main_pos,
+            cross_size=cross_size,
+            edge_padding=dock_edge_padding(theme=theme),
+            scaled_size=render_cross,
+            hide_cross=hide_cross,
+            bounce=bounce,
+            edge_origin=edge_origin,
+        )
 
         brightness = _brightness(theme.fill_start)
         use_dark = brightness > 0.5
@@ -1556,11 +1578,12 @@ class DockRenderer:
         hide_cross: float,
         theme: Theme,
         pos: Position,
+        edge_origin: float = 0.0,
     ) -> None:
         """Draw running indicator(s) near the screen edge."""
         scaled_size = base_size * li.scale
         main_center = li.x + main_pos + scaled_size / 2
-        edge_padding = theme.bottom_padding
+        edge_padding = dock_edge_padding(theme=theme)
 
         color = (
             theme.active_indicator_color if item.is_active else theme.indicator_color
@@ -1580,9 +1603,9 @@ class DockRenderer:
         if pos == Position.BOTTOM:
             cx, cy = main_center, cross_size - edge_padding / 2 + hide_cross
         elif pos == Position.TOP:
-            cx, cy = main_center, edge_padding / 2 - hide_cross
+            cx, cy = main_center, edge_origin + edge_padding / 2 - hide_cross
         elif pos == Position.LEFT:
-            cx, cy = edge_padding / 2 - hide_cross, main_center
+            cx, cy = edge_origin + edge_padding / 2 - hide_cross, main_center
         else:  # RIGHT
             cx, cy = cross_size - edge_padding / 2 + hide_cross, main_center
 

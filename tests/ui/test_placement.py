@@ -31,6 +31,7 @@ def _make_window(**overrides):
             top_padding=4,
             bottom_padding=8,
             urgent_bounce_height=0.5,
+            launch_bounce_height=0.25,
             distance_from_edge=0,
         ),
         get_display=MagicMock(),
@@ -42,6 +43,7 @@ def _make_window(**overrides):
         resize=MagicMock(),
         move=MagicMock(),
         drawing_area=SimpleNamespace(queue_draw=MagicMock()),
+        _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         surface_service=surface_service,
     )
@@ -187,8 +189,8 @@ class TestPlacementControllerLifecycle:
 
         controller.apply_scheduled_reposition()
 
-        window.resize.assert_called_with(2560, 93)
-        window.move.assert_called_with(0, 987)
+        window.resize.assert_called_with(2560, 102)
+        window.move.assert_called_with(0, 978)
 
     def test_on_destroy_cleans_geometry_refresh_and_screen_handlers(self, monkeypatch):
         screen = SimpleNamespace(disconnect=MagicMock())
@@ -369,6 +371,7 @@ class TestPlacementControllerGeometry:
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.0,
+                launch_bounce_height=0.0,
                 distance_from_edge=6,
             ),
         )
@@ -377,7 +380,7 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(0, 1014)
+        window.move.assert_called_once_with(0, 1018)
 
     def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -406,6 +409,7 @@ class TestPlacementControllerGeometry:
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.0,
+                launch_bounce_height=0.0,
                 distance_from_edge=6,
             ),
         )
@@ -414,7 +418,7 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(1854, 24)
+        window.move.assert_called_once_with(1858, 24)
 
     def test_position_dock_uses_selected_monitor_index(self):
         geom_primary = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -589,6 +593,35 @@ class TestPlacementControllerStruts:
             width=1920,
             height=1080,
         )
+
+    def test_set_struts_rounds_visible_fractional_extent_up(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="none",
+                icon_size=48,
+                pos=Position.BOTTOM,
+                active_display=False,
+                monitor_index=-1,
+                additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
+            theme=SimpleNamespace(bottom_padding=4.8, distance_from_edge=0),
+            get_display=lambda: display,
+        )
+        controller = _make_controller(window)
+
+        controller.set_struts()
+
+        request = window.surface_service.set_reservation.call_args.args[0]
+        assert request.thickness == 53
 
     def test_set_struts_uses_active_display_monitor_when_enabled(self):
         primary_geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -1010,6 +1043,7 @@ class TestPlacementControllerStruts:
 
         controller.reposition()
 
+        window._invalidate_current_geometry_frame.assert_called_once()
         controller.position_dock.assert_called_once()
         controller.set_struts.assert_called_once()
         window.update_input_region.assert_called_once()

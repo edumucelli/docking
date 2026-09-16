@@ -181,6 +181,10 @@ from docking.platform.backends.base import (
     SurfaceService,
 )
 from docking.ui.display import get_pointer_position
+from docking.ui.geometry import (
+    compute_dock_cross_metrics,
+    resting_dock_cross_extent,
+)
 
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
@@ -367,13 +371,12 @@ class DockPlacementController:
         theme = self._window.theme
         icon_size = config.icon_size
         zoom = config.zoom_percent if config.zoom_enabled else 1.0
-        bounce_headroom = int(icon_size * theme.urgent_bounce_height)
-        cross = int(
-            icon_size * zoom
-            + theme.top_padding
-            + theme.bottom_padding
-            + bounce_headroom
+        cross_metrics = compute_dock_cross_metrics(
+            icon_size=icon_size,
+            zoom=zoom,
+            theme=theme,
         )
+        cross = cross_metrics.surface_extent
         pos = config.pos
         gap = effective_edge_gap(theme, config)
         if is_horizontal(pos=pos):
@@ -395,7 +398,7 @@ class DockPlacementController:
 
         log.debug(
             "dock position: monitor=%s geom=(%d,%d %dx%d) workarea=(%d,%d %dx%d) "
-            "win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
+            "win=(%d,%d) size=%dx%d cross=%d animation_headroom=%.1f",
             monitor_idx,
             geom.x,
             geom.y,
@@ -410,7 +413,7 @@ class DockPlacementController:
             win_w,
             win_h,
             cross,
-            bounce_headroom,
+            cross_metrics.animation_headroom,
         )
         self._surface.position_or_anchor(
             PlacementRequest(
@@ -442,7 +445,13 @@ class DockPlacementController:
             return
         icon_size = self._window.config.icon_size
         gap = effective_edge_gap(self._window.theme, self._window.config)
-        strut_height = int(icon_size + self._window.theme.bottom_padding + gap)
+        strut_height = (
+            resting_dock_cross_extent(
+                icon_size=icon_size,
+                theme=self._window.theme,
+            )
+            + gap
+        )
 
         self._surface.set_reservation(
             ReservationRequest(
@@ -526,6 +535,7 @@ class DockPlacementController:
 
     def reposition(self) -> None:
         """Re-layout after position change -- reposition window, struts, input."""
+        self._window._invalidate_current_geometry_frame()
         self.position_dock()
         self.set_struts()
         self._window.update_input_region()

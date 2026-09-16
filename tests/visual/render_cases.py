@@ -31,7 +31,7 @@ from docking.search.types import (
 from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
 from docking.ui.folder.stack import FolderStackController
-from docking.ui.geometry import build_geometry_frame
+from docking.ui.geometry import build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
@@ -46,8 +46,10 @@ DOCK_CASES = (
     "dock-bottom-click-frame",
     "dock-bottom-launch-frame",
     "dock-bottom-urgent-bounce-frame",
+    "dock-bottom-combined-bounce-frame",
     "dock-bottom-urgent-hidden",
 )
+POSITION_CHANGE_CASES = ("dock-position-change-right-to-top",)
 FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
@@ -67,7 +69,12 @@ SEARCH_CASES = (
     "search-palette-image-preview",
 )
 VISUAL_CASES = (
-    DOCK_CASES + FOLDER_STACK_CASES + SHORT_STACK_CASES + POPUP_CASES + SEARCH_CASES
+    DOCK_CASES
+    + POSITION_CHANGE_CASES
+    + FOLDER_STACK_CASES
+    + SHORT_STACK_CASES
+    + POPUP_CASES
+    + SEARCH_CASES
 )
 
 DOCK_WIDTH = 420
@@ -174,12 +181,21 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
     elif case_name == "dock-bottom-urgent-bounce-frame":
         items[0].is_urgent = True
         items[0].last_urgent = now_us - urgent_duration_us // 2
-        dock_height = int(
-            ICON_SIZE * config.zoom_percent
-            + theme.top_padding
-            + theme.bottom_padding
-            + ICON_SIZE * theme.urgent_bounce_height
-        )
+        dock_height = compute_dock_cross_metrics(
+            icon_size=ICON_SIZE,
+            zoom=config.zoom_percent,
+            theme=theme,
+        ).surface_extent
+    elif case_name == "dock-bottom-combined-bounce-frame":
+        hovered_id = "code.desktop"
+        items[1].is_urgent = True
+        items[1].last_launched = now_us - launch_duration_us // 4
+        items[1].last_urgent = now_us - urgent_duration_us // 2
+        dock_height = compute_dock_cross_metrics(
+            icon_size=ICON_SIZE,
+            zoom=config.zoom_percent,
+            theme=theme,
+        ).surface_extent
     elif case_name == "dock-bottom-urgent-hidden":
         hide_state = HideState.HIDDEN
         hide_offset = 1.0
@@ -228,6 +244,45 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         for _ in range(frame_count - 1):
             surface = _paint_frame()
     return surface
+
+
+def _draw_position_change_case() -> cairo.ImageSurface:
+    theme = Theme.load("default", ICON_SIZE)
+    config = _renderer_config()
+    items = _renderer_items()
+    renderer = DockRenderer()
+    cross_extent = compute_dock_cross_metrics(
+        icon_size=ICON_SIZE,
+        zoom=config.zoom_percent,
+        theme=theme,
+    ).surface_extent
+
+    def paint(pos: Position, width: int, height: int) -> cairo.ImageSurface:
+        config.pos = pos
+        frame = build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=-1_000_000.0,
+            autohide_state=None,
+        )
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        renderer.draw(
+            cr=cairo.Context(surface),
+            widget=_FakeWidget(width=width, height=height),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(cursor_main=-1_000_000.0),
+        )
+        return surface
+
+    with patch("docking.ui.renderer.GLib.get_monotonic_time", return_value=1_000_000):
+        paint(Position.RIGHT, cross_extent, 800)
+        paint(Position.TOP, cross_extent, 800)
+        return paint(Position.TOP, 1280, cross_extent)
 
 
 def _folder_stack_handler() -> MenuHandler:
@@ -630,6 +685,8 @@ def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
         return _draw_renderer_case(case_name=case_name)
+    if case_name == "dock-position-change-right-to-top":
+        return _draw_position_change_case()
     if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES):
         return _draw_folder_stack_case(case_name=case_name)
     if case_name == "tooltip-open-bottom":

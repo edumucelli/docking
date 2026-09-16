@@ -258,6 +258,48 @@ TRIGGER_PX = 2
 TRIGGER_PX_TOP = 8
 
 
+@dataclass(frozen=True)
+class DockCrossMetrics:
+    """Cross-axis extents shared by placement, geometry, and rendering."""
+
+    surface_extent: int
+    resting_extent: int
+    edge_padding: float
+    animation_headroom: float
+
+
+def dock_edge_padding(*, theme: Theme) -> float:
+    """Return the nonnegative resting inset from the dock's content edge."""
+    return max(0.0, float(theme.bottom_padding))
+
+
+def resting_dock_cross_extent(*, icon_size: int, theme: Theme) -> int:
+    """Return visible dock thickness, excluding gap and animation headroom."""
+    edge_padding = dock_edge_padding(theme=theme)
+    return max(1, math.ceil(icon_size + edge_padding))
+
+
+def compute_dock_cross_metrics(
+    *, icon_size: int, zoom: float, theme: Theme
+) -> DockCrossMetrics:
+    """Return the surface allocation required by every icon animation."""
+    edge_padding = dock_edge_padding(theme=theme)
+    launch_headroom = icon_size * max(0.0, float(theme.launch_bounce_height))
+    urgent_headroom = icon_size * max(0.0, float(theme.urgent_bounce_height))
+    animation_headroom = launch_headroom + urgent_headroom
+    max_icon_extent = icon_size * max(1.0, float(zoom))
+    surface_extent = math.ceil(max_icon_extent + edge_padding + animation_headroom)
+    return DockCrossMetrics(
+        surface_extent=max(1, surface_extent),
+        resting_extent=resting_dock_cross_extent(
+            icon_size=icon_size,
+            theme=theme,
+        ),
+        edge_padding=edge_padding,
+        animation_headroom=animation_headroom,
+    )
+
+
 class Rect(NamedTuple):
     """Half-open rectangle in window-local coordinates."""
 
@@ -343,6 +385,9 @@ class DockGeometryFrame:
     local_cursor_main: float
     zoomed_main_offset: float
     cross_size: float
+    # Low-coordinate origin of content. TOP/LEFT reserve the edge gap first;
+    # BOTTOM/RIGHT place the gap after the content extent.
+    content_cross_origin: float = 0.0
     # Pre-computed shelf drawing coordinates (orientation-independent).
     shelf_main_pos: float = 0.0
     shelf_main_extent: float = 0.0
@@ -488,15 +533,16 @@ def map_icon_position(
     scaled_size: float,
     hide_cross: float = 0.0,
     bounce: float = 0.0,
+    edge_origin: float = 0.0,
 ) -> tuple[float, float]:
     """Map main-axis item position to the icon draw origin."""
     cross_rest = cross_size - edge_padding - scaled_size
     if pos == Position.BOTTOM:
         return main_pos, cross_rest + hide_cross - bounce
     if pos == Position.TOP:
-        return main_pos, edge_padding - hide_cross + bounce
+        return main_pos, edge_origin + edge_padding - hide_cross + bounce
     if pos == Position.LEFT:
-        return edge_padding - hide_cross + bounce, main_pos
+        return edge_origin + edge_padding - hide_cross + bounce, main_pos
     return cross_rest + hide_cross - bounce, main_pos
 
 
@@ -519,6 +565,7 @@ def build_geometry_frame(
     main_size = window_w if horizontal else window_h
     gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
+    content_cross_origin = float(gap if pos in (Position.TOP, Position.LEFT) else 0)
 
     local_cursor_main = _local_cursor_main(
         items=items,
@@ -546,7 +593,10 @@ def build_geometry_frame(
     zoomed_w = right_edge - left_edge
     dock_main_offset = (main_size - zoomed_w) / 2
     zoomed_main_offset = dock_main_offset - left_edge
-    content_cross = int(config.icon_size + theme.bottom_padding)
+    content_cross = resting_dock_cross_extent(
+        icon_size=config.icon_size,
+        theme=theme,
+    )
     static_dock_rect = compute_input_rect(
         pos=pos,
         window_w=window_w,
@@ -570,6 +620,7 @@ def build_geometry_frame(
         static_dock_rect=static_dock_rect,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+        content_cross_origin=content_cross_origin,
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
@@ -614,6 +665,7 @@ def build_geometry_frame(
         local_cursor_main=local_cursor_main,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+        content_cross_origin=content_cross_origin,
         shelf_main_pos=float(background_rect.x if horizontal else background_rect.y),
         shelf_main_extent=float(background_rect.w if horizontal else background_rect.h),
         shelf_cross_pos=shelf_cross_pos,
@@ -688,6 +740,7 @@ def _build_item_geometries(
     static_dock_rect: Rect,
     zoomed_main_offset: float,
     cross_size: float,
+    content_cross_origin: float,
     hide_offset: float,
     drop_gap: float,
 ) -> tuple[tuple[ItemGeometry, ...], Rect]:
@@ -704,9 +757,10 @@ def _build_item_geometries(
             pos=pos,
             main_pos=main_pos,
             cross_size=cross_size,
-            edge_padding=theme.bottom_padding,
+            edge_padding=dock_edge_padding(theme=theme),
             scaled_size=scaled_size,
             hide_cross=hide_cross,
+            edge_origin=content_cross_origin,
         )
         draw_rect = Rect(
             math.floor(draw_x),

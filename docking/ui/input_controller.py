@@ -33,7 +33,6 @@ from docking.ui.autohide import HideState
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.dock_interactions import DockInteractions, StackAnchor
-from docking.ui.geometry import current_input_rect
 from docking.ui.renderer import RenderState
 
 if TYPE_CHECKING:
@@ -525,18 +524,15 @@ class DockInputController:
         )
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
-
-        current_entry = window._cache.geometry_frame
-        frame = (
-            current_entry.frame if current_entry is not None else None
-        ) or window._cache.applied_input_frame
-        input_rect = current_input_rect(frame)
-        if input_rect is not None and window.interaction.point_inside_event_frame(
-            x=event.x, y=event.y
-        ):
+        if not window.dock_hovered:
             return False
 
-        if not window.dock_hovered:
+        # X11 may emit a crossing event just outside the low window edge when
+        # an animated input shape is replaced, even though the root pointer
+        # remains inside the new shape. Crossing coordinates can also remain
+        # inside after a real exit. Use the live root pointer for both cases.
+        if window.interaction.is_pointer_inside_dock():
+            log.debug("ignored leave: live pointer remains inside dock input")
             return False
 
         window.interaction.on_effective_leave(widget)

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.ui.renderer import (
     SHELF_SMOOTH_FACTOR,
@@ -231,6 +232,47 @@ class TestSlideOffsets:
             "sublime_text.desktop": 966.0,
             "caja.desktop": 1026.0,
         }
+
+    def test_position_and_main_extent_changes_snap_without_sliding(self):
+        renderer = DockRenderer()
+        item = MagicMock(desktop_id="firefox.desktop")
+
+        contexts_and_positions = [
+            ((Position.BOTTOM, 1280), 466.0),
+            ((Position.RIGHT, 163), -92.5),
+            ((Position.RIGHT, 800), 226.0),
+            ((Position.TOP, 163), -92.5),
+            ((Position.TOP, 1280), 466.0),
+        ]
+        for layout_context, position in contexts_and_positions:
+            renderer._update_slide_offsets(
+                [item],
+                [MagicMock(x=position)],
+                0.0,
+                layout_context=layout_context,
+            )
+            assert renderer.slide_offsets == {}
+            assert renderer.prev_positions == {"firefox.desktop": position}
+
+    def test_same_layout_context_still_animates_item_movement(self):
+        renderer = DockRenderer()
+        item = MagicMock(desktop_id="firefox.desktop")
+        context = (Position.BOTTOM, 1280)
+        renderer._update_slide_offsets(
+            [item],
+            [MagicMock(x=466.0)],
+            0.0,
+            layout_context=context,
+        )
+
+        renderer._update_slide_offsets(
+            [item],
+            [MagicMock(x=526.0)],
+            0.0,
+            layout_context=context,
+        )
+
+        assert renderer.slide_offsets["firefox.desktop"] < 0.0
 
 
 class TestShelfWidthMembershipChanges:
