@@ -116,9 +116,11 @@ Wnck emits:
 - window-opened
 - window-closed
 - active-window-changed
+- per-window state-changed
 
-On each relevant signal, this module rescans the current window list and
-rebuilds the aggregate. That is a pragmatic design:
+On each relevant signal, including attention-state transitions, this module
+rescans the current window list and rebuilds the aggregate. That is a pragmatic
+design:
 
 - simpler than maintaining many incremental partial updates,
 - resilient to window-manager state changing underneath us,
@@ -277,6 +279,7 @@ class WindowTracker:
         self._config = config
         self._screen: Wnck.Screen | None = None
         self._screen_signal_ids: list[int] = []
+        self._window_state_signal_ids: dict[int, tuple[Wnck.Window, int]] = {}
         self._matcher = WindowMatcher(
             application_registry=application_registry,
             process_identity_service=process_identity_service,
@@ -332,9 +335,66 @@ class WindowTracker:
                 )
         self._screen_signal_ids = []
 
+    def _disconnect_window_state_signal(self, *, xid: int) -> None:
+        registration = self._window_state_signal_ids.pop(xid, None)
+        if registration is None:
+            return
+        window, handler_id = registration
+        try:
+            window.disconnect(handler_id)
+        except Exception as exc:
+            log.bind(action="disconnect_window_state", xid=str(xid)).debug(
+                "Failed to disconnect window state signal: %s",
+                exc,
+            )
+
+    def _disconnect_window_state_signals(self) -> None:
+        for xid in list(self._window_state_signal_ids):
+            self._disconnect_window_state_signal(xid=xid)
+
+    def _reconcile_window_state_signals(
+        self, *, windows: Iterable[Wnck.Window]
+    ) -> None:
+        """Track attention-state signals for the current tasklist windows."""
+        current_by_xid: dict[int, Wnck.Window] = {}
+        for window in windows:
+            xid = self._xid_for(window=window)
+            if xid:
+                current_by_xid[xid] = window
+
+        for xid, (window, _handler_id) in list(self._window_state_signal_ids.items()):
+            if current_by_xid.get(xid) is not window:
+                self._disconnect_window_state_signal(xid=xid)
+
+        for xid, window in current_by_xid.items():
+            if xid in self._window_state_signal_ids:
+                continue
+            try:
+                handler_id = window.connect(
+                    "state-changed", self._on_window_state_changed
+                )
+            except _RECOVERABLE_ERRORS as exc:
+                log.bind(action="connect_window_state", xid=str(xid)).warning(
+                    "Failed to connect window state signal: %s",
+                    exc,
+                )
+                continue
+            self._window_state_signal_ids[xid] = (window, handler_id)
+
     def _on_window_changed(self, _screen: Wnck.Screen, *_args: Any) -> None:
         """Called when any window state changes."""
         self._update_running()
+
+    def _on_window_state_changed(
+        self,
+        _window: Wnck.Window,
+        changed_mask: Wnck.WindowState,
+        _new_state: Wnck.WindowState,
+    ) -> None:
+        """Refresh only for state changes that can alter urgency."""
+        attention_mask = Wnck.WindowState.DEMANDS_ATTENTION | Wnck.WindowState.URGENT
+        if changed_mask & attention_mask:
+            self._update_running()
 
     def _update_running(self) -> None:
         """Scan all windows and update the dock model."""
@@ -352,8 +412,11 @@ class WindowTracker:
             if self._config.current_workspace_only
             else None
         )
+        windows = list(self._iter_tasklist_windows())
+        self._reconcile_window_state_signals(windows=windows)
+
         snapshots_by_desktop: dict[str, list[RunningWindowInfo]] = {}
-        for window in self._iter_tasklist_windows():
+        for window in windows:
             if active_workspace is not None and not self._window_on_workspace(
                 window=window,
                 workspace=active_workspace,
