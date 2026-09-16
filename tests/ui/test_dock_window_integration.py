@@ -163,6 +163,7 @@ def _make_stub(item: DockItem | None = None):
     stub.dock_hovered = True
     stub.zoom_animator = SimpleNamespace(progress=1.0)
     stub.interaction = MagicMock()
+    stub.interaction.is_pointer_inside_dock.return_value = False
     stub.interaction.on_effective_enter = MagicMock()
     stub.interaction.on_effective_leave = MagicMock()
     _bind_geometry_signature(stub)
@@ -795,7 +796,7 @@ class TestLeaveEnterFlow:
         # Then
         assert handled is False
 
-    def test_leave_inside_input_rect_is_ignored(self):
+    def test_leave_with_live_pointer_inside_input_rect_is_ignored(self):
         # Given
         stub, _item = _make_stub()
         stub._cache.geometry_frame.frame = SimpleNamespace(
@@ -807,6 +808,7 @@ class TestLeaveEnterFlow:
             x=20.0,
             y=20.0,
         )
+        stub.interaction.is_pointer_inside_dock.return_value = True
 
         # When
         handled = input_controller_mod.DockInputController._on_leave(
@@ -814,10 +816,48 @@ class TestLeaveEnterFlow:
         )
         # Then
         assert handled is False
-        stub.interaction.point_inside_event_frame.assert_called_once_with(
-            x=20.0, y=20.0
-        )
+        stub.interaction.is_pointer_inside_dock.assert_called_once()
         stub.hover.cancel.assert_not_called()
+
+    def test_shape_leave_at_left_edge_uses_live_pointer_position(self):
+        stub, _item = _make_stub()
+        stub._cache.geometry_frame.frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100)
+        )
+        stub.interaction.point_inside_event_frame.return_value = False
+        stub.interaction.is_pointer_inside_dock.return_value = True
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.ANCESTOR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=-1.0,
+            y=44.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
+
+        assert handled is False
+        stub.interaction.is_pointer_inside_dock.assert_called_once()
+        stub.interaction.on_effective_leave.assert_not_called()
+
+    def test_stale_inside_crossing_with_live_pointer_outside_releases_hover(self):
+        stub, _item = _make_stub()
+        widget = MagicMock()
+        stub.interaction.is_pointer_inside_dock.return_value = False
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
+
+        assert handled is True
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
 
     def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
         # Given

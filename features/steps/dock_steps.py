@@ -5,6 +5,79 @@ from __future__ import annotations
 from behave import given, then, when
 
 
+@given('the dock is at the "{position}" edge with a {gap:d} pixel floating gap')
+def step_dock_geometry_at_edge(context, position: str, gap: int) -> None:
+    context.harness.configure_geometry(position=position, gap=gap)
+
+
+@when("I render the resting dock geometry")
+def step_render_resting_geometry(context) -> None:
+    context.harness.render_resting_geometry()
+
+
+@when("launch and urgency bounces peak at maximum zoom")
+def step_render_peak_bounce(context) -> None:
+    context.harness.render_peak_bounce()
+
+
+@then("the painted icon matches its input target")
+def step_painted_icon_matches_target(context) -> None:
+    assert context.harness.painted_geometry_matches_target is True
+
+
+@then("the floating gap does not target the icon")
+def step_floating_gap_is_clear(context) -> None:
+    assert context.harness.floating_gap_is_clear is True
+
+
+@then("the painted shelf is {gap:d} pixels from the screen edge")
+def step_painted_shelf_gap(context, gap: int) -> None:
+    assert context.harness.painted_shelf_gap == gap
+
+
+@then("the painted icon stays inside the dock surface")
+def step_bounced_icon_within_surface(context) -> None:
+    assert context.harness.bounced_icon_within_surface is True
+
+
+@given('the dock has rendered at the "{position}" edge')
+def step_dock_rendered_at_edge(context, position: str) -> None:
+    context.old_dock_position = position
+
+
+@when('I move the dock to the "{position}" edge')
+def step_move_dock_to_edge(context, position: str) -> None:
+    context.harness.render_position_change(
+        old_position=context.old_dock_position,
+        new_position=position,
+    )
+
+
+@then("the icons immediately align with the new shelf")
+def step_icons_align_after_position_change(context) -> None:
+    assert context.harness.position_change_aligned is True
+
+
+@then("the left screen edge remains inside the dock input")
+def step_left_edge_inside_dock_input(context) -> None:
+    assert context.harness.left_edge_input_owned is True
+
+
+@given("the pointer is held at the left screen edge")
+def step_pointer_held_at_left_edge(context) -> None:
+    context.harness.hold_pointer_at_left_edge()
+
+
+@when("X11 reports a shape crossing outside the left edge")
+def step_x11_shape_crossing_outside_left_edge(context) -> None:
+    context.harness.report_left_edge_shape_leave()
+
+
+@then("the dock remains hovered")
+def step_dock_remains_hovered(context) -> None:
+    assert context.harness.left_edge_hover_retained is True
+
+
 @given("the dock is in autohide mode")
 def step_dock_is_in_autohide_mode(context) -> None:
     context.harness.set_hide_mode("autohide")

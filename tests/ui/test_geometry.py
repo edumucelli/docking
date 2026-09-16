@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from itertools import pairwise
 from types import SimpleNamespace
 
@@ -12,7 +13,12 @@ from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
-from docking.ui.geometry import Rect, build_geometry_frame
+from docking.ui.geometry import (
+    Rect,
+    build_geometry_frame,
+    compute_dock_cross_metrics,
+    resting_dock_cross_extent,
+)
 
 
 def _config(pos: Position = Position.BOTTOM) -> SimpleNamespace:
@@ -47,7 +53,96 @@ class TestRect:
         assert rect.contains(39, 60) is False
 
 
+class TestDockCrossMetrics:
+    def test_default_theme_allocates_zoom_and_both_bounces(self):
+        theme = Theme.load("default", 48)
+
+        metrics = compute_dock_cross_metrics(
+            icon_size=48,
+            zoom=1.5,
+            theme=theme,
+        )
+
+        assert metrics.surface_extent == 187
+        assert metrics.resting_extent == 53
+        assert metrics.edge_padding == pytest.approx(4.8)
+        assert metrics.animation_headroom == pytest.approx(109.68)
+
+    def test_negative_values_cannot_reduce_required_surface(self):
+        theme = replace(
+            Theme.load("default", 48),
+            bottom_padding=-8.0,
+            launch_bounce_height=-0.5,
+            urgent_bounce_height=-1.0,
+        )
+
+        metrics = compute_dock_cross_metrics(
+            icon_size=48,
+            zoom=0.5,
+            theme=theme,
+        )
+
+        assert metrics.surface_extent == 48
+        assert metrics.resting_extent == 48
+        assert metrics.edge_padding == 0.0
+        assert metrics.animation_headroom == 0.0
+        assert resting_dock_cross_extent(icon_size=48, theme=theme) == 48
+
+
 class TestDockGeometryFrame:
+    @pytest.mark.parametrize(
+        "pos",
+        [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],
+    )
+    def test_edge_gap_is_applied_once_to_content_geometry(self, pos):
+        gap = 30
+        item = DockItem(desktop_id="firefox.desktop")
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
+        frame = build_geometry_frame(
+            items=[item],
+            config=_config(pos),
+            theme=_theme(distance_from_edge=gap),
+            window_w=420 if horizontal else 200,
+            window_h=200 if horizontal else 420,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        item_geometry = frame.item_geometries[0]
+        draw_rect = item_geometry.draw_rect
+        background = frame.background_rect
+
+        expected_origin = gap if pos in (Position.TOP, Position.LEFT) else 0
+        assert frame.content_cross_origin == expected_origin
+        if pos == Position.TOP:
+            assert draw_rect.y == gap + 4
+            assert background.y == gap
+            phantom_point = (draw_rect.x + draw_rect.w / 2, gap / 2)
+        elif pos == Position.BOTTOM:
+            assert frame.window_rect.h - draw_rect.y - draw_rect.h == gap + 4
+            assert frame.window_rect.h - background.y - background.h == gap
+            phantom_point = (
+                draw_rect.x + draw_rect.w / 2,
+                frame.window_rect.h - gap / 2,
+            )
+        elif pos == Position.LEFT:
+            assert draw_rect.x == gap + 4
+            assert background.x == gap
+            phantom_point = (gap / 2, draw_rect.y + draw_rect.h / 2)
+        else:
+            assert frame.window_rect.w - draw_rect.x - draw_rect.w == gap + 4
+            assert frame.window_rect.w - background.x - background.w == gap
+            phantom_point = (
+                frame.window_rect.w - gap / 2,
+                draw_rect.y + draw_rect.h / 2,
+            )
+
+        painted_center = (
+            draw_rect.x + draw_rect.w / 2,
+            draw_rect.y + draw_rect.h / 2,
+        )
+        assert frame.item_at_point(*painted_center) is item
+        assert frame.item_at_point(*phantom_point) is None
+
     def test_build_frame_exposes_item_lookup_and_insert_index(self):
         items = [
             DockItem(desktop_id="firefox.desktop"),
@@ -380,6 +475,7 @@ _ALL_THEMES = [
     "slate",
     "glass",
     "paper",
+    "pill",
     "candy",
     "transparent",
     "olive",
@@ -393,36 +489,48 @@ _ALL_THEMES = [
 class TestShelfHidesCompletely:
     """Shelf background must be fully off-screen when hide_offset=1.0."""
 
+    @pytest.mark.parametrize(
+        "pos",
+        [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],
+    )
     @pytest.mark.parametrize("theme_name", _ALL_THEMES)
-    def test_shelf_hidden_for_bottom(self, theme_name):
+    def test_shelf_hidden_for_every_edge(self, theme_name, pos):
         icon_size = 48
         theme = Theme.load(theme_name, icon_size)
         zoom = 1.5
         gap = max(0, int(theme.distance_from_edge))
-        bounce = int(icon_size * theme.urgent_bounce_height)
-        cross = int(
-            icon_size * zoom + theme.top_padding + theme.bottom_padding + bounce
-        )
-        window_h = cross + gap
+        cross = compute_dock_cross_metrics(
+            icon_size=icon_size,
+            zoom=zoom,
+            theme=theme,
+        ).surface_extent
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
+        window_w = 1920 if horizontal else cross + gap
+        window_h = cross + gap if horizontal else 1080
         items = [DockItem(desktop_id="firefox.desktop")]
 
         frame = build_geometry_frame(
             items=items,
             config=SimpleNamespace(
-                pos=Position.BOTTOM,
+                pos=pos,
                 icon_size=icon_size,
                 zoom_percent=zoom,
                 zoom_enabled=True,
                 additional_distance_from_edge=0,
             ),
             theme=theme,
-            window_w=1920,
+            window_w=window_w,
             window_h=window_h,
             cursor_main=-1.0,
             autohide_state=HideState.HIDDEN,
             hide_offset=1.0,
         )
 
-        assert frame.background_rect.y >= window_h, (
-            f"{theme_name}: shelf_y={frame.background_rect.y} but window_h={window_h}"
-        )
+        if pos == Position.BOTTOM:
+            assert frame.background_rect.y >= window_h
+        elif pos == Position.TOP:
+            assert frame.background_rect.y + frame.background_rect.h <= 0
+        elif pos == Position.LEFT:
+            assert frame.background_rect.x + frame.background_rect.w <= 0
+        else:
+            assert frame.background_rect.x >= window_w
