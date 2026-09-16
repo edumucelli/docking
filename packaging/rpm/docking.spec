@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.13.2}
+Version:        %{?pkg_version}%{!?pkg_version:2.13.3}
 Release:        1%{?dist}
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
@@ -119,6 +119,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Wed Sep 16 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.3-1
+- Release 2.13.3.
+
 * Tue Sep 15 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.2-1
 - Release 2.13.2.
 
