@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from enum import IntFlag
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -66,6 +67,9 @@ class FakeWindow:
         self.closed_with: list[int] = []
         self.minimize_count = 0
         self.unminimize_count = 0
+        self.connections: dict[int, tuple[str, object]] = {}
+        self.disconnected: list[int] = []
+        self._next_handler_id = 1
 
     def get_window_type(self) -> int:
         return self._window_type
@@ -107,6 +111,21 @@ class FakeWindow:
         self.unminimize_count += 1
         self._minimized = False
 
+    def connect(self, signal: str, callback) -> int:
+        handler_id = self._next_handler_id
+        self._next_handler_id += 1
+        self.connections[handler_id] = (signal, callback)
+        return handler_id
+
+    def disconnect(self, handler_id: int) -> None:
+        self.disconnected.append(handler_id)
+        self.connections.pop(handler_id, None)
+
+    def emit_state_changed(self, changed_mask: int, new_state: int) -> None:
+        for signal, callback in list(self.connections.values()):
+            if signal == "state-changed":
+                callback(self, changed_mask, new_state)
+
 
 class FakeScreen:
     def __init__(
@@ -144,10 +163,21 @@ def _matched_desktop_id(matcher, window) -> str | None:
 
 @pytest.fixture
 def tracker_env(monkeypatch):
+    class WindowState(IntFlag):
+        MINIMIZED = 1
+        DEMANDS_ATTENTION = 512
+        URGENT = 1024
+
     monkeypatch.setattr(
         window_tracker_mod.Wnck,
         "WindowType",
         SimpleNamespace(DESKTOP=1, DOCK=2),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        window_tracker_mod.Wnck,
+        "WindowState",
+        WindowState,
         raising=False,
     )
     monkeypatch.setattr(window_tracker_mod.GLib, "idle_add", lambda _fn: 1)
@@ -249,6 +279,84 @@ class TestWindowTrackerInit:
 
 
 class TestWindowTrackerRunningAggregation:
+    def test_attention_state_changes_refresh_urgency(self, tracker_env):
+        tracker, model, _launcher = tracker_env
+        window = FakeWindow(1, class_group="Firefox")
+        tracker._screen = FakeScreen(windows=[window], active_window=None)
+        tracker._matcher.match_result = MagicMock(
+            return_value=_match("firefox.desktop")
+        )
+        tracker._update_running()
+        model.update_running.reset_mock()
+
+        window._urgent = True
+        window.emit_state_changed(
+            window_tracker_mod.Wnck.WindowState.DEMANDS_ATTENTION,
+            window_tracker_mod.Wnck.WindowState.DEMANDS_ATTENTION,
+        )
+
+        running = model.update_running.call_args.kwargs["running"]
+        assert running["firefox.desktop"].urgent is True
+
+        window._urgent = False
+        window.emit_state_changed(
+            window_tracker_mod.Wnck.WindowState.URGENT,
+            window_tracker_mod.Wnck.WindowState(0),
+        )
+
+        running = model.update_running.call_args.kwargs["running"]
+        assert running["firefox.desktop"].urgent is False
+
+    def test_unrelated_window_state_change_does_not_rescan(self, tracker_env):
+        tracker, model, _launcher = tracker_env
+        window = FakeWindow(1, class_group="Firefox")
+        tracker._screen = FakeScreen(windows=[window], active_window=None)
+        tracker._matcher.match_result = MagicMock(
+            return_value=_match("firefox.desktop")
+        )
+        tracker._update_running()
+        model.update_running.reset_mock()
+
+        window.emit_state_changed(
+            window_tracker_mod.Wnck.WindowState.MINIMIZED,
+            window_tracker_mod.Wnck.WindowState.MINIMIZED,
+        )
+
+        model.update_running.assert_not_called()
+
+    def test_window_state_handlers_follow_tasklist_membership(self, tracker_env):
+        tracker, _model, _launcher = tracker_env
+        first = FakeWindow(1, class_group="Firefox")
+        second = FakeWindow(2, class_group="Firefox")
+        skipped = FakeWindow(3, class_group="Firefox", skip_tasklist=True)
+        screen = FakeScreen(
+            windows=[first, second, skipped],
+            active_window=None,
+        )
+        tracker._screen = screen
+        tracker._matcher.match_result = MagicMock(
+            return_value=_match("firefox.desktop")
+        )
+
+        tracker._update_running()
+
+        assert set(tracker._window_state_signal_ids) == {1, 2}
+        assert skipped.connections == {}
+
+        screen._windows = [second]
+        tracker._update_running()
+
+        assert set(tracker._window_state_signal_ids) == {2}
+        assert first.disconnected == [1]
+        assert len(second.connections) == 1
+
+        replacement = FakeWindow(2, class_group="Firefox")
+        screen._windows = [replacement]
+        tracker._update_running()
+
+        assert second.disconnected == [1]
+        assert len(replacement.connections) == 1
+
     def test_update_running_aggregates_windows(self, tracker_env):
         # Given
         tracker, model, _launcher = tracker_env

@@ -141,6 +141,7 @@ def make_service(
     service._cycle_index = {}
     service._cycle_order_by_desktop = {}
     service._screen_signal_ids = []
+    service._window_state_signal_ids = {}
     return service
 
 
@@ -209,13 +210,17 @@ def test_list_windows_returns_backend_snapshots(monkeypatch):
 def test_stop_disconnects_screen_signals():
     service = make_service([FakeWindow(10)])
     screen = MagicMock()
+    window = MagicMock()
     service._screen = screen
     service._screen_signal_ids = [1, 2]
+    service._window_state_signal_ids = {10: (window, 3)}
 
     service.stop()
 
+    window.disconnect.assert_called_once_with(3)
     screen.disconnect.assert_any_call(1)
     screen.disconnect.assert_any_call(2)
+    assert service._window_state_signal_ids == {}
     assert service._screen_signal_ids == []
     assert service._screen is None
 

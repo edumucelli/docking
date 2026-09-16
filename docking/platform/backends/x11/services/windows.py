@@ -45,9 +45,10 @@ class X11WindowService(WindowTracker, WindowService):
     def stop(self) -> None:
         """Release service state owned by the facade.
 
-        Disconnect Wnck screen signals before dropping the screen reference so
-        repeated start/stop cycles cannot duplicate callbacks.
+        Disconnect Wnck window and screen signals before dropping the screen
+        reference so repeated start/stop cycles cannot duplicate callbacks.
         """
+        self._disconnect_window_state_signals()
         self._disconnect_screen_signals()
         self._screen = None
 
