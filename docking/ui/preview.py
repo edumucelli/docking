@@ -123,8 +123,8 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform.backends.base import WindowId, WindowService, WindowSnapshot
-from docking.ui.display import clamp_popup
+from docking.platform.backends.base import Size, WindowId, WindowService, WindowSnapshot
+from docking.ui.display import clamp_popup, popup_workarea
 
 if TYPE_CHECKING:
     from docking.platform.backends.base import PreviewService
@@ -152,6 +152,9 @@ _CSS = b"""
     border-radius: 4px;
     border: 2px solid transparent;
     padding: 2px;
+}
+.preview-popup viewport {
+    background-color: transparent;
 }
 .preview-thumb:hover {
     border-color: rgba(100, 180, 255, 0.8);
@@ -184,6 +187,27 @@ def _install_css() -> None:
 @lru_cache(maxsize=1)
 def _ensure_css() -> None:
     _install_css()
+
+
+def preview_size(content: Size, available: Size, scrollbar: Size) -> Size:
+    """Fit content and non-overlay scrollbars without reserving unused bars.
+
+    Either scrollbar can make the other necessary on a small monitor. Resolve
+    that dependency before anchoring, using GTK's actual scrollbar dimensions.
+    """
+    horizontal = content.width > available.width
+    vertical = content.height > available.height
+    for _ in range(2):
+        horizontal = content.width > available.width - (
+            scrollbar.width if vertical else 0
+        )
+        vertical = content.height > available.height - (
+            scrollbar.height if horizontal else 0
+        )
+    return Size(
+        min(available.width, content.width + (scrollbar.width if vertical else 0)),
+        min(available.height, content.height + (scrollbar.height if horizontal else 0)),
+    )
 
 
 class PreviewPopup(Gtk.Window):
@@ -252,9 +276,12 @@ class PreviewPopup(Gtk.Window):
         self._current_desktop_id = desktop_id
         self._cancel_hide_timer()
 
+        # Replace and resize off-screen, including when switching apps while
+        # this long-lived popup is already visible.
+        self.hide()
         child = self.get_child()
         if child:
-            self.remove(child)
+            child.destroy()
 
         # Horizontal layout for horizontal docks, vertical for vertical
         horizontal = is_horizontal(pos=position)
@@ -262,10 +289,6 @@ class PreviewPopup(Gtk.Window):
             Gtk.Orientation.HORIZONTAL if horizontal else Gtk.Orientation.VERTICAL
         )
         box = Gtk.Box(orientation=orientation, spacing=THUMB_SPACING)
-        box.set_margin_start(POPUP_PADDING)
-        box.set_margin_end(POPUP_PADDING)
-        box.set_margin_top(POPUP_PADDING)
-        box.set_margin_bottom(POPUP_PADDING)
 
         for window in windows:
             thumb_widget = self._make_thumbnail_for_window(
@@ -273,12 +296,43 @@ class PreviewPopup(Gtk.Window):
             )
             box.pack_start(thumb_widget, False, False, 0)
 
-        self.add(box)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_shadow_type(Gtk.ShadowType.NONE)
+        scroller.set_overlay_scrolling(False)
+        # Normally only the dock's main axis overflows. Allow the other axis
+        # too so cards remain reachable on unusually small workareas.
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        if horizontal:
+            scroller.connect("scroll-event", self._on_horizontal_scroll)
+        scroller.set_min_content_width(1)
+        scroller.set_min_content_height(1)
+        scroller.set_margin_start(POPUP_PADDING)
+        scroller.set_margin_end(POPUP_PADDING)
+        scroller.set_margin_top(POPUP_PADDING)
+        scroller.set_margin_bottom(POPUP_PADDING)
+        scroller.add(box)
+        self.add(scroller)
+        scroller.show_all()
 
-        box.show_all()
+        bounds = popup_workarea(
+            self,
+            anchor_x + (icon_w / 2 if horizontal else 0),
+            anchor_y + (0 if horizontal else icon_w / 2),
+        )
         preferred = box.get_preferred_size()[1]
-        popup_width = max(preferred.width + 2 * POPUP_PADDING, 1)
-        popup_height = max(preferred.height + 2 * POPUP_PADDING, 1)
+        size = preview_size(
+            content=Size(preferred.width, preferred.height),
+            available=Size(
+                max(1, bounds.width - 2 * POPUP_PADDING),
+                max(1, bounds.height - 2 * POPUP_PADDING),
+            ),
+            scrollbar=Size(
+                scroller.get_vscrollbar().get_preferred_width()[1],
+                scroller.get_hscrollbar().get_preferred_height()[1],
+            ),
+        )
+        popup_width = size.width + 2 * POPUP_PADDING
+        popup_height = size.height + 2 * POPUP_PADDING
 
         if position == Position.BOTTOM:
             popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
@@ -293,11 +347,22 @@ class PreviewPopup(Gtk.Window):
             popup_x = int(anchor_x - popup_width - PREVIEW_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
 
-        # Clamp to screen (respects parent-relative vs screen-absolute coords)
-        popup_pos = clamp_popup(self, popup_x, popup_y, popup_width, popup_height)
+        popup_pos = clamp_popup(
+            self, popup_x, popup_y, popup_width, popup_height, bounds=bounds
+        )
 
+        self.resize(popup_width, popup_height)
         self.move(popup_pos.x, popup_pos.y)
         self.show_all()
+        log.debug(
+            "preview shown: windows=%s edge=%s bounds=%s target=%sx%s at=%s",
+            len(windows),
+            position.value,
+            bounds,
+            popup_width,
+            popup_height,
+            popup_pos,
+        )
 
     def _make_thumbnail_for_window(
         self, window: WindowSnapshot, fallback_icon_name: str
@@ -352,6 +417,40 @@ class PreviewPopup(Gtk.Window):
         self._tracker.activate(window_id)
         self.hide()
         self._release_dock_autohide_if_needed()
+        return True
+
+    @staticmethod
+    def _on_horizontal_scroll(
+        scroller: Gtk.ScrolledWindow, event: Gdk.EventScroll
+    ) -> bool:
+        """Let an ordinary wheel navigate a horizontal-only preview row.
+
+        GTK already handles horizontal gestures, Shift+wheel and vertical
+        scrolling. Translate only unmodified vertical input when no vertical
+        scrollbar is needed, preserving two-axis navigation on tiny monitors.
+        """
+        horizontal = scroller.get_hadjustment()
+        vertical = scroller.get_vadjustment()
+        if (
+            event.state & Gdk.ModifierType.SHIFT_MASK
+            or horizontal.get_upper() <= horizontal.get_page_size()
+            or vertical.get_upper() > vertical.get_page_size()
+        ):
+            return False
+        if event.direction == Gdk.ScrollDirection.UP:
+            delta = -1.0
+        elif event.direction == Gdk.ScrollDirection.DOWN:
+            delta = 1.0
+        elif event.direction == Gdk.ScrollDirection.SMOOTH:
+            ok, dx, dy = event.get_scroll_deltas()
+            if not ok or dx != 0 or dy == 0:
+                return False
+            delta = dy
+        else:
+            return False
+        horizontal.set_value(
+            horizontal.get_value() + delta * horizontal.get_step_increment()
+        )
         return True
 
     def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
