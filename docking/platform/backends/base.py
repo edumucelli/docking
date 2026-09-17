@@ -174,11 +174,20 @@ class PlacementRequest:
 
 @dataclass(frozen=True)
 class ReservationRequest:
-    """Request to reserve edge space for the dock."""
+    """Request to reserve edge space for the dock.
+
+    ``edge_offset`` is the logical distance occupied by external surfaces
+    between the monitor edge and this dock. ``span_start``/``span_end`` are an
+    optional half-open logical root-coordinate range along the dock's main axis.
+    Backends that cannot represent either detail may ignore them.
+    """
 
     monitor: MonitorSnapshot
     position: object
     thickness: int
+    edge_offset: int = 0
+    span_start: int | None = None
+    span_end: int | None = None
 
 
 @dataclass(frozen=True)
@@ -367,6 +376,23 @@ class SurfaceService(Service):
         ``(0, 0)`` when it has no knowledge of the absolute placement.
         """
         return None
+
+    def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Return monitor space excluding other edge-reserving surfaces.
+
+        The default keeps compositor-managed and unsupported backends on their
+        existing placement path. X11 overrides this using EWMH struts while
+        excluding the dock's own reservation.
+        """
+        return None
+
+    def set_external_workarea_changed_handler(
+        self, callback: Callable[[], None] | None
+    ) -> None:
+        """Set a callback for external panel/reservation geometry changes."""
+
+    def refresh_external_workarea(self) -> None:
+        """Refresh backend-owned external workarea state after screen changes."""
 
 
 class VisibilityMonitor(ABC):

@@ -25,6 +25,7 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
+from docking.platform.backends.base import Rect as PlatformRect
 from docking.platform.model import DockModel
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.geometry import Rect, build_geometry_frame, compute_dock_cross_metrics
@@ -290,6 +291,15 @@ class DockHarness:
         self._position_change_aligned = False
         self._left_edge_input_owned = False
         self._left_edge_window = None
+        self._external_panel_position = Position.TOP
+        self._external_panel_thickness = 0
+        self._external_panel_area = PlatformRect(0, 0, 1280, 800)
+        self._external_panel_controller = None
+        self._external_panel_surface = None
+        self._external_panel_requests = []
+        self._external_panel_initial_ok = False
+        self._external_panel_reservation_ok = False
+        self._external_panel_resize_ok = False
         self._animation_model: DockModel | None = None
         self._animation_item: DockItem | None = None
         self._animation_frame_delay_ms = 0
@@ -357,6 +367,110 @@ class DockHarness:
     def configure_geometry(self, *, position: str, gap: int) -> None:
         self._geometry_position = Position(position)
         self._geometry_gap = gap
+
+    def configure_external_panel(self, *, position: str, thickness: int) -> None:
+        self._external_panel_position = Position(position)
+        self._external_panel_thickness = thickness
+        self._external_panel_area = self._panel_area(
+            position=self._external_panel_position,
+            thickness=thickness,
+        )
+
+    def place_dock_with_external_panel(self) -> None:
+        geometry = SimpleNamespace(x=0, y=0, width=1280, height=800)
+        monitor = SimpleNamespace(
+            get_geometry=lambda: geometry,
+            get_workarea=lambda: geometry,
+            get_model=lambda: "BDD monitor",
+        )
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _index: monitor,
+        )
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            pos=self._external_panel_position,
+            active_display=False,
+            hide_mode="none",
+            monitor_index=-1,
+            monitor_connector=None,
+            additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
+        )
+        model = SimpleNamespace(
+            visible_items=lambda: [DockItem(desktop_id="firefox.desktop")]
+        )
+        surface = MagicMock()
+        surface.external_workarea.side_effect = lambda _monitor: (
+            self._external_panel_area
+        )
+        requests = []
+        surface.position_or_anchor.side_effect = requests.append
+        window = SimpleNamespace(
+            config=config,
+            theme=theme,
+            model=model,
+            get_display=lambda: display,
+            get_scale_factor=lambda: 1,
+            get_realized=lambda: True,
+            drawing_area=SimpleNamespace(queue_draw=MagicMock()),
+            update_input_region=MagicMock(),
+            _invalidate_current_geometry_frame=MagicMock(),
+        )
+        controller = placement_mod.DockPlacementController(
+            window,
+            surface_service=surface,
+        )
+        controller.position_dock()
+        controller.set_struts()
+        placement = requests[-1]
+        reservation = surface.set_reservation.call_args.args[0]
+        self._external_panel_initial_ok = self._placement_touches_area(
+            request=placement,
+            area=self._external_panel_area,
+            position=self._external_panel_position,
+        )
+        self._external_panel_reservation_ok = (
+            reservation.edge_offset == self._external_panel_thickness
+            and reservation.edge_offset + reservation.thickness
+            > self._external_panel_thickness
+        )
+        self._external_panel_controller = controller
+        self._external_panel_surface = surface
+        self._external_panel_requests = requests
+
+    def resize_external_panel(self, *, thickness: int) -> None:
+        assert self._external_panel_controller is not None
+        assert self._external_panel_surface is not None
+        self._external_panel_thickness = thickness
+        self._external_panel_area = self._panel_area(
+            position=self._external_panel_position,
+            thickness=thickness,
+        )
+        callback = self._external_panel_surface.set_external_workarea_changed_handler.call_args_list[
+            0
+        ].args[0]
+        with patch.object(placement_mod.GLib, "idle_add", return_value=77):
+            callback()
+            callback()
+        assert self._external_panel_controller._geometry_refresh_source == 77
+        self._external_panel_controller.apply_scheduled_reposition()
+        placement = self._external_panel_requests[-1]
+        reservation = self._external_panel_surface.set_reservation.call_args.args[0]
+        self._external_panel_resize_ok = (
+            self._placement_touches_area(
+                request=placement,
+                area=self._external_panel_area,
+                position=self._external_panel_position,
+            )
+            and reservation.edge_offset == thickness
+            and self._external_panel_surface.set_reservation.call_count == 2
+        )
 
     def begin_item_insertion(self) -> None:
         model = DockModel.__new__(DockModel)
@@ -803,6 +917,18 @@ class DockHarness:
         return not self._left_edge_window.interaction.on_effective_leave.called
 
     @property
+    def dock_avoids_external_panel(self) -> bool:
+        return self._external_panel_initial_ok
+
+    @property
+    def reservation_composes_with_external_panel(self) -> bool:
+        return self._external_panel_reservation_ok
+
+    @property
+    def external_panel_resize_followed(self) -> bool:
+        return self._external_panel_resize_ok
+
+    @property
     def dock_hidden(self) -> bool:
         return self.autohide.state == HideState.HIDDEN
 
@@ -1027,6 +1153,28 @@ class DockHarness:
         if pos in (Position.BOTTOM, Position.TOP):
             return 420, cross_extent
         return cross_extent, 420
+
+    @staticmethod
+    def _panel_area(*, position: Position, thickness: int) -> PlatformRect:
+        if position == Position.TOP:
+            return PlatformRect(0, thickness, 1280, 800 - thickness)
+        if position == Position.BOTTOM:
+            return PlatformRect(0, 0, 1280, 800 - thickness)
+        if position == Position.LEFT:
+            return PlatformRect(thickness, 0, 1280 - thickness, 800)
+        return PlatformRect(0, 0, 1280 - thickness, 800)
+
+    @staticmethod
+    def _placement_touches_area(
+        *, request, area: PlatformRect, position: Position
+    ) -> bool:
+        if position == Position.TOP:
+            return request.y == area.y
+        if position == Position.BOTTOM:
+            return request.y + request.size.height == area.bottom
+        if position == Position.LEFT:
+            return request.x == area.x
+        return request.x + request.size.width == area.right
 
     @staticmethod
     def _gap_midpoint(

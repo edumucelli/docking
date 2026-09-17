@@ -80,8 +80,9 @@ behind it:
     │   ╌╌╌ 6px gap ╌╌╌  │ <- gap between dock and screen edge
     └────────────────────┘
 
-The caller (DockWindow._set_struts) adds distance_from_edge to the
-dock_height before passing it here.
+The placement controller includes distance_from_edge in ``dock_height`` and
+passes any external-panel inset as ``edge_offset``. Their sum reaches the dock's
+inner visible boundary from the monitor edge.
 
 Multi-monitor gap
 
@@ -279,6 +280,8 @@ def compute_struts(
     screen_h: int,
     scale: int,
     position: Position,
+    span_start: int | None = None,
+    span_end: int | None = None,
 ) -> list[int]:
     """Compute the 12-value _NET_WM_STRUT_PARTIAL array.
 
@@ -299,15 +302,17 @@ def compute_struts(
 
     # Monitor span along the axis parallel to the dock edge
     horizontal = position in (Position.TOP, Position.BOTTOM)
-    span_start = int((monitor_x if horizontal else monitor_y) * scale)
-    span_end = int(
-        ((monitor_x + monitor_w if horizontal else monitor_y + monitor_h) * scale) - 1
-    )
+    default_start = monitor_x if horizontal else monitor_y
+    default_end = default_start + (monitor_w if horizontal else monitor_h)
+    logical_span_start = default_start if span_start is None else span_start
+    logical_span_end = default_end if span_end is None else span_end
+    physical_span_start = int(logical_span_start * scale)
+    physical_span_end = int(logical_span_end * scale) - 1
 
     struts = [0] * 12
     struts[_IDX_EDGE[position]] = int((dock_height + gap[position]) * scale)
-    struts[_IDX_START[position]] = span_start
-    struts[_IDX_START[position] + 1] = span_end
+    struts[_IDX_START[position]] = physical_span_start
+    struts[_IDX_START[position] + 1] = physical_span_end
     return struts
 
 
@@ -317,10 +322,13 @@ def set_dock_struts(
     monitor_geom: Gdk.Rectangle,
     screen: Gdk.Screen,
     position: Position = Position.BOTTOM,
+    edge_offset: int = 0,
+    span_start: int | None = None,
+    span_end: int | None = None,
 ) -> None:
     """Compute and set struts for the dock at the given screen edge."""
     struts = compute_struts(
-        dock_height=dock_height,
+        dock_height=dock_height + edge_offset,
         monitor_x=monitor_geom.x,
         monitor_y=monitor_geom.y,
         monitor_w=monitor_geom.width,
@@ -329,6 +337,8 @@ def set_dock_struts(
         screen_h=screen.get_height(),
         scale=gdk_window.get_scale_factor(),
         position=position,
+        span_start=span_start,
+        span_end=span_end,
     )
     set_struts(gdk_window=gdk_window, struts=struts)
 
