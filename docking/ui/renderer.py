@@ -673,6 +673,7 @@ class DockRenderer:
     def __init__(self) -> None:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}
+        self.prev_widths: dict[str, int] = {}
         self._slide_layout_context: tuple[Position, int] | None = None
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
@@ -794,6 +795,15 @@ class DockRenderer:
         previous_ids = set(self.prev_positions)
         current_ids = {item.desktop_id for item in items}
         membership_changed = bool(previous_ids) and previous_ids != current_ids
+        current_widths = {
+            item.desktop_id: layout_item.width
+            for item, layout_item in zip(items, layout, strict=True)
+        }
+        layout_widths_changed = (
+            bool(self.prev_widths)
+            and set(self.prev_widths) == current_ids
+            and self.prev_widths != current_widths
+        )
 
         # Shelf coordinates from pre-computed geometry frame (no recomputation)
         target_shelf_w = frame.shelf_main_extent
@@ -802,6 +812,7 @@ class DockRenderer:
             or drop_gap > 0
             or hide_offset > 0
             or membership_changed
+            or layout_widths_changed
         ):
             if membership_changed:
                 log.debug(
@@ -908,7 +919,8 @@ class DockRenderer:
 
         now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if i == drag_index:
+            item_w = li.width
+            if i == drag_index or item_w <= 0:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -940,7 +952,6 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            item_w = li.width or icon_size
             scaled_size = item_w * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
             if _is_separator_item(item):
@@ -1017,7 +1028,8 @@ class DockRenderer:
         # ahead of the cursor until the next reorder snap. Pin the dragged
         # item's indicator to the cursor instead so it tracks the drag ghost.
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if not item.is_running:
+            item_w = li.width
+            if not item.is_running or item_w <= 0:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -1025,7 +1037,7 @@ class DockRenderer:
                 # Center the indicator under the cursor by passing a main_pos
                 # such that _draw_indicator's "li.x + main_pos + scaled/2"
                 # resolves to cursor_main.
-                scaled_size = icon_size * li.scale
+                scaled_size = item_w * li.scale
                 main_pos_indicator = cursor_main - li.x - scaled_size / 2
             else:
                 main_pos_indicator = icon_offset + slide + drop_shift
@@ -1034,7 +1046,7 @@ class DockRenderer:
                 item=item,
                 li=li,
                 show_window_count_numbers=config.show_window_count_numbers,
-                base_size=icon_size,
+                base_size=item_w,
                 main_pos=main_pos_indicator,
                 cross_size=cross_size,
                 hide_cross=hide_cross,
@@ -1045,13 +1057,14 @@ class DockRenderer:
 
         # --- Draw per-item overlays ---
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
+            item_w = li.width
             show_badge = (
                 item.badge_visible
                 and item.badge_count > 0
                 and config.show_launcher_badges
             )
             show_progress = item.progress_visible and config.show_launcher_progress
-            if not show_badge and not show_progress:
+            if item_w <= 0 or (not show_badge and not show_progress):
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -1074,7 +1087,6 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            item_w = li.width or icon_size
             scaled_size = item_w * li.scale
             main_pos = li.x + icon_offset + slide + drop_shift
             ix, iy = map_icon_position(
@@ -1109,7 +1121,7 @@ class DockRenderer:
         # --- Urgent glow at screen edge (only when fully hidden) ---
         if hide_offset >= 1.0:
             for item, li in zip(items, layout, strict=True):
-                if item.last_urgent > 0:
+                if item.last_urgent > 0 and li.width > 0:
                     elapsed = now - item.last_urgent
                     opacity = compute_urgent_glow_opacity(
                         elapsed_us=elapsed,
@@ -1121,7 +1133,7 @@ class DockRenderer:
                         self._draw_urgent_glow(
                             cr=cr,
                             li=li,
-                            icon_size=icon_size,
+                            icon_size=li.width,
                             icon_offset=icon_offset,
                             cross_size=(
                                 frame.window_rect.h
@@ -1196,8 +1208,10 @@ class DockRenderer:
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
+        new_widths: dict[str, int] = {}
         for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
+            new_widths[item.desktop_id] = li.width
 
         if (
             layout_context is not None
@@ -1211,6 +1225,7 @@ class DockRenderer:
             )
             self.slide_offsets.clear()
             self.prev_positions = new_positions
+            self.prev_widths = new_widths
             self._slide_layout_context = layout_context
             return
         if layout_context is not None:
@@ -1226,6 +1241,14 @@ class DockRenderer:
             )
             self.slide_offsets.clear()
             self.prev_positions = new_positions
+            self.prev_widths = new_widths
+            return
+
+        if self.prev_widths and self.prev_widths != new_widths:
+            log.debug("snap slide positions on animated item width change")
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            self.prev_widths = new_widths
             return
 
         for desktop_id, new_x in new_positions.items():
@@ -1258,6 +1281,7 @@ class DockRenderer:
             log.debug("active slide offsets: %s", summary)
 
         self.prev_positions = new_positions
+        self.prev_widths = new_widths
 
     def _draw_icon(
         self,

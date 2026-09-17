@@ -10,7 +10,7 @@ import docking.ui.input_controller as input_controller_mod
 import docking.ui.renderer as renderer_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
-from docking.platform.model import DockItem
+from docking.platform.model import AnimationTickResult, DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect, build_geometry_frame
 from docking.ui.interaction import DockInteractionCoordinator
@@ -29,6 +29,17 @@ def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
         set_disabled=MagicMock(),
         reset=MagicMock(),
     )
+
+
+def _model_mock(
+    tick: AnimationTickResult | None = None,
+) -> MagicMock:
+    model = MagicMock()
+    model.tick_animations.return_value = tick or AnimationTickResult(
+        changed=False,
+        active=False,
+    )
+    return model
 
 
 def _window_cache(
@@ -1359,7 +1370,7 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
+                model=_model_mock(),
                 config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
@@ -1405,6 +1416,69 @@ class TestDockWindowDrawAndHelpers:
         )
         geometry.build_frame.assert_not_called()
 
+    def test_on_draw_rebuilds_geometry_after_final_animation_mutation(self):
+        stale_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_geometries=(SimpleNamespace(item=DockItem("removed.desktop")),),
+        )
+        current_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_geometries=(),
+        )
+        geometry = SimpleNamespace(build_frame=MagicMock(return_value=current_frame))
+        renderer = SimpleNamespace(
+            draw=MagicMock(),
+            has_active_urgent_glow=lambda **_kwargs: False,
+        )
+        stub = _bind_geometry_signature(
+            SimpleNamespace(
+                autohide=_autohide(enabled=False),
+                _last_autohide_state=None,
+                dock_hovered=False,
+                dnd=SimpleNamespace(
+                    drag_index=-1,
+                    drop_insert_index=-1,
+                    drop_target_id="",
+                ),
+                hover=SimpleNamespace(hovered_item=None),
+                model=_model_mock(AnimationTickResult(changed=True, active=False)),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
+                theme=MagicMock(),
+                tooltip=MagicMock(),
+                update_input_region=MagicMock(),
+                renderer=renderer,
+                cursor_x=1.0,
+                cursor_y=2.0,
+                get_size=MagicMock(return_value=(1920, 122)),
+                _sync_background_blur_hint=MagicMock(),
+                zoom_animator=SimpleNamespace(progress=1.0),
+                geometry=geometry,
+                _cache=_window_cache(
+                    current_geometry_frame=stale_frame,
+                    current_geometry_frame_signature=(
+                        1920,
+                        122,
+                        1.0,
+                        2.0,
+                        -1,
+                        None,
+                        1.0,
+                        0.0,
+                    ),
+                ),
+            )
+        )
+        stub._schedule_redraw = MagicMock()
+
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
+
+        assert stub._cache.geometry_frame.frame is current_frame
+        geometry.build_frame.assert_called_once()
+        renderer.draw.assert_called_once()
+        stub._schedule_redraw.assert_not_called()
+
     def test_on_draw_rebuilds_geometry_when_signature_changes(self):
         renderer = renderer_mod.DockRenderer()
         renderer.draw = MagicMock()
@@ -1419,7 +1493,7 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=3, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
+                model=_model_mock(),
                 config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
@@ -1521,7 +1595,7 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
+                model=_model_mock(),
                 config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=SimpleNamespace(urgent_glow_time_ms=500),
                 tooltip=MagicMock(),
@@ -1566,7 +1640,7 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=MagicMock(),
+                model=_model_mock(),
                 config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
@@ -1614,7 +1688,7 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=MagicMock(),
+                model=_model_mock(),
                 config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
@@ -1665,7 +1739,7 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=SimpleNamespace(tick_animations=MagicMock(return_value=False)),
+                model=_model_mock(),
                 config=SimpleNamespace(
                     pos=Position.BOTTOM,
                     stack_unfold="hover",

@@ -262,6 +262,28 @@ class TestContentBounds:
         _left, right = content_bounds([], 48, 12)
         assert right == pytest.approx(24.0)
 
+    def test_fully_collapsed_item_does_not_expand_bounds(self):
+        config = MagicMock(main_size=0, insert_factor=1.0)
+        config.icon_size = 48
+        config.zoom_enabled = False
+        config.zoom_percent = 1.0
+        items = [
+            MagicMock(main_size=0, insert_factor=1.0),
+            MagicMock(main_size=0, insert_factor=0.0),
+        ]
+
+        layout = compute_layout(
+            items,
+            config,
+            NO_CURSOR_SENTINEL,
+            item_padding=10,
+            horizontal_padding=12,
+        )
+        left, right = content_bounds(layout, 48, 12, item_padding=10)
+
+        assert layout[1].width == 0
+        assert right - left == pytest.approx(2 * (12 + 5) + 48)
+
     def test_rest_layout_includes_half_item_padding_per_side(self):
         """Shelf extends item_padding/2 beyond first/last icon edges."""
         # Given

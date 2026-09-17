@@ -5,6 +5,31 @@ from __future__ import annotations
 from behave import given, then, when
 
 
+@given("an applet insertion animation has started")
+def step_applet_insertion_started(context) -> None:
+    context.harness.begin_item_insertion()
+
+
+@when("item animation frames are delayed by {milliseconds:d} milliseconds")
+def step_delay_item_animation_frames(context, milliseconds: int) -> None:
+    context.harness.run_delayed_insertion_frames(frame_delay_ms=milliseconds)
+
+
+@then("the insertion completes progressively within two delayed frames")
+def step_insertion_completes_progressively(context) -> None:
+    assert context.harness.insertion_is_bounded_and_progressive is True
+
+
+@when("I remove the applet with the same frame delay")
+def step_remove_applet_with_frame_delay(context) -> None:
+    context.harness.run_delayed_removal_frames()
+
+
+@then("the removal completes without stale painted geometry")
+def step_removal_has_no_stale_geometry(context) -> None:
+    assert context.harness.removal_is_bounded_without_ghost is True
+
+
 @given('the dock is at the "{position}" edge with a {gap:d} pixel floating gap')
 def step_dock_geometry_at_edge(context, position: str, gap: int) -> None:
     context.harness.configure_geometry(position=position, gap=gap)

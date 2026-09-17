@@ -241,6 +241,7 @@ from docking.core.config import effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
+    compute_item_widths,
     compute_layout,
     content_bounds,
 )
@@ -725,8 +726,13 @@ def _local_cursor_main(
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
     pad = theme.horizontal_padding + theme.item_padding / 2
-    total_main = sum(item.main_size or config.icon_size for item in items)
-    base_w = pad * 2 + total_main + max(0, len(items) - 1) * theme.item_padding
+    widths = compute_item_widths(items, config.icon_size)
+    visible_widths = [width for width in widths if width > 0]
+    base_w = (
+        pad * 2
+        + sum(visible_widths)
+        + max(0, len(visible_widths) - 1) * theme.item_padding
+    )
     return cursor_main - (main_size - base_w) / 2
 
 
@@ -750,7 +756,7 @@ def _build_item_geometries(
     hide_cross = hide_offset * cross_size
 
     for item, layout_item in zip(items, layout, strict=True):
-        base_size = layout_item.width or config.icon_size
+        base_size = layout_item.width
         scaled_size = base_size * layout_item.scale
         main_pos = layout_item.x + zoomed_main_offset
         draw_x, draw_y = map_icon_position(
@@ -765,8 +771,8 @@ def _build_item_geometries(
         draw_rect = Rect(
             math.floor(draw_x),
             math.floor(draw_y),
-            max(1, math.ceil(scaled_size)),
-            max(1, math.ceil(scaled_size)),
+            max(0, math.ceil(scaled_size)),
+            max(0, math.ceil(scaled_size)),
         )
         anchor_x, anchor_y = _item_anchor(
             pos=pos, draw_x=draw_x, draw_y=draw_y, scaled_size=scaled_size
@@ -775,28 +781,44 @@ def _build_item_geometries(
             (item, layout_item, draw_rect, anchor_x, anchor_y, scaled_size, main_pos)
         )
 
+    expanded = [
+        (index, geometry)
+        for index, geometry in enumerate(partial_geometries)
+        if geometry[5] > 0.0
+    ]
+    expanded_draw_rects = [geometry[2] for _, geometry in expanded]
     background_rect = _compute_background_rect(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         static_dock_rect=static_dock_rect,
         theme=theme,
         edge_gap=effective_edge_gap(theme, config),
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
-    hover_rects = _compute_item_hover_rects(
+    expanded_hover_rects = _compute_item_hover_rects(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         static_dock_rect=static_dock_rect,
         background_rect=background_rect,
         theme=theme,
     )
-    hit_rects = _compute_item_hit_rects(
+    expanded_hit_rects = _compute_item_hit_rects(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         background_rect=background_rect,
         theme=theme,
     )
+    hover_rects = [Rect(0, 0, 0, 0) for _ in partial_geometries]
+    hit_rects = [Rect(0, 0, 0, 0) for _ in partial_geometries]
+    for (index, _), hover_rect, hit_rect in zip(
+        expanded,
+        expanded_hover_rects,
+        expanded_hit_rects,
+        strict=True,
+    ):
+        hover_rects[index] = hover_rect
+        hit_rects[index] = hit_rect
 
     item_geometries: list[ItemGeometry] = []
     for (

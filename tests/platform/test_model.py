@@ -490,18 +490,75 @@ class TestPinUnpin:
         assert "a.desktop" not in config.pinned
         config.save.assert_called_once()
 
-    def test_unpin_not_running_removes(self):
+    def test_unpin_not_running_removes(self, monotonic_clock):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
         dependencies = _make_dependencies("a.desktop", "b.desktop")
         model = _make_model(config, dependencies, AppletServices())
         # When
         model.unpin_item("b.desktop")
-        # Then - item is animating out, flush animation to complete removal
-        while model.tick_animations():
-            pass
+        monotonic_clock.now_us = model_mod.ITEM_ANIMATION_DURATION_MS * 1000
+        tick = model.tick_animations()
+        # Then
+        assert tick.changed is True
+        assert tick.active is False
         assert len(model.visible_items()) == 1
         config.save.assert_called_once()
+
+    def test_item_animation_uses_elapsed_time(self, monotonic_clock):
+        config = _make_config(["a.desktop"])
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
+        item = model.pinned_items[0]
+        item.insert_factor = 0.0
+        model._start_item_animation(item)
+
+        monotonic_clock.now_us = model_mod.ITEM_ANIMATION_DURATION_MS * 500
+        halfway = model.tick_animations()
+
+        assert halfway.changed is True
+        assert halfway.active is True
+        assert item.insert_factor == 0.5
+
+        monotonic_clock.now_us = model_mod.ITEM_ANIMATION_DURATION_MS * 1000
+        complete = model.tick_animations()
+
+        assert complete.changed is True
+        assert complete.active is False
+        assert item.insert_factor == 1.0
+
+    def test_delayed_first_frame_completes_item_animation(self, monotonic_clock):
+        config = _make_config(["a.desktop"])
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
+        item = model.pinned_items[0]
+        item.insert_factor = 0.0
+        model._start_item_animation(item)
+
+        monotonic_clock.now_us = 500_000
+        tick = model.tick_animations()
+
+        assert tick.changed is True
+        assert tick.active is False
+        assert item.insert_factor == 1.0
+
+    def test_removal_reverses_insertion_without_jump(self, monotonic_clock):
+        config = _make_config(["a.desktop"])
+        dependencies = _make_dependencies("a.desktop")
+        model = _make_model(config, dependencies, AppletServices())
+        item = model.pinned_items[0]
+        item.insert_factor = 0.0
+        model._start_item_animation(item)
+        monotonic_clock.now_us = model_mod.ITEM_ANIMATION_DURATION_MS * 500
+        model.tick_animations()
+
+        model.unpin_item("a.desktop")
+        monotonic_clock.now_us += model_mod.ITEM_ANIMATION_DURATION_MS * 250
+        tick = model.tick_animations()
+
+        assert tick.changed is True
+        assert tick.active is True
+        assert item.insert_factor == 0.25
 
 
 class TestCustomIcons:
