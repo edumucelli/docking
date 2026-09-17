@@ -25,6 +25,7 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
+from docking.platform.model import DockModel
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.geometry import Rect, build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.hover import HoverManager
@@ -82,6 +83,10 @@ class _TimerScheduler:
 
     def get_monotonic_time(self) -> int:
         return self._now_ms * 1000
+
+    @property
+    def now_ms(self) -> int:
+        return self._now_ms
 
     def advance(self, milliseconds: int) -> None:
         target_ms = self._now_ms + max(int(milliseconds), 0)
@@ -285,6 +290,13 @@ class DockHarness:
         self._position_change_aligned = False
         self._left_edge_input_owned = False
         self._left_edge_window = None
+        self._animation_model: DockModel | None = None
+        self._animation_item: DockItem | None = None
+        self._animation_frame_delay_ms = 0
+        self._insertion_elapsed_ms = 0
+        self._insertion_widths: list[int] = []
+        self._removal_elapsed_ms = 0
+        self._removal_final_ids: list[str] = []
         self._build_hover_harness()
 
     def start(self) -> None:
@@ -345,6 +357,93 @@ class DockHarness:
     def configure_geometry(self, *, position: str, gap: int) -> None:
         self._geometry_position = Position(position)
         self._geometry_gap = gap
+
+    def begin_item_insertion(self) -> None:
+        model = DockModel.__new__(DockModel)
+        steady = DockItem(desktop_id="firefox.desktop")
+        animated = DockItem(desktop_id="applet://clock", insert_factor=0.0)
+        model.pinned_items = [steady, animated]
+        model._transient = []
+        model._animating_out = []
+        model._animation_last_update_us = {}
+        model._start_item_animation(animated)
+        self._animation_model = model
+        self._animation_item = animated
+
+    def run_delayed_insertion_frames(self, *, frame_delay_ms: int) -> None:
+        assert self._animation_model is not None
+        assert self._animation_item is not None
+        self._animation_frame_delay_ms = frame_delay_ms
+        started_ms = self._scheduler.now_ms
+        tick = None
+        for _ in range(10):
+            self._scheduler.advance(frame_delay_ms)
+            tick = self._animation_model.tick_animations()
+            frame = self._item_animation_frame(
+                self._animation_model.pinned_items
+                + self._animation_model._animating_out
+            )
+            geometry = frame.geometry_for_item(self._animation_item)
+            assert geometry is not None
+            self._insertion_widths.append(geometry.layout_item.width)
+            if not tick.active:
+                break
+        assert tick is not None and not tick.active
+        self._insertion_elapsed_ms = self._scheduler.now_ms - started_ms
+
+    def run_delayed_removal_frames(self) -> None:
+        assert self._animation_model is not None
+        assert self._animation_item is not None
+        item = self._animation_item
+        item.removal_index = self._animation_model.pinned_items.index(item)
+        self._animation_model._reverse_item_animation(item, target=1.0)
+        self._animation_model.pinned_items.remove(item)
+        self._animation_model._animating_out.append(item)
+        started_ms = self._scheduler.now_ms
+        tick = None
+        frame = None
+        for _ in range(10):
+            self._scheduler.advance(self._animation_frame_delay_ms)
+            tick = self._animation_model.tick_animations()
+            frame = self._item_animation_frame(
+                self._animation_model.pinned_items
+                + self._animation_model._animating_out
+            )
+            if not tick.active:
+                break
+        assert tick is not None and not tick.active
+        assert frame is not None
+        self._removal_elapsed_ms = self._scheduler.now_ms - started_ms
+        self._removal_final_ids = [
+            geometry.item.desktop_id for geometry in frame.item_geometries
+        ]
+
+    def _item_animation_frame(self, items: list[DockItem]):
+        theme = Theme.load("default", 48)
+        return build_geometry_frame(
+            items=items,
+            config=self._geometry_config(pos=Position.BOTTOM, zoom=1.0),
+            theme=theme,
+            window_w=1280,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+
+    @property
+    def insertion_is_bounded_and_progressive(self) -> bool:
+        return (
+            0 < self._insertion_widths[0] < 48
+            and self._insertion_widths[-1] == 48
+            and self._insertion_elapsed_ms <= self._animation_frame_delay_ms * 2
+        )
+
+    @property
+    def removal_is_bounded_without_ghost(self) -> bool:
+        return (
+            self._removal_elapsed_ms <= self._animation_frame_delay_ms * 2
+            and "applet://clock" not in self._removal_final_ids
+        )
 
     def render_resting_geometry(self) -> None:
         pos = self._geometry_position

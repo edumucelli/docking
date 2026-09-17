@@ -180,6 +180,104 @@ class TestRendererDrawEntry:
 
 
 class TestRendererContentFlow:
+    def test_fully_collapsed_item_is_not_drawn(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=True,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+        )
+        item = DockItem(
+            desktop_id="clock.desktop",
+            insert_factor=0.0,
+            is_running=True,
+            badge_count=1,
+            badge_visible=True,
+            progress_visible=True,
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **_kwargs: None
+        )
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(width=420, height=187),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(),
+        )
+
+        renderer._draw_icon.assert_not_called()
+        renderer._draw_indicator.assert_not_called()
+        renderer._draw_badge.assert_not_called()
+        renderer._draw_progress.assert_not_called()
+
+    def test_item_width_animation_keeps_shelf_on_geometry_frame(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+        steady = DockItem(desktop_id="firefox.desktop")
+        animated = DockItem(desktop_id="clock.desktop", insert_factor=0.25)
+        painted_widths: list[float] = []
+        monkeypatch.setattr(
+            renderer_mod,
+            "draw_shelf_background",
+            lambda **kwargs: painted_widths.append(kwargs["w"]),
+        )
+        renderer._draw_icon = MagicMock()
+
+        frames = []
+        for factor in (0.25, 0.75, 1.0):
+            animated.insert_factor = factor
+            frame = build_geometry_frame(
+                items=[steady, animated],
+                config=config,
+                theme=theme,
+                window_w=420,
+                window_h=187,
+                cursor_main=-1.0,
+                autohide_state=None,
+            )
+            frames.append(frame)
+            renderer._draw_content(
+                cr=_surface_context(width=420, height=187),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+
+        assert painted_widths == [frame.shelf_main_extent for frame in frames]
+        assert renderer.slide_offsets == {}
+
     @pytest.mark.parametrize(
         "pos",
         [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],

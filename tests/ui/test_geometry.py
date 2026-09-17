@@ -90,6 +90,56 @@ class TestDockCrossMetrics:
 
 
 class TestDockGeometryFrame:
+    def test_collapsed_item_is_not_painted_or_targetable(self):
+        visible = DockItem(desktop_id="firefox.desktop")
+        collapsed = DockItem(desktop_id="clock.desktop", insert_factor=0.0)
+
+        frame = build_geometry_frame(
+            items=[visible, collapsed],
+            config=_config(),
+            theme=_theme(),
+            window_w=420,
+            window_h=90,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        control = build_geometry_frame(
+            items=[visible],
+            config=_config(),
+            theme=_theme(),
+            window_w=420,
+            window_h=90,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+
+        collapsed_geometry = frame.item_geometries[1]
+        assert collapsed_geometry.layout_item.width == 0
+        assert collapsed_geometry.draw_rect.w == 0
+        assert collapsed_geometry.draw_rect.h == 0
+        assert collapsed_geometry.hover_rect == Rect(0, 0, 0, 0)
+        assert collapsed_geometry.hit_rect == Rect(0, 0, 0, 0)
+        assert frame.background_rect == control.background_rect
+        assert frame.static_dock_rect == control.static_dock_rect
+
+    def test_partial_item_uses_animated_width_for_painting(self):
+        item = DockItem(desktop_id="clock.desktop", insert_factor=0.5)
+
+        frame = build_geometry_frame(
+            items=[item],
+            config=_config(),
+            theme=_theme(),
+            window_w=420,
+            window_h=90,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+
+        geometry = frame.item_geometries[0]
+        assert geometry.layout_item.width == 24
+        assert geometry.draw_rect.w == 24
+        assert geometry.draw_rect.h == 24
+
     @pytest.mark.parametrize(
         "pos",
         [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],

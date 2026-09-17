@@ -197,6 +197,17 @@ if TYPE_CHECKING:
 
 log = with_context(get_logger(name="model"))
 
+ITEM_ANIMATION_DURATION_MS = 140
+_ITEM_ANIMATION_DURATION_US = ITEM_ANIMATION_DURATION_MS * 1000
+
+
+@dataclass(frozen=True)
+class AnimationTickResult:
+    """Item animation mutations made by one UI frame."""
+
+    changed: bool
+    active: bool
+
 
 @dataclass(frozen=True)
 class LauncherEntryState:
@@ -270,6 +281,7 @@ class DockModel:
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
         self._animating_out: list[DockItem] = []
+        self._animation_last_update_us: dict[int, int] = {}
         self._change_listeners: list[Callable[[], None]] = []
         self._applet_change_listeners: list[Callable[[str], None]] = []
         self._launcher_entries: dict[str, LauncherEntryState] = {}
@@ -939,12 +951,14 @@ class DockModel:
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
         applet.item.insert_factor = 0.0
+        self._start_item_animation(applet.item)
         self.pinned_items.append(applet.item)
         if not self._start_applet(desktop_id=desktop_id, applet=applet):
             self._stop_applet(desktop_id=desktop_id, applet=applet)
             self._applets.pop(desktop_id, None)
             if applet.item in self.pinned_items:
                 self.pinned_items.remove(applet.item)
+            self._animation_last_update_us.pop(id(applet.item), None)
             return
         self.sync_pinned_to_config()
         self._config.save()
@@ -975,6 +989,7 @@ class DockModel:
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
         applet.item.insert_factor = 0.0
+        self._start_item_animation(applet.item)
         applet.apply_prefs()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
@@ -986,6 +1001,7 @@ class DockModel:
             self._applets.pop(desktop_id, None)
             if applet.item in self.pinned_items:
                 self.pinned_items.remove(applet.item)
+            self._animation_last_update_us.pop(id(applet.item), None)
             return
         self.sync_pinned_to_config()
         self._config.save()
@@ -998,6 +1014,7 @@ class DockModel:
             self._stop_applet(desktop_id=desktop_id, applet=applet)
             if applet.item in self.pinned_items:
                 applet.item.removal_index = self.visible_items().index(applet.item)
+                self._reverse_item_animation(applet.item, target=1.0)
                 self.pinned_items.remove(applet.item)
                 self._animating_out.append(applet.item)
             self.sync_pinned_to_config()
@@ -1496,6 +1513,7 @@ class DockModel:
                     pass
                 else:
                     item.removal_index = visible_index
+                    self._reverse_item_animation(item, target=1.0)
                     self._animating_out.append(item)
                 self._persist_pinned_changes()
                 self._materialize_recent_apps()
@@ -1593,27 +1611,83 @@ class DockModel:
                     applet_id=desktop_id,
                 ).exception("Applet change listener failed")
 
-    def tick_animations(self) -> bool:
-        """Advance insert/remove animations. Returns True if any are active."""
-        speed = 0.12
+    def _start_item_animation(
+        self,
+        item: DockItem,
+        *,
+        now_us: int | None = None,
+    ) -> None:
+        self._animation_last_update_us[id(item)] = (
+            GLib.get_monotonic_time() if now_us is None else now_us
+        )
+
+    def _advance_item_animation(
+        self,
+        item: DockItem,
+        *,
+        target: float,
+        now_us: int,
+    ) -> bool:
+        key = id(item)
+        last_update_us = self._animation_last_update_us.get(key)
+        if last_update_us is None:
+            self._animation_last_update_us[key] = now_us
+            return False
+
+        elapsed_us = max(0, now_us - last_update_us)
+        self._animation_last_update_us[key] = now_us
+        if elapsed_us == 0:
+            return False
+
+        previous = item.insert_factor
+        distance = elapsed_us / _ITEM_ANIMATION_DURATION_US
+        if target > previous:
+            item.insert_factor = min(target, previous + distance)
+        else:
+            item.insert_factor = max(target, previous - distance)
+        if item.insert_factor == target:
+            self._animation_last_update_us.pop(key, None)
+        return item.insert_factor != previous
+
+    def _reverse_item_animation(self, item: DockItem, *, target: float) -> None:
+        """Settle elapsed progress before changing an item's direction."""
+        now_us = GLib.get_monotonic_time()
+        self._advance_item_animation(item, target=target, now_us=now_us)
+        self._start_item_animation(item, now_us=now_us)
+
+    def tick_animations(self) -> AnimationTickResult:
+        """Advance item animations by elapsed time for the current UI frame."""
+        now_us = GLib.get_monotonic_time()
+        changed = False
         active = False
 
-        # Grow newly inserted items
         for item in self.pinned_items + self._transient:
-            if item.insert_factor < 1.0:
-                item.insert_factor = min(1.0, item.insert_factor + speed)
-                active = True
+            if item.insert_factor >= 1.0:
+                self._animation_last_update_us.pop(id(item), None)
+                continue
+            changed |= self._advance_item_animation(
+                item,
+                target=1.0,
+                now_us=now_us,
+            )
+            active |= item.insert_factor < 1.0
 
-        # Shrink items being removed
-        done = []
+        done: list[DockItem] = []
         for item in self._animating_out:
-            item.insert_factor = max(0.0, item.insert_factor - speed)
+            if item.insert_factor > 0.0:
+                changed |= self._advance_item_animation(
+                    item,
+                    target=0.0,
+                    now_us=now_us,
+                )
             if item.insert_factor <= 0.0:
                 done.append(item)
             else:
                 active = True
         for item in done:
             self._animating_out.remove(item)
+            self._animation_last_update_us.pop(id(item), None)
             item.removal_index = -1
+            changed = True
 
-        return active
+        return AnimationTickResult(changed=changed, active=active)

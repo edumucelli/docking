@@ -42,6 +42,7 @@ DOCK_CASES = (
     "dock-bottom-idle",
     "dock-bottom-hovered",
     "dock-bottom-hidden",
+    "dock-bottom-item-inserting",
     "dock-bottom-drag-insert-gap",
     "dock-bottom-click-frame",
     "dock-bottom-launch-frame",
@@ -172,6 +173,8 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         hide_state = HideState.HIDDEN
         hide_offset = 1.0
         zoom_progress = 0.0
+    elif case_name == "dock-bottom-item-inserting":
+        items[2].insert_factor = 0.5
     elif case_name == "dock-bottom-drag-insert-gap":
         drop_insert_index = 1
     elif case_name == "dock-bottom-click-frame":

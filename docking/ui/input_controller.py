@@ -165,7 +165,10 @@ class DockInputController:
                 window.cursor_x,
                 window.cursor_y,
             )
-        if window.model.tick_animations():
+        animation_tick = window.model.tick_animations()
+        if animation_tick.changed:
+            window._invalidate_current_geometry_frame()
+        if animation_tick.active:
             window._schedule_redraw()
 
         frame = window._current_or_build_geometry_frame(drop_insert_index=drop_insert)
