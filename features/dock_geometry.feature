@@ -48,3 +48,22 @@ Feature: Dock geometry at every screen edge
     Given the pointer is held at the left screen edge
     When X11 reports a shape crossing outside the left edge
     Then the dock remains hovered
+
+  Scenario Outline: External panels and dock reservations compose
+    Given an external 28 pixel panel at the "<position>" edge
+    When the always-visible dock is placed at the same edge
+    Then the dock sits inside the external panel boundary
+    And the reservation includes the external panel and dock
+
+    Examples:
+      | position |
+      | bottom   |
+      | top      |
+      | left     |
+      | right    |
+
+  Scenario: External panel resizing refreshes dock placement
+    Given an external 28 pixel panel at the "top" edge
+    And the always-visible dock is placed at the same edge
+    When the external panel grows to 64 pixels
+    Then the dock placement and reservation follow the new boundary

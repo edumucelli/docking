@@ -168,6 +168,8 @@ class DockInputController:
         animation_tick = window.model.tick_animations()
         if animation_tick.changed:
             window._invalidate_current_geometry_frame()
+            if not animation_tick.active:
+                window.placement.set_struts()
         if animation_tick.active:
             window._schedule_redraw()
 
@@ -556,6 +558,7 @@ class DockInputController:
     def _on_model_changed(self) -> None:
         window = self._window
         window._invalidate_current_geometry_frame()
+        window.placement.set_struts()
         window.update_input_region()
         window.hover.on_model_changed()
         self._interactions.prewarm_visible_folder_stacks(window.model.visible_items())

@@ -173,6 +173,7 @@ def _make_stub(item: DockItem | None = None):
     stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
     stub.zoom_animator = SimpleNamespace(progress=1.0)
+    stub.placement = SimpleNamespace(set_struts=MagicMock())
     stub.interaction = MagicMock()
     stub.interaction.is_pointer_inside_dock.return_value = False
     stub.interaction.on_effective_enter = MagicMock()
@@ -1383,6 +1384,7 @@ class TestDockWindowDrawAndHelpers:
                 _sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
+                placement=SimpleNamespace(set_struts=MagicMock()),
                 _cache=_window_cache(
                     current_geometry_frame=SimpleNamespace(
                         cursor_rect=Rect(0, 0, 100, 100)
@@ -1453,6 +1455,7 @@ class TestDockWindowDrawAndHelpers:
                 _sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
+                placement=SimpleNamespace(set_struts=MagicMock()),
                 _cache=_window_cache(
                     current_geometry_frame=stale_frame,
                     current_geometry_frame_signature=(

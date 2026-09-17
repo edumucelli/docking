@@ -159,6 +159,22 @@ def compute_item_widths(items: list[DockItem], icon_size: int) -> list[int]:
     ]
 
 
+def resting_content_extent(
+    items: list[DockItem],
+    icon_size: int,
+    horizontal_padding: float,
+    item_padding: float,
+) -> float:
+    """Return final main-axis content extent, independent of animation state."""
+    widths = [max(0, item.main_size or icon_size) for item in items]
+    visible = [width for width in widths if width > 0]
+    return (
+        2 * (horizontal_padding + item_padding / 2)
+        + sum(visible)
+        + max(0, len(visible) - 1) * item_padding
+    )
+
+
 def compute_layout(
     items: list[DockItem],
     config: Config,

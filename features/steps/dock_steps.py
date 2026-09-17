@@ -103,6 +103,40 @@ def step_dock_remains_hovered(context) -> None:
     assert context.harness.left_edge_hover_retained is True
 
 
+@given('an external {thickness:d} pixel panel at the "{position}" edge')
+def step_external_panel(context, thickness: int, position: str) -> None:
+    context.harness.configure_external_panel(
+        position=position,
+        thickness=thickness,
+    )
+
+
+@when("the always-visible dock is placed at the same edge")
+@given("the always-visible dock is placed at the same edge")
+def step_place_with_external_panel(context) -> None:
+    context.harness.place_dock_with_external_panel()
+
+
+@then("the dock sits inside the external panel boundary")
+def step_dock_avoids_external_panel(context) -> None:
+    assert context.harness.dock_avoids_external_panel is True
+
+
+@then("the reservation includes the external panel and dock")
+def step_combined_reservation(context) -> None:
+    assert context.harness.reservation_composes_with_external_panel is True
+
+
+@when("the external panel grows to {thickness:d} pixels")
+def step_resize_external_panel(context, thickness: int) -> None:
+    context.harness.resize_external_panel(thickness=thickness)
+
+
+@then("the dock placement and reservation follow the new boundary")
+def step_panel_resize_refreshes_geometry(context) -> None:
+    assert context.harness.external_panel_resize_followed is True
+
+
 @given("the dock is in autohide mode")
 def step_dock_is_in_autohide_mode(context) -> None:
     context.harness.set_hide_mode("autohide")
