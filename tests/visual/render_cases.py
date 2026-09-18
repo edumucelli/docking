@@ -37,7 +37,7 @@ from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
 from docking.ui.stack import StackContent, StackEntry
 from docking.ui.tooltip import TooltipManager
-from tests.ui.preview_support import PreviewHarness
+from tests.ui.preview_support import PreviewHarness, settle_gtk
 
 DOCK_CASES = (
     "dock-bottom-idle",
@@ -526,6 +526,7 @@ def _draw_preview_case() -> cairo.ImageSurface:
             anchor_y=320.0,
             position=Position.BOTTOM,
         )
+        settle_gtk()
         return _capture_window_surface(popup)
     finally:
         popup.destroy()
