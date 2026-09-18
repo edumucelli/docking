@@ -1882,7 +1882,7 @@ class TestDockWindowDrawAndHelpers:
         assert controller._click_y == 22.0
         assert controller._click_button == 3
 
-    def test_queue_redraw(self):
+    def test_queue_redraw(self, monkeypatch):
         timeout_add = MagicMock(return_value=99)
         drawing_area = MagicMock()
         stub = _bind_geometry_signature(
@@ -1892,7 +1892,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
-        input_controller_mod.GLib.timeout_add = timeout_add
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         dock_window_mod.DockWindow.queue_redraw(stub)
 
@@ -1900,10 +1900,10 @@ class TestDockWindowDrawAndHelpers:
         drawing_area.queue_draw.assert_not_called()
         timeout_add.assert_called_once()
 
-    def test_schedule_redraw_coalesces_multiple_requests(self):
+    def test_schedule_redraw_coalesces_multiple_requests(self, monkeypatch):
         timeout_add = MagicMock(return_value=77)
         stub = _bind_geometry_signature(SimpleNamespace(_redraw_source_id=None))
-        input_controller_mod.GLib.timeout_add = timeout_add
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         dock_window_mod.DockWindow._schedule_redraw(stub)
         dock_window_mod.DockWindow._schedule_redraw(stub)

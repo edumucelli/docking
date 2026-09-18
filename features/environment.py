@@ -12,11 +12,18 @@ if str(ROOT) not in sys.path:
 from tests.bdd_support.harness import DockHarness
 
 
-def before_scenario(context, _scenario) -> None:
+def before_scenario(context, scenario) -> None:
+    if "gtk_preview" in scenario.effective_tags:
+        from tests.ui.preview_support import PreviewHarness
+
+        context.preview = PreviewHarness()
+        return
     context.harness = DockHarness()
     context.harness.start()
 
 
 def after_scenario(context, _scenario) -> None:
+    if hasattr(context, "preview"):
+        context.preview.close()
     if hasattr(context, "harness"):
         context.harness.stop()

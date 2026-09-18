@@ -19,7 +19,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
-from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
+from docking.platform.backends.base import PreviewImage, Rect, WindowId, WindowSnapshot
 from docking.search.coordinator import SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -37,6 +37,7 @@ from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
 from docking.ui.stack import StackContent, StackEntry
 from docking.ui.tooltip import TooltipManager
+from tests.ui.preview_support import PreviewHarness, settle_gtk
 
 DOCK_CASES = (
     "dock-bottom-idle",
@@ -62,6 +63,10 @@ SHORT_STACK_CASES = (
 POPUP_CASES = (
     "tooltip-open-bottom",
     "preview-popup-open-bottom",
+    "preview-popup-transparent-checkerboard",
+    "preview-popup-overflow-bottom",
+    "preview-popup-overflow-left",
+    "preview-popup-reused-one",
 )
 SEARCH_CASES = (
     "search-palette-results",
@@ -521,10 +526,37 @@ def _draw_preview_case() -> cairo.ImageSurface:
             anchor_y=320.0,
             position=Position.BOTTOM,
         )
+        settle_gtk()
         return _capture_window_surface(popup)
     finally:
         popup.destroy()
         _flush_gtk()
+
+
+def _draw_preview_layout_case(case_name: str) -> cairo.ImageSurface:
+    preview = PreviewHarness(bounds=Rect(0, 28, 700, 560))
+    try:
+        position = Position.LEFT if case_name.endswith("left") else Position.BOTTOM
+        if case_name.endswith("reused-one"):
+            preview.show(8, position)
+            preview.scroll_to(last=True, position=position)
+        preview.show(8 if "overflow" in case_name else 1, position)
+        # A checkerboard protects the original transparent space around the
+        # cards, independent of the X server's compositor.
+        width, height = preview.popup.get_size()
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width + 16, height + 16)
+        cr = cairo.Context(surface)
+        for x in range(0, width + 16, 16):
+            for y in range(0, height + 16, 16):
+                shade = 0.95 if (x // 16 + y // 16) % 2 else 0.70
+                cr.set_source_rgb(shade, shade, shade)
+                cr.rectangle(x, y, 16, 16)
+                cr.fill()
+        cr.translate(8, 8)
+        preview.popup.draw(cr)
+        return surface
+    finally:
+        preview.close()
 
 
 def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
@@ -696,6 +728,8 @@ def render_case(case_name: str) -> cairo.ImageSurface:
         return _draw_tooltip_case()
     if case_name == "preview-popup-open-bottom":
         return _draw_preview_case()
+    if case_name.startswith("preview-popup-"):
+        return _draw_preview_layout_case(case_name)
     if case_name == "search-palette-results":
         return _draw_search_case(panel=None)
     if case_name == "search-palette-actions":

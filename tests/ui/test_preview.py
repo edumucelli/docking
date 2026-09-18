@@ -138,10 +138,13 @@ class TestPreviewCss:
         install_mock = MagicMock()
         monkeypatch.setattr(preview_mod, "_install_css", install_mock)
         # When
-        preview_mod._ensure_css()
-        preview_mod._ensure_css()
-        # Then
-        install_mock.assert_called_once()
+        try:
+            preview_mod._ensure_css()
+            preview_mod._ensure_css()
+            # Then
+            install_mock.assert_called_once()
+        finally:
+            preview_mod._ensure_css.cache_clear()
 
 
 class TestIconFallback:

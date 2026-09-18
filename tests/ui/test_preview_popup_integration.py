@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from docking.core.position import Position
-from docking.platform.backends.base import WindowId, WindowSnapshot
+from docking.platform.backends.base import Rect, WindowId, WindowSnapshot
 
 
 def _load_preview_module():
@@ -249,12 +249,23 @@ class TestPreviewPopupIntegration:
         popup.get_transient_for = MagicMock(return_value=None)
         popup.get_screen = MagicMock(return_value=FakeScreen(width=320, height=200))
         popup.move = MagicMock()
+        popup.resize = MagicMock()
+        popup.hide = MagicMock()
         popup.show_all = MagicMock()
+        scroller = MagicMock()
+        scroller.get_vscrollbar().get_preferred_width.return_value = (13, 13)
+        scroller.get_hscrollbar().get_preferred_height.return_value = (13, 13)
+        monkeypatch.setattr(
+            preview_mod, "popup_workarea", lambda *_: Rect(0, 0, 320, 200)
+        )
         monkeypatch.setattr(
             preview_mod,
             "Gtk",
             SimpleNamespace(
                 Box=FakeBox,
+                ScrolledWindow=lambda: scroller,
+                ShadowType=SimpleNamespace(NONE=0),
+                PolicyType=SimpleNamespace(AUTOMATIC=1),
                 Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
             ),
         )
@@ -273,6 +284,7 @@ class TestPreviewPopupIntegration:
         popup._cancel_hide_timer.assert_called_once()
         popup.add.assert_called_once()
         popup.move.assert_called_once_with(0, 0)
+        popup.resize.assert_called_once_with(236, 136)
         popup.show_all.assert_called_once()
         assert popup._current_desktop_id == "firefox.desktop"
 

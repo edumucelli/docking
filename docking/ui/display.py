@@ -24,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
 from docking.log import get_logger
+from docking.platform.backends.base import MonitorSnapshot, Rect
 
 log = get_logger("display")
 
@@ -120,6 +121,8 @@ def clamp_popup(
     popup_y: int,
     popup_w: int,
     popup_h: int,
+    *,
+    bounds: Rect | None = None,
 ) -> ScreenPosition:
     """Clamp a popup to screen bounds, respecting the coordinate space.
 
@@ -148,7 +151,12 @@ def clamp_popup(
                 y=popup_y - parent_position.y,
             )
         return ScreenPosition(x=popup_x, y=popup_y)
-    # Screen-absolute or no parent: clamp to screen bounds.
+    # Screen-absolute or no parent: optionally use the anchor monitor's workarea.
+    if bounds is not None:
+        return ScreenPosition(
+            x=max(bounds.x, min(popup_x, bounds.right - popup_w)),
+            y=max(bounds.y, min(popup_y, bounds.bottom - popup_h)),
+        )
     screen = popup.get_screen()
     return clamp_to_screen(
         popup_x,
@@ -158,3 +166,48 @@ def clamp_popup(
         screen.get_width(),
         screen.get_height(),
     )
+
+
+def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
+    """Logical bounds of the anchor monitor, excluding external panels when known.
+
+    Select from the icon, not the proposed popup origin: an overflowing popup
+    can start on another monitor. Do not infer panel geometry on Wayland; use
+    GDK's workarea when the surface backend cannot distinguish reservations.
+    """
+    display = popup.get_display()
+    monitor = display.get_monitor_at_point(int(anchor_x), int(anchor_y))
+    if monitor is None:
+        screen = popup.get_screen()
+        return Rect(0, 0, screen.get_width(), screen.get_height())
+    geometry = monitor.get_geometry()
+    bounds = Rect(geometry.x, geometry.y, geometry.width, geometry.height)
+    workarea = monitor.get_workarea()
+    area = Rect(workarea.x, workarea.y, workarea.width, workarea.height)
+    parent = popup.get_transient_for()
+    surface = window_surface_service(parent) if parent is not None else None
+    if surface is not None:
+        index = next(
+            (
+                i
+                for i in range(display.get_n_monitors())
+                if display.get_monitor(i) == monitor
+            ),
+            0,
+        )
+        external = surface.external_workarea(
+            MonitorSnapshot(
+                index=index,
+                geometry=bounds,
+                workarea=area,
+                scale=monitor.get_scale_factor(),
+                primary=monitor == display.get_primary_monitor(),
+            )
+        )
+        if external is not None:
+            area = external
+    left, top = max(bounds.x, area.x), max(bounds.y, area.y)
+    right, bottom = min(bounds.right, area.right), min(bounds.bottom, area.bottom)
+    if right <= left or bottom <= top:
+        return bounds
+    return Rect(left, top, right - left, bottom - top)
