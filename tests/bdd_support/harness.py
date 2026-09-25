@@ -26,6 +26,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.backends.base import Rect as PlatformRect
+from docking.platform.backends.base import WindowId
 from docking.platform.model import DockModel
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.geometry import Rect, build_geometry_frame, compute_dock_cross_metrics
@@ -861,6 +862,7 @@ class DockHarness:
         interaction.is_pointer_inside_dock.return_value = True
         self._left_edge_window = SimpleNamespace(
             _cache=dock_window_mod._DockWindowCache.create(),
+            get_display=lambda: SimpleNamespace(get_xdisplay=lambda: None),
             interaction=interaction,
             dock_hovered=True,
         )
@@ -969,13 +971,37 @@ class DockHarness:
         return self._folder_stack_open_for
 
     def hover_running_item_long_enough(self, desktop_id: str) -> None:
+        self.return_to_preview_icon(desktop_id)
+        self._scheduler.advance(hover_mod.PREVIEW_SHOW_DELAY_MS)
+
+    def return_to_preview_icon(self, desktop_id: str) -> None:
         item = self._hover_item_by_desktop_id(desktop_id)
         self._hover_frame.hover_item_at_point.return_value = item
         self._hover_window.cursor_x = 20.0
         self._hover_window.cursor_y = 10.0
-        self._hover_window.dock_hovered = True
+        self._hover_interaction.on_effective_enter()
         self._hover_manager.update(cursor_main=20.0)
-        self._scheduler.advance(hover_mod.PREVIEW_SHOW_DELAY_MS)
+
+    def configure_preview_autohide(self, *, enabled: bool) -> None:
+        self._hover_window.autohide.enabled = enabled
+
+    def enable_preview_windows(self, desktop_id: str) -> None:
+        item = self._hover_item_by_desktop_id(desktop_id)
+        item.is_running = True
+        item.instance_count = 1
+
+    def activate_preview_window(self) -> None:
+        self._preview_popup._on_thumb_click(MagicMock(), MagicMock(), WindowId.x11(1))
+
+    def cross_preview(self, *, entering: bool) -> None:
+        event = SimpleNamespace(
+            detail=preview_mod.Gdk.NotifyType.NONLINEAR,
+            mode=preview_mod.Gdk.CrossingMode.NORMAL,
+        )
+        if entering:
+            self._preview_popup._on_enter(MagicMock(), event)
+        else:
+            self._preview_popup._on_leave(MagicMock(), event)
 
     def leave_dock_with_preview_visible(self) -> None:
         self._hover_interaction.on_effective_leave(MagicMock())
@@ -1122,6 +1148,18 @@ class DockHarness:
     @property
     def preview_visible(self) -> bool:
         return self._preview_visible
+
+    @property
+    def preview_desktop_id(self) -> str:
+        return self._preview_popup.current_desktop_id
+
+    @property
+    def preview_show_count(self) -> int:
+        return self._preview_popup.show_for_item.call_count
+
+    @property
+    def preview_show_pending(self) -> bool:
+        return self._hover_manager._preview_timer_id != 0
 
     @property
     def preview_hide_scheduled(self) -> bool:

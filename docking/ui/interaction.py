@@ -183,14 +183,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
+from docking.platform.environment import is_x11_backend
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import current_input_rect, point_inside_input_rect
 
 if TYPE_CHECKING:
-    from gi.repository import Gtk
+    from gi.repository import Gdk, Gtk
 
     from docking.ui.dock_window import DockWindow
-    from docking.ui.geometry import DockGeometryFrame
+    from docking.ui.geometry import DockGeometryFrame, Rect
 
 log = get_logger(name="interaction")
 
@@ -265,6 +266,8 @@ class DockInteractionCoordinator:
         display = self._window.get_display()
         if not display:
             return False
+        if not is_x11_backend(display=display):
+            return self._native_pointer_inside_input_rect(display, input_rect)
         pos = get_pointer_position(display)
         if pos is None:
             return False
@@ -304,6 +307,27 @@ class DockInteractionCoordinator:
             window_x=backend_pos.x,
             window_y=backend_pos.y,
         )
+
+    def _native_pointer_inside_input_rect(
+        self, display: Gdk.Display, rect: Rect
+    ) -> bool:
+        """Use the pointer's focused window and local coordinates, not a root."""
+        seat = display.get_default_seat()
+        pointer = seat.get_pointer() if seat else None
+        dock_window = self._window.get_window()
+        if pointer is None or dock_window is None:
+            return False
+        try:
+            pointer_window, x, y = pointer.get_window_at_position()
+            # Child-window coordinates must be translated into the dock frame.
+            # Another toplevel (including a menu/preview) is not inside the dock.
+            while pointer_window is not None and pointer_window != dock_window:
+                x, y = pointer_window.coords_to_parent(x, y)
+                pointer_window = pointer_window.get_parent()
+            return pointer_window == dock_window and rect.contains(x, y)
+        except Exception as exc:
+            log.debug("Failed to query native dock pointer position: %s", exc)
+            return False
 
     def on_effective_enter(self) -> None:
         if self._window.dock_hovered:

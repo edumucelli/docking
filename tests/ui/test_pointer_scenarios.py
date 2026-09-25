@@ -64,6 +64,9 @@ class _Display:
     def get_default_seat(self):
         return _Seat(self._harness)
 
+    def get_xdisplay(self):
+        """This harness models root-pointer coordinates on X11."""
+
 
 class _ScenarioHarness:
     def __init__(self, *, pos: Position = Position.BOTTOM) -> None:

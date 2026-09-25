@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from gi.repository import Gdk, Gtk
 
+from docking.core.items import DockItem
 from docking.core.position import Position
 from docking.platform.backends.base import Rect, WindowId
+from docking.ui.hover import HoverManager
 from docking.ui.preview import POPUP_PADDING
 from tests.ui.preview_support import PreviewHarness, settle_gtk
 
@@ -22,6 +25,91 @@ def preview():
     harness = PreviewHarness()
     yield harness
     harness.close()
+
+
+@pytest.fixture
+def preview_hover(preview):
+    """Real hover/popup timers with only dock geometry and services simulated."""
+    item = DockItem(
+        desktop_id="test.desktop", name="Test", is_running=True, instance_count=8
+    )
+    window = MagicMock()
+    window.dock_hovered = True
+    window.cursor_x, window.cursor_y = 600, 740
+    window.get_realized.return_value = True
+    window.get_position.return_value = (0, 0)
+    window.autohide.enabled = False
+    frame = SimpleNamespace(
+        hover_item_at_point=lambda *_: item,
+        geometry_for_item=lambda _: SimpleNamespace(
+            draw_rect=SimpleNamespace(x=600, y=740, w=48, h=48)
+        ),
+    )
+    config = SimpleNamespace(previews_enabled=True, pos=Position.BOTTOM)
+    hover = HoverManager(
+        window=window,
+        config=config,
+        model=MagicMock(),
+        theme=MagicMock(),
+        tooltip=MagicMock(),
+        geometry_builder=SimpleNamespace(build_frame=lambda: frame),
+    )
+    hover.set_preview(preview.popup)
+    hover.hovered_item = item  # Retained during dock-to-preview handoff.
+    yield hover, config
+    hover.cancel()
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_same_icon_reentry_after_activation_reopens_real_popup(
+    preview, preview_hover, position
+):
+    hover, config = preview_hover
+    config.pos = position
+    preview.show(8, position)
+    preview.popup.schedule_hide()
+    preview.click_card(0)
+    assert not preview.popup.get_visible()
+    assert preview.popup.current_desktop_id == ""
+    assert preview.popup._hide_timer_id == 0
+
+    hover.update(600)
+    assert hover._preview_timer_id != 0
+    for _ in range(7):
+        settle_gtk()
+
+    assert preview.popup.get_visible()
+    assert preview.popup.current_desktop_id == "test.desktop"
+    assert len(preview.cards) == 8
+    preview.assert_bounded()
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_same_icon_handback_keeps_real_popup_and_scroll_position(
+    preview, preview_hover, position
+):
+    hover, _config = preview_hover
+    preview.show(8, position)
+    preview.scroll_to(last=True, position=position)
+    scroller = preview.scroller
+    adjustment = (
+        scroller.get_hadjustment()
+        if position in (Position.TOP, Position.BOTTOM)
+        else scroller.get_vadjustment()
+    )
+    previous = adjustment.get_value()
+    assert previous > 0
+    preview.popup.schedule_hide()
+
+    hover.update(600)
+    assert hover._preview_timer_id == 0
+    assert preview.popup._hide_timer_id == 0
+    for _ in range(7):
+        settle_gtk()
+
+    assert preview.popup.get_visible()
+    assert preview.scroller is scroller
+    assert adjustment.get_value() == previous
 
 
 @pytest.mark.parametrize("position", list(Position))

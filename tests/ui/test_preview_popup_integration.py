@@ -217,11 +217,15 @@ def _make_popup():
 
 
 class TestPreviewPopupIntegration:
-    def test_show_for_item_hides_when_no_windows(self):
+    def test_show_for_item_hides_when_no_windows(self, monkeypatch):
         # Given
         popup = _make_popup()
         popup._tracker.list_preview_windows.return_value = []
         popup.hide = MagicMock()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
 
         # When
         preview_mod.PreviewPopup.show_for_item(
@@ -235,6 +239,9 @@ class TestPreviewPopupIntegration:
 
         # Then
         popup.hide.assert_called_once()
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == ""
 
     def test_show_for_item_builds_content_and_moves(self, monkeypatch):
         # Given
@@ -372,11 +379,15 @@ class TestPreviewPopupIntegration:
         popup.hide.assert_called_once()
         popup._autohide.on_mouse_leave.assert_not_called()
 
-    def test_thumb_click_releases_autohide_when_pointer_is_off_dock(self):
+    def test_thumb_click_releases_autohide_when_pointer_is_off_dock(self, monkeypatch):
         popup = _make_popup()
         popup._autohide = MagicMock()
         popup._pointer_inside_dock = MagicMock(return_value=False)
         popup.hide = MagicMock()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
 
         handled = preview_mod.PreviewPopup._on_thumb_click(
             popup, MagicMock(), MagicMock(), window_id=WindowId.x11(42)
@@ -386,3 +397,24 @@ class TestPreviewPopupIntegration:
         popup._tracker.activate.assert_called_once_with(WindowId.x11(42))
         popup.hide.assert_called_once()
         popup._autohide.on_mouse_leave.assert_called_once()
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == ""
+
+    def test_cancel_hide_keeps_current_popup_and_autohide_hold(self, monkeypatch):
+        popup = _make_popup()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        popup.hide = MagicMock()
+        popup._autohide = MagicMock()
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
+
+        popup.cancel_hide()
+        popup.cancel_hide()
+
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == "firefox.desktop"
+        popup.hide.assert_not_called()
+        popup._autohide.on_mouse_leave.assert_not_called()

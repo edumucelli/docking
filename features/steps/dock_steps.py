@@ -245,6 +245,53 @@ def step_hover_running_item_long_enough(context, desktop_id: str) -> None:
 @then('the preview for "{desktop_id}" is visible')
 def step_preview_for_item_is_visible(context, desktop_id: str) -> None:
     assert context.harness.preview_visible is True
+    assert context.harness.preview_desktop_id == desktop_id
+
+
+@given("preview interaction has autohide {state}")
+def step_preview_autohide(context, state: str) -> None:
+    assert state in ("enabled", "disabled")
+    context.harness.configure_preview_autohide(enabled=state == "enabled")
+
+
+@given('there are previewable windows for "{desktop_id}"')
+def step_previewable_windows(context, desktop_id: str) -> None:
+    context.harness.enable_preview_windows(desktop_id)
+
+
+@when("I activate the previewed window")
+def step_activate_preview(context) -> None:
+    context.harness.activate_preview_window()
+
+
+@when("I enter the preview popup")
+def step_enter_preview(context) -> None:
+    context.harness.cross_preview(entering=True)
+
+
+@when("I leave the preview popup")
+def step_leave_preview(context) -> None:
+    context.harness.cross_preview(entering=False)
+
+
+@when('I return to the "{desktop_id}" preview icon')
+def step_return_to_preview_icon(context, desktop_id: str) -> None:
+    context.harness.return_to_preview_icon(desktop_id)
+
+
+@then("the preview popup is hidden")
+def step_preview_hidden(context) -> None:
+    assert context.harness.preview_visible is False
+
+
+@then("a preview show is pending")
+def step_preview_show_pending(context) -> None:
+    assert context.harness.preview_show_pending is True
+
+
+@then("the preview has opened {count:d} times")
+def step_preview_show_count(context, count: int) -> None:
+    assert context.harness.preview_show_count == count
 
 
 @when("I leave the dock while the preview is visible")

@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.input_controller as input_controller_mod
 import docking.ui.renderer as renderer_mod
@@ -163,6 +165,9 @@ def _make_stub(item: DockItem | None = None):
     stub.update_input_region = MagicMock()
     stub.drawing_area = MagicMock()
     stub.get_position = MagicMock(return_value=(100, 200))
+    stub.get_display = MagicMock(
+        return_value=SimpleNamespace(get_xdisplay=lambda: None)
+    )
     stub.get_size = MagicMock(return_value=(1920, 122))
     stub._test_geometry_frame = frame
     stub._cache = _window_cache(
@@ -792,6 +797,47 @@ class TestScrollAndHoverFlow:
 
 
 class TestLeaveEnterFlow:
+    @pytest.mark.parametrize("mode", ["NORMAL", "GRAB", "UNGRAB"])
+    @pytest.mark.parametrize("detail", ["ANCESTOR", "NONLINEAR"])
+    def test_wayland_leave_does_not_query_stale_pointer(self, mode, detail):
+        stub, _item = _make_stub()
+        stub.get_display.return_value = SimpleNamespace()
+        stub.interaction.is_pointer_inside_dock.return_value = True
+        widget = MagicMock()
+        event = SimpleNamespace(
+            detail=getattr(dock_window_mod.Gdk.NotifyType, detail),
+            mode=getattr(dock_window_mod.Gdk.CrossingMode, mode),
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
+
+        assert handled is True
+        stub.interaction.is_pointer_inside_dock.assert_not_called()
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
+
+    def test_wayland_duplicate_leave_is_ignored(self):
+        stub, _item = _make_stub()
+        stub.get_display.return_value = SimpleNamespace()
+        stub.dock_hovered = False
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
+
+        assert handled is False
+        stub.interaction.is_pointer_inside_dock.assert_not_called()
+        stub.interaction.on_effective_leave.assert_not_called()
+
     def test_leave_ignores_inferior_notify(self):
         # Given
         stub, _item = _make_stub()
@@ -831,7 +877,12 @@ class TestLeaveEnterFlow:
         stub.interaction.is_pointer_inside_dock.assert_called_once()
         stub.hover.cancel.assert_not_called()
 
-    def test_shape_leave_at_left_edge_uses_live_pointer_position(self):
+    @pytest.mark.parametrize("session_type", ["x11", "wayland"])
+    def test_shape_leave_at_left_edge_uses_live_pointer_position(
+        self, monkeypatch, session_type
+    ):
+        # An XWayland dock still needs the X11 input-shape guard.
+        monkeypatch.setenv("XDG_SESSION_TYPE", session_type)
         stub, _item = _make_stub()
         stub._cache.geometry_frame.frame = SimpleNamespace(
             cursor_rect=Rect(0, 0, 100, 100)

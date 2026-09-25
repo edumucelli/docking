@@ -269,7 +269,8 @@ class PreviewPopup(Gtk.Window):
         """
         windows = list(self._tracker.list_preview_windows(desktop_id))
         if not windows:
-            self.hide()
+            self._cancel_hide_timer()
+            self._do_hide()
             return
         icon_name = self._tracker.icon_name_for_desktop(desktop_id)
 
@@ -415,8 +416,8 @@ class PreviewPopup(Gtk.Window):
     ) -> bool:
         """Activate the clicked window."""
         self._tracker.activate(window_id)
-        self.hide()
-        self._release_dock_autohide_if_needed()
+        self._cancel_hide_timer()
+        self._do_hide()
         return True
 
     @staticmethod
@@ -493,6 +494,10 @@ class PreviewPopup(Gtk.Window):
         """Public method for dock_window to start the hide timer."""
         log.debug("preview schedule_hide (from dock_window)")
         self._schedule_hide()
+
+    def cancel_hide(self) -> None:
+        """Keep the current preview open when returning to its dock icon."""
+        self._cancel_hide_timer()
 
     def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""

@@ -29,6 +29,7 @@ from docking.core.config import LeftClickAction, MiddleClickAction, StackUnfold
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.log import get_logger
+from docking.platform.environment import is_x11_backend
 from docking.ui.autohide import HideState
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
@@ -535,8 +536,12 @@ class DockInputController:
         # X11 may emit a crossing event just outside the low window edge when
         # an animated input shape is replaced, even though the root pointer
         # remains inside the new shape. Crossing coordinates can also remain
-        # inside after a real exit. Use the live root pointer for both cases.
-        if window.interaction.is_pointer_inside_dock():
+        # inside after a real exit. Only X11 has a live root pointer: native
+        # Wayland queries may return the last surface-local position on leave.
+        if (
+            is_x11_backend(display=window.get_display())
+            and window.interaction.is_pointer_inside_dock()
+        ):
             log.debug("ignored leave: live pointer remains inside dock input")
             return False
 
