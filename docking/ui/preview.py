@@ -125,6 +125,7 @@ from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.backends.base import Size, WindowId, WindowService, WindowSnapshot
 from docking.ui.display import clamp_popup, popup_workarea
+from docking.ui.display import scrolled_popup_size as preview_size
 
 if TYPE_CHECKING:
     from docking.platform.backends.base import PreviewService
@@ -187,27 +188,6 @@ def _install_css() -> None:
 @lru_cache(maxsize=1)
 def _ensure_css() -> None:
     _install_css()
-
-
-def preview_size(content: Size, available: Size, scrollbar: Size) -> Size:
-    """Fit content and non-overlay scrollbars without reserving unused bars.
-
-    Either scrollbar can make the other necessary on a small monitor. Resolve
-    that dependency before anchoring, using GTK's actual scrollbar dimensions.
-    """
-    horizontal = content.width > available.width
-    vertical = content.height > available.height
-    for _ in range(2):
-        horizontal = content.width > available.width - (
-            scrollbar.width if vertical else 0
-        )
-        vertical = content.height > available.height - (
-            scrollbar.height if horizontal else 0
-        )
-    return Size(
-        min(available.width, content.width + (scrollbar.width if vertical else 0)),
-        min(available.height, content.height + (scrollbar.height if horizontal else 0)),
-    )
 
 
 class PreviewPopup(Gtk.Window):

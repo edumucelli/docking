@@ -33,7 +33,8 @@ from docking.applets.popup import PopupAnchor
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup
+from docking.platform.backends.base import Rect, Size
+from docking.ui.display import clamp_popup, popup_workarea, scrolled_popup_size
 from docking.ui.shelf import rounded_rect
 
 if TYPE_CHECKING:
@@ -73,6 +74,22 @@ FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES = 32
 FOLDER_STACK_REFRESH_DEBOUNCE_MS = 120
 
 log = get_logger("stack")
+
+
+def stack_available_size(
+    bounds: Rect, anchor_x: int, anchor_y: int, position: Position
+) -> Size:
+    """Space facing away from the dock, within the anchor monitor's workarea."""
+    width, height = bounds.width, bounds.height
+    if position == Position.BOTTOM:
+        height = min(height, anchor_y - FOLDER_STACK_GAP_PX - bounds.y)
+    elif position == Position.TOP:
+        height = min(height, bounds.bottom - anchor_y - FOLDER_STACK_GAP_PX)
+    elif position == Position.LEFT:
+        width = min(width, bounds.right - anchor_x - FOLDER_STACK_GAP_PX)
+    else:
+        width = min(width, anchor_x - FOLDER_STACK_GAP_PX - bounds.x)
+    return Size(max(1, width), max(1, height))
 
 
 @dataclass(frozen=True)
@@ -354,12 +371,11 @@ class StackPopupController:
         self._stack_provider = provider
         self._stack_content = content
         self._stack_closed = on_closed
-        self._replace_stack_content(content=content)
-
         self._folder_stack_anchor_x = int(anchor.x)
         self._folder_stack_anchor_y = int(anchor.y)
         self._folder_stack_icon_w = 0
         self._folder_stack_position_value = anchor.position
+        self._replace_stack_content(content=content)
         self._restart_stack_animation()
         self._position_stack_window()
         revealer.set_reveal_child(True)
@@ -500,9 +516,12 @@ class StackPopupController:
         revealer = self._folder_stack_revealer
         if revealer is None:
             return
+        # Reused GTK popups otherwise retain their previous large allocation.
+        if self._folder_stack_window is not None:
+            self._folder_stack_window.hide()
         child = revealer.get_child()
         if child is not None:
-            revealer.remove(child)
+            child.destroy()
         widget = self._build_stack_content(content=content)
         revealer.add(widget)
         widget.show_all()
@@ -541,8 +560,24 @@ class StackPopupController:
                 else int(anchor_x - popup_w - FOLDER_STACK_GAP_PX)
             )
 
-        popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
+        bounds = popup_workarea(window, anchor_x, anchor_y)
+        # Legacy GTK layer-shell popups can retain off-screen requested origins.
+        # Bound the rectangle before converting to parent-relative coordinates.
+        popup_x = max(bounds.x, min(popup_x, bounds.right - popup_w))
+        popup_y = max(bounds.y, min(popup_y, bounds.bottom - popup_h))
+        popup_pos = clamp_popup(
+            window, popup_x, popup_y, popup_w, popup_h, bounds=bounds
+        )
+        window.resize(popup_w, popup_h)
         window.move(popup_pos.x, popup_pos.y)
+        log.debug(
+            "stack shown: edge=%s bounds=%s size=%sx%s at=%s",
+            pos,
+            bounds,
+            popup_w,
+            popup_h,
+            popup_pos,
+        )
 
     def _build_stack_content(self, content: StackContent) -> Gtk.Widget:
         cards, popup_w, popup_h = self._stack_cards_for_content(content)
@@ -562,7 +597,60 @@ class StackPopupController:
         area.connect("motion-notify-event", self._on_stack_motion_notify)
         area.connect("leave-notify-event", self._on_stack_leave_notify)
         self._folder_stack_area = area
-        return area
+        window = self._folder_stack_window
+        if window is None:
+            return area
+        bounds = popup_workarea(
+            window, self._folder_stack_anchor_x, self._folder_stack_anchor_y
+        )
+        available = stack_available_size(
+            bounds,
+            self._folder_stack_anchor_x,
+            self._folder_stack_anchor_y,
+            Position(self._folder_stack_position_value),
+        )
+        if popup_w <= available.width and popup_h <= available.height:
+            return area
+
+        # Keep the existing fan and its content-local input coordinates. GTK's
+        # viewport scrolls paint and events together, without scaling the labels.
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_shadow_type(Gtk.ShadowType.NONE)
+        scroller.set_overlay_scrolling(False)
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_min_content_width(1)
+        scroller.set_min_content_height(1)
+        viewport = Gtk.Viewport()
+        viewport.set_shadow_type(Gtk.ShadowType.NONE)
+        provider = Gtk.CssProvider()
+        provider.load_from_data(
+            b"scrolledwindow, viewport { background-color: transparent; border: none; }"
+            b"undershoot, overshoot { background: none; box-shadow: none; }"
+        )
+        for widget in (scroller, viewport):
+            widget.get_style_context().add_provider(
+                provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+        viewport.add(area)
+        scroller.add(viewport)
+        for adjustment in (scroller.get_hadjustment(), scroller.get_vadjustment()):
+            adjustment.connect("value-changed", self._on_stack_scrolled)
+        size = scrolled_popup_size(
+            Size(popup_w, popup_h),
+            available,
+            Size(
+                scroller.get_vscrollbar().get_preferred_width()[1],
+                scroller.get_hscrollbar().get_preferred_height()[1],
+            ),
+        )
+        scroller.set_size_request(size.width, size.height)
+        return scroller
+
+    def _on_stack_scrolled(self, _adjustment: Gtk.Adjustment) -> None:
+        self._folder_stack_pressed_target = None
+        if self._folder_stack_hover_target is not None:
+            self._folder_stack_hover_target = None
+            self._ensure_stack_animating()
 
     def _stack_cards_for_content(
         self, content: StackContent
@@ -1103,7 +1191,7 @@ class StackPopupController:
         target = card.key if card is not None and card.key is not None else None
         pressed_target = self._folder_stack_pressed_target
         self._folder_stack_pressed_target = None
-        if target is not None and (pressed_target is None or pressed_target == target):
+        if target is not None and pressed_target == target:
             self._activate_stack_key(target)
             return True
         return False
