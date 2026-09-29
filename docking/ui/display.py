@@ -24,7 +24,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
 from docking.log import get_logger
-from docking.platform.backends.base import MonitorSnapshot, Rect
+from docking.platform.backends.base import MonitorSnapshot, Rect, Size
 
 log = get_logger("display")
 
@@ -34,6 +34,23 @@ class ScreenPosition(NamedTuple):
 
     x: int
     y: int
+
+
+def scrolled_popup_size(content: Size, available: Size, scrollbar: Size) -> Size:
+    """Fit content and non-overlay scrollbars, including their mutual overflow."""
+    horizontal = content.width > available.width
+    vertical = content.height > available.height
+    for _ in range(2):
+        horizontal = content.width > available.width - (
+            scrollbar.width if vertical else 0
+        )
+        vertical = content.height > available.height - (
+            scrollbar.height if horizontal else 0
+        )
+    return Size(
+        min(available.width, content.width + (scrollbar.width if vertical else 0)),
+        min(available.height, content.height + (scrollbar.height if horizontal else 0)),
+    )
 
 
 def backend_surface_position(window: object) -> ScreenPosition | None:

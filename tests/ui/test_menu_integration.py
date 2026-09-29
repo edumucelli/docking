@@ -288,6 +288,10 @@ class FakeImage:
 
 
 class FakeBox:
+    def destroy(self) -> None:
+        if self.parent is not None:
+            self.parent.remove(self)
+
     def __init__(self, **_kwargs) -> None:
         self.children: list[object] = []
         self.parent = None
@@ -506,6 +510,12 @@ class FakeWindow:
 
     def move(self, x: int, y: int) -> None:
         self.moved_to = (x, y)
+
+    def resize(self, width: int, height: int) -> None:
+        self.size = (width, height)
+
+    def get_display(self):
+        return SimpleNamespace(get_monitor_at_point=lambda *_: None)
 
     def get_screen(self):
         return self.screen
