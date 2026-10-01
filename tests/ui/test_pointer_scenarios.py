@@ -146,7 +146,7 @@ class _ScenarioHarness:
         self.preview = None
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
-        self.surface_service = MagicMock()
+        self.surface_service = MagicMock(compositor_sizes_main_axis=False)
         self.renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         self.autohide = SimpleNamespace(
             enabled=True,

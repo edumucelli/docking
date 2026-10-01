@@ -56,10 +56,13 @@ docking
   Native Wayland placement is included through Debian/Ubuntu's
   `gir1.2-gtklayershell-0.1` package.
 - **PyWayland**: the package recommends distro `python3-pywayland` where it is
-  available. The build also installs a Python-minor-specific PyPI fallback under
-  `/usr/lib/docking/vendor-pythonX.Y/` so Jammy-built packages can use the live
-  protocol runtime on matching Python hosts without shadowing newer host Python
-  installations.
+  available. Release builds supply native Python 3.10–3.14 fallbacks under
+  `/usr/lib/docking/vendor-pythonX.Y/` on both architectures. These avoid missing
+  protocol bindings in distro PyWayland packages. Other Python versions use the
+  distro package. To reproduce
+  these fallbacks locally, run `bash packaging/deb/build-wayland-vendors.sh
+  /tmp/docking-wayland` with Docker, then build with
+  `DOCKING_EXTRA_PYWAYLAND=/tmp/docking-wayland bash packaging/deb/build.sh`.
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
@@ -76,10 +79,24 @@ docking
   Do not ship `status/org.docking.Docking.png`; status icons should use
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
-- **CI validation**: the generated architecture-specific package is installed and checked on both x86_64 and ARM64 runners.
+- **CI validation**: native amd64 and arm64 packages are installed on Ubuntu
+  22.04/24.04/26.04 and Debian 12/13. Checks launch Docking on X11 and headless
+  Sway, require its D-Bus API to respond, verify native Wayland protocols, and
+  require graceful shutdown. Publication also verifies signed APT downloads,
+  fresh installs, and upgrades from the previous stable release.
 - **Release note**: GitHub Releases publish `linux-x86_64.deb` and `linux-aarch64.deb`.
 - **Compression**: binary `.deb` artifacts are built with `xz` compression for
   compatibility with older `dpkg` versions that cannot unpack `control.tar.zst`.
+
+## APT repository (Cloudsmith)
+
+Stable releases publish to Cloudsmith after the `.deb` installation matrix
+passes. Publication uses OIDC, validates both architectures, and supports
+checksum-safe retries of a specific release tag.
+
+See the [maintainer guide](cloudsmith/README.md) for configuration and retries,
+and the [APT installation instructions](../README.md#debian-and-ubuntu-apt)
+for users.
 
 ## PPA (Launchpad)
 

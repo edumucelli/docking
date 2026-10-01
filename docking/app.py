@@ -288,13 +288,17 @@ def _quit() -> bool:
     # Shutdown is intentionally two-stage.  Give GTK, applets, IPC services,
     # and backend adapters a normal main-loop exit first; if something wedges
     # during teardown, force the process out after a short grace period.
-    Gtk.main_quit()
     if _FORCE_QUIT_SOURCE_ID == 0:
+        # GDK must cancel its prepared Wayland read before gtk_main() performs
+        # the final display roundtrip. Quitting directly from a high-priority
+        # signal source can otherwise deadlock in gdk_flush().
+        GLib.idle_add(Gtk.main_quit)
         _FORCE_QUIT_SOURCE_ID = GLib.timeout_add_seconds(3, _force_quit)
     return False
 
 
 def _force_quit() -> bool:
+    log.warning("Forcing shutdown after the cleanup timeout")
     os._exit(0)
 
 

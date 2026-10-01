@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
+
+import pytest
 
 from docking.applets.apod.api import ApodError, fetch_today
 from docking.applets.apod.applet import ApodApplet
+from docking.applets.apod.page import APOD_URL, parse_page
 from docking.applets.apod.state import (
     ApodPrefs,
     ApodResult,
@@ -137,6 +142,59 @@ class TestPrefsRoundTrip:
 
 
 class TestFetchToday:
+    def test_fetches_nasa_science_by_default(self, tmp_path, monkeypatch):
+        html = (Path(__file__).parent / "fixtures/apod_nasa_science.html").read_text()
+        requested = []
+
+        def get_text(url, **_kwargs):
+            requested.append(url)
+            return html
+
+        monkeypatch.setattr("docking.applets.apod.api.http_get_text", get_text)
+        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path)
+        # An old logo must not prevent the corrected image from downloading.
+        (tmp_path / "2026-10-01.jpg").write_bytes(b"old logo")
+        self._patch_image_download(monkeypatch, b"new image")
+        got = fetch_today()
+        assert isinstance(got, ApodResult)
+        assert requested == [APOD_URL]
+        assert got.title == "Harvest Moon with Erupting Mount Etna"
+        assert got.date == "2026-10-01"
+        assert got.copyright == "Dario Giannobile"
+        assert got.explanation == "A full moon rises."
+        assert urlparse(got.image_url).hostname == "assets.science.nasa.gov"
+        assert "&amp;" not in got.image_url
+        assert got.page_url.startswith("https://science.nasa.gov/image-article/apod-")
+        assert Path(got.cached_path).read_bytes() == b"new image"
+
+    def test_rejects_unrelated_page(self):
+        with pytest.raises(ValueError):
+            parse_page('<h2>NASA Science</h2><img src="/nasa-logo.png">')
+
+    def test_video_page_uses_youtube_thumbnail(self):
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <iframe src="https://www.youtube-nocookie.com/embed/abc_123"></iframe>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A video.</p>
+              <table><tr><th>Date</th><td>September 30, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert (
+            got["thumbnail_url"] == "https://img.youtube.com/vi/abc_123/hqdefault.jpg"
+        )
+        assert got["page_url"] == APOD_URL
+
+    def test_page_network_failure_returns_error(self, monkeypatch):
+        def boom(*_args, **_kwargs):
+            raise OSError("network down")
+
+        monkeypatch.setattr("docking.applets.apod.api.http_get_text", boom)
+        assert isinstance(fetch_today(), ApodError)
+
     def _patch_image_download(self, monkeypatch, payload_bytes):
         def fake_urlopen(_req, timeout=None):
             mock = MagicMock()
@@ -157,7 +215,7 @@ class TestFetchToday:
         )
         self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 512)
 
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodResult)
         assert got.date == "2026-04-24"
         assert got.title == "Spiral Galaxy NGC 1234"
@@ -176,7 +234,7 @@ class TestFetchToday:
         )
         self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 64)
 
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodResult)
         assert got.media_type == "video"
         assert got.image_url == "https://example/thumb.jpg"
@@ -186,7 +244,7 @@ class TestFetchToday:
             raise OSError("network down")
 
         monkeypatch.setattr("docking.applets.apod.api.http_get_json", boom)
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodError)
         assert "network down" in got.message
 
@@ -194,11 +252,22 @@ class TestFetchToday:
         monkeypatch.setattr(
             "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: []
         )
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodError)
 
 
 class TestAppletLifecycle:
+    def test_refetches_cached_nasa_logo_from_today(self):
+        from docking.applets.apod.applet import _today_iso
+
+        applet = _make_applet()
+        applet._result = _sample_result(
+            date=_today_iso(),
+            title="NASA Science",
+            image_url="https://science.nasa.gov/nasa-logo@2x.png",
+        )
+        assert applet._needs_fetch() is True
+
     def test_creates_with_fallback_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -263,7 +332,7 @@ class TestAppletMenu:
     def test_empty_menu_has_open_and_refresh(self):
         applet = _make_applet()
         labels = [mi.get_label() for mi in applet.get_menu_items()]
-        assert any("Open on apod.nasa.gov" in label for label in labels)
+        assert any("Open in Browser" in label for label in labels)
         assert any("Refresh Now" in label for label in labels)
 
     def test_menu_with_result_has_header_and_copy(self):
@@ -364,7 +433,7 @@ class TestAppletFetch:
 
         applet._open_page()
 
-        open_target.assert_called_once_with("https://apod.nasa.gov/")
+        open_target.assert_called_once_with(APOD_URL)
 
     def test_needs_fetch_when_date_stale(self):
         applet = _make_applet()

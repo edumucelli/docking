@@ -38,7 +38,7 @@ from types import SimpleNamespace
 
 import cairo
 
-from docking.core.position import Position
+from docking.core.position import Position, is_horizontal
 from docking.platform.backends.base import (
     MonitorSnapshot,
     PlacementRequest,
@@ -99,6 +99,10 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._monitor = None
 
     @property
+    def compositor_sizes_main_axis(self) -> bool:
+        return True
+
+    @property
     def popups_use_parent_relative_coordinates(self) -> bool:
         """Layer-shell GTK popups are positioned relative to their parent."""
         return True
@@ -116,6 +120,9 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         _call_if_available(window, "set_app_paintable", True)
         _call_if_available(window, "set_accept_focus", False)
         _call_if_available(window, "set_focus_on_map", False)
+        # GtkLayerShell applies compositor configure sizes via geometry hints;
+        # a non-resizable GtkWindow overrides those with its natural size.
+        _call_if_available(window, "set_resizable", True)
 
         layer_shell = self._layer_shell
         layer_shell.init_for_window(window)
@@ -161,20 +168,17 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._set_monitor_for_window(window, request.monitor)
         self._set_anchors(position)
         self._set_margins(position=position, gap=0)
-        _call_if_available(
-            self._layer_shell,
-            "set_size",
-            window,
-            request.size.width,
-            request.size.height,
-        )
+        # Opposite anchors stretch the main axis to the compositor's usable
+        # space. A monitor-sized GTK minimum overrides panel-reduced configure
+        # sizes. Keep only the cross-axis minimum for zoom/bounce headroom.
+        horizontal = is_horizontal(position)
         _call_if_available(
             window,
             "set_size_request",
-            request.size.width,
-            request.size.height,
+            -1 if horizontal else request.size.width,
+            request.size.height if horizontal else -1,
         )
-        _call_if_available(window, "resize", request.size.width, request.size.height)
+        _call_if_available(window, "resize", 1, 1)
 
     def set_reservation(self, request: ReservationRequest) -> None:
         """Reserve edge space using layer-shell exclusive zones."""

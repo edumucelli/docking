@@ -13,6 +13,9 @@ from tests.bdd_support.harness import DockHarness
 
 
 def before_scenario(context, scenario) -> None:
+    if "atspi_session" in scenario.effective_tags:
+        context.accessibility_sessions = []
+        return
     if "gtk_preview" in scenario.effective_tags:
         from tests.ui.preview_support import PreviewHarness
 
@@ -28,6 +31,9 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, _scenario) -> None:
+    if hasattr(context, "accessibility_sessions"):
+        for session in reversed(context.accessibility_sessions):
+            session.close()
     if hasattr(context, "preview"):
         context.preview.close()
     if hasattr(context, "harness"):

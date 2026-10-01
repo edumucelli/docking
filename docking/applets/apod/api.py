@@ -13,19 +13,21 @@
 
 """NASA APOD fetcher using only the Python standard library.
 
-No API key required beyond the public ``DEMO_KEY`` identifier, which api.nasa.gov
-accepts for low-traffic callers. The applet makes at most one JSON fetch and
-one image download per day.
+Read NASA Science's APOD page directly. The legacy public API currently parses
+the redesigned page incorrectly, returning NASA's logo instead of the picture.
+An explicit API key still allows callers to use the legacy API.
 """
 
 from __future__ import annotations
 
 import urllib.request
+from hashlib import sha256
 from typing import NamedTuple
 
 from docking.applets.apod import meta
+from docking.applets.apod.page import APOD_URL, parse_page
 from docking.applets.apod.state import ApodResult, build_page_url
-from docking.applets.http import http_get_json
+from docking.applets.http import http_get_json, http_get_text
 from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
 from docking.platform.environment import docking_cache_dir
@@ -47,13 +49,17 @@ class ApodError(NamedTuple):
 
 
 def fetch_today(*, api_key: str = DEFAULT_API_KEY) -> ApodResult | ApodError:
-    """Fetch today's APOD JSON and download the preview image.
+    """Fetch today's APOD metadata and download the preview image.
 
     Returns a fully populated :class:`ApodResult` on success, or an
     :class:`ApodError` with a user-facing message otherwise.
     """
     try:
-        payload = _fetch_json(api_key=api_key)
+        payload = (
+            _fetch_page()
+            if api_key == DEFAULT_API_KEY
+            else _fetch_json(api_key=api_key)
+        )
     except Exception as exc:
         return ApodError(message=f"fetch failed: {exc}")
 
@@ -65,7 +71,7 @@ def fetch_today(*, api_key: str = DEFAULT_API_KEY) -> ApodResult | ApodError:
     title = str(payload.get("title", ""))
     explanation = str(payload.get("explanation", ""))
     copyright_ = str(payload.get("copyright", "") or "")
-    page_url = build_page_url(date_iso)
+    page_url = str(payload.get("page_url", "") or build_page_url(date_iso))
 
     image_url = _pick_image_url(payload=payload)
     cached_path = ""
@@ -107,10 +113,19 @@ def _fetch_json(*, api_key: str) -> dict:
     )
 
 
+def _fetch_page() -> dict:
+    return parse_page(
+        http_get_text(APOD_URL, timeout=REQUEST_TIMEOUT_S, user_agent=USER_AGENT)
+    )
+
+
 def _download_image(*, url: str, date_iso: str) -> str:
     ensure_dir(CACHE_DIR)
     suffix = _suffix_for_url(url)
-    path = CACHE_DIR / f"{date_iso or 'unknown'}{suffix}"
+    # Include the source URL so a corrected image replaces the old NASA logo
+    # (or any other stale image cached for the same date).
+    source_id = sha256(url.encode()).hexdigest()[:12]
+    path = CACHE_DIR / f"{date_iso or 'unknown'}-{source_id}{suffix}"
     if path.exists() and path.stat().st_size > 0:
         return str(path)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})

@@ -14,11 +14,11 @@
 """AT-SPI (Assistive Technology Service Provider Interface) window service.
 
 KWin 6 / Plasma 6 does not expose a public Wayland protocol for window
-listing.  However, the accessibility bus (AT-SPI2) is always active on
-modern Linux desktops and exposes every application's top-level windows
-as accessible objects.  This module connects to the AT-SPI D-Bus bus,
-enumerates accessible applications and their window/frame children, and
-maps them into Docking's :class:`WindowService` contract.
+listing. The accessibility bus (AT-SPI2), when available, exposes accessible
+applications' top-level windows. This module discovers that bus through the
+current session's org.a11y.Bus service (or AT_SPI_BUS_ADDRESS override),
+connects to it, enumerates accessible applications and their window/frame
+children, and maps them into Docking's :class:`WindowService` contract.
 
 AT-SPI is used by screen readers (Orca) and UI automation tools
 (Dogtail, Accerciser).  It is a stable, cross-desktop mechanism that
@@ -63,7 +63,7 @@ log = get_logger(name="atspi_window")
 # AT-SPI role names for window-like objects
 # ---------------------------------------------------------------------------
 
-_WINDOW_ROLES = frozenset({"window", "frame", "dialog", "application"})
+_WINDOW_ROLES = frozenset({"window", "frame", "dialog"})
 
 # AT-SPI role IDs → names (commonly used subset)
 _ROLE_BY_ID: dict[int, str] = {
@@ -77,14 +77,30 @@ _ROLE_BY_ID: dict[int, str] = {
 _STATE_ACTIVE = 0
 _STATE_FOCUSED = 3
 
-# Path of the AT-SPI accessibility bus socket
-_AT_SPI_BUS_PATH = "/run/user/{uid}/at-spi/bus_0"
 
-
-def _at_spi_address() -> str:
-    """Return the AT-SPI D-Bus address for the current session."""
-    uid = os.getuid()
-    return f"unix:path={_AT_SPI_BUS_PATH.format(uid=uid)}"
+def _at_spi_address(cancellable: Gio.Cancellable | None = None) -> str:
+    """Honor AT-SPI's explicit override, otherwise discover the session bus."""
+    address = os.environ.get("AT_SPI_BUS_ADDRESS", "")
+    if address:
+        if not Gio.dbus_is_address(address):
+            raise ValueError("AT_SPI_BUS_ADDRESS is not a valid D-Bus address")
+        return address
+    session = Gio.bus_get_sync(Gio.BusType.SESSION, cancellable)
+    reply = session.call_sync(
+        "org.a11y.Bus",
+        "/org/a11y/bus",
+        "org.a11y.Bus",
+        "GetAddress",
+        None,
+        GLib.VariantType("(s)"),
+        Gio.DBusCallFlags.NONE,
+        2000,
+        cancellable,
+    )
+    address = reply.unpack()[0]
+    if not address or not Gio.dbus_is_address(address):
+        raise ValueError("Session accessibility service returned an invalid address")
+    return address
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +173,7 @@ class AtspiWindowService(WindowService):
         self._lifecycle_token = 0
         self._refresh_token: int | None = None
         self._refresh_source_id = 0
+        self._connect_cancellable: Gio.Cancellable | None = None
         self._model = model
         self._matcher = AppIdMatcher(
             registry=application_registry,
@@ -184,55 +201,14 @@ class AtspiWindowService(WindowService):
     _REFRESH_INTERVAL_MS = 5000
 
     def start(self) -> None:
-        """Connect to the AT-SPI bus and perform an initial enumeration."""
+        """Discover/connect off the GTK loop; retry on the regular refresh tick."""
         with self._lock:
             if self._running:
                 return
             self._running = True
             self._lifecycle_token += 1
             lifecycle_token = self._lifecycle_token
-
-        addr = _at_spi_address()
-        conn: Gio.DBusConnection | None = None
-        try:
-            conn = Gio.DBusConnection.new_for_address_sync(
-                addr,
-                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT,
-                None,
-                None,
-            )
-            # AT-SPI bus requires an explicit Hello
-            conn.call_sync(
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus",
-                "Hello",
-                None,
-                GLib.VariantType("(s)"),
-                Gio.DBusCallFlags.NONE,
-                2000,
-                None,
-            )
-        except Exception:
-            log.exception("AT-SPI window service: failed to connect")
-            if conn is not None:
-                with contextlib.suppress(Exception):
-                    conn.close_sync(None)
-            with self._lock:
-                if lifecycle_token == self._lifecycle_token:
-                    self._running = False
-                    self._lifecycle_token += 1
-            return
-
-        assert conn is not None
-        with self._lock:
-            accepted = self._running and lifecycle_token == self._lifecycle_token
-            if accepted:
-                self._connection = conn
-        if not accepted:
-            with contextlib.suppress(Exception):
-                conn.close_sync(None)
-            return
+            self._connect_cancellable = Gio.Cancellable()
 
         # Initial refresh stays off the GTK loop.
         self._schedule_refresh()
@@ -247,7 +223,6 @@ class AtspiWindowService(WindowService):
         if not keep_source:
             GLib.source_remove(source_id)
             return
-        log.info("AT-SPI window service: connected")
 
     def stop(self) -> None:
         with self._lock:
@@ -267,6 +242,10 @@ class AtspiWindowService(WindowService):
             self._connection = None
             self._refresh_token = None
             self._windows.clear()
+            cancellable = self._connect_cancellable
+            self._connect_cancellable = None
+        if cancellable is not None:
+            cancellable.cancel()
         if source_id:
             GLib.source_remove(source_id)
         if connection is not None:
@@ -329,6 +308,46 @@ class AtspiWindowService(WindowService):
     # Internal: AT-SPI enumeration
     # ------------------------------------------------------------------
 
+    def _connect(self, lifecycle_token: int) -> Gio.DBusConnection | None:
+        """Worker-only connection setup, cancelled or discarded after stop."""
+        with self._lock:
+            if not self._is_current_lifecycle_locked(lifecycle_token):
+                return None
+            cancellable = self._connect_cancellable
+        conn = None
+        try:
+            address = _at_spi_address(cancellable)
+            conn = Gio.DBusConnection.new_for_address_sync(
+                address,
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+                | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                None,
+                cancellable,
+            )
+            conn.set_exit_on_close(False)
+            with self._lock:
+                if self._is_current_lifecycle_locked(lifecycle_token):
+                    self._connection = conn
+                    log.info("AT-SPI window service: connected to accessibility bus")
+                    return conn
+        except Exception:
+            log.debug("AT-SPI window service unavailable; will retry", exc_info=True)
+        if conn is not None:
+            with contextlib.suppress(Exception):
+                conn.close_sync(None)
+        return None
+
+    def _discard_connection(
+        self, lifecycle_token: int, conn: Gio.DBusConnection
+    ) -> None:
+        """Forget disconnected windows before rediscovering the current bus."""
+        with self._lock:
+            if not self._is_current_lifecycle_locked(lifecycle_token, conn):
+                return
+            self._connection = None
+            self._windows.clear()
+            GLib.idle_add(self._publish_running, lifecycle_token)
+
     def _on_refresh_timer(self) -> bool:
         """GLib timer callback - runs refresh in a background thread."""
         with self._lock:
@@ -346,11 +365,7 @@ class AtspiWindowService(WindowService):
         """Run _refresh in a background thread, skipping if one is already in flight."""
         with self._lock:
             connection = self._connection
-            if (
-                not self._running
-                or connection is None
-                or self._refresh_token is not None
-            ):
+            if not self._running or self._refresh_token is not None:
                 return
             lifecycle_token = self._lifecycle_token
             self._refresh_token = lifecycle_token
@@ -370,10 +385,20 @@ class AtspiWindowService(WindowService):
     def _refresh(
         self,
         lifecycle_token: int,
-        conn: Gio.DBusConnection,
+        conn: Gio.DBusConnection | None,
     ) -> None:
         """Re-enumerate all windows from the AT-SPI bus."""
         try:
+            with self._lock:
+                if not self._is_current_lifecycle_locked(lifecycle_token, conn):
+                    return
+            if conn is not None and conn.is_closed():
+                self._discard_connection(lifecycle_token, conn)
+                conn = None
+            if conn is None:
+                conn = self._connect(lifecycle_token)
+                if conn is None:
+                    return
             new_windows: dict[str, _AtspiWindow] = {}
 
             # 1. List all services on the AT-SPI bus
@@ -391,12 +416,14 @@ class AtspiWindowService(WindowService):
                 )
                 names = result.get_child_value(0).unpack()  # list[str]
             except Exception:
+                if conn.is_closed():
+                    self._discard_connection(lifecycle_token, conn)
                 log.exception("AT-SPI: ListNames failed")
                 return
 
             # 2. For each unique-name connection, enumerate accessible windows
             for svc in names:
-                if not svc.startswith(":") or svc == ":1.0":
+                if not svc.startswith(":") or svc == conn.get_unique_name():
                     continue
                 with self._lock:
                     if not self._is_current_lifecycle_locked(
