@@ -342,6 +342,21 @@ class TestClaudeCost:
 
 
 class TestCodexCost:
+    def test_current_sol_and_luna_costs(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        for model, expected in (
+            ("gpt-6.1-sol", 11.05),
+            ("gpt-6-sol", 11.1),
+            ("gpt-6-luna", 0.555),
+        ):
+            assert match_model_tier(model=f"{model}-2026-10-01") == model
+            assert provider_for_model(model=model) == Provider.CODEX
+            assert cost_for_usage(model=model, usage=usage) == expected
+
     def test_match_gpt_6_astra(self):
         assert match_model_tier(model="gpt-6-astra") == "gpt-6-astra"
 

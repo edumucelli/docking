@@ -233,6 +233,7 @@ the geometry frame here, not to patch individual consumers elsewhere.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
@@ -445,6 +446,7 @@ class DockGeometryInputs:
     zoom_progress: float
     hide_offset: float
     drop_insert_index: int = -1
+    constrain_main_axis: bool = False
 
 
 class DockGeometryBuilder:
@@ -479,6 +481,7 @@ class DockGeometryBuilder:
             zoom_progress=inputs.zoom_progress,
             hide_offset=inputs.hide_offset,
             drop_insert_index=inputs.drop_insert_index,
+            constrain_main_axis=inputs.constrain_main_axis,
         )
 
 
@@ -559,6 +562,7 @@ def build_geometry_frame(
     zoom_progress: float = 1.0,
     hide_offset: float = 0.0,
     drop_insert_index: int = -1,
+    constrain_main_axis: bool = False,
 ) -> DockGeometryFrame:
     """Build one shared dock geometry snapshot from current runtime state."""
     pos = config.pos
@@ -567,6 +571,22 @@ def build_geometry_frame(
     gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
     content_cross_origin = float(gap if pos in (Position.TOP, Position.LEFT) else 0)
+    drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
+
+    # Fit only compositor-sized surfaces. Keep the configured icon size/theme
+    # unchanged, and use the same fitted layout for paint, hover and clicks.
+    layout_scale = 1.0
+    if constrain_main_axis:
+        resting_layout = compute_layout(
+            items,
+            config,
+            NO_CURSOR_SENTINEL,
+            item_padding=theme.item_padding,
+            horizontal_padding=theme.horizontal_padding,
+        )
+        layout_scale = _main_axis_fit_scale(
+            resting_layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+        )
 
     local_cursor_main = _local_cursor_main(
         items=items,
@@ -574,6 +594,7 @@ def build_geometry_frame(
         theme=theme,
         main_size=main_size,
         cursor_main=cursor_main,
+        layout_scale=layout_scale,
     )
     layout = tuple(
         compute_layout(
@@ -585,6 +606,19 @@ def build_geometry_frame(
             zoom_progress=zoom_progress,
         )
     )
+    if constrain_main_axis:
+        fit_scale = _main_axis_fit_scale(
+            layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+        )
+        if fit_scale < 1.0:
+            layout = tuple(
+                LayoutItem(
+                    x=item.x * fit_scale,
+                    width=int(item.width * fit_scale),
+                    scale=item.scale,
+                )
+                for item in layout
+            )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
@@ -592,7 +626,9 @@ def build_geometry_frame(
         item_padding=theme.item_padding,
     )
     zoomed_w = right_edge - left_edge
-    dock_main_offset = (main_size - zoomed_w) / 2
+    dock_main_offset = (
+        main_size - zoomed_w - (drop_gap if constrain_main_axis else 0)
+    ) / 2
     zoomed_main_offset = dock_main_offset - left_edge
     content_cross = resting_dock_cross_extent(
         icon_size=config.icon_size,
@@ -611,7 +647,6 @@ def build_geometry_frame(
         distance_from_edge=gap,
     )
 
-    drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
     item_geometries, background_rect = _build_item_geometries(
         items=items,
         layout=layout,
@@ -712,7 +747,25 @@ def capture_geometry_inputs(
         zoom_progress=zoom_progress,
         hide_offset=hide_offset,
         drop_insert_index=drop_insert_index,
+        constrain_main_axis=window.surface_service.compositor_sizes_main_axis,
     )
+
+
+def _main_axis_fit_scale(
+    layout: Sequence[LayoutItem], *, main_size: int, theme: Theme, drop_gap: float
+) -> float:
+    """Leave room for the shelf border, integer rounding and insertion gap."""
+    visible = [item for item in layout if item.width > 0]
+    if not visible:
+        return 1.0
+    span = visible[-1].x + visible[-1].width * visible[-1].scale - visible[0].x
+    padding = (
+        theme.item_padding
+        + 2 * theme.horizontal_padding
+        + 4 * max(0.0, theme.stroke_width)
+    )
+    available = max(0.0, main_size - padding - drop_gap - 2)
+    return min(1.0, available / span) if span > 0 else 1.0
 
 
 def _local_cursor_main(
@@ -722,6 +775,7 @@ def _local_cursor_main(
     theme: Theme,
     main_size: int,
     cursor_main: float,
+    layout_scale: float = 1.0,
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
@@ -733,7 +787,11 @@ def _local_cursor_main(
         + sum(visible_widths)
         + max(0, len(visible_widths) - 1) * theme.item_padding
     )
-    return cursor_main - (main_size - base_w) / 2
+    if layout_scale <= 0:
+        return NO_CURSOR_SENTINEL
+    if layout_scale == 1.0:
+        return cursor_main - (main_size - base_w) / 2
+    return (cursor_main - main_size / 2) / layout_scale + base_w / 2
 
 
 def _build_item_geometries(

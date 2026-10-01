@@ -827,13 +827,17 @@ class TestAppMain:
             "registry_stop",
         ]
 
-    def test_quit_requests_gtk_main_quit(self, monkeypatch):
+    def test_quit_defers_gtk_exit_until_idle(self, monkeypatch):
         # Given
         app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
         # When
         result = app_mod._quit()
         # Then
         assert result is False
+        fake_gtk.main_quit.assert_not_called()
+        fake_glib.idle_add.assert_called_once_with(fake_gtk.main_quit)
+        # GDK can finish checking/cancelling its prepared read before this runs.
+        fake_glib.idle_add.call_args.args[0]()
         fake_gtk.main_quit.assert_called_once()
         fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)
 
@@ -844,7 +848,8 @@ class TestAppMain:
         app_mod._quit()
         app_mod._quit()
         # Then
-        assert fake_gtk.main_quit.call_count == 2
+        fake_gtk.main_quit.assert_not_called()
+        fake_glib.idle_add.assert_called_once_with(fake_gtk.main_quit)
         fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)
 
     def test_force_quit_exits_process(self, monkeypatch):

@@ -352,6 +352,11 @@ class SurfaceService(Service):
         """Set or clear a compositor blur hint, if supported."""
 
     @property
+    def compositor_sizes_main_axis(self) -> bool:
+        """Whether content must fit the compositor-assigned stretched axis."""
+        return False
+
+    @property
     def popups_use_parent_relative_coordinates(self) -> bool:
         """True when ``Gtk.Window.move()`` on a popup child uses
         parent-relative coordinates.

@@ -38,7 +38,9 @@ override_dh_auto_install:
 	# The docking entrypoint adds /usr/lib/docking/vendor to sys.path.
 	python3 -m pip install --no-compile \
 		--target=debian/docking/usr/lib/docking/vendor \
-		openmeteo-requests requests-cache retry-requests
+		openmeteo-requests requests-cache retry-requests exceptiongroup
+	# Newer builders omit cattrs' conditional exceptiongroup dependency, but
+	# the same package must also support hosts running Python 3.10.
 	# Remove .dist-info so dh_python3 won't auto-add vendored
 	# packages as system dependencies.
 	rm -rf debian/docking/usr/lib/docking/vendor/*.dist-info
@@ -51,6 +53,11 @@ override_dh_auto_install:
 		--target="debian/docking/usr/lib/docking/vendor-python$${py_minor}" \
 		"pywayland>=0.4.18,<0.5"
 	rm -rf debian/docking/usr/lib/docking/vendor-python*/bin
+	# CI supplies native fallbacks for all supported Python versions on each architecture.
+	if [ -n "$(DOCKING_EXTRA_PYWAYLAND)" ]; then \
+		cp -a "$(DOCKING_EXTRA_PYWAYLAND)"/. debian/docking/usr/lib/docking/; \
+		find debian/docking/usr/lib/docking -name .complete -delete; \
+	fi
 	# Drop minor-version-specific accelerators so the package remains compatible
 	# across Python 3.10+ on the same CPU architecture.
 	find debian/docking/usr/lib/docking/vendor -name '*.cpython-*.so' -delete

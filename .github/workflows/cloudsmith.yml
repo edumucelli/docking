@@ -1,0 +1,101 @@
+name: Publish Cloudsmith
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published stable release tag to publish or retry (e.g. v2.13.6)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cloudsmith-stable
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: cloudsmith
+    env:
+      CLOUDSMITH_WORKSPACE: ${{ vars.CLOUDSMITH_WORKSPACE }}
+      CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate configuration and stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+          ENABLED: ${{ vars.CLOUDSMITH_ENABLED }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENABLED" = true || { echo 'Set CLOUDSMITH_ENABLED=true after setup and compatibility validation.' >&2; exit 1; }
+          test -n "$CLOUDSMITH_WORKSPACE"
+          test -n "$CLOUDSMITH_REPOSITORY"
+          test -n "$SERVICE_SLUG"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected a stable vX.Y.Z release tag.' >&2; exit 1; }
+          gh release view "$RELEASE_TAG" --json isDraft,isPrerelease,tagName > release.json
+          python3 - <<'PY'
+          import json
+          import os
+          with open('release.json') as stream:
+              release = json.load(stream)
+          if release['isDraft'] or release['isPrerelease'] or release['tagName'] != os.environ['RELEASE_TAG']:
+              raise SystemExit('Only published stable releases can enter the stable APT repository.')
+          PY
+
+      - name: Download immutable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          gh release download "$RELEASE_TAG" --dir incoming \
+            --pattern "docking-${version}-linux-x86_64.deb" \
+            --pattern "docking-${version}-linux-aarch64.deb"
+          python3 packaging/cloudsmith/publish.py --version "$version" --directory incoming --validate-only
+
+      - name: Authenticate with Cloudsmith using OIDC
+        uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba # v3
+        with:
+          cli-version: '1.27.0'
+          oidc-namespace: ${{ vars.CLOUDSMITH_WORKSPACE }}
+          oidc-service-slug: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+          verify-auth: 'true'
+
+      - name: Publish and verify both architectures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 packaging/cloudsmith/publish.py \
+            --version "${RELEASE_TAG#v}" --directory incoming \
+            --repository "$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY"
+
+      - name: Summarize repository setup
+        shell: bash
+        run: |
+          printf 'Published %s for amd64 and arm64.\n\n' "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Repository setup: https://cloudsmith.io/~%s/repos/%s/setup/\n' \
+            "$CLOUDSMITH_WORKSPACE" "$CLOUDSMITH_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
+
+  verify-apt:
+    needs: publish
+    uses: ./.github/workflows/verify-apt.yml
+    with:
+      release_tag: ${{ inputs.release_tag }}
+    permissions:
+      contents: read

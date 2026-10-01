@@ -410,5 +410,8 @@ def test_app_quit_smoke(monkeypatch):
     result = app_mod._quit()
 
     assert result is False
+    fake_gtk.main_quit.assert_not_called()
+    _fake_glib.idle_add.assert_called_once_with(fake_gtk.main_quit)
+    _fake_glib.idle_add.call_args.args[0]()
     fake_gtk.main_quit.assert_called_once()
     _fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)

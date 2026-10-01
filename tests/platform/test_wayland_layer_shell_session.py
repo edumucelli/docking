@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.core.position import Position
 from docking.platform.backends.base import (
     DisplayServer,
@@ -386,12 +388,34 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
     layer_shell.set_anchor.assert_any_call(window, "top", True)
     layer_shell.set_anchor.assert_any_call(window, "bottom", True)
     layer_shell.set_anchor.assert_any_call(window, "right", False)
-    layer_shell.set_size.assert_called_once_with(window, 64, 560)
-    window.set_size_request.assert_called_with(64, 560)
-    window.resize.assert_called_with(64, 560)
+    layer_shell.set_size.assert_not_called()
+    window.set_size_request.assert_called_with(64, -1)
+    window.resize.assert_called_with(1, 1)
     window.move.assert_not_called()
     assert service.popups_use_parent_relative_coordinates is True
     assert service.get_surface_position() == (100, 220)
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_layer_shell_releases_only_the_compositor_sized_axis(position):
+    layer_shell = _layer_shell()
+    window = MagicMock()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    service.configure_before_realize(window)
+    horizontal = position in (Position.TOP, Position.BOTTOM)
+    size = Size(800, 187) if horizontal else Size(187, 600)
+
+    service.position_or_anchor(
+        PlacementRequest(
+            monitor=_monitor_snapshot(), position=position, x=100, y=200, size=size
+        )
+    )
+
+    window.set_size_request.assert_called_once_with(
+        -1 if horizontal else 187, 187 if horizontal else -1
+    )
+    window.resize.assert_called_once_with(1, 1)
+    layer_shell.set_exclusive_zone.assert_not_called()
 
 
 def test_layer_shell_surface_position_clears_on_stop():

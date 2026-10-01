@@ -99,11 +99,76 @@ pip install -e ".[wayland]"
 
 ## Installation
 
+### Debian and Ubuntu (APT)
+
+On Ubuntu 22.04/24.04/26.04 and Debian 12/13, add Docking's APT repository once
+to receive updates through your package manager. Both amd64 and arm64 are
+available. Ubuntu derivatives that expose
+`UBUNTU_CODENAME`, including Linux Mint 21.x/22.x, use their Ubuntu base.
+Derivative desktops are not separately covered by the Debian/Ubuntu CI matrix.
+
+Download the public signing key and check its fingerprint before continuing:
+
+```bash
+sudo apt update
+sudo apt install curl ca-certificates gnupg
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+```
+
+The fingerprint must be `811B48CD4A69170DD98F4F49185CED80A7947754`.
+
+Copy the complete block below. It detects the distribution base and stops before
+writing the source if that base is unsupported or cannot be identified.
+
+```bash
+(
+set -eu
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
+. /etc/os-release
+APT_DISTRO="${ID:-}"
+APT_SUITE="${VERSION_CODENAME:-}"
+if [ -n "${UBUNTU_CODENAME:-}" ]; then
+    APT_DISTRO=ubuntu
+    APT_SUITE="$UBUNTU_CODENAME"
+fi
+if [ "$APT_DISTRO" = debian ] && [ -z "$APT_SUITE" ]; then
+    DEBIAN_VERSION=$(cat /etc/debian_version 2>/dev/null || true)
+    case "$DEBIAN_VERSION" in
+        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
+        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
+    esac
+fi
+case "$APT_DISTRO:$APT_SUITE" in
+    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
+    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" >&2; exit 1 ;;
+esac
+sudo tee /etc/apt/sources.list.d/docking.sources > /dev/null <<EOF
+Types: deb
+URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
+Suites: ${APT_SUITE}
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
+EOF
+sudo apt update
+sudo apt install docking
+)
+```
+
+For subsequent updates, run `sudo apt update` and `sudo apt upgrade`. Existing
+`.deb` installations can upgrade directly through APT. Maintainers can find setup
+and publication details in the [Cloudsmith guide](packaging/cloudsmith/README.md).
+
+### Release downloads
+
 The latest prebuilt packages are available on
 [GitHub Releases](https://github.com/edumucelli/docking/releases) and linked
 directly below.
 - `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
-- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64 release assets](https://github.com/edumucelli/docking/releases)
+- `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
 - `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
 - `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
 - `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
@@ -562,6 +627,7 @@ every package format live in the [packaging guide](packaging/README.md).
 - [D-Bus Remote Control](docs/DBUS.md)
 - [Icon Assets and Packaging](docs/ICONS.md)
 - [Packaging](packaging/README.md)
+- [Cloudsmith APT Repository Setup](packaging/cloudsmith/README.md)
 
 ## Contributing
 
@@ -575,3 +641,6 @@ every package format live in the [packaging guide](packaging/README.md).
 ## License
 
 GPL-3.0-or-later
+
+APT repository hosting is provided free for this open-source project by
+[Cloudsmith](https://cloudsmith.com).

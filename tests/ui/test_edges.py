@@ -132,7 +132,7 @@ class _Harness:
         self._click_button = 0
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
-        self.surface_service = MagicMock()
+        self.surface_service = MagicMock(compositor_sizes_main_axis=False)
         self.autohide = SimpleNamespace(
             enabled=True,
             state=HideState.VISIBLE,

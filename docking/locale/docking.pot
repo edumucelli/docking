@@ -329,10 +329,6 @@ msgstr ""
 msgid "Error: {msg}"
 msgstr ""
 
-#: docking/applets/apod/applet.py:132
-msgid "Open on apod.nasa.gov"
-msgstr ""
-
 #: docking/applets/apod/applet.py:137
 msgid "Copy Explanation"
 msgstr ""
@@ -3856,7 +3852,7 @@ msgstr ""
 msgid "Reload"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:104
+#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:104
 msgid "Open in Browser"
 msgstr ""
 
