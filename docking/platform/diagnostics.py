@@ -20,11 +20,11 @@ import os
 import platform
 import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from docking import __version__ as docking_version
 from docking.platform.backends.base import DisplayServer, PlatformCapabilities
@@ -36,6 +36,9 @@ from docking.platform.environment import (
     is_x11_backend,
     is_xwayland_session,
 )
+
+if TYPE_CHECKING:
+    from docking.core.config import Config
 
 CheckStatus = Literal["ok", "warning", "error", "info"]
 
@@ -118,6 +121,8 @@ class MonitorDiagnostic:
     scale: int
     primary: bool
     name: str | None = None
+    connector: str | None = None
+    workarea: str | None = None
 
 
 @dataclass(frozen=True)
@@ -144,6 +149,9 @@ class DiagnosticsSnapshot:
     features: tuple[DiagnosticFeature, ...]
     checks: tuple[DiagnosticCheck, ...]
     monitors: tuple[MonitorDiagnostic, ...]
+    architecture: str = "unknown"
+    kernel_version: str = "unknown"
+    settings: dict[str, str] = field(default_factory=dict)
 
     @property
     def warnings(self) -> tuple[DiagnosticCheck, ...]:
@@ -167,13 +175,15 @@ class DiagnosticsSnapshot:
             return "Mostly compatible"
         if any(check.status == "warning" for check in self.checks):
             return "Mostly compatible"
-        return "Fully compatible"
+        return "No compatibility warnings detected"
 
 
 def collect_diagnostics(
     *,
     backend: object,
     display: object | None = None,
+    config: Config | None = None,
+    edge_gap: int | None = None,
 ) -> DiagnosticsSnapshot:
     """Collect runtime diagnostics from the selected session backend."""
     capabilities = _backend_capabilities(backend)
@@ -215,6 +225,9 @@ def collect_diagnostics(
         features=features,
         checks=checks,
         monitors=_monitor_rows(display=display),
+        architecture=platform.machine(),
+        kernel_version=platform.release(),
+        settings=_settings_snapshot(config=config, edge_gap=edge_gap),
     )
 
 
@@ -232,6 +245,8 @@ def format_diagnostics_report(snapshot: DiagnosticsSnapshot) -> str:
         f"- Python: {snapshot.python_version}",
         f"- GTK: {snapshot.gtk_version}",
         f"- OS: {snapshot.os_name}",
+        f"- Architecture: {snapshot.architecture}",
+        f"- Kernel: {snapshot.kernel_version}",
         f"- Desktop: {snapshot.desktop}",
         f"- Session: {snapshot.session_type}",
         f"- Selected backend: {snapshot.backend_name}",
@@ -246,6 +261,11 @@ def format_diagnostics_report(snapshot: DiagnosticsSnapshot) -> str:
         "",
         "## Features",
         "",
+        (
+            "Features describe backend-reported support; "
+            "actual behavior has not been verified."
+        ),
+        "",
     ]
     for feature in snapshot.features:
         lines.append(
@@ -256,15 +276,22 @@ def format_diagnostics_report(snapshot: DiagnosticsSnapshot) -> str:
         lines.append(f"- {check.status.upper()}: {check.label} - {check.detail}")
         if check.fix_hint:
             lines.append(f"  Hint: {check.fix_hint}")
+    lines.extend(["", "## Dock Settings", ""])
+    if snapshot.settings:
+        lines.extend(f"- {key}: {value}" for key, value in snapshot.settings.items())
+    else:
+        lines.append("- unavailable")
     lines.extend(["", "## Monitors", ""])
     if snapshot.monitors:
         for monitor in snapshot.monitors:
             primary = " primary" if monitor.primary else ""
             name = f" {monitor.name}" if monitor.name else ""
+            connector = f" ({monitor.connector})" if monitor.connector else ""
             lines.append(
-                f"- #{monitor.index}{primary}{name}: "
+                f"- #{monitor.index}{primary}{name}{connector}: "
                 f"{monitor.geometry}, scale {monitor.scale}"
             )
+            lines.append(f"  GDK-reported workarea: {monitor.workarea or 'unknown'}")
     else:
         lines.append("- unavailable")
     lines.extend(["", "## Environment", ""])
@@ -461,7 +488,11 @@ def _feature_rows(capabilities: PlatformCapabilities) -> tuple[DiagnosticFeature
             id=feature_id,
             label=label,
             available=available,
-            detail="available" if available else "unavailable on selected backend",
+            detail=(
+                "supported by selected backend"
+                if available
+                else "unsupported by selected backend"
+            ),
         )
         for feature_id, label, available in rows
     )
@@ -483,6 +514,8 @@ def _monitor_rows(*, display: object | None) -> tuple[MonitorDiagnostic, ...]:
         try:
             monitor = display.get_monitor(index)
             geometry = monitor.get_geometry()
+            connector = _optional_monitor_detail(monitor, "get_connector")
+            workarea = _optional_monitor_detail(monitor, "get_workarea")
             rows.append(
                 MonitorDiagnostic(
                     index=index,
@@ -492,11 +525,44 @@ def _monitor_rows(*, display: object | None) -> tuple[MonitorDiagnostic, ...]:
                     scale=int(monitor.get_scale_factor()),
                     primary=monitor == display.get_primary_monitor(),
                     name=monitor.get_model() or None,
+                    connector=str(connector) if connector else None,
+                    workarea=(
+                        f"{workarea.x},{workarea.y} {workarea.width}x{workarea.height}"
+                        if workarea is not None
+                        else None
+                    ),
                 )
             )
         except Exception:
             continue
     return tuple(rows)
+
+
+def _optional_monitor_detail(monitor: object, method: str) -> object | None:
+    try:
+        getter = getattr(monitor, method, None)
+        return getter() if callable(getter) else None
+    except Exception:
+        return None
+
+
+def _settings_snapshot(
+    *, config: Config | None, edge_gap: int | None
+) -> dict[str, str]:
+    """Include only placement settings, never pinned items or applet preferences."""
+    if config is None:
+        return {}
+    return {
+        "position": config.position,
+        "hide_mode": config.hide_mode,
+        "monitor_index": str(config.monitor_index),
+        "monitor_connector": config.monitor_connector or "none",
+        "active_display": _yes_no(config.active_display),
+        "icon_size": f"{config.icon_size} px",
+        "zoom_enabled": _yes_no(config.zoom_enabled),
+        "zoom_multiplier": f"{config.zoom_percent:g}",
+        "effective_edge_gap": f"{edge_gap} px" if edge_gap is not None else "unknown",
+    }
 
 
 def _backend_capabilities(backend: object) -> PlatformCapabilities:

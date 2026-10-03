@@ -5525,3 +5525,25 @@ msgstr ""
 #: docking/ui/update_popup.py:247
 msgid "Ignore"
 msgstr ""
+
+#: docking/ui/diagnostics.py:186
+msgid ""
+"Features describe backend-reported support; actual behavior has not been "
+"verified."
+msgstr ""
+
+#: docking/ui/diagnostics.py:218
+msgid "Architecture"
+msgstr ""
+
+#: docking/ui/diagnostics.py:219
+msgid "Kernel"
+msgstr ""
+
+#: docking/ui/diagnostics.py:230
+msgid "Dock Settings"
+msgstr ""
+
+#: docking/ui/diagnostics.py:253
+msgid "GDK-reported workarea"
+msgstr ""

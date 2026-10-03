@@ -321,6 +321,43 @@ class TestDiagnosticsControllerInit:
 
 
 class TestDiagnosticsShow:
+    def test_refresh_and_report_use_current_settings_without_backend_actions(
+        self, monkeypatch
+    ):
+        import docking.ui.diagnostics as mod
+        from docking.core.config import Config, effective_edge_gap
+        from docking.core.theme import Theme
+        from docking.platform.diagnostics import collect_diagnostics
+
+        parent, backend = _fake_window_and_backend()
+        parent.get_display.return_value = None
+        config = Config(position="bottom", additional_distance_from_edge=3)
+        parent.theme = Theme(distance_from_edge=5)
+        controller = DiagnosticsDialogController(
+            parent=parent,
+            backend=backend,
+            config=config,
+            edge_gap_provider=lambda: effective_edge_gap(parent.theme, config),
+        )
+        backend.name = "test-backend"
+        backend.reset_mock()
+        collector = MagicMock(wraps=collect_diagnostics)
+        monkeypatch.setattr(mod, "collect_diagnostics", collector)
+        controller._build_window = MagicMock(return_value=MagicMock())
+
+        assert "- effective_edge_gap: 8 px" in controller._current_report()
+        controller.show()
+        config.position = "right"
+        config.additional_distance_from_edge = 9
+        parent.theme = Theme(distance_from_edge=7)
+        controller.show()
+
+        report = controller._current_report()
+        assert "- position: right" in report
+        assert "- effective_edge_gap: 16 px" in report
+        assert collector.call_count == 3
+        assert backend.mock_calls == []
+
     def test_show_destroys_previous_window(self, monkeypatch):
         import docking.ui.diagnostics as mod
 
@@ -745,6 +782,41 @@ class TestDiagnosticsTabBuilders:
 
         tab = controller._build_environment_tab(snapshot)
         assert tab is not None
+
+    def test_build_environment_tab_displays_new_report_fields(self):
+        from docking.platform.diagnostics import MonitorDiagnostic
+
+        parent, backend = _fake_window_and_backend()
+        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller._append_kv_row = MagicMock()
+        snapshot = _make_snapshot(
+            architecture="aarch64",
+            kernel_version="6.12-test",
+            settings={"hide_mode": "none", "effective_edge_gap": "12 px"},
+            monitors=(
+                MonitorDiagnostic(
+                    index=0,
+                    geometry="0,0 1920x1080",
+                    scale=1,
+                    primary=True,
+                    connector="DP-2",
+                    workarea="0,40 1920x1040",
+                ),
+            ),
+        )
+
+        controller._build_environment_tab(snapshot)
+
+        rows = [
+            (call.args[2], call.args[3])
+            for call in controller._append_kv_row.call_args_list
+        ]
+        assert ("Architecture", "aarch64") in rows
+        assert ("Kernel", "6.12-test") in rows
+        assert ("hide_mode", "none") in rows
+        assert ("effective_edge_gap", "12 px") in rows
+        assert any("DP-2" in label for label, _ in rows)
+        assert ("#0 GDK-reported workarea", "0,40 1920x1040") in rows
 
     def test_build_environment_tab_no_monitors(self):
         parent, backend = _fake_window_and_backend()

@@ -1,20 +1,47 @@
-"""Cinnamon Wayland session using layer-shell and Muffin window snapshots."""
+"""Cinnamon Wayland sessions with layer-shell or built-in shell positioning."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from docking.platform.backends.base import PlatformCapabilities
+from docking.platform.backends.base import DisplayServer, PlatformCapabilities
 from docking.platform.backends.cinnamon.muffin import (
     MuffinDebugClient,
     MuffinWindowService,
 )
+from docking.platform.backends.cinnamon.shell import (
+    CinnamonShellClient,
+    CinnamonShellSurfaceService,
+)
+from docking.platform.backends.reduced.session import ReducedSessionBackend
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 
 if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
+
+
+class CinnamonShellSessionBackend(ReducedSessionBackend):
+    """Native dock placement for Cinnamon releases without layer-shell."""
+
+    def __init__(self, *, client: CinnamonShellClient) -> None:
+        super().__init__()
+        self._services = replace(
+            self._services, surface=CinnamonShellSurfaceService(client=client)
+        )
+
+    @property
+    def name(self) -> str:
+        return "cinnamon-shell"
+
+    @property
+    def display_server(self) -> DisplayServer:
+        return DisplayServer.WAYLAND
+
+    @property
+    def capabilities(self) -> PlatformCapabilities:
+        return replace(super().capabilities, supports_screen_reservation=True)
 
 
 class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
