@@ -127,7 +127,7 @@ for case_name in "${CASES[@]:-}"; do
     [ -n "$case_name" ] && emit_args+=(--case "$case_name")
 done
 (cd "$REPO_DIR" && "$PYTHON" -m tools.visual_compositor.scenarios "${emit_args[@]}")
-if [ "${LAB_OUTPUTS:-1}" != 1 ] && "$PYTHON" -c 'import json,sys; sys.exit(not any(c.get("display_scene") or c.get("display_change") for c in json.load(open(sys.argv[1]))))' "$RUN_DIR/cases.json"; then
+if [ "$COMPOSITOR" = sway ] && [ "${LAB_OUTPUTS:-1}" != 1 ] && "$PYTHON" -c 'import json,sys; sys.exit(not any(c.get("display_scene") or c.get("display_change") for c in json.load(open(sys.argv[1]))))' "$RUN_DIR/cases.json"; then
     echo "Display scene cases create their own outputs; run them with LAB_OUTPUTS=1" >&2
     exit 2
 fi

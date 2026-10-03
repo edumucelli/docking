@@ -169,6 +169,18 @@ class GnomeShellBridgeClient:
         result = self._call("ActivateWorkspace", GLib.Variant("(u)", (bridge_id,)))
         return bool(result.unpack()[0]) if result is not None else False
 
+    def subscribe_available(self, callback: Callable[[], None]) -> int:
+        """Notify when the extension returns after losing its bus name."""
+
+        def owner_changed(proxy: Gio.DBusProxy, _property: object) -> None:
+            if proxy.get_name_owner():
+                callback()
+
+        return self._proxy.connect("notify::g-name-owner", owner_changed)
+
+    def unsubscribe_available(self, handle: int) -> None:
+        self._proxy.disconnect(handle)
+
     def subscribe_changed(self, callback: Callable[[], None]) -> int | None:
         """Subscribe to extension state changes."""
         connection = self._proxy.get_connection()
@@ -673,6 +685,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         self._position_retry_source_id: int = 0
         self._position_retry_attempts_remaining: int = 0
         self._latest_position_request: PlacementRequest | None = None
+        self._available_handle: int | None = None
         # Wayland: GTK does not know the absolute screen position.
         # We track it here so get_surface_position() can return it.
         self._surface_x: int | None = None
@@ -681,13 +694,25 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     # -- SurfaceService ---------------------------------------------------
 
     def start(self) -> None:
-        pass
+        subscribe = getattr(self._bridge, "subscribe_available", None)
+        if callable(subscribe) and self._available_handle is None:
+            self._available_handle = subscribe(self._bridge_available)
+
+    def _bridge_available(self) -> None:
+        request = self._latest_position_request
+        if request is not None:
+            self._position_retry_attempts_remaining = _DOCK_POSITION_RETRY_ATTEMPTS
+            self._apply_position_request(request)
+            self._schedule_position_retry()
 
     @property
     def popups_use_parent_relative_coordinates(self) -> bool:
         return True
 
     def stop(self) -> None:
+        if self._available_handle is not None:
+            self._bridge.unsubscribe_available(self._available_handle)
+            self._available_handle = None
         if self._position_retry_source_id:
             GLib.source_remove(self._position_retry_source_id)
             self._position_retry_source_id = 0

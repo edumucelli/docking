@@ -276,3 +276,49 @@ def test_gnome_shell_bridge_surface_stop_removes_pending_position_retry(monkeypa
 
     assert removed == [88]
     assert service.get_surface_position() is None
+
+
+def test_surface_reconnect_retries_latest_placement_after_initial_budget(monkeypatch):
+    scheduled = []
+    monkeypatch.setattr(
+        bridge_mod.GLib,
+        "timeout_add",
+        lambda _, callback: scheduled.append(callback) or 77,
+    )
+    monkeypatch.setattr(bridge_mod.GLib, "source_remove", lambda _: None)
+    bridge = _bridge()
+    bridge.subscribe_available = MagicMock(return_value=99)
+    bridge.unsubscribe_available = MagicMock()
+    service = GnomeShellBridgeSurfaceService(bridge=bridge)
+    service.configure_before_realize(MagicMock())
+    service.start()
+    service.position_or_anchor(_placement(0, 0, 163, 720))
+    while service._position_retry_attempts_remaining:
+        service._retry_latest_position()
+    bridge.position_dock.reset_mock()
+    bridge.subscribe_available.call_args.args[0]()
+    bridge.position_dock.assert_called_once_with(0, 0, 163, 720)
+    assert service._position_retry_attempts_remaining > 0
+    service.stop()
+    bridge.unsubscribe_available.assert_called_once_with(99)
+    bridge.position_dock.reset_mock()
+    bridge.subscribe_available.call_args.args[0]()
+    bridge.position_dock.assert_not_called()
+
+
+def test_bridge_availability_notification_only_calls_on_return():
+    proxy = MagicMock()
+    client = bridge_mod.GnomeShellBridgeClient(proxy=proxy)
+    callback = MagicMock()
+    handle = client.subscribe_available(callback)
+    assert handle == proxy.connect.return_value
+    signal, notify = proxy.connect.call_args.args
+    assert signal == "notify::g-name-owner"
+    proxy.get_name_owner.return_value = None
+    notify(proxy, None)
+    callback.assert_not_called()
+    proxy.get_name_owner.return_value = ":1.42"
+    notify(proxy, None)
+    callback.assert_called_once_with()
+    client.unsubscribe_available(handle)
+    proxy.disconnect.assert_called_once_with(handle)

@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","cage","gnome"]' || '["sway","cinnamon","niri"]') }}
+        compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","cage","gnome","gnome-bridge"]' || '["sway","cinnamon","niri"]') }}
     steps:
       - uses: actions/checkout@v6
       - name: Install comparison dependencies
@@ -73,6 +73,38 @@ jobs:
           bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
           bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
           bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+      - name: Check popup containment on all edges and crowded output
+        if: matrix.compositor == 'sway'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:sway
+        run: |
+          bash tools/visual_compositor_matrix.sh --compositor sway --behavior popups \
+            --case popup-tooltip-bottom --case popup-tooltip-top --case popup-tooltip-left --case popup-tooltip-right \
+            --case popup-menu-bottom --case popup-menu-top --case popup-menu-left --case popup-menu-right \
+            --case popup-tooltip-many-first --case popup-tooltip-many-last --case popup-menu-many-first --case popup-menu-many-last --geometry-only --require-supported
+      - name: Check GNOME popups on a small output and bridge recovery
+        if: matrix.compositor == 'gnome-bridge'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:gnome-bridge
+        run: |
+          LAB_WIDTH=360 LAB_HEIGHT=300 bash tools/visual_compositor_matrix.sh --compositor gnome-bridge \
+            --behavior popups --case popup-tooltip-bottom --case popup-tooltip-top \
+            --case popup-tooltip-left --case popup-tooltip-right \
+            --case popup-menu-bottom --case popup-menu-top --case popup-menu-left --case popup-menu-right \
+            --case popup-preview-bottom --case popup-preview-top --case popup-preview-left --case popup-preview-right \
+            --geometry-only --require-supported
+          bash tools/visual_compositor_matrix.sh --compositor gnome-bridge --behavior recovery --geometry-only --require-supported
+      - name: Check native fractional and mixed-DPI scaling
+        if: matrix.compositor == 'gnome-bridge' || matrix.compositor == 'kwin'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
+          LAB_OUTPUTS: 2
+        run: bash tools/visual_compositor_matrix.sh --compositor "${{ matrix.compositor }}" --behavior scaling --geometry-only --require-supported
+      - name: Check native window tracking
+        if: matrix.compositor == 'gnome-bridge' || matrix.compositor == 'cosmic'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
+        run: bash tools/visual_compositor_matrix.sh --compositor "${{ matrix.compositor }}" --behavior windows --geometry-only --require-supported
       - name: Check native Wayfire dodge
         if: matrix.compositor == 'wayfire'
         env:

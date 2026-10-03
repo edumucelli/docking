@@ -43,19 +43,26 @@ start_lab_input() {
     /usr/bin/python3 "$LAB_SCRIPTS/probes/client_probe.py" input \
         "$LAB_DIR/input-delivery.json" >"$LAB_DIR/input-client.log" 2>&1 &
     ADAPTER_PROBE_PID=$!
-    sleep 1
-    lab_pointer 100 100 272 || true
-    sleep 0.2
-    lab_pointer 320 240 || true
-    sleep 0.3
-    if [ -f "$LAB_DIR/input-delivery.json" ] && \
-        jq -e '(.x-320|fabs)<4 and (.y-240|fabs)<4' \
-            "$LAB_DIR/input-delivery.json" >/dev/null; then
-        LAB_INPUT_SUPPORTED=true
-    fi
+    local probe_x probe_y geometry
+    geometry="$(adapter_geometry)"
+    probe_x="$(jq '.outputs[0] | .x + ([320, (.width / 2 | floor)] | min)' <<<"$geometry")"
+    probe_y="$(jq '.outputs[0] | .y + ([240, (.height / 2 | floor)] | min)' <<<"$geometry")"
+    for _ in $(seq 20); do
+        lab_pointer 100 100 272 || true
+        sleep 0.1
+        lab_pointer "$probe_x" "$probe_y" || true
+        sleep 0.2
+        if [ -f "$LAB_DIR/input-delivery.json" ] && \
+            jq -e --argjson x "$probe_x" --argjson y "$probe_y" \
+                '(.x-$x|fabs)<4 and (.y-$y|fabs)<4' \
+                "$LAB_DIR/input-delivery.json" >/dev/null; then
+            LAB_INPUT_SUPPORTED=true
+            break
+        fi
+    done
     terminate_pid "$ADAPTER_PROBE_PID"
     ADAPTER_PROBE_PID=""
     # Niri's top-left hot corner opens its overview and changes the whole scene.
-    if [ "$COMPOSITOR" = niri ]; then lab_pointer 100 100 || true
+    if [ "$COMPOSITOR" = niri ] || [ "$COMPOSITOR" = kwin ] || [[ "$COMPOSITOR" = gnome* ]]; then lab_pointer 100 100 || true
     else lab_pointer 0 0 || true; fi
 }

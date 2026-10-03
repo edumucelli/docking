@@ -1,0 +1,82 @@
+<protocol name="kde_output_management_v2">
+  <copyright>
+    SPDX-FileCopyrightText: 2008-2011 Kristian Høgsberg
+    SPDX-FileCopyrightText: 2010-2011 Intel Corporation
+    SPDX-FileCopyrightText: 2012-2013 Collabora, Ltd.
+    SPDX-FileCopyrightText: 2015 Sebastian Kügler &lt;sebas@kde.org&gt;
+    SPDX-FileCopyrightText: 2021 Méven Car &lt;meven.car@enioka.com&gt;
+    SPDX-FileCopyrightText: 2023 Xaver Hugl &lt;xaver.hugl@kde.org&gt;
+
+    SPDX-License-Identifier: MIT-CMU
+    </copyright>
+  <interface name="kde_output_management_v2" version="1">
+    <request name="create_configuration">
+      <arg name="id" type="new_id" interface="kde_output_configuration_v2" />
+    </request>
+  </interface>
+  <interface name="kde_output_configuration_v2" version="1">
+    <enum name="error">
+      <entry name="already_applied" value="0" summary="the config is already applied" />
+    </enum>
+    <request name="enable">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice to be en- or disabled" />
+      <arg name="enable" type="int" summary="1 to enable or 0 to disable this output" />
+    </request>
+    <request name="mode">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice this mode change applies to" />
+      <arg name="mode" type="object" interface="kde_output_device_mode_v2" summary="the mode to apply" />
+    </request>
+    <request name="transform">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice this transformation change applies to" />
+      <arg name="transform" type="int" summary="transform enum" />
+    </request>
+    <request name="position">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice this position applies to" />
+      <arg name="x" type="int" summary="position on the x-axis" />
+      <arg name="y" type="int" summary="position on the y-axis" />
+    </request>
+    <request name="scale">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice this scale change applies to" />
+      <arg name="scale" type="fixed" summary="scaling factor" />
+    </request>
+    <request name="apply">
+    </request>
+    <event name="applied">
+    </event>
+    <event name="failed">
+    </event>
+    <request name="destroy" type="destructor">
+    </request>
+    <request name="overscan">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice overscan applies to" />
+      <arg name="overscan" type="uint" summary="overscan value" />
+    </request>
+    <enum name="vrr_policy">
+      <entry name="never" value="0" />
+      <entry name="always" value="1" />
+      <entry name="automatic" value="2" />
+    </enum>
+    <request name="set_vrr_policy">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice this VRR policy applies to" />
+      <arg name="policy" type="uint" enum="vrr_policy" summary="the vrr policy to apply" />
+    </request>
+    <enum name="rgb_range">
+      <entry name="automatic" value="0" />
+      <entry name="full" value="1" />
+      <entry name="limited" value="2" />
+    </enum>
+    <request name="set_rgb_range">
+      <arg name="outputdevice" type="object" interface="kde_output_device_v2" summary="outputdevice the rgb range applies to" />
+      <arg name="rgb_range" type="uint" enum="rgb_range" />
+    </request>
+    <enum name="auto_rotate_policy">
+      <entry name="never" value="0" />
+      <entry name="in_tablet_mode" value="1" />
+      <entry name="always" value="2" />
+    </enum>
+    <enum name="color_power_tradeoff">
+      <entry name="efficiency" value="0" summary="prefer efficiency and performance" />
+      <entry name="accuracy" value="1" summary="prefer accuracy" />
+    </enum>
+  </interface>
+</protocol>

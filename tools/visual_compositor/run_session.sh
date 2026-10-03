@@ -71,7 +71,7 @@ start_lab_panel
 source "$HERE/input.sh"
 start_lab_input
 adapter_capabilities | jq --argjson input "$LAB_INPUT_SUPPORTED" \
-    '.pointer = $input | .interactive = ($input and .placement) | .dodge = ($input and (.expected_backend == "wayfire" or (.expected_backend == "cosmic" and .cosmic_overlap_supported == true)))' \
+    '.pointer = $input | .interactive = ($input and .placement) | .popup_bounds = ($input and .placement) | .narrow_popup = ($input and .compositor == "sway") | .preview_popup = ($input and (.expected_backend == "gnome-shell-bridge" or .expected_backend == "cosmic")) | .dodge = ($input and (.expected_backend == "wayfire" or (.expected_backend == "cosmic" and .cosmic_overlap_supported == true)))' \
     >"$EVIDENCE_DIR/capabilities.json"
 record_import_origin "$EVIDENCE_DIR/import-origin.txt"
 adapter_geometry >"$EVIDENCE_DIR/outputs.json"
@@ -111,6 +111,9 @@ capture_until_stable() {
         adapter_screenshot "$current"
         if [ -n "$previous" ] && cmp -s "$previous" "$current"; then
             mv "$current" "$dest"
+            for suffix in capture.json parent.png; do
+                if [ -f "$current.$suffix" ]; then mv "$current.$suffix" "$dest.$suffix"; fi
+            done
             rm -f "$previous"
             return 0
         fi
@@ -121,6 +124,9 @@ capture_until_stable() {
     # Not stable within budget: keep the last frame and report it so the host
     # can fail the case on evidence rather than on a container-side guess.
     mv "$previous" "$dest"
+    for suffix in capture.json parent.png; do
+        if [ -f "$previous.$suffix" ]; then mv "$previous.$suffix" "$dest.$suffix"; fi
+    done
     return 1
 }
 
@@ -134,6 +140,14 @@ run_case() {
     echo "$case_json" | jq '.overrides' >"$config_dir/dock.json"
 
     log_adapter "case: $name"
+    local background='#000000'
+    if [[ "$(echo "$case_json" | jq -r '.action // empty')" = popup-* ]]; then
+        echo '[20,46,71]' >"$EVIDENCE_DIR/background.json"
+        background='#142e47'
+    else
+        echo '[0,0,0]' >"$EVIDENCE_DIR/background.json"
+    fi
+    if declare -F adapter_background >/dev/null; then adapter_background "$background"; fi
     if declare -F adapter_scene >/dev/null; then
         adapter_scene "$(echo "$case_json" | jq -r ' .display_scene // empty')"
     fi
@@ -156,7 +170,7 @@ run_case() {
     if [ -n "$requirement" ] && [ "$(jq -r --arg cap "$requirement" '.[$cap] // false' "$EVIDENCE_DIR/capabilities.json")" != true ]; then
         action_supported=false
     fi
-    if [ -n "$action" ] && [ "$LAB_INPUT_SUPPORTED" = true ] && [ "$action_supported" = true ]; then
+    if [ -n "$action" ] && { [ "$LAB_INPUT_SUPPORTED" = true ] || [[ "$action" = window* || "$action" = workspace-switch || "$action" = bridge-recovery ]]; } && [ "$action_supported" = true ]; then
         source "$HERE/actions.sh"
         run_lab_action "$action" "$(echo "$case_json" | jq -r '.edge')" || action_ok=false
     fi
@@ -174,6 +188,7 @@ run_case() {
     # NOT the oracle (it is what the dock asked for, not what it got) -- it is
     # recorded so the host can report requested-vs-observed disagreement, which
     # is exactly the signal the Cinnamon bug produced.
+    /usr/bin/python3 "$LAB_SCRIPTS/probes/app_probe.py" --call "$LAB_APP_SOCKET" '{}' >"$case_dir/$name.app.json"
     local requested
     requested="$(grep -oE 'win=\(-?[0-9]+,-?[0-9]+\) size=[0-9]+x[0-9]+' "$case_dir/$name.log" \
         | tail -1 || true)"

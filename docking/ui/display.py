@@ -147,13 +147,16 @@ def clamp_popup(
     regardless of ``set_transient_for``, so we clamp to the screen.
 
     On Wayland a popup with a transient parent receives *parent-relative*
-    coordinates, and the compositor handles on-screen clamping for us. Callers
-    pass screen-absolute coordinates; this helper converts them to parent-local
+    coordinates. Callers pass screen-absolute coordinates; this helper clamps
+    them to optional monitor bounds, then converts them to parent-local
     coordinates when the backend reports a known parent surface position.
     Which coordinate space is in use is determined by the surface service
     backing the transient parent (``popups_use_parent_relative_coordinates``
     property).
     """
+    if bounds is not None:
+        popup_x = max(bounds.x, min(popup_x, bounds.right - popup_w))
+        popup_y = max(bounds.y, min(popup_y, bounds.bottom - popup_h))
     parent = popup.get_transient_for()
     surface_service = window_surface_service(parent) if parent is not None else None
     if (

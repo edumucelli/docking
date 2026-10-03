@@ -17,7 +17,8 @@ def main() -> None:
     mode, path = sys.argv[1:3]
     GLib.set_prgname("lab-probe")
     window = Gtk.Window(title="Lab probe")
-    window.set_default_size(640, 480)
+    monitor = window.get_display().get_monitor(0).get_geometry()
+    window.set_default_size(min(640, monitor.width), min(480, monitor.height))
     window.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
     def motion(widget, event):

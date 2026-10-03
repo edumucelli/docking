@@ -1,0 +1,138 @@
+<protocol name="kde_output_device_v2">
+  <copyright>
+    SPDX-FileCopyrightText: 2008-2011 Kristian Høgsberg
+    SPDX-FileCopyrightText: 2010-2011 Intel Corporation
+    SPDX-FileCopyrightText: 2012-2013 Collabora, Ltd.
+    SPDX-FileCopyrightText: 2015 Sebastian Kügler &lt;sebas@kde.org&gt;
+    SPDX-FileCopyrightText: 2021 Méven Car &lt;meven.car@enioka.com&gt;
+
+    SPDX-License-Identifier: MIT-CMU
+    </copyright>
+  <interface name="kde_output_device_v2" version="2">
+    <enum name="subpixel">
+      <entry name="unknown" value="0" />
+      <entry name="none" value="1" />
+      <entry name="horizontal_rgb" value="2" />
+      <entry name="horizontal_bgr" value="3" />
+      <entry name="vertical_rgb" value="4" />
+      <entry name="vertical_bgr" value="5" />
+    </enum>
+    <enum name="transform">
+      <entry name="normal" value="0" />
+      <entry name="90" value="1" />
+      <entry name="180" value="2" />
+      <entry name="270" value="3" />
+      <entry name="flipped" value="4" />
+      <entry name="flipped_90" value="5" />
+      <entry name="flipped_180" value="6" />
+      <entry name="flipped_270" value="7" />
+    </enum>
+    <event name="geometry">
+      <arg name="x" type="int" summary="x position within the global compositor space" />
+      <arg name="y" type="int" summary="y position within the global compositor space" />
+      <arg name="physical_width" type="int" summary="width in millimeters of the output" />
+      <arg name="physical_height" type="int" summary="height in millimeters of the output" />
+      <arg name="subpixel" type="int" summary="subpixel orientation of the output" />
+      <arg name="make" type="string" summary="textual description of the manufacturer" />
+      <arg name="model" type="string" summary="textual description of the model" />
+      <arg name="transform" type="int" summary="transform that maps framebuffer to output" />
+    </event>
+    <event name="current_mode">
+      <arg name="mode" type="object" interface="kde_output_device_mode_v2" />
+    </event>
+    <event name="mode">
+      <arg name="mode" type="new_id" interface="kde_output_device_mode_v2" />
+    </event>
+    <event name="done">
+      </event>
+    <event name="scale">
+      <arg name="factor" type="fixed" summary="scaling factor of output" />
+    </event>
+    <event name="edid">
+      <arg name="raw" type="string" summary="base64-encoded EDID string" />
+    </event>
+    <event name="enabled">
+      <arg name="enabled" type="int" summary="output enabled state" />
+    </event>
+    <event name="uuid">
+      <arg name="uuid" type="string" summary="output devices ID" />
+    </event>
+    <event name="serial_number">
+      <arg name="serialNumber" type="string" summary="textual representation of serial number" />
+    </event>
+    <event name="eisa_id">
+      <arg name="eisaId" type="string" summary="textual representation of EISA identifier" />
+    </event>
+    <enum name="capability" bitfield="true">
+      <entry name="overscan" value="0x1" summary="if this output_device can use overscan" />
+      <entry name="vrr" value="0x2" summary="if this outputdevice supports variable refresh rate" />
+      <entry name="rgb_range" value="0x4" summary="if setting the rgb range is possible" />
+      <entry name="high_dynamic_range" value="0x8" since="3" summary="if this outputdevice supports high dynamic range" />
+      <entry name="wide_color_gamut" value="0x10" since="3" summary="if this outputdevice supports a wide color gamut" />
+      <entry name="auto_rotate" value="0x20" since="4" summary="if this outputdevice supports autorotation" />
+      <entry name="icc_profile" value="0x40" since="5" summary="if this outputdevice supports icc profiles" />
+      <entry name="brightness" value="0x80" since="9" summary="if this outputdevice supports the brightness setting" />
+      <entry name="built_in_color" value="0x100" since="12" summary="if this outputdevice supports the built-in color profile" />
+      <entry name="ddc_ci" value="0x200" since="14" summary="if this outputdevice supports DDC/CI" />
+      <entry name="max_bits_per_color" value="0x400" since="15" summary="if this outputdevice supports setting max bpc" />
+      <entry name="edr" value="0x800" since="16" summary="if this outputdevice supports EDR" />
+      <entry name="sharpness" value="0x1000" since="17" summary="if this outputdevice supports the sharpness setting" />
+      <entry name="custom_modes" value="0x2000" since="18" summary="if this outputdevice supports custom modes" />
+      <entry name="auto_brightness" value="0x4000" since="19" />
+      <entry name="hdr_icc_profile" value="0x8000" since="22" summary="if this outputdevice supports HDR ICC profiles" />
+      <entry name="abm_level" value="0x10000" since="23" summary="if this outputdevice supports the abm level setting" />
+      <entry name="disable" value="0x20000" since="25" summary="if this outputdevice supports being enabled/disabled" />
+    </enum>
+    <event name="capabilities">
+      <arg name="flags" type="uint" enum="capability" />
+    </event>
+    <event name="overscan">
+      <arg name="overscan" type="uint" summary="amount of overscan of the monitor" />
+    </event>
+    <enum name="vrr_policy">
+      <entry name="never" value="0" />
+      <entry name="always" value="1" />
+      <entry name="automatic" value="2" />
+    </enum>
+    <event name="vrr_policy">
+      <arg name="vrr_policy" type="uint" enum="vrr_policy" />
+    </event>
+    <enum name="rgb_range">
+      <entry name="automatic" value="0" />
+      <entry name="full" value="1" />
+      <entry name="limited" value="2" />
+    </enum>
+    <event name="rgb_range">
+      <arg name="rgb_range" type="uint" enum="rgb_range" />
+    </event>
+    <event name="name" since="2">
+      <arg name="name" type="string" />
+    </event>
+    <enum name="auto_rotate_policy">
+      <entry name="never" value="0" />
+      <entry name="in_tablet_mode" value="1" />
+      <entry name="always" value="2" />
+    </enum>
+    <enum name="color_power_tradeoff">
+      <entry name="efficiency" value="0" summary="prefer efficiency and performance" />
+      <entry name="accuracy" value="1" summary="prefer accuracy" />
+    </enum>
+  </interface>
+  <interface name="kde_output_device_mode_v2" version="1">
+    <event name="size">
+      <arg name="width" type="int" summary="width of the mode in hardware units" />
+      <arg name="height" type="int" summary="height of the mode in hardware units" />
+    </event>
+    <event name="refresh">
+      <arg name="refresh" type="int" summary="vertical refresh rate in mHz" />
+    </event>
+    <event name="preferred">
+      </event>
+    <event name="removed">
+      </event>
+    <enum name="flags">
+      <entry name="custom" value="0x1" />
+      <entry name="reduced_blanking" value="0x2" deprecated-since="24" />
+    </enum>
+  </interface>
+</protocol>

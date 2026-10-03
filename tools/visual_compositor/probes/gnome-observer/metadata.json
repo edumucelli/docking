@@ -1,0 +1,6 @@
+{
+  "uuid": "docking-visual-observer@docking.org",
+  "name": "Docking visual lab observer",
+  "description": "Read Mutter window frames in the private headless test session",
+  "shell-version": ["45", "46", "47", "48", "49", "50"]
+}

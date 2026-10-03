@@ -13,6 +13,47 @@ from PIL import Image, ImageDraw
 from tools.visual_compositor import compare, scenarios
 
 
+@pytest.mark.parametrize(
+    ("states", "tracked", "expected"),
+    [
+        ([False, True, False], True, True),
+        ([False, True, False], False, False),
+        ([False, False, False], True, False),
+        ([False, True, True], True, False),
+        ([True, True, False], True, False),
+    ],
+)
+def test_native_window_lifecycle_requires_compositor_and_app_evidence(
+    tmp_path, states, tracked, expected
+):
+    from tools.visual_compositor.behaviour import check_action
+
+    case = scenarios.WINDOW_CASES[0]
+    for phase, present in zip(("before", "opened", "closed"), states, strict=True):
+        windows = [{"title": "Lab probe"}] if present else []
+        (tmp_path / f"{case.name}.{phase}.windows.json").write_text(json.dumps(windows))
+    (tmp_path / f"{case.name}.opened.items.txt").write_text(
+        "(['lab-probe.desktop'],)" if tracked else "(@as [],)"
+    )
+    assert check_action(evidence=tmp_path, case=case, band={})[0] is expected
+
+
+@pytest.mark.parametrize("corrupt", ["missing", "[]", "(3,)", "not a variant"])
+def test_native_window_lifecycle_rejects_missing_or_invalid_evidence(tmp_path, corrupt):
+    from tools.visual_compositor.behaviour import check_action
+
+    case = scenarios.WINDOW_CASES[0]
+    for phase, windows in (
+        ("before", []),
+        ("opened", [{"title": "Lab probe"}]),
+        ("closed", []),
+    ):
+        (tmp_path / f"{case.name}.{phase}.windows.json").write_text(json.dumps(windows))
+    if corrupt != "missing":
+        (tmp_path / f"{case.name}.opened.items.txt").write_text(corrupt)
+    assert not check_action(evidence=tmp_path, case=case, band={})[0]
+
+
 @pytest.fixture
 def evidence(tmp_path, monkeypatch):
     case = scenarios.PLACEMENT_CASES[0]
@@ -218,7 +259,8 @@ grep -q 'height 40' "$SWAY_CONFIG"
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="adapter probe requires jq")
-def test_cosmic_probe_matches_the_production_backend(tmp_path):
+@pytest.mark.parametrize("window_tracking", [False, True])
+def test_cosmic_probe_matches_the_production_backend(tmp_path, window_tracking):
     from docking.platform.backends.wayland.cosmic_session import CosmicSessionBackend
 
     scripts = compare.REPO_ROOT / "tools" / "visual_compositor" / "adapters"
@@ -228,16 +270,18 @@ def test_cosmic_probe_matches_the_production_backend(tmp_path):
             "-c",
             """
 set -euo pipefail
-export LAB_DIR="$1"
+export LAB_DIR="$1" XDG_CONFIG_HOME="$1/config" LAB_WINDOW_PROBE="$3"
 source "$2/common.sh"
 source "$2/cosmic.sh"
 session_probe_json() { echo '{"layer_shell_supported":true,"gtk_display_is_wayland":true}'; }
+adapter_windows() { "$LAB_WINDOW_PROBE"; }
 adapter_prepare
 adapter_capabilities
 """,
             "review",
             str(tmp_path),
             str(scripts),
+            "true" if window_tracking else "false",
         ],
         capture_output=True,
         text=True,
@@ -246,6 +290,9 @@ adapter_capabilities
     caps = json.loads(completed.stdout)
     backend = CosmicSessionBackend.__new__(CosmicSessionBackend)
     assert caps["expected_backend"] == backend.name
+    assert caps["window_tracking"] is window_tracking
+    assert caps["window_actions"] is window_tracking
+    assert caps["workspace_switch"] is window_tracking
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="adapter probe requires jq")
@@ -403,3 +450,157 @@ def test_container_receives_actions_and_output_changes(tmp_path):
     assert records["output-removal"]["display_scene"] == "dual"
     assert records["hover-zoom"]["action"] == "zoom"
     assert records["hover-zoom"]["requires"] == "interactive"
+
+
+@pytest.mark.parametrize("offset", [(10, 10), (-15, 10), (90, 10), (10, -15), (10, 70)])
+def test_popup_oracle_rejects_clipping_on_every_edge(tmp_path, offset):
+    from tools.visual_compositor.popup_assertions import check_popup
+
+    case = scenarios.POPUP_CASES[0]
+    canvas = Image.new("RGB", (120, 90), (20, 46, 71))
+    template = Image.new("RGBA", (50, 35), (0, 0, 0, 255))
+    draw = ImageDraw.Draw(template)
+    draw.rectangle((4, 4, 20, 20), fill="white")
+    draw.rectangle((30, 9, 44, 29), fill="red")
+    canvas.save(tmp_path / f"{case.name}.resting.png")
+    canvas.paste(template, offset, template)
+    canvas.save(tmp_path / f"{case.name}.effect.png")
+    template.save(tmp_path / f"{case.name}.popup-template.png")
+    (tmp_path / f"{case.name}.popup.json").write_text(
+        json.dumps(
+            {
+                "popups": [
+                    {"class": "Window", "kind": "tooltip", "width": 50, "height": 35}
+                ]
+            }
+        )
+    )
+    assert check_popup(tmp_path, case)[0] is (offset == (10, 10))
+
+
+def test_popup_oracle_rejects_preexisting_pixels(tmp_path):
+    from tools.visual_compositor.popup_assertions import check_popup
+
+    case = scenarios.POPUP_CASES[0]
+    template = Image.new("RGBA", (50, 35), "black")
+    ImageDraw.Draw(template).rectangle((5, 5, 30, 20), fill="white")
+    canvas = Image.new("RGB", (120, 90), (20, 46, 71))
+    canvas.paste(template, (10, 10), template)
+    for phase in ("effect", "resting"):
+        canvas.save(tmp_path / f"{case.name}.{phase}.png")
+    template.save(tmp_path / f"{case.name}.popup-template.png")
+    (tmp_path / f"{case.name}.popup.json").write_text(
+        json.dumps(
+            {
+                "popups": [
+                    {"class": "Window", "kind": "tooltip", "width": 50, "height": 35}
+                ]
+            }
+        )
+    )
+    assert not check_popup(tmp_path, case)[0]
+
+
+@pytest.mark.parametrize(
+    "mutation", ["none", "native-minimized", "native-focus", "pid", "still-open"]
+)
+def test_backend_actions_require_native_confirmation(tmp_path, mutation):
+    from tools.visual_compositor.backend_assertions import check_events
+
+    case = next(c for c in scenarios.WINDOW_CASES if c.action == "window-actions")
+    events = []
+    for phase in ("opened", "minimized", "restored", "closed"):
+        window = {
+            "title": "Lab probe",
+            "minimized": phase == "minimized",
+            "active": phase == "restored",
+        }
+        windows = [] if phase == "closed" else [window]
+        events.append(
+            {
+                "phase": phase,
+                "app": {"pid": 123, "windows": windows},
+                "native_windows": [dict(w) for w in windows],
+            }
+        )
+    if mutation == "native-minimized":
+        events[1]["native_windows"][0]["minimized"] = False
+    elif mutation == "native-focus":
+        events[2]["native_windows"][0]["active"] = False
+    elif mutation == "pid":
+        events[2]["app"]["pid"] = 456
+    elif mutation == "still-open":
+        events[3]["native_windows"] = [{"title": "Lab probe"}]
+    (tmp_path / f"{case.name}.events.json").write_text(json.dumps(events))
+    assert check_events(tmp_path, case)[0] is (mutation == "none")
+
+
+@pytest.mark.parametrize(
+    "scene,scales,valid",
+    [
+        ("fractional", [1, 1], False),
+        ("fractional", [1.25, 1.25], True),
+        ("mixed-dpi", [1.25], False),
+        ("mixed-dpi", [1, 1], False),
+        ("mixed-dpi", [1.25, 1], True),
+    ],
+)
+def test_scaling_requires_actual_native_scale(evidence, scene, scales, valid):
+    from dataclasses import replace
+
+    case = replace(evidence.case, display_scene=scene)
+    evidence.record["outputs"] = [
+        dict(evidence.record["outputs"][0], scale=scale) for scale in scales
+    ]
+    (evidence.path / f"{case.name}.json").write_text(json.dumps(evidence.record))
+    result = compare.evaluate(
+        evidence_dir=evidence.path,
+        cases=[case],
+        out_dir=evidence.path / "diffs",
+        update=False,
+        compositor="cinnamon",
+        capabilities=evidence.caps,
+        run_meta=evidence.meta,
+        geometry_only=True,
+    )[0]
+    # Further geometric checks may reject synthetic scaled pixels; this check
+    # specifically establishes that unchanged/default scaling cannot pass.
+    assert ("native " in result.detail and "observed" in result.detail) is (not valid)
+
+
+@pytest.mark.parametrize("missing", [None, 0, 1, 2, 3])
+def test_output_calibration_requires_all_native_corners(tmp_path, missing):
+    from tools.visual_compositor.probes.output_calibration import measure_output
+
+    image = Image.new("RGB", (300, 200), "black")
+    colors = [(255, 0, 80), (0, 255, 80), (80, 0, 255), (255, 255, 0)]
+    corners = [(20, 30), (115, 30), (20, 105), (115, 105)]
+    draw = ImageDraw.Draw(image)
+    for index, (point, color) in enumerate(zip(corners, colors, strict=True)):
+        if index != missing:
+            x, y = point
+            draw.rectangle((x, y, x + 4, y + 4), fill=color)
+    args = (image.tobytes(), 900, 3, {"x": 0, "y": 0, "width": 200, "height": 150})
+    if missing is not None:
+        with pytest.raises(RuntimeError, match="marker"):
+            measure_output(*args)
+    else:
+        assert measure_output(*args) == {"x": 20, "y": 30, "width": 100, "height": 80}
+
+
+def test_calibration_markers_cannot_count_as_dock_pixels():
+    from tools.visual_compositor.probes.output_calibration import remove_markers
+
+    image = Image.new("RGB", (100, 80), (20, 46, 71))
+    colors = [(255, 0, 80), (0, 255, 80), (80, 0, 255), (255, 255, 0)]
+    draw = ImageDraw.Draw(image)
+    for (x, y), color in zip([(0, 0), (88, 0), (0, 68), (88, 68)], colors, strict=True):
+        draw.rectangle((x, y, x + 11, y + 11), fill=color)
+    rect = {"x": 0, "y": 0, "width": 100, "height": 80}
+    cleaned = remove_markers(image.tobytes(), 300, 3, rect)
+    assert cleaned == Image.new("RGB", image.size, (20, 46, 71)).tobytes()
+    draw.rectangle((25, 60, 75, 79), fill="white")
+    cleaned = Image.frombytes(
+        "RGB", image.size, remove_markers(image.tobytes(), 300, 3, rect)
+    )
+    assert cleaned.getpixel((50, 70)) == (255, 255, 255)

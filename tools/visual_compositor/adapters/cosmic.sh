@@ -59,26 +59,31 @@ _wait_new_socket() {
 }
 
 adapter_capabilities() {
-    local probe
+    local probe window_tracking=false
+    if adapter_windows >/dev/null 2>&1; then window_tracking=true; fi
     probe="$(session_probe_json)"
     cat <<JSON
 {
   "compositor": "cosmic",
   "expected_backend": "cosmic",
   "native_geometry": false,
+  "window_tracking": $window_tracking,
+  "window_actions": $window_tracking,
+  "workspace_switch": $window_tracking,
   "cosmic_overlap_supported": $(echo "$probe" | jq '.cosmic_overlap_supported // false'),
   "pointer": false,
   "placement": $(if [ "$(echo "$probe" | jq -r '.layer_shell_supported')" = true ]; then echo true; else echo false; fi),
   "screenshot_method": "grim",
   "gtk_display_is_wayland": $(echo "$probe" | jq -r '.gtk_display_is_wayland'),
   "layer_shell_supported": $(echo "$probe" | jq -r '.layer_shell_supported'),
-  "note": "cosmic nested inside a headless sway via COSMIC_BACKEND=winit; not yet executed"
+  "note": "cosmic nested inside a headless sway via COSMIC_BACKEND=winit; verified headlessly"
 }
 JSON
 }
 
 adapter_prepare() {
     export XDG_CURRENT_DESKTOP=COSMIC
+    export LAB_NATIVE_OBSERVER=cosmic
     export XDG_SESSION_TYPE=wayland
     export GDK_BACKEND=wayland
 
@@ -193,6 +198,11 @@ adapter_geometry() {
 }
 
 adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
+
+adapter_windows() {
+    PYTHONPATH="$(docking_source_pythonpath)" timeout 5 \
+        /usr/bin/python3 "$LAB_SCRIPTS/probes/toplevel_probe.py"
+}
 
 adapter_stop() {
     # Child first: the nested compositor is a client of the parent.

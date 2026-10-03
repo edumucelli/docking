@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from pathlib import Path
 
@@ -32,6 +33,40 @@ def check_action(*, evidence: Path, case, band: dict) -> tuple[bool, str]:
         return path
 
     try:
+        if case.action and case.action.startswith("popup-"):
+            from tools.visual_compositor.popup_assertions import check_popup
+
+            return check_popup(evidence, case)
+        if case.action in {"window-actions", "workspace-switch", "bridge-recovery"}:
+            from tools.visual_compositor.backend_assertions import check_events
+
+            return check_events(evidence, case)
+        if case.action == "window":
+            import ast
+
+            states = []
+            for name in ("before", "opened", "closed"):
+                windows = json.loads(
+                    (evidence / f"{case.name}.{name}.windows.json").read_text()
+                )
+                if not isinstance(windows, list) or not all(
+                    isinstance(w, dict) for w in windows
+                ):
+                    return False, f"invalid {name} compositor window evidence"
+                states.append(any(w.get("title") == "Lab probe" for w in windows))
+            text = (evidence / f"{case.name}.opened.items.txt").read_text()
+            items = ast.literal_eval(text.replace("@as ", ""))[0]
+            if not isinstance(items, list) or not all(
+                isinstance(item, str) for item in items
+            ):
+                return False, "invalid Docking window tracking evidence"
+            if "lab-probe.desktop" not in items:
+                return False, "Docking did not discover the native test window"
+            return states == [
+                False,
+                True,
+                False,
+            ], f"native window item lifecycle: {states}"
         if case.action in {"autohide", "dodge"}:
             visible = footprint(phase("revealed"), band)
             hidden = footprint(phase("hidden"), band)
@@ -96,5 +131,5 @@ def check_action(*, evidence: Path, case, band: dict) -> tuple[bool, str]:
             )
         minimum = 500 if case.action == "menu" else 80
         return changed >= minimum, f"{case.action}: {changed} pixels changed"
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, SyntaxError, TypeError, IndexError, KeyError) as exc:
         return False, f"interactive evidence: {exc}"

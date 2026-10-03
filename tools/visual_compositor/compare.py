@@ -524,6 +524,17 @@ def evaluate(
         if not outputs:
             results.append(Result(case.name, "fail", "no output geometry reported"))
             continue
+        scales = [o.get("scale", 1) for o in outputs]
+        if case.display_scene == "fractional" and not all(s == 1.25 for s in scales):
+            results.append(
+                Result(case.name, "fail", "native 125% scaling not observed")
+            )
+            continue
+        if case.display_scene == "mixed-dpi" and not (1.25 in scales and 1 in scales):
+            results.append(
+                Result(case.name, "fail", "native mixed 125%/100% outputs not observed")
+            )
+            continue
         # Identify the target output by name when the case gives one: compositor
         # enumeration order is not guaranteed to match connector numbering, so
         # an index can point at the wrong output and make a correct placement
@@ -613,6 +624,11 @@ def evaluate(
             },
             "crop": band["rect"],
         }
+        if compositor == "kwin":
+            scene["capture_calibration"] = "native-output-corners-v1"
+            scene["background"] = "#142e47"
+        if case.action and case.action.startswith("popup-"):
+            scene["popup_background"] = "#142e47"
         if capabilities.get("native_geometry") is True:
             frame_ok, frame_detail = check_native_frame(
                 frame=record.get("dock_rect"), output=output

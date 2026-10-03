@@ -89,5 +89,5 @@ def test_bounded_clamp_preserves_wayland_parent_relative_path(relative):
     popup, _ = _popup(relative=relative)
     result = clamp_popup(popup, -1400, 600, 400, 200, bounds=Rect(-1280, 28, 1280, 772))
     assert result == (
-        ScreenPosition(-120, -37) if relative else ScreenPosition(-1280, 600)
+        ScreenPosition(0, -37) if relative else ScreenPosition(-1280, 600)
     )

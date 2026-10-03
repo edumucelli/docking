@@ -247,8 +247,10 @@ start_docking() {
         # Source-over-vendored: bypass the installed launcher, whose own
         # PYTHONPATH prepending can still select installed code
         # (docs/HEADLESS_WAYLAND_TESTING.local.md:645-655).
+        export LAB_APP_SOCKET="$XDG_RUNTIME_DIR/lab-app.sock"
+        rm -f "$LAB_APP_SOCKET"
         PYTHONPATH="$(docking_source_pythonpath)" \
-            /usr/bin/python3 -c 'from docking.app import main; main()' \
+            /usr/bin/python3 "$LAB_SCRIPTS/probes/app_probe.py" "$LAB_APP_SOCKET" \
             >"$log_path" 2>&1 &
     fi
     ADAPTER_APP_PID=$!
