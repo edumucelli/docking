@@ -289,7 +289,6 @@ def test_config_load_existing_file_smoke(tmp_path):
 def test_about_dialog_controller_smoke(monkeypatch):
     about_mod = _import_about_module(monkeypatch)
     monkeypatch.setattr(about_mod, "Gtk", _fake_about_gtk())
-    monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
     controller = about_mod.AboutDialogController(parent=object())
 
     controller.show()

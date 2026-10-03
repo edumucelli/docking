@@ -16,8 +16,6 @@
 from __future__ import annotations
 
 import os
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 import gi
@@ -30,7 +28,6 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import targets
 
-PROJECT_VERSION_FALLBACK = docking_version
 PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
 PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
 PROJECT_WEBSITE_URL = "https://docking.cc"
@@ -79,13 +76,7 @@ class AboutDialogController:
         self._dialog = dialog
 
     def _project_version(self) -> str:
-        if docking_version:
-            return docking_version
-        try:
-            return pkg_version("docking")
-        except PackageNotFoundError as exc:
-            log.debug("Package metadata unavailable, using fallback version: %s", exc)
-            return PROJECT_VERSION_FALLBACK
+        return docking_version
 
     def _project_license_text(self) -> str:
         try:

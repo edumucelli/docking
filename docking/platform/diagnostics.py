@@ -22,8 +22,6 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from typing import TYPE_CHECKING, Literal
 
 from docking import __version__ as docking_version
@@ -594,12 +592,7 @@ def _redact_env_value(key: str, value: str) -> str:
 
 
 def _project_version() -> str:
-    if docking_version:
-        return docking_version
-    try:
-        return pkg_version("docking")
-    except PackageNotFoundError:
-        return "unknown"
+    return docking_version
 
 
 def _gtk_version() -> str:
