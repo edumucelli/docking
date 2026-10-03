@@ -8,6 +8,15 @@
 
 from __future__ import annotations
 
+from pywayland.protocol.wayland import WlOutput
+
+from docking.platform.backends.wayland.protocols.cosmic_workspace_v1 import (
+    ZcosmicWorkspaceHandleV1,
+)
+from docking.platform.backends.wayland.protocols.ext_workspace_v1 import (
+    ExtWorkspaceHandleV1,
+)
+
 from pywayland.protocol_core import (
     Argument,
     ArgumentType,
@@ -70,28 +79,28 @@ class ZcosmicToplevelHandleV1Resource(Resource):
         self._post_event(3, app_id)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=WlOutput),
     )
     def output_enter(self, output: object) -> None:
         """Toplevel entered an output."""
         self._post_event(4, output)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=WlOutput),
     )
     def output_leave(self, output: object) -> None:
         """Toplevel left an output."""
         self._post_event(5, output)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ZcosmicWorkspaceHandleV1),
     )
     def workspace_enter(self, workspace: object) -> None:
         """Toplevel entered a workspace (deprecated since v3)."""
         self._post_event(6, workspace)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ZcosmicWorkspaceHandleV1),
     )
     def workspace_leave(self, workspace: object) -> None:
         """Toplevel left a workspace (deprecated since v3)."""
@@ -109,7 +118,7 @@ class ZcosmicToplevelHandleV1Resource(Resource):
         self._post_event(8, state)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=WlOutput),
         Argument(ArgumentType.Int),
         Argument(ArgumentType.Int),
         Argument(ArgumentType.Int),
@@ -121,7 +130,7 @@ class ZcosmicToplevelHandleV1Resource(Resource):
         self._post_event(9, output, x, y, width, height)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ExtWorkspaceHandleV1),
         version=3,
     )
     def ext_workspace_enter(self, workspace: object) -> None:
@@ -129,7 +138,7 @@ class ZcosmicToplevelHandleV1Resource(Resource):
         self._post_event(10, workspace)
 
     @ZcosmicToplevelHandleV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ExtWorkspaceHandleV1),
         version=3,
     )
     def ext_workspace_leave(self, workspace: object) -> None:
