@@ -56,7 +56,7 @@ class AboutDialogController:
             destroy_with_parent=True,
         )
         dialog.set_program_name("Docking")
-        dialog.set_version(self._project_version())
+        dialog.set_version(docking_version)
         dialog.set_comments(
             "A lightweight, feature-rich dock for Linux written in Python "
             "with GTK 3 and Cairo."
@@ -74,9 +74,6 @@ class AboutDialogController:
         dialog.connect("hide", self._on_hide)
         dialog.show_all()
         self._dialog = dialog
-
-    def _project_version(self) -> str:
-        return docking_version
 
     def _project_license_text(self) -> str:
         try:
