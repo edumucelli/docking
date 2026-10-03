@@ -256,7 +256,7 @@ one with `DOCKING_BACKEND`.
 | **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
 | **Wayfire** | Wayfire Wayland | Dock placement (layer-shell), IPC window tracking and actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker |
 | **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
-| **Cinnamon Wayland** | Current Muffin | Dock placement plus read-only running, active, attention, geometry, and workspace state through Muffin's `org.cinnamon.Muffin.Debug.ListWindows` snapshot API. Muffin does not expose window actions, previews, or change signals, so Docking polls every two seconds |
+| **Cinnamon Wayland** | Cinnamon 6.4+ | Dock placement through Cinnamon's built-in shell API when layer-shell is unavailable, respecting panels and the selected monitor. Newer Muffin with layer-shell and `org.cinnamon.Muffin.Debug.ListWindows` also provides read-only window state. Window actions and previews remain unavailable |
 | **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
 | **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
 | **Native layer-shell** | Miriway | Dock placement, window actions, and workspaces when Docking is launched as a trusted Miriway shell component |
@@ -384,7 +384,11 @@ The first things to explore are:
 - **Folder stacks**: pin a folder and open it from the dock for quick access to
   its contents.
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend
-  support or preparing a support report.
+  support or preparing a support report. **Copy Report** or **Save Report...**
+  includes dock placement settings, monitor geometry and GDK-reported workareas,
+  architecture, and kernel version. Feature support is reported by the backend;
+  the report does not verify that each feature is working. Refresh after changing
+  settings before sharing a report with a bug report.
 
 ## Global Search
 

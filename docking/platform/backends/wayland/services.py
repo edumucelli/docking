@@ -139,7 +139,15 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             window,
             _enum_member(layer_shell, "KeyboardMode", "NONE"),
         )
-        self._set_anchors(Position.BOTTOM)
+        # Anchors are set by position_or_anchor, not here, and the ordering is
+        # load-bearing. gtk-layer-shell decides which axis of the committed size
+        # to leave to the compositor -- sending 0 for it -- from the anchors in
+        # effect when it first configures the surface. Anchoring here, before the
+        # position is known, fixes that choice to the wrong axis for a left or
+        # right dock, which then commits width 0: legal only on an axis anchored
+        # at both ends, and a protocol error otherwise. Placement always runs
+        # before the surface is mapped, so the real anchors reach the first
+        # commit.
 
     def on_realize(self, window: object) -> None:
         """Remember the realized GTK window and signal layer-surface readiness."""

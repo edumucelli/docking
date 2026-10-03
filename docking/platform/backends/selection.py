@@ -415,8 +415,10 @@ def _create_cinnamon_wayland_backend(
 ) -> SessionBackend | None:
     from docking.platform.backends.cinnamon.muffin import MuffinDebugClient
     from docking.platform.backends.cinnamon.session import (
+        CinnamonShellSessionBackend,
         CinnamonWaylandSessionBackend,
     )
+    from docking.platform.backends.cinnamon.shell import CinnamonShellClient
     from docking.platform.backends.wayland.services import (
         layer_shell_is_supported,
         load_gtk_layer_shell,
@@ -424,6 +426,11 @@ def _create_cinnamon_wayland_backend(
 
     layer_shell = load_gtk_layer_shell()
     if layer_shell is None or not layer_shell_is_supported(layer_shell):
+        shell = CinnamonShellClient.connect()
+        if shell is not None:
+            backend = CinnamonShellSessionBackend(client=shell)
+            log.info("Selected session backend: %s (%s)", backend.name, reason)
+            return backend
         return None
     client = MuffinDebugClient.connect()
     if client is None:

@@ -189,6 +189,13 @@ class TestBuildDockWindow:
         assert result.input_controller is components.input_controller
         assert result.search is components.search
         assert result.settings is components.settings
+        diagnostics_kwargs = factory_mod.DiagnosticsDialogController.call_args.kwargs
+        assert diagnostics_kwargs["config"] is config
+        config.additional_distance_from_edge = 3
+        window.theme = SimpleNamespace(distance_from_edge=5)
+        assert diagnostics_kwargs["edge_gap_provider"]() == 8
+        window.theme = SimpleNamespace(distance_from_edge=7)
+        assert diagnostics_kwargs["edge_gap_provider"]() == 10
         factory_mod.DockWindow.assert_called_once_with(
             config=config,
             model=model,

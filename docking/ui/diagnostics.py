@@ -15,7 +15,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -33,6 +35,9 @@ from docking.platform.diagnostics import (
     format_diagnostics_report,
 )
 
+if TYPE_CHECKING:
+    from docking.core.config import Config
+
 DIAGNOSTICS_WINDOW_WIDTH_PX = 720
 DIAGNOSTICS_WINDOW_HEIGHT_PX = 560
 WINDOW_BORDER_PX = 12
@@ -48,18 +53,24 @@ log = get_logger("diagnostics")
 class DiagnosticsDialogController:
     """Owns the runtime diagnostics window lifecycle."""
 
-    def __init__(self, *, parent: Gtk.Window, backend: object) -> None:
+    def __init__(
+        self,
+        *,
+        parent: Gtk.Window,
+        backend: object,
+        config: Config | None = None,
+        edge_gap_provider: Callable[[], int] | None = None,
+    ) -> None:
         self._parent = parent
         self._backend = backend
+        self._config = config
+        self._edge_gap_provider = edge_gap_provider
         self._window: Gtk.Window | None = None
         self._snapshot: DiagnosticsSnapshot | None = None
 
     def show(self) -> None:
         """Show diagnostics, rebuilding the snapshot on every open."""
-        self._snapshot = collect_diagnostics(
-            backend=self._backend,
-            display=self._parent.get_display(),
-        )
+        self._snapshot = self._collect_snapshot()
         if self._window is not None:
             self._window.destroy()
         self._window = self._build_window(self._snapshot)
@@ -170,6 +181,16 @@ class DiagnosticsDialogController:
     def _build_features_tab(self, snapshot: DiagnosticsSnapshot) -> Gtk.Widget:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=ROW_SPACING_PX)
         box.set_border_width(WINDOW_BORDER_PX)
+        note = Gtk.Label(
+            label=_(
+                "Features describe backend-reported support; "
+                "actual behavior has not been verified."
+            )
+        )
+        note.set_xalign(0.0)
+        note.set_line_wrap(True)
+        note.set_max_width_chars(LABEL_MAX_CHARS)
+        box.pack_start(note, False, False, 0)
         for feature in snapshot.features:
             box.pack_start(self._feature_row(feature), False, False, 0)
         return self._scrolled(box)
@@ -194,6 +215,8 @@ class DiagnosticsDialogController:
             [
                 (_("Python"), snapshot.python_version),
                 (_("GTK"), snapshot.gtk_version),
+                (_("Architecture"), snapshot.architecture),
+                (_("Kernel"), snapshot.kernel_version),
                 (_("Backend Class"), snapshot.backend_class),
                 (_("Wayland Session"), self._yes_no(snapshot.wayland_session)),
                 (_("X11 GTK Backend"), self._yes_no(snapshot.x11_backend)),
@@ -202,17 +225,33 @@ class DiagnosticsDialogController:
             self._append_kv_row(runtime, index, label, value)
         outer.pack_start(runtime, False, False, 0)
 
+        if snapshot.settings:
+            outer.pack_start(
+                self._new_section_header(_("Dock Settings")), False, False, 0
+            )
+            settings = self._new_kv_grid()
+            for index, (key, value) in enumerate(snapshot.settings.items()):
+                self._append_kv_row(settings, index, key, value)
+            outer.pack_start(settings, False, False, 0)
+
         outer.pack_start(self._new_section_header(_("Monitors")), False, False, 0)
         if snapshot.monitors:
             monitors = self._new_kv_grid()
             for index, monitor in enumerate(snapshot.monitors):
                 primary = _("primary") if monitor.primary else _("secondary")
                 name = f" ({monitor.name})" if monitor.name else ""
+                connector = f" [{monitor.connector}]" if monitor.connector else ""
                 self._append_kv_row(
                     monitors,
-                    index,
-                    f"#{monitor.index} {primary}{name}",
+                    index * 2,
+                    f"#{monitor.index} {primary}{name}{connector}",
                     f"{monitor.geometry}, scale {monitor.scale}",
+                )
+                self._append_kv_row(
+                    monitors,
+                    index * 2 + 1,
+                    f"#{monitor.index} " + _("GDK-reported workarea"),
+                    monitor.workarea or _("Unknown"),
                 )
             outer.pack_start(monitors, False, False, 0)
         else:
@@ -240,7 +279,7 @@ class DiagnosticsDialogController:
 
     def _feature_row(self, feature: DiagnosticFeature) -> Gtk.Widget:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=ROW_SPACING_PX)
-        icon = Gtk.Label(label="OK" if feature.available else "!")
+        icon = Gtk.Label(label="+" if feature.available else "!")
         icon.set_size_request(24, -1)
         icon.set_xalign(0.5)
         row.pack_start(icon, False, False, 0)
@@ -319,12 +358,17 @@ class DiagnosticsDialogController:
     def _current_report(self) -> str:
         snapshot = self._snapshot
         if snapshot is None:
-            snapshot = collect_diagnostics(
-                backend=self._backend,
-                display=self._parent.get_display(),
-            )
+            snapshot = self._collect_snapshot()
             self._snapshot = snapshot
         return format_diagnostics_report(snapshot)
+
+    def _collect_snapshot(self) -> DiagnosticsSnapshot:
+        return collect_diagnostics(
+            backend=self._backend,
+            display=self._parent.get_display(),
+            config=self._config,
+            edge_gap=self._edge_gap_provider() if self._edge_gap_provider else None,
+        )
 
     def _on_copy_report(self, *_args: object) -> None:
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)

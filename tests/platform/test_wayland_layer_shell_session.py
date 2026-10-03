@@ -357,9 +357,14 @@ def test_configure_before_realize_assigns_layer_shell_role():
     layer_shell.set_namespace.assert_called_once_with(window, "docking")
     layer_shell.set_layer.assert_called_once_with(window, "top-layer")
     layer_shell.set_keyboard_mode.assert_called_once_with(window, "no-keyboard")
-    layer_shell.set_anchor.assert_any_call(window, "bottom", True)
-    layer_shell.set_anchor.assert_any_call(window, "left", True)
-    layer_shell.set_anchor.assert_any_call(window, "right", True)
+    # Anchors are deliberately left alone here. gtk-layer-shell decides which
+    # axis of the committed size to leave to the compositor -- sending 0 -- from
+    # the anchors in effect when it first configures the surface. A bottom
+    # placeholder made it zero the width, which is a protocol error once
+    # placement re-anchors to left/right: niri kills the client for it, and sway
+    # and labwc accept it. Placement always runs before the surface is mapped,
+    # so the real anchors are set before the first commit.
+    layer_shell.set_anchor.assert_not_called()
 
 
 def test_position_or_anchor_maps_placement_to_layer_shell():

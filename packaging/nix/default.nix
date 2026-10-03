@@ -5,7 +5,7 @@ let
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
-  version = "2.13.9";
+  version = "2.15.0";
   format = "pyproject";
 
   src = ../..;
