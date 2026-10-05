@@ -40,13 +40,18 @@ WINDOWS_SCRIPT = """
     const Meta = imports.gi.Meta;
     // Older Muffin may focus our native GTK toplevel on pointer press despite
     // GTK's dock hints. Keep toggle/minimize tied to the last eligible app.
-    const focus = global.display.focus_window;
+    const focused = global.display.focus_window;
+    const focus = focused?.get_workspace() ? focused : null;
     const active = focus?.get_client_pid?.() === __DOCKING_PID__
         ? global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
-            .find(w => w.get_client_pid?.() !== __DOCKING_PID__ &&
+            .find(w => w.get_workspace() &&
+                       w.get_client_pid?.() !== __DOCKING_PID__ &&
                        !w.is_skip_taskbar() && !w.minimized)
         : focus;
     return global.get_window_actors().map(a => a.meta_window)
+        // Closing actors outlive their Wayland surface during animation.
+        // Muffin's get_client_pid() dereferences that surface without a guard.
+        .filter(w => w && w.get_workspace())
         .sort((a, b) => ((b.get_user_time() - a.get_user_time()) | 0) ||
                         b.get_stable_sequence() - a.get_stable_sequence())
         .map(w => {
@@ -167,6 +172,7 @@ class CinnamonShellClient:
             f"if (global._dockingWindowGeneration !== {json.dumps(parts[1])})"
             " return 'not_found';"
             "const w = global.get_window_actors().map(a => a.meta_window)"
+            ".filter(w => w && w.get_workspace())"
             f".find(w => w.get_stable_sequence() === {sequence});"
             "if (!w || w.is_skip_taskbar() || "
             f"w.get_client_pid?.() === {os.getpid()}) return 'not_found';"

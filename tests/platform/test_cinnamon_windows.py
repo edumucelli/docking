@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -244,3 +246,80 @@ def test_shell_actions_check_live_window_permissions(action):
     )
     script = proxy.call_sync.call_args.args[1].unpack()[0]
     assert f"!w.can_{action}()" in script
+
+
+@pytest.fixture
+def javascript_proxy():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("shell script execution requires Node.js")
+    # Muffin retains actors during closing animations, after their native
+    # surface is destroyed. Any native getter beyond get_workspace is unsafe.
+    setup = """
+const closing = new Proxy({get_workspace: () => null}, {
+    get(target, key) {
+        if (key in target) return target[key];
+        throw new Error('native getter on a destroyed Wayland surface: ' + key);
+    }
+});
+const live = {
+    get_workspace: () => ({index: () => 0}),
+    get_stable_sequence: () => 1, get_user_time: () => 0,
+    get_client_pid: () => 1, get_pid: () => 1,
+    get_frame_rect: () => ({x:0, y:0, width:400, height:300}),
+    get_window_type: () => 0, get_title: () => 'Firefox',
+    get_wm_class: () => 'firefox', get_wm_class_instance: () => 'firefox',
+    is_skip_taskbar: () => false
+};
+global._dockingWindowGeneration = 'shell-1';
+global.get_window_actors = () => [null, closing, live].map(meta_window => ({meta_window}));
+global.display = {focus_window: null, get_tab_list: () => [closing, live]};
+global.imports = {gi: {
+    GLib: {uuid_string_random: () => 'shell-1'},
+    Meta: {WindowType: {DESKTOP:1, DOCK:2}, TabList: {NORMAL_ALL:0}}
+}};
+"""
+
+    def proxy(focus="null"):
+        def call_sync(_method, parameters, *_args):
+            result = subprocess.run(
+                [
+                    node,
+                    "-e",
+                    setup
+                    + f"global.display.focus_window = {focus};"
+                    + "console.log(JSON.stringify(eval(process.argv[1])));",
+                    parameters.unpack()[0],
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5,
+            )
+            return SimpleNamespace(unpack=lambda: (True, result.stdout))
+
+        return SimpleNamespace(call_sync=call_sync)
+
+    return proxy
+
+
+@pytest.mark.parametrize("focus", ["null", "live", "closing"])
+def test_shell_snapshot_ignores_closing_actors_before_native_getters(
+    javascript_proxy, focus
+):
+    client = CinnamonShellClient(proxy=javascript_proxy(focus))
+    windows = client.list_windows()
+    assert not client.last_query_failed
+    assert len(windows) == 1
+    assert windows[0]["id"] == 1
+    assert windows[0]["focused"] is (focus == "live")
+
+
+def test_shell_action_rejects_closing_actors_before_native_getters(javascript_proxy):
+    client = CinnamonShellClient(proxy=javascript_proxy())
+    assert (
+        client.window_action(
+            WindowId(DisplayServer.WAYLAND, "cinnamon:shell-1:2"), "activate"
+        )
+        is ActionResult.NOT_FOUND
+    )
