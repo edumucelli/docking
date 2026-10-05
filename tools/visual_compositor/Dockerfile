@@ -181,11 +181,12 @@ RUN command -v cage
 FROM base AS cinnamon
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cinnamon \
+        xwayland \
         muffin \
         xvfb \
         xauth \
     && rm -rf /var/lib/apt/lists/*
-RUN command -v cinnamon && command -v muffin && command -v Xvfb
+RUN command -v cinnamon && command -v muffin && command -v Xvfb && command -v Xwayland
 # --nested and --wayland come from Muffin's option context, which cinnamon adds
 # to its own (cinnamon's src/main.c defines only --version). Assert they exist
 # rather than discovering it 10 minutes into a run.

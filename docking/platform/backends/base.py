@@ -489,6 +489,8 @@ class DesktopActionService(Service):
 class ScreenCaptureService(Service):
     """Screen color-picking operations."""
 
+    interactive = False
+
     @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
         """Pick a screen color in RGB byte values."""
@@ -504,6 +506,12 @@ class IdleService(Service):
 
 class WindowPickService(Service):
     """Window picking and process actions used by window-management applets."""
+
+    interactive = False
+
+    def select_window(self) -> WindowSnapshot | None:
+        """Run a compositor-owned selection UI, when interactive is true."""
+        return None
 
     @abstractmethod
     def pick_window_at(self, *, x: int, y: int) -> WindowSnapshot | None:

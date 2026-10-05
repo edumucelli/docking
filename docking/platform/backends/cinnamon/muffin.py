@@ -341,9 +341,12 @@ class MuffinWindowService(WindowService):
     def _excluded_reason(self, row: Mapping[str, Any]) -> WindowReason | None:
         return WindowReason.SKIP_TASKBAR if _bool(row, "skip-taskbar") else None
 
+    def _running_windows(self) -> Sequence[_MuffinWindow]:
+        return tuple(self._windows.values())
+
     def _publish_running(self) -> None:
         grouped: dict[str, list[RunningWindowInfo]] = {}
-        for window in self._windows.values():
+        for window in self._running_windows():
             if window.desktop_id is None:
                 continue
             grouped.setdefault(window.desktop_id, []).append(

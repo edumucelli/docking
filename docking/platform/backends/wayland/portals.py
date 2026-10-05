@@ -23,6 +23,8 @@ from docking.platform.backends.base import ScreenCaptureService
 class WaylandPortalColorPickerService(ScreenCaptureService):
     """ScreenCaptureService using XDG Desktop Portal PickColor."""
 
+    interactive = True
+
     def __init__(
         self, *, picker: Callable[[], tuple[float, float, float] | None]
     ) -> None:
