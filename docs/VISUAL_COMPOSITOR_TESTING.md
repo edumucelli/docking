@@ -25,20 +25,20 @@ matrix (`docs/VISUAL_TEST_MATRIX.md`) and the confirmed-issues list
 (`docs/WAYLAND_SUPPORT_ISSUES.md`). They overlapped heavily; the overlapping material now appears
 once, and the matrix's FAIL cells point at the numbered issues instead of restating them.
 
-## Current coverage (2026-10-03)
+## Current coverage (2026-10-05)
 
 The detailed matrix and numbered findings below retain the original 2026-10-02
 investigation. This section supersedes its older statements about unverified
 adapters, unavailable pointer input and missing display-change scenarios.
 
-The matrix now defines **32 cases** across placement, monitors, reservation,
-visibility, interaction, constrained layouts and live output changes. Capabilities
+The matrix now defines **33 cases** across placement, monitors, reservation,
+visibility, interaction, window switching, constrained layouts and live output changes. Capabilities
 are per adapter: this is not a claim that every case runs on every desktop.
 
 | Compositor | Verified route and scope | Current limitations |
 | --- | --- | --- |
 | Sway | Headless Pixman; placement, four-edge autohide, zoom, tooltip, menu, six layouts and three output transitions | Pixel geometry; no native layer-surface allocation query or native dodge service |
-| Cinnamon | Nested Wayland in private Xvfb; native frame and all six reservation cases | Older Muffin shell bridge; no native dodge service |
+| Cinnamon | Nested Wayland in private Xvfb; native frame, all six reservation cases and real window switching | Older Muffin shell bridge; no native dodge service |
 | Niri | Nested in headless Sway; five non-panel placement cases | Requires the vertical-edge startup fix in [#353](https://github.com/edumucelli/docking/pull/353); one nested output |
 | labwc | Headless wlroots; placement | No native dock-frame query |
 | COSMIC | Winit nested in headless Sway; native COSMIC placement on five cases | Overlap notification is probed at runtime; absent protocol makes dodge unsupported |
@@ -51,6 +51,7 @@ are per adapter: this is not a claim that every case runs on every desktop.
 
 ```bash
 # Geometry and behavior assertions without comparing a machine-specific baseline.
+bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
 bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
 bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
 bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
@@ -84,6 +85,15 @@ above the resting dock; cursor movement and icon highlighting cannot pass them.
 These checks establish popup appearance, not popup allocation or screen-edge
 containment. Each case also retains startup, backend, frame checks where available,
 settling and shutdown checks.
+
+The Cinnamon `windows` case covers issue #369 using real native GTK applications
+and dock clicks. It independently observes Cinnamon's window identities, counts,
+focus, minimized state and active workspace. It requires switching without
+duplicates, minimize/restore, activation across workspaces, intentional creation
+of a second window, switching with multiple windows, and normal client closure.
+Intermediate screenshots and `window-switching.windows.json` retain the evidence.
+The case requires verified pointer delivery and the shell window API, and runs
+in the Cinnamon CI lane alongside reservation tests.
 
 ### CI and image maintenance
 

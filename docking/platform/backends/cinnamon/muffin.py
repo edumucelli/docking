@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import gi
 
@@ -41,6 +41,12 @@ log = get_logger(name="backend.cinnamon.muffin")
 BUS_NAME = "org.cinnamon.Muffin.Debug"
 OBJECT_PATH = "/org/cinnamon/Muffin/Debug"
 INTERFACE = "org.cinnamon.Muffin.Debug"
+
+
+class WindowSnapshotClient(Protocol):
+    last_query_failed: bool
+
+    def list_windows(self) -> Sequence[Mapping[str, Any]]: ...
 
 
 class MuffinDebugClient:
@@ -95,6 +101,7 @@ class MuffinDebugClient:
 @dataclass(frozen=True)
 class _MuffinWindow:
     muffin_id: int
+    window_id: WindowId
     title: str
     app_id: str
     application_match: ApplicationMatch | None
@@ -103,13 +110,11 @@ class _MuffinWindow:
     geometry: Rect | None
     workspace_id: str | None
     pid: int | None
-
-    @property
-    def window_id(self) -> WindowId:
-        return WindowId(
-            backend=DisplayServer.WAYLAND,
-            value=f"muffin:{self.muffin_id}",
-        )
+    minimized: bool | None
+    maximized: bool | None
+    fullscreen: bool | None
+    can_minimize: bool
+    can_close: bool
 
     @property
     def desktop_id(self) -> str | None:
@@ -123,13 +128,16 @@ class _MuffinWindow:
 class MuffinWindowService(WindowService):
     """Poll Muffin snapshots without claiming unsupported window actions."""
 
+    poll_interval_ms = 2000
+    query_name = "Muffin"
+
     def __init__(
         self,
         *,
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        client: MuffinDebugClient,
+        client: WindowSnapshotClient,
     ) -> None:
         self._model = model
         self._application_registry = application_registry
@@ -146,8 +154,10 @@ class MuffinWindowService(WindowService):
         self._poll_source_id = 0
 
     def start(self) -> None:
+        if self._poll_source_id:
+            return
         self.refresh()
-        self._poll_source_id = GLib.timeout_add_seconds(2, self._poll)
+        self._poll_source_id = GLib.timeout_add(self.poll_interval_ms, self._poll)
 
     def stop(self) -> None:
         if self._poll_source_id:
@@ -167,14 +177,12 @@ class MuffinWindowService(WindowService):
         for row in self._client.list_windows():
             window = self._window_from_row(row)
             record = self._last_window_diagnostic
-            if window is not None and _bool(row, "skip-taskbar"):
-                record = replace(
-                    record, outcome="excluded", reason=WindowReason.SKIP_TASKBAR
-                )
+            excluded = self._excluded_reason(row)
+            if window is not None and excluded is not None:
+                record = replace(record, outcome="excluded", reason=excluded)
             records.append(record)
-            if window is not None and not _bool(row, "skip-taskbar"):
+            if window is not None and excluded is None:
                 windows[window.muffin_id] = window
-        self._windows = windows
         failed = self._client.last_query_failed
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="failed" if failed else "available",
@@ -182,11 +190,16 @@ class MuffinWindowService(WindowService):
             registry_generation=discovery.generation,
             application_discovery=discovery,
             windows=tuple(records),
-            detail="Muffin window query failed."
+            detail=f"{self.query_name} window query failed."
             if failed
             else "Last window tracking scan.",
         )
-        self._publish_running()
+        # A failed query is not evidence that every application has closed.
+        # Preserve the last known running state so a transient timeout cannot
+        # turn a focus click into another launch.
+        if not failed:
+            self._windows = windows
+            self._publish_running()
 
     def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
         return self._tracking_diagnostic
@@ -237,7 +250,8 @@ class MuffinWindowService(WindowService):
 
     def _window_from_row(self, row: Mapping[str, Any]) -> _MuffinWindow | None:
         muffin_id = _int(row, "id")
-        if muffin_id is None:
+        window_id = self._window_id(row, muffin_id) if muffin_id is not None else None
+        if muffin_id is None or window_id is None:
             self._last_window_diagnostic = WindowDiagnostic(
                 outcome="error", reason=WindowReason.INVALID_WINDOW_ID
             )
@@ -270,7 +284,7 @@ class MuffinWindowService(WindowService):
             attempt = self._matcher.match_attempt("", process_id=pid)
         self._last_window_diagnostic = with_match(
             WindowDiagnostic(
-                window_id=f"wayland:muffin:{muffin_id}",
+                window_id=str(window_id),
                 identities=tuple(
                     (key, value)
                     for key in (
@@ -301,6 +315,7 @@ class MuffinWindowService(WindowService):
         )
         return _MuffinWindow(
             muffin_id=muffin_id,
+            window_id=window_id,
             title=_text(row, "title") or "Window",
             app_id=app_id,
             application_match=match,
@@ -313,7 +328,18 @@ class MuffinWindowService(WindowService):
                 else None
             ),
             pid=pid,
+            minimized=_bool(row, "minimized") if "minimized" in row else None,
+            maximized=_bool(row, "maximized") if "maximized" in row else None,
+            fullscreen=_bool(row, "fullscreen") if "fullscreen" in row else None,
+            can_minimize=_bool(row, "can-minimize"),
+            can_close=_bool(row, "can-close"),
         )
+
+    def _window_id(self, row: Mapping[str, Any], sequence: int) -> WindowId | None:
+        return WindowId(backend=DisplayServer.WAYLAND, value=f"muffin:{sequence}")
+
+    def _excluded_reason(self, row: Mapping[str, Any]) -> WindowReason | None:
+        return WindowReason.SKIP_TASKBAR if _bool(row, "skip-taskbar") else None
 
     def _publish_running(self) -> None:
         grouped: dict[str, list[RunningWindowInfo]] = {}
@@ -353,6 +379,9 @@ class MuffinWindowService(WindowService):
             urgent=window.urgent,
             geometry=window.geometry,
             workspace_id=window.workspace_id,
+            minimized=window.minimized,
+            maximized=window.maximized,
+            fullscreen=window.fullscreen,
         )
 
     def _unsupported_or_missing(self, window_id: WindowId) -> ActionResult:

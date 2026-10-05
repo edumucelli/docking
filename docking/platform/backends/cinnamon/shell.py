@@ -1,14 +1,16 @@
-"""Dock placement through Cinnamon's built-in shell API on older Muffin releases.
+"""Dock placement and window control through Cinnamon's built-in shell API.
 
 Cinnamon 6.4/6.6 lack layer-shell. Native GTK movement is ignored there, but
 org.Cinnamon.Eval can ask Muffin to move our own window. A unique window title
-identifies the dock: those releases do not expose native Wayland client PIDs.
+identifies the dock independently of client PID availability.
 """
 
 from __future__ import annotations
 
 import json
-from typing import cast
+import os
+from collections.abc import Mapping, Sequence
+from typing import Any, cast
 from uuid import uuid4
 
 import gi
@@ -19,14 +21,66 @@ from gi.repository import Gio, GLib
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.backends.base import (
+    ActionResult,
+    DisplayServer,
     MonitorSnapshot,
     PlacementRequest,
     Rect,
     ReservationRequest,
+    WindowId,
 )
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 
 log = get_logger(name="backend.cinnamon.shell")
+
+WINDOWS_SCRIPT = """
+(() => {
+    const generation = global._dockingWindowGeneration ||=
+        imports.gi.GLib.uuid_string_random();
+    const Meta = imports.gi.Meta;
+    // Older Muffin may focus our native GTK toplevel on pointer press despite
+    // GTK's dock hints. Keep toggle/minimize tied to the last eligible app.
+    const focus = global.display.focus_window;
+    const active = focus?.get_client_pid?.() === __DOCKING_PID__
+        ? global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
+            .find(w => w.get_client_pid?.() !== __DOCKING_PID__ &&
+                       !w.is_skip_taskbar() && !w.minimized)
+        : focus;
+    return global.get_window_actors().map(a => a.meta_window)
+        .sort((a, b) => ((b.get_user_time() - a.get_user_time()) | 0) ||
+                        b.get_stable_sequence() - a.get_stable_sequence())
+        .map(w => {
+            const read = (method, fallback) => {
+                try { return typeof w[method] === 'function' ? w[method]() : fallback; }
+                catch (_) { return fallback; }
+            };
+            const r = w.get_frame_rect();
+            const workspace = w.get_workspace();
+            const clientPid = read('get_client_pid', 0);
+            const type = w.get_window_type();
+            return {
+                id: w.get_stable_sequence(), generation, title: w.get_title(),
+                'wm-class': w.get_wm_class(),
+                'wm-class-instance': w.get_wm_class_instance(),
+                'gtk-application-id': read('get_gtk_application_id', ''),
+                'sandboxed-app-id': read('get_sandboxed_app_id', ''),
+                pid: clientPid > 0 ? clientPid : read('get_pid', -1),
+                focused: w === active,
+                'demands-attention': !!w.demands_attention || !!w.urgent,
+                'skip-taskbar': w.is_skip_taskbar(),
+                'desktop-or-dock': type === Meta.WindowType.DESKTOP ||
+                                   type === Meta.WindowType.DOCK,
+                minimized: !!w.minimized,
+                maximized: !!w.maximized_horizontally && !!w.maximized_vertically,
+                fullscreen: !!w.fullscreen,
+                'can-minimize': read('can_minimize', true),
+                'can-close': read('can_close', true),
+                workspace: workspace ? workspace.index() : null,
+                'frame-rect': [r.x, r.y, r.width, r.height]
+            };
+        });
+})()
+"""
 
 
 class CinnamonShellClient:
@@ -34,6 +88,7 @@ class CinnamonShellClient:
 
     def __init__(self, *, proxy: Gio.DBusProxy) -> None:
         self._proxy = proxy
+        self.last_query_failed = False
 
     @classmethod
     def connect(cls) -> CinnamonShellClient | None:
@@ -67,6 +122,62 @@ class CinnamonShellClient:
         except Exception as exc:
             log.debug("Cinnamon shell request failed: %s", exc)
             return None
+
+    def list_windows(self) -> Sequence[Mapping[str, Any]]:
+        result = self._eval(WINDOWS_SCRIPT.replace("__DOCKING_PID__", str(os.getpid())))
+        self.last_query_failed = not isinstance(result, list)
+        if not isinstance(result, list):
+            return ()
+        return tuple(row for row in result if isinstance(row, Mapping))
+
+    def window_action(self, window_id: WindowId, action: str) -> ActionResult:
+        """Resolve a live sequence in the same shell generation before acting."""
+        scripts = {
+            "activate": (
+                "imports.ui.main.activateWindow(w, global.get_current_time(),"
+                " w.get_workspace()?.index())"
+            ),
+            "minimize": (
+                "if (typeof w.can_minimize === 'function' && !w.can_minimize())"
+                " return 'unsupported'; w.minimize()"
+            ),
+            "close": (
+                "if (typeof w.can_close === 'function' && !w.can_close())"
+                " return 'unsupported'; w.delete(global.get_current_time())"
+            ),
+        }
+        if action not in scripts:
+            return ActionResult.UNSUPPORTED
+        if window_id.backend is not DisplayServer.WAYLAND:
+            return ActionResult.NOT_FOUND
+        parts = str(window_id.value).split(":")
+        if (
+            len(parts) != 3
+            or parts[0] != "cinnamon"
+            or not parts[1]
+            or not parts[2].isascii()
+            or not parts[2].isdigit()
+        ):
+            return ActionResult.NOT_FOUND
+        sequence = int(parts[2])
+        if sequence <= 0:
+            return ActionResult.NOT_FOUND
+        result = self._eval(
+            "(() => {"
+            f"if (global._dockingWindowGeneration !== {json.dumps(parts[1])})"
+            " return 'not_found';"
+            "const w = global.get_window_actors().map(a => a.meta_window)"
+            f".find(w => w.get_stable_sequence() === {sequence});"
+            "if (!w || w.is_skip_taskbar() || "
+            f"w.get_client_pid?.() === {os.getpid()}) return 'not_found';"
+            + scripts[action]
+            + "; return 'ok'; })()"
+        )
+        log.debug("Window %s action %s: %s", window_id, action, result)
+        return next(
+            (value for value in ActionResult if value.value == result),
+            ActionResult.FAILED,
+        )
 
     def workarea(
         self, monitor: MonitorSnapshot, *, exclude_title: str | None = None

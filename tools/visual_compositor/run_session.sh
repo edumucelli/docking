@@ -71,7 +71,7 @@ start_lab_panel
 source "$HERE/input.sh"
 start_lab_input
 adapter_capabilities | jq --argjson input "$LAB_INPUT_SUPPORTED" \
-    '.pointer = $input | .interactive = ($input and .placement) | .dodge = ($input and (.expected_backend == "wayfire" or (.expected_backend == "cosmic" and .cosmic_overlap_supported == true)))' \
+    '.pointer = $input | .interactive = ($input and .placement) | .window_actions = ($input and (.window_actions // false)) | .dodge = ($input and (.expected_backend == "wayfire" or (.expected_backend == "cosmic" and .cosmic_overlap_supported == true)))' \
     >"$EVIDENCE_DIR/capabilities.json"
 record_import_origin "$EVIDENCE_DIR/import-origin.txt"
 adapter_geometry >"$EVIDENCE_DIR/outputs.json"
@@ -132,6 +132,19 @@ run_case() {
 
     mkdir -p "$config_dir"
     echo "$case_json" | jq '.overrides' >"$config_dir/dock.json"
+
+    if [ "$(echo "$case_json" | jq -r '.action // empty')" = window-switching ]; then
+        for app in alpha beta; do
+            cat >"$XDG_DATA_HOME/applications/lab-$app.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Lab $app
+Exec=/usr/bin/python3 $HERE/probes/cinnamon_window_probe.py --client $app
+StartupWMClass=lab-$app
+Icon=application-x-executable
+EOF
+        done
+    fi
 
     log_adapter "case: $name"
     if declare -F adapter_scene >/dev/null; then

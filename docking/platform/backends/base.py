@@ -252,6 +252,9 @@ class Service(ABC):
 class WindowService(Service):
     """Taskbar/window state and window actions."""
 
+    def refresh(self) -> None:
+        """Refresh polled state before launching; event-driven services need no scan."""
+
     def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
         """Read captured evidence without enumerating windows or changing state."""
         return WindowTrackingDiagnostic()

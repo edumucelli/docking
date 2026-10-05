@@ -378,6 +378,28 @@ class TestButtonReleaseFlow:
         assert item.last_launched == 1515
         stub.hover.start_anim_pump.assert_called_once_with(700)
 
+    def test_click_refreshes_running_state_before_launching(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=False)
+        stub, _ = _make_stub(item=item)
+        stub.window_tracker.refresh.side_effect = lambda: setattr(
+            item, "is_running", True
+        )
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        controller = _controller(stub)
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        stub.window_tracker.refresh.assert_called_once_with()
+        stub.window_tracker.toggle_focus.assert_called_once_with("firefox.desktop")
+        controller._application_launcher.launch.assert_not_called()
+        controller._application_launcher.launch_new_window.assert_not_called()
+        assert item.last_launched == 0
+
     def test_middle_click_new_window_launches_running_app(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)

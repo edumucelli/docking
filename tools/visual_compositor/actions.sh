@@ -8,7 +8,10 @@ run_lab_action() {
     width="$(echo "$geometry" | jq '.width')"; height="$(echo "$geometry" | jq '.height')"
     lab_pointer "$((x+width/2))" "$((y+height/2))"
     sleep 1.5
-    if [ "$action" = autohide ]; then
+    if [ "$action" = window-switching ]; then
+        PYTHONPATH="$(docking_source_pythonpath)" /usr/bin/python3 \
+            "$LAB_SCRIPTS/probes/cinnamon_window_probe.py" "$EVIDENCE_DIR" "$name"
+    elif [ "$action" = autohide ]; then
         # Exercise a real enter/leave transition before measuring hiding.
         case "$edge" in
             bottom) lab_pointer "$((x+width/2))" "$((y+height-1))" ;;

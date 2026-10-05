@@ -188,15 +188,23 @@ def test_report_uses_scan_inventory_after_registry_changes(tmp_path, monkeypatch
     assert "PRIVATE" not in report
 
 
-def test_cinnamon_shell_reports_unsupported_tracking():
-    from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
+def test_cinnamon_shell_reports_pending_tracking_without_querying_shell():
+    from unittest.mock import MagicMock
 
-    backend = CinnamonShellSessionBackend(client=SimpleNamespace())
+    from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
+    from tests.platform.application_fakes import identity_services
+
+    client = SimpleNamespace(list_windows=MagicMock())
+    backend = CinnamonShellSessionBackend(
+        client=client, model=MagicMock(), **identity_services()
+    )
     snapshot = collect_diagnostics(
         backend=backend, application_registry=ApplicationRegistry()
     )
-    assert snapshot.window_tracking.status == "unsupported"
-    assert "does not track running windows" in format_diagnostics_report(snapshot)
+    assert snapshot.window_tracking.status == "pending"
+    assert backend.capabilities.tracks_windows
+    assert backend.capabilities.supports_activate
+    client.list_windows.assert_not_called()
 
 
 def test_match_diagnostics_omit_full_launcher_arguments():

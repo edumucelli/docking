@@ -246,7 +246,10 @@ def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
     assert backend.display_server is DisplayServer.WAYLAND
     assert backend.capabilities.supports_layer_shell is False
     assert backend.capabilities.supports_screen_reservation is True
-    assert backend.capabilities.tracks_windows is False
+    assert backend.capabilities.tracks_windows is True
+    assert backend.capabilities.supports_activate is True
+    assert backend.capabilities.supports_minimize is True
+    assert backend.capabilities.supports_close is True
 
 
 def test_selection_retains_fallback_when_cinnamon_api_is_unavailable(monkeypatch):
@@ -262,8 +265,10 @@ def test_selection_retains_fallback_when_cinnamon_api_is_unavailable(monkeypatch
     )
 
 
-def test_selection_prefers_layer_shell_on_newer_muffin(monkeypatch):
-    layer_shell = object()
+def test_selection_uses_shell_windows_with_layer_shell_on_newer_muffin(monkeypatch):
+    from tests.platform.test_cinnamon_wayland import _layer_shell
+
+    layer_shell = _layer_shell()
     monkeypatch.setattr(
         "docking.platform.backends.wayland.services.load_gtk_layer_shell",
         lambda: layer_shell,
@@ -274,13 +279,47 @@ def test_selection_prefers_layer_shell_on_newer_muffin(monkeypatch):
     )
     shell_connect = MagicMock()
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", shell_connect)
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.session.WaylandProtocolRuntime.start",
+        lambda _: False,
+    )
     from docking.platform.backends.cinnamon.muffin import MuffinDebugClient
 
     monkeypatch.setattr(MuffinDebugClient, "connect", lambda: None)
-    assert (
-        selection._create_cinnamon_wayland_backend(
-            model=MagicMock(), reason="native Wayland", **identity_services()
-        )
-        is None
+    backend = selection._create_cinnamon_wayland_backend(
+        model=MagicMock(), reason="native Wayland", **identity_services()
     )
-    shell_connect.assert_not_called()
+    assert backend is not None
+    assert backend.name == "cinnamon-wayland"
+    assert backend.capabilities.supports_layer_shell
+    assert backend.capabilities.supports_activate
+    shell_connect.assert_called_once()
+
+
+def test_selection_retains_read_only_muffin_when_shell_is_unavailable(monkeypatch):
+    from docking.platform.backends.cinnamon.muffin import (
+        MuffinDebugClient,
+        MuffinWindowService,
+    )
+    from tests.platform.test_cinnamon_wayland import _layer_shell
+
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.load_gtk_layer_shell", _layer_shell
+    )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.layer_shell_is_supported",
+        lambda _: True,
+    )
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.session.WaylandProtocolRuntime.start",
+        lambda _: False,
+    )
+    monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: None)
+    monkeypatch.setattr(MuffinDebugClient, "connect", lambda: MagicMock())
+    backend = selection._create_cinnamon_wayland_backend(
+        model=MagicMock(), reason="native Wayland", **identity_services()
+    )
+    assert backend is not None
+    assert type(backend.windows) is MuffinWindowService
+    assert backend.capabilities.tracks_windows
+    assert not backend.capabilities.supports_activate

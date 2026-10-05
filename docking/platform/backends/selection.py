@@ -425,20 +425,28 @@ def _create_cinnamon_wayland_backend(
     )
 
     layer_shell = load_gtk_layer_shell()
+    shell = CinnamonShellClient.connect()
     if layer_shell is None or not layer_shell_is_supported(layer_shell):
-        shell = CinnamonShellClient.connect()
         if shell is not None:
-            backend = CinnamonShellSessionBackend(client=shell)
+            backend = CinnamonShellSessionBackend(
+                client=shell,
+                model=model,
+                **_identity_arguments(
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                ),
+            )
             log.info("Selected session backend: %s (%s)", backend.name, reason)
             return backend
         return None
-    client = MuffinDebugClient.connect()
-    if client is None:
+    client = MuffinDebugClient.connect() if shell is None else None
+    if client is None and shell is None:
         return None
     backend = CinnamonWaylandSessionBackend(
         layer_shell=layer_shell,
         model=model,
         client=client,
+        shell_client=shell,
         **_identity_arguments(
             application_registry=application_registry,
             process_identity_service=process_identity_service,

@@ -476,6 +476,8 @@ class DockInputController:
             if event.state & Gdk.ModifierType.CONTROL_MASK:
                 action = MiddleClickAction.NEW_WINDOW.value
 
+            if not item.is_running and action != MiddleClickAction.NEW_WINDOW.value:
+                window.window_tracker.refresh()
             if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
                 item.last_launched = now
                 if action == MiddleClickAction.NEW_WINDOW.value:

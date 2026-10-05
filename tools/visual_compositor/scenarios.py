@@ -246,6 +246,15 @@ INTERACTION_CASES = [
         action="menu",
     ),
 ]
+WINDOW_CASES = [
+    Case(
+        "window-switching",
+        "windows",
+        {**BASE_CONFIG, "tooltips_enabled": False},
+        requires="window_actions",
+        action="window-switching",
+    ),
+]
 LAYOUT_CASES = [
     Case(
         "layout-narrow",
@@ -357,6 +366,7 @@ ALL_CASES = (
     + VISIBILITY_CASES
     + RESERVATION_CASES
     + INTERACTION_CASES
+    + WINDOW_CASES
     + LAYOUT_CASES
     + DISPLAY_CASES
 )
@@ -367,6 +377,7 @@ BEHAVIORS = {
     "visibility": VISIBILITY_CASES,
     "reservation": RESERVATION_CASES,
     "interaction": INTERACTION_CASES,
+    "windows": WINDOW_CASES,
     "layouts": LAYOUT_CASES,
     "displays": DISPLAY_CASES,
 }

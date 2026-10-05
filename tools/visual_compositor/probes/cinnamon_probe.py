@@ -200,6 +200,7 @@ def capabilities() -> int:
             "native_geometry": True,
             "pointer": False,
             "placement": native or shell,
+            "window_actions": shell,
             "reservation_probe": True,
             "unsupported_reasons": reasons,
             "screenshot_method": "org.Cinnamon.Screenshot",

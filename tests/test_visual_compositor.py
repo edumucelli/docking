@@ -10,7 +10,97 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image, ImageDraw
 
-from tools.visual_compositor import compare, scenarios
+from tools.visual_compositor import behaviour, compare, scenarios
+
+
+@pytest.fixture
+def window_evidence(tmp_path):
+    def state(alpha=1, beta=1, focused=None, minimized=False, workspace=0):
+        return {
+            "active_workspace": workspace,
+            "windows": [
+                {
+                    "id": index + (1 if app == "lab-alpha" else 100),
+                    "app": app,
+                    "focused": app == focused and index == 0,
+                    "minimized": minimized and app == "lab-alpha",
+                    "workspace": workspace,
+                }
+                for app, count in [("lab-alpha", alpha), ("lab-beta", beta)]
+                for index in range(count)
+            ],
+        }
+
+    report = {
+        "gtk_display_is_wayland": True,
+        "phases": {
+            "launched": state(beta=0),
+            "other-app": state(focused="lab-beta"),
+            "switched": state(focused="lab-alpha"),
+            "minimized": state(minimized=True),
+            "restored": state(focused="lab-alpha"),
+            "workspace": state(focused="lab-alpha", workspace=1),
+            "multiple": state(alpha=2),
+            "multiple-switched": state(alpha=2, focused="lab-alpha"),
+            "closed": state(alpha=0, beta=0),
+        },
+    }
+    path = tmp_path / "window-switching.windows.json"
+
+    def check():
+        path.write_text(json.dumps(report))
+        return behaviour.check_action(
+            evidence=tmp_path, case=scenarios.WINDOW_CASES[0], band={}
+        )
+
+    return SimpleNamespace(report=report, check=check)
+
+
+def test_real_window_switching_accepts_complete_compositor_evidence(window_evidence):
+    assert window_evidence.check()[0]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing-phase",
+        "duplicate",
+        "focus",
+        "minimize",
+        "restore",
+        "workspace",
+        "replacement",
+        "wrong-workspace",
+        "x11",
+        "close",
+    ],
+)
+def test_real_window_switching_rejects_incomplete_or_wrong_effects(
+    window_evidence, failure
+):
+    report = window_evidence.report
+    phases = report["phases"]
+    if failure == "missing-phase":
+        phases.pop("switched")
+    elif failure == "duplicate":
+        phases["switched"]["windows"].append(dict(phases["switched"]["windows"][0]))
+    elif failure == "focus":
+        phases["switched"]["windows"][0]["focused"] = False
+    elif failure == "minimize":
+        phases["minimized"]["windows"][0]["minimized"] = False
+    elif failure == "restore":
+        phases["restored"]["windows"][0]["minimized"] = True
+    elif failure == "workspace":
+        phases["workspace"]["active_workspace"] = 0
+    elif failure == "replacement":
+        phases["switched"]["windows"][0]["id"] = 42
+    elif failure == "wrong-workspace":
+        phases["workspace"]["windows"][0]["workspace"] = 0
+    elif failure == "x11":
+        report["gtk_display_is_wayland"] = False
+    else:
+        phases["closed"]["windows"] = phases["launched"]["windows"]
+    assert not window_evidence.check()[0]
 
 
 @pytest.fixture
