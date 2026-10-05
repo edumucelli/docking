@@ -182,6 +182,7 @@ from docking.platform.backends.diagnostics import (
     WindowTrackingDiagnostic,
     with_match,
 )
+from docking.platform.backends.x11.impl.identity_hints import X11IdentityHintReader
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
 # so only add it to the catch tuple when it actually is one.
@@ -333,6 +334,7 @@ class WindowTracker:
         self._model = model
         self._config = config
         self._application_registry = application_registry
+        self._identity_hint_reader = X11IdentityHintReader()
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="pending", detail="No window tracking scan has completed."
         )
@@ -472,13 +474,15 @@ class WindowTracker:
             else None
         )
         records: list[WindowDiagnostic] = []
+        discovery = self._application_registry.diagnostic_snapshot()
         try:
             windows = list(self._iter_tasklist_windows(diagnostics=records))
         except Exception:
             self._tracking_diagnostic = WindowTrackingDiagnostic(
                 status="failed",
                 scanned_at=datetime.now(tz=timezone.utc),
-                registry_generation=self._application_registry.generation,
+                registry_generation=discovery.generation,
+                application_discovery=discovery,
                 windows=tuple(records),
                 detail="X11 window enumeration failed.",
             )
@@ -504,6 +508,11 @@ class WindowTracker:
                 workspace=self._diagnostic_workspace(window),
             )
             if match is None:
+                try:
+                    hints = self._identity_hint_reader.read(int(window.get_xid()))
+                except _GEOMETRY_ERRORS:
+                    hints = ()
+                record = replace(record, identity_hints=hints)
                 records.append(record)
                 continue
             desktop_id = match.desktop_id
@@ -540,7 +549,8 @@ class WindowTracker:
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="available",
             scanned_at=datetime.now(tz=timezone.utc),
-            registry_generation=self._application_registry.generation,
+            registry_generation=discovery.generation,
+            application_discovery=discovery,
             windows=tuple(records),
             detail="Last completed window tracking scan.",
         )

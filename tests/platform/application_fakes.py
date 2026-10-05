@@ -10,6 +10,7 @@ from docking.platform.applications.identity import (
 )
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import (
+    ApplicationDiscoveryDiagnostic,
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
@@ -142,6 +143,15 @@ class ApplicationRegistryStub:
     """Registry lookup surface needed by the canonical matcher."""
 
     generation = 1
+
+    def diagnostic_snapshot(self) -> ApplicationDiscoveryDiagnostic:
+        return ApplicationDiscoveryDiagnostic(
+            self.generation,
+            len(self._applications),
+            sum(app.visible for app in self._applications.values()),
+            (),
+            True,
+        )
 
     def __init__(self, applications: tuple[ApplicationInfo, ...]) -> None:
         self.publish(*applications)

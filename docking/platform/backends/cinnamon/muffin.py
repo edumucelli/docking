@@ -161,6 +161,7 @@ class MuffinWindowService(WindowService):
 
     def refresh(self) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
+        discovery = self._application_registry.diagnostic_snapshot()
         windows: dict[int, _MuffinWindow] = {}
         records: list[WindowDiagnostic] = []
         for row in self._client.list_windows():
@@ -178,7 +179,8 @@ class MuffinWindowService(WindowService):
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="failed" if failed else "available",
             scanned_at=datetime.now(tz=timezone.utc),
-            registry_generation=self._application_registry.generation,
+            registry_generation=discovery.generation,
+            application_discovery=discovery,
             windows=tuple(records),
             detail="Muffin window query failed."
             if failed

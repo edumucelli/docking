@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -19,9 +20,14 @@ from . import entries as desktop_entries
 from .types import (
     ActionSource,
     ApplicationAction,
+    ApplicationDiagnostic,
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
+    DiscoveryDecision,
+    DiscoveryDirectoryDiagnostic,
+    DiscoveryDirectoryStatus,
+    DiscoveryReason,
     TransientApplicationInfo,
 )
 
@@ -36,6 +42,15 @@ class DiscoveryResult:
     transient_handles: dict[str, object]
     presentation_order: tuple[str, ...]
     directories: tuple[Path, ...] = ()
+    diagnostics: tuple[ApplicationDiagnostic, ...] = ()
+    decisions: tuple[DiscoveryDecision, ...] = ()
+    directory_statuses: tuple[DiscoveryDirectoryDiagnostic, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _DiscoveredApplication:
+    application: ApplicationInfo
+    diagnostic: ApplicationDiagnostic
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +100,21 @@ def discover(
 ) -> DiscoveryResult:
     gio_entries = tuple(application_source())
     directories = unique_paths(desktop_directories_source())
-    file_winners, file_order = _discover_desktop_files(directories)
+    file_winners, file_order, shadowed, directory_statuses = _discover_desktop_files(
+        directories
+    )
+    diagnostics: list[ApplicationDiagnostic] = []
+    decisions: list[DiscoveryDecision] = []
+    for application_id, path in shadowed:
+        decisions.append(
+            _file_decision(
+                application_id,
+                path,
+                file_facts(path),
+                DiscoveryReason.SHADOWED,
+                winning_path=file_winners[application_id],
+            )
+        )
 
     gio_by_id: dict[str, object] = {}
     gio_order: list[str] = []
@@ -94,6 +123,7 @@ def discover(
     for source_position, app_info in enumerate(gio_entries):
         application_id = desktop_id(app_info)
         if not application_id:
+            decisions.append(_gio_decision(app_info, DiscoveryReason.NO_IDENTITY))
             listing = transient_from_gio(
                 app_info=app_info,
                 listing_key=f"gio-idless:{handle_epoch}:{source_position}",
@@ -104,6 +134,14 @@ def discover(
                 transient_handles[listing.listing_key] = app_info
             continue
         if application_id in gio_by_id:
+            winner = desktop_filename(gio_by_id[application_id])
+            decisions.append(
+                _gio_decision(
+                    app_info,
+                    DiscoveryReason.SHADOWED,
+                    winning_path=Path(winner) if winner else None,
+                )
+            )
             continue
         gio_by_id[application_id] = app_info
         gio_order.append(application_id)
@@ -116,8 +154,27 @@ def discover(
         path = file_winners[application_id]
         facts = file_facts(path)
         if facts is not None and (not facts.is_application or facts.hidden):
+            decisions.append(
+                _file_decision(
+                    application_id,
+                    path,
+                    facts,
+                    DiscoveryReason.HIDDEN
+                    if facts.hidden
+                    else DiscoveryReason.NON_APPLICATION,
+                )
+            )
             consumed_gio_ids.add(application_id)
             continue
+        if facts is None:
+            decisions.append(
+                _file_decision(
+                    application_id,
+                    path,
+                    facts,
+                    DiscoveryReason.UNREADABLE,
+                )
+            )
 
         app_info = gio_by_id.get(application_id)
         if app_info is None:
@@ -138,35 +195,62 @@ def discover(
                 path=path,
                 facts=facts,
             )
+            result = _DiscoveredApplication(
+                application, _application_diagnostic(application, None, facts)
+            )
         else:
-            application = application_from_gio(
+            result = _application_from_gio_with_diagnostic(
                 desktop_id=application_id,
                 app_info=app_info,
                 fallback_path=path,
                 fallback_facts=facts,
             )
-            if application is not None:
+            if result is not None:
                 handles[application_id] = app_info
-        if application is not None:
+        if result is not None:
+            application = result.application
             applications.append(application)
+            diagnostics.append(result.diagnostic)
+            if (
+                application.desktop_file is not None
+                and application.desktop_file != path
+            ):
+                decisions.append(
+                    _file_decision(
+                        application_id,
+                        path,
+                        facts,
+                        DiscoveryReason.SHADOWED,
+                        winning_path=application.desktop_file,
+                    )
+                )
+        elif app_info is not None:
+            decisions.append(_rejected_gio_decision(app_info))
 
     for application_id in gio_order:
         if application_id in consumed_gio_ids or application_id in file_winners:
             continue
         app_info = gio_by_id[application_id]
-        application = application_from_gio(
+        result = _application_from_gio_with_diagnostic(
             desktop_id=application_id,
             app_info=app_info,
             fallback_path=None,
             fallback_facts=None,
         )
-        if application is None:
+        if result is None:
+            decisions.append(_rejected_gio_decision(app_info))
             continue
-        applications.append(application)
+        applications.append(result.application)
+        diagnostics.append(result.diagnostic)
         handles[application_id] = app_info
 
     return DiscoveryResult(
         directories=directories,
+        diagnostics=tuple(sorted(diagnostics, key=lambda row: row.desktop_id)),
+        decisions=tuple(
+            sorted(decisions, key=lambda row: _decision_order(row, directories))
+        ),
+        directory_statuses=directory_statuses,
         applications=tuple(applications),
         handles=handles,
         transient=tuple(transient),
@@ -303,6 +387,22 @@ def application_from_gio(
     fallback_path: Path | None,
     fallback_facts: _FileFacts | None,
 ) -> ApplicationInfo | None:
+    result = _application_from_gio_with_diagnostic(
+        desktop_id=desktop_id,
+        app_info=app_info,
+        fallback_path=fallback_path,
+        fallback_facts=fallback_facts,
+    )
+    return result.application if result is not None else None
+
+
+def _application_from_gio_with_diagnostic(
+    *,
+    desktop_id: str,
+    app_info: object,
+    fallback_path: Path | None,
+    fallback_facts: _FileFacts | None,
+) -> _DiscoveredApplication | None:
     if _safe_bool_call(app_info, "get_is_hidden"):
         return None
 
@@ -334,7 +434,7 @@ def application_from_gio(
     if not keywords and facts is not None:
         keywords = facts.keywords
 
-    return _make_application(
+    application = _make_application(
         desktop_id=desktop_id,
         name=name,
         declared_icon=declared_icon,
@@ -364,6 +464,9 @@ def application_from_gio(
             _gio_actions(app_info),
             facts.actions if facts is not None else (),
         ),
+    )
+    return _DiscoveredApplication(
+        application, _application_diagnostic(application, startup_wm_class, facts)
     )
 
 
@@ -428,12 +531,55 @@ def unique_paths(paths: Iterable[Path]) -> tuple[Path, ...]:
 
 def _discover_desktop_files(
     directories: Iterable[Path],
-) -> tuple[dict[str, Path], list[str]]:
+) -> tuple[
+    dict[str, Path],
+    list[str],
+    list[tuple[str, Path]],
+    tuple[DiscoveryDirectoryDiagnostic, ...],
+]:
     winners: dict[str, Path] = {}
     order: list[str] = []
+    shadowed: list[tuple[str, Path]] = []
+    statuses: list[DiscoveryDirectoryDiagnostic] = []
     for directory in directories:
-        if not directory.is_dir():
+        try:
+            exists = stat.S_ISDIR(directory.stat().st_mode)
+        except (FileNotFoundError, NotADirectoryError):
+            exists = False
+        except OSError:
+            statuses.append(
+                DiscoveryDirectoryDiagnostic(
+                    directory,
+                    DiscoveryDirectoryStatus.UNREADABLE,
+                )
+            )
             continue
+        if not exists:
+            statuses.append(
+                DiscoveryDirectoryDiagnostic(
+                    directory,
+                    DiscoveryDirectoryStatus.MISSING,
+                )
+            )
+            continue
+        # rglob may suppress permission errors; opening the directory makes its
+        # accessibility explicit without changing the source order below.
+        try:
+            next(directory.iterdir(), None)
+        except OSError:
+            statuses.append(
+                DiscoveryDirectoryDiagnostic(
+                    directory,
+                    DiscoveryDirectoryStatus.UNREADABLE,
+                )
+            )
+            continue
+        statuses.append(
+            DiscoveryDirectoryDiagnostic(
+                directory,
+                DiscoveryDirectoryStatus.SEARCHED,
+            )
+        )
         for path in directory.rglob(f"*{desktop_entries.DESKTOP_SUFFIX}"):
             if not path.is_file():
                 continue
@@ -441,7 +587,109 @@ def _discover_desktop_files(
             if application_id not in winners:
                 winners[application_id] = path
                 order.append(application_id)
-    return winners, order
+            else:
+                shadowed.append((application_id, path))
+    return winners, order, shadowed, tuple(statuses)
+
+
+def _decision_order(
+    row: DiscoveryDecision,
+    directories: tuple[Path, ...],
+) -> tuple[str, int, str, str, str]:
+    rank = len(directories)
+    if row.desktop_file is not None:
+        rank = next(
+            (
+                index
+                for index, directory in enumerate(directories)
+                if row.desktop_file.is_relative_to(directory)
+            ),
+            rank,
+        )
+    return (
+        row.desktop_id,
+        rank,
+        str(row.desktop_file or ""),
+        row.source,
+        row.reason.value,
+    )
+
+
+def _application_diagnostic(
+    application: ApplicationInfo,
+    gio_startup_wm_class: str | None,
+    facts: _FileFacts | None,
+) -> ApplicationDiagnostic:
+    return ApplicationDiagnostic(
+        desktop_id=application.desktop_id,
+        name=application.name,
+        desktop_file=application.desktop_file,
+        visible=application.visible,
+        has_gio_source=application.has_gio_source,
+        wm_class=application.wm_class,
+        launcher_basename=desktop_entries.normalized_exec_basename(
+            application.exec_line
+        ),
+        aliases=application.aliases,
+        gio_startup_wm_class=gio_startup_wm_class,
+        file_startup_wm_class=facts.startup_wm_class if facts else None,
+    )
+
+
+def _file_decision(
+    application_id: str,
+    path: Path,
+    facts: _FileFacts | None,
+    reason: DiscoveryReason,
+    *,
+    winning_path: Path | None = None,
+) -> DiscoveryDecision:
+    return DiscoveryDecision(
+        source="desktop-file",
+        reason=reason,
+        desktop_id=application_id,
+        desktop_file=path,
+        name=facts.name if facts else "",
+        startup_wm_class=facts.startup_wm_class if facts else None,
+        launcher_basename=(
+            desktop_entries.normalized_exec_basename(facts.exec_line) if facts else ""
+        ),
+        winning_path=winning_path,
+    )
+
+
+def _gio_decision(
+    app_info: object,
+    reason: DiscoveryReason,
+    *,
+    winning_path: Path | None = None,
+) -> DiscoveryDecision:
+    filename = desktop_filename(app_info)
+    return DiscoveryDecision(
+        source="gio",
+        reason=reason,
+        desktop_id=desktop_id(app_info),
+        desktop_file=Path(filename) if filename else None,
+        name=source_text(safe_call(app_info, "get_display_name")),
+        startup_wm_class=source_text(safe_call(app_info, "get_startup_wm_class")),
+        launcher_basename=desktop_entries.normalized_exec_basename(
+            source_text(safe_call(app_info, "get_commandline")),
+        ),
+        winning_path=winning_path,
+    )
+
+
+def _rejected_gio_decision(app_info: object) -> DiscoveryDecision:
+    if _safe_bool_call(app_info, "get_is_hidden"):
+        return _gio_decision(app_info, DiscoveryReason.HIDDEN)
+    filename = desktop_filename(app_info)
+    facts = file_facts(Path(filename)) if filename else None
+    reason = DiscoveryReason.UNREADABLE
+    if facts is not None:
+        reason = (
+            DiscoveryReason.HIDDEN if facts.hidden else DiscoveryReason.NON_APPLICATION
+        )
+    return _gio_decision(app_info, reason)
 
 
 def _application_from_file(

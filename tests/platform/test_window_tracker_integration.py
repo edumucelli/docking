@@ -28,7 +28,11 @@ from docking.platform.applications.types import (
     MatchMethod,
 )
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
-from docking.platform.backends.diagnostics import WindowReason
+from docking.platform.backends.diagnostics import (
+    IdentityHintStatus,
+    WindowIdentityHint,
+    WindowReason,
+)
 from docking.platform.model import DockItem
 
 
@@ -164,12 +168,23 @@ def test_diagnostics_capture_real_matching_without_changing_running_state(tracke
     empty = FakeWindow(3, class_group="")
     tracker._screen = FakeScreen([known, unknown, empty], known)
     assert tracker.diagnostic_snapshot().status == "pending"
+    hint = WindowIdentityHint(
+        "_GTK_APPLICATION_ID",
+        IdentityHintStatus.PRESENT,
+        "io.gitlab.news_flash.NewsFlash",
+    )
+    tracker._identity_hint_reader.read = MagicMock(return_value=(hint,))
 
     tracker._update_running()
 
     snapshot = tracker.diagnostic_snapshot()
     rows = {row.window_id: row for row in snapshot.windows}
     assert snapshot.registry_generation == registry.generation
+    assert snapshot.application_discovery.generation == registry.generation
+    assert rows["x11:1"].identity_hints == ()
+    assert rows["x11:2"].identity_hints == (hint,)
+    assert rows["x11:3"].identity_hints == (hint,)
+    assert tracker._identity_hint_reader.read.call_count == 2
     assert rows["x11:1"].outcome == "matched"
     assert rows["x11:1"].desktop_id == "firefox.desktop"
     assert rows["x11:1"].match_method == "visible-alias"
@@ -190,6 +205,9 @@ def test_diagnostics_exclusions_do_not_query_shell_identities(tracker_env):
     import os
 
     tracker, _model, _registry = tracker_env
+    tracker._identity_hint_reader.read = MagicMock(
+        side_effect=AssertionError("No probes")
+    )
 
     class ShellWindow(FakeWindow):
         def get_class_group_name(self):

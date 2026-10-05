@@ -19,6 +19,8 @@ from docking.platform.applications.types import (
     ActionSource,
     ApplicationLocation,
     ApplicationOrigin,
+    DiscoveryDirectoryStatus,
+    DiscoveryReason,
     TransientApplicationInfo,
 )
 
@@ -57,6 +59,128 @@ def test_diagnostics_use_last_discovery_and_count_nodisplay(tmp_path):
     source.assert_not_called()
     registry.refresh()
     assert registry.diagnostic_snapshot().directories == (second,)
+
+
+def test_diagnostics_explain_aliases_overrides_and_missing_sources(
+    tmp_path, monkeypatch
+):
+    first, second = tmp_path / "user", tmp_path / "system"
+    first.mkdir()
+    second.mkdir()
+    _write_desktop(
+        first / "io.gitlab.news_flash.NewsFlash.desktop",
+        name="NewsFlash",
+        exec_line="flatpak run io.gitlab.news_flash.NewsFlash",
+    )
+    _write_desktop(
+        first / "org.telegram.desktop.desktop",
+        name="Telegram",
+        exec_line="flatpak run org.telegram.desktop",
+        extra="StartupWMClass=TelegramDesktop\n",
+    )
+    _write_desktop(
+        first / "hidden.desktop", name="Hidden override", extra="Hidden=true\n"
+    )
+    _write_desktop(second / "hidden.desktop", name="Lower launcher")
+    _write_desktop(first / "direct.desktop", name="Direct", extra="NoDisplay=true\n")
+    (first / "invalid.desktop").write_text("not a desktop file")
+    (first / "link.desktop").write_text("[Desktop Entry]\nType=Link\nName=Link\n")
+    registry = _registry(directories=[first, second, tmp_path / "missing"])
+    registry.refresh()
+    snapshot = registry.diagnostic_snapshot()
+    apps = {app.desktop_id: app for app in snapshot.applications}
+    news = apps["io.gitlab.news_flash.NewsFlash.desktop"]
+    assert news.file_startup_wm_class == ""
+    assert news.gio_startup_wm_class is None
+    assert news.wm_class == "flatpak"
+    assert "news-flash" not in news.aliases
+    assert (
+        apps["org.telegram.desktop.desktop"].file_startup_wm_class == "TelegramDesktop"
+    )
+    assert "telegramdesktop" in apps["org.telegram.desktop.desktop"].aliases
+    assert not apps["direct.desktop"].visible
+    assert "hidden.desktop" not in apps
+    hidden = [row for row in snapshot.decisions if row.desktop_id == "hidden.desktop"]
+    assert [row.reason for row in hidden] == [
+        DiscoveryReason.HIDDEN,
+        DiscoveryReason.SHADOWED,
+    ]
+    assert hidden[1].winning_path == first / "hidden.desktop"
+    assert hidden[1].name == "Lower launcher"
+    assert {row.reason for row in snapshot.decisions} == {
+        DiscoveryReason.HIDDEN,
+        DiscoveryReason.SHADOWED,
+        DiscoveryReason.UNREADABLE,
+        DiscoveryReason.NON_APPLICATION,
+    }
+    assert [row.status for row in snapshot.directory_statuses] == [
+        DiscoveryDirectoryStatus.SEARCHED,
+        DiscoveryDirectoryStatus.SEARCHED,
+        DiscoveryDirectoryStatus.MISSING,
+    ]
+    monkeypatch.setattr(
+        discovery_mod, "file_facts", lambda _path: pytest.fail("No reread")
+    )
+    assert registry.diagnostic_snapshot() is snapshot
+
+
+def test_diagnostic_declarations_update_without_changing_matching_generation(tmp_path):
+    path = tmp_path / "app.desktop"
+    _write_desktop(path, name="App", extra="StartupWMClass=FileClass\n")
+    gio = _GioApplication(
+        "app.desktop",
+        name="App",
+        filename=str(path),
+        wm_class="GioClass",
+        commandline="app",
+    )
+    registry = _registry(applications=[gio], directories=[tmp_path])
+    registry.refresh()
+    before = registry.diagnostic_snapshot()
+    app = before.applications[0]
+    assert app.gio_startup_wm_class == "GioClass"
+    assert app.file_startup_wm_class == "FileClass"
+    assert app.wm_class == "GioClass"
+    _write_desktop(path, name="App", extra="StartupWMClass=NewFileClass\n")
+    assert not registry.refresh()
+    after = registry.diagnostic_snapshot()
+    assert after.generation == before.generation
+    assert after.applications[0].file_startup_wm_class == "NewFileClass"
+    assert before.applications[0].file_startup_wm_class == "FileClass"
+
+
+def test_diagnostics_preserve_gio_rejections_and_unreadable_directory(
+    tmp_path, monkeypatch
+):
+    inaccessible = tmp_path / "unreadable"
+    inaccessible.mkdir()
+    original_iterdir = Path.iterdir
+
+    def iterdir(path):
+        if path == inaccessible:
+            raise PermissionError("PRIVATE")
+        return original_iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", iterdir)
+    registry = _registry(
+        applications=[
+            _GioApplication("app.desktop", name="First", commandline="app"),
+            _GioApplication("app.desktop", name="Duplicate", commandline="other"),
+            _GioApplication("", name="No ID", commandline="anonymous"),
+            _GioApplication("hidden.desktop", name="Hidden", hidden=True),
+        ],
+        directories=[inaccessible],
+    )
+    registry.refresh()
+    snapshot = registry.diagnostic_snapshot()
+    assert snapshot.directory_statuses[0].status is DiscoveryDirectoryStatus.UNREADABLE
+    assert {row.reason for row in snapshot.decisions} == {
+        DiscoveryReason.SHADOWED,
+        DiscoveryReason.NO_IDENTITY,
+        DiscoveryReason.HIDDEN,
+    }
+    assert len(snapshot.applications) == 1
+    assert snapshot.applications[0].name == "First"
 
 
 class _GioApplication:

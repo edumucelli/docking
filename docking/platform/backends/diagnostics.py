@@ -10,7 +10,28 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from docking.platform.applications.types import ApplicationMatch
+    from docking.platform.applications.types import (
+        ApplicationDiscoveryDiagnostic,
+        ApplicationMatch,
+    )
+
+
+class IdentityHintStatus(Enum):
+    """Result of reading an additional, diagnostic-only window identity."""
+
+    PRESENT = "present"
+    ABSENT = "absent"
+    UNAVAILABLE = "unavailable"
+    MALFORMED = "malformed"
+    OVERSIZED = "oversized"
+    READ_ERROR = "read-error"
+
+
+@dataclass(frozen=True)
+class WindowIdentityHint:
+    property_name: str
+    status: IdentityHintStatus
+    value: str = ""
 
 
 class WindowReason(Enum):
@@ -50,6 +71,7 @@ class WindowDiagnostic:
     launcher_basename: str | None = None
     aliases: tuple[str, ...] = ()
     read_errors: tuple[str, ...] = ()
+    identity_hints: tuple[WindowIdentityHint, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,6 +85,7 @@ class WindowTrackingDiagnostic:
     registry_generation: int | None = None
     windows: tuple[WindowDiagnostic, ...] = ()
     detail: str = "Detailed window capture is unavailable for this backend."
+    application_discovery: ApplicationDiscoveryDiagnostic | None = None
 
 
 def with_match(

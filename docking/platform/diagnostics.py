@@ -220,10 +220,12 @@ def collect_diagnostics(
         tracking = WindowTrackingDiagnostic(
             status="failed", detail="Window diagnostic collection failed."
         )
-    try:
-        discovery = application_registry.diagnostic_snapshot()
-    except Exception:
-        discovery = None
+    discovery = tracking.application_discovery
+    if discovery is None:
+        try:
+            discovery = application_registry.diagnostic_snapshot()
+        except Exception:
+            discovery = None
     return DiagnosticsSnapshot(
         generated_at=datetime.now(tz=timezone.utc),
         docking_version=__version__,
@@ -344,12 +346,23 @@ def _application_diagnostic_lines(snapshot: DiagnosticsSnapshot) -> list[str]:
                 f"- Registry generation: {discovery.generation}",
                 f"- Registered applications: {discovery.registered_count}",
                 f"- Visible applications: {discovery.visible_count}",
+                "- Inventory source: "
+                + (
+                    "registry snapshot retained by the window scan"
+                    if snapshot.window_tracking.application_discovery is not None
+                    else "current registry snapshot; not retained by a window scan"
+                ),
                 "- Directories used by last completed discovery (in order):",
             ]
         )
         lines.extend(f"  - {_report_value(path)}" for path in discovery.directories)
         if not discovery.directories:
             lines.append("  - unavailable")
+        for directory in discovery.directory_statuses:
+            lines.append(
+                f"- Directory status: {_report_value(directory.path)}: "
+                f"{directory.status.value}"
+            )
     tracking = snapshot.window_tracking
     lines.extend(
         [
@@ -416,6 +429,80 @@ def _application_diagnostic_lines(snapshot: DiagnosticsSnapshot) -> list[str]:
         lines.append(
             f"- Failed property reads: {_report_value(', '.join(row.read_errors))}"
         )
+        for hint in row.identity_hints:
+            lines.append(
+                f"- {_report_value(hint.property_name)}: {hint.status.value}"
+                + (f"; value: {_report_value(hint.value)}" if hint.value else "")
+            )
+    lines.extend(_application_inventory_report(discovery))
+    return lines
+
+
+def _declared_class(value: str | None) -> str:
+    """Distinguish unavailable declarations from an explicitly absent class."""
+    return (
+        "unavailable"
+        if value is None
+        else _report_value(value)
+        if value
+        else "not declared"
+    )
+
+
+def _application_inventory_report(
+    discovery: ApplicationDiscoveryDiagnostic | None,
+) -> list[str]:
+    lines = ["", "## Application Inventory", "", "Full command lines are omitted."]
+    if discovery is None or not discovery.loaded:
+        lines.extend(["", "- unavailable"])
+        return lines
+    for app in discovery.applications:
+        lines.extend(["", f"### {_report_value(app.desktop_id)}", ""])
+        for label, value in (
+            ("Name", app.name),
+            ("Desktop file", app.desktop_file),
+            ("Visible", "yes" if app.visible else "no"),
+            ("Gio source", "yes" if app.has_gio_source else "no"),
+            ("Effective matching class", app.wm_class),
+            ("Launcher executable basename", app.launcher_basename),
+            ("Registered aliases", ", ".join(app.aliases)),
+        ):
+            lines.append(f"- {label}: {_report_value(value)}")
+        lines.append(
+            f"- Gio StartupWMClass: {_declared_class(app.gio_startup_wm_class)}"
+        )
+        lines.append(
+            "- Desktop-file StartupWMClass: "
+            f"{_declared_class(app.file_startup_wm_class)}"
+        )
+    if not discovery.applications:
+        lines.extend(["", "- none"])
+    lines.extend(
+        [
+            "",
+            "## Application Discovery Decisions",
+            "",
+            (
+                "These source decisions do not change application matching. "
+                "Unreadable file metadata may still have a registered Gio source."
+            ),
+        ]
+    )
+    for index, decision in enumerate(discovery.decisions, start=1):
+        lines.extend(["", f"### Source {index}", ""])
+        for label, value in (
+            ("Desktop ID", decision.desktop_id),
+            ("Source", decision.source),
+            ("Reason", decision.reason.value),
+            ("Desktop file", decision.desktop_file),
+            ("Name", decision.name),
+            ("Winning path", decision.winning_path),
+            ("Launcher executable basename", decision.launcher_basename),
+        ):
+            lines.append(f"- {label}: {_report_value(value)}")
+        lines.append(f"- StartupWMClass: {_declared_class(decision.startup_wm_class)}")
+    if not discovery.decisions:
+        lines.extend(["", "- none"])
     return lines
 
 

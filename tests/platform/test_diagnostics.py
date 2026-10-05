@@ -112,6 +112,82 @@ def test_diagnostic_failures_do_not_break_report(monkeypatch):
     assert "PRIVATE-DETAIL" not in report
 
 
+def test_report_uses_scan_inventory_after_registry_changes(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    from unittest.mock import MagicMock
+
+    from docking.platform.backends.diagnostics import (
+        IdentityHintStatus,
+        WindowIdentityHint,
+    )
+
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "app.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Bad `[name]\n"
+        "Exec=flatpak run org.example.App --token=PRIVATE\n"
+    )
+    (second / "app.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Overridden\nExec=lower PRIVATE\n"
+    )
+    registry = ApplicationRegistry(
+        application_source=lambda: (),
+        desktop_directories_source=lambda: (first, second),
+    )
+    registry._desktop_app_info_for_id = lambda _id: None
+    registry._desktop_app_info_from_filename = lambda _path: None
+    registry.refresh()
+    retained = registry.diagnostic_snapshot()
+    tracking = WindowTrackingDiagnostic(
+        status="available",
+        scanned_at=datetime.now(tz=timezone.utc),
+        registry_generation=retained.generation,
+        application_discovery=retained,
+        windows=(
+            WindowDiagnostic(
+                window_id="x11:1",
+                identity_hints=(
+                    WindowIdentityHint(
+                        "_GTK_APPLICATION_ID",
+                        IdentityHintStatus.PRESENT,
+                        "bad`[hint]\n# injected",
+                    ),
+                    WindowIdentityHint(
+                        "_KDE_NET_WM_DESKTOP_FILE", IdentityHintStatus.ABSENT
+                    ),
+                ),
+            ),
+        ),
+    )
+    (first / "app.desktop").unlink()
+    (second / "app.desktop").unlink()
+    registry.refresh()
+    assert registry.diagnostic_snapshot().registered_count == 0
+    monkeypatch.setattr(
+        registry, "diagnostic_snapshot", lambda: pytest.fail("Use retained evidence")
+    )
+    windows = SimpleNamespace(diagnostic_snapshot=MagicMock(return_value=tracking))
+    backend = _Backend()
+    backend.windows = windows
+    snapshot = collect_diagnostics(backend=backend, application_registry=registry)
+    report = format_diagnostics_report(snapshot)
+    assert snapshot.application_discovery is retained
+    assert "registry snapshot retained by the window scan" in report
+    assert "## Application Inventory" in report
+    assert "- Name: Bad \\`\\[name\\]" in report
+    assert "- Gio StartupWMClass: unavailable" in report
+    assert "- Desktop-file StartupWMClass: not declared" in report
+    assert "- Effective matching class: flatpak" in report
+    assert "- Reason: shadowed-source" in report
+    assert str(first / "app.desktop").replace("_", "\\_") in report
+    assert r"- \_KDE\_NET\_WM\_DESKTOP\_FILE: absent" in report
+    assert "bad\\`\\[hint\\] # injected" in report
+    assert "\n# injected" not in report
+    assert "PRIVATE" not in report
+
+
 def test_cinnamon_shell_reports_unsupported_tracking():
     from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
 
