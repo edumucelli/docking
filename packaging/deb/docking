@@ -9,4 +9,4 @@ if [ -d "${PYWAYLAND_VENDOR}" ]; then
 fi
 export PYTHONPATH="${PYTHONPATH_PREFIX}${PYTHONPATH:+:$PYTHONPATH}"
 
-exec /usr/bin/python3 -m docking.app "$@"
+exec /usr/bin/python3 -m docking.launcher "$@"

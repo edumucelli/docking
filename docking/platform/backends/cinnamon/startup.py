@@ -65,5 +65,21 @@ def prepare_cinnamon_display() -> bool:
     if result.returncode != 42:
         return False
     os.environ["GDK_BACKEND"] = "x11"
+    try:
+        import gi
+
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk
+
+        if not Gtk.init_check()[0]:
+            log.debug("GTK could not initialize the verified XWayland display")
+            return False
+    except Exception as exc:
+        log.debug("GTK could not initialize the verified XWayland display: %s", exc)
+        return False
+    finally:
+        # The initialized display stays on XWayland, while child applications
+        # launched from the dock use the session's normal Wayland transport.
+        os.environ.pop("GDK_BACKEND", None)
     log.info("Using an XWayland dock surface with native Cinnamon services")
     return True

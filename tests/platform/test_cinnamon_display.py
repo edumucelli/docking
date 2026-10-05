@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import types
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,9 +31,15 @@ def display_probe(monkeypatch):
 def test_verified_xwayland_surface_keeps_native_session_choice(
     monkeypatch, display_probe, requested
 ):
+    fake_gtk = types.SimpleNamespace(init_check=MagicMock(return_value=(True, [])))
+    fake_repo = types.SimpleNamespace(Gtk=fake_gtk)
+    fake_gi = types.SimpleNamespace(require_version=MagicMock(), repository=fake_repo)
+    monkeypatch.setitem(sys.modules, "gi", fake_gi)
+    monkeypatch.setitem(sys.modules, "gi.repository", fake_repo)
     monkeypatch.setenv("DOCKING_BACKEND", requested)
     assert cinnamon.prepare_cinnamon_display()
-    assert os.environ["GDK_BACKEND"] == "x11"
+    fake_gtk.init_check.assert_called_once_with()
+    assert "GDK_BACKEND" not in os.environ
     assert os.environ["DOCKING_BACKEND"] == requested
     assert os.environ["WAYLAND_DISPLAY"] == "wayland-0"
     args, kwargs = display_probe.call_args

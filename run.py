@@ -3,13 +3,12 @@
 
 This small development entry point mirrors the installed ``docking`` command,
 letting contributors run ``python run.py`` without installing a console script.
-Application startup remains in :mod:`docking.app` so both launch paths behave
-the same way.
+Backend display setup runs in :mod:`docking.launcher` before it imports the
+GTK application module, matching the installed ``docking`` command.
 """
 
-from docking.app import main
+from docking.launcher import main
 
-# Keep this wrapper free of startup logic; it should only delegate to the
-# canonical application entry point.
+# Keep this wrapper free of startup logic; the shared launcher owns it.
 if __name__ == "__main__":
     main()

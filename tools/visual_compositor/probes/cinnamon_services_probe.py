@@ -14,6 +14,9 @@ from pathlib import Path
 # The UI probe runs the application in this process; choose its transport
 # before importing Gtk, exactly as the production entry point does.
 if "--child" not in sys.argv:
+    from docking.launcher import prepare_display
+
+    prepare_display()
     from docking import app
 
 import gi

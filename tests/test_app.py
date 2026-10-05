@@ -27,9 +27,7 @@ def _runtime_config() -> SimpleNamespace:
     )
 
 
-def _load_app_module(
-    monkeypatch, *, vendor_exists: bool = False, prepared_display: bool = False
-):
+def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     fake_glib = SimpleNamespace(
         PRIORITY_HIGH=100,
         set_prgname=MagicMock(),
@@ -38,19 +36,10 @@ def _load_app_module(
         timeout_add_seconds=MagicMock(return_value=77),
     )
 
-    def prepare_display():
-        if prepared_display:
-            monkeypatch.setenv("GDK_BACKEND", "x11")
-        return prepared_display
-
-    def initialize_display():
-        assert os.environ["GDK_BACKEND"] == "x11"
-        return True, []
-
     fake_gtk = SimpleNamespace(
         main=MagicMock(),
         main_quit=MagicMock(),
-        init_check=MagicMock(side_effect=initialize_display),
+        init_check=MagicMock(),
     )
     fake_repo = SimpleNamespace(GLib=fake_glib, Gtk=fake_gtk)
     fake_gi = SimpleNamespace(require_version=MagicMock(), repository=fake_repo)
@@ -113,9 +102,6 @@ def _load_app_module(
             self.persistence = persistence
 
     stub_modules = {
-        "docking.platform.backends.cinnamon.startup": {
-            "prepare_cinnamon_display": prepare_display,
-        },
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
         },
@@ -193,10 +179,10 @@ def _load_app_module(
 
 
 class TestAppImport:
-    def test_automatic_dock_transport_does_not_leak_to_launched_apps(self, monkeypatch):
+    def test_display_setup_is_owned_by_the_platform_launcher(self, monkeypatch):
         monkeypatch.delenv("GDK_BACKEND", raising=False)
-        _mod, _glib, gtk = _load_app_module(monkeypatch, prepared_display=True)
-        gtk.init_check.assert_called_once_with()
+        _mod, _glib, gtk = _load_app_module(monkeypatch)
+        gtk.init_check.assert_not_called()
         assert "GDK_BACKEND" not in os.environ
 
     def test_import_inserts_vendor_path_when_present(self, monkeypatch):

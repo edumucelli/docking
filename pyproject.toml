@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-docking = "docking.app:main"
+docking = "docking.launcher:main"
 docking-camshield-helper = "docking.applets.camshield.helper:main"
 
 [project.optional-dependencies]

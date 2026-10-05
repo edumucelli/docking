@@ -55,7 +55,7 @@ package() {
 #!/bin/sh
 set -eu
 export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m docking.app "$@"
+exec /usr/bin/python3 -m docking.launcher "$@"
 EOF
 
   install -Dm755 packaging/shared/docking-camshield-helper \

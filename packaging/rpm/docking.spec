@@ -62,7 +62,7 @@ if [ -d "${PYWAYLAND_VENDOR}" ]; then
   PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
 fi
 export PYTHONPATH="${PYTHONPATH_PREFIX}${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m docking.app "$@"
+exec /usr/bin/python3 -m docking.launcher "$@"
 EOF
 
 install -Dm755 packaging/shared/docking-camshield-helper \
