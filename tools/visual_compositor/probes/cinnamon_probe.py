@@ -163,7 +163,7 @@ def capabilities() -> int:
     and reservation. Probe that bridge too, so the #347 regression actually runs
     instead of being reported unsupported.
     """
-    from docking.platform.cinnamon import prepare_cinnamon_display
+    from docking.platform.backends.cinnamon.startup import prepare_cinnamon_display
 
     prepare_cinnamon_display()
     import gi as _gi

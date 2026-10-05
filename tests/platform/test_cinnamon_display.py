@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from docking.platform import cinnamon
+from docking.platform.backends.cinnamon import startup as cinnamon
 
 
 @pytest.fixture

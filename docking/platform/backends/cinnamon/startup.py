@@ -9,7 +9,7 @@ import sys
 from docking.log import get_logger
 from docking.platform.environment import Desktop, detect_desktop, is_wayland_session
 
-log = get_logger(name="cinnamon_display")
+log = get_logger(name="backend.cinnamon.startup")
 
 # Opening a display in this process would initialize GTK before the choice can
 # be made. Probe in a child using the same interpreter and installed libraries.

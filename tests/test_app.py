@@ -113,7 +113,7 @@ def _load_app_module(
             self.persistence = persistence
 
     stub_modules = {
-        "docking.platform.cinnamon": {
+        "docking.platform.backends.cinnamon.startup": {
             "prepare_cinnamon_display": prepare_display,
         },
         "docking.platform.gamescope": {

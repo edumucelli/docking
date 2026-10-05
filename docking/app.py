@@ -78,7 +78,7 @@ if Path(_VENDOR_DIR).is_dir():
 # i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
 from docking.log import get_logger, with_context
-from docking.platform.cinnamon import prepare_cinnamon_display
+from docking.platform.backends.cinnamon.startup import prepare_cinnamon_display
 
 _init_i18n()
 
