@@ -26,6 +26,7 @@ STATE_SCRIPT = """
             ['lab-alpha', 'lab-beta'].includes(w.get_wm_class()))
         .map(w => ({id:w.get_stable_sequence(), app:w.get_wm_class(),
             pid:w.get_client_pid(),
+            client_type:w.get_client_type(),
             focused:w === global.display.focus_window, minimized:!!w.minimized,
             workspace:w.get_workspace().index()}))
 }))()
@@ -73,6 +74,7 @@ class WindowProbe:
 
     def record(self, phase, predicate):
         self.phases[phase] = self.wait(predicate)
+        assert all(w["client_type"] == 0 for w in self.phases[phase]["windows"])
         screenshot(str(self.evidence / f"{self.name}.{phase}.png"))
 
     def click(self, app, button=272):
@@ -153,6 +155,11 @@ class WindowProbe:
         self.record("restored", alpha_focused)
         alpha = next(w for w in self.state()["windows"] if w["app"] == "lab-alpha")
         self.act(alpha["id"], "w.change_workspace_by_index(1, false)")
+        # A proper DOCK no longer steals focus. Muffin may focus beta when the
+        # active alpha leaves this workspace; start minimized so the next click
+        # tests activation rather than correctly toggling an already focused app.
+        beta = next(w for w in self.state()["windows"] if w["app"] == "lab-beta")
+        self.act(beta["id"], "w.minimize()")
         self.click("beta")
         self.wait(
             lambda s: (

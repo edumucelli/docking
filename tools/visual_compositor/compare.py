@@ -422,11 +422,14 @@ def evaluate(
 
     expected_backend = capabilities.get("expected_backend")
 
-    # If the session was not actually Wayland, every result below would be about
-    # the wrong display server -- the classic way a Wayland test quietly becomes
-    # an X11 test. The adapter probes this with the same environment the dock
-    # runs in, so a False here invalidates the whole run rather than one case.
-    if capabilities.get("gtk_display_is_wayland") is False:
+    # The Cinnamon fallback deliberately uses an XWayland DOCK surface while
+    # its native desktop services and test applications remain on Wayland.
+    cinnamon_xwayland = (
+        compositor == "cinnamon"
+        and expected_backend == "cinnamon-xwayland"
+        and capabilities.get("gtk_display_is_xwayland") is True
+    )
+    if capabilities.get("gtk_display_is_wayland") is False and not cinnamon_xwayland:
         return [
             Result(
                 case.name,

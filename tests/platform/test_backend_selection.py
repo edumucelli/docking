@@ -36,6 +36,45 @@ def test_create_session_backend_selects_x11_backend(monkeypatch):
     backend_cls.assert_called_once_with(model=model, config=config, **services)
 
 
+def test_cinnamon_wayland_keeps_native_services_for_an_x11_dock(monkeypatch):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.CINNAMON)
+    monkeypatch.setattr(selection, "is_wayland_session", lambda: True)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    backend = MagicMock()
+    native = MagicMock(return_value=backend)
+    x11 = MagicMock()
+    monkeypatch.setattr(selection, "_create_cinnamon_wayland_backend", native)
+    monkeypatch.setattr(selection, "_create_x11_backend", x11)
+    config, model = MagicMock(), MagicMock()
+    services = identity_services()
+    assert (
+        selection.create_session_backend(config=config, model=model, **services)
+        is backend
+    )
+    assert native.call_args.kwargs["config"] is config
+    assert native.call_args.kwargs["model"] is model
+    x11.assert_not_called()
+
+
+def test_cinnamon_x11_session_keeps_x11_services(monkeypatch):
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.CINNAMON)
+    monkeypatch.setattr(selection, "is_wayland_session", lambda: False)
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    native = MagicMock()
+    backend = MagicMock()
+    monkeypatch.setattr(selection, "_create_cinnamon_wayland_backend", native)
+    monkeypatch.setattr(selection, "_create_x11_backend", lambda **_: backend)
+    assert (
+        selection.create_session_backend(
+            config=MagicMock(), model=MagicMock(), **identity_services()
+        )
+        is backend
+    )
+    native.assert_not_called()
+
+
 def test_create_session_backend_passes_canonical_identity_instances(monkeypatch):
     monkeypatch.setenv("DOCKING_BACKEND", "x11")
     backend = MagicMock()

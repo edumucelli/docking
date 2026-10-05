@@ -428,7 +428,8 @@ class CinnamonShellClient:
             # native visibility/minimize state of other application windows.
             "const guards = global._dockingDockActors ||= {};"
             f"const key = {json.dumps(title)};"
-            "if (!guards[key]) {const actor = w.get_compositor_private();"
+            "if (w.get_window_type() !== imports.gi.Meta.WindowType.DOCK &&"
+            " !guards[key]) {const actor = w.get_compositor_private();"
             "if (actor) {const visible = actor.connect('notify::visible', () => {"
             "if (!actor.visible && w.get_workspace() && !w.minimized &&"
             "w.located_on_workspace(global.workspace_manager.get_active_workspace()))"
@@ -465,7 +466,7 @@ class CinnamonShellClient:
 
 
 class CinnamonShellSurfaceService(ReducedSurfaceService):
-    """Position the main dock through Muffin while retaining limited capabilities."""
+    """Position and reserve the dock through Cinnamon's shell."""
 
     def __init__(self, *, client: CinnamonShellClient) -> None:
         super().__init__()
@@ -577,3 +578,17 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._request = None
         self._position = None
         super().stop()
+
+
+class CinnamonXWaylandSurfaceService(CinnamonShellSurfaceService):
+    """X11 dock hints with native Cinnamon placement and reservations.
+
+    Cinnamon's panels reserve space inside Muffin without X11 strut windows.
+    Keep its native workarea and chrome reservation integration while GTK's
+    X11 transport supplies the DOCK role that older Muffin lacks on Wayland.
+    """
+
+    @property
+    def popups_use_parent_relative_coordinates(self) -> bool:
+        # Gtk X11 positions transient popups in screen coordinates.
+        return False

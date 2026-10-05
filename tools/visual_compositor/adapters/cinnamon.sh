@@ -7,8 +7,9 @@
 #
 # NESTING: Muffin's `--nested` mode needs an outer display to nest into, which is
 # what Xvfb provides. Muffin then supplies the Wayland server Docking connects to,
-# so Docking's connection is genuinely Wayland even though Cinnamon has an X11
-# parent. `--nested` and `--wayland` come from Muffin's option context, which
+# so native test applications connect to Wayland even though Cinnamon has an
+# X11 parent. Docking may use XWayland for its dock role on older Muffin.
+# `--nested` and `--wayland` come from Muffin's option context, which
 # cinnamon merges into its own -- cinnamon's src/main.c only defines --version.
 #
 # GEOMETRY: unlike sway, Cinnamon *can* report the dock's real rectangle, via
@@ -42,7 +43,9 @@ adapter_prepare() {
     export XDG_CURRENT_DESKTOP=X-Cinnamon
     export XDG_SESSION_DESKTOP=cinnamon-wayland
     export XDG_SESSION_TYPE=wayland
-    export GDK_BACKEND=wayland
+    # Exercise Docking's automatic transport selection. Test clients still
+    # connect to this compositor's Wayland socket by default.
+    unset GDK_BACKEND
     export LIBGL_ALWAYS_SOFTWARE=1
 
     # Muffin kept Mutter's variable names -- a naming mistake the original
@@ -59,7 +62,7 @@ adapter_start() {
     # xvfb-run allocates a free display and tears its X server down with the
     # child, so the display number is never hard-coded.
     # Muffin initializes its XWayland window manager through GDK X11. This
-    # applies only to Cinnamon; clients retain the Wayland backend set above.
+    # applies only to Cinnamon; native test clients use its Wayland socket.
     xvfb-run -a -s "-screen 0 ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}x24 +extension GLX +render -noreset" \
         bash -c 'printf "%s\n" "$DISPLAY" >"$LAB_DIR/outer-display";
                  printf "%s\n" "$XAUTHORITY" >"$LAB_DIR/outer-authority";
@@ -67,11 +70,8 @@ adapter_start() {
         >"${LAB_DIR}/cinnamon.log" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
 
-    # Only Cinnamon may see the outer X display. xvfb-run sets DISPLAY for its
-    # own child, not for us, but unset it explicitly so a DISPLAY leaking in from
-    # the host environment can never let Docking and the probes silently use X11
-    # -- which would make this lane test the wrong display server while still
-    # looking green.
+    # Never expose the outer X display to clients. Once ready, the adapter
+    # publishes only the compositor's own XWayland display for Docking's surface.
     unset DISPLAY
 
     # Cinnamon is a full desktop: allow well beyond the wlroots budget.
@@ -89,6 +89,10 @@ adapter_wait_ready() {
             # Missing optional system services generate startup banners that
             # overlap the pixel oracle. Keep the errors in cinnamon.log.
             /usr/bin/python3 "$PROBE" quiet-startup
+            local environment
+            environment="$(/usr/bin/python3 "$PROBE" xwayland-environment)"
+            export DISPLAY="$(jq -r '.DISPLAY // empty' <<<"$environment")"
+            export XAUTHORITY="$(jq -r '.XAUTHORITY // empty' <<<"$environment")"
             return 0
         fi
         sleep 0.5

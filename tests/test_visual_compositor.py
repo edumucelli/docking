@@ -475,6 +475,22 @@ def test_scaled_screenshot_requires_logical_pixel_contract(evidence):
     assert evidence.evaluate(geometry_only=True).status == "pass"
 
 
+@pytest.mark.parametrize("verified", [True, False])
+def test_only_verified_cinnamon_xwayland_surface_bypasses_native_display_gate(
+    evidence, verified
+):
+    evidence.caps.update(
+        expected_backend="cinnamon-xwayland",
+        gtk_display_is_wayland=False,
+        gtk_display_is_xwayland=verified,
+    )
+    (evidence.path / f"{evidence.case.name}.log").write_text(
+        "Selected session backend: cinnamon-xwayland (test)\n"
+    )
+    result = evidence.evaluate(geometry_only=True)
+    assert result.status == ("pass" if verified else "fail")
+
+
 def test_negative_origin_transforms_self_report_into_canvas(evidence):
     evidence.record["outputs"][0]["x"] = -1280
     evidence.record["dock_rect"]["x"] = -1280

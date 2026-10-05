@@ -78,13 +78,24 @@ if Path(_VENDOR_DIR).is_dir():
 # i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
 from docking.log import get_logger, with_context
+from docking.platform.cinnamon import prepare_cinnamon_display
 
 _init_i18n()
+
+# GTK's default display cannot be changed after importing Gtk. Older Muffin
+# needs an XWayland surface to give the dock a real DOCK role.
+_cinnamon_display_prepared = prepare_cinnamon_display()
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
+
+if _cinnamon_display_prepared:
+    # Keep the dock's selected display, but do not force applications launched
+    # from it to inherit X11. They should use their normal session transport.
+    Gtk.init_check()
+    os.environ.pop("GDK_BACKEND", None)
 
 # Give GTK / Mutter a stable program name so the GNOME Shell extension
 # can find the dock window on Wayland (where WM_CLASS is not forwarded).

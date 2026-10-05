@@ -38,7 +38,7 @@ are per adapter: this is not a claim that every case runs on every desktop.
 | Compositor | Verified route and scope | Current limitations |
 | --- | --- | --- |
 | Sway | Headless Pixman; placement, four-edge autohide, zoom, tooltip, menu, six layouts and three output transitions | Pixel geometry; no native layer-surface allocation query or native dodge service |
-| Cinnamon | Nested Wayland in private Xvfb; native frame, reservations, window switching and seven native services | Older Muffin uses shell placement; newer layer-shell service composition is covered by unit tests |
+| Cinnamon | Nested Wayland in private Xvfb; dock role and panel/switcher exclusion, native frame, reservations, window switching and seven native services | Older Muffin uses an XWayland dock surface with native Cinnamon services; newer layer-shell service composition is covered by unit tests |
 | Niri | Nested in headless Sway; five non-panel placement cases | Requires the vertical-edge startup fix in [#353](https://github.com/edumucelli/docking/pull/353); one nested output |
 | labwc | Headless wlroots; placement | No native dock-frame query |
 | COSMIC | Winit nested in headless Sway; native COSMIC placement on five cases | Overlap notification is probed at runtime; absent protocol makes dodge unsupported |
@@ -95,7 +95,8 @@ Intermediate screenshots and `window-switching.windows.json` retain the evidence
 The case requires verified pointer delivery and the shell window API, and runs
 in the Cinnamon CI lane alongside reservation tests.
 
-The native Cinnamon services regression boots the complete dock and tests
+The native Cinnamon services regression boots the complete dock, verifies its
+DOCK role and exclusion from the real panel and switcher window lists, and tests
 workspace switching/filtering, sticky windows, previews with known pixels and
 unchanged focus, Show Desktop hide/restore, idle reset, color picking, dodge
 hide/reveal, native/XWayland window termination, Escape/service cancellation,

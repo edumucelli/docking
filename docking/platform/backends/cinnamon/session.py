@@ -38,6 +38,7 @@ from docking.platform.backends.cinnamon.shell import (
     NATIVE_FEATURES,
     CinnamonShellClient,
     CinnamonShellSurfaceService,
+    CinnamonXWaylandSurfaceService,
 )
 from docking.platform.backends.cinnamon.windows import CinnamonWindowService
 from docking.platform.backends.reduced.services import (
@@ -61,7 +62,7 @@ class CinnamonShellRuntimeServices:
     """Native Cinnamon shell services and fallbacks for unsupported features."""
 
     windows: CinnamonWindowService
-    surface: CinnamonShellSurfaceService
+    surface: SurfaceService
     previews: PreviewService
     visibility: VisibilityService
     workspaces: WorkspaceService | None
@@ -82,6 +83,7 @@ class CinnamonShellSessionBackend(SessionBackend):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
+        surface: SurfaceService | None = None,
     ) -> None:
         windows = CinnamonWindowService(
             model=model,
@@ -93,7 +95,7 @@ class CinnamonShellSessionBackend(SessionBackend):
         features = getattr(client, "features", NATIVE_FEATURES)
         self._services = CinnamonShellRuntimeServices(
             windows=windows,
-            surface=CinnamonShellSurfaceService(client=client),
+            surface=surface or CinnamonShellSurfaceService(client=client),
             previews=CinnamonPreviewService(client=client)
             if "previews" in features
             else ReducedPreviewService(),
@@ -197,6 +199,36 @@ class CinnamonShellSessionBackend(SessionBackend):
         self._services.surface.stop()
         self._services.previews.stop()
         self._services.windows.stop()
+
+
+class CinnamonXWaylandSessionBackend(CinnamonShellSessionBackend):
+    """An X11 dock surface with native Cinnamon window and applet services."""
+
+    def __init__(
+        self,
+        *,
+        client: CinnamonShellClient,
+        config: Config | None = None,
+        model: DockModel,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
+        super().__init__(
+            client=client,
+            config=config,
+            model=model,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+            surface=CinnamonXWaylandSurfaceService(client=client),
+        )
+
+    @property
+    def name(self) -> str:
+        return "cinnamon-xwayland"
+
+    @property
+    def display_server(self) -> DisplayServer:
+        return DisplayServer.X11
 
 
 @dataclass(frozen=True)

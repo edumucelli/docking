@@ -183,6 +183,20 @@ def create_session_backend(
             )
         )
 
+    # The dock may use XWayland to acquire a DOCK role on older Muffin while
+    # windows and desktop services still belong to the native Cinnamon session.
+    if detect_desktop() & Desktop.CINNAMON and (
+        not is_x11_backend() or is_wayland_session()
+    ):
+        backend = _create_cinnamon_wayland_backend(
+            config=config,
+            model=model,
+            reason="Cinnamon session with native desktop services",
+            **identity_arguments,
+        )
+        if backend is not None:
+            return backend
+
     if not is_x11_backend():
         # Hyprland has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.HYPRLAND:
@@ -231,15 +245,6 @@ def create_session_backend(
                 return backend
         if detect_desktop() & Desktop.DEEPIN:
             backend = _create_treeland_backend(
-                model=model,
-                reason=_non_x11_reason(),
-                **identity_arguments,
-            )
-            if backend is not None:
-                return backend
-        if detect_desktop() & Desktop.CINNAMON:
-            backend = _create_cinnamon_wayland_backend(
-                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -420,6 +425,7 @@ def _create_cinnamon_wayland_backend(
     from docking.platform.backends.cinnamon.session import (
         CinnamonShellSessionBackend,
         CinnamonWaylandSessionBackend,
+        CinnamonXWaylandSessionBackend,
     )
     from docking.platform.backends.cinnamon.shell import CinnamonShellClient
     from docking.platform.backends.wayland.services import (
@@ -431,7 +437,12 @@ def _create_cinnamon_wayland_backend(
     shell = CinnamonShellClient.connect()
     if layer_shell is None or not layer_shell_is_supported(layer_shell):
         if shell is not None:
-            backend = CinnamonShellSessionBackend(
+            backend_class = (
+                CinnamonXWaylandSessionBackend
+                if is_x11_backend()
+                else CinnamonShellSessionBackend
+            )
+            backend = backend_class(
                 config=config,
                 client=shell,
                 model=model,

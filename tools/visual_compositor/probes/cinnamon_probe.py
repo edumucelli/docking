@@ -163,6 +163,9 @@ def capabilities() -> int:
     and reservation. Probe that bridge too, so the #347 regression actually runs
     instead of being reported unsupported.
     """
+    from docking.platform.cinnamon import prepare_cinnamon_display
+
+    prepare_cinnamon_display()
     import gi as _gi
 
     _gi.require_version("Gtk", "3.0")
@@ -179,6 +182,7 @@ def capabilities() -> int:
     native = layer_shell and _muffin_debug_available()
 
     from docking.platform.backends.cinnamon.shell import CinnamonShellClient
+    from docking.platform.environment import is_xwayland_session
 
     shell = CinnamonShellClient.connect() is not None
     reasons: dict[str, str] = {}
@@ -194,6 +198,8 @@ def capabilities() -> int:
             "compositor": "cinnamon",
             "expected_backend": "cinnamon-wayland"
             if native
+            else "cinnamon-xwayland"
+            if shell and not wayland
             else "cinnamon-shell"
             if shell
             else "reduced",
@@ -205,6 +211,7 @@ def capabilities() -> int:
             "unsupported_reasons": reasons,
             "screenshot_method": "org.Cinnamon.Screenshot",
             "gtk_display_is_wayland": wayland,
+            "gtk_display_is_xwayland": is_xwayland_session(display=display),
             "layer_shell_supported": layer_shell,
             "muffin_debug_available": _muffin_debug_available(),
         },
@@ -284,6 +291,16 @@ def main() -> int:
     mode = sys.argv[1]
     if mode == "quiet-startup":
         _eval(_proxy(), "imports.ui.main.warningNotify = () => {}; true")
+        return 0
+    if mode == "xwayland-environment":
+        json.dump(
+            _eval(
+                _proxy(),
+                "({DISPLAY:imports.gi.GLib.getenv('DISPLAY'),"
+                "XAUTHORITY:imports.gi.GLib.getenv('XAUTHORITY')})",
+            ),
+            sys.stdout,
+        )
         return 0
     if mode == "geometry":
         return geometry()

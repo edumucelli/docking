@@ -11,6 +11,11 @@ import time
 import traceback
 from pathlib import Path
 
+# The UI probe runs the application in this process; choose its transport
+# before importing Gtk, exactly as the production entry point does.
+if "--child" not in sys.argv:
+    from docking import app
+
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -109,7 +114,9 @@ class Probe:
         self.settle(0.2)
         self.pointer.button(0, 272, 1)
         self.pointer.frame()
-        self.settle(0.1)
+        # A modal applet can enter a nested GTK loop in its press handler.
+        # Deliver the release independently of that handler, as a real mouse
+        # does, rather than holding the button until the selection completes.
         self.pointer.button(0, 272, 0)
         self.pointer.frame()
         self.settle()
@@ -137,12 +144,21 @@ class Probe:
         assert anchor, desktop_id
         self.click(anchor[0] + 24, anchor[1] + 24)
 
-    def later(self, action, delay=800):
+    def later(self, action):
+        deadline = time.monotonic() + 6
+
         def run():
+            ready = _eval(
+                self.shell,
+                "Object.values(global._dockingPicks || {}).some(s=>!s.done)",
+            )
+            if not ready:
+                assert time.monotonic() < deadline, "Compositor selection did not start"
+                return True
             action()
             return False
 
-        GLib.timeout_add(delay, run)
+        GLib.timeout_add(50, run)
 
     def capture(self, name):
         path = self.evidence / f"services-{name}.png"
@@ -158,6 +174,7 @@ class Probe:
 
     def spawn(self, name, *, xwayland=False):
         environment = dict(os.environ)
+        environment["GDK_BACKEND"] = "wayland"
         if xwayland:
             environment["GDK_BACKEND"] = "x11"
             environment["DISPLAY"] = _eval(
@@ -176,7 +193,13 @@ class Probe:
         return process
 
     def run(self):
-        assert type(Gdk.Display.get_default()).__name__ == "GdkWaylandDisplay"
+        display = type(Gdk.Display.get_default()).__name__
+        if self.backend.name == "cinnamon-xwayland":
+            assert display == "X11Display", display
+            assert not self.backend.surface.popups_use_parent_relative_coordinates
+        else:
+            assert display == "GdkWaylandDisplay", display
+        self.dock_role()
         assert (
             self.backend.workspaces
             and self.backend.desktop_actions
@@ -199,12 +222,47 @@ class Probe:
         self.client_cleanup()
         self.capture("finished")
 
+    def dock_role(self):
+        """Check the compositor and real Cinnamon UI models, not GTK hints."""
+        state = _eval(
+            self.shell,
+            """
+            (() => {
+                const Meta=imports.gi.Meta, Main=imports.ui.main;
+                const tracker=imports.gi.Cinnamon.WindowTracker.get_default();
+                const w=global.get_window_actors().map(a=>a.meta_window)
+                    .find(w=>w && w.get_workspace() &&
+                        (w.get_client_pid?.() || w.get_pid())===__PID__);
+                if (!w) return null;
+                const panel=Main.AppletManager.getRunningInstancesForUuid(
+                    'grouped-window-list@cinnamon.org');
+                const switcher=imports.ui.appSwitcher.appSwitcher.getWindowsForBinding(
+                    {get_name:()=> 'switch-windows'});
+                return {type:w.get_window_type(), dock:Meta.WindowType.DOCK,
+                    skip_taskbar:w.is_skip_taskbar(),
+                    interesting:tracker.is_window_interesting(w),
+                    application:tracker.get_window_app(w)?.get_id() || null,
+                    switcher:switcher.includes(w),
+                    panel_instances:panel.length,
+                    panel:panel.some(a=>a.workspaces.some(ws=>
+                        ws?.appGroups.some(g=>g.groupState.metaWindows.includes(w))))};
+            })()
+            """.replace("__PID__", str(os.getpid())),
+        )
+        assert state and state["type"] == state["dock"], state
+        assert state["skip_taskbar"] and not state["interesting"], state
+        assert state["panel_instances"] > 0, state
+        assert not state["panel"] and not state["switcher"], state
+        assert state["application"] is None, state
+        self.observations["dock_role"] = state
+
     def workspaces(self):
         self.window.config.current_workspace_only = True
         self.act("beta", "w.change_workspace_by_index(1, false)")
         self.backend.windows.refresh()
         assert len(self.backend.windows.list_windows("lab-alpha.desktop")) == 1
         assert not self.backend.windows.list_windows("lab-beta.desktop")
+        self.capture("before-workspace-click")
         self.click_item("applet://workspaces")
         self.wait(
             lambda: (
@@ -260,6 +318,13 @@ class Probe:
         self.motion(anchor[0] + 24, anchor[1] + 24)
         self.wait(lambda: self.window.preview.get_visible())
         self.capture("hover-preview")
+        if self.backend.name == "cinnamon-xwayland":
+            popup = self.window.preview
+            x, y = popup.get_position()
+            width, height = popup.get_size()
+            assert x >= 0 and x + width <= 1280, (x, width)
+            assert y >= 0 and y + height <= anchor[1] + 3, (y, height, anchor)
+            self.observations["popup_coordinates"] = [x, y, width, height]
         self.motion(20, 20)
         self.window.preview.hide()
         self.settle()
@@ -464,8 +529,6 @@ def main():
         hide_delay_ms=0,
         unhide_delay_ms=0,
     ).save()
-    import docking.app as app
-
     original = app._start_runtime
     failed = []
 
@@ -477,6 +540,7 @@ def main():
             try:
                 probe.run()
             except Exception:
+                probe.capture("failure")
                 failed.append(traceback.format_exc())
                 print(failed[-1], flush=True)
             finally:

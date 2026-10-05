@@ -20,7 +20,10 @@ from docking.platform.backends.base import (
     Size,
 )
 from docking.platform.backends.cinnamon import shell
-from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
+from docking.platform.backends.cinnamon.session import (
+    CinnamonShellSessionBackend,
+    CinnamonXWaylandSessionBackend,
+)
 from docking.platform.backends.cinnamon.windows import CinnamonWindowService
 from tests.platform.application_fakes import identity_services
 
@@ -249,6 +252,7 @@ def test_surface_keeps_workspace_scope_and_popup_coordinates(monkeypatch):
 
 
 def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
     monkeypatch.setattr(
         "docking.platform.backends.wayland.services.load_gtk_layer_shell", lambda: None
     )
@@ -284,6 +288,30 @@ def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
     assert backend.capabilities.supports_show_desktop
     assert backend.capabilities.supports_any_overlap
     assert backend.capabilities.supports_window_pick
+
+
+def test_xwayland_surface_retains_native_cinnamon_services(monkeypatch):
+    monkeypatch.setattr(selection, "is_x11_backend", lambda: True)
+    monkeypatch.setattr(
+        "docking.platform.backends.wayland.services.load_gtk_layer_shell", lambda: None
+    )
+    client = MagicMock(features=shell.NATIVE_FEATURES)
+    monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: client)
+    backend = selection._create_cinnamon_wayland_backend(
+        model=MagicMock(), reason="Cinnamon XWayland", **identity_services()
+    )
+    assert isinstance(backend, CinnamonXWaylandSessionBackend)
+    assert isinstance(backend.surface, shell.CinnamonXWaylandSurfaceService)
+    assert not backend.surface.popups_use_parent_relative_coordinates
+    assert isinstance(backend.windows, CinnamonWindowService)
+    assert backend.name == "cinnamon-xwayland"
+    assert backend.display_server is DisplayServer.X11
+    assert backend.capabilities.tracks_windows
+    assert backend.capabilities.supports_activate
+    assert backend.capabilities.supports_screen_reservation
+    assert backend.workspaces is not None
+    assert backend.desktop_actions is not None
+    assert backend.window_picker is not None
 
 
 def test_shell_backend_lifecycle_tracks_windows_and_releases_reservation(monkeypatch):

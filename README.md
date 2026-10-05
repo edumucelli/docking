@@ -293,6 +293,13 @@ public interfaces make available. You can also select it explicitly with
 
 #### Native layer-shell
 
+On Cinnamon Wayland, Docking prefers native layer-shell when available. Older
+Muffin uses an XWayland dock surface so the dock stays out of Cinnamon's panel
+application list and Alt+Tab. Window tracking and applet services still use
+Cinnamon's native API, including for native Wayland applications. This fallback
+requires a working XWayland display; explicit `GDK_BACKEND` and unrelated
+`DOCKING_BACKEND` choices are preserved.
+
 Native layer-shell mode needs a compositor with `zwlr_layer_shell_v1`.
 See [Requirements](#requirements) for the `gtk-layer-shell` GIR and optional
 live-protocol dependencies needed by source installs.
