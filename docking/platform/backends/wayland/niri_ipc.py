@@ -201,7 +201,7 @@ class NiriIpcClient:
             return ok_object.get(key)
         return None
 
-    def action(self, action_payload: Mapping[str, JsonValue]) -> ActionResult:
+    def action(self, action_payload: JsonObject) -> ActionResult:
         """Send an ``Action`` request.  Returns OK when the server accepts it."""
         try:
             reply = self.request({"Action": action_payload})

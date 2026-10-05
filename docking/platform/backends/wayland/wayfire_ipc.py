@@ -780,8 +780,11 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
             layer = str(item.get("layer", "") or "").strip().lower()
             if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
                 continue
+            raw_id = item.get("id")
+            if not isinstance(raw_id, (int, float, str)):
+                continue
             try:
-                view_id = int(item.get("id"))
+                view_id = int(raw_id)
             except (TypeError, ValueError):
                 continue
             geometry = _rect_from_mapping(item.get("geometry"))
