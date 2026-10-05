@@ -124,6 +124,10 @@ class ColorPickerApplet(Applet):
         if self._overlay or self._screen_capture is None:
             return
 
+        if getattr(self._screen_capture, "interactive", False) is True:
+            self._apply_pixel(self._screen_capture.pick_color(x=0, y=0))
+            return
+
         self._overlay = create_capture_overlay(
             draw_handler=self._on_overlay_draw,
             click_handler=self._on_overlay_click,
@@ -144,7 +148,11 @@ class ColorPickerApplet(Applet):
             if self._screen_capture is not None
             else None
         )
-        if pixel:
+        self._apply_pixel(pixel)
+        return True
+
+    def _apply_pixel(self, pixel: tuple[int, int, int] | None) -> None:
+        if pixel is not None:
             r, g, b = pixel
             self._r = r / 255.0
             self._g = g / 255.0
@@ -153,8 +161,6 @@ class ColorPickerApplet(Applet):
             self._copy_to_clipboard()
             self._save()
             self.present()
-
-        return True
 
     def _on_overlay_key(self, _widget: Gtk.Window, event: Gdk.EventKey) -> bool:
         """Escape cancels pick mode."""

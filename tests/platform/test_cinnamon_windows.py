@@ -42,6 +42,8 @@ def _service(*rows):
     client = SimpleNamespace(
         list_windows=MagicMock(return_value=rows),
         last_query_failed=False,
+        last_request_failed=False,
+        features=frozenset({"previews"}),
         window_action=MagicMock(return_value=ActionResult.OK),
     )
     service = CinnamonWindowService(model=model, client=client, **identity_services())
@@ -75,7 +77,7 @@ def test_snapshot_matching_excludes_own_dock_and_taskbar_ineligible_windows():
     assert snapshot.id == WindowId(DisplayServer.WAYLAND, "cinnamon:shell-1:1")
     assert snapshot.can_activate and snapshot.can_minimize and snapshot.can_close
     assert snapshot.minimized is False
-    assert not snapshot.can_preview
+    assert snapshot.can_preview
 
 
 def test_inactive_and_minimized_apps_activate_mru_without_launching():

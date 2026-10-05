@@ -169,6 +169,7 @@ def create_session_backend(
         )
     if requested in {"cinnamon", "cinnamon-wayland"}:
         backend = _create_cinnamon_wayland_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -238,6 +239,7 @@ def create_session_backend(
                 return backend
         if detect_desktop() & Desktop.CINNAMON:
             backend = _create_cinnamon_wayland_backend(
+                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -408,6 +410,7 @@ def _create_treeland_backend(
 
 def _create_cinnamon_wayland_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -429,6 +432,7 @@ def _create_cinnamon_wayland_backend(
     if layer_shell is None or not layer_shell_is_supported(layer_shell):
         if shell is not None:
             backend = CinnamonShellSessionBackend(
+                config=config,
                 client=shell,
                 model=model,
                 **_identity_arguments(
@@ -443,6 +447,7 @@ def _create_cinnamon_wayland_backend(
     if client is None and shell is None:
         return None
     backend = CinnamonWaylandSessionBackend(
+        config=config,
         layer_shell=layer_shell,
         model=model,
         client=client,
