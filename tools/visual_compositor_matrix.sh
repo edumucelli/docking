@@ -101,16 +101,21 @@ fi
 IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$IMAGE")"
 "$PYTHON" - "$RUN_DIR/run-meta.json" "$IMAGE_ID" "$IMAGE" "$COMPOSITOR" \
     "${LAB_OUTPUTS:-1}" "${LAB_WIDTH:-1280}" "${LAB_HEIGHT:-720}" \
-    "${LAB_PANEL_HEIGHT:-0}" "${LAB_PANEL_POSITION:-bottom}" <<'RUNMETA'
+    "${LAB_PANEL_HEIGHT:-0}" "${LAB_PANEL_POSITION:-bottom}" "${LAB_PANEL_LAYER:-top}" <<'RUNMETA'
 import json, sys
 path, image_id, image_ref, compositor, count, width, height = sys.argv[1:8]
-panel_height, panel_position = sys.argv[8:10]
+panel_height, panel_position, panel_layer = sys.argv[8:11]
 json.dump(
     {
         "image_id": image_id,
         "image_ref": image_ref,
         "compositor": compositor,
-        "panel": {"height": int(panel_height), "position": panel_position},
+        "panel": {
+            "height": int(panel_height), "position": panel_position,
+            # The historical/default layer is top. Preserve existing sidecars;
+            # an explicit non-default layer must invalidate their provenance.
+            **({"layer": panel_layer} if panel_layer != "top" else {}),
+        },
         "outputs": [
             {"count": int(count), "width": int(width), "height": int(height), "scale": 1}
         ],
@@ -168,6 +173,7 @@ docker run --rm \
     -e "LAB_HEIGHT=${LAB_HEIGHT:-720}" \
     -e "LAB_PANEL_HEIGHT=${LAB_PANEL_HEIGHT:-0}" \
     -e "LAB_PANEL_POSITION=${LAB_PANEL_POSITION:-bottom}" \
+    -e "LAB_PANEL_LAYER=${LAB_PANEL_LAYER:-top}" \
     -e "WLR_RENDER_DRM_DEVICE=${LAB_RENDER_DEVICE:-}" \
     -v "$REPO_DIR:/src:ro" \
     -v "$LAB_DIR:/lab:ro" \

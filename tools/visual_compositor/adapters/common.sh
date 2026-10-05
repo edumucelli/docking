@@ -247,9 +247,14 @@ start_docking() {
         # Source-over-vendored: bypass the installed launcher, whose own
         # PYTHONPATH prepending can still select installed code
         # (docs/HEADLESS_WAYLAND_TESTING.local.md:645-655).
-        PYTHONPATH="$(docking_source_pythonpath)" \
-            /usr/bin/python3 -m docking.launcher \
-            >"$log_path" 2>&1 &
+        if [ -n "${LAB_STACK_STATE:-}" ]; then
+            PYTHONPATH="$(docking_source_pythonpath)" /usr/bin/python3 \
+                "$LAB_SCRIPTS/probes/stack_probe.py" run >"$log_path" 2>&1 &
+        else
+            PYTHONPATH="$(docking_source_pythonpath)" \
+                /usr/bin/python3 -m docking.launcher \
+                >"$log_path" 2>&1 &
+        fi
     fi
     ADAPTER_APP_PID=$!
 

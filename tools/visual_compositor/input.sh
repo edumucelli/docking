@@ -20,6 +20,7 @@ lab_pointer() {
 start_lab_input() {
     local -a input_args=()
     local input_display="$WAYLAND_DISPLAY"
+    local probe_x probe_y geometry
     if [ -f "$LAB_DIR/outer-display" ]; then
         input_args+=(--x11-display "$(cat "$LAB_DIR/outer-display")"
                      --x11-authority "$(cat "$LAB_DIR/outer-authority")")
@@ -46,10 +47,18 @@ start_lab_input() {
     sleep 1
     lab_pointer 100 100 272 || true
     sleep 0.2
-    lab_pointer 320 240 || true
+    # Keep the delivery stimulus away from edge panels, including the large
+    # panel fixture used for popup constraints. The client is fullscreen.
+    geometry="$(adapter_geometry)"
+    probe_x="$(jq '.outputs[0] | (.x + .width / 2) | floor' <<<"$geometry")"
+    probe_y="$(jq '.outputs[0] | (.y + .height / 2) | floor' <<<"$geometry")"
+    lab_pointer "$((probe_x-2))" "$probe_y" || true
+    sleep 0.1
+    lab_pointer "$probe_x" "$probe_y" || true
     sleep 0.3
     if [ -f "$LAB_DIR/input-delivery.json" ] && \
-        jq -e '(.x-320|fabs)<4 and (.y-240|fabs)<4' \
+        jq -e --argjson x "$probe_x" --argjson y "$probe_y" \
+            '(.x-$x|fabs)<4 and (.y-$y|fabs)<4' \
             "$LAB_DIR/input-delivery.json" >/dev/null; then
         LAB_INPUT_SUPPORTED=true
     fi

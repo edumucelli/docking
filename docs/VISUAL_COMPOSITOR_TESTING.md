@@ -31,18 +31,19 @@ The detailed matrix and numbered findings below retain the original 2026-10-02
 investigation. This section supersedes its older statements about unverified
 adapters, unavailable pointer input and missing display-change scenarios.
 
-The matrix now defines **33 cases** across placement, monitors, reservation,
-visibility, interaction, window switching, constrained layouts and live output changes. Capabilities
+The matrix now defines **45 cases** across placement, monitors, reservation,
+visibility, interaction, window switching, constrained layouts, live output changes
+and stacks. Capabilities
 are per adapter: this is not a claim that every case runs on every desktop.
 
 | Compositor | Verified route and scope | Current limitations |
 | --- | --- | --- |
-| Sway | Headless Pixman; placement, four-edge autohide, zoom, tooltip, menu, six layouts and three output transitions | Pixel geometry; no native layer-surface allocation query or native dodge service |
+| Sway | Headless Pixman; placement, four-edge autohide, zoom, tooltip, menu, six layouts, three output transitions and native stack input/containment at 1x/2x | Pixel geometry; no native layer-surface allocation query or native dodge service |
 | Cinnamon | Nested Wayland in private Xvfb; dock role and panel/switcher exclusion, native frame, reservations, window switching and seven native services | Older Muffin uses an XWayland dock surface with native Cinnamon services; newer layer-shell service composition is covered by unit tests |
 | Niri | Nested in headless Sway; five non-panel placement cases | Requires the vertical-edge startup fix in [#353](https://github.com/edumucelli/docking/pull/353); one nested output |
 | labwc | Headless wlroots; placement | No native dock-frame query |
 | COSMIC | Winit nested in headless Sway; native COSMIC placement on five cases | Overlap notification is probed at runtime; absent protocol makes dodge unsupported |
-| KWin | Nested Wayland in headless Sway, QPainter; five placement cases | Reduced visibility service; no native dodge |
+| KWin | Nested Wayland in headless Sway, QPainter; five placement cases and native stack input/containment at 1x | Reduced visibility service; no native dodge; dynamic output scaling unsupported |
 | Wayfire | Arch Wayfire 0.11, headless Pixman and IPC; five placement cases and active-window dodge | Debian's older 0.9 build needs a render device; the default lane uses Arch |
 | Cage | Real headless kiosk compositor; startup, reduced backend and shutdown | Placement intentionally unsupported |
 | GNOME/Mutter | GNOME Shell nested Wayland in private Xvfb; startup, reduced backend and shutdown | Shell extension is deliberately absent; this verifies the compatibility fallback, not native GNOME placement |
@@ -82,8 +83,8 @@ Visibility cases save hidden/revealed/hidden-again or restored captures and requ
 substantial disappearance and recovery of dock pixels. Zoom measures the dock
 strip, excluding tooltip content. Tooltip and menu checks require changed pixels
 above the resting dock; cursor movement and icon highlighting cannot pass them.
-These checks establish popup appearance, not popup allocation or screen-edge
-containment. Each case also retains startup, backend, frame checks where available,
+Tooltip/menu checks establish popup appearance, not popup allocation or screen-edge
+containment. The separate stack cases below check containment. Each case retains startup, backend, frame checks where available,
 settling and shutdown checks.
 
 The Cinnamon `windows` case covers issue #369 using real native GTK applications
@@ -107,6 +108,58 @@ artifacts. Run it locally using an already-built Cinnamon image:
 ```bash
 DOCKING_LAB_IMAGE=docking-lab:cinnamon bash tools/visual_compositor/cinnamon_services.sh
 ```
+
+### Stack popup constraints (F15, 2026-10-05)
+
+`--behavior stacks` adds twelve cases: all four edges with 96px icons, 48px
+icons, and 96px icons at output scale 2. Sway supports all twelve; KWin supports
+the eight normal-scale cases. Unsupported capabilities remain explicit.
+
+```bash
+# Real exclusive overlay panel, matching the original panel-offset failure.
+env LAB_PANEL_HEIGHT=64 LAB_PANEL_POSITION=top LAB_PANEL_LAYER=overlay \
+  LAB_WIDTH=1280 LAB_HEIGHT=800 \
+  bash tools/visual_compositor_matrix.sh --compositor sway --behavior stacks \
+  --geometry-only --require-supported
+
+# Same eight 1x cases on KWin; do not silently count unsupported scaling.
+env LAB_PANEL_HEIGHT=64 LAB_PANEL_POSITION=top LAB_PANEL_LAYER=overlay \
+  LAB_WIDTH=1280 LAB_HEIGHT=800 \
+  bash tools/visual_compositor_matrix.sh --compositor kwin \
+  --case stack-bottom --case stack-top --case stack-left --case stack-right \
+  --case stack-bottom-small --case stack-top-small \
+  --case stack-left-small --case stack-right-small \
+  --geometry-only --require-supported
+```
+
+Omit `LAB_PANEL_HEIGHT` for the no-panel control. `LAB_PANEL_LAYER` defaults to
+`top`; `overlay` uses the shared panel on Sway instead of also starting swaybar.
+The non-default layer is recorded in run metadata. Existing default-layer
+baseline provenance is unchanged.
+
+The isolated launcher seeds nine real folder entries and intercepts only the
+application-launch boundary. It marks the real rendered dock icon and the four
+popup corners without changing allocation or placement. Native input opens the
+stack, scrolls to both endpoints, and activates the first entry, last entry and
+folder action, checking each dispatched target and popup closure. Screen captures
+at native scale must contain all four corners at the actual GTK size; the host
+independently repeats this check from each endpoint capture. Downsampling a 2x
+capture before checking exact marker pixels would corrupt this oracle.
+
+Stack cases use this screen-space oracle instead of trusting the dock's reported
+global origin or applying the main-dock edge assertion to the popup. They do not
+record or update style baselines. Ordinary placement cases retain their existing
+edge assertions. `.stack-result.json` records input results and capture scale;
+`.first.png`, `.last.png` and `.action.png` retain visual evidence.
+
+GTK regression/BDD tests separately exercise a shrinking viewport, transparent
+backgrounds and reuse. Their native-placement contract runs on Xvfb and is not a
+substitute for the real Wayland matrix above. Sway 1.7 has also been checked in
+the original isolated runtime: the top/side panel-offset failures are repaired,
+including native endpoint/action input. Its bottom popup can still be covered
+by an overlay panel due to old compositor stacking policy; do not count that as
+a four-edge panel pass. No corresponding repair or validation is claimed for
+other compositor implementations.
 
 ### CI and image maintenance
 

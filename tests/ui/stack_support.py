@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from gi.repository import Gdk, GdkPixbuf, Gtk
@@ -33,6 +34,15 @@ class StackHarness:
             create=True,
         )
         self._bounds.start()
+
+    def use_native_popup_contract(self):
+        self.parent.surface_service = SimpleNamespace(
+            popups_use_parent_relative_coordinates=True,
+            get_surface_position=lambda: (0, 0),
+        )
+        self.parent.move(0, 0)
+        self.parent.show_all()
+        settle_gtk()
 
     def show(self, count=9, position=Position.BOTTOM, icon_size=96):
         self.config.icon_size = icon_size

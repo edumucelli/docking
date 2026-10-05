@@ -132,6 +132,12 @@ run_case() {
 
     mkdir -p "$config_dir"
     echo "$case_json" | jq '.overrides' >"$config_dir/dock.json"
+    unset LAB_STACK_STATE
+    if [ "$(echo "$case_json" | jq -r '.action // empty')" = stack ]; then
+        export LAB_STACK_STATE="$case_dir/$name.stack.json"
+        PYTHONPATH="$(docking_source_pythonpath)" /usr/bin/python3 \
+            "$HERE/probes/stack_probe.py" seed "$config_dir/dock.json" "$LAB_DIR/stack-folder"
+    fi
 
     if [ "$(echo "$case_json" | jq -r '.action // empty')" = window-switching ]; then
         for app in alpha beta; do
@@ -197,8 +203,8 @@ EOF
     # against the pixels is the assertion that catches a dock reporting a
     # position it never reached -- the shape of #347.
     local self_reported first_item last_item last_anchor
-    first_item="$(echo "$case_json" | jq -r '.overrides.pinned[0]')"
-    last_item="$(echo "$case_json" | jq -r '.overrides.pinned[-1]')"
+    first_item="$(jq -r '.pinned[0] | if type == "object" then .target else . end' "$config_dir/dock.json")"
+    last_item="$(jq -r '.pinned[-1] | if type == "object" then .target else . end' "$config_dir/dock.json")"
     self_reported="$(gdbus call --session --dest org.docking.Docking \
         --object-path /org/docking/Docking \
         --method org.docking.Docking.Items1.GetHoverAnchor "$first_item" \

@@ -648,6 +648,11 @@ def evaluate(
             if not action_ok:
                 results.append(Result(case.name, "fail", action_detail))
                 continue
+            if case.action == "stack":
+                results.append(
+                    Result(case.name, "pass", action_detail, geometry_ok=True)
+                )
+                continue
         if case.display_change:
             transition_error = check_output_transition(
                 evidence=evidence_dir, case=case, record=record

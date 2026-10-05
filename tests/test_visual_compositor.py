@@ -103,6 +103,82 @@ def test_real_window_switching_rejects_incomplete_or_wrong_effects(
     assert not window_evidence.check()[0]
 
 
+@pytest.mark.parametrize("passed", [False, True])
+def test_stack_case_requires_native_endpoint_and_action_proof(tmp_path, passed):
+    from tools.visual_compositor.behaviour import check_action
+
+    case = scenarios.STACK_CASES[0]
+    report = {
+        "passed": passed,
+        "native_clicks": 3,
+        "native_scroll": True,
+        "results": [
+            {"phase": phase, "rect": [10, 10, 40, 60]}
+            for phase in ("first", "last", "action")
+        ],
+        "reason": "popup corner clipped",
+    }
+    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS
+
+    for phase in ("first", "last", "action"):
+        image = Image.new("RGB", (80, 100), "black")
+        draw = ImageDraw.Draw(image)
+        for (x, y), color in zip(
+            ((10, 10), (46, 10), (10, 66), (46, 66)), CORNER_COLORS, strict=True
+        ):
+            draw.rectangle((x, y, x + 3, y + 3), fill=color)
+        image.save(tmp_path / f"{case.name}.{phase}.png")
+    (tmp_path / f"{case.name}.stack-result.json").write_text(json.dumps(report))
+    assert check_action(evidence=tmp_path, case=case, band={})[0] == passed
+
+
+@pytest.mark.parametrize("missing", ["native_clicks", "native_scroll", "results"])
+def test_stack_case_rejects_incomplete_input_evidence(tmp_path, missing):
+    from tools.visual_compositor.behaviour import check_action
+
+    case = scenarios.STACK_CASES[0]
+    report = {
+        "passed": True,
+        "native_clicks": 3,
+        "native_scroll": True,
+        "results": [{"phase": phase} for phase in ("first", "last", "action")],
+    }
+    report.pop(missing)
+    (tmp_path / f"{case.name}.stack-result.json").write_text(json.dumps(report))
+    assert not check_action(evidence=tmp_path, case=case, band={})[0]
+
+
+@pytest.mark.parametrize("corner", range(4))
+def test_popup_oracle_rejects_each_clipped_corner(tmp_path, corner):
+    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS, popup_bounds
+
+    image = Image.new("RGB", (80, 100), "black")
+    draw = ImageDraw.Draw(image)
+    for index, ((x, y), color) in enumerate(
+        zip(((10, 10), (46, 10), (10, 66), (46, 66)), CORNER_COLORS, strict=True)
+    ):
+        if index != corner:
+            draw.rectangle((x, y, x + 3, y + 3), fill=color)
+    path = tmp_path / "clipped.png"
+    image.save(path)
+    with pytest.raises(ValueError, match="corner clipped"):
+        popup_bounds(path, [40, 60])
+
+
+def test_popup_oracle_checks_native_scale_without_resampling(tmp_path):
+    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS, popup_bounds
+
+    image = Image.new("RGB", (160, 200), "black")
+    draw = ImageDraw.Draw(image)
+    for (x, y), color in zip(
+        ((20, 20), (92, 20), (20, 132), (92, 132)), CORNER_COLORS, strict=True
+    ):
+        draw.rectangle((x, y, x + 7, y + 7), fill=color)
+    path = tmp_path / "native-scale.png"
+    image.save(path)
+    assert popup_bounds(path, [40, 60], scale=2) == (10, 10, 40, 60)
+
+
 @pytest.fixture
 def evidence(tmp_path, monkeypatch):
     case = scenarios.PLACEMENT_CASES[0]

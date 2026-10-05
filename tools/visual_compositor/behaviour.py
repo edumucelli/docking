@@ -36,6 +36,41 @@ def check_action(*, evidence: Path, case, band: dict) -> tuple[bool, str]:
         return path
 
     try:
+        if case.action == "stack":
+            import json
+
+            report = json.loads(
+                (evidence / f"{case.name}.stack-result.json").read_text()
+            )
+            if report.get("passed") is not True:
+                return False, report.get("reason", "stack input/containment failed")
+            if (
+                report.get("native_clicks") != 3
+                or report.get("native_scroll") is not True
+            ):
+                return False, "stack input proof incomplete"
+            if {result["phase"] for result in report.get("results", [])} != {
+                "first",
+                "last",
+                "action",
+            }:
+                return False, "stack endpoint/action proof incomplete"
+            from tools.visual_compositor.probes.stack_probe import popup_bounds
+
+            for result in report["results"]:
+                rect = result["rect"]
+                observed = popup_bounds(
+                    evidence / f"{case.name}.{result['phase']}.png",
+                    rect[2:],
+                    report.get("capture_scale", 1),
+                )
+                if observed != tuple(rect):
+                    return False, "stack screen extent differs from recorded input"
+            return (
+                True,
+                "popup corners visible; native scrolling and first/last/action "
+                "activation verified",
+            )
         if case.action in {"autohide", "dodge"}:
             visible = footprint(phase("revealed"), band)
             hidden = footprint(phase("hidden"), band)

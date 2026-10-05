@@ -3,6 +3,12 @@ capture_phase() { capture_until_stable "$EVIDENCE_DIR/$name.$1.png"; }
 
 run_lab_action() {
     local action="$1" edge="$2" geometry x y width height ax ay anchor
+    if [ "$action" = stack ]; then
+        export LAB_STACK_CASE="$name"
+        PYTHONPATH="$(docking_source_pythonpath)" /usr/bin/python3 \
+            "$LAB_SCRIPTS/probes/stack_action.py"
+        return
+    fi
     geometry="$(adapter_geometry | jq '.outputs[0]')"
     x="$(echo "$geometry" | jq '.x')"; y="$(echo "$geometry" | jq '.y')"
     width="$(echo "$geometry" | jq '.width')"; height="$(echo "$geometry" | jq '.height')"

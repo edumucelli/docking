@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
 
 import gi
@@ -49,7 +50,13 @@ def main() -> int:
     GtkLayerShell.init_for_window(window)
     # A panel belongs in the top layer, above normal windows; a dock that
     # reserved the same edge should end up within what is left, not over it.
-    GtkLayerShell.set_layer(window, GtkLayerShell.Layer.TOP)
+    layer = os.environ.get("LAB_PANEL_LAYER", "top")
+    if layer not in {"top", "overlay"}:
+        raise ValueError(f"unknown panel layer: {layer}")
+    GtkLayerShell.set_layer(
+        window,
+        GtkLayerShell.Layer.OVERLAY if layer == "overlay" else GtkLayerShell.Layer.TOP,
+    )
     GtkLayerShell.set_namespace(window, "lab-panel")
 
     anchors = {

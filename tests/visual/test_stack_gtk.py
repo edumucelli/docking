@@ -91,7 +91,10 @@ def test_scrolling_cancels_a_pending_click(stack):
 
 
 @pytest.mark.parametrize("position", list(Position))
-def test_scrolling_preserves_transparent_fan_background(stack, position):
+@pytest.mark.parametrize("native", [False, True])
+def test_scrolling_preserves_transparent_fan_background(stack, position, native):
+    if native:
+        stack.use_native_popup_contract()
     stack.show(position=position)
     for last in (False, True):
         stack.scroll_to(last)
@@ -102,6 +105,22 @@ def test_scrolling_preserves_transparent_fan_background(stack, position):
         assert pixels.getpixel((2, height // 2))[3] == 0
         assert pixels.getpixel((0, 0))[3] == 0
         assert pixels.getchannel("A").getextrema()[1] == 255
+
+
+def test_native_popup_reuse_releases_the_previous_compositor_constraint(stack):
+    stack.use_native_popup_contract()
+    stack.show()
+    original = tuple(stack.popup.get_size())
+    stack.popup.resize(300, 180)
+    for _ in range(7):
+        settle_gtk()
+    assert tuple(stack.popup.get_size()) == (300, 180)
+    stack.show(count=2, icon_size=48)
+    assert stack.popup.get_size().height < original[1]
+    assert stack.scroller is not None
+    stack.show()
+    assert tuple(stack.popup.get_size()) == original
+    assert stack.stack._folder_stack_constraint_retries == 0
 
 
 def test_refresh_rebuilds_smaller_content_and_resets_scroll(stack):
@@ -148,3 +167,20 @@ def test_applet_adapter_keeps_overflow_entries_reachable(stack, position):
     stack.scroll_to(True)
     stack.click_label(-1)
     assert stack.activated == [8]
+
+
+@pytest.mark.parametrize("count", [2, 9])
+@pytest.mark.parametrize("position", list(Position))
+def test_compositor_can_shrink_even_an_initially_fitting_stack(stack, position, count):
+    stack.use_native_popup_contract()
+    stack.show(count=count, position=position)
+    assert stack.scroller is not None
+    assert stack.scroller.get_size_request() == (-1, -1)
+    assert stack.popup.get_resizable()
+    stack.popup.resize(300, 180)
+    for _ in range(7):
+        settle_gtk()
+    assert tuple(stack.popup.get_size()) == (300, 180)
+    stack.scroll_to(True)
+    stack.click_label(-1)
+    assert stack.activated == [count - 1]

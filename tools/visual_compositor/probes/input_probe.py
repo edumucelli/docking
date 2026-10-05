@@ -86,6 +86,12 @@ class X11Pointer:
     def frame(self):
         self.roundtrip()
 
+    def axis(self, now, axis, value):
+        button = 5 if value > 0 else 4
+        for _ in range(max(1, round(abs(value) / 15))):
+            self.xtst.XTestFakeButtonEvent(self.display, button, 1, 0)
+            self.xtst.XTestFakeButtonEvent(self.display, button, 0, 0)
+
     def roundtrip(self):
         self.xlib.XSync(self.display, 0)
 
@@ -111,6 +117,8 @@ def serve(path: Path, x11_display: str | None, authority: str) -> None:
                     pointer.button(now, request["button"], 1)
                     pointer.frame()
                     pointer.button(now, request["button"], 0)
+                if request.get("scroll"):
+                    pointer.axis(now, 0, request["scroll"] * 15.0)
                 pointer.frame()
                 display.roundtrip()
                 client.sendall(b'{"ok":true}\n')

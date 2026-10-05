@@ -24,3 +24,15 @@ Feature: Accessible overflowing stacks
     When I replace it with a short 48 pixel stack
     Then the stack popup fits its workarea
     And the short stack has no scrolling container
+
+  Scenario Outline: A compositor can shrink the viewport after initial sizing
+    Given a native stack popup at the "<edge>" edge
+    When the compositor grants a 300 by 180 viewport
+    Then the last stack entry remains reachable
+
+    Examples:
+      | edge   |
+      | bottom |
+      | top    |
+      | left   |
+      | right  |

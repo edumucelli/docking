@@ -46,6 +46,7 @@ adapter_capabilities() {
 adapter_prepare() {
     # Sway owns swaybar; do not also launch the shared synthetic panel.
     export LAB_PANEL_PROBE=0
+    [ "${LAB_PANEL_LAYER:-top}" = overlay ] && export LAB_PANEL_PROBE=1
     COMPOSITOR_LOG="${LAB_DIR}/sway.log"
     local outputs="${LAB_OUTPUTS:-1}"
     local width="${LAB_WIDTH:-1280}"
@@ -76,7 +77,7 @@ adapter_prepare() {
         # genuine exclusive zone, which shrinks the usable area the dock must
         # place itself inside -- the scenario where a dock that only knows its
         # own geometry overlaps the panel.
-        if [ "${LAB_PANEL_HEIGHT:-0}" -gt 0 ]; then
+        if [ "${LAB_PANEL_HEIGHT:-0}" -gt 0 ] && [ "$LAB_PANEL_PROBE" = 0 ]; then
             printf 'bar {\n  position %s\n  height %s\n  status_command /bin/false\n' \
                 "${LAB_PANEL_POSITION:-bottom}" "${LAB_PANEL_HEIGHT}"
             printf '  font pango:DejaVu Sans Mono 10\n  colors {\n'

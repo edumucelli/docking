@@ -360,6 +360,30 @@ RESERVATION_CASES.append(
         crash_dock=True,
     )
 )
+STACK_CASES = [
+    Case(
+        f"stack-{edge}",
+        "stacks",
+        {**BASE_CONFIG, "position": edge, "icon_size": 96, "stack_unfold": "click"},
+        edge,
+        requires="interactive",
+        action="stack",
+    )
+    for edge in ("bottom", "top", "left", "right")
+]
+STACK_CASES += [
+    Case(
+        f"stack-{edge}-{suffix}",
+        "stacks",
+        {**BASE_CONFIG, "position": edge, "icon_size": icons, "stack_unfold": "click"},
+        edge,
+        requires="interactive" if scene is None else "output_changes",
+        action="stack",
+        display_scene=scene,
+    )
+    for suffix, icons, scene in (("small", 48, None), ("scale2", 96, "scale2"))
+    for edge in ("bottom", "top", "left", "right")
+]
 ALL_CASES = (
     PLACEMENT_CASES
     + MONITOR_CASES
@@ -369,6 +393,7 @@ ALL_CASES = (
     + WINDOW_CASES
     + LAYOUT_CASES
     + DISPLAY_CASES
+    + STACK_CASES
 )
 
 BEHAVIORS = {
@@ -380,6 +405,7 @@ BEHAVIORS = {
     "windows": WINDOW_CASES,
     "layouts": LAYOUT_CASES,
     "displays": DISPLAY_CASES,
+    "stacks": STACK_CASES,
 }
 
 
