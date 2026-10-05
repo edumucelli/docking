@@ -58,10 +58,12 @@ adapter_prepare() {
 adapter_start() {
     # xvfb-run allocates a free display and tears its X server down with the
     # child, so the display number is never hard-coded.
+    # Muffin initializes its XWayland window manager through GDK X11. This
+    # applies only to Cinnamon; clients retain the Wayland backend set above.
     xvfb-run -a -s "-screen 0 ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}x24 +extension GLX +render -noreset" \
         bash -c 'printf "%s\n" "$DISPLAY" >"$LAB_DIR/outer-display";
                  printf "%s\n" "$XAUTHORITY" >"$LAB_DIR/outer-authority";
-                 exec cinnamon --nested --wayland' \
+                 exec env GDK_BACKEND=x11 cinnamon --nested --wayland' \
         >"${LAB_DIR}/cinnamon.log" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
 
@@ -84,6 +86,9 @@ adapter_wait_ready() {
     for _ in $(seq "$attempts"); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if /usr/bin/python3 "$PROBE" geometry >/dev/null 2>&1; then
+            # Missing optional system services generate startup banners that
+            # overlap the pixel oracle. Keep the errors in cinnamon.log.
+            /usr/bin/python3 "$PROBE" quiet-startup
             return 0
         fi
         sleep 0.5

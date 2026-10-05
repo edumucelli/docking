@@ -56,6 +56,7 @@ jobs:
           if [ "$COMPOSITOR" = cinnamon ]; then
             bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
             bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+            bash tools/visual_compositor/cinnamon_services.sh
           elif [ "$COMPOSITOR" = cage ] || [ "$COMPOSITOR" = gnome ]; then
             # Negative compatibility lanes still verify backend, startup and shutdown.
             bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only

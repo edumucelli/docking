@@ -24,14 +24,13 @@ That means this module is mostly about control flow and event capture:
 - create a transparent full-screen popup window,
 - grab pointer and keyboard input so the next click is unambiguous,
 - translate a root-window click into a backend-selected window at that point,
-- hand the selected PID to the state layer,
+- ask the backend to validate and terminate the selected live target,
 - cleanly dismiss the overlay on success or Escape.
 
 Why the kill call is delegated
 
-Actually sending ``SIGKILL`` is kept in ``state.py`` so the destructive act is
-small, explicit, and separately testable. This file stays focused on selection
-mechanics and backend window-pick integration.
+The backend resolves the live window again before terminating it. This keeps
+stale compositor handles and native PID checks out of the applet.
 
 Why this module needs long-form explanation
 
@@ -60,10 +59,13 @@ from docking.applets.popup import (
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller import meta
 from docking.applets.windowkiller.render import create_icon
-from docking.applets.windowkiller.state import kill_pid
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.backends.base import ActionResult, WindowPickService
+from docking.platform.backends.base import (
+    ActionResult,
+    WindowPickService,
+    WindowSnapshot,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -106,6 +108,10 @@ class WindowKillerApplet(Applet):
         if self._overlay or self._window_picker is None:
             return
 
+        if getattr(self._window_picker, "interactive", False) is True:
+            self._kill_target(self._window_picker.select_window())
+            return
+
         self._overlay = create_capture_overlay(
             draw_handler=self._on_overlay_draw,
             click_handler=self._on_overlay_click,
@@ -125,21 +131,17 @@ class WindowKillerApplet(Applet):
             return True
         x, y = int(event.x_root), int(event.y_root)
         target = picker.pick_window_at(x=x, y=y)
-        if target is None:
-            return True
-        pid = picker.pid_for(target.id)
-        name = target.title or "unknown"
-        if pid is None:
-            log.bind(action="kill").warning("No PID for window: %s", name)
-            return True
-        result = ActionResult.OK if kill_pid(pid=pid) else ActionResult.FAILED
-        log.bind(action="kill").info(
-            "Killed %s (pid=%d): %s",
-            name,
-            pid,
-            result is ActionResult.OK,
-        )
+        self._kill_target(target)
         return True
+
+    def _kill_target(self, target: WindowSnapshot | None) -> None:
+        picker = self._window_picker
+        if target is None or picker is None:
+            return
+        result = picker.kill(target.id)
+        log.bind(action="kill").info(
+            "Kill %s: %s", target.title or "unknown", result is ActionResult.OK
+        )
 
     def _on_overlay_key(self, _widget: Gtk.Window, event: Gdk.EventKey) -> bool:
         if event.keyval == Gdk.KEY_Escape:

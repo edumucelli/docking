@@ -22,10 +22,6 @@ from docking.platform.backends.base import (
 from docking.platform.backends.cinnamon import shell
 from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
 from docking.platform.backends.cinnamon.windows import CinnamonWindowService
-from docking.platform.backends.reduced.services import (
-    ReducedPreviewService,
-    ReducedVisibilityService,
-)
 from tests.platform.application_fakes import identity_services
 
 
@@ -95,7 +91,7 @@ def test_shell_client_handles_disabled_eval_and_bus_failures():
 
 
 def test_shell_client_probes_eval_before_selecting_backend(monkeypatch):
-    proxy = _proxy(True)
+    proxy = _proxy({"windows": True, **dict.fromkeys(shell.NATIVE_FEATURES, True)})
     monkeypatch.setattr(shell.Gio.DBusProxy, "new_for_bus_sync", lambda *_: proxy)
     assert shell.CinnamonShellClient.connect() is not None
     proxy.call_sync.return_value = SimpleNamespace(unpack=lambda: (False, ""))
@@ -166,6 +162,10 @@ def test_surface_retries_reservation_after_mapping_and_clears_on_stop(monkeypatc
     monkeypatch.setattr(shell.GLib, "timeout_add", lambda *_: 42)
     monkeypatch.setattr(shell.GLib, "source_remove", lambda *_: None)
     client = SimpleNamespace(
+        last_query_failed=False,
+        rows=(),
+        snapshot_revision=0,
+        clear_dock_visibility=MagicMock(),
         position_dock=MagicMock(side_effect=[None, (0, 853)]),
         reserve_dock=MagicMock(side_effect=[False, True]),
         clear_reservation=MagicMock(),
@@ -189,7 +189,11 @@ def test_surface_retries_mapping_and_uses_latest_placement(monkeypatch):
     monkeypatch.setattr(shell.GLib, "timeout_add", timeout)
     monkeypatch.setattr(shell.GLib, "source_remove", remove)
     client = SimpleNamespace(
-        position_dock=MagicMock(side_effect=[None, (0, 853), (1733, 0)])
+        last_query_failed=False,
+        rows=(),
+        snapshot_revision=0,
+        clear_dock_visibility=MagicMock(),
+        position_dock=MagicMock(side_effect=[None, (0, 853), (1733, 0)]),
     )
     surface = shell.CinnamonShellSurfaceService(client=client)
     window = MagicMock()
@@ -213,7 +217,9 @@ def test_surface_retries_mapping_and_uses_latest_placement(monkeypatch):
 def test_surface_bounds_retries_and_cancels_after_stop(monkeypatch):
     monkeypatch.setattr(shell.GLib, "timeout_add", lambda *_: 42)
     monkeypatch.setattr(shell.GLib, "source_remove", lambda *_: None)
-    client = SimpleNamespace(position_dock=MagicMock(return_value=None))
+    client = SimpleNamespace(
+        position_dock=MagicMock(return_value=None), clear_dock_visibility=MagicMock()
+    )
     surface = shell.CinnamonShellSurfaceService(client=client)
     surface.configure_before_realize(MagicMock())
     surface.position_or_anchor(_request())
@@ -228,7 +234,12 @@ def test_surface_bounds_retries_and_cancels_after_stop(monkeypatch):
 
 def test_surface_keeps_workspace_scope_and_popup_coordinates(monkeypatch):
     monkeypatch.setattr(shell.GLib, "timeout_add", lambda *_: 42)
-    client = SimpleNamespace(position_dock=MagicMock(return_value=(0, 853)))
+    client = SimpleNamespace(
+        position_dock=MagicMock(return_value=(0, 853)),
+        snapshot_revision=0,
+        last_query_failed=False,
+        rows=(),
+    )
     surface = shell.CinnamonShellSurfaceService(client=client)
     surface.configure_before_realize(MagicMock())
     surface.position_or_anchor(_request())
@@ -242,6 +253,7 @@ def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
         "docking.platform.backends.wayland.services.load_gtk_layer_shell", lambda: None
     )
     client = MagicMock()
+    client.features = shell.NATIVE_FEATURES
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: client)
     backend = selection._create_cinnamon_wayland_backend(
         model=MagicMock(), reason="native Wayland", **identity_services()
@@ -257,13 +269,21 @@ def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
     assert backend.capabilities.supports_close is True
     assert isinstance(backend.windows, CinnamonWindowService)
     assert isinstance(backend.surface, shell.CinnamonShellSurfaceService)
-    assert isinstance(backend.previews, ReducedPreviewService)
-    assert isinstance(backend.visibility, ReducedVisibilityService)
-    assert backend.workspaces is None
-    assert backend.desktop_actions is None
-    assert backend.screen_capture is None
-    assert backend.idle is None
-    assert backend.window_picker is None
+    from docking.platform.backends.cinnamon.services import (
+        CinnamonPreviewService,
+        CinnamonVisibilityService,
+        CinnamonWorkspaceService,
+    )
+
+    assert isinstance(backend.previews, CinnamonPreviewService)
+    assert isinstance(backend.visibility, CinnamonVisibilityService)
+    assert isinstance(backend.workspaces, CinnamonWorkspaceService)
+    assert backend.desktop_actions is not None
+    assert backend.window_picker is not None
+    assert backend.capabilities.supports_current_workspace_filter
+    assert backend.capabilities.supports_show_desktop
+    assert backend.capabilities.supports_any_overlap
+    assert backend.capabilities.supports_window_pick
 
 
 def test_shell_backend_lifecycle_tracks_windows_and_releases_reservation(monkeypatch):
@@ -273,9 +293,13 @@ def test_shell_backend_lifecycle_tracks_windows_and_releases_reservation(monkeyp
     monkeypatch.setattr(shell.GLib, "source_remove", remove)
     client = SimpleNamespace(
         last_query_failed=False,
+        features=shell.NATIVE_FEATURES,
+        rows=(),
+        snapshot_revision=0,
         list_windows=MagicMock(return_value=()),
         reserve_dock=MagicMock(),
         clear_reservation=MagicMock(),
+        clear_dock_visibility=MagicMock(),
     )
     model = MagicMock()
     model.visible_items.return_value = []
@@ -329,6 +353,7 @@ def test_selection_uses_shell_windows_with_layer_shell_on_newer_muffin(monkeypat
         lambda _: True,
     )
     shell_connect = MagicMock()
+    shell_connect.return_value.features = shell.NATIVE_FEATURES
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", shell_connect)
     monkeypatch.setattr(
         "docking.platform.backends.wayland.session.WaylandProtocolRuntime.start",

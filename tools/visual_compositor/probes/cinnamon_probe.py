@@ -282,6 +282,9 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     mode = sys.argv[1]
+    if mode == "quiet-startup":
+        _eval(_proxy(), "imports.ui.main.warningNotify = () => {}; true")
+        return 0
     if mode == "geometry":
         return geometry()
     if mode == "capabilities":

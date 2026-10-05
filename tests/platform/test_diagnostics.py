@@ -194,7 +194,7 @@ def test_cinnamon_shell_reports_pending_tracking_without_querying_shell():
     from docking.platform.backends.cinnamon.session import CinnamonShellSessionBackend
     from tests.platform.application_fakes import identity_services
 
-    client = SimpleNamespace(list_windows=MagicMock())
+    client = SimpleNamespace(list_windows=MagicMock(), features=frozenset())
     backend = CinnamonShellSessionBackend(
         client=client, model=MagicMock(), **identity_services()
     )
