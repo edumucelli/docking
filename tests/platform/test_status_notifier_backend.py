@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -20,6 +23,8 @@ from docking.platform.status_notifier.backend import (
     parse_registered_item,
     tray_item_from_properties,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestWatcherIdentifiers:
@@ -132,6 +137,125 @@ class TestTooltipParts:
     def test_variant_with_unexpected_child_types_matches_plain_tuple(self):
         variant = GLib.Variant("(siis)", ("icon", 1, 2, "body"))
         assert _tooltip_parts(variant) == _tooltip_parts(("icon", 1, 2, "body"))
+
+    def test_short_variant_tuple_returns_empty(self):
+        assert _tooltip_parts(GLib.Variant("(ss)", ("a", "b"))) == ("", "")
+
+    def test_array_variant_matches_plain_list(self):
+        variant = GLib.Variant("as", ["a", "b", "title", "body"])
+        assert _tooltip_parts(variant) == _tooltip_parts(["a", "b", "title", "body"])
+
+    def test_dictionary_variant_returns_empty(self):
+        variant = GLib.Variant(
+            "a{sv}",
+            {f"k{index}": GLib.Variant("s", "v") for index in range(4)},
+        )
+        assert _tooltip_parts(variant) == ("", "")
+
+
+class TestMalformedTooltipsDoNotAbort:
+    """A non-container ToolTip must not kill the process.
+
+    ``Variant.n_children()`` on a scalar reaches a GLib ``g_error()`` that
+    aborts the interpreter with SIGABRT, which no exception handler can catch,
+    so the offending shapes have to be exercised in a subprocess.
+    """
+
+    SCRIPT = """
+from unittest.mock import Mock
+
+from gi.repository import GLib
+
+from docking.platform.status_notifier.backend import (
+    RegisteredItemAddress,
+    _read_item,
+    _tooltip_parts,
+)
+
+# A tray app publishing a scalar ToolTip used to abort the dock here.
+assert _tooltip_parts(GLib.Variant("s", "")) == ("", "")
+assert _tooltip_parts(GLib.Variant("i", 7)) == ("", "")
+assert _tooltip_parts(GLib.Variant("v", GLib.Variant("s", ""))) == ("", "")
+
+TOOLTIPS = [
+    GLib.Variant(signature, value)
+    for signature, value in [
+        ("s", ""),
+        ("i", 1),
+        ("b", True),
+        ("as", ["a", "b", "c", "d"]),
+        ("ay", bytes(8)),
+        ("a{sv}", {f"k{index}": GLib.Variant("s", "v") for index in range(5)}),
+        ("(ss)", ("a", "b")),
+        ("mi", 5),
+        ("v", GLib.Variant("s", "")),
+    ]
+] + [GLib.Variant("(sa(iiay)ss)", ("", [(4, 4, bytes(64))], "T", "B"))]
+
+PIXMAPS = [
+    GLib.Variant(signature, value)
+    for signature, value in [
+        ("s", ""),
+        ("i", 3),
+        ("as", ["a"]),
+        ("a{sv}", {"k": GLib.Variant("s", "v")}),
+        ("a(iiay)", []),
+        ("a(iiay)", [(0, 0, b"")]),
+        ("a(iiay)", [(4, 4, bytes(4))]),
+        ("a(iiay)", [(2, 2, bytes(16))]),
+    ]
+]
+
+for pixmap in PIXMAPS:
+    for tooltip in TOOLTIPS:
+        reply = GLib.Variant(
+            "(a{sv})",
+            (
+                {
+                    "Title": GLib.Variant("s", "Tray"),
+                    "IconPixmap": pixmap,
+                    "ToolTip": tooltip,
+                    "AttentionIconPixmap": pixmap,
+                    "OverlayIconPixmap": GLib.Variant("s", ""),
+                },
+            ),
+        )
+        bus = Mock()
+        bus.call_sync.return_value = reply
+        item = _read_item(
+            bus=bus, address=RegisteredItemAddress(service=":1.74", path="/Tray")
+        )
+        assert item is not None
+        assert item.title == "Tray"
+
+well_formed = GLib.Variant(
+    "(a{sv})",
+    (
+        {
+            "Title": GLib.Variant("s", "Tray"),
+            "IconPixmap": GLib.Variant("a(iiay)", [(2, 2, bytes(16))]),
+            "ToolTip": GLib.Variant("(sa(iiay)ss)", ("", [(4, 4, bytes(64))], "T", "B")),
+        },
+    ),
+)
+bus = Mock()
+bus.call_sync.return_value = well_formed
+item = _read_item(bus=bus, address=RegisteredItemAddress(service=":1.74", path="/Tray"))
+assert item is not None
+assert (item.tooltip_title, item.tooltip_text) == ("T", "B")
+assert item.icon_pixmap is not None and item.icon_pixmap.width == 2
+print("ok")
+"""
+
+    def test_scalar_tooltips_do_not_abort(self):
+        result = subprocess.run(
+            [sys.executable, "-c", self.SCRIPT],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "ok"
 
 
 class TestBytesFromDBusArray:

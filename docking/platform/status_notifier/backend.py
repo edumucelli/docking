@@ -618,17 +618,33 @@ def _unbox_variant(value: object) -> GLib.Variant | None:
     return value
 
 
+def _is_sequence_variant(variant: GLib.Variant) -> bool:
+    """Return True for tuple and array variants, the shapes a tooltip can take.
+
+    ``Variant.n_children()`` is only defined for containers: on a scalar it
+    reaches a GLib ``g_error()`` that aborts the process, and no exception
+    handler can catch that. Every shape check therefore happens on the type
+    string, and dictionaries are excluded because a tooltip is never one.
+    """
+    type_string = variant.get_type_string()
+    if type_string.startswith("a{"):
+        return False
+    return type_string.startswith(("(", "a"))
+
+
 def _variant_text(value: GLib.Variant) -> str:
     """Read a tooltip text child, tolerating items publishing another type."""
     if value.get_type_string() in _TEXT_TYPES:
         return value.get_string()
+    if value.is_container():
+        return ""
     return str(_unpack_variant(value) or "")
 
 
 def _tooltip_parts(value: object) -> tuple[str, str]:
     variant = _unbox_variant(value)
     if variant is not None:
-        if variant.n_children() < 4:
+        if not _is_sequence_variant(variant) or variant.n_children() < 4:
             return "", ""
         return (
             _variant_text(variant.get_child_value(2)),
