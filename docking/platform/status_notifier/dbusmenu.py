@@ -27,6 +27,24 @@ from gi.repository import Gio, GLib
 DBUSMENU_IFACE = "com.canonical.dbusmenu"
 DBUSMENU_METHOD_TIMEOUT_MS = 1400
 
+_LAYOUT_TYPE = GLib.VariantType.new("(u(ia{sv}av))")
+_MENU_NODE_TYPE = GLib.VariantType.new("(ia{sv}av)")
+_ICON_DATA_PROPERTY = "icon-data"
+# Properties the model reads. Names outside this set are never touched, so a
+# menu carrying large payloads under custom names costs nothing to skip.
+_MENU_PROPERTY_NAMES = frozenset(
+    {
+        "label",
+        "enabled",
+        "visible",
+        "type",
+        "icon-name",
+        _ICON_DATA_PROPERTY,
+        "toggle-type",
+        "toggle-state",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class DBusMenuItem:
@@ -78,18 +96,24 @@ class DBusMenuClient:
                 DBUSMENU_IFACE,
                 "GetLayout",
                 GLib.Variant("(iias)", (0, -1, [])),
-                GLib.VariantType.new("(u(ia{sv}av))"),
+                _LAYOUT_TYPE,
                 Gio.DBusCallFlags.NONE,
                 DBUSMENU_METHOD_TIMEOUT_MS,
                 None,
             )
         except GLib.Error:
             return None
-        revision, raw_root = _unpack_variant(result)
+        if isinstance(result, GLib.Variant):
+            revision = int(result.get_child_value(0).get_uint32())
+            raw_root: object = result.get_child_value(1)
+        else:
+            # Plain Python replies: kept for tests and defensive callers.
+            revision_text, raw_root = _unpack_variant(result)
+            revision = int(revision_text)
         root = parse_menu_node(raw_root)
         if root is None:
             return None
-        return DBusMenuLayout(revision=int(revision), root=root)
+        return DBusMenuLayout(revision=revision, root=root)
 
     def about_to_show(self, item_id: int) -> bool:
         try:
@@ -128,26 +152,94 @@ class DBusMenuClient:
 
 
 def parse_menu_node(raw: object) -> DBusMenuItem | None:
-    """Parse one DBusMenu ``(ia{sv}av)`` node after GLib unpacking.
+    """Parse one DBusMenu ``(ia{sv}av)`` node.
+
+    Accepts the ``GLib.Variant`` that D-Bus delivers, which is read without
+    unpacking icon byte arrays, or an already unpacked Python structure.
 
     Children are parsed recursively and malformed child nodes are dropped.
     Real tray apps vary in how strictly they follow DBusMenu, so callers get a
     usable partial menu instead of losing the whole tree.
     """
+    node = _unbox_variant(raw)
+    if node is not None:
+        return _parse_variant_node(node)
+
     raw = _unpack_variant(raw)
     if not isinstance(raw, (tuple, list)) or len(raw) != 3:
         return None
     item_id, properties, children = raw
     if not isinstance(properties, dict):
         properties = {}
-    parsed_children = tuple(
-        child
-        for raw_child in children
-        for child in (parse_menu_node(raw_child),)
-        if child is not None
-    )
-    return DBusMenuItem(
+    return _build_menu_item(
         item_id=int(item_id),
+        properties=properties,
+        children=tuple(
+            child
+            for raw_child in children
+            for child in (parse_menu_node(raw_child),)
+            if child is not None
+        ),
+    )
+
+
+def _parse_variant_node(node: GLib.Variant) -> DBusMenuItem | None:
+    if not node.is_of_type(_MENU_NODE_TYPE):
+        return None
+    children_variant = node.get_child_value(2)
+    return _build_menu_item(
+        item_id=node.get_child_value(0).get_int32(),
+        properties=_variant_properties(node.get_child_value(1)),
+        children=tuple(
+            child
+            for index in range(children_variant.n_children())
+            for child in (parse_menu_node(children_variant.get_child_value(index)),)
+            if child is not None
+        ),
+    )
+
+
+def _variant_properties(properties: GLib.Variant) -> dict[str, Any]:
+    """Read the properties the model uses, without unpacking icon data.
+
+    PyGObject's ``Variant.unpack()`` has no fast path for ``ay``: it builds a
+    Python list holding one ``int`` per byte. Menu items carry their icon as an
+    ``ay`` payload, so it is read straight from the variant; the other
+    properties are scalars and unpack for free.
+    """
+    found: dict[str, Any] = {}
+    for index in range(properties.n_children()):
+        entry = properties.get_child_value(index)
+        name = entry.get_child_value(0).get_string()
+        if name not in _MENU_PROPERTY_NAMES:
+            continue
+        value = _unbox_variant(entry.get_child_value(1))
+        if value is None:
+            continue
+        found[name] = (
+            _variant_icon_data(value)
+            if name == _ICON_DATA_PROPERTY
+            else _unpack_variant(value)
+        )
+    return found
+
+
+def _variant_icon_data(value: GLib.Variant) -> bytes:
+    """Read ``icon-data`` in one C call, whatever shape the item published."""
+    if value.get_type_string() == "ay":
+        return value.get_data_as_bytes().get_data() or b""
+    return _icon_data(_unpack_variant(value))
+
+
+def _build_menu_item(
+    *,
+    item_id: int,
+    properties: dict[str, Any],
+    children: tuple[DBusMenuItem, ...],
+) -> DBusMenuItem:
+    """Build one item from a property mapping, and its parsed children."""
+    return DBusMenuItem(
+        item_id=item_id,
         label=_clean_label(str(properties.get("label") or "")),
         enabled=bool(properties.get("enabled", True)),
         visible=bool(properties.get("visible", True)),
@@ -156,8 +248,17 @@ def parse_menu_node(raw: object) -> DBusMenuItem | None:
         icon_data=_icon_data(properties.get("icon-data")),
         toggle_type=str(properties.get("toggle-type") or ""),
         toggle_state=int(properties.get("toggle-state", -1)),
-        children=parsed_children,
+        children=children,
     )
+
+
+def _unbox_variant(value: object) -> GLib.Variant | None:
+    """Return the concrete variant behind an optional ``v`` wrapper."""
+    if not isinstance(value, GLib.Variant):
+        return None
+    while value.get_type_string() == "v":
+        value = value.get_variant()
+    return value
 
 
 def _clean_label(label: str) -> str:
