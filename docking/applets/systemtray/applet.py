@@ -66,6 +66,7 @@ class SystemTrayApplet(Applet):
         self._service = StatusNotifierService()
         self._owns_service = True
         self._state = self._service.state
+        self._active = False
         self._popup: Gtk.Window | None = None
         self._item_menu: Gtk.Menu | None = None
         self._worker = BackgroundWorker()
@@ -85,7 +86,9 @@ class SystemTrayApplet(Applet):
             self._service.stop()
             self._owns_service = False
         self._service = service
-        self._state = service.state
+        # Subscribing delivers the cached state, which is what repaints the icon
+        # and tooltip. Assigning it here first would make that callback a no-op
+        # and leave the applet showing the previous service's state.
         service.add_listener(self._on_state_result)
 
     def create_icon(self, size: int):
@@ -108,13 +111,21 @@ class SystemTrayApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
+        self._active = True
+        # Subscribing here covers a private service that set_services never
+        # replaced, and a restart after stop() unsubscribed.
+        self._service.add_listener(self._on_state_result)
         if self._owns_service:
             self._service.start()
 
     def stop(self) -> None:
+        self._active = False
         self._service.remove_listener(self._on_state_result)
         if self._owns_service:
             self._service.stop()
+        if self._item_menu is not None:
+            self._item_menu.destroy()
+            self._item_menu = None
         if self._popup is not None:
             self._popup.destroy()
             self._popup = None
@@ -172,6 +183,8 @@ class SystemTrayApplet(Applet):
 
     def _run_tray_action(self, *, name: str, action: Callable[[], object]) -> None:
         """Run a blocking tray D-Bus call off the main thread, then re-poll."""
+        if not self._active:
+            return
         self._worker.run(
             name=name,
             fn=action,
@@ -335,6 +348,9 @@ class SystemTrayApplet(Applet):
         client: DBusMenuClient,
         identifier: str,
     ) -> None:
+        # The layout arrives on a worker thread; the applet may be gone by now.
+        if not self._active:
+            return
         if layout is None:
             self._on_context_menu(identifier)
             return
@@ -351,6 +367,8 @@ class SystemTrayApplet(Applet):
         menu.popup_at_pointer(None)
 
     def _on_context_menu(self, identifier: str) -> None:
+        if not self._active:
+            return
         if self._popup is not None:
             self._popup.hide()
         self._run_tray_action(
