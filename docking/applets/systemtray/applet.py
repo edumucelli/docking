@@ -33,21 +33,24 @@ from docking.applets.systemtray import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.platform.status_notifier import (
-    StatusNotifierBackend,
+    StatusNotifierService,
     StatusTrayState,
     TrayItem,
 )
-from docking.platform.status_notifier.dbusmenu import DBusMenuClient, DBusMenuItem
+from docking.platform.status_notifier.dbusmenu import (
+    DBusMenuClient,
+    DBusMenuItem,
+    DBusMenuLayout,
+)
 
 from .render import create_status_tray_icon
 from .state import tooltip_text
 from .xembed import XEmbedTrayHost
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
     from docking.core.position import Position
-
-POLL_INTERVAL_S = 3
 
 
 class SystemTrayApplet(Applet):
@@ -58,9 +61,11 @@ class SystemTrayApplet(Applet):
     icon_name = "application-x-executable"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = StatusNotifierBackend()
-        self._state = self._backend.get_state()
-        self._timer_id: int = 0
+        # Replaced by the shared service through set_services; until then this
+        # applet polls on its own so it stays usable standalone.
+        self._service = StatusNotifierService()
+        self._owns_service = True
+        self._state = self._service.state
         self._popup: Gtk.Window | None = None
         self._item_menu: Gtk.Menu | None = None
         self._worker = BackgroundWorker()
@@ -70,6 +75,18 @@ class SystemTrayApplet(Applet):
         )
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        service = services.status_notifier
+        if service is None or service is self._service:
+            return
+        self._service.remove_listener(self._on_state_result)
+        if self._owns_service:
+            self._service.stop()
+            self._owns_service = False
+        self._service = service
+        self._state = service.state
+        service.add_listener(self._on_state_result)
 
     def create_icon(self, size: int):
         item_count = len(self._state.items)
@@ -91,17 +108,17 @@ class SystemTrayApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
-        self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
+        if self._owns_service:
+            self._service.start()
 
     def stop(self) -> None:
-        if self._timer_id:
-            GLib.source_remove(self._timer_id)
-            self._timer_id = 0
+        self._service.remove_listener(self._on_state_result)
+        if self._owns_service:
+            self._service.stop()
         if self._popup is not None:
             self._popup.destroy()
             self._popup = None
         self._legacy_host.stop()
-        self._backend.close()
         super().stop()
 
     def on_clicked(self) -> None:
@@ -153,17 +170,17 @@ class SystemTrayApplet(Applet):
             manage=legacy,
         )
 
-    def _tick(self) -> bool:
-        self._worker.run_guarded(
-            key="poll",
-            name="systemtray-poll",
-            fn=self._backend.get_state,
-            on_result=self._on_state_result,
+    def _run_tray_action(self, *, name: str, action: Callable[[], object]) -> None:
+        """Run a blocking tray D-Bus call off the main thread, then re-poll."""
+        self._worker.run(
+            name=name,
+            fn=action,
+            on_result=lambda _result: self._service.refresh(),
         )
-        return True
 
     def _refresh_now(self) -> None:
-        self._on_state_result(self._backend.get_state())
+        """Ask for a fresh poll; the result arrives through the listener."""
+        self._service.refresh()
 
     def _on_state_result(self, state: StatusTrayState) -> bool:
         if state != self._state:
@@ -272,24 +289,55 @@ class SystemTrayApplet(Applet):
         return row
 
     def _on_activate(self, identifier: str) -> None:
-        self._backend.activate(identifier)
         if self._popup is not None:
             self._popup.hide()
-        self._refresh_now()
+        self._run_tray_action(
+            name="systemtray-activate",
+            action=lambda: self._service.activate(identifier),
+        )
 
     def _show_item_menu(self, identifier: str) -> None:
-        client = self._backend.menu_client(identifier)
+        client = self._service.menu_client(identifier)
         if client is None:
             self._on_context_menu(identifier)
             return
+
+        def fetched(layout: DBusMenuLayout | None) -> None:
+            self._on_menu_layout(
+                layout=layout,
+                client=client,
+                identifier=identifier,
+            )
+
+        self._worker.run(
+            name="systemtray-menu",
+            fn=lambda: self._fetch_menu_layout(client),
+            on_result=fetched,
+            on_error=lambda _exc: self._on_context_menu(identifier),
+        )
+
+    def _fetch_menu_layout(self, client: DBusMenuClient) -> DBusMenuLayout | None:
+        """Run off the main thread: D-BusMenu handshake only, no GTK."""
         client.about_to_show(0)
         layout = client.get_layout()
+        if (
+            layout is not None
+            and layout.root.item_id != 0
+            and client.about_to_show(layout.root.item_id)
+        ):
+            layout = client.get_layout() or layout
+        return layout
+
+    def _on_menu_layout(
+        self,
+        *,
+        layout: DBusMenuLayout | None,
+        client: DBusMenuClient,
+        identifier: str,
+    ) -> None:
         if layout is None:
             self._on_context_menu(identifier)
             return
-
-        if layout.root.item_id != 0 and client.about_to_show(layout.root.item_id):
-            layout = client.get_layout() or layout
         menu = self._gtk_menu_from_dbus_menu(root=layout.root, client=client)
         if menu is None:
             self._on_context_menu(identifier)
@@ -303,10 +351,12 @@ class SystemTrayApplet(Applet):
         menu.popup_at_pointer(None)
 
     def _on_context_menu(self, identifier: str) -> None:
-        self._backend.context_menu(identifier)
         if self._popup is not None:
             self._popup.hide()
-        self._refresh_now()
+        self._run_tray_action(
+            name="systemtray-context-menu",
+            action=lambda: self._service.context_menu(identifier),
+        )
 
     def _legacy_menu_items(self) -> list[Gtk.MenuItem]:
         if self._legacy_host.active:
@@ -465,7 +515,10 @@ class SystemTrayApplet(Applet):
             menu_item.set_submenu(submenu)
             submenu.connect(
                 "show",
-                lambda _w, item_id=item.item_id: client.about_to_show(item_id),
+                lambda _w, item_id=item.item_id: self._worker.run(
+                    name="systemtray-submenu",
+                    fn=lambda: client.about_to_show(item_id),
+                ),
             )
         else:
             menu_item.connect(
@@ -478,8 +531,10 @@ class SystemTrayApplet(Applet):
         return menu_item
 
     def _on_dbus_menu_activate(self, *, client: DBusMenuClient, item_id: int) -> None:
-        client.event(item_id)
-        self._refresh_now()
+        self._run_tray_action(
+            name="systemtray-menu-event",
+            action=lambda: client.event(item_id),
+        )
 
     def _menu_header(self) -> str:
         if not self._state.available:

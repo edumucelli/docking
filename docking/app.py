@@ -108,7 +108,10 @@ from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.icons import IconLoader
 from docking.platform.model import DockModel
-from docking.platform.status_notifier import StatusNotifierNotificationBridge
+from docking.platform.status_notifier import (
+    StatusNotifierNotificationBridge,
+    StatusNotifierService,
+)
 from docking.platform.targets import TargetService
 from docking.platform.unity import UnityLauncherListener
 from docking.ui.factory import build_dock_window
@@ -213,9 +216,13 @@ def main() -> None:
         )
         cleanup.callback(_safe_stop, "unity", unity.stop)
 
+        status_service = StatusNotifierService()
+        cleanup.callback(_safe_stop, "status notifier", status_service.stop)
+
         status_notifications = StatusNotifierNotificationBridge(
             model=model,
             application_registry=registry,
+            service=status_service,
         )
         cleanup.callback(
             _safe_stop,
@@ -247,6 +254,7 @@ def main() -> None:
         applet_services = replace(
             applet_services,
             search=ui.search,
+            status_notifier=status_service,
         )
         model.set_applet_services(applet_services)
 
@@ -255,6 +263,7 @@ def main() -> None:
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
         registry.start()
+        status_service.start()
         status_notifications.start()
         unity.start()
         window.show_all()

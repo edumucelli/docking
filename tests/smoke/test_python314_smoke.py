@@ -9,7 +9,7 @@ import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 from docking.core.config import Config
 
@@ -134,6 +134,11 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
                 "StatusNotifierNotificationBridge",
                 (),
                 {},
+            ),
+            "StatusNotifierService": type(
+                "StatusNotifierService",
+                (),
+                {"start": lambda self: None, "stop": lambda self: None},
             ),
         },
         "docking.ui.factory": {
@@ -390,6 +395,7 @@ def test_app_main_smoke(monkeypatch):
     app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
         model=model,
         application_registry=registry,
+        service=ANY,
     )
 
     fake_gtk.main.assert_called_once()
