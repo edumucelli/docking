@@ -248,7 +248,7 @@ start_docking() {
         # PYTHONPATH prepending can still select installed code
         # (docs/HEADLESS_WAYLAND_TESTING.local.md:645-655).
         PYTHONPATH="$(docking_source_pythonpath)" \
-            /usr/bin/python3 -c 'from docking.app import main; main()' \
+            /usr/bin/python3 -m docking.launcher \
             >"$log_path" 2>&1 &
     fi
     ADAPTER_APP_PID=$!
