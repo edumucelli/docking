@@ -103,15 +103,20 @@ def _source(**overrides: object) -> NewsSource:
     return NewsSource(**values)  # type: ignore[arg-type]
 
 
+# Read the clock once: tests compare articles built by separate _article() calls,
+# and a per-call now() fails whenever the two straddle a whole second.
+_ARTICLE_PUBLISHED = int(
+    (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2)).timestamp()
+)
+
+
 def _article(**overrides: object) -> NewsArticle:
     values: dict[str, object] = {
         "id": "article-1",
         "title": "A useful headline",
         "url": "https://news.example/article-1",
         "author": "Alice",
-        "published": int(
-            (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2)).timestamp()
-        ),
+        "published": _ARTICLE_PUBLISHED,
         "source_feed_url": _source().feed_url,
     }
     values.update(overrides)
