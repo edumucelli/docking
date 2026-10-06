@@ -122,6 +122,17 @@ class TestTooltipParts:
         assert title == "VTitle"
         assert body == "VBody"
 
+    def test_variant_with_pixmap_reads_text_without_unpacking(self):
+        variant = GLib.Variant(
+            "(sa(iiay)ss)",
+            ("icon", [(64, 64, bytes(64 * 64 * 4))], "TTitle", "TBody"),
+        )
+        assert _tooltip_parts(variant) == ("TTitle", "TBody")
+
+    def test_variant_with_unexpected_child_types_matches_plain_tuple(self):
+        variant = GLib.Variant("(siis)", ("icon", 1, 2, "body"))
+        assert _tooltip_parts(variant) == _tooltip_parts(("icon", 1, 2, "body"))
+
 
 class TestBytesFromDBusArray:
     def test_returns_bytes_directly(self):
@@ -253,6 +264,103 @@ class TestBestIconPixmap:
         assert result is not None
         assert result.width == 2
         assert result.height == 2
+
+
+class TestBestIconPixmapVariants:
+    def test_matches_plain_python_result(self):
+        pixmaps = [(2, 2, bytes(range(16))), (4, 4, bytes(range(64)))]
+        variant = GLib.Variant("a(iiay)", pixmaps)
+        assert _best_icon_pixmap(variant) == _best_icon_pixmap(pixmaps)
+
+    def test_skips_larger_entry_with_insufficient_data(self):
+        value = GLib.Variant("a(iiay)", [(10, 10, bytes(4)), (1, 1, bytes(4))])
+        result = _best_icon_pixmap(value)
+        assert result is not None
+        assert result.width == 1
+
+    def test_non_pixmap_variant_is_ignored(self):
+        assert _best_icon_pixmap(GLib.Variant("as", ["nope"])) is None
+
+    def test_unwraps_variant_wrapper(self):
+        pixmaps = GLib.Variant("a(iiay)", [(3, 3, bytes(3 * 3 * 4))])
+        wrapper = GLib.Variant("v", pixmaps)
+        result = _best_icon_pixmap(wrapper)
+        assert result is not None
+        assert result.width == 3
+
+
+class TestReadItemKeepsIconBytesAsVariants:
+    """Icon byte arrays must never be unpacked into Python lists (issue #377)."""
+
+    @staticmethod
+    def _reply(*, title="Tray", sizes=(2, 4)):
+        pixmaps = [(size, size, bytes(size * size * 4)) for size in sizes]
+        return GLib.Variant(
+            "(a{sv})",
+            (
+                {
+                    "Title": GLib.Variant("s", title),
+                    "IconPixmap": GLib.Variant("a(iiay)", pixmaps),
+                    "ToolTip": GLib.Variant(
+                        "(sa(iiay)ss)", ("", [(8, 8, bytes(8 * 8 * 4))], "TT", "TB")
+                    ),
+                },
+            ),
+        )
+
+    def test_icon_properties_are_handed_over_as_variants(self, monkeypatch):
+        captured: dict = {}
+        original = backend.tray_item_from_properties
+
+        def spy(*, address, properties):
+            captured.update(properties)
+            return original(address=address, properties=properties)
+
+        monkeypatch.setattr(backend, "tray_item_from_properties", spy)
+        bus = Mock()
+        bus.call_sync.return_value = self._reply()
+        item = backend._read_item(
+            bus=bus,
+            address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+        )
+        assert item is not None
+        assert isinstance(captured["IconPixmap"], GLib.Variant)
+        assert isinstance(captured["ToolTip"], GLib.Variant)
+        assert captured["Title"] == "Tray"
+        assert item.icon_pixmap is not None
+        assert item.icon_pixmap.width == 4
+        assert (item.tooltip_title, item.tooltip_text) == ("TT", "TB")
+
+    def test_byte_arrays_never_reach_variant_unpack(self, monkeypatch):
+        original_unpack = GLib.Variant.unpack
+
+        def guarded(self):
+            assert "ay" not in self.get_type_string(), (
+                "icon byte arrays must not be unpacked"
+            )
+            return original_unpack(self)
+
+        monkeypatch.setattr(GLib.Variant, "unpack", guarded)
+        bus = Mock()
+        bus.call_sync.return_value = self._reply(sizes=(16, 32, 128))
+        item = backend._read_item(
+            bus=bus,
+            address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+        )
+        assert item is not None
+        assert item.icon_pixmap is not None
+        assert item.icon_pixmap.width == 128
+
+    def test_reply_of_unexpected_variant_type_is_skipped(self):
+        bus = Mock()
+        bus.call_sync.return_value = GLib.Variant("(as)", (["Tray"],))
+        assert (
+            backend._read_item(
+                bus=bus,
+                address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+            )
+            is None
+        )
 
 
 class TestUnpackVariant:

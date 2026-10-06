@@ -43,6 +43,16 @@ ITEM_IFACE = "org.kde.StatusNotifierItem"
 DEFAULT_ITEM_PATH = "/StatusNotifierItem"
 METHOD_TIMEOUT_MS = 1200
 
+_ITEM_PROPERTIES_TYPE = GLib.VariantType.new("(a{sv})")
+_ICON_PIXMAP_TYPE = GLib.VariantType.new("a(iiay)")
+# Properties carrying raw icon bytes. They must never be unpacked: see
+# _item_properties.
+_ICON_PIXMAP_PROPERTIES = frozenset(
+    {"IconPixmap", "AttentionIconPixmap", "OverlayIconPixmap"}
+)
+_TOOLTIP_PROPERTY = "ToolTip"
+_TEXT_TYPES = ("s", "o", "g")
+
 WATCHER_INTROSPECTION_XML = f"""
 <node>
   <interface name="{WATCHER_IFACE}">
@@ -550,42 +560,93 @@ def _read_item(
             PROPERTIES_IFACE,
             "GetAll",
             GLib.Variant("(s)", (ITEM_IFACE,)),
-            GLib.VariantType.new("(a{sv})"),
+            _ITEM_PROPERTIES_TYPE,
             Gio.DBusCallFlags.NONE,
             METHOD_TIMEOUT_MS,
             None,
         )
-        reply = _unpack_variant(result)
-        if not isinstance(reply, (tuple, list)) or len(reply) != 1:
+        properties = _item_properties(result)
+        if properties is None:
             return None
-        properties = reply[0]
-        if not isinstance(properties, dict):
-            return None
-        return tray_item_from_properties(
-            address=address,
-            properties={
-                str(key): _unpack_variant(value) for key, value in properties.items()
-            },
-        )
+        return tray_item_from_properties(address=address, properties=properties)
     except (GLib.Error, TypeError, ValueError, OverflowError) as exc:
         log.debug("Failed to read StatusNotifier item %s: %s", address.identifier, exc)
         return None
 
 
+def _item_properties(reply: object) -> dict[str, Any] | None:
+    """Read a ``Properties.GetAll`` reply without unpacking icon byte arrays.
+
+    PyGObject's ``Variant.unpack()`` has no fast path for ``ay``: it builds a
+    Python list holding one ``int`` per byte. Tray items publish their icon as
+    ``a(iiay)`` at several sizes, and the notification bridge repolls every few
+    seconds, so unpacking them costs seconds of CPU per poll at the sizes real
+    tray apps advertise (issue #377). Icon properties are therefore passed on as
+    variants and read by :func:`_best_icon_pixmap` and :func:`_tooltip_parts`.
+    """
+    if isinstance(reply, GLib.Variant):
+        if not reply.is_of_type(_ITEM_PROPERTIES_TYPE):
+            return None
+        dictionary = reply.get_child_value(0)
+        properties: dict[str, Any] = {}
+        for index in range(dictionary.n_children()):
+            entry = dictionary.get_child_value(index)
+            name = entry.get_child_value(0).get_string()
+            value = entry.get_child_value(1)
+            if name in _ICON_PIXMAP_PROPERTIES or name == _TOOLTIP_PROPERTY:
+                properties[name] = value
+            else:
+                properties[name] = _unpack_variant(value)
+        return properties
+
+    # Plain Python replies: kept for tests and defensive callers.
+    unpacked = _unpack_variant(reply)
+    if not isinstance(unpacked, (tuple, list)) or len(unpacked) != 1:
+        return None
+    properties = unpacked[0]
+    if not isinstance(properties, dict):
+        return None
+    return {str(key): _unpack_variant(value) for key, value in properties.items()}
+
+
+def _unbox_variant(value: object) -> GLib.Variant | None:
+    """Return the concrete variant behind an optional ``v`` wrapper."""
+    if not isinstance(value, GLib.Variant):
+        return None
+    while value.get_type_string() == "v":
+        value = value.get_variant()
+    return value
+
+
+def _variant_text(value: GLib.Variant) -> str:
+    """Read a tooltip text child, tolerating items publishing another type."""
+    if value.get_type_string() in _TEXT_TYPES:
+        return value.get_string()
+    return str(_unpack_variant(value) or "")
+
+
 def _tooltip_parts(value: object) -> tuple[str, str]:
-    if isinstance(value, GLib.Variant):
-        value = _unpack_variant(value)
+    variant = _unbox_variant(value)
+    if variant is not None:
+        if variant.n_children() < 4:
+            return "", ""
+        return (
+            _variant_text(variant.get_child_value(2)),
+            _variant_text(variant.get_child_value(3)),
+        )
     if isinstance(value, (tuple, list)) and len(value) >= 4:
         return str(value[2] or ""), str(value[3] or "")
     return "", ""
 
 
 def _best_icon_pixmap(value: object) -> TrayIconPixmap | None:
-    value = _unpack_variant(value)
+    variant = _unbox_variant(value)
+    if variant is not None:
+        return _best_icon_pixmap_from_variant(variant)
     if not isinstance(value, (tuple, list)):
         return None
 
-    pixmaps: list[TrayIconPixmap] = []
+    best: tuple[int, int, bytes] | None = None
     for raw_pixmap in value:
         raw_pixmap = _unpack_variant(raw_pixmap)
         if not isinstance(raw_pixmap, (tuple, list)) or len(raw_pixmap) != 3:
@@ -601,16 +662,46 @@ def _best_icon_pixmap(value: object) -> TrayIconPixmap | None:
         argb = _bytes_from_dbus_array(payload)
         if len(argb) < width * height * 4:
             continue
-        pixmaps.append(
-            TrayIconPixmap(
-                width=width,
-                height=height,
-                rgba=_argb_to_rgba(argb[: width * height * 4]),
-            )
-        )
-    if not pixmaps:
+        if best is None or width * height > best[0] * best[1]:
+            best = (width, height, argb)
+    if best is None:
         return None
-    return max(pixmaps, key=lambda pixmap: pixmap.width * pixmap.height)
+    width, height, argb = best
+    return TrayIconPixmap(
+        width=width,
+        height=height,
+        rgba=_argb_to_rgba(argb[: width * height * 4]),
+    )
+
+
+def _best_icon_pixmap_from_variant(variant: GLib.Variant) -> TrayIconPixmap | None:
+    """Pick the largest usable pixmap and convert only that one."""
+    if not variant.is_of_type(_ICON_PIXMAP_TYPE):
+        return None
+
+    best: tuple[int, int, GLib.Bytes] | None = None
+    for index in range(variant.n_children()):
+        element = variant.get_child_value(index)
+        width = element.get_child_value(0).get_int32()
+        height = element.get_child_value(1).get_int32()
+        if width <= 0 or height <= 0:
+            continue
+        payload = element.get_child_value(2).get_data_as_bytes()
+        if payload.get_size() < width * height * 4:
+            continue
+        if best is None or width * height > best[0] * best[1]:
+            best = (width, height, payload)
+    if best is None:
+        return None
+    width, height, payload = best
+    argb = payload.get_data()
+    if not argb:
+        return None
+    return TrayIconPixmap(
+        width=width,
+        height=height,
+        rgba=_argb_to_rgba(argb[: width * height * 4]),
+    )
 
 
 def _bytes_from_dbus_array(value: object) -> bytes:
@@ -623,13 +714,13 @@ def _bytes_from_dbus_array(value: object) -> bytes:
 
 
 def _argb_to_rgba(argb: bytes) -> bytes:
+    if len(argb) % 4:
+        raise IndexError("ARGB data does not contain whole pixels")
     rgba = bytearray(len(argb))
-    for index in range(0, len(argb), 4):
-        alpha = argb[index]
-        red = argb[index + 1]
-        green = argb[index + 2]
-        blue = argb[index + 3]
-        rgba[index : index + 4] = bytes((red, green, blue, alpha))
+    rgba[0::4] = argb[1::4]
+    rgba[1::4] = argb[2::4]
+    rgba[2::4] = argb[3::4]
+    rgba[3::4] = argb[0::4]
     return bytes(rgba)
 
 
