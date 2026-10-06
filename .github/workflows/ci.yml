@@ -709,7 +709,12 @@ jobs:
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
@@ -735,7 +740,12 @@ jobs:
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
@@ -1098,6 +1108,69 @@ jobs:
               bash /checks/runtime-smoke.sh
             '
 
+  test-rpm-install:
+    name: Install RPM (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [build-rpm, build-rpm-arm64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'fedora:45', 'opensuse/tumbleweed:latest', 'opensuse/leap:16.0']
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            artifact: docking-rpm
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: docking-rpm-arm64
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/rpm
+      - name: Install the release RPM and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/artifacts/rpm:/packages:ro" \
+            -v "$PWD/packaging:/checks:ro" \
+            "$IMAGE" bash -euc '
+              # The container architecture decides which asset is expected, so
+              # nothing has to be passed across the docker boundary.
+              shopt -s nullglob
+              expected="$(uname -m)"
+              echo "Container architecture: ${expected}"
+              ls -l /packages
+              package=(/packages/docking-*."${expected}".rpm)
+              if [ "${#package[@]}" -ne 1 ]; then
+                echo "Expected exactly one RPM for ${expected}, found ${#package[@]}" >&2
+                exit 1
+              fi
+              # Weak dependencies stay disabled so a green run proves the hard
+              # Requires in the spec are complete on their own.
+              if command -v dnf >/dev/null 2>&1; then
+                dnf install -y --setopt=install_weak_deps=False "${package[0]}"
+                dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon glib2 sway
+              else
+                zypper --non-interactive install --no-recommends "${package[0]}"
+                zypper --non-interactive install --no-recommends xvfb-run xauth dbus-1-daemon glib2-tools sway
+              fi
+              installed="$(rpm -q --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" docking)"
+              built="$(rpm -qp --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" "${package[0]}")"
+              if [ "${installed}" != "${built}" ]; then
+                echo "Installed ${installed}, expected ${built}" >&2
+                exit 1
+              fi
+              echo "Installed ${installed}"
+              bash /checks/deb/runtime-smoke.sh
+            '
+
   release:
     name: Release
     runs-on: ubuntu-22.04
@@ -1115,6 +1188,7 @@ jobs:
       - test-deb-install
       - build-rpm
       - build-rpm-arm64
+      - test-rpm-install
       - build-flatpak
       - build-flatpak-arm64
       - build-snap

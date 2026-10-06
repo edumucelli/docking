@@ -1,4 +1,4 @@
-"""Download a stable release and the preceding release for native APT checks."""
+"""Download a stable release and the preceding release for native repository checks."""
 
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release-tag", required=True)
     parser.add_argument("--arch", required=True, choices=("amd64", "arm64"))
+    parser.add_argument("--format", choices=("deb", "rpm"), default="deb")
     parser.add_argument("--directory", type=Path, required=True)
     args = parser.parse_args()
     current = version(args.release_tag)
@@ -37,13 +38,10 @@ def main() -> None:
         "release", "view", args.release_tag, "--json", "isDraft,isPrerelease"
     )
     if release["isDraft"] or release["isPrerelease"]:
-        raise SystemExit("APT verification requires a published stable release")
+        raise SystemExit("Repository verification requires a published stable release")
     suffix = "x86_64" if args.arch == "amd64" else "aarch64"
-    download(
-        args.release_tag,
-        f"docking-{args.release_tag[1:]}-linux-{suffix}.deb",
-        args.directory / "current",
-    )
+    asset = f"docking-{args.release_tag[1:]}-linux-{suffix}.{args.format}"
+    download(args.release_tag, asset, args.directory / "current")
     releases = gh_json(
         "release", "list", "--limit", "100", "--json", "tagName,isDraft,isPrerelease"
     )
@@ -57,14 +55,14 @@ def main() -> None:
     ]
     if previous:
         tag = max(previous, key=version)
-        asset = f"docking-{tag[1:]}-linux-{suffix}.deb"
+        preceding = f"docking-{tag[1:]}-linux-{suffix}.{args.format}"
         metadata = gh_json("release", "view", tag, "--json", "assets")
-        if any(item["name"] == asset for item in metadata["assets"]):
-            download(tag, asset, args.directory / "previous")
+        if any(item["name"] == preceding for item in metadata["assets"]):
+            download(tag, preceding, args.directory / "previous")
             return
         if not (args.arch == "arm64" and current == (2, 13, 8)):
             raise SystemExit(
-                f"Missing preceding stable asset {asset}; cannot verify upgrade"
+                f"Missing preceding stable asset {preceding}; cannot verify upgrade"
             )
     # ARM64 was introduced in 2.13.8; its first publication has no predecessor.
     print(f"::notice::No preceding stable {args.arch} package; fresh install only")

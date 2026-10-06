@@ -1,6 +1,8 @@
 Name:           docking
 Version:        %{?pkg_version}%{!?pkg_version:2.18.1}
-Release:        1%{?dist}
+# One artifact serves every RPM distribution, so a build-host dist tag would
+# misrepresent it on Fedora and openSUSE alike.
+Release:        1
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
@@ -8,8 +10,18 @@ URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       python3
-Requires:       gtk-layer-shell
-Requires:       webkit2gtk4.1
+Requires:       python3-gobject
+Requires:       python3-cairo
+Requires:       python3-cffi
+# GObject introspection bindings ship inside the library package on Fedora but
+# as separate typelib-1_0-* packages on SUSE, so each is an alternative.
+Requires:       (gtk3 or typelib-1_0-Gtk-3_0)
+Requires:       (gdk-pixbuf2 or typelib-1_0-GdkPixbuf-2_0)
+Requires:       (pango or typelib-1_0-Pango-1_0)
+Requires:       (gtk-layer-shell or typelib-1_0-GtkLayerShell-0_1)
+Requires:       (libwnck3 or typelib-1_0-Wnck-3_0)
+Requires:       (NetworkManager-libnm or typelib-1_0-NM-1_0)
+Requires:       (webkit2gtk4.1 or typelib-1_0-WebKit2-4_1)
 Recommends:     python3-pywayland
 BuildRequires:  gcc
 BuildRequires:  gettext
@@ -50,6 +62,12 @@ mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
 python3 -m pip install --no-compile \
   --target "%{buildroot}/usr/lib/docking/vendor-python${py_minor}" \
   "pywayland>=0.4.18,<0.5"
+# Fallback trees built for each target distribution Python. The build host
+# never provides these, so CI passes them through DOCKING_EXTRA_PYWAYLAND.
+if [ -d "%{?extra_pywayland}" ]; then
+  cp -a "%{?extra_pywayland}"/. %{buildroot}/usr/lib/docking/
+  find %{buildroot}/usr/lib/docking -name .complete -delete
+fi
 rm -rf %{buildroot}/usr/lib/docking/vendor-python*/bin
 
 install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'

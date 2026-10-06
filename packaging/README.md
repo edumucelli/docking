@@ -88,15 +88,19 @@ docking
 - **Compression**: binary `.deb` artifacts are built with `xz` compression for
   compatibility with older `dpkg` versions that cannot unpack `control.tar.zst`.
 
-## APT repository (Cloudsmith)
+## Package repositories (Cloudsmith)
 
-Stable releases publish to Cloudsmith after the `.deb` installation matrix
-passes. Publication uses OIDC, validates both architectures, and supports
-checksum-safe retries of a specific release tag.
+Stable releases publish to Cloudsmith after the installation matrix passes:
+`.deb` artifacts to `docking-apt` and `.rpm` artifacts to `docking-rpm`.
+Publication uses OIDC, validates both architectures, and supports safe retries of
+a specific release tag. Both formats publish from the same release, and CI installs
+the built RPM in Fedora and openSUSE containers before any publication happens.
 
-See the [maintainer guide](cloudsmith/README.md) for configuration and retries,
-and the [APT installation instructions](../README.md#debian-and-ubuntu-apt)
-for users.
+See the [maintainer guide](cloudsmith/README.md) for configuration, the re-signing
+caveat that makes RPM identity checks different from APT, and retries. User
+instructions live in the
+[APT](../README.md#debian-and-ubuntu-apt) and
+[RPM](../README.md#fedora-and-opensuse-rpm) sections.
 
 ## PPA (Launchpad)
 
@@ -243,6 +247,17 @@ Notes:
 - The RPM is architecture-specific because the packaged vendored Python wheels can include native binaries.
 - CI builds the RPM on both x86_64 and ARM64 runners and publishes both variants.
 - Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.
+- `Requires` in the spec serve Fedora and openSUSE from one artifact, so the
+  names that differ between them are written as RPM boolean dependencies, such as
+  `(gtk3 or typelib-1_0-Gtk-3_0)`.
+- CI runs `packaging/rpm/build-wayland-vendors.sh` and passes the result through
+  `DOCKING_EXTRA_PYWAYLAND`, because the Ubuntu build host cannot produce PyWayland
+  glue for the Fedora and openSUSE Python versions, and both distributions package
+  PyWayland older than the protocol modules the Wayland backend imports.
+
+Stable releases also publish the RPM to the `docking-rpm` Cloudsmith repository; see
+the [maintainer guide](cloudsmith/README.md) and the
+[RPM installation instructions](../README.md#fedora-and-opensuse-rpm).
 
 ## Arch
 

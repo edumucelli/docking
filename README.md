@@ -162,6 +162,80 @@ For subsequent updates, run `sudo apt update` and `sudo apt upgrade`. Existing
 `.deb` installations can upgrade directly through APT. Maintainers can find setup
 and publication details in the [Cloudsmith guide](packaging/cloudsmith/README.md).
 
+### Fedora and openSUSE (RPM)
+
+On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository
+once to receive updates through your package manager. Both x86_64 and aarch64 are
+available.
+
+Download the public signing key and check its fingerprint before continuing:
+
+```bash
+if command -v zypper > /dev/null 2>&1; then
+    sudo zypper --non-interactive install curl gpg2
+else
+    sudo dnf install -y curl gnupg2
+fi
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+```
+
+The fingerprint must be `04C7240DAD480161C0DFC791859E104126138494`.
+
+Copy the complete block below. It installs the key and writes the signed
+repository definition that both dnf and zypper read.
+
+```bash
+(
+set -eu
+sudo rpm --import /tmp/docking-cloudsmith.asc
+# dnf reads /etc/yum.repos.d, while openSUSE ships only /etc/zypp/repos.d.
+if command -v zypper > /dev/null 2>&1; then
+    REPO_DIR=/etc/zypp/repos.d
+else
+    REPO_DIR=/etc/yum.repos.d
+fi
+sudo install -d -m 0755 "$REPO_DIR"
+sudo tee "$REPO_DIR/docking-rpm.repo" > /dev/null <<'EOF'
+[docking-rpm]
+name=Docking
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+
+[docking-rpm-noarch]
+name=Docking noarch
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+EOF
+sudo dnf install docking
+)
+```
+
+On openSUSE, substitute the final line with:
+
+```bash
+sudo zypper --gpg-auto-import-keys refresh
+sudo zypper install docking
+```
+
+For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
+`.rpm` installations can upgrade directly through the repository. Maintainers can
+find setup and publication details in the
+[Cloudsmith guide](packaging/cloudsmith/README.md).
+
 ### Release downloads
 
 The latest prebuilt packages are available on
@@ -187,7 +261,7 @@ chmod +x "docking-latest-linux-${ARCH}.AppImage"
 
 # Debian / RPM
 sudo apt install "./docking-latest-linux-${ARCH}.deb"
-sudo dnf install "./docking-latest-linux-${ARCH}.rpm"
+sudo dnf install "./docking-latest-linux-${ARCH}.rpm"   # or: sudo zypper install ...
 
 # Arch (use the command matching your architecture)
 sudo pacman -U "./docking-latest-linux-x86_64.pkg.tar.zst"
