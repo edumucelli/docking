@@ -145,10 +145,15 @@ RUN setcap -r /usr/bin/sway; command -v sway && command -v cosmic-comp && cosmic
 # Target: all -- every non-Debian compositor.
 # ---------------------------------------------------------------------------
 FROM base AS all
-RUN pacman -Syu --noconfirm --needed niri cosmic-comp && pacman -Scc --noconfirm
+RUN pacman -Syu --noconfirm --needed niri cosmic-comp wayfire hyprland && pacman -Scc --noconfirm
 RUN command -v niri && command -v cosmic-comp
 
 # Wayfire >=0.11/wlroots >=0.19 supports Pixman without a DRM device.
 FROM base AS wayfire
 RUN pacman -Syu --noconfirm --needed wayfire && pacman -Scc --noconfirm
 RUN command -v wayfire && wayfire --version
+
+# Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
+FROM base AS hyprland
+RUN pacman -Syu --noconfirm --needed hyprland && pacman -Scc --noconfirm
+RUN command -v Hyprland && command -v hyprctl

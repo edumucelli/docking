@@ -77,6 +77,7 @@ def _monitor_snapshot() -> MonitorSnapshot:
 def _empty_runtime() -> SimpleNamespace:
     return SimpleNamespace(
         foreign_toplevel_protocol=None,
+        standard_toplevel_protocol=None,
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
@@ -155,9 +156,11 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=preview_protocol,
             hyprland_preview_protocol=None,
+            phoc_preview_protocol=None,
             idle_protocol=None,
             stop=MagicMock(),
         ),
@@ -184,9 +187,11 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=hyprland_preview_protocol,
+            phoc_preview_protocol=None,
             idle_protocol=None,
             stop=MagicMock(),
         ),
@@ -213,6 +218,7 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=None,
@@ -300,7 +306,8 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
     assert backend.capabilities.tracks_window_workspace is True
     assert backend.capabilities.supports_current_workspace_filter is True
     assert backend.capabilities.supports_activate is True
-    assert backend.capabilities.supports_minimize is True
+    assert backend.capabilities.supports_minimize is False
+    assert backend.capabilities.tracks_minimized is False
     assert backend.capabilities.supports_close is True
     assert backend.capabilities.supports_layer_shell is True
     assert backend.capabilities.supports_screen_reservation is True

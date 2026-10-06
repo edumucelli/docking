@@ -51,6 +51,7 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
+from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
@@ -247,6 +248,10 @@ class _BridgeWindow:
     workspace_id: str | None
     geometry: Rect | None
     pid: int | None
+    visible: bool
+    sticky: bool
+    dialog: bool
+    skip_taskbar: bool
 
     @property
     def window_id(self) -> WindowId:
@@ -281,6 +286,7 @@ class GnomeShellBridgeWindowService(WindowService):
         self._windows_by_id: dict[int, _BridgeWindow] = {}
         self._changed_handle: object | None = None
         self._poll_source_id = 0
+        self._changes = WindowChanges()
 
     def start(self) -> None:
         subscribe = getattr(self._bridge, "subscribe_changed", None)
@@ -298,6 +304,7 @@ class GnomeShellBridgeWindowService(WindowService):
             unsubscribe(self._changed_handle)
         self._changed_handle = None
         self._windows_by_id.clear()
+        self._changes.clear()
         self._model.update_running(running={})
 
     def refresh(self) -> None:
@@ -311,6 +318,13 @@ class GnomeShellBridgeWindowService(WindowService):
                 windows[window.bridge_id] = window
         self._windows_by_id = windows
         self._publish_running()
+        self._changes.notify()
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         return tuple(
@@ -321,7 +335,7 @@ class GnomeShellBridgeWindowService(WindowService):
         return tuple(
             self._snapshot_for(window)
             for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id
+            if window.desktop_id == desktop_id and not window.skip_taskbar
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -413,12 +427,16 @@ class GnomeShellBridgeWindowService(WindowService):
             workspace_id=_workspace_id_from_row(row),
             geometry=geometry,
             pid=pid,
+            visible=row.get("visible") is True,
+            sticky=row.get("sticky") is True,
+            dialog=row.get("dialog") is True,
+            skip_taskbar=row.get("skip-taskbar") is True,
         )
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for window in self._windows_by_id.values():
-            if window.desktop_id is None:
+            if window.desktop_id is None or window.skip_taskbar:
                 continue
             windows_by_desktop.setdefault(window.desktop_id, []).append(
                 RunningWindowInfo(
@@ -458,13 +476,18 @@ class GnomeShellBridgeWindowService(WindowService):
             can_minimize=True,
             can_close=True,
             can_preview=True,
+            visible=window.visible,
+            sticky=window.sticky,
+            dialog=window.dialog,
+            pid=window.pid,
+            skip_taskbar=window.skip_taskbar,
         )
 
     def _windows_for_desktop(self, desktop_id: str) -> list[_BridgeWindow]:
         return [
             window
             for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id
+            if window.desktop_id == desktop_id and not window.skip_taskbar
         ]
 
     def _first_window_for_desktop(self, desktop_id: str) -> _BridgeWindow | None:

@@ -55,6 +55,7 @@ from docking.platform.backends.base import (
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
 )
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
     load_portal_color_picker,
 )
@@ -85,6 +86,7 @@ class CosmicRuntimeServices:
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
     protocol_runtime: WaylandProtocolRuntime | None
+    idle: IdleService | None
 
 
 class CosmicOverlapVisibilityService(VisibilityService):
@@ -303,6 +305,9 @@ class CosmicSessionBackend(SessionBackend):
             if screen_capture is not None
             else load_portal_color_picker(),
             protocol_runtime=runtime,
+            idle=WaylandIdleService(protocol=runtime.idle_protocol)
+            if runtime is not None and runtime.idle_protocol is not None
+            else None,
         )
 
         # Stash overlap adapter for late binding to the layer surface
@@ -330,6 +335,7 @@ class CosmicSessionBackend(SessionBackend):
             self._services.visibility, CosmicOverlapVisibilityService
         )
         return PlatformCapabilities(
+            supports_idle_time=self._services.idle is not None,
             tracks_windows=tracks_windows,
             tracks_active_window=tracks_windows,
             tracks_minimized=tracks_windows,
@@ -380,13 +386,15 @@ class CosmicSessionBackend(SessionBackend):
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._services.idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
         return None
 
     def start(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.start()
         self._services.previews.start()
         self._services.windows.start()
         self._services.surface.start()
@@ -397,6 +405,8 @@ class CosmicSessionBackend(SessionBackend):
             self._services.screen_capture.start()
 
     def stop(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.stop()
         if self._services.screen_capture is not None:
             self._services.screen_capture.stop()
         if self._services.workspaces is not None:

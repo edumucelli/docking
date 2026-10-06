@@ -81,6 +81,35 @@ def test_wayland_preview_handle_tracker_matches_windows_to_capture_handles():
     assert tracker.handle_for_window_id(window_id) is handle
 
 
+def test_preview_handle_is_not_guessed_from_an_ambiguous_application():
+    tracker = WaylandPreviewHandleTracker(
+        model=_model(),
+        **identity_services(),
+        protocol=SimpleNamespace(capture_available=True),
+    )
+    handles = [object(), object()]
+    for handle in handles:
+        tracker.toplevel_created(handle)
+        tracker.title_changed(handle, "Files")
+        tracker.app_id_changed(handle, "org.gnome.Nautilus")
+    window_id = WindowId(DisplayServer.WAYLAND, "sway:123")
+    tracker.associate_window(
+        window_id=window_id,
+        desktop_id="org.gnome.Nautilus.desktop",
+        app_id="org.gnome.Nautilus",
+        title="Files",
+    )
+    assert tracker.handle_for_window_id(window_id) is None
+    tracker.closed(handles[0])
+    tracker.associate_window(
+        window_id=window_id,
+        desktop_id="org.gnome.Nautilus.desktop",
+        app_id="org.gnome.Nautilus",
+        title="Files",
+    )
+    assert tracker.handle_for_window_id(window_id) is handles[1]
+
+
 def test_wayland_preview_service_starts_once_and_returns_cached_frame(monkeypatch):
     window_id = WindowId(backend=DisplayServer.WAYLAND, value=7)
     handle = object()

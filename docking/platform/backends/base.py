@@ -140,6 +140,12 @@ class WindowSnapshot:
     can_minimize: bool = False
     can_close: bool = False
     can_preview: bool = False
+    visible: bool | None = None
+    sticky: bool = False
+    dialog: bool = False
+    pid: int | None = None
+    skip_taskbar: bool = False
+    on_current_workspace: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -254,6 +260,13 @@ class WindowService(Service):
 
     def refresh(self) -> None:
         """Refresh polled state before launching; event-driven services need no scan."""
+
+    def watch(self, on_change: Callable[[], None], /) -> object | None:
+        """Subscribe to snapshot changes, if supported by this service."""
+        return None
+
+    def unwatch(self, handle: object) -> None:
+        """Remove a subscription owned by this service."""
 
     def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
         """Read captured evidence without enumerating windows or changing state."""

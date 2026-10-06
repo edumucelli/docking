@@ -13,6 +13,8 @@ from tests.bdd_support.harness import DockHarness
 
 
 def before_scenario(context, scenario) -> None:
+    if "native_services" in scenario.effective_tags:
+        return
     if "atspi_session" in scenario.effective_tags:
         context.accessibility_sessions = []
         return
@@ -31,6 +33,10 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, _scenario) -> None:
+    if hasattr(context, "native_monitor"):
+        context.native_monitor.stop()
+    if hasattr(context, "native_backend"):
+        context.native_backend.stop()
     if hasattr(context, "accessibility_sessions"):
         for session in reversed(context.accessibility_sessions):
             session.close()

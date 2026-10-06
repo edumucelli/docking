@@ -223,6 +223,7 @@ class WaylandPreviewHandleTracker:
         self, *, desktop_id: str | None, app_id: str, title: str
     ) -> object | None:
         self._matcher.sync_visible_items(self._model.visible_items())
+        matches = []
         for state in self._state_by_handle.values():
             if state.closed:
                 continue
@@ -230,11 +231,15 @@ class WaylandPreviewHandleTracker:
                 self._refresh_match(state)
             if desktop_id and state.desktop_id != desktop_id:
                 continue
-            if title and state.title and state.title == title:
-                return state.handle
-            if app_id and state.app_id and state.app_id == app_id:
-                return state.handle
-        return None
+            if app_id and state.app_id != app_id and not desktop_id:
+                continue
+            if title and state.title != title:
+                continue
+            if desktop_id or app_id:
+                matches.append(state.handle)
+        # Native IPC and listing protocols do not share IDs. Ambiguous title/app
+        # matches must not expose a different window's contents.
+        return matches[0] if len(matches) == 1 else None
 
 
 class WaylandPreviewService(PreviewService):

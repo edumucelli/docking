@@ -32,6 +32,7 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.visibility import SnapshotVisibilityService
 from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.niri_ipc import (
     NiriDesktopActionService,
@@ -52,6 +53,7 @@ from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceS
 from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
@@ -64,7 +66,7 @@ class NiriRuntimeServices:
     windows: WindowService
     previews: PreviewService
     surface: WaylandLayerShellSurfaceService
-    visibility: ReducedVisibilityService
+    visibility: VisibilityService
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
     desktop_actions: DesktopActionService | None
@@ -85,6 +87,7 @@ class NiriSessionBackend(SessionBackend):
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
+        config: Config | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -133,7 +136,14 @@ class NiriSessionBackend(SessionBackend):
             windows=windows,
             previews=previews,
             surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=ReducedVisibilityService(),
+            visibility=SnapshotVisibilityService(
+                windows=windows,
+                visible_windows=lambda _rect: windows.list_all_windows(),
+                config=config,
+                poll_ms=500,
+            )
+            if isinstance(windows, NiriWindowService)
+            else ReducedVisibilityService(),
             workspaces=workspaces,
             screen_capture=screen_capture,
             desktop_actions=desktop_actions,
@@ -167,6 +177,8 @@ class NiriSessionBackend(SessionBackend):
             supports_minimize=False,  # Niri is a tiling compositor
             supports_close=tracks_windows,
             tracks_window_geometry=tracks_windows,
+            supports_overlap_active=tracks_windows,
+            supports_overlap_any=tracks_windows,
             tracks_window_workspace=tracks_windows,
             supports_current_workspace_filter=tracks_windows,
             supports_workspace_list=supports_workspaces,

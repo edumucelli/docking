@@ -823,6 +823,11 @@ class WaylandProtocolRuntime:
         return self.cosmic_toplevel if self.cosmic_toplevel.available else None
 
     @property
+    def standard_toplevel_protocol(self) -> object | None:
+        """Standard listing shared with COSMIC, without assuming management."""
+        return self.cosmic_toplevel if self.cosmic_toplevel.available else None
+
+    @property
     def cosmic_workspace_protocol(self) -> object | None:
         return self.cosmic_workspace if self.cosmic_workspace.available else None
 

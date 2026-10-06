@@ -61,8 +61,8 @@ def create_session_backend(
     Explicit ``DOCKING_BACKEND`` values win first. Without an override, X11
     remains the default on X11 displays. Native Wayland prefers richer
     compositor-specific backends before the generic layer-shell path:
-    Hyprland, COSMIC, Niri, Wayfire, KWin, then layer-shell, then the GNOME
-    Shell bridge, then reduced mode.
+    Cinnamon, Sway, Hyprland, COSMIC, Niri, Wayfire, KWin, Treeland, then
+    layer-shell, then the GNOME Shell bridge, then reduced mode.
     """
     identity_arguments = _identity_arguments(
         application_registry=application_registry,
@@ -80,6 +80,7 @@ def create_session_backend(
         )
     if requested in {"gnome", "gnome-shell", "gnome-shell-bridge"}:
         backend = _create_gnome_shell_bridge_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -113,6 +114,7 @@ def create_session_backend(
         )
     if requested in {"hyprland", "hypr"}:
         backend = _create_hyprland_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -124,6 +126,7 @@ def create_session_backend(
         )
     if requested in {"niri"}:
         backend = _create_niri_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -133,6 +136,16 @@ def create_session_backend(
         return _create_reduced_backend(
             reason=f"Niri backend unavailable after DOCKING_BACKEND={requested}"
         )
+    if requested == "sway":
+        backend = _create_sway_backend(
+            config=config,
+            model=model,
+            reason="requested by DOCKING_BACKEND=sway",
+            **identity_arguments,
+        )
+        if backend is not None:
+            return backend
+        return _create_reduced_backend(reason="Sway IPC/layer-shell unavailable")
     if requested in {"wayfire"}:
         backend = _create_wayfire_backend(
             model=model,
@@ -147,6 +160,7 @@ def create_session_backend(
         )
     if requested in {"kwin", "kde", "plasma", "kwin-script"}:
         backend = _create_kwin_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -198,9 +212,24 @@ def create_session_backend(
             return backend
 
     if not is_x11_backend():
+        # A nested desktop can inherit its parent's SWAYSOCK. Never use the
+        # parent's geometry/workspaces for a known non-Sway session.
+        if os.environ.get("SWAYSOCK") and detect_desktop() in {
+            Desktop.SWAY,
+            Desktop.UNKNOWN,
+        }:
+            backend = _create_sway_backend(
+                config=config,
+                model=model,
+                reason=_non_x11_reason(),
+                **identity_arguments,
+            )
+            if backend is not None:
+                return backend
         # Hyprland has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.HYPRLAND:
             backend = _create_hyprland_backend(
+                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -219,6 +248,7 @@ def create_session_backend(
         # Niri has a richer IPC backend than generic layer-shell.
         if detect_desktop() & Desktop.NIRI:
             backend = _create_niri_backend(
+                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -237,6 +267,7 @@ def create_session_backend(
         # KWin / KDE Plasma native backend
         if is_kde_session():
             backend = _create_kwin_backend(
+                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -259,6 +290,7 @@ def create_session_backend(
         if backend is not None:
             return backend
         backend = _create_gnome_shell_bridge_backend(
+            config=config,
             model=model,
             reason=_non_x11_reason(),
             **identity_arguments,
@@ -359,6 +391,7 @@ def _create_wayland_layer_shell_backend(
 
 def _create_gnome_shell_bridge_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -371,6 +404,7 @@ def _create_gnome_shell_bridge_backend(
     if bridge is None:
         return None
     backend = GnomeShellBridgeSessionBackend(
+        config=config,
         model=model,
         bridge=bridge,
         **_identity_arguments(
@@ -528,6 +562,7 @@ def _create_cosmic_backend(
 
 def _create_hyprland_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -551,6 +586,7 @@ def _create_hyprland_backend(
         )
         return None
     backend = HyprlandSessionBackend(
+        config=config,
         layer_shell=layer_shell,
         model=model,
         **_identity_arguments(
@@ -564,6 +600,7 @@ def _create_hyprland_backend(
 
 def _create_kwin_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -591,6 +628,7 @@ def _create_kwin_backend(
         return None
 
     backend = KWinSessionBackend(
+        config=config,
         layer_shell=layer_shell,
         model=model,
         **_identity_arguments(
@@ -602,8 +640,52 @@ def _create_kwin_backend(
     return backend
 
 
+def _create_sway_backend(
+    *,
+    config: Config,
+    model: DockModel,
+    reason: str,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> SessionBackend | None:
+    from docking.platform.backends.wayland.services import (
+        layer_shell_is_supported,
+        load_gtk_layer_shell,
+    )
+    from docking.platform.backends.wayland.sway_ipc import SwayIpcClient
+    from docking.platform.backends.wayland.sway_session import SwaySessionBackend
+
+    socket_path = os.environ.get("SWAYSOCK", "")
+    layer_shell = load_gtk_layer_shell()
+    if (
+        not socket_path
+        or layer_shell is None
+        or not layer_shell_is_supported(layer_shell)
+    ):
+        return None
+    try:
+        tree = SwayIpcClient(socket_path).query(4)
+        if not isinstance(tree, dict) or tree.get("type") != "root":
+            return None
+    except (OSError, ValueError):
+        # Stale sockets must preserve generic listing instead of selecting a
+        # native service that cannot provide its advertised capabilities.
+        return None
+    backend = SwaySessionBackend(
+        socket_path=socket_path,
+        config=config,
+        model=model,
+        layer_shell=layer_shell,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
+    )
+    log.info("Selected session backend: %s (%s)", backend.name, reason)
+    return backend
+
+
 def _create_niri_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -623,6 +705,7 @@ def _create_niri_backend(
         log.info("Niri backend unavailable: compositor does not support layer-shell")
         return None
     backend = NiriSessionBackend(
+        config=config,
         layer_shell=layer_shell,
         model=model,
         **_identity_arguments(

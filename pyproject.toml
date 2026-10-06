@@ -54,6 +54,7 @@ docking = [
     "assets/history/*.json",
     "assets/stretch/*.json",
     "platform/backends/wayland/protocols/*.xml",
+    "platform/backends/kwin/*.js",
     "locale/*.pot",
     "locale/*/LC_MESSAGES/*.mo",
     "locale/*/LC_MESSAGES/*.po",

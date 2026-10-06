@@ -43,9 +43,11 @@ def _runtime() -> SimpleNamespace:
     management.available = True
     return SimpleNamespace(
         foreign_toplevel_protocol=None,
+        standard_toplevel_protocol=None,
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
+        phoc_preview_protocol=None,
         idle_protocol=None,
         treeland_overlap_protocol=overlap,
         treeland_window_management_protocol=management,

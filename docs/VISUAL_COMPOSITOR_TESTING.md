@@ -25,7 +25,7 @@ matrix (`docs/VISUAL_TEST_MATRIX.md`) and the confirmed-issues list
 (`docs/WAYLAND_SUPPORT_ISSUES.md`). They overlapped heavily; the overlapping material now appears
 once, and the matrix's FAIL cells point at the numbered issues instead of restating them.
 
-## Current coverage (2026-10-05)
+## Current coverage (2026-10-06)
 
 The detailed matrix and numbered findings below retain the original 2026-10-02
 investigation. This section supersedes its older statements about unverified
@@ -38,15 +38,15 @@ are per adapter: this is not a claim that every case runs on every desktop.
 
 | Compositor | Verified route and scope | Current limitations |
 | --- | --- | --- |
-| Sway | Headless Pixman; placement, four-edge autohide, zoom, tooltip, menu, six layouts, three output transitions and native stack input/containment at 1x/2x | Pixel geometry; no native layer-surface allocation query or native dodge service |
+| Sway | Headless Pixman; placement, four-edge native IPC dodge/autohide, window actions, zoom, tooltip, menu, six layouts, three output transitions and native stack input/containment at 1x/2x | Pixel dock geometry; no native layer-surface allocation query |
 | Cinnamon | Nested Wayland in private Xvfb; dock role and panel/switcher exclusion, native frame, reservations, window switching and seven native services | Older Muffin uses an XWayland dock surface with native Cinnamon services; newer layer-shell service composition is covered by unit tests |
-| Niri | Nested in headless Sway; five non-panel placement cases | Requires the vertical-edge startup fix in [#353](https://github.com/edumucelli/docking/pull/353); one nested output |
+| Niri | Nested in headless Sway; placement plus four-edge floating-window dodge/actions | One nested output. Niri 26.04 does not expose absolute tiled-window positions; unknown geometry must not establish overlap |
 | labwc | Headless wlroots; placement | No native dock-frame query |
 | COSMIC | Winit nested in headless Sway; native COSMIC placement on five cases | Overlap notification is probed at runtime; absent protocol makes dodge unsupported |
-| KWin | Nested Wayland in headless Sway, QPainter; five placement cases and native stack input/containment at 1x | Reduced visibility service; no native dodge; dynamic output scaling unsupported |
+| KWin | Nested Wayland in headless Sway, QPainter; placement/stack checks plus native UUID, frame, state, actions, dodge policy and Show Desktop | QPainter animation pixels stall on unchanged master too; ScreenShot2 is absent. These are not positive native preview/dodge-pixel checks. Dynamic output scaling unsupported |
 | Wayfire | Arch Wayfire 0.11, headless Pixman and IPC; five placement cases and active-window dodge | Debian's older 0.9 build needs a render device; the default lane uses Arch |
 | Cage | Real headless kiosk compositor; startup, reduced backend and shutdown | Placement intentionally unsupported |
-| GNOME/Mutter | GNOME Shell nested Wayland in private Xvfb; startup, reduced backend and shutdown | Shell extension is deliberately absent; this verifies the compatibility fallback, not native GNOME placement |
+| GNOME/Mutter | GNOME Shell nested Wayland in private Xvfb; fallback startup plus separate native-extension services/pixel checks | The matrix omits the extension for fallback coverage; `native_services.sh` installs it only in the private session |
 
 ### Run the additional cases
 
@@ -109,6 +109,36 @@ artifacts. Run it locally using an already-built Cinnamon image:
 DOCKING_LAB_IMAGE=docking-lab:cinnamon bash tools/visual_compositor/cinnamon_services.sh
 ```
 
+### Native backend services
+
+The separate service probe runs the complete dock at all four edges, with a real
+GTK fixture. It tests geometry, focus/close, minimize/restore where supported,
+workspace switching/activation, and disappearance of independently captured blue
+dock pixels against the fixture's red contents. GNOME's bridge is installed only
+inside its private session. No host configuration or session bus is shared.
+
+```bash
+DOCKING_LAB_IMAGE=docking-lab:sway bash tools/visual_compositor/native_services.sh sway
+DOCKING_LAB_IMAGE=docking-lab:gnome bash tools/visual_compositor/native_services.sh gnome
+DOCKING_LAB_IMAGE=docking-lab:niri bash tools/visual_compositor/native_services.sh niri
+DOCKING_LAB_IMAGE=docking-lab:kwin bash tools/visual_compositor/native_services.sh kwin services
+DOCKING_LAB_IMAGE=docking-lab:cosmic bash tools/visual_compositor/native_services.sh cosmic idle
+DOCKING_LAB_IMAGE=docking-lab:wayfire bash tools/visual_compositor/native_services.sh wayfire idle
+```
+
+`services` mode explicitly records pixel failures without counting them as visual
+acceptance. `idle` mode requires a real, increasing compositor idle value.
+KWin preview tests separately exercise actual Unix FD transfer on a private bus,
+raw alpha/stride decoding, denial, truncation, timeout and mismatched-window replies.
+They do not establish ScreenShot2 authorization or rendering on a native KWin GPU.
+
+Hyprland has a standalone adapter and Arch image target, but its nested Aquamarine
+backend could not start on this GPU-less host. IPC/geometry/workspace contract
+tests are not a native visual pass. Optional `DOCKING_LAB_RENDER_NODE` passes one
+explicit render node and selects GLES; this route remains unvalidated here.
+Read-only standard toplevel fallback is covered by protocol/BDD tests, not a
+claim that every compositor advertises the protocol.
+
 ### Stack popup constraints (F15, 2026-10-05)
 
 `--behavior stacks` adds twelve cases: all four edges with 96px icons, 48px
@@ -163,9 +193,9 @@ other compositor implementations.
 
 ### CI and image maintenance
 
-`.github/workflows/compositor.yml` runs Sway, Cinnamon and Niri on relevant PRs and
-master pushes. Weekly and manually dispatched runs add labwc, COSMIC, KWin,
-Wayfire, Cage and GNOME. Sway also runs the 16 new autohide, interaction, layout
+`.github/workflows/compositor.yml` runs Sway, Cinnamon, Niri, KWin and GNOME on
+relevant PRs and master pushes. Weekly and manually dispatched runs add labwc,
+COSMIC, Wayfire and Cage. Sway also runs the 16 new autohide, interaction, layout
 and output-change cases; Wayfire additionally checks native active-window dodge.
 Placement lanes require supported assertions; Cage and
 GNOME are explicit negative compatibility lanes. Failures retain screenshots,

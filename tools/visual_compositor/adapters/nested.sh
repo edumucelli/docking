@@ -13,7 +13,7 @@ EOF
 
 start_sway_parent() {
     local socket
-    WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+    WLR_BACKENDS=headless WLR_RENDERER="${LAB_PARENT_RENDERER:-pixman}" WLR_LIBINPUT_NO_DEVICES=1 \
         sway -c "$XDG_CONFIG_HOME/sway/config" >"$LAB_DIR/parent.log" 2>&1 &
     ADAPTER_PARENT_PID=$!
     for _ in $(seq 80); do

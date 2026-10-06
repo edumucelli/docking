@@ -54,7 +54,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension
   - KDE Plasma 6 through the native KWin backend
   - COSMIC through native toplevel, workspace, overlap, and preview protocols
-  - Hyprland, Niri, and Wayfire through compositor-specific IPC plus layer-shell
+  - Sway, Hyprland, Niri, and Wayfire through compositor-specific IPC plus layer-shell
   - wlroots-style compositors through layer-shell and advertised Wayland protocols
   - reduced mode when compositor integration is unavailable
 - System packages (Ubuntu/Debian):
@@ -249,13 +249,14 @@ one with `DOCKING_BACKEND`.
 
 | Backend | Compositor | Coverage |
 |---|---|---|
-| **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
-| **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
-| **COSMIC** | COSMIC Wayland | Native layer-shell placement with COSMIC toplevel, workspace, overlap, and preview protocol paths where available |
-| **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
-| **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
-| **Wayfire** | Wayfire Wayland | Dock placement (layer-shell), IPC window tracking and actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker |
-| **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
+| **GNOME Shell bridge** | GNOME / Mutter 45+ | Dock placement, native windows/actions/previews, workspaces, workspace-aware dodge, Show Desktop, Alt+Tab hiding, Mutter idle time and optional portal color picking |
+| **KWin** | KDE Plasma 6 Wayland | Layer-shell placement, native scripting windows/actions/state/geometry, workspaces/filtering, dodge, Show Desktop, optional idle/color picking and authorized ScreenShot2 previews. AT-SPI remains fallback when scripting is unavailable |
+| **COSMIC** | COSMIC Wayland | Native layer-shell placement with COSMIC toplevel, workspace, overlap, preview and idle protocol paths where available |
+| **Hyprland** | Hyprland Wayland | Layer-shell placement, IPC windows/focus/close, per-output and special-workspace dodge, native workspaces, optional idle/previews. Minimization is unsupported |
+| **Niri** | Niri Wayland | Layer-shell placement, IPC windows/focus/close/previews/workspaces, idle and overlap where native tile positions are known. Current Niri exposes positions for floating windows, not tiled windows |
+| **Sway** | Sway Wayland | Layer-shell placement, native IPC windows/focus/close/geometry/workspaces/filtering and dodge, optional idle/previews. Minimization is unsupported |
+| **Wayfire** | Wayfire Wayland | Layer-shell placement, IPC windows/actions/workspaces, Show Desktop, dodge, window/color picking and advertised idle notifications |
+| **Native layer-shell** | Protocol-capable Wayland compositors | Independent window/workspace/preview/idle protocol support. Standard toplevel listing alone is read-only, without focus, geometry or window actions |
 | **Cinnamon Wayland** | Cinnamon 6.4+ | Dock placement, running-window tracking, focus/cycling, minimize and close through Cinnamon's built-in shell API, including activation across workspaces. Newer Muffin uses layer-shell placement when available. Native services also provide workspaces and filtering, dodge hiding, previews, Show Desktop, idle time, color picking and window selection. Read-only window tracking remains a fallback when only Muffin's snapshot API is available. |
 | **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
 | **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
@@ -291,6 +292,15 @@ configuration. The support table above summarizes the capabilities that KWin's
 public interfaces make available. You can also select it explicitly with
 `DOCKING_BACKEND=kwin`.
 
+Docking loads, runs and unloads only its own uniquely named KWin script. It does
+not start or change user scripts. Native compositor UUIDs identify windows;
+AT-SPI identifiers are never used for native actions or capture. Script denial
+or unavailability retains accessibility-based tracking.
+
+ScreenShot2 previews require KWin's screenshot effect and authorization from an
+installed desktop entry. Missing or denied capture returns no preview, never a
+whole-screen or active-window substitute. Source launches may be unauthorized.
+
 #### Native layer-shell
 
 On Cinnamon Wayland, Docking prefers native layer-shell when available. Older
@@ -313,6 +323,7 @@ To force a specific backend for testing:
 ```bash
 DOCKING_BACKEND=gnome-shell docking          # GNOME / Mutter 45+
 DOCKING_BACKEND=kwin docking                  # KDE Plasma 6 Wayland
+DOCKING_BACKEND=sway docking                  # Sway IPC + layer-shell
 DOCKING_BACKEND=cosmic docking                # COSMIC protocols + layer-shell
 DOCKING_BACKEND=hyprland docking              # Hyprland IPC + layer-shell
 DOCKING_BACKEND=niri docking                  # Niri IPC + layer-shell

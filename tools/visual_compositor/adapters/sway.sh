@@ -1,7 +1,7 @@
 #!/bin/bash
-# Sway adapter: headless wlroots compositor, the layer-shell path.
+# Sway adapter: headless wlroots compositor, native IPC and layer-shell surfaces.
 #
-# Sway is the pilot compositor where Docking's `wayland-layer-shell` backend runs
+# Sway is the pilot compositor where Docking's `sway` backend runs
 # against a compositor that fully implements the protocol, so it is the baseline
 # lane.
 #
@@ -29,7 +29,7 @@ adapter_capabilities() {
     [ "${LAB_PANEL_HEIGHT:-0}" -gt 0 ] && panel=true
     jq -n --argjson probe "$probe" --argjson multi "$multi" --argjson panel "$panel" '{
         compositor: "sway",
-        expected_backend: "wayland-layer-shell",
+        expected_backend: "sway",
         native_geometry: false,
         logical_screenshot: true,
         output_changes: true,

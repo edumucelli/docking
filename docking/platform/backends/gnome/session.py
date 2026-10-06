@@ -32,6 +32,7 @@ from docking.platform.backends.base import (
     WindowService,
     WorkspaceService,
 )
+from docking.platform.backends.dbus_idle import MutterIdleService
 from docking.platform.backends.gnome.bridge import (
     GnomeShellBridgeClient,
     GnomeShellBridgeDesktopActionService,
@@ -40,11 +41,11 @@ from docking.platform.backends.gnome.bridge import (
     GnomeShellBridgeWindowService,
     GnomeShellBridgeWorkspaceService,
 )
-from docking.platform.backends.reduced.services import (
-    ReducedVisibilityService,
-)
+from docking.platform.backends.visibility import SnapshotVisibilityService
+from docking.platform.backends.wayland.portals import load_portal_color_picker
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
 
@@ -57,8 +58,10 @@ class GnomeShellBridgeRuntimeServices:
     workspaces: GnomeShellBridgeWorkspaceService
     previews: GnomeShellBridgePreviewService
     surface: GnomeShellBridgeSurfaceService
-    visibility: ReducedVisibilityService
+    visibility: SnapshotVisibilityService
     desktop_actions: GnomeShellBridgeDesktopActionService
+    idle: IdleService | None
+    screen_capture: ScreenCaptureService | None
 
 
 class GnomeShellBridgeSessionBackend(SessionBackend):
@@ -71,19 +74,27 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
         bridge: GnomeShellBridgeClient,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
+        config: Config | None = None,
     ) -> None:
+        windows = GnomeShellBridgeWindowService(
+            model=model,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+            bridge=bridge,
+        )
         self._services = GnomeShellBridgeRuntimeServices(
-            windows=GnomeShellBridgeWindowService(
-                model=model,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-                bridge=bridge,
-            ),
+            windows=windows,
             workspaces=GnomeShellBridgeWorkspaceService(bridge=bridge),
             previews=GnomeShellBridgePreviewService(bridge=bridge),
             surface=GnomeShellBridgeSurfaceService(bridge=bridge),
-            visibility=ReducedVisibilityService(),
+            visibility=SnapshotVisibilityService(
+                windows=windows,
+                visible_windows=lambda _rect: windows.list_all_windows(),
+                config=config,
+            ),
             desktop_actions=GnomeShellBridgeDesktopActionService(bridge=bridge),
+            idle=MutterIdleService.connect(),
+            screen_capture=load_portal_color_picker(),
         )
 
     @property
@@ -112,6 +123,11 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
             supports_workspace_list=True,
             supports_workspace_switch=True,
             supports_show_desktop=True,
+            supports_overlap_active=True,
+            supports_overlap_any=True,
+            supports_overlap_maximized=True,
+            supports_idle_time=self._services.idle is not None,
+            supports_screen_color_pick=self._services.screen_capture is not None,
         )
 
     @property
@@ -140,11 +156,11 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
 
     @property
     def screen_capture(self) -> ScreenCaptureService | None:
-        return None
+        return self._services.screen_capture
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._services.idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
@@ -156,8 +172,16 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
         self._services.surface.start()
         self._services.visibility.start()
         self._services.workspaces.start()
+        if self._services.idle is not None:
+            self._services.idle.start()
+        if self._services.screen_capture is not None:
+            self._services.screen_capture.start()
 
     def stop(self) -> None:
+        if self._services.screen_capture is not None:
+            self._services.screen_capture.stop()
+        if self._services.idle is not None:
+            self._services.idle.stop()
         self._services.workspaces.stop()
         self._services.visibility.stop()
         self._services.surface.stop()

@@ -244,8 +244,11 @@ def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
     monkeypatch,
 ):
     monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setenv("SWAYSOCK", "/tmp/inherited-parent-sway.sock")
+    create_sway = MagicMock(side_effect=AssertionError("Parent Sway was selected"))
+    monkeypatch.setattr(selection, "_create_sway_backend", create_sway)
     monkeypatch.setattr(selection, "is_x11_backend", lambda: False)
-    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.UNKNOWN)
+    monkeypatch.setattr(selection, "detect_desktop", lambda: selection.Desktop.GNOME)
     monkeypatch.setattr(selection, "is_kde_session", lambda: False)
     monkeypatch.setattr(selection, "_wayfire_ipc_available", lambda: False)
     monkeypatch.setattr(
@@ -263,6 +266,7 @@ def test_create_session_backend_selects_gnome_bridge_after_layer_shell_fallback(
 
     assert result is backend
     create_gnome.assert_called_once()
+    create_sway.assert_not_called()
 
 
 def test_create_session_backend_can_force_layer_shell_backend(monkeypatch):

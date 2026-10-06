@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
@@ -14,6 +16,7 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandIpcClient,
     HyprlandSocketPaths,
     HyprlandWindowService,
+    HyprlandWorkspaceService,
     hyprland_socket_paths,
     parse_hyprland_event,
 )
@@ -70,6 +73,8 @@ class FakeIpcClient:
         self.dispatched: list[str] = []
 
     def query_json(self, command: str):
+        if command == "monitors":
+            return [{"activeWorkspace": {"id": 1}, "specialWorkspace": {"id": 0}}]
         clients, active = self.snapshots[self.query_index // 2]
         self.query_index += 1
         return clients if command == "clients" else active
@@ -92,7 +97,14 @@ class FakeEventStream:
         self.stopped = True
 
     def emit(self, name: str, data: str = "") -> None:
-        self.callback(HyprlandEvent(name=name, data=data))
+        pending = []
+        with patch(
+            "docking.platform.backends.wayland.hyprland_ipc.GLib.idle_add",
+            side_effect=lambda callback: pending.append(callback) or 1,
+        ):
+            self.callback(HyprlandEvent(name=name, data=data))
+        for callback in pending:
+            callback()
 
 
 def test_hyprland_socket_paths_from_environment():
@@ -124,6 +136,112 @@ def test_parse_hyprland_event_line():
 def test_parse_hyprland_event_ignores_invalid_lines():
     assert parse_hyprland_event("") is None
     assert parse_hyprland_event("not-an-event") is None
+
+
+def test_visible_workspaces_are_per_output_and_include_special_not_disabled():
+    clients = [
+        {
+            "address": f"0x{index:x}",
+            "class": "Alacritty",
+            "workspace": {"id": workspace},
+            "at": [0, 0],
+            "size": [100, 100],
+            **changes,
+        }
+        for index, (workspace, changes) in enumerate(
+            [
+                (1, {}),
+                (2, {}),
+                (-99, {}),
+                (3, {}),
+                (4, {"pinned": True}),
+                (1, {"hidden": True}),
+                (1, {"mapped": False}),
+            ],
+            start=1,
+        )
+    ]
+    client = FakeIpcClient([(clients, {"address": "0x1"})])
+    original = client.query_json
+    client.query_json = lambda command: (
+        [
+            {"activeWorkspace": {"id": 1}, "specialWorkspace": {"id": -99}},
+            {"activeWorkspace": {"id": 2}, "specialWorkspace": {"id": 0}},
+            {"activeWorkspace": {"id": 3}, "disabled": True},
+        ]
+        if command == "monitors"
+        else original(command)
+    )
+    service = HyprlandWindowService(
+        model=_model(),
+        **identity_services(),
+        client=client,
+        event_stream_factory=lambda _callback: None,
+    )
+    service.start()
+    try:
+        assert [row.visible for row in service.list_all_windows()] == [
+            True,
+            True,
+            True,
+            False,
+            True,
+            False,
+            False,
+        ]
+        assert not service.list_all_windows()[0].can_minimize
+        assert service.minimize_all("Alacritty.desktop") is ActionResult.UNSUPPORTED
+        assert not client.dispatched
+    finally:
+        service.stop()
+
+
+def test_hyprland_workspace_switch_uses_known_numeric_ids_not_names():
+    client = SimpleNamespace(
+        query_json=lambda command: (
+            [
+                {"id": -99, "name": "special:scratch"},
+                {"id": 2, "name": "name; injected"},
+                {"id": 1, "name": "one"},
+            ]
+            if command == "workspaces"
+            else {"id": 2}
+        ),
+        dispatch=MagicMock(return_value=ActionResult.OK),
+    )
+    service = HyprlandWorkspaceService(windows=SimpleNamespace(client=client))
+    assert [row.id for row in service.list_workspaces()] == ["1", "2"]
+    assert service.active_workspace().id == "2"
+    assert service.activate("2") is ActionResult.OK
+    client.dispatch.assert_called_once_with("workspace 2")
+    assert service.activate("2; closewindow") is ActionResult.NOT_FOUND
+
+
+@pytest.mark.parametrize(
+    "mode,fullscreen,maximized", [(0, False, False), (1, False, True), (2, True, False)]
+)
+def test_hyprland_fullscreen_mode_is_not_a_boolean(mode, fullscreen, maximized):
+    client = FakeIpcClient(
+        [
+            (
+                [{"address": "0xabc", "class": "Alacritty", "fullscreen": mode}],
+                {"address": "0xabc"},
+            )
+        ]
+    )
+    service = HyprlandWindowService(
+        model=_model(),
+        **identity_services(),
+        client=client,
+        event_stream_factory=lambda _callback: None,
+    )
+    service.start()
+    try:
+        row = service.list_all_windows()[0]
+        assert row.fullscreen is fullscreen and row.maximized is maximized
+        assert row.minimized is None
+    finally:
+        service.stop()
 
 
 def test_ipc_client_uses_short_lived_command_socket():

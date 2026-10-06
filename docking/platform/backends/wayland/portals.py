@@ -156,7 +156,24 @@ def _portal_frontend_available(*, timeout_ms: int = 250) -> bool:
         )
     except GLib.Error:
         return False
-    return bool(result.unpack()[0])
+    if not result.unpack()[0]:
+        return False
+    try:
+        version = bus.call_sync(
+            "org.freedesktop.portal.Desktop",
+            "/org/freedesktop/portal/desktop",
+            "org.freedesktop.DBus.Properties",
+            "Get",
+            GLib.Variant("(ss)", ("org.freedesktop.portal.Screenshot", "version")),
+            GLib.VariantType.new("(v)"),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            timeout_ms,
+            None,
+        ).unpack()[0]
+    except GLib.Error:
+        return False
+    # Screenshot v1 has no PickColor. A bus owner alone is insufficient.
+    return isinstance(version, int) and version >= 2
 
 
 def _float_channel_to_byte(value: float) -> int:

@@ -395,6 +395,24 @@ class WaylandForeignToplevelWindowService(WindowService):
         return ActionResult.UNSUPPORTED
 
 
+class WaylandStandardToplevelWindowService(WaylandForeignToplevelWindowService):
+    """Read-only ext-foreign-toplevel listing. No state or actions are implied."""
+
+    def _supports_action(self, action: str, handle: object) -> bool:
+        return False
+
+    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+        from dataclasses import replace
+
+        return replace(
+            super()._snapshot_for(state),
+            active=False,
+            minimized=None,
+            maximized=None,
+            fullscreen=None,
+        )
+
+
 def load_foreign_toplevel_protocol() -> object | None:
     """Load an optional foreign-toplevel protocol adapter.
 
