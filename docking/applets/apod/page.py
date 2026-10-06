@@ -39,6 +39,15 @@ _VOID_TAGS = {
 }
 
 
+def _row_label(text: str) -> str:
+    """Normalize a metadata row label.
+
+    NASA writes these headers both with and without a trailing colon, and has
+    renamed them over time ("Credit & Copyright" became "Credit").
+    """
+    return " ".join(text.split()).rstrip(" :")
+
+
 class _ApodParser(HTMLParser):
     """Scope extraction to the hero, ignoring navigation and NASA branding."""
 
@@ -83,7 +92,7 @@ class _ApodParser(HTMLParser):
         for index in range(len(self.stack) - 1, -1, -1):
             if self.stack[index][0] == tag:
                 if tag == "td" and self.stack[index][1]:
-                    label = " ".join("".join(self.text.get("th", [])).split())
+                    label = _row_label("".join(self.text.get("th", [])))
                     value = " ".join("".join(self.text.get("td", [])).split())
                     self.metadata[label] = value
                 del self.stack[index:]
@@ -96,16 +105,26 @@ class _ApodParser(HTMLParser):
                 self.text.setdefault(field, []).append(data)
 
 
+def _published_date(*, raw: str) -> date:
+    """Read NASA's "October 6, 2026" metadata value.
+
+    NASA uses English month names regardless of the desktop's locale.
+    """
+    try:
+        month, day, year = raw.replace(",", "").split()
+        return date(int(year), _MONTHS.index(month) + 1, int(day))
+    except ValueError as exc:
+        raise ValueError(f"APOD page has an unreadable date: {raw!r}") from exc
+
+
 def parse_page(html: str) -> dict[str, str]:
     """Return API-shaped metadata, rejecting incomplete or unrelated pages."""
     parser = _ApodParser()
     parser.feed(html)
     title = " ".join("".join(parser.text.get("title", [])).split())
-    # NASA uses English month names regardless of the desktop's locale.
-    month, day, year = parser.metadata.get("Date", "").replace(",", "").split()
-    published = date(int(year), _MONTHS.index(month) + 1, int(day))
     if not title or not (parser.image_url or parser.video_url):
         raise ValueError("APOD page is missing its title or media")
+    published = _published_date(raw=parser.metadata.get("Date", ""))
     explanation = "".join(parser.text.get("explanation", [])).strip()
     explanation = explanation.removeprefix("Explanation:").strip()
     # Site announcements and tomorrow's teaser follow the explanation.

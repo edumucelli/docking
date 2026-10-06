@@ -188,6 +188,32 @@ class TestFetchToday:
         )
         assert got["page_url"] == APOD_URL
 
+    @pytest.mark.parametrize("label", ["Date", "Date:", " Date : "])
+    def test_reads_the_publish_date_from_either_label_form(self, label):
+        got = parse_page(
+            f"""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <img src="/apod.jpg">
+              </div>
+              <h2>Astronomy picture</h2>
+              <table><tr><th>{label}</th><td>September 30, 2026</td></tr></table>
+            </div>
+        """
+        )
+        assert got["date"] == "2026-09-30"
+
+    def test_missing_date_names_the_problem(self):
+        with pytest.raises(ValueError, match="unreadable date"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media">
+                    <img src="/apod.jpg">
+                  </div>
+                  <h2>Astronomy picture</h2>
+                </div>
+            """)
+
     def test_page_network_failure_returns_error(self, monkeypatch):
         def boom(*_args, **_kwargs):
             raise OSError("network down")
