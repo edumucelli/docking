@@ -23,7 +23,7 @@ fi
 
 refresh() {
     if [ "$family" = fedora ]; then
-        dnf -q makecache
+        dnf -y -q makecache
     else
         zypper --non-interactive --gpg-auto-import-keys refresh >/dev/null
     fi
@@ -74,7 +74,7 @@ package_payload() {
 if [ "$family" = fedora ]; then
     dnf install -y -q --setopt=install_weak_deps=False gnupg2 curl
 else
-    zypper --non-interactive install --no-recommends gnupg curl
+    zypper --non-interactive install --no-recommends gnupg curl gawk
 fi
 
 current=(/release/current/*.rpm)
