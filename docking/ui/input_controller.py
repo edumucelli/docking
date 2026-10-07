@@ -29,18 +29,19 @@ from docking.core.config import LeftClickAction, MiddleClickAction, StackUnfold
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import is_horizontal
 from docking.log import get_logger
-from docking.platform.launcher import launch, launch_new_window, open_target
+from docking.platform.environment import is_x11_backend
 from docking.ui.autohide import HideState
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.dock_interactions import DockInteractions, StackAnchor
-from docking.ui.geometry import current_input_rect
 from docking.ui.renderer import RenderState
 
 if TYPE_CHECKING:
     import cairo
 
     from docking.core.items import DockItem
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.targets import TargetService
     from docking.ui.dnd import DnDHandler
     from docking.ui.dock_window import DockWindow
     from docking.ui.geometry import DockGeometryFrame
@@ -66,9 +67,13 @@ class DockInputController:
         window: DockWindow,
         interactions: DockInteractions,
         dnd: DnDHandler,
+        application_launcher: ApplicationLauncher,
+        target_service: TargetService,
     ) -> None:
         self._window = window
         self._interactions = interactions
+        self._application_launcher = application_launcher
+        self._target_service = target_service
         self._click_x: float = -1.0
         self._click_y: float = -1.0
         self._click_button: int = 0
@@ -161,7 +166,12 @@ class DockInputController:
                 window.cursor_x,
                 window.cursor_y,
             )
-        if window.model.tick_animations():
+        animation_tick = window.model.tick_animations()
+        if animation_tick.changed:
+            window._invalidate_current_geometry_frame()
+            if not animation_tick.active:
+                window.placement.set_struts()
+        if animation_tick.active:
             window._schedule_redraw()
 
         frame = window._current_or_build_geometry_frame(drop_insert_index=drop_insert)
@@ -454,7 +464,7 @@ class DockInputController:
 
             if item.kind == FILE_KIND:
                 item.last_launched = now
-                open_target(item.target)
+                self._target_service.open_target(item.target)
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
                 return True
 
@@ -466,12 +476,14 @@ class DockInputController:
             if event.state & Gdk.ModifierType.CONTROL_MASK:
                 action = MiddleClickAction.NEW_WINDOW.value
 
+            if not item.is_running and action != MiddleClickAction.NEW_WINDOW.value:
+                window.window_tracker.refresh()
             if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
                 item.last_launched = now
                 if action == MiddleClickAction.NEW_WINDOW.value:
-                    launch_new_window(desktop_id=item.desktop_id)
+                    self._application_launcher.launch_new_window(item.desktop_id)
                 else:
-                    launch(desktop_id=item.desktop_id)
+                    self._application_launcher.launch(item.desktop_id)
                 window.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
             elif action == LeftClickAction.CYCLE.value:
                 window.window_tracker.cycle(item.desktop_id)
@@ -520,18 +532,19 @@ class DockInputController:
         )
         if event.detail == Gdk.NotifyType.INFERIOR:
             return False
-
-        current_entry = window._cache.geometry_frame
-        frame = (
-            current_entry.frame if current_entry is not None else None
-        ) or window._cache.applied_input_frame
-        input_rect = current_input_rect(frame)
-        if input_rect is not None and window.interaction.point_inside_event_frame(
-            x=event.x, y=event.y
-        ):
+        if not window.dock_hovered:
             return False
 
-        if not window.dock_hovered:
+        # X11 may emit a crossing event just outside the low window edge when
+        # an animated input shape is replaced, even though the root pointer
+        # remains inside the new shape. Crossing coordinates can also remain
+        # inside after a real exit. Only X11 has a live root pointer: native
+        # Wayland queries may return the last surface-local position on leave.
+        if (
+            is_x11_backend(display=window.get_display())
+            and window.interaction.is_pointer_inside_dock()
+        ):
+            log.debug("ignored leave: live pointer remains inside dock input")
             return False
 
         window.interaction.on_effective_leave(widget)
@@ -552,6 +565,7 @@ class DockInputController:
     def _on_model_changed(self) -> None:
         window = self._window
         window._invalidate_current_geometry_frame()
+        window.placement.set_struts()
         window.update_input_region()
         window.hover.on_model_changed()
         self._interactions.prewarm_visible_folder_stacks(window.model.visible_items())

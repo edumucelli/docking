@@ -33,11 +33,15 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from docking.core.json_types import JsonObject, JsonValue, as_json_object
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import (
+    ApplicationMatch,
+)
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -52,7 +56,10 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
 
 log = get_logger(name="wayfire_ipc")
 
@@ -203,7 +210,7 @@ class WayfireWindowRecord:
     id: int
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     minimized: bool | None
     fullscreen: bool | None
@@ -214,6 +221,14 @@ class WayfireWindowRecord:
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=str(self.id))
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 @dataclass(frozen=True)
@@ -287,12 +302,16 @@ class WayfireWindowService(WindowService):
         self,
         *,
         model,
-        launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         client: WayfireIpcClient,
         watcher: WayfireEventWatcher | None = None,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._records: dict[int, WayfireWindowRecord] = {}
         self._poll_source_id = 0
@@ -446,6 +465,11 @@ class WayfireWindowService(WindowService):
                     active=record.active,
                     urgent=False,
                     window=str(record.id),
+                    runtime_app=(
+                        record.application_match.runtime_app
+                        if record.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -756,8 +780,11 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
             layer = str(item.get("layer", "") or "").strip().lower()
             if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
                 continue
+            raw_id = item.get("id")
+            if not isinstance(raw_id, (int, float, str)):
+                continue
             try:
-                view_id = int(item.get("id"))
+                view_id = int(raw_id)
             except (TypeError, ValueError):
                 continue
             geometry = _rect_from_mapping(item.get("geometry"))
@@ -934,7 +961,12 @@ class WayfireWindowPickService(WindowPickService):
         )
 
 
-def load_wayfire_window_service(*, model, launcher) -> WayfireWindowService | None:
+def load_wayfire_window_service(
+    *,
+    model,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> WayfireWindowService | None:
     """Return a Wayfire WindowService when the IPC socket is detectable."""
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
@@ -944,7 +976,8 @@ def load_wayfire_window_service(*, model, launcher) -> WayfireWindowService | No
     # calls back into the service's _on_event handler.
     service = WayfireWindowService(
         model=model,
-        launcher=launcher,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
         client=client,
     )
     watcher = WayfireEventWatcher(
@@ -1034,7 +1067,7 @@ def _read_exact(sock: socket.socket, size: int) -> bytes:
 def _record_from_view(
     view: Mapping[str, JsonValue],
     *,
-    matcher: object,
+    matcher: AppIdMatcher | _NullMatcher,
     focused_id: int | None,
 ) -> WayfireWindowRecord | None:
     if not bool(view.get("mapped", True)):
@@ -1048,20 +1081,21 @@ def _record_from_view(
     if view_id is None:
         return None
     app_id = str(view.get("app-id", "") or "").strip()
-    desktop_id = matcher.match(app_id) if app_id else None
+    pid = _optional_int(view.get("pid"))
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
     wset_index = view.get("wset-index")
     workspace_id = str(wset_index) if wset_index not in (None, -1, "") else None
     return WayfireWindowRecord(
         id=view_id,
         title=str(view.get("title", "") or "Window"),
         app_id=app_id,
-        desktop_id=desktop_id,
+        application_match=match,
         active=bool(view.get("activated", False)) or view_id == focused_id,
         minimized=_optional_bool(view.get("minimized")),
         fullscreen=_optional_bool(view.get("fullscreen")),
         geometry=_rect_from_mapping(view.get("geometry")),
         workspace_id=workspace_id,
-        pid=_optional_int(view.get("pid")),
+        pid=pid,
     )
 
 
@@ -1142,7 +1176,11 @@ class _NullMatcher:
     """Matcher used by picking, where desktop-id resolution is optional."""
 
     @staticmethod
-    def match(_app_id: str) -> str | None:
+    def match_result(
+        _app_id: str,
+        *,
+        process_id: int | None = None,
+    ) -> ApplicationMatch | None:
         return None
 
 
@@ -1163,7 +1201,7 @@ def _optional_bool(value: object) -> bool | None:
 
 
 def _optional_int(value: object) -> int | None:
-    if not isinstance(value, (int, float, str)):
+    if not isinstance(value, int | float | str):
         return None
     try:
         return int(value)

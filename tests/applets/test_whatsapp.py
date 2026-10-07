@@ -276,6 +276,15 @@ class TestWhatsAppApplet:
         assert removed == [23]
         assert fake_browser.instances[0].toggled == 1
 
+    def test_open_in_browser_uses_target_service(self, monkeypatch, fake_browser):
+        applet = WhatsAppApplet(icon_size=48, config=Config())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(whatsapp_applet_mod.targets, "open_target", open_target)
+
+        applet._open_in_browser()
+
+        open_target.assert_called_once_with(whatsapp_applet_mod.WHATSAPP_WEB_URL)
+
     def test_browser_callbacks_update_tooltip_and_badge(self, fake_browser):
         applet = WhatsAppApplet(icon_size=48, config=Config())
         browser = fake_browser.instances[0]
@@ -412,6 +421,14 @@ class TestWhatsAppBrowserHelpers:
 
         assert browser._on_decide_policy(None, decision, 3) is True
         assert opened == ["https://example.test"]
+
+    def test_external_uri_uses_target_service(self, monkeypatch):
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(whatsapp_browser_mod.targets, "open_target", open_target)
+
+        whatsapp_browser_mod._open_external_uri("custom://external/resource")
+
+        open_target.assert_called_once_with("custom://external/resource")
 
     @pytest.mark.parametrize(
         ("event", "phase"),

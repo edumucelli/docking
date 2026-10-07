@@ -139,6 +139,11 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_id.pop(old_id, None)
         self._state_by_id[state.snapshot_id] = state
 
+    def workspace_id_for_handle(self, handle: object) -> str | None:
+        """Use the same workspace identity for window and workspace snapshots."""
+        state = self._state_by_handle.get(handle)
+        return state.snapshot_id if state is not None and not state.removed else None
+
     def name_changed(self, handle: object, name: str) -> None:
         self._ensure_state(handle=handle).name = name.strip()
 

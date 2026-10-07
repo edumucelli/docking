@@ -81,6 +81,7 @@ class CosmicToplevelAdapter:
         self._toplevel_list = None
         # COSMIC info (extended properties like state, geometry, workspace)
         self._toplevel_info = None
+        self._toplevel_info_version = 0
         # COSMIC management (activate, close, minimize, etc.)
         self._toplevel_manager = None
         self._seat = None
@@ -99,6 +100,8 @@ class CosmicToplevelAdapter:
         # Management capabilities
         self._capabilities: set[int] = set()
         self._dirty_toplevels: set[object] = set()
+        self._output_origin: Callable[[object], tuple[int, int] | None] = lambda _: None
+        self._workspace_id: Callable[[object], str | None] = lambda _: None
 
         self.available = False
 
@@ -134,9 +137,26 @@ class CosmicToplevelAdapter:
         )
 
         bind_version = min(version, ZcosmicToplevelInfoV1.version)
+        self._toplevel_info_version = bind_version
         self._toplevel_info = registry.bind(name, ZcosmicToplevelInfoV1, bind_version)
         if bind_version >= 2:
             self._toplevel_info.dispatcher["done"] = self._on_info_done
+
+    @property
+    def supports_geometry(self) -> bool:
+        return self._toplevel_info is not None and self._toplevel_info_version >= 2
+
+    @property
+    def supports_workspace(self) -> bool:
+        return self._toplevel_info is not None and self._toplevel_info_version >= 3
+
+    def set_output_origin_probe(
+        self, probe: Callable[[object], tuple[int, int] | None]
+    ) -> None:
+        self._output_origin = probe
+
+    def set_workspace_id_probe(self, probe: Callable[[object], str | None]) -> None:
+        self._workspace_id = probe
 
     def bind_toplevel_manager(self, *, registry, name: int, version: int) -> None:
         from docking.platform.backends.wayland.protocols.cosmic_toplevel_management_v1 import (  # noqa: E501
@@ -169,12 +189,7 @@ class CosmicToplevelAdapter:
             state = data.get("state")
             if isinstance(state, Iterable):
                 service.state_changed(toplevel, state)
-            geometry = data.get("geometry")
-            if isinstance(geometry, Rect):
-                service.geometry_changed(toplevel, geometry)
-            workspace = data.get("ext_workspace")
-            if workspace is not None:
-                service.workspace_changed(toplevel, _workspace_id(workspace))
+            self._publish_location(toplevel)
             if data.get("done"):
                 service.done(toplevel)
         # Request COSMIC info extensions for known toplevels (v2+)
@@ -198,6 +213,7 @@ class CosmicToplevelAdapter:
                     stop()
         self._toplevel_list = None
         self._toplevel_info = None
+        self._toplevel_info_version = 0
         self._toplevel_manager = None
         self._seat = None
         self._flush = None
@@ -318,9 +334,12 @@ class CosmicToplevelAdapter:
         service = self._service
         if service is None:
             return
-        for toplevel in tuple(self._dirty_toplevels):
-            service.done(toplevel)
+        toplevels = tuple(self._dirty_toplevels)
         self._dirty_toplevels.clear()
+        for toplevel in toplevels:
+            self._publish_location(toplevel)
+        for toplevel in toplevels:
+            service.done(toplevel)
 
     # -- zcosmic_toplevel_manager_v1 events ----------------------------------
 
@@ -381,22 +400,53 @@ class CosmicToplevelAdapter:
         width: int,
         height: int,
     ) -> None:
-        geometry = Rect(x=x, y=y, width=width, height=height)
-        self._pending_data.setdefault(toplevel, {})["geometry"] = geometry
-        if self._service is not None:
-            self._service.geometry_changed(toplevel, geometry)
+        # COSMIC coordinates are output-relative; retain the output so they can
+        # be translated into the screen coordinates used by WindowSnapshot.
+        self._pending_data.setdefault(toplevel, {})["geometry"] = (
+            output,
+            x,
+            y,
+            width,
+            height,
+        )
+        self._dirty_toplevels.add(toplevel)
 
     def _on_cosmic_workspace_enter(self, toplevel: object, workspace) -> None:
-        self._pending_data.setdefault(toplevel, {})["ext_workspace"] = workspace
-        if self._service is not None:
-            self._service.workspace_changed(toplevel, _workspace_id(workspace))
+        data = self._pending_data.setdefault(toplevel, {})
+        data["ext_workspace"] = workspace
+        handles = data.setdefault("ext_workspaces", [])
+        if isinstance(handles, list) and workspace not in handles:
+            handles.append(workspace)
+        self._dirty_toplevels.add(toplevel)
 
     def _on_cosmic_workspace_leave(self, toplevel: object, workspace) -> None:
         data = self._pending_data.get(toplevel, {})
         if data.get("ext_workspace") is workspace:
             data.pop("ext_workspace", None)
-            if self._service is not None:
-                self._service.workspace_changed(toplevel, None)
+        handles = data.get("ext_workspaces")
+        if isinstance(handles, list) and workspace in handles:
+            handles.remove(workspace)
+        self._dirty_toplevels.add(toplevel)
+
+    def _publish_location(self, toplevel: object) -> None:
+        service = self._service
+        if service is None:
+            return
+        data = self._pending_data.get(toplevel, {})
+        geometry = data.get("geometry")
+        if isinstance(geometry, tuple) and len(geometry) == 5:
+            output, x, y, width, height = geometry
+            origin = self._output_origin(output)
+            rect = (
+                Rect(origin[0] + x, origin[1] + y, width, height)
+                if origin is not None
+                else None
+            )
+            service.geometry_changed(toplevel, rect)
+        handles = data.get("ext_workspaces")
+        if isinstance(handles, list):
+            workspace_id = self._workspace_id(handles[0]) if len(handles) == 1 else None
+            service.workspace_changed(toplevel, workspace_id)
 
     def _flush_pending(self) -> None:
         if self._flush is not None:
@@ -547,13 +597,6 @@ def _array_to_bytes(value) -> bytes:
     if hasattr(value, "data"):
         return bytes(value.data)
     return bytes(value)
-
-
-def _workspace_id(workspace: object) -> str:
-    identifier = getattr(workspace, "id", None)
-    if identifier is not None:
-        return str(identifier)
-    return str(id(workspace))
 
 
 def _parse_capabilities(caps_bytes: bytes) -> set[int]:

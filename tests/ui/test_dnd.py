@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-from docking.platform.desktop_entries import desktop_id_from_uri_or_path
+from docking.platform.applications.entries import desktop_id_from_uri_or_path
 from docking.ui.dnd import DRAG_ICON_SCALE
 
 

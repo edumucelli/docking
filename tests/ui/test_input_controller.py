@@ -45,6 +45,8 @@ def test_start_connects_signals_model_listener_and_prewarms_once():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller.start()
@@ -75,6 +77,8 @@ def test_stop_disconnects_signals_and_model_listener_once():
         window=window,
         interactions=MagicMock(),
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller.start()
@@ -104,6 +108,8 @@ def test_applet_change_refreshes_its_open_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_applet_changed("applet://devices")
@@ -120,6 +126,8 @@ def test_unrelated_applet_change_does_not_refresh_open_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_applet_changed("applet://clock")
@@ -139,6 +147,7 @@ def test_model_change_closes_stack_for_removed_applet():
             on_model_changed=MagicMock(),
         ),
         config=SimpleNamespace(pos="bottom"),
+        placement=SimpleNamespace(set_struts=MagicMock()),
         _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         _schedule_redraw=MagicMock(),
@@ -149,6 +158,8 @@ def test_model_change_closes_stack_for_removed_applet():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_model_changed()
@@ -168,6 +179,7 @@ def test_model_change_does_not_refresh_existing_applet_stack():
             on_model_changed=MagicMock(),
         ),
         config=SimpleNamespace(pos="bottom"),
+        placement=SimpleNamespace(set_struts=MagicMock()),
         _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         _schedule_redraw=MagicMock(),
@@ -178,6 +190,8 @@ def test_model_change_does_not_refresh_existing_applet_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_model_changed()

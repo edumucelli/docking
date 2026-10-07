@@ -239,6 +239,12 @@ class WorkspaceProtocolAdapter:
     def set_flush_callback(self, callback: Callable[[], None] | None) -> None:
         self._flush = callback
 
+    def workspace_id_for_handle(self, handle: object) -> str | None:
+        if self._service is not None:
+            return self._service.workspace_id_for_handle(handle)
+        value = self._pending_data.get(handle, {}).get("id")
+        return str(value).strip() if value else None
+
     def bind(self, *, registry, name: int, version: int) -> None:
         from docking.platform.backends.wayland.protocols.ext_workspace_v1 import (
             ExtWorkspaceManagerV1,
@@ -784,6 +790,12 @@ class WaylandProtocolRuntime:
         self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
         self.treeland_overlap = TreelandOverlapAdapter()
         self.treeland_window_management = TreelandWindowManagementAdapter()
+        self.cosmic_toplevel.set_output_origin_probe(
+            self.treeland_overlap.output_origin
+        )
+        self.cosmic_toplevel.set_workspace_id_probe(
+            self.workspaces.workspace_id_for_handle
+        )
         self._display = None
         self._registry = None
         self._glib_source_id = 0
@@ -817,6 +829,11 @@ class WaylandProtocolRuntime:
 
     @property
     def cosmic_toplevel_protocol(self) -> object | None:
+        return self.cosmic_toplevel if self.cosmic_toplevel.available else None
+
+    @property
+    def standard_toplevel_protocol(self) -> object | None:
+        """Standard listing shared with COSMIC, without assuming management."""
         return self.cosmic_toplevel if self.cosmic_toplevel.available else None
 
     @property

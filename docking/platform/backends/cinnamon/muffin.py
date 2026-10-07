@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Protocol
 
 import gi
 
@@ -12,7 +13,9 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -21,10 +24,16 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.backends.diagnostics import (
+    WindowDiagnostic,
+    WindowReason,
+    WindowTrackingDiagnostic,
+    with_match,
+)
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 log = get_logger(name="backend.cinnamon.muffin")
@@ -34,11 +43,18 @@ OBJECT_PATH = "/org/cinnamon/Muffin/Debug"
 INTERFACE = "org.cinnamon.Muffin.Debug"
 
 
+class WindowSnapshotClient(Protocol):
+    last_query_failed: bool
+
+    def list_windows(self) -> Sequence[Mapping[str, Any]]: ...
+
+
 class MuffinDebugClient:
     """Client for Muffin's read-only ListWindows method."""
 
     def __init__(self, *, proxy: Gio.DBusProxy) -> None:
         self._proxy = proxy
+        self.last_query_failed = False
 
     @classmethod
     def connect(cls) -> MuffinDebugClient | None:
@@ -65,6 +81,7 @@ class MuffinDebugClient:
         return cls(proxy=proxy)
 
     def list_windows(self) -> Sequence[Mapping[str, Any]]:
+        self.last_query_failed = False
         try:
             result = self._proxy.call_sync(
                 "ListWindows",
@@ -75,6 +92,7 @@ class MuffinDebugClient:
             )
             rows = result.unpack()[0]
         except Exception as exc:
+            self.last_query_failed = True
             log.warning("Muffin ListWindows failed: %s", exc)
             return ()
         return tuple(row for row in rows if isinstance(row, Mapping))
@@ -83,58 +101,108 @@ class MuffinDebugClient:
 @dataclass(frozen=True)
 class _MuffinWindow:
     muffin_id: int
+    window_id: WindowId
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     urgent: bool
     geometry: Rect | None
     workspace_id: str | None
+    pid: int | None
+    minimized: bool | None
+    maximized: bool | None
+    fullscreen: bool | None
+    can_minimize: bool
+    can_close: bool
 
     @property
-    def window_id(self) -> WindowId:
-        return WindowId(
-            backend=DisplayServer.WAYLAND,
-            value=f"muffin:{self.muffin_id}",
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
         )
 
 
 class MuffinWindowService(WindowService):
     """Poll Muffin snapshots without claiming unsupported window actions."""
 
+    poll_interval_ms = 2000
+    query_name = "Muffin"
+
     def __init__(
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
-        client: MuffinDebugClient,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+        client: WindowSnapshotClient,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._application_registry = application_registry
+        self._tracking_diagnostic = WindowTrackingDiagnostic(
+            status="pending", detail="No window tracking scan has completed."
+        )
+        self._last_window_diagnostic = WindowDiagnostic()
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._windows: dict[int, _MuffinWindow] = {}
         self._poll_source_id = 0
 
     def start(self) -> None:
+        if self._poll_source_id:
+            return
         self.refresh()
-        self._poll_source_id = GLib.timeout_add_seconds(2, self._poll)
+        self._poll_source_id = GLib.timeout_add(self.poll_interval_ms, self._poll)
 
     def stop(self) -> None:
         if self._poll_source_id:
             GLib.source_remove(self._poll_source_id)
             self._poll_source_id = 0
         self._windows.clear()
+        self._tracking_diagnostic = WindowTrackingDiagnostic(
+            status="stopped", detail="Window tracking has stopped."
+        )
         self._model.update_running(running={})
 
     def refresh(self) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
+        discovery = self._application_registry.diagnostic_snapshot()
         windows: dict[int, _MuffinWindow] = {}
+        records: list[WindowDiagnostic] = []
         for row in self._client.list_windows():
             window = self._window_from_row(row)
-            if window is not None and not _bool(row, "skip-taskbar"):
+            record = self._last_window_diagnostic
+            excluded = self._excluded_reason(row)
+            if window is not None and excluded is not None:
+                record = replace(record, outcome="excluded", reason=excluded)
+            records.append(record)
+            if window is not None and excluded is None:
                 windows[window.muffin_id] = window
-        self._windows = windows
-        self._publish_running()
+        failed = self._client.last_query_failed
+        self._tracking_diagnostic = WindowTrackingDiagnostic(
+            status="failed" if failed else "available",
+            scanned_at=datetime.now(tz=timezone.utc),
+            registry_generation=discovery.generation,
+            application_discovery=discovery,
+            windows=tuple(records),
+            detail=f"{self.query_name} window query failed."
+            if failed
+            else "Last window tracking scan.",
+        )
+        # A failed query is not evidence that every application has closed.
+        # Preserve the last known running state so a transient timeout cannot
+        # turn a focus click into another launch.
+        if not failed:
+            self._windows = windows
+            self._publish_running()
+
+    def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
+        return self._tracking_diagnostic
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         return tuple(self._snapshot(window) for window in self._windows.values())
@@ -182,7 +250,11 @@ class MuffinWindowService(WindowService):
 
     def _window_from_row(self, row: Mapping[str, Any]) -> _MuffinWindow | None:
         muffin_id = _int(row, "id")
-        if muffin_id is None:
+        window_id = self._window_id(row, muffin_id) if muffin_id is not None else None
+        if muffin_id is None or window_id is None:
+            self._last_window_diagnostic = WindowDiagnostic(
+                outcome="error", reason=WindowReason.INVALID_WINDOW_ID
+            )
             return None
         identities = tuple(
             dict.fromkeys(
@@ -198,19 +270,55 @@ class MuffinWindowService(WindowService):
             )
         )
         app_id = identities[0] if identities else ""
-        desktop_id = next(
-            (
-                matched
-                for identity in identities
-                if (matched := self._matcher.match(identity)) is not None
+        pid = _int(row, "pid")
+        if pid is not None and pid <= 0:
+            pid = None
+        match = None
+        attempt = None
+        for identity in identities:
+            attempt = self._matcher.match_attempt(identity, process_id=pid)
+            match = attempt.match
+            if match is not None:
+                break
+        if attempt is None:
+            attempt = self._matcher.match_attempt("", process_id=pid)
+        self._last_window_diagnostic = with_match(
+            WindowDiagnostic(
+                window_id=str(window_id),
+                identities=tuple(
+                    (key, value)
+                    for key in (
+                        "app-id",
+                        "gtk-application-id",
+                        "sandboxed-app-id",
+                        "wm-class",
+                        "wm-class-instance",
+                    )
+                    if (value := _text(row, key))
+                ),
+                pid=pid,
+                executable_path=(
+                    str(attempt.executable_path)
+                    if attempt and attempt.executable_path
+                    else None
+                ),
+                workspace=(
+                    str(workspace)
+                    if (workspace := _int(row, "workspace")) is not None
+                    else None
+                ),
+                reason=WindowReason.NO_MATCH
+                if identities
+                else WindowReason.NO_IDENTITY,
             ),
-            None,
+            match,
         )
         return _MuffinWindow(
             muffin_id=muffin_id,
+            window_id=window_id,
             title=_text(row, "title") or "Window",
             app_id=app_id,
-            desktop_id=desktop_id,
+            application_match=match,
             active=_bool(row, "focused"),
             urgent=_bool(row, "demands-attention"),
             geometry=_rect(row.get("frame-rect")),
@@ -219,11 +327,26 @@ class MuffinWindowService(WindowService):
                 if (workspace := _int(row, "workspace")) is not None
                 else None
             ),
+            pid=pid,
+            minimized=_bool(row, "minimized") if "minimized" in row else None,
+            maximized=_bool(row, "maximized") if "maximized" in row else None,
+            fullscreen=_bool(row, "fullscreen") if "fullscreen" in row else None,
+            can_minimize=_bool(row, "can-minimize"),
+            can_close=_bool(row, "can-close"),
         )
+
+    def _window_id(self, row: Mapping[str, Any], sequence: int) -> WindowId | None:
+        return WindowId(backend=DisplayServer.WAYLAND, value=f"muffin:{sequence}")
+
+    def _excluded_reason(self, row: Mapping[str, Any]) -> WindowReason | None:
+        return WindowReason.SKIP_TASKBAR if _bool(row, "skip-taskbar") else None
+
+    def _running_windows(self) -> Sequence[_MuffinWindow]:
+        return tuple(self._windows.values())
 
     def _publish_running(self) -> None:
         grouped: dict[str, list[RunningWindowInfo]] = {}
-        for window in self._windows.values():
+        for window in self._running_windows():
             if window.desktop_id is None:
                 continue
             grouped.setdefault(window.desktop_id, []).append(
@@ -234,6 +357,11 @@ class MuffinWindowService(WindowService):
                     active=window.active,
                     urgent=window.urgent,
                     window=window.muffin_id,
+                    runtime_app=(
+                        window.application_match.runtime_app
+                        if window.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -254,6 +382,9 @@ class MuffinWindowService(WindowService):
             urgent=window.urgent,
             geometry=window.geometry,
             workspace_id=window.workspace_id,
+            minimized=window.minimized,
+            maximized=window.maximized,
+            fullscreen=window.fullscreen,
         )
 
     def _unsupported_or_missing(self, window_id: WindowId) -> ActionResult:
@@ -292,7 +423,7 @@ def _bool(row: Mapping[str, Any], key: str) -> bool:
 
 def _rect(value: Any) -> Rect | None:
     value = _unpack(value)
-    if not isinstance(value, (tuple, list)) or len(value) != 4:
+    if not isinstance(value, tuple | list) or len(value) != 4:
         return None
     try:
         x, y, width, height = (int(part) for part in value)

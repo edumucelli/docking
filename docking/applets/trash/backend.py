@@ -33,6 +33,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -240,16 +241,13 @@ def _open_trash_uri(
     if is_flatpak() and _open_host_trash_uri(uri=uri):
         return
 
-    try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
+    if targets.open_target(uri):
         return
-    except GLib.Error as exc:
-        gio_error = exc
 
     if _open_trash_with_commands(uri=uri, commands=fallback_commands):
         return
 
-    log.bind(action="open_trash").warning("Failed to open trash: %s", gio_error)
+    log.bind(action="open_trash").warning("Failed to open trash URI: %s", uri)
 
 
 def _open_trash_with_commands(

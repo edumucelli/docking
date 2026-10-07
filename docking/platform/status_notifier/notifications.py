@@ -5,20 +5,14 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from gi.repository import GLib
-
-from docking.applets.worker import BackgroundWorker
 from docking.log import get_logger, with_context
-from docking.platform.status_notifier.backend import (
-    StatusNotifierBackend,
-    StatusTrayState,
-    TrayItem,
-)
+from docking.platform.status_notifier.backend import StatusTrayState, TrayItem
+from docking.platform.status_notifier.service import StatusNotifierService
 
 if TYPE_CHECKING:
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
-POLL_INTERVAL_S = 3
 SLACK_DESKTOP_ID = "slack.desktop"
 SLACK_ITEM_PREFIX = "slack_status_icon"
 
@@ -63,17 +57,24 @@ def parse_slack_notification_count(item: TrayItem) -> int | None:
 
 
 class StatusNotifierNotificationBridge:
-    """Poll tray metadata and publish supported launcher notification overlays."""
+    """Publish supported launcher notification overlays from tray metadata.
+
+    The tray state itself comes from a :class:`StatusNotifierService`, which is
+    shared with the System Tray applet. A bridge created without one owns a
+    private service, so it stays usable on its own.
+    """
 
     def __init__(
         self,
         *,
         model: DockModel,
+        application_registry: ApplicationRegistry,
+        service: StatusNotifierService | None = None,
     ) -> None:
         self._model = model
-        self._backend = StatusNotifierBackend()
-        self._worker = BackgroundWorker(logger=log)
-        self._timer_id = 0
+        self._application_registry = application_registry
+        self._service = StatusNotifierService() if service is None else service
+        self._owns_service = service is None
         self._running = False
         self._observed_source_ids: set[str] = set()
 
@@ -81,36 +82,26 @@ class StatusNotifierNotificationBridge:
         if self._running:
             return
         self._running = True
-        self._poll_async()
-        self._timer_id = GLib.timeout_add_seconds(
-            POLL_INTERVAL_S,
-            self._tick,
-        )
+        self._service.add_listener(self._on_state_result)
+        if self._owns_service:
+            self._service.start()
 
     def stop(self) -> None:
         self._running = False
-        if self._timer_id:
-            GLib.source_remove(self._timer_id)
-            self._timer_id = 0
+        self._service.remove_listener(self._on_state_result)
         for source_id in tuple(self._observed_source_ids):
             self._model.remove_status_notifier_overlay(source_id=source_id)
         self._observed_source_ids.clear()
-        self._backend.close()
+        if self._owns_service:
+            self._service.stop()
 
-    def _tick(self) -> bool:
-        self._poll_async()
-        return self._running
-
-    def _poll_async(self) -> None:
-        if not self._running:
-            return
-        self._worker.run_guarded(
-            key="status-notifier-notifications",
-            name="status-notifier-notifications-poll",
-            fn=self._backend.get_state,
-            on_result=self._on_state_result,
-            on_error=self._on_poll_error,
-        )
+    def _canonical_desktop_id(self, desktop_id: str) -> str:
+        application = self._application_registry.get(desktop_id)
+        if application is None:
+            application = self._application_registry.resolve_by_wm_class(
+                desktop_id.removesuffix(".desktop")
+            )
+        return application.desktop_id if application is not None else desktop_id
 
     def _on_state_result(self, state: StatusTrayState) -> bool:
         if not self._running:
@@ -127,6 +118,7 @@ class StatusNotifierNotificationBridge:
             desktop_id = status_notifier_desktop_id(item)
             if desktop_id is None:
                 continue
+            desktop_id = self._canonical_desktop_id(desktop_id)
             current_source_ids.add(item.identifier)
             count = parse_slack_notification_count(item)
             if count is None:
@@ -143,12 +135,4 @@ class StatusNotifierNotificationBridge:
         for source_id in self._observed_source_ids - current_source_ids:
             self._model.remove_status_notifier_overlay(source_id=source_id)
         self._observed_source_ids = current_source_ids
-        return False
-
-    def _on_poll_error(self, exc: Exception) -> bool:
-        if self._running:
-            log.bind(action="poll").debug(
-                "StatusNotifier notification poll failed; preserving overlays: %s",
-                exc,
-            )
         return False

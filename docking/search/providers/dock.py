@@ -5,7 +5,7 @@ only pinned applets, files, and folders. It reads the current visible model on
 each request, uses shared text scoring, and marks the canonical target so a
 file found elsewhere can be deduplicated.
 
-Actions call existing model and launcher operations. Removing an item is
+Actions call existing model and target-service operations. Removing an item is
 destructive enough to require controller confirmation, but the provider still
 owns the final identity validation and mutation. Preview descriptors remain
 cheap until the user opens the preview panel.
@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.i18n import _
-from docking.platform import launcher as launcher_actions
 from docking.platform.model import DockModel
+from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
 from docking.search.preview import preview_local_descriptor
 from docking.search.providers.base import (
@@ -39,9 +39,10 @@ class DockSearchProvider:
 
     provider_id = "dock"
 
-    def __init__(self, *, model: DockModel) -> None:
+    def __init__(self, *, model: DockModel, target_service: TargetService) -> None:
         """Retain the live model that owns pinned items and their mutations."""
         self._model = model
+        self._target_service = target_service
 
     def search(self, request: SearchRequest):
         """Yield matching pinned applets, files, and folders from the model."""
@@ -157,7 +158,7 @@ class DockSearchProvider:
             applet.on_clicked()
             return True
         if item.kind in {FILE_KIND, FOLDER_KIND}:
-            return launcher_actions.open_target(item.target)
+            return self._target_service.open_target(item.target)
         return False
 
 

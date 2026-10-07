@@ -100,7 +100,12 @@ def load_applet_class(applet_id: str) -> type[Applet] | None:
     # a class name in AppletMeta. That keeps metadata minimal and avoids
     # duplicating another identifier that can drift during refactors.
     for obj in vars(module).values():
-        if inspect.isclass(obj) and issubclass(obj, _Base) and obj is not _Base:
+        if (
+            inspect.isclass(obj)
+            and obj.__module__ == module.__name__
+            and issubclass(obj, _Base)
+            and obj is not _Base
+        ):
             return obj
     log.warning("No Applet subclass found in %s", module_name)
     return None

@@ -1,6 +1,7 @@
 """Tests for auto-hide state machine and easing functions."""
 
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -191,39 +192,43 @@ class TestZoomProgressFormula:
         config.hide_time_ms = 250
         return AutoHideController(window, config)
 
-    def test_zoom_progress_is_linear_with_hide_offset(self):
+    def test_zoom_progress_is_linear_with_hide_offset(self, monotonic_clock):
         # Given
         ctrl = self._make_controller()
         ctrl.state = HideState.HIDING
         ctrl.hide_offset = 0.5
         # Simulate one animation tick
         ctrl._anim_progress = 0.5
+        monotonic_clock.now_us += 16_000
         ctrl._animation_tick()
         # Then
         assert ctrl.zoom_progress == pytest.approx(1.0 - ctrl.hide_offset, abs=0.1)
 
-    def test_zoom_progress_zero_when_fully_hidden(self):
+    def test_zoom_progress_zero_when_fully_hidden(self, monotonic_clock):
         ctrl = self._make_controller()
         ctrl.state = HideState.HIDING
         ctrl._anim_progress = 0.99
+        monotonic_clock.now_us += 16_000
         ctrl._animation_tick()
         # At full hide, zoom_progress should be near 0
         assert ctrl.zoom_progress <= 0.05
 
-    def test_zoom_progress_ramps_during_showing(self):
+    def test_zoom_progress_ramps_during_showing(self, monotonic_clock):
         # Given
         ctrl = self._make_controller()
         ctrl.state = HideState.SHOWING
         ctrl._anim_progress = 0.3
         ctrl.hide_offset = 1.0
+        monotonic_clock.now_us += 16_000
         ctrl._animation_tick()
         # Then
         assert ctrl.zoom_progress > 0.0
 
-    def test_zoom_progress_1_when_fully_shown(self):
+    def test_zoom_progress_1_when_fully_shown(self, monotonic_clock):
         ctrl = self._make_controller()
         ctrl.state = HideState.SHOWING
         ctrl._anim_progress = 0.99
+        monotonic_clock.now_us += 16_000
         ctrl._animation_tick()
         # near fully shown
         assert ctrl.zoom_progress > 0.9
@@ -415,7 +420,9 @@ class TestAutoHideTimersAndDelays:
         assert ctrl._hide_after_show is True
         ctrl._start_animation.assert_not_called()
 
-    def test_showing_completion_hides_if_leave_was_deferred(self, monkeypatch):
+    def test_showing_completion_hides_if_leave_was_deferred(
+        self, monkeypatch, monotonic_clock
+    ):
         ctrl = self._make_controller(hide_delay=0)
         ctrl.state = HideState.SHOWING
         ctrl._hide_after_show = True
@@ -429,6 +436,7 @@ class TestAutoHideTimersAndDelays:
 
         monkeypatch.setattr(autohide_mod.GLib, "timeout_add", fake_timeout_add)
 
+        monotonic_clock.now_us += 16_000
         result = ctrl._animation_tick()
 
         assert result is False
@@ -437,13 +445,14 @@ class TestAutoHideTimersAndDelays:
         assert ctrl._hide_timer_id == 906
         assert scheduled == [autohide_mod.MIN_HIDE_GRACE_MS]
 
-    def test_mouse_enter_during_showing_clears_deferred_hide(self):
+    def test_mouse_enter_during_showing_clears_deferred_hide(self, monotonic_clock):
         ctrl = self._make_controller(hide_delay=0)
         ctrl.state = HideState.SHOWING
         ctrl._hide_after_show = True
         ctrl._anim_progress = 0.99
 
         ctrl.on_mouse_enter()
+        monotonic_clock.now_us += 16_000
         result = ctrl._animation_tick()
 
         assert ctrl._hide_after_show is False
@@ -475,3 +484,118 @@ class TestAutoHideTimersAndDelays:
         assert ctrl.state == HideState.HIDING
         assert 0.0 < ctrl._anim_progress < 1.0
         assert ease_in_cubic(ctrl._anim_progress) == pytest.approx(0.412, abs=0.001)
+
+
+@pytest.fixture
+def timed_autohide(monkeypatch, monotonic_clock):
+    monkeypatch.setattr(autohide_mod.GLib, "timeout_add", MagicMock(return_value=1234))
+    monkeypatch.setattr(autohide_mod, "_clear_source", lambda source_id: 0)
+    config = SimpleNamespace(
+        hide_mode="autohide", hide_delay_ms=0, unhide_delay_ms=0, hide_time_ms=250
+    )
+    return AutoHideController(MagicMock(), config)
+
+
+class TestElapsedAnimationTime:
+    @pytest.mark.parametrize("showing", [False, True])
+    def test_delayed_first_tick_finishes_animation(
+        self, timed_autohide, monotonic_clock, showing
+    ):
+        ctrl = timed_autohide
+        if showing:
+            ctrl.state = HideState.HIDDEN
+            ctrl.hide_offset = 1.0
+            ctrl.on_mouse_enter()
+        else:
+            ctrl._start_hiding()
+
+        monotonic_clock.now_us += 300_000
+
+        assert ctrl._animation_tick() is False
+        assert ctrl.state == (HideState.VISIBLE if showing else HideState.HIDDEN)
+        assert ctrl.hide_offset == (0.0 if showing else 1.0)
+        assert ctrl._anim_timer_id == 0
+
+    def test_ticks_without_elapsed_time_do_not_advance_after_idle(
+        self, timed_autohide, monotonic_clock
+    ):
+        ctrl = timed_autohide
+        ctrl.state = HideState.HIDDEN
+        ctrl.hide_offset = 1.0
+        monotonic_clock.now_us = 30_000_000
+        ctrl.on_mouse_enter()
+
+        for _ in range(3):
+            assert ctrl._animation_tick() is True
+        assert ctrl.hide_offset == 1.0
+
+        monotonic_clock.now_us += 125_000
+        assert ctrl._animation_tick() is True
+        assert ctrl.hide_offset == pytest.approx(0.125)
+        monotonic_clock.now_us += 125_000
+        assert ctrl._animation_tick() is False
+        assert ctrl.hide_offset == 0.0
+
+    def test_reversal_restarts_clock_at_current_visual_position(
+        self, timed_autohide, monotonic_clock
+    ):
+        ctrl = timed_autohide
+        ctrl._start_hiding()
+        monotonic_clock.now_us = 125_000
+        ctrl._animation_tick()
+        assert ctrl.hide_offset == pytest.approx(0.125)
+
+        # Pointer returns between frames. Neither jump nor charge the old
+        # direction's unrendered time to the new show animation.
+        monotonic_clock.now_us = 200_000
+        ctrl.on_mouse_enter()
+        ctrl._animation_tick()
+        assert ctrl.hide_offset == pytest.approx(0.125)
+        monotonic_clock.now_us += 50_000
+        ctrl._animation_tick()
+        assert ctrl.hide_offset == pytest.approx(0.027)
+        monotonic_clock.now_us += 100_000
+        assert ctrl._animation_tick() is False
+        assert ctrl.state == HideState.VISIBLE
+
+    def test_unhide_delay_is_not_charged_to_animation(
+        self, timed_autohide, monotonic_clock
+    ):
+        ctrl = timed_autohide
+        ctrl._config.unhide_delay_ms = 200
+        ctrl.state = HideState.HIDDEN
+        ctrl.hide_offset = 1.0
+        ctrl.on_mouse_enter()
+        assert ctrl.state == HideState.HIDDEN
+
+        monotonic_clock.now_us += 200_000
+        ctrl._start_showing()
+        ctrl._animation_tick()
+        assert ctrl.hide_offset == 1.0
+        monotonic_clock.now_us += 250_000
+        assert ctrl._animation_tick() is False
+        assert ctrl.state == HideState.VISIBLE
+
+    def test_zero_duration_finishes_on_first_tick(
+        self, timed_autohide, monotonic_clock
+    ):
+        ctrl = timed_autohide
+        ctrl._config.hide_time_ms = 0
+        ctrl.state = HideState.HIDDEN
+        ctrl.hide_offset = 1.0
+        ctrl.on_mouse_enter()
+
+        assert ctrl._animation_tick() is False
+        assert ctrl.state == HideState.VISIBLE
+
+    def test_reentry_before_first_hide_frame_stops_idle_animation(
+        self, timed_autohide, monotonic_clock
+    ):
+        ctrl = timed_autohide
+        ctrl._start_hiding()
+        ctrl.on_mouse_enter()
+
+        monotonic_clock.now_us += 16_000
+        assert ctrl._animation_tick() is False
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl._anim_timer_id == 0

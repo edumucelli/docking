@@ -22,7 +22,7 @@ AppDir:
     icon: org.docking.Docking
     version: latest
     exec: usr/bin/python3
-    exec_args: -m docking.app
+    exec_args: -m docking.launcher
 
   apt:
     arch: __APT_ARCH__

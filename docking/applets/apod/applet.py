@@ -24,10 +24,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.apod import meta
 from docking.applets.apod.api import ApodError, fetch_today
+from docking.applets.apod.page import APOD_URL
 from docking.applets.apod.render import render_icon
 from docking.applets.apod.state import (
     REFRESH_CHECK_INTERVAL_S,
@@ -48,6 +49,7 @@ from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -129,7 +131,7 @@ class ApodApplet(Applet):
                 disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
             )
 
-        open_item = Gtk.MenuItem(label=_("Open on apod.nasa.gov"))
+        open_item = Gtk.MenuItem(label=_("Open in Browser"))
         open_item.connect("activate", lambda _w: self._open_page())
         primary = [open_item]
 
@@ -168,6 +170,11 @@ class ApodApplet(Applet):
 
     def _needs_fetch(self) -> bool:
         if self._result is None:
+            return True
+        if (
+            "nasa-logo" in self._result.image_url
+            or self._result.title == "NASA Science"
+        ):
             return True
         return self._result.date != _today_iso()
 
@@ -241,11 +248,8 @@ class ApodApplet(Applet):
         return False
 
     def _open_page(self) -> None:
-        url = self._result.page_url if self._result else "https://apod.nasa.gov/"
-        try:
-            Gio.AppInfo.launch_default_for_uri(url, None)
-        except GLib.Error as exc:
-            log.bind(action="open_url").warning("Failed to open URL: %s", exc)
+        url = self._result.page_url if self._result else APOD_URL
+        targets.open_target(url)
 
     def _copy_explanation(self) -> None:
         if self._result is None or not self._result.explanation:

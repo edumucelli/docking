@@ -4,11 +4,31 @@ from __future__ import annotations
 
 import stat
 
-from docking.platform import desktop_entries
+from docking.platform.applications import entries as desktop_entries
 
 
 def _make_executable(path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+class TestExecutablePath:
+    def test_extracts_canonical_absolute_exec_path(self, tmp_path):
+        executable = tmp_path / "app" / "bin" / "tool"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"\x7fELF")
+
+        result = desktop_entries.executable_path_from_exec_line(
+            f'"{executable}" --flag %U'
+        )
+
+        assert result == executable.resolve()
+
+    def test_rejects_path_resolved_and_missing_commands(self, tmp_path):
+        assert desktop_entries.executable_path_from_exec_line("tool --flag") is None
+        assert (
+            desktop_entries.executable_path_from_exec_line(str(tmp_path / "missing"))
+            is None
+        )
 
 
 class TestWineDesktopAliases:
@@ -29,59 +49,6 @@ class TestWineDesktopAliases:
 
     def test_wine_executable_aliases_ignores_non_wine_exec(self):
         assert desktop_entries.wine_executable_aliases("mono /tmp/tool.exe") == []
-
-    def test_desktop_info_replaces_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=env WINEPREFIX="/home/user/.wine" wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=Wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
-        assert desktop_entries.desktop_match_aliases(info) == [
-            "tool.exe",
-            "wine-program",
-            "tool",
-        ]
-
-    def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
 
 
 class TestGeneratedDesktopEntries:
@@ -124,14 +91,40 @@ class TestGeneratedDesktopEntries:
         assert "X-Docking-Generated=true\n" in text
         assert f"X-Docking-Source-Path={binary.resolve()}\n" in text
 
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id=generated.desktop_id,
-            path=generated.path,
+    def test_generated_file_can_preserve_runtime_wm_class(self, tmp_path, monkeypatch):
+        binary = tmp_path / "tool"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
         )
-        assert info is not None
-        assert info.name == "my tool"
-        assert info.icon_name == "application-x-executable"
-        assert info.exec_line == f'"{binary.resolve()}"'
+
+        generated = desktop_entries.create_desktop_entry_for_executable(
+            binary,
+            startup_wm_class="SharedTool",
+        )
+
+        assert generated is not None
+        text = generated.path.read_text(encoding="utf-8")
+        assert "StartupWMClass=SharedTool\n" in text
+
+    def test_generated_file_uses_icon_next_to_executable(self, tmp_path, monkeypatch):
+        binary = tmp_path / "tool"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        icon = tmp_path / "tool.svg"
+        icon.write_text("<svg/>", encoding="utf-8")
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+
+        generated = desktop_entries.create_desktop_entry_for_executable(binary)
+
+        assert generated is not None
+        text = generated.path.read_text(encoding="utf-8")
+        assert f"Icon={icon.resolve()}\n" in text
 
     def test_repeated_generation_is_idempotent(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"

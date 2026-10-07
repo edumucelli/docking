@@ -33,7 +33,13 @@ from docking.applets.popup import PopupAnchor
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup
+from docking.platform.backends.base import Rect, Size
+from docking.ui.display import (
+    clamp_popup,
+    popup_workarea,
+    scrolled_popup_size,
+    window_surface_service,
+)
 from docking.ui.shelf import rounded_rect
 
 if TYPE_CHECKING:
@@ -73,6 +79,22 @@ FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES = 32
 FOLDER_STACK_REFRESH_DEBOUNCE_MS = 120
 
 log = get_logger("stack")
+
+
+def stack_available_size(
+    bounds: Rect, anchor_x: int, anchor_y: int, position: Position
+) -> Size:
+    """Space facing away from the dock, within the anchor monitor's workarea."""
+    width, height = bounds.width, bounds.height
+    if position == Position.BOTTOM:
+        height = min(height, anchor_y - FOLDER_STACK_GAP_PX - bounds.y)
+    elif position == Position.TOP:
+        height = min(height, bounds.bottom - anchor_y - FOLDER_STACK_GAP_PX)
+    elif position == Position.LEFT:
+        width = min(width, bounds.right - anchor_x - FOLDER_STACK_GAP_PX)
+    else:
+        width = min(width, anchor_x - FOLDER_STACK_GAP_PX - bounds.x)
+    return Size(max(1, width), max(1, height))
 
 
 @dataclass(frozen=True)
@@ -312,6 +334,9 @@ class StackPopupController:
         self._folder_stack_fold_center_x: int = 0
         self._folder_stack_position_value = self._config.pos
         self._folder_stack_area: Gtk.DrawingArea | None = None
+        self._folder_stack_popup_size: Size | None = None
+        self._folder_stack_constraint_source: int = 0
+        self._folder_stack_constraint_retries: int = 0
         self._folder_stack_cards: list[StackCard] = []
         self._folder_stack_anim_source: int = 0
         self._folder_stack_show_started_us: int = 0
@@ -354,12 +379,11 @@ class StackPopupController:
         self._stack_provider = provider
         self._stack_content = content
         self._stack_closed = on_closed
-        self._replace_stack_content(content=content)
-
         self._folder_stack_anchor_x = int(anchor.x)
         self._folder_stack_anchor_y = int(anchor.y)
         self._folder_stack_icon_w = 0
         self._folder_stack_position_value = anchor.position
+        self._replace_stack_content(content=content)
         self._restart_stack_animation()
         self._position_stack_window()
         revealer.set_reveal_child(True)
@@ -434,11 +458,13 @@ class StackPopupController:
         self._runtime.menu_popup_closed()
 
     def _cleanup_stack(self) -> None:
+        self._cancel_stack_constraint()
         if self._folder_stack_anim_source:
             GLib.source_remove(self._folder_stack_anim_source)
             self._folder_stack_anim_source = 0
         on_closed = self._stack_closed
         self._folder_stack_area = None
+        self._folder_stack_popup_size = None
         self._stack_owner_id = None
         self._stack_provider = None
         self._stack_content = None
@@ -464,6 +490,7 @@ class StackPopupController:
         window.set_resizable(False)
         window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
         window.set_app_paintable(True)
+        window.connect("configure-event", self._on_stack_configure)
 
         # On Wayland popups need a transient parent so the compositor
         # positions them relative to the dock rather than at (0,0).
@@ -500,9 +527,14 @@ class StackPopupController:
         revealer = self._folder_stack_revealer
         if revealer is None:
             return
+        self._cancel_stack_constraint()
+        self._folder_stack_constraint_retries = 0
+        # Reused GTK popups otherwise retain their previous large allocation.
+        if self._folder_stack_window is not None:
+            self._folder_stack_window.hide()
         child = revealer.get_child()
         if child is not None:
-            revealer.remove(child)
+            child.destroy()
         widget = self._build_stack_content(content=content)
         revealer.add(widget)
         widget.show_all()
@@ -517,8 +549,10 @@ class StackPopupController:
             return
 
         preferred = child.get_preferred_size()[1]
-        popup_w = max(int(preferred.width), 1)
-        popup_h = max(int(preferred.height), 1)
+        size = self._folder_stack_popup_size or Size(
+            max(int(preferred.width), 1), max(int(preferred.height), 1)
+        )
+        popup_w, popup_h = size.width, size.height
         anchor_x = self._folder_stack_anchor_x
         anchor_y = self._folder_stack_anchor_y
         icon_w = max(self._folder_stack_icon_w, 0)
@@ -541,12 +575,54 @@ class StackPopupController:
                 else int(anchor_x - popup_w - FOLDER_STACK_GAP_PX)
             )
 
-        popup_pos = clamp_popup(window, popup_x, popup_y, popup_w, popup_h)
-        window.move(popup_pos.x, popup_pos.y)
+        bounds = popup_workarea(window, anchor_x, anchor_y)
+        # Legacy GTK layer-shell popups can retain off-screen requested origins.
+        # Bound the rectangle before converting to parent-relative coordinates.
+        popup_x = max(bounds.x, min(popup_x, bounds.right - popup_w))
+        popup_y = max(bounds.y, min(popup_y, bounds.bottom - popup_h))
+        popup_pos = clamp_popup(
+            window, popup_x, popup_y, popup_w, popup_h, bounds=bounds
+        )
+        window.resize(popup_w, popup_h)
+        if self._stack_uses_native_placement():
+            # The compositor knows the parent's actual origin, including panel
+            # offsets that are not available through GDK's monitor workarea.
+            # Preserve the dock-facing edge when the viewport must shrink.
+            window.set_resizable(True)
+            window.realize()
+            rect = Gdk.Rectangle()
+            rect.x, rect.y = popup_pos
+            rect.width = rect.height = 1
+            gravity = Gdk.Gravity.NORTH_WEST
+            if pos_enum is Position.BOTTOM:
+                rect.y += popup_h
+                gravity = Gdk.Gravity.SOUTH_WEST
+            elif pos_enum is Position.RIGHT:
+                rect.x += popup_w
+                gravity = Gdk.Gravity.NORTH_EAST
+            window.get_window().move_to_rect(
+                rect,
+                Gdk.Gravity.NORTH_WEST,
+                gravity,
+                Gdk.AnchorHints.RESIZE_X | Gdk.AnchorHints.RESIZE_Y,
+                0,
+                0,
+            )
+        else:
+            window.move(popup_pos.x, popup_pos.y)
+        log.debug(
+            "stack shown: edge=%s bounds=%s size=%sx%s at=%s",
+            pos,
+            bounds,
+            popup_w,
+            popup_h,
+            popup_pos,
+        )
 
     def _build_stack_content(self, content: StackContent) -> Gtk.Widget:
         cards, popup_w, popup_h = self._stack_cards_for_content(content)
         self._folder_stack_cards = cards
+        self._folder_stack_popup_size = Size(popup_w, popup_h)
 
         area = Gtk.DrawingArea()
         area.set_size_request(popup_w, popup_h)
@@ -562,7 +638,127 @@ class StackPopupController:
         area.connect("motion-notify-event", self._on_stack_motion_notify)
         area.connect("leave-notify-event", self._on_stack_leave_notify)
         self._folder_stack_area = area
-        return area
+        window = self._folder_stack_window
+        if window is None:
+            return area
+        bounds = popup_workarea(
+            window, self._folder_stack_anchor_x, self._folder_stack_anchor_y
+        )
+        available = stack_available_size(
+            bounds,
+            self._folder_stack_anchor_x,
+            self._folder_stack_anchor_y,
+            Position(self._folder_stack_position_value),
+        )
+        native_placement = self._stack_uses_native_placement()
+        if (
+            not native_placement
+            and popup_w <= available.width
+            and popup_h <= available.height
+        ):
+            return area
+
+        # Keep the existing fan and its content-local input coordinates. GTK's
+        # viewport scrolls paint and events together, without scaling the labels.
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_shadow_type(Gtk.ShadowType.NONE)
+        scroller.set_overlay_scrolling(False)
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_min_content_width(1)
+        scroller.set_min_content_height(1)
+        viewport = Gtk.Viewport()
+        viewport.set_shadow_type(Gtk.ShadowType.NONE)
+        provider = Gtk.CssProvider()
+        provider.load_from_data(
+            b"scrolledwindow, viewport { background-color: transparent; border: none; }"
+            b"undershoot, overshoot { background: none; box-shadow: none; }"
+        )
+        for widget in (scroller, viewport):
+            widget.get_style_context().add_provider(
+                provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+        viewport.add(area)
+        scroller.add(viewport)
+        for adjustment in (scroller.get_hadjustment(), scroller.get_vadjustment()):
+            adjustment.connect("value-changed", self._on_stack_scrolled)
+        size = scrolled_popup_size(
+            Size(popup_w, popup_h),
+            available,
+            Size(
+                scroller.get_vscrollbar().get_preferred_width()[1],
+                scroller.get_hscrollbar().get_preferred_height()[1],
+            ),
+        )
+        self._folder_stack_popup_size = size
+        # A Wayland popup that initially fits may be constrained by an external
+        # panel. Its content must be scrollable and its GTK minimum releasable.
+        if not native_placement:
+            scroller.set_size_request(size.width, size.height)
+        return scroller
+
+    def _stack_uses_native_placement(self) -> bool:
+        surface = window_surface_service(self._dock_window)
+        return surface is not None and surface.popups_use_parent_relative_coordinates
+
+    def _cancel_stack_constraint(self) -> None:
+        if self._folder_stack_constraint_source:
+            GLib.source_remove(self._folder_stack_constraint_source)
+            self._folder_stack_constraint_source = 0
+
+    def _on_stack_configure(
+        self, window: Gtk.Window, event: Gdk.EventConfigure
+    ) -> bool:
+        size = self._folder_stack_popup_size
+        if (
+            size is not None
+            and window.get_visible()
+            and self._stack_uses_native_placement()
+            and (event.width > size.width or event.height > size.height)
+            and self._folder_stack_constraint_source == 0
+            and self._folder_stack_constraint_retries < 2
+        ):
+            # Older compositors can grow a popup in response to a resize
+            # constraint. Coalesce configure events, then recheck the actual
+            # allocation so queued events from a previous mapping are harmless.
+            self._folder_stack_constraint_source = GLib.idle_add(
+                self._constrain_stack_size
+            )
+        return False
+
+    def _constrain_stack_size(self) -> bool:
+        self._folder_stack_constraint_source = 0
+        window = self._folder_stack_window
+        size = self._folder_stack_popup_size
+        if window is None or size is None or not window.get_visible():
+            return GLib.SOURCE_REMOVE
+        width, height = window.get_size()
+        if width <= size.width and height <= size.height:
+            return GLib.SOURCE_REMOVE
+        fitted = Size(
+            max(1, size.width - max(0, width - size.width)),
+            max(1, size.height - max(0, height - size.height)),
+        )
+        log.debug(
+            "retry stack constraint: requested=%s granted=%sx%s retry=%s",
+            size,
+            width,
+            height,
+            fitted,
+        )
+        self._folder_stack_popup_size = fitted
+        self._folder_stack_constraint_retries += 1
+        # GTK3 cannot reposition a mapped xdg_popup on all supported protocol
+        # versions. Remap this popup while preserving its content and hold-open.
+        window.hide()
+        self._position_stack_window()
+        window.show_all()
+        return GLib.SOURCE_REMOVE
+
+    def _on_stack_scrolled(self, _adjustment: Gtk.Adjustment) -> None:
+        self._folder_stack_pressed_target = None
+        if self._folder_stack_hover_target is not None:
+            self._folder_stack_hover_target = None
+            self._ensure_stack_animating()
 
     def _stack_cards_for_content(
         self, content: StackContent
@@ -1103,7 +1299,7 @@ class StackPopupController:
         target = card.key if card is not None and card.key is not None else None
         pressed_target = self._folder_stack_pressed_target
         self._folder_stack_pressed_target = None
-        if target is not None and (pressed_target is None or pressed_target == target):
+        if target is not None and pressed_target == target:
             self._activate_stack_key(target)
             return True
         return False

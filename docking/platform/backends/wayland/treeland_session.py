@@ -17,9 +17,10 @@ from docking.platform.backends.wayland.treeland import (
 )
 
 if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import ScreenCaptureService
     from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
 
@@ -31,14 +32,16 @@ class TreelandSessionBackend(WaylandLayerShellSessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
     ) -> None:
         super().__init__(
             layer_shell=layer_shell,
             model=model,
-            launcher=launcher,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
             protocol_runtime=protocol_runtime,
             screen_capture=screen_capture,
         )

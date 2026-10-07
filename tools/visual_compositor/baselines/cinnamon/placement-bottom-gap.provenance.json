@@ -1,0 +1,52 @@
+{
+  "case": "placement-bottom-gap",
+  "compositor": "cinnamon",
+  "config": {
+    "active_display": false,
+    "additional_distance_from_edge": 40,
+    "hide_mode": "none",
+    "icon_size": 48,
+    "pinned": [
+      "lab-alpha.desktop",
+      "lab-beta.desktop",
+      "lab-gamma.desktop"
+    ],
+    "position": "bottom",
+    "previews_enabled": false,
+    "recent_apps": [],
+    "show_window_count_numbers": false,
+    "theme": "default",
+    "zoom_enabled": false
+  },
+  "edge": "bottom",
+  "gap": 40,
+  "image_id": "sha256:e5f264d7e4d033c729c0415ad0d5a3e4f8f438a8f69e9d1819b35d1f4e35ba58",
+  "image_ref": "docking-lab:cinnamon",
+  "output": {
+    "height": 720,
+    "name": "Cinnamon-0",
+    "scale": 1,
+    "width": 1280,
+    "x": 0,
+    "y": 0
+  },
+  "scene": {
+    "case_panel": 0,
+    "crop": {
+      "height": 320,
+      "width": 1280,
+      "x": 0,
+      "y": 360
+    },
+    "panel": {
+      "height": 0,
+      "position": "bottom"
+    },
+    "workarea": {
+      "height": 680,
+      "width": 1280,
+      "x": 0,
+      "y": 0
+    }
+  }
+}

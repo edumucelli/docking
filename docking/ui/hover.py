@@ -91,7 +91,13 @@ The usual path is:
       +--> if item changed:
               cancel pending preview timer
               set new hovered_item
-              maybe arm preview timer
+      |
+      +--> if preview-eligible:
+              keep its visible popup open, or arm a missing show timer
+
+Item identity can survive a dock-to-preview handoff or autohide leave. Returning
+to that same item must still rearm a dismissed preview, without restarting an
+already pending deadline or rebuilding a popup that is still visible.
 
 Timeline:
 
@@ -261,38 +267,54 @@ class HoverManager:
             # hovered)
             self._tooltip.update(item, frame)
 
-        if item is self.hovered_item:
+        item_changed = item is not self.hovered_item
+        if item_changed:
+            previous_item = self.hovered_item
+            if previous_item is not None and item is None:
+                previous_geometry = frame.geometry_for_item(previous_item)
+                log.debug(
+                    (
+                        "hover exit: item=%s cursor=(%.0f,%.0f) "
+                        "cursor_rect=%s hover_rect=%s draw_rect=%s"
+                    ),
+                    previous_item.desktop_id,
+                    self._window.cursor_x,
+                    self._window.cursor_y,
+                    frame.cursor_rect,
+                    previous_geometry.hover_rect if previous_geometry else None,
+                    previous_geometry.draw_rect if previous_geometry else None,
+                )
+            log.debug(
+                f"hover changed: "
+                f"{self.hovered_item.name if self.hovered_item else None} -> "
+                f"{item.name if item else None}"
+            )
+            self.hovered_item = item
+            self.cancel()
+
+        if not self._preview:
+            return
+        if not self._config.previews_enabled:
+            self.cancel()
             return
 
-        previous_item = self.hovered_item
-        if previous_item is not None and item is None:
-            previous_geometry = frame.geometry_for_item(previous_item)
-            log.debug(
-                (
-                    "hover exit: item=%s cursor=(%.0f,%.0f) "
-                    "cursor_rect=%s hover_rect=%s draw_rect=%s"
-                ),
-                previous_item.desktop_id,
-                self._window.cursor_x,
-                self._window.cursor_y,
-                frame.cursor_rect,
-                previous_geometry.hover_rect if previous_geometry else None,
-                previous_geometry.draw_rect if previous_geometry else None,
-            )
-        log.debug(
-            f"hover changed: "
-            f"{self.hovered_item.name if self.hovered_item else None} -> "
-            f"{item.name if item else None}"
-        )
-        self.hovered_item = item
-        self.cancel()
-
-        if self._preview and self._config.previews_enabled:
-            if item and item.is_running and item.instance_count > 0:
+        # Leave policy retains item identity for preview handoff and smooth
+        # autohide. Reentry may therefore need a new timer for the same item.
+        # Keep an existing popup alive without rebuilding it or moving its
+        # scroll position, and never restart an already pending show deadline.
+        if item and item.is_running and item.instance_count > 0:
+            if (
+                self._preview.get_visible()
+                and self._preview.current_desktop_id == item.desktop_id
+            ):
+                self._preview.cancel_hide()
+            elif not self._preview_timer_id:
                 self._preview_timer_id = GLib.timeout_add(
                     PREVIEW_SHOW_DELAY_MS, self._show_preview, item, frame
                 )
-            else:
+        else:
+            self.cancel()
+            if item_changed:
                 self._preview.schedule_hide()
 
     def cancel(self) -> None:
@@ -351,7 +373,14 @@ class HoverManager:
         accurate icon coordinates for anchor placement.
         """
         self._preview_timer_id = 0
-        if not self._preview or self.hovered_item is not item:
+        if (
+            not self._preview
+            or self.hovered_item is not item
+            or not self._window.dock_hovered
+            or not self._config.previews_enabled
+            or not item.is_running
+            or item.instance_count <= 0
+        ):
             return False
         if not self._window.get_realized():
             return False

@@ -26,12 +26,13 @@ if TYPE_CHECKING:
         WindowPickService,
         WorkspaceService,
     )
+    from docking.platform.status_notifier.service import StatusNotifierService
     from docking.search.presenter import SearchPresenter
 
 
 @dataclass(frozen=True)
 class AppletServices:
-    """Optional backend services consumed by platform-sensitive applets."""
+    """Late-bound backend capabilities consumed by platform-sensitive applets."""
 
     desktop_actions: DesktopActionService | None = None
     workspaces: WorkspaceService | None = None
@@ -39,3 +40,4 @@ class AppletServices:
     idle: IdleService | None = None
     screen_capture: ScreenCaptureService | None = None
     search: SearchPresenter | None = None
+    status_notifier: StatusNotifierService | None = None

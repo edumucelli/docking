@@ -22,11 +22,11 @@ window manager or desktop shell is doing.
 
 Why this module is a no-op
 
-Callers import directly from the submodules (``docking.platform.launcher``,
-``docking.platform.model``, etc.). Eager re-exports here previously created a
+Callers import directly from the submodules (``docking.platform.model``,
+``docking.platform.targets``, etc.). Eager re-exports here previously created a
 cycle when low-level modules (e.g. ``docking.platform.environment.xdg``) were
 needed by ``docking.core.config`` -- loading the parent package triggered
-``launcher`` which imports ``config``, creating an import cycle.
+higher-level platform services which import ``config``, creating an import cycle.
 
 Why the boundary matters
 

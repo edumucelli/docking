@@ -72,7 +72,7 @@ class NativeNetworkMount:
     source: str
     fs_type: str
     name: str
-    icon: object | None
+    icon: Gio.Icon | None
 
 
 def read_network_mounts(*, api: Any | None = None) -> list[NativeNetworkMount]:

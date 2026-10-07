@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
+import pytest
+
+import docking.ui.autohide as autohide_mod
+import docking.ui.dnd as dnd_mod
 import docking.ui.hover as hover_mod
 from tests.bdd_support.harness import DockHarness, _TimerScheduler
 
@@ -47,6 +53,28 @@ class TestTimerScheduler:
 
         scheduler.advance(16)
         assert fired == [1, 2, 3]
+
+
+class TestDockHarnessLifecycle:
+    def test_start_cleans_up_patchers_when_drag_setup_fails(self, monkeypatch):
+        harness = DockHarness()
+        original_source_exists = autohide_mod._source_exists
+        original_show_poof = dnd_mod.show_poof
+        cleanup = MagicMock(wraps=harness.stop)
+        monkeypatch.setattr(harness, "stop", cleanup)
+        monkeypatch.setattr(
+            harness,
+            "_build_drag_handler",
+            MagicMock(side_effect=RuntimeError("drag setup failed")),
+        )
+
+        with pytest.raises(RuntimeError, match="drag setup failed"):
+            harness.start()
+
+        cleanup.assert_called_once_with()
+        assert harness._patchers == []
+        assert autohide_mod._source_exists is original_source_exists
+        assert dnd_mod.show_poof is original_show_poof
 
 
 class TestDockHarnessTiming:

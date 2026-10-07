@@ -16,21 +16,18 @@
 from __future__ import annotations
 
 import os
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import Gio, GLib, Gtk
+from gi.repository import Gtk
 
 from docking import __version__ as docking_version
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import targets
 
-PROJECT_VERSION_FALLBACK = docking_version
 PROJECT_LICENSE_FALLBACK = "GNU GPL v3.0 or later (GPL-3.0-or-later)"
 PROJECT_LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
 PROJECT_WEBSITE_URL = "https://docking.cc"
@@ -59,7 +56,7 @@ class AboutDialogController:
             destroy_with_parent=True,
         )
         dialog.set_program_name("Docking")
-        dialog.set_version(self._project_version())
+        dialog.set_version(docking_version)
         dialog.set_comments(
             "A lightweight, feature-rich dock for Linux written in Python "
             "with GTK 3 and Cairo."
@@ -77,15 +74,6 @@ class AboutDialogController:
         dialog.connect("hide", self._on_hide)
         dialog.show_all()
         self._dialog = dialog
-
-    def _project_version(self) -> str:
-        if docking_version:
-            return docking_version
-        try:
-            return pkg_version("docking")
-        except PackageNotFoundError as exc:
-            log.debug("Package metadata unavailable, using fallback version: %s", exc)
-            return PROJECT_VERSION_FALLBACK
 
     def _project_license_text(self) -> str:
         try:
@@ -106,10 +94,7 @@ class AboutDialogController:
             self._dialog = None
 
     def _open_project_github(self) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(PROJECT_GITHUB_URL, None)
-        except GLib.Error as exc:
-            log.warning("Failed to open project GitHub URL: %s", exc)
+        targets.open_target(PROJECT_GITHUB_URL)
 
 
 def _logo_icon_name() -> str:

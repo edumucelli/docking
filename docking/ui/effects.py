@@ -203,29 +203,40 @@ class ZoomAnimator:
         self._raw: float = 0.0  # linear 0-1, eased via property
         self._target: float = 0.0
         self._timer_id: int = 0
+        self._last_tick_us: int = 0
 
     @property
     def progress(self) -> float:
         return ease_out_cubic(self._raw)
 
     def on_enter(self) -> None:
-        self._target = 1.0
-        self._ensure_timer()
+        self._set_target(1.0)
 
     def on_leave(self) -> None:
-        self._target = 0.0
+        self._set_target(0.0)
+
+    def _set_target(self, target: float) -> None:
+        if self._target != target:
+            # Reverse from the last displayed size without charging time
+            # spent moving in the old direction to the new transition.
+            self._last_tick_us = GLib.get_monotonic_time()
+        self._target = target
         self._ensure_timer()
 
     def _ensure_timer(self) -> None:
         if not self._timer_id:
+            self._last_tick_us = GLib.get_monotonic_time()
             self._timer_id = GLib.timeout_add(_TICK_MS, self._tick)
 
     def _tick(self) -> bool:
+        now_us = GLib.get_monotonic_time()
+        elapsed_ms = (now_us - self._last_tick_us) / 1000
+        self._last_tick_us = now_us
         if self._target > self._raw:
-            step = _TICK_MS / self._enter_ms
+            step = elapsed_ms / self._enter_ms if self._enter_ms > 0 else 1.0
             self._raw = min(1.0, self._raw + step)
         else:
-            step = _TICK_MS / self._leave_ms
+            step = elapsed_ms / self._leave_ms if self._leave_ms > 0 else 1.0
             self._raw = max(0.0, self._raw - step)
         self._drawing_area.queue_draw()
         if self._raw == self._target:

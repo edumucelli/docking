@@ -32,6 +32,7 @@ class _OutputState:
     height: int = 0
     scale: int = 1
     transform: int = 0
+    geometry_known: bool = False
 
     @property
     def swaps_axes(self) -> bool:
@@ -99,6 +100,13 @@ class TreelandOverlapAdapter:
             if callable(release):
                 release()
             self._outputs.remove(output)
+
+    def output_origin(self, proxy: object) -> tuple[int, int] | None:
+        """Return a bound output's compositor-space origin once it is known."""
+        for output in self._outputs:
+            if output.proxy is proxy and output.geometry_known:
+                return output.x, output.y
+        return None
 
     def start(
         self,
@@ -172,6 +180,7 @@ class TreelandOverlapAdapter:
         state.x = int(x)
         state.y = int(y)
         state.transform = int(transform)
+        state.geometry_known = True
 
     @staticmethod
     def _on_output_mode(

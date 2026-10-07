@@ -32,7 +32,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -41,11 +43,11 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
 
 if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
 STATE_ACTIVATED = "activated"
@@ -66,7 +68,7 @@ class _ToplevelState:
     handle: object
     title: str = "Window"
     app_id: str = ""
-    desktop_id: str | None = None
+    application_match: ApplicationMatch | None = None
     active: bool = False
     minimized: bool | None = None
     maximized: bool | None = None
@@ -81,6 +83,14 @@ class _ToplevelState:
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.internal_id)
 
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
+
 
 class WaylandForeignToplevelWindowService(WindowService):
     """WindowService backed by Wayland foreign-toplevel protocol events."""
@@ -89,13 +99,17 @@ class WaylandForeignToplevelWindowService(WindowService):
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol: object,
         preview_handles: WaylandPreviewHandleTracker | None = None,
         can_preview: bool = False,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._protocol = protocol
         self._preview_handles = preview_handles
         self._can_preview = can_preview
@@ -288,7 +302,9 @@ class WaylandForeignToplevelWindowService(WindowService):
 
     def _refresh_match(self, *, state: _ToplevelState) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
-        state.desktop_id = self._matcher.match(state.app_id) if state.app_id else None
+        state.application_match = (
+            self._matcher.match_result(state.app_id) if state.app_id else None
+        )
 
     def _publish_running(self) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
@@ -390,6 +406,24 @@ class WaylandForeignToplevelWindowService(WindowService):
             handle_method()
             return ActionResult.OK
         return ActionResult.UNSUPPORTED
+
+
+class WaylandStandardToplevelWindowService(WaylandForeignToplevelWindowService):
+    """Read-only ext-foreign-toplevel listing. No state or actions are implied."""
+
+    def _supports_action(self, action: str, handle: object) -> bool:
+        return False
+
+    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+        from dataclasses import replace
+
+        return replace(
+            super()._snapshot_for(state),
+            active=False,
+            minimized=None,
+            maximized=None,
+            fullscreen=None,
+        )
 
 
 def load_foreign_toplevel_protocol() -> object | None:

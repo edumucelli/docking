@@ -1,3 +1,117 @@
+docking (2.19.0-1) stable; urgency=medium
+
+  * Release 2.19.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 07 Oct 2026 14:15:09 +0200
+
+docking (2.18.1-1) stable; urgency=medium
+
+  * Release 2.18.1.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 06 Oct 2026 17:28:28 +0200
+
+docking (2.18.0-1) stable; urgency=medium
+
+  * Release 2.18.0 with Cinnamon Wayland integration improvements.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 06 Oct 2026 10:01:28 +0200
+
+docking (2.17.0-1) stable; urgency=medium
+
+  * Release 2.17.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 05 Oct 2026 10:42:56 +0200
+
+docking (2.16.0-1) stable; urgency=medium
+
+  * Release 2.16.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Mon, 05 Oct 2026 00:48:35 +0200
+
+docking (2.15.0-1) stable; urgency=medium
+
+  * Release 2.15.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 03 Oct 2026 04:38:01 +0200
+
+docking (2.14.0-1) stable; urgency=medium
+
+  * Release 2.14.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Fri, 02 Oct 2026 04:58:54 +0200
+
+docking (2.13.9-1) stable; urgency=medium
+
+  * Release 2.13.9.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 01 Oct 2026 15:26:47 +0200
+
+docking (2.13.8-1) stable; urgency=medium
+
+  * Release 2.13.8.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 01 Oct 2026 07:13:06 +0200
+
+docking (2.13.7-1) stable; urgency=medium
+
+  * Release 2.13.7.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 30 Sep 2026 03:49:25 +0200
+
+docking (2.13.6-1) stable; urgency=medium
+
+  * Release 2.13.6.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 29 Sep 2026 05:30:51 +0200
+
+docking (2.13.5-1) stable; urgency=medium
+
+  * Release 2.13.5.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 17 Sep 2026 19:41:45 +0200
+
+docking (2.13.4-1) stable; urgency=medium
+
+  * Release 2.13.4.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Thu, 17 Sep 2026 17:01:28 +0200
+
+docking (2.13.3-1) stable; urgency=medium
+
+  * Release 2.13.3.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 16 Sep 2026 23:22:43 +0200
+
+docking (2.13.2-1) stable; urgency=medium
+
+  * Release 2.13.2.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 15 Sep 2026 23:36:16 +0200
+
+docking (2.13.1-1) stable; urgency=medium
+
+  * Release 2.13.1.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 15 Sep 2026 00:43:15 +0200
+
+docking (2.13.0-1) stable; urgency=medium
+
+  * Release 2.13.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 25 Aug 2026 19:57:45 +0200
+
+docking (2.12.1-1) stable; urgency=medium
+
+  * Release 2.12.1.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Tue, 11 Aug 2026 20:24:02 +0200
+
+docking (2.12.0-1) stable; urgency=medium
+
+  * Release 2.12.0.
+
+ -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Wed, 05 Aug 2026 17:43:32 +0200
+
 docking (2.11.0-1) stable; urgency=medium
 
   * Release 2.11.0.
@@ -880,4 +994,3 @@ docking (0.1.0-1) stable; urgency=medium
   * Use workspace-local artifacts path for deb build/upload/release
 
  -- Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com>  Sat, 28 Feb 2026 23:59:53 +0100
-

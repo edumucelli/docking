@@ -11,6 +11,7 @@ from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireWindowService,
     WayfireWorkspaceService,
 )
+from tests.platform.application_fakes import identity_services
 
 
 def _service() -> SimpleNamespace:
@@ -24,7 +25,14 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
         "WaylandLayerShellSurfaceService",
         MagicMock(return_value=surface),
     )
-    monkeypatch.setattr(wayfire_session, "WaylandProtocolRuntime", MagicMock())
+    runtime = _service()
+    runtime.idle_protocol = None
+    runtime.preview_protocol = None
+    runtime.hyprland_preview_protocol = None
+    runtime.foreign_toplevel_protocol = None
+    runtime.workspace_protocol = None
+    runtime.start.return_value = False
+    monkeypatch.setattr(wayfire_session, "WaylandProtocolRuntime", lambda: runtime)
     monkeypatch.setattr(wayfire_session, "load_portal_color_picker", lambda: None)
     monkeypatch.setattr(
         wayfire_session, "load_wayfire_desktop_action_service", lambda: None
@@ -40,7 +48,7 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     backend = wayfire_session.WayfireSessionBackend(
         layer_shell=object(),
         model=MagicMock(),
-        launcher=MagicMock(),
+        **identity_services(),
         config=MagicMock(),
         protocol_runtime=None,
         screen_capture=None,

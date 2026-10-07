@@ -175,7 +175,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position
+from docking.ui.display import clamp_popup, popup_workarea, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="tooltip")
@@ -539,7 +539,14 @@ class TooltipManager:
         )
 
         # Clamp to screen (respects parent-relative vs screen-absolute coords)
-        tooltip_pos = clamp_popup(self._tooltip_window, tx, ty, tw, th)
+        tooltip_pos = clamp_popup(
+            self._tooltip_window,
+            tx,
+            ty,
+            tw,
+            th,
+            bounds=popup_workarea(self._tooltip_window, anchor_x, anchor_y),
+        )
         tx, ty = tooltip_pos.x, tooltip_pos.y
 
         log.debug(

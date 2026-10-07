@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
     DesktopActionService,
@@ -51,12 +52,17 @@ from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
+    WaylandStandardToplevelWindowService,
     load_foreign_toplevel_protocol,
 )
 from docking.platform.backends.wayland.workspaces import (
     WaylandWorkspaceService,
     load_workspace_protocol,
 )
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
 
 
 @dataclass(frozen=True)
@@ -66,7 +72,7 @@ class WaylandLayerShellRuntimeServices:
     windows: WindowService
     previews: PreviewService
     surface: WaylandLayerShellSurfaceService
-    visibility: ReducedVisibilityService
+    visibility: VisibilityService
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
     idle: IdleService | None
@@ -80,8 +86,9 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         self,
         *,
         layer_shell: object,
-        model=None,
-        launcher=None,
+        model,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         foreign_toplevel_protocol: object | None = None,
         workspace_protocol: object | None = None,
         screen_capture: ScreenCaptureService | None = None,
@@ -112,32 +119,37 @@ class WaylandLayerShellSessionBackend(SessionBackend):
                 else load_workspace_protocol()
             )
         )
-        preview_protocol = (
-            getattr(runtime, "preview_protocol", None) if runtime is not None else None
-        )
+        preview_protocol = runtime.preview_protocol if runtime is not None else None
         hyprland_preview_protocol = (
-            getattr(runtime, "hyprland_preview_protocol", None)
-            if runtime is not None
-            else None
+            runtime.hyprland_preview_protocol if runtime is not None else None
         )
         phoc_preview_protocol = (
-            getattr(runtime, "phoc_preview_protocol", None)
-            if runtime is not None
-            else None
+            runtime.phoc_preview_protocol if runtime is not None else None
         )
         windows: WindowService
         preview_handles: WaylandPreviewHandleTracker | None = None
-        if foreign_protocol is not None and model is not None and launcher is not None:
+        standard_protocol = (
+            runtime.standard_toplevel_protocol if runtime is not None else None
+        )
+        listing_protocol = foreign_protocol or standard_protocol
+        if listing_protocol is not None:
             if preview_protocol is not None:
                 preview_handles = WaylandPreviewHandleTracker(
                     model=model,
-                    launcher=launcher,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
                     protocol=preview_protocol,
                 )
-            windows = WaylandForeignToplevelWindowService(
+            window_service_type = (
+                WaylandForeignToplevelWindowService
+                if foreign_protocol is not None
+                else WaylandStandardToplevelWindowService
+            )
+            windows = window_service_type(
                 model=model,
-                launcher=launcher,
-                protocol=foreign_protocol,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
+                protocol=listing_protocol,
                 preview_handles=preview_handles,
                 can_preview=preview_protocol is None
                 and (
@@ -173,9 +185,7 @@ class WaylandLayerShellSessionBackend(SessionBackend):
             if workspace_protocol is not None
             else None
         )
-        idle_protocol = (
-            getattr(runtime, "idle_protocol", None) if runtime is not None else None
-        )
+        idle_protocol = runtime.idle_protocol if runtime is not None else None
         idle: IdleService | None = (
             WaylandIdleService(protocol=idle_protocol)
             if idle_protocol is not None
@@ -210,18 +220,21 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         supports_workspaces = isinstance(
             self._services.workspaces, WaylandWorkspaceService
         )
+        manages_windows = tracks_windows and not isinstance(
+            self._services.windows, WaylandStandardToplevelWindowService
+        )
         supports_color_pick = isinstance(
             self._services.screen_capture, WaylandPortalColorPickerService
         )
         return PlatformCapabilities(
             tracks_windows=tracks_windows,
-            tracks_active_window=tracks_windows,
-            tracks_minimized=tracks_windows,
-            tracks_maximized=tracks_windows,
-            tracks_fullscreen=tracks_windows,
-            supports_activate=tracks_windows,
-            supports_minimize=tracks_windows,
-            supports_close=tracks_windows,
+            tracks_active_window=manages_windows,
+            tracks_minimized=manages_windows,
+            tracks_maximized=manages_windows,
+            tracks_fullscreen=manages_windows,
+            supports_activate=manages_windows,
+            supports_minimize=manages_windows,
+            supports_close=manages_windows,
             supports_window_menu=tracks_windows,
             supports_workspace_list=supports_workspaces,
             supports_workspace_switch=supports_workspaces,

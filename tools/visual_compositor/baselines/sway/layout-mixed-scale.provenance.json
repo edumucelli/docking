@@ -1,0 +1,51 @@
+{
+  "case": "layout-mixed-scale",
+  "compositor": "sway",
+  "config": {
+    "active_display": false,
+    "hide_mode": "none",
+    "icon_size": 48,
+    "monitor_index": 0,
+    "pinned": [
+      "lab-alpha.desktop",
+      "lab-beta.desktop",
+      "lab-gamma.desktop"
+    ],
+    "previews_enabled": false,
+    "recent_apps": [],
+    "show_window_count_numbers": false,
+    "theme": "default",
+    "zoom_enabled": false
+  },
+  "edge": "bottom",
+  "gap": 0,
+  "image_id": "sha256:04fb6578fe038e79deb77f85271884d8a7d6c9d085d7d6c551e7e814321264b6",
+  "image_ref": "docking-lab:sway",
+  "output": {
+    "height": 360,
+    "name": "HEADLESS-1",
+    "scale": 2.0,
+    "width": 640,
+    "x": 0,
+    "y": 0
+  },
+  "scene": {
+    "case_panel": 0,
+    "crop": {
+      "height": 320,
+      "width": 640,
+      "x": 0,
+      "y": 40
+    },
+    "panel": {
+      "height": 0,
+      "position": "bottom"
+    },
+    "workarea": {
+      "height": 360,
+      "width": 640,
+      "x": 0,
+      "y": 0
+    }
+  }
+}

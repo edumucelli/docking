@@ -1,6 +1,8 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.11.0}
-Release:        1%{?dist}
+Version:        %{?pkg_version}%{!?pkg_version:2.19.0}
+# One artifact serves every RPM distribution, so a build-host dist tag would
+# misrepresent it on Fedora and openSUSE alike.
+Release:        1
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
@@ -8,13 +10,30 @@ URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       python3
-Requires:       gtk-layer-shell
-Requires:       webkit2gtk4.1
+Requires:       python3-gobject
+Requires:       python3-cairo
+Requires:       python3-cffi
+# Gtk/Gdk imports also need the base cairo/xlib typelibs. Fedora keeps these
+# in gobject-introspection; SUSE separates them into girepository-1_0.
+Requires:       (gobject-introspection or girepository-1_0)
+# GObject introspection bindings ship inside the library package on Fedora but
+# as separate typelib-1_0-* packages on SUSE, so each is an alternative.
+Requires:       (gtk3 or typelib-1_0-Gtk-3_0)
+Requires:       (gdk-pixbuf2 or typelib-1_0-GdkPixbuf-2_0)
+Requires:       (pango or typelib-1_0-Pango-1_0)
+Requires:       (gtk-layer-shell or typelib-1_0-GtkLayerShell-0_1)
+Requires:       (libwnck3 or typelib-1_0-Wnck-3_0)
+Requires:       (NetworkManager-libnm or typelib-1_0-NM-1_0)
+Requires:       (webkit2gtk4.1 or typelib-1_0-WebKit2-4_1)
 Recommends:     python3-pywayland
 BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  python3-devel
+BuildRequires:  python3-pip
+BuildRequires:  python3-setuptools >= 61
+BuildRequires:  /usr/bin/pkg-config
 BuildRequires:  wayland-devel
+BuildRequires:  wayland-protocols-devel
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python
@@ -47,9 +66,18 @@ rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 
 py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
-python3 -m pip install --no-compile \
+# PyWayland wheels bundle renamed libffi/Wayland libraries whose versioned
+# symbols produce unsatisfiable RPM Requires. Link against system Wayland,
+# just as the distribution-specific fallback builds do.
+python3 -m pip install --no-compile --no-binary=pywayland \
   --target "%{buildroot}/usr/lib/docking/vendor-python${py_minor}" \
   "pywayland>=0.4.18,<0.5"
+# Fallback trees built for each target distribution Python. The build host
+# never provides these, so CI passes them through DOCKING_EXTRA_PYWAYLAND.
+if [ -d "%{?extra_pywayland}" ]; then
+  cp -a "%{?extra_pywayland}"/. %{buildroot}/usr/lib/docking/
+  find %{buildroot}/usr/lib/docking -name .complete -delete
+fi
 rm -rf %{buildroot}/usr/lib/docking/vendor-python*/bin
 
 install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
@@ -62,7 +90,7 @@ if [ -d "${PYWAYLAND_VENDOR}" ]; then
   PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
 fi
 export PYTHONPATH="${PYTHONPATH_PREFIX}${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m docking.app "$@"
+exec /usr/bin/python3 -m docking.launcher "$@"
 EOF
 
 install -Dm755 packaging/shared/docking-camshield-helper \
@@ -119,6 +147,63 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Wed Oct 07 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.19.0-1
+- Release 2.19.0.
+
+* Tue Oct 06 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.18.1-1
+- Release 2.18.1.
+
+* Tue Oct 06 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.18.0-1
+- Release 2.18.0 with Cinnamon Wayland integration improvements.
+
+* Mon Oct 05 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.17.0-1
+- Release 2.17.0.
+
+* Mon Oct 05 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.16.0-1
+- Release 2.16.0.
+
+* Sat Oct 03 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.15.0-1
+- Release 2.15.0.
+
+* Fri Oct 02 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.14.0-1
+- Release 2.14.0.
+
+* Thu Oct 01 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.9-1
+- Release 2.13.9.
+
+* Thu Oct 01 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.8-1
+- Release 2.13.8.
+
+* Wed Sep 30 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.7-1
+- Release 2.13.7.
+
+* Tue Sep 29 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.6-1
+- Release 2.13.6.
+
+* Thu Sep 17 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.5-1
+- Release 2.13.5.
+
+* Thu Sep 17 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.4-1
+- Release 2.13.4.
+
+* Wed Sep 16 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.3-1
+- Release 2.13.3.
+
+* Tue Sep 15 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.2-1
+- Release 2.13.2.
+
+* Tue Sep 15 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.1-1
+- Release 2.13.1.
+
+* Tue Aug 25 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.13.0-1
+- Release 2.13.0.
+
+* Tue Aug 11 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.12.1-1
+- Release 2.12.1.
+
+* Wed Aug 05 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.12.0-1
+- Release 2.12.0.
+
 * Fri Jul 31 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.11.0-1
 - Release 2.11.0.
 

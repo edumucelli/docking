@@ -1,0 +1,99 @@
+"""Main-thread presentation helpers for visible application listings."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio
+
+from .registry import ApplicationRegistry
+from .types import ApplicationInfo, ApplicationListing
+
+
+class ApplicationListingLauncher(Protocol):
+    """Narrow launcher boundary shared by canonical and ID-less listings."""
+
+    def launch(self, desktop_id: str) -> bool: ...
+
+    def launch_listing(self, listing_key: str) -> bool: ...
+
+
+def visible_listings(registry: ApplicationRegistry) -> tuple[ApplicationListing, ...]:
+    """Return the registry's visible and ID-less presentation snapshots."""
+    return (*registry.snapshot(), *registry.unidentified_snapshot())
+
+
+def activate_listing(
+    launcher: ApplicationListingLauncher,
+    listing: ApplicationListing,
+) -> bool:
+    """Launch either listing form through one validated activation boundary."""
+    if isinstance(listing, ApplicationInfo):
+        return launcher.launch(listing.desktop_id)
+    return launcher.launch_listing(listing.listing_key)
+
+
+def listing_gicon(
+    registry: ApplicationRegistry,
+    listing: ApplicationListing,
+) -> Gio.Icon | None:
+    """Return the retained Gio icon, with file/themed fact fallbacks."""
+    handle = _gio_handle(registry=registry, listing=listing)
+    if handle is not None:
+        getter = getattr(handle, "get_icon", None)
+        if callable(getter):
+            try:
+                icon = getter()
+            except Exception:
+                icon = None
+            if icon is not None:
+                return icon
+    return gicon_from_icon_name(listing.declared_icon)
+
+
+def gicon_from_icon_name(icon_name: str) -> Gio.Icon | None:
+    """Construct a file or themed GIcon from a recorded icon fact."""
+    value = icon_name.strip()
+    if not value:
+        return None
+    if value.startswith("file:"):
+        return Gio.FileIcon.new(Gio.File.new_for_uri(value))
+    if Path(value).is_absolute():
+        return Gio.FileIcon.new(Gio.File.new_for_path(value))
+    return Gio.ThemedIcon.new(value)
+
+
+def listing_desktop_file_uri(listing: ApplicationListing) -> str | None:
+    """Return the exact recorded desktop-file path as a file URI."""
+    desktop_file = listing.desktop_file
+    if desktop_file is None:
+        return None
+    try:
+        return desktop_file.as_uri()
+    except ValueError:
+        return None
+
+
+def _gio_handle(
+    *,
+    registry: ApplicationRegistry,
+    listing: ApplicationListing,
+) -> object | None:
+    if isinstance(listing, ApplicationInfo):
+        return registry._gio_handle_for(listing.desktop_id)
+    return registry._gio_handle_for_unidentified(listing.listing_key)
+
+
+__all__ = [
+    "ApplicationListing",
+    "ApplicationListingLauncher",
+    "activate_listing",
+    "gicon_from_icon_name",
+    "listing_desktop_file_uri",
+    "listing_gicon",
+    "visible_listings",
+]

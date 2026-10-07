@@ -2,23 +2,37 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import cairo
 
 import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.hover as hover_mod
 import docking.ui.input_controller as input_controller_mod
+import docking.ui.placement as placement_mod
 import docking.ui.preview as preview_mod
+import docking.ui.renderer as renderer_mod
 from docking.core.config import PinnedEntry
-from docking.core.items import FOLDER_KIND, DockItem
+from docking.core.items import APP_KIND, FOLDER_KIND, DockItem
 from docking.core.position import Position
+from docking.core.theme import Theme
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
+from docking.platform.backends.base import Rect as PlatformRect
+from docking.platform.backends.base import WindowId
+from docking.platform.model import DockModel
 from docking.ui.autohide import AutoHideController, HideState
-from docking.ui.geometry import Rect
+from docking.ui.geometry import Rect, build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
+from docking.ui.renderer import RenderState
 
 
 @dataclass
@@ -28,6 +42,18 @@ class _ScheduledCallback:
     due_ms: int
     callback: object
     args: tuple[object, ...]
+
+
+@dataclass(frozen=True)
+class _EdgeGapProbe:
+    painted_matches_target: bool
+    phantom_gap_is_clear: bool
+    painted_shelf_gap: int
+
+
+@dataclass(frozen=True)
+class _BounceProbe:
+    icon_within_surface: bool
 
 
 class _TimerScheduler:
@@ -56,6 +82,13 @@ class _TimerScheduler:
 
     def source_exists(self, source_id: int) -> bool:
         return source_id in self._callbacks
+
+    def get_monotonic_time(self) -> int:
+        return self._now_ms * 1000
+
+    @property
+    def now_ms(self) -> int:
+        return self._now_ms
 
     def advance(self, milliseconds: int) -> None:
         target_ms = self._now_ms + max(int(milliseconds), 0)
@@ -139,6 +172,8 @@ def _controller(stub) -> SimpleNamespace:
     controller = SimpleNamespace(
         _window=stub,
         _interactions=stub._interactions,
+        _application_launcher=getattr(stub, "_application_launcher", MagicMock()),
+        _target_service=getattr(stub, "_target_service", MagicMock()),
         _click_x=getattr(stub, "_click_x", -1.0),
         _click_y=getattr(stub, "_click_y", -1.0),
         _click_button=getattr(stub, "_click_button", 0),
@@ -250,10 +285,38 @@ class DockHarness:
         self._drag_reorder_called = False
         self._drag_removed_desktop_id: str | None = None
         self._external_pinned_targets: list[str] = []
+        self._geometry_position = Position.BOTTOM
+        self._geometry_gap = 0
+        self._edge_gap_probe: _EdgeGapProbe | None = None
+        self._bounce_probe: _BounceProbe | None = None
+        self._position_change_aligned = False
+        self._left_edge_input_owned = False
+        self._left_edge_window = None
+        self._external_panel_position = Position.TOP
+        self._external_panel_thickness = 0
+        self._external_panel_area = PlatformRect(0, 0, 1280, 800)
+        self._external_panel_controller = None
+        self._external_panel_surface = None
+        self._external_panel_requests = []
+        self._external_panel_initial_ok = False
+        self._external_panel_reservation_ok = False
+        self._external_panel_resize_ok = False
+        self._animation_model: DockModel | None = None
+        self._animation_item: DockItem | None = None
+        self._animation_frame_delay_ms = 0
+        self._insertion_elapsed_ms = 0
+        self._insertion_widths: list[int] = []
+        self._removal_elapsed_ms = 0
+        self._removal_final_ids: list[str] = []
         self._build_hover_harness()
 
     def start(self) -> None:
-        self._patchers = [
+        patchers = [
+            patch.object(
+                autohide_mod.GLib,
+                "get_monotonic_time",
+                side_effect=self._scheduler.get_monotonic_time,
+            ),
             patch.object(
                 autohide_mod.GLib,
                 "timeout_add",
@@ -274,9 +337,15 @@ class DockHarness:
             patch.object(dnd_mod.Gtk, "drag_finish", lambda *_args: None),
             patch.object(dnd_mod, "show_poof", MagicMock()),
         ]
-        for patcher in self._patchers:
-            patcher.start()
-        self._build_drag_handler()
+        self._patchers = []
+        try:
+            for patcher in patchers:
+                patcher.start()
+                self._patchers.append(patcher)
+            self._build_drag_handler()
+        except Exception:
+            self.stop()
+            raise
 
     def stop(self) -> None:
         for patcher in reversed(self._patchers):
@@ -295,6 +364,571 @@ class DockHarness:
 
     def advance_time(self, milliseconds: int) -> None:
         self._scheduler.advance(milliseconds)
+
+    def configure_geometry(self, *, position: str, gap: int) -> None:
+        self._geometry_position = Position(position)
+        self._geometry_gap = gap
+
+    def configure_external_panel(self, *, position: str, thickness: int) -> None:
+        self._external_panel_position = Position(position)
+        self._external_panel_thickness = thickness
+        self._external_panel_area = self._panel_area(
+            position=self._external_panel_position,
+            thickness=thickness,
+        )
+
+    def place_dock_with_external_panel(self) -> None:
+        geometry = SimpleNamespace(x=0, y=0, width=1280, height=800)
+        monitor = SimpleNamespace(
+            get_geometry=lambda: geometry,
+            get_workarea=lambda: geometry,
+            get_model=lambda: "BDD monitor",
+        )
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _index: monitor,
+        )
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            pos=self._external_panel_position,
+            active_display=False,
+            hide_mode="none",
+            monitor_index=-1,
+            monitor_connector=None,
+            additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
+        )
+        model = SimpleNamespace(
+            visible_items=lambda: [DockItem(desktop_id="firefox.desktop")]
+        )
+        surface = MagicMock()
+        surface.external_workarea.side_effect = lambda _monitor: (
+            self._external_panel_area
+        )
+        requests = []
+        surface.position_or_anchor.side_effect = requests.append
+        window = SimpleNamespace(
+            config=config,
+            theme=theme,
+            model=model,
+            get_display=lambda: display,
+            get_scale_factor=lambda: 1,
+            get_realized=lambda: True,
+            drawing_area=SimpleNamespace(queue_draw=MagicMock()),
+            update_input_region=MagicMock(),
+            _invalidate_current_geometry_frame=MagicMock(),
+        )
+        controller = placement_mod.DockPlacementController(
+            window,
+            surface_service=surface,
+        )
+        controller.position_dock()
+        controller.set_struts()
+        placement = requests[-1]
+        reservation = surface.set_reservation.call_args.args[0]
+        self._external_panel_initial_ok = self._placement_touches_area(
+            request=placement,
+            area=self._external_panel_area,
+            position=self._external_panel_position,
+        )
+        self._external_panel_reservation_ok = (
+            reservation.edge_offset == self._external_panel_thickness
+            and reservation.edge_offset + reservation.thickness
+            > self._external_panel_thickness
+        )
+        self._external_panel_controller = controller
+        self._external_panel_surface = surface
+        self._external_panel_requests = requests
+
+    def resize_external_panel(self, *, thickness: int) -> None:
+        assert self._external_panel_controller is not None
+        assert self._external_panel_surface is not None
+        self._external_panel_thickness = thickness
+        self._external_panel_area = self._panel_area(
+            position=self._external_panel_position,
+            thickness=thickness,
+        )
+        callback = self._external_panel_surface.set_external_workarea_changed_handler.call_args_list[
+            0
+        ].args[0]
+        with patch.object(placement_mod.GLib, "idle_add", return_value=77):
+            callback()
+            callback()
+        assert self._external_panel_controller._geometry_refresh_source == 77
+        self._external_panel_controller.apply_scheduled_reposition()
+        placement = self._external_panel_requests[-1]
+        reservation = self._external_panel_surface.set_reservation.call_args.args[0]
+        self._external_panel_resize_ok = (
+            self._placement_touches_area(
+                request=placement,
+                area=self._external_panel_area,
+                position=self._external_panel_position,
+            )
+            and reservation.edge_offset == thickness
+            and self._external_panel_surface.set_reservation.call_count == 2
+        )
+
+    def begin_item_insertion(self) -> None:
+        model = DockModel.__new__(DockModel)
+        steady = DockItem(desktop_id="firefox.desktop")
+        animated = DockItem(desktop_id="applet://clock", insert_factor=0.0)
+        model.pinned_items = [steady, animated]
+        model._transient = []
+        model._animating_out = []
+        model._animation_last_update_us = {}
+        model._start_item_animation(animated)
+        self._animation_model = model
+        self._animation_item = animated
+
+    def run_delayed_insertion_frames(self, *, frame_delay_ms: int) -> None:
+        assert self._animation_model is not None
+        assert self._animation_item is not None
+        self._animation_frame_delay_ms = frame_delay_ms
+        started_ms = self._scheduler.now_ms
+        tick = None
+        for _ in range(10):
+            self._scheduler.advance(frame_delay_ms)
+            tick = self._animation_model.tick_animations()
+            frame = self._item_animation_frame(
+                self._animation_model.pinned_items
+                + self._animation_model._animating_out
+            )
+            geometry = frame.geometry_for_item(self._animation_item)
+            assert geometry is not None
+            self._insertion_widths.append(geometry.layout_item.width)
+            if not tick.active:
+                break
+        assert tick is not None and not tick.active
+        self._insertion_elapsed_ms = self._scheduler.now_ms - started_ms
+
+    def run_delayed_removal_frames(self) -> None:
+        assert self._animation_model is not None
+        assert self._animation_item is not None
+        item = self._animation_item
+        item.removal_index = self._animation_model.pinned_items.index(item)
+        self._animation_model._reverse_item_animation(item, target=1.0)
+        self._animation_model.pinned_items.remove(item)
+        self._animation_model._animating_out.append(item)
+        started_ms = self._scheduler.now_ms
+        tick = None
+        frame = None
+        for _ in range(10):
+            self._scheduler.advance(self._animation_frame_delay_ms)
+            tick = self._animation_model.tick_animations()
+            frame = self._item_animation_frame(
+                self._animation_model.pinned_items
+                + self._animation_model._animating_out
+            )
+            if not tick.active:
+                break
+        assert tick is not None and not tick.active
+        assert frame is not None
+        self._removal_elapsed_ms = self._scheduler.now_ms - started_ms
+        self._removal_final_ids = [
+            geometry.item.desktop_id for geometry in frame.item_geometries
+        ]
+
+    def _item_animation_frame(self, items: list[DockItem]):
+        theme = Theme.load("default", 48)
+        return build_geometry_frame(
+            items=items,
+            config=self._geometry_config(pos=Position.BOTTOM, zoom=1.0),
+            theme=theme,
+            window_w=1280,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+
+    @property
+    def insertion_is_bounded_and_progressive(self) -> bool:
+        return (
+            0 < self._insertion_widths[0] < 48
+            and self._insertion_widths[-1] == 48
+            and self._insertion_elapsed_ms <= self._animation_frame_delay_ms * 2
+        )
+
+    @property
+    def removal_is_bounded_without_ghost(self) -> bool:
+        return (
+            self._removal_elapsed_ms <= self._animation_frame_delay_ms * 2
+            and "applet://clock" not in self._removal_final_ids
+        )
+
+    def render_resting_geometry(self) -> None:
+        pos = self._geometry_position
+        gap = self._geometry_gap
+        theme = replace(Theme.load("default", 48), distance_from_edge=gap)
+        config = self._geometry_config(pos=pos, zoom=1.0)
+        item = DockItem(desktop_id="firefox.desktop")
+        metrics = compute_dock_cross_metrics(icon_size=48, zoom=1.0, theme=theme)
+        window_w, window_h = self._geometry_window_size(
+            pos=pos,
+            cross_extent=metrics.surface_extent + gap,
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        painted_icons: list[tuple[float, float]] = []
+        painted_shelves: list[Rect] = []
+
+        def capture_icon(**kwargs) -> None:
+            painted_icons.append(kwargs["cr"].user_to_device(kwargs["x"], kwargs["y"]))
+
+        def capture_shelf(**kwargs) -> None:
+            cr = kwargs["cr"]
+            x, y, width, height = (
+                kwargs["x"],
+                kwargs["y"],
+                kwargs["w"],
+                kwargs["h"],
+            )
+            corners = [
+                cr.user_to_device(px, py)
+                for px, py in (
+                    (x, y),
+                    (x + width, y),
+                    (x, y + height),
+                    (x + width, y + height),
+                )
+            ]
+            left = round(min(point[0] for point in corners))
+            top = round(min(point[1] for point in corners))
+            right = round(max(point[0] for point in corners))
+            bottom = round(max(point[1] for point in corners))
+            painted_shelves.append(Rect(left, top, right - left, bottom - top))
+
+        renderer = renderer_mod.DockRenderer()
+        renderer._draw_icon = MagicMock(side_effect=capture_icon)
+        with (
+            patch.object(renderer_mod, "draw_shelf_background", capture_shelf),
+            patch.object(
+                renderer_mod.GLib, "get_monotonic_time", return_value=1_000_000
+            ),
+        ):
+            renderer._draw_content(
+                cr=cairo.Context(
+                    cairo.ImageSurface(
+                        cairo.FORMAT_ARGB32,
+                        window_w,
+                        window_h,
+                    )
+                ),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+
+        draw_rect = frame.item_geometries[0].draw_rect
+        painted_x, painted_y = painted_icons[0]
+        painted_center = (
+            painted_x + draw_rect.w / 2,
+            painted_y + draw_rect.h / 2,
+        )
+        phantom_point = self._gap_midpoint(
+            pos=pos,
+            gap=gap,
+            window_w=window_w,
+            window_h=window_h,
+            draw_rect=draw_rect,
+        )
+        shelf = painted_shelves[0]
+        self._edge_gap_probe = _EdgeGapProbe(
+            painted_matches_target=(
+                int(painted_x) == draw_rect.x
+                and int(painted_y) == draw_rect.y
+                and frame.item_at_point(*painted_center) is item
+            ),
+            phantom_gap_is_clear=frame.item_at_point(*phantom_point) is None,
+            painted_shelf_gap=self._shelf_edge_gap(
+                pos=pos,
+                shelf=shelf,
+                window_w=window_w,
+                window_h=window_h,
+            ),
+        )
+
+    def render_peak_bounce(self) -> None:
+        pos = self._geometry_position
+        gap = self._geometry_gap
+        zoom = 1.5
+        theme = replace(Theme.load("default", 48), distance_from_edge=gap)
+        config = self._geometry_config(pos=pos, zoom=zoom)
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_launched=now_us - theme.launch_bounce_time_ms * 1000 // 4,
+            last_urgent=now_us - theme.urgent_bounce_time_ms * 1000 // 2,
+        )
+        metrics = compute_dock_cross_metrics(icon_size=48, zoom=zoom, theme=theme)
+        window_w, window_h = self._geometry_window_size(
+            pos=pos,
+            cross_extent=metrics.surface_extent + gap,
+        )
+        main_size = window_w if pos in (Position.BOTTOM, Position.TOP) else window_h
+        base_width = 2 * (theme.horizontal_padding + theme.item_padding / 2) + 48
+        cursor_main = theme.horizontal_padding + 24 + (main_size - base_width) / 2
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=cursor_main,
+            autohide_state=None,
+        )
+        painted_icons: list[tuple[float, float, float]] = []
+
+        def capture_icon(**kwargs) -> None:
+            x, y = kwargs["cr"].user_to_device(kwargs["x"], kwargs["y"])
+            painted_icons.append((x, y, kwargs["base_size"] * kwargs["li"].scale))
+
+        renderer = renderer_mod.DockRenderer()
+        renderer._draw_icon = MagicMock(side_effect=capture_icon)
+        with (
+            patch.object(renderer_mod, "draw_shelf_background", lambda **_kwargs: None),
+            patch.object(renderer_mod.GLib, "get_monotonic_time", return_value=now_us),
+        ):
+            renderer._draw_content(
+                cr=cairo.Context(
+                    cairo.ImageSurface(
+                        cairo.FORMAT_ARGB32,
+                        window_w,
+                        window_h,
+                    )
+                ),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+
+        x, y, size = painted_icons[0]
+        self._bounce_probe = _BounceProbe(
+            icon_within_surface=(
+                x >= 0.0 and y >= 0.0 and x + size <= window_w and y + size <= window_h
+            )
+        )
+
+    def render_position_change(self, *, old_position: str, new_position: str) -> None:
+        theme = Theme.load("default", 48)
+        metrics = compute_dock_cross_metrics(icon_size=48, zoom=1.0, theme=theme)
+        item = DockItem(desktop_id="firefox.desktop")
+        renderer = renderer_mod.DockRenderer()
+        painted_icons: list[tuple[float, float]] = []
+        renderer._draw_icon = MagicMock(
+            side_effect=lambda **kwargs: painted_icons.append(
+                kwargs["cr"].user_to_device(kwargs["x"], kwargs["y"])
+            )
+        )
+
+        def dimensions(pos: Position) -> tuple[int, int]:
+            if pos in (Position.BOTTOM, Position.TOP):
+                return 1280, metrics.surface_extent
+            return metrics.surface_extent, 800
+
+        def render(pos: Position, width: int, height: int):
+            config = self._geometry_config(pos=pos, zoom=1.0)
+            frame = build_geometry_frame(
+                items=[item],
+                config=config,
+                theme=theme,
+                window_w=width,
+                window_h=height,
+                cursor_main=-1.0,
+                autohide_state=None,
+            )
+            renderer._draw_content(
+                cr=cairo.Context(
+                    cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+                ),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            return frame
+
+        old_pos = Position(old_position)
+        new_pos = Position(new_position)
+        old_width, old_height = dimensions(old_pos)
+        new_width, new_height = dimensions(new_pos)
+        with (
+            patch.object(renderer_mod, "draw_shelf_background", lambda **_kwargs: None),
+            patch.object(
+                renderer_mod.GLib,
+                "get_monotonic_time",
+                return_value=1_000_000,
+            ),
+        ):
+            render(old_pos, old_width, old_height)
+            render(new_pos, old_width, old_height)
+            final_frame = render(new_pos, new_width, new_height)
+
+        final_rect = final_frame.item_geometries[0].draw_rect
+        painted_x, painted_y = painted_icons[-1]
+        self._position_change_aligned = (
+            int(painted_x) == final_rect.x
+            and int(painted_y) == final_rect.y
+            and renderer.slide_offsets == {}
+        )
+        if old_pos == Position.RIGHT and new_pos == Position.LEFT:
+            self._probe_left_edge_input_after_side_change(
+                theme=theme,
+                item=item,
+                width=new_width,
+                height=new_height,
+            )
+
+    def _probe_left_edge_input_after_side_change(
+        self,
+        *,
+        theme: Theme,
+        item: DockItem,
+        width: int,
+        height: int,
+    ) -> None:
+        config = self._geometry_config(pos=Position.RIGHT, zoom=1.0)
+
+        def build_live_frame(**_kwargs):
+            return build_geometry_frame(
+                items=[item],
+                config=config,
+                theme=theme,
+                window_w=width,
+                window_h=height,
+                cursor_main=-1.0,
+                autohide_state=None,
+            )
+
+        old_frame = build_live_frame()
+        surface_service = MagicMock()
+        window = _bind_dock_window_helpers(
+            SimpleNamespace(
+                config=config,
+                cursor_x=-1.0,
+                cursor_y=-1.0,
+                get_size=MagicMock(return_value=(width, height)),
+                autohide=SimpleNamespace(enabled=False),
+                zoom_animator=SimpleNamespace(progress=1.0),
+                geometry=SimpleNamespace(build_frame=build_live_frame),
+                surface_service=surface_service,
+                drawing_area=SimpleNamespace(queue_draw=MagicMock()),
+                _cache=dock_window_mod._DockWindowCache.create(),
+            )
+        )
+        window.update_input_region = MethodType(
+            dock_window_mod.DockWindow.update_input_region,
+            window,
+        )
+        window._cache.store_geometry_frame(
+            frame=old_frame,
+            signature=window._geometry_signature(),
+        )
+        window._cache.applied_input_frame = old_frame
+
+        config.pos = Position.LEFT
+        placement = placement_mod.DockPlacementController(
+            window,
+            surface_service=surface_service,
+        )
+        placement.position_dock = MagicMock()
+        placement.set_struts = MagicMock()
+        placement.reposition()
+
+        applied = window._cache.applied_input_frame
+        center_y = applied.cursor_rect.y + applied.cursor_rect.h / 2
+        self._left_edge_input_owned = (
+            applied.cursor_rect.contains(0, center_y)
+            and surface_service.update_input_region.call_count == 1
+        )
+
+    def hold_pointer_at_left_edge(self) -> None:
+        frame = SimpleNamespace(cursor_rect=Rect(0, 0, 53, 420))
+        interaction = MagicMock()
+        interaction.point_inside_event_frame.return_value = False
+        interaction.is_pointer_inside_dock.return_value = True
+        self._left_edge_window = SimpleNamespace(
+            _cache=dock_window_mod._DockWindowCache.create(),
+            get_display=lambda: SimpleNamespace(get_xdisplay=lambda: None),
+            interaction=interaction,
+            dock_hovered=True,
+        )
+        self._left_edge_window._cache.store_geometry_frame(
+            frame=frame,
+            signature=(),
+        )
+
+    def report_left_edge_shape_leave(self) -> None:
+        assert self._left_edge_window is not None
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.ANCESTOR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=-1.0,
+            y=210.0,
+        )
+        input_controller_mod.DockInputController._on_leave(
+            SimpleNamespace(_window=self._left_edge_window),
+            MagicMock(),
+            event,
+        )
+
+    @property
+    def painted_geometry_matches_target(self) -> bool:
+        assert self._edge_gap_probe is not None
+        return self._edge_gap_probe.painted_matches_target
+
+    @property
+    def floating_gap_is_clear(self) -> bool:
+        assert self._edge_gap_probe is not None
+        return self._edge_gap_probe.phantom_gap_is_clear
+
+    @property
+    def painted_shelf_gap(self) -> int:
+        assert self._edge_gap_probe is not None
+        return self._edge_gap_probe.painted_shelf_gap
+
+    @property
+    def bounced_icon_within_surface(self) -> bool:
+        assert self._bounce_probe is not None
+        return self._bounce_probe.icon_within_surface
+
+    @property
+    def position_change_aligned(self) -> bool:
+        return self._position_change_aligned
+
+    @property
+    def left_edge_input_owned(self) -> bool:
+        return self._left_edge_input_owned
+
+    @property
+    def left_edge_hover_retained(self) -> bool:
+        assert self._left_edge_window is not None
+        return not self._left_edge_window.interaction.on_effective_leave.called
+
+    @property
+    def dock_avoids_external_panel(self) -> bool:
+        return self._external_panel_initial_ok
+
+    @property
+    def reservation_composes_with_external_panel(self) -> bool:
+        return self._external_panel_reservation_ok
+
+    @property
+    def external_panel_resize_followed(self) -> bool:
+        return self._external_panel_resize_ok
 
     @property
     def dock_hidden(self) -> bool:
@@ -337,13 +971,37 @@ class DockHarness:
         return self._folder_stack_open_for
 
     def hover_running_item_long_enough(self, desktop_id: str) -> None:
+        self.return_to_preview_icon(desktop_id)
+        self._scheduler.advance(hover_mod.PREVIEW_SHOW_DELAY_MS)
+
+    def return_to_preview_icon(self, desktop_id: str) -> None:
         item = self._hover_item_by_desktop_id(desktop_id)
         self._hover_frame.hover_item_at_point.return_value = item
         self._hover_window.cursor_x = 20.0
         self._hover_window.cursor_y = 10.0
-        self._hover_window.dock_hovered = True
+        self._hover_interaction.on_effective_enter()
         self._hover_manager.update(cursor_main=20.0)
-        self._scheduler.advance(hover_mod.PREVIEW_SHOW_DELAY_MS)
+
+    def configure_preview_autohide(self, *, enabled: bool) -> None:
+        self._hover_window.autohide.enabled = enabled
+
+    def enable_preview_windows(self, desktop_id: str) -> None:
+        item = self._hover_item_by_desktop_id(desktop_id)
+        item.is_running = True
+        item.instance_count = 1
+
+    def activate_preview_window(self) -> None:
+        self._preview_popup._on_thumb_click(MagicMock(), MagicMock(), WindowId.x11(1))
+
+    def cross_preview(self, *, entering: bool) -> None:
+        event = SimpleNamespace(
+            detail=preview_mod.Gdk.NotifyType.NONLINEAR,
+            mode=preview_mod.Gdk.CrossingMode.NORMAL,
+        )
+        if entering:
+            self._preview_popup._on_enter(MagicMock(), event)
+        else:
+            self._preview_popup._on_leave(MagicMock(), event)
 
     def leave_dock_with_preview_visible(self) -> None:
         self._hover_interaction.on_effective_leave(MagicMock())
@@ -442,12 +1100,32 @@ class DockHarness:
             return True
 
         self._drag_handler._model.insert_pinned_item.side_effect = insert_pinned_item
-        self._drag_handler._launcher.resolve.return_value = SimpleNamespace(
-            name="Firefox",
-            icon_name="firefox",
-            wm_class="firefox",
+        self._drag_handler._model.insert_pinned_application.side_effect = (
+            lambda *, desktop_id, index: insert_pinned_item(
+                item=DockItem(
+                    desktop_id=desktop_id,
+                    kind=APP_KIND,
+                    target=desktop_id,
+                    is_pinned=True,
+                ),
+                index=index,
+            )
         )
-        self._drag_handler._launcher.load_icon.return_value = object()
+        self._drag_handler._application_registry.get.return_value = ApplicationInfo(
+            desktop_id="firefox.desktop",
+            name="Firefox",
+            declared_icon="firefox",
+            wm_class="firefox",
+            exec_line="/usr/bin/firefox",
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(),
+            visible=True,
+            has_gio_source=True,
+        )
+        self._drag_handler._icon_loader.load_desktop_icon.return_value = object()
         selection = MagicMock()
         selection.get_uris.return_value = [uri]
         self._drag_handler._on_drag_data_received(
@@ -472,6 +1150,18 @@ class DockHarness:
         return self._preview_visible
 
     @property
+    def preview_desktop_id(self) -> str:
+        return self._preview_popup.current_desktop_id
+
+    @property
+    def preview_show_count(self) -> int:
+        return self._preview_popup.show_for_item.call_count
+
+    @property
+    def preview_show_pending(self) -> bool:
+        return self._hover_manager._preview_timer_id != 0
+
+    @property
     def preview_hide_scheduled(self) -> bool:
         return self._preview_popup._hide_timer_id != 0
 
@@ -482,6 +1172,80 @@ class DockHarness:
     @property
     def tooltip_suppressed(self) -> bool:
         return bool(self._tooltip_hidden) and not self._tooltip_updated
+
+    @staticmethod
+    def _geometry_config(*, pos: Position, zoom: float) -> SimpleNamespace:
+        return SimpleNamespace(
+            pos=pos,
+            icon_size=48,
+            zoom_enabled=zoom > 1.0,
+            zoom_percent=zoom,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+
+    @staticmethod
+    def _geometry_window_size(*, pos: Position, cross_extent: int) -> tuple[int, int]:
+        if pos in (Position.BOTTOM, Position.TOP):
+            return 420, cross_extent
+        return cross_extent, 420
+
+    @staticmethod
+    def _panel_area(*, position: Position, thickness: int) -> PlatformRect:
+        if position == Position.TOP:
+            return PlatformRect(0, thickness, 1280, 800 - thickness)
+        if position == Position.BOTTOM:
+            return PlatformRect(0, 0, 1280, 800 - thickness)
+        if position == Position.LEFT:
+            return PlatformRect(thickness, 0, 1280 - thickness, 800)
+        return PlatformRect(0, 0, 1280 - thickness, 800)
+
+    @staticmethod
+    def _placement_touches_area(
+        *, request, area: PlatformRect, position: Position
+    ) -> bool:
+        if position == Position.TOP:
+            return request.y == area.y
+        if position == Position.BOTTOM:
+            return request.y + request.size.height == area.bottom
+        if position == Position.LEFT:
+            return request.x == area.x
+        return request.x + request.size.width == area.right
+
+    @staticmethod
+    def _gap_midpoint(
+        *,
+        pos: Position,
+        gap: int,
+        window_w: int,
+        window_h: int,
+        draw_rect: Rect,
+    ) -> tuple[float, float]:
+        if pos == Position.TOP:
+            return draw_rect.x + draw_rect.w / 2, gap / 2
+        if pos == Position.BOTTOM:
+            return draw_rect.x + draw_rect.w / 2, window_h - gap / 2
+        if pos == Position.LEFT:
+            return gap / 2, draw_rect.y + draw_rect.h / 2
+        return window_w - gap / 2, draw_rect.y + draw_rect.h / 2
+
+    @staticmethod
+    def _shelf_edge_gap(
+        *,
+        pos: Position,
+        shelf: Rect,
+        window_w: int,
+        window_h: int,
+    ) -> int:
+        if pos == Position.TOP:
+            return shelf.y
+        if pos == Position.BOTTOM:
+            return window_h - shelf.y - shelf.h
+        if pos == Position.LEFT:
+            return shelf.x
+        return window_w - shelf.x - shelf.w
 
     def _build_drag_handler(self) -> None:
         drawing_area = MagicMock()
@@ -497,7 +1261,13 @@ class DockHarness:
         model = MagicMock()
         renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
-        launcher = MagicMock()
+        application_registry = MagicMock()
+        application_registry.get.return_value = None
+        application_registry.resolve_by_desktop_file.return_value = None
+        application_launcher = MagicMock()
+        icon_loader = MagicMock()
+        target_service = MagicMock()
+        target_service.resolve_file.return_value = None
         pointer = MagicMock()
         pointer.get_position.return_value = (None, 0, 0)
         seat = MagicMock()
@@ -532,11 +1302,14 @@ class DockHarness:
             config,
             renderer,
             theme,
-            launcher,
             geometry_builder=SimpleNamespace(
                 build_frame=lambda **_kwargs: self._dnd_frame
             ),
             folder_stack=folder_stack,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
         )
 
     def _mark_drag_reorder(self, *_args, **_kwargs) -> None:

@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -28,25 +29,15 @@ from docking.platform.backends.wayland.niri_ipc import (
     load_niri_preview_service,
     load_niri_workspace_service,
 )
-
-
-def _launcher() -> SimpleNamespace:
-    resolved = {
-        "Alacritty.desktop": SimpleNamespace(desktop_id="Alacritty.desktop"),
-        "firefox.desktop": SimpleNamespace(desktop_id="firefox.desktop"),
-    }
-    return SimpleNamespace(
-        resolve=MagicMock(side_effect=lambda desktop_id, **_: resolved.get(desktop_id)),
-        resolve_by_wm_class=MagicMock(return_value=None),
-    )
+from tests.platform.application_fakes import identity_services
 
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
         visible_items=MagicMock(
             return_value=[
-                SimpleNamespace(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                SimpleNamespace(desktop_id="firefox.desktop", wm_class="firefox"),
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
             ]
         ),
         update_running=MagicMock(),
@@ -146,6 +137,10 @@ class FakeIpcClient:
         self.actions: list[dict] = []
 
     def ok_data(self, payload: object, key: str):
+        if key == "Outputs":
+            return {"HEADLESS-1": {"logical": {"x": 0, "y": 0}}}
+        if key == "Workspaces":
+            return [{"id": 1, "is_active": True, "output": "HEADLESS-1"}]
         if self._call_count < len(self._snapshots):
             result = self._snapshots[self._call_count]
             self._call_count += 1
@@ -170,7 +165,16 @@ class FakeEventStream:
         self.stopped = True
 
     def emit(self, name: str, data: dict) -> None:
-        self.callback(NiriEvent(name=name, data=data))
+        from unittest.mock import patch
+
+        pending = []
+        with patch(
+            "docking.platform.backends.wayland.niri_ipc.GLib.idle_add",
+            side_effect=lambda callback: pending.append(callback) or 1,
+        ):
+            self.callback(NiriEvent(name=name, data=data))
+        for callback in pending:
+            callback()
 
 
 class KeyedFakeIpcClient:
@@ -205,6 +209,7 @@ def test_niri_window_service_publishes_snapshot_and_actions():
                     "is_urgent": False,
                     "layout": {
                         "window_size": [800, 600],
+                        "tile_size": [800, 600],
                         "tile_pos_in_workspace_view": [10.0, 20.0],
                     },
                 }
@@ -213,7 +218,7 @@ def test_niri_window_service_publishes_snapshot_and_actions():
     )
     service = NiriWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -259,7 +264,7 @@ def test_niri_window_service_minimize_unsupported():
     )
     service = NiriWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -273,7 +278,7 @@ def test_niri_window_service_ignores_other_backend_window_ids():
     client = FakeIpcClient([[]])
     service = NiriWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -295,7 +300,7 @@ def test_niri_window_service_refreshes_on_event():
 
     service = NiriWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=stream_factory,
     )
@@ -344,7 +349,7 @@ def test_niri_window_service_handles_windows_changed_full_replacement():
 
     service = NiriWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=stream_factory,
     )
@@ -434,7 +439,7 @@ def test_niri_window_service_handles_focus_change():
 
     service = NiriWindowService(
         model=model,
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=stream_factory,
     )
@@ -487,7 +492,7 @@ def test_niri_window_service_close_all():
     )
     service = NiriWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -504,7 +509,7 @@ def test_niri_window_service_close_all_not_found():
     client = FakeIpcClient([[]])
     service = NiriWindowService(
         model=_model(),
-        launcher=_launcher(),
+        **identity_services(),
         client=client,
         event_stream_factory=lambda _callback: None,
     )
@@ -861,7 +866,6 @@ def test_niri_preview_service_start_stop_are_noops():
 
 
 def test_wait_for_nonempty_file_sees_existing_file():
-
     tmp_fd, tmp_path = tempfile.mkstemp(prefix="docking-test-")
     os.write(tmp_fd, b"hello")
     os.close(tmp_fd)

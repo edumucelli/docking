@@ -19,7 +19,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
-from docking.platform.backends.base import PreviewImage, WindowId, WindowSnapshot
+from docking.platform.backends.base import PreviewImage, Rect, WindowId, WindowSnapshot
 from docking.search.coordinator import SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -31,23 +31,27 @@ from docking.search.types import (
 from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
 from docking.ui.folder.stack import FolderStackController
-from docking.ui.geometry import build_geometry_frame
+from docking.ui.geometry import build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
 from docking.ui.stack import StackContent, StackEntry
 from docking.ui.tooltip import TooltipManager
+from tests.ui.preview_support import PreviewHarness, settle_gtk
 
 DOCK_CASES = (
     "dock-bottom-idle",
     "dock-bottom-hovered",
     "dock-bottom-hidden",
+    "dock-bottom-item-inserting",
     "dock-bottom-drag-insert-gap",
     "dock-bottom-click-frame",
     "dock-bottom-launch-frame",
     "dock-bottom-urgent-bounce-frame",
+    "dock-bottom-combined-bounce-frame",
     "dock-bottom-urgent-hidden",
 )
+POSITION_CHANGE_CASES = ("dock-position-change-right-to-top",)
 FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
@@ -59,6 +63,10 @@ SHORT_STACK_CASES = (
 POPUP_CASES = (
     "tooltip-open-bottom",
     "preview-popup-open-bottom",
+    "preview-popup-transparent-checkerboard",
+    "preview-popup-overflow-bottom",
+    "preview-popup-overflow-left",
+    "preview-popup-reused-one",
 )
 SEARCH_CASES = (
     "search-palette-results",
@@ -67,7 +75,12 @@ SEARCH_CASES = (
     "search-palette-image-preview",
 )
 VISUAL_CASES = (
-    DOCK_CASES + FOLDER_STACK_CASES + SHORT_STACK_CASES + POPUP_CASES + SEARCH_CASES
+    DOCK_CASES
+    + POSITION_CHANGE_CASES
+    + FOLDER_STACK_CASES
+    + SHORT_STACK_CASES
+    + POPUP_CASES
+    + SEARCH_CASES
 )
 
 DOCK_WIDTH = 420
@@ -165,6 +178,8 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         hide_state = HideState.HIDDEN
         hide_offset = 1.0
         zoom_progress = 0.0
+    elif case_name == "dock-bottom-item-inserting":
+        items[2].insert_factor = 0.5
     elif case_name == "dock-bottom-drag-insert-gap":
         drop_insert_index = 1
     elif case_name == "dock-bottom-click-frame":
@@ -174,12 +189,21 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
     elif case_name == "dock-bottom-urgent-bounce-frame":
         items[0].is_urgent = True
         items[0].last_urgent = now_us - urgent_duration_us // 2
-        dock_height = int(
-            ICON_SIZE * config.zoom_percent
-            + theme.top_padding
-            + theme.bottom_padding
-            + ICON_SIZE * theme.urgent_bounce_height
-        )
+        dock_height = compute_dock_cross_metrics(
+            icon_size=ICON_SIZE,
+            zoom=config.zoom_percent,
+            theme=theme,
+        ).surface_extent
+    elif case_name == "dock-bottom-combined-bounce-frame":
+        hovered_id = "code.desktop"
+        items[1].is_urgent = True
+        items[1].last_launched = now_us - launch_duration_us // 4
+        items[1].last_urgent = now_us - urgent_duration_us // 2
+        dock_height = compute_dock_cross_metrics(
+            icon_size=ICON_SIZE,
+            zoom=config.zoom_percent,
+            theme=theme,
+        ).surface_extent
     elif case_name == "dock-bottom-urgent-hidden":
         hide_state = HideState.HIDDEN
         hide_offset = 1.0
@@ -230,6 +254,45 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
     return surface
 
 
+def _draw_position_change_case() -> cairo.ImageSurface:
+    theme = Theme.load("default", ICON_SIZE)
+    config = _renderer_config()
+    items = _renderer_items()
+    renderer = DockRenderer()
+    cross_extent = compute_dock_cross_metrics(
+        icon_size=ICON_SIZE,
+        zoom=config.zoom_percent,
+        theme=theme,
+    ).surface_extent
+
+    def paint(pos: Position, width: int, height: int) -> cairo.ImageSurface:
+        config.pos = pos
+        frame = build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=-1_000_000.0,
+            autohide_state=None,
+        )
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        renderer.draw(
+            cr=cairo.Context(surface),
+            widget=_FakeWidget(width=width, height=height),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(cursor_main=-1_000_000.0),
+        )
+        return surface
+
+    with patch("docking.ui.renderer.GLib.get_monotonic_time", return_value=1_000_000):
+        paint(Position.RIGHT, cross_extent, 800)
+        paint(Position.TOP, cross_extent, 800)
+        return paint(Position.TOP, 1280, cross_extent)
+
+
 def _folder_stack_handler() -> MenuHandler:
     config = SimpleNamespace(
         lock_icons=False,
@@ -248,14 +311,14 @@ def _folder_stack_handler() -> MenuHandler:
         item_prefs={},
         save=MagicMock(),
     )
-    launcher = MagicMock()
-    launcher.default_directory_app_name.return_value = "Caja"
+    target_service = MagicMock()
+    target_service.default_directory_app_name.return_value = "Caja"
     runtime = MagicMock()
     folder_stack = FolderStackController(
         config=config,
         runtime=runtime,
-        launcher=launcher,
         dock_window=runtime.window,
+        target_service=target_service,
     )
     handler = MenuHandler(
         about=MagicMock(),
@@ -267,9 +330,11 @@ def _folder_stack_handler() -> MenuHandler:
         preview_service=MagicMock(),
         folder_stack=folder_stack,
         diagnostics=MagicMock(),
-        launcher=launcher,
         dock_window=MagicMock(),
         search=MagicMock(),
+        application_registry=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=target_service,
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"
@@ -461,10 +526,37 @@ def _draw_preview_case() -> cairo.ImageSurface:
             anchor_y=320.0,
             position=Position.BOTTOM,
         )
+        settle_gtk()
         return _capture_window_surface(popup)
     finally:
         popup.destroy()
         _flush_gtk()
+
+
+def _draw_preview_layout_case(case_name: str) -> cairo.ImageSurface:
+    preview = PreviewHarness(bounds=Rect(0, 28, 700, 560))
+    try:
+        position = Position.LEFT if case_name.endswith("left") else Position.BOTTOM
+        if case_name.endswith("reused-one"):
+            preview.show(8, position)
+            preview.scroll_to(last=True, position=position)
+        preview.show(8 if "overflow" in case_name else 1, position)
+        # A checkerboard protects the original transparent space around the
+        # cards, independent of the X server's compositor.
+        width, height = preview.popup.get_size()
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width + 16, height + 16)
+        cr = cairo.Context(surface)
+        for x in range(0, width + 16, 16):
+            for y in range(0, height + 16, 16):
+                shade = 0.95 if (x // 16 + y // 16) % 2 else 0.70
+                cr.set_source_rgb(shade, shade, shade)
+                cr.rectangle(x, y, 16, 16)
+                cr.fill()
+        cr.translate(8, 8)
+        preview.popup.draw(cr)
+        return surface
+    finally:
+        preview.close()
 
 
 def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
@@ -582,7 +674,7 @@ def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
         errors=(),
     )
     window = SearchWindow(
-        launcher=_Launcher(),
+        icon_loader=_Launcher(),
         on_query_changed=lambda _query: None,
         on_result_selected=lambda _identity: None,
         on_result_activated=lambda _result: None,
@@ -628,12 +720,16 @@ def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
         return _draw_renderer_case(case_name=case_name)
+    if case_name == "dock-position-change-right-to-top":
+        return _draw_position_change_case()
     if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES):
         return _draw_folder_stack_case(case_name=case_name)
     if case_name == "tooltip-open-bottom":
         return _draw_tooltip_case()
     if case_name == "preview-popup-open-bottom":
         return _draw_preview_case()
+    if case_name.startswith("preview-popup-"):
+        return _draw_preview_layout_case(case_name)
     if case_name == "search-palette-results":
         return _draw_search_case(panel=None)
     if case_name == "search-palette-actions":

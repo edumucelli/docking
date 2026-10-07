@@ -11,31 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""KWin / KDE Plasma 6 native Wayland session backend.
-
-Backend selection::
-
-    KDE Plasma Wayland session  ---->  KWinSessionBackend
-                                       |
-                                       +-- WaylandLayerShellSurfaceService
-                                       +-- KWinWorkspaceService
-                                       |     (via KWin VirtualDesktopManager D-Bus)
-                                       +-- ReducedWindowService
-                                       |     (window listing not available from
-                                       |      KWin 6 Wayland - KWin does not
-                                       |      expose a public window-list protocol)
-                                       +-- ReducedVisibilityService
-
-KWin 6 (Plasma 6) does not expose ``wlr-foreign-toplevel-management``,
-``ext-foreign-toplevel-list``, or ``org_kde_plasma_window_management``
-to third-party Wayland clients.  Its scripting API does not provide a
-usable D-Bus bridge.  Window tracking is therefore unavailable in this
-backend until KWin adds a public window-list protocol or D-Bus API.
-
-The backend still delivers native Wayland layer-shell positioning and
-proper workspace tracking via KWin's ``VirtualDesktopManager`` D-Bus
-interface.
-"""
+"""KWin 6 native services, with AT-SPI fallback when scripting is unavailable."""
 
 from __future__ import annotations
 
@@ -63,13 +39,25 @@ from docking.platform.backends.base import (
 from docking.platform.backends.kwin.atspi_window import (
     AtspiWindowService,
 )
+from docking.platform.backends.kwin.bridge import (
+    KWinBridgeClient,
+    KWinDesktopActionService,
+    KWinWindowService,
+)
+from docking.platform.backends.kwin.preview import KWinPreviewService
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedVisibilityService,
 )
+from docking.platform.backends.visibility import SnapshotVisibilityService
+from docking.platform.backends.wayland.idle import WaylandIdleService
+from docking.platform.backends.wayland.portals import load_portal_color_picker
+from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.core.config import Config
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 import contextlib
@@ -238,29 +226,64 @@ class KWinWorkspaceService(WorkspaceService):
 
 
 class KWinSessionBackend(SessionBackend):
-    """SessionBackend for KDE Plasma 6 native Wayland.
-
-    Provides native Wayland layer-shell positioning and KWin workspace
-    tracking.  Window listing is not available because KWin 6 does not
-    expose a public window-list protocol to third-party clients.
-    """
+    """Layer-shell surfaces and public KWin scripting/D-Bus services."""
 
     def __init__(
         self,
         *,
         layer_shell: object,
-        launcher: Launcher,
         model: DockModel,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+        config: Config | None = None,
+        protocol_runtime: WaylandProtocolRuntime | None = None,
     ) -> None:
         from docking.platform.backends.wayland.services import (
             WaylandLayerShellSurfaceService,
         )
 
         self._surface = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-        self._windows = AtspiWindowService(launcher=launcher, model=model)
+        bridge = KWinBridgeClient.connect()
+        self._windows: WindowService = (
+            KWinWindowService(
+                bridge=bridge,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
+                model=model,
+                config=config,
+            )
+            if bridge is not None
+            else AtspiWindowService(
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
+                model=model,
+            )
+        )
         self._workspaces = KWinWorkspaceService()
-        self._visibility = ReducedVisibilityService()
-        self._previews = ReducedPreviewService()
+        self._visibility: VisibilityService = (
+            SnapshotVisibilityService(
+                windows=self._windows,
+                visible_windows=lambda _rect: self._windows.list_all_windows(),
+                config=config,
+            )
+            if bridge is not None
+            else ReducedVisibilityService()
+        )
+        self._previews: PreviewService = (
+            KWinPreviewService() if bridge is not None else ReducedPreviewService()
+        )
+        self._desktop_actions = KWinDesktopActionService.connect()
+        self._screen_capture = load_portal_color_picker()
+        self._runtime = protocol_runtime
+        if self._runtime is None:
+            runtime = WaylandProtocolRuntime()
+            if runtime.start():
+                self._runtime = runtime
+        self._idle = (
+            WaylandIdleService(protocol=self._runtime.idle_protocol)
+            if self._runtime is not None and self._runtime.idle_protocol is not None
+            else None
+        )
 
     @property
     def name(self) -> str:
@@ -272,16 +295,26 @@ class KWinSessionBackend(SessionBackend):
 
     @property
     def capabilities(self) -> PlatformCapabilities:
+        native = isinstance(self._windows, KWinWindowService)
         return PlatformCapabilities(
             tracks_windows=True,
             tracks_active_window=True,
-            tracks_minimized=False,
-            tracks_maximized=False,
-            tracks_fullscreen=False,
+            tracks_minimized=native,
+            tracks_maximized=native,
+            tracks_fullscreen=native,
             tracks_window_geometry=True,
-            supports_activate=False,
-            supports_minimize=False,
-            supports_close=False,
+            supports_activate=native,
+            supports_minimize=native,
+            supports_close=native,
+            supports_window_menu=native,
+            tracks_window_workspace=native,
+            supports_current_workspace_filter=native,
+            supports_overlap_active=native,
+            supports_overlap_any=native,
+            supports_overlap_maximized=native,
+            supports_show_desktop=self._desktop_actions is not None,
+            supports_screen_color_pick=self._screen_capture is not None,
+            supports_idle_time=self._idle is not None,
             supports_workspace_list=True,
             supports_workspace_switch=True,
             supports_layer_shell=True,
@@ -311,15 +344,15 @@ class KWinSessionBackend(SessionBackend):
 
     @property
     def desktop_actions(self) -> DesktopActionService | None:
-        return None
+        return self._desktop_actions
 
     @property
     def screen_capture(self) -> ScreenCaptureService | None:
-        return None
+        return self._screen_capture
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
@@ -331,10 +364,18 @@ class KWinSessionBackend(SessionBackend):
         self._workspaces.start()
         self._visibility.start()
         self._previews.start()
+        for service in (self._desktop_actions, self._screen_capture, self._idle):
+            if service is not None:
+                service.start()
 
     def stop(self) -> None:
+        for service in (self._idle, self._screen_capture, self._desktop_actions):
+            if service is not None:
+                service.stop()
         self._previews.stop()
         self._visibility.stop()
         self._workspaces.stop()
         self._windows.stop()
         self._surface.stop()
+        if self._runtime is not None:
+            self._runtime.stop()

@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.core.position import Position
 from docking.platform.backends.base import (
     DisplayServer,
@@ -42,6 +44,7 @@ from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
 )
 from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
+from tests.platform.application_fakes import identity_services
 
 
 def _layer_shell() -> SimpleNamespace:
@@ -74,6 +77,7 @@ def _monitor_snapshot() -> MonitorSnapshot:
 def _empty_runtime() -> SimpleNamespace:
     return SimpleNamespace(
         foreign_toplevel_protocol=None,
+        standard_toplevel_protocol=None,
         workspace_protocol=None,
         preview_protocol=None,
         hyprland_preview_protocol=None,
@@ -87,6 +91,11 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         screen_capture=screen_capture,
     )
@@ -115,7 +124,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=_empty_runtime(),
     )
@@ -143,13 +152,15 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=preview_protocol,
             hyprland_preview_protocol=None,
+            phoc_preview_protocol=None,
             idle_protocol=None,
             stop=MagicMock(),
         ),
@@ -172,13 +183,15 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=hyprland_preview_protocol,
+            phoc_preview_protocol=None,
             idle_protocol=None,
             stop=MagicMock(),
         ),
@@ -201,10 +214,11 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         foreign_toplevel_protocol=SimpleNamespace(),
         protocol_runtime=SimpleNamespace(
             foreign_toplevel_protocol=None,
+            standard_toplevel_protocol=None,
             workspace_protocol=None,
             preview_protocol=None,
             hyprland_preview_protocol=None,
@@ -223,6 +237,11 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     screen_capture = WaylandPortalColorPickerService(picker=lambda: (0, 0, 0))
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         workspace_protocol=SimpleNamespace(),
         screen_capture=screen_capture,
         protocol_runtime=_empty_runtime(),
@@ -242,6 +261,11 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
     runtime.idle_protocol = idle_protocol
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=runtime,
     )
 
@@ -260,14 +284,14 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         client=SimpleNamespace(paths=HyprlandSocketPaths(command="", events="")),
         event_stream_factory=lambda _callback: None,
     )
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         window_service=window_service,
     )
@@ -282,7 +306,8 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
     assert backend.capabilities.tracks_window_workspace is True
     assert backend.capabilities.supports_current_workspace_filter is True
     assert backend.capabilities.supports_activate is True
-    assert backend.capabilities.supports_minimize is True
+    assert backend.capabilities.supports_minimize is False
+    assert backend.capabilities.tracks_minimized is False
     assert backend.capabilities.supports_close is True
     assert backend.capabilities.supports_layer_shell is True
     assert backend.capabilities.supports_screen_reservation is True
@@ -300,7 +325,7 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     backend = HyprlandSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 
@@ -312,6 +337,11 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
 def test_wayland_layer_shell_session_lifecycle_is_safe():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]),
+            update_running=MagicMock(),
+        ),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 
@@ -334,9 +364,14 @@ def test_configure_before_realize_assigns_layer_shell_role():
     layer_shell.set_namespace.assert_called_once_with(window, "docking")
     layer_shell.set_layer.assert_called_once_with(window, "top-layer")
     layer_shell.set_keyboard_mode.assert_called_once_with(window, "no-keyboard")
-    layer_shell.set_anchor.assert_any_call(window, "bottom", True)
-    layer_shell.set_anchor.assert_any_call(window, "left", True)
-    layer_shell.set_anchor.assert_any_call(window, "right", True)
+    # Anchors are deliberately left alone here. gtk-layer-shell decides which
+    # axis of the committed size to leave to the compositor -- sending 0 -- from
+    # the anchors in effect when it first configures the surface. A bottom
+    # placeholder made it zero the width, which is a protocol error once
+    # placement re-anchors to left/right: niri kills the client for it, and sway
+    # and labwc accept it. Placement always runs before the surface is mapped,
+    # so the real anchors are set before the first commit.
+    layer_shell.set_anchor.assert_not_called()
 
 
 def test_position_or_anchor_maps_placement_to_layer_shell():
@@ -365,12 +400,34 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
     layer_shell.set_anchor.assert_any_call(window, "top", True)
     layer_shell.set_anchor.assert_any_call(window, "bottom", True)
     layer_shell.set_anchor.assert_any_call(window, "right", False)
-    layer_shell.set_size.assert_called_once_with(window, 64, 560)
-    window.set_size_request.assert_called_with(64, 560)
-    window.resize.assert_called_with(64, 560)
+    layer_shell.set_size.assert_not_called()
+    window.set_size_request.assert_called_with(64, -1)
+    window.resize.assert_called_with(1, 1)
     window.move.assert_not_called()
     assert service.popups_use_parent_relative_coordinates is True
     assert service.get_surface_position() == (100, 220)
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_layer_shell_releases_only_the_compositor_sized_axis(position):
+    layer_shell = _layer_shell()
+    window = MagicMock()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    service.configure_before_realize(window)
+    horizontal = position in (Position.TOP, Position.BOTTOM)
+    size = Size(800, 187) if horizontal else Size(187, 600)
+
+    service.position_or_anchor(
+        PlacementRequest(
+            monitor=_monitor_snapshot(), position=position, x=100, y=200, size=size
+        )
+    )
+
+    window.set_size_request.assert_called_once_with(
+        -1 if horizontal else 187, 187 if horizontal else -1
+    )
+    window.resize.assert_called_once_with(1, 1)
+    layer_shell.set_exclusive_zone.assert_not_called()
 
 
 def test_layer_shell_surface_position_clears_on_stop():
@@ -439,14 +496,14 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
             visible_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
-        launcher=SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock()),
+        **identity_services(),
         client=MagicMock(),
         event_stream_factory=lambda _callback: None,
     )
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
         window_service=window_service,
     )
@@ -478,7 +535,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     backend = NiriSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
-        launcher=SimpleNamespace(),
+        **identity_services(),
         protocol_runtime=_empty_runtime(),
     )
 

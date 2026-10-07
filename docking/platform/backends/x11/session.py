@@ -35,7 +35,8 @@ from docking.platform.backends.x11.services.workspaces import WnckWorkspaceServi
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -62,8 +63,20 @@ class X11SessionBackend(SessionBackend):
     native Wayland services exist.
     """
 
-    def __init__(self, *, model: DockModel, launcher: Launcher, config: Config) -> None:
-        windows = X11WindowService(model=model, launcher=launcher, config=config)
+    def __init__(
+        self,
+        *,
+        model: DockModel,
+        config: Config,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
+        windows = X11WindowService(
+            model=model,
+            config=config,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._services = X11RuntimeServices(
             windows=windows,
             previews=X11PreviewService(window_tracker=windows),

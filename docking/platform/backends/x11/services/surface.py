@@ -41,20 +41,32 @@ from docking.platform.backends.x11.impl.struts import (
     set_blur_region,
     set_dock_struts,
 )
+from docking.platform.backends.x11.impl.workarea import ExternalWorkareaTracker
 
 
 class X11SurfaceService(SurfaceService):
     """SurfaceService implementation for the current X11 dock window."""
 
-    def __init__(self, *, barrier: PointerBarrier | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        barrier: PointerBarrier | None = None,
+        workarea_tracker: ExternalWorkareaTracker | None = None,
+    ) -> None:
         self._window: object | None = None
         self._barrier = barrier if barrier is not None else PointerBarrier()
+        self._workarea = (
+            workarea_tracker
+            if workarea_tracker is not None
+            else ExternalWorkareaTracker()
+        )
 
     def start(self) -> None:
         """No service-level runtime loop is needed."""
 
     def stop(self) -> None:
-        """Release X11 pointer-barrier resources."""
+        """Release X11 edge-integration resources."""
+        self._workarea.stop()
         self._barrier.shutdown()
 
     def configure_before_realize(self, window: object) -> None:
@@ -72,6 +84,12 @@ class X11SurfaceService(SurfaceService):
         display = window.get_display()
         if display and isinstance(display, GdkX11.X11Display):
             self._barrier.initialize(gdk_display=display)
+            gdk_window = window.get_window()
+            if gdk_window and isinstance(gdk_window, GdkX11.X11Window):
+                self._workarea.initialize(
+                    gdk_display=display,
+                    own_xid=gdk_window.get_xid(),
+                )
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Apply X11 workspace stickiness for the dock window."""
@@ -115,7 +133,24 @@ class X11SurfaceService(SurfaceService):
             monitor_geom=monitor_geom,
             screen=screen,
             position=request.position,
+            edge_offset=request.edge_offset,
+            span_start=request.span_start,
+            span_end=request.span_end,
         )
+
+    def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Return space excluding mapped foreign X11 struts."""
+        return self._workarea.workarea_for(monitor)
+
+    def set_external_workarea_changed_handler(
+        self, callback: Callable[[], None] | None
+    ) -> None:
+        """Refresh placement when external panel reservations change."""
+        self._workarea.set_change_handler(callback)
+
+    def refresh_external_workarea(self) -> None:
+        """Refresh X11 screen dimensions and external strut state."""
+        self._workarea.refresh()
 
     def clear_reservation(self) -> None:
         """Clear X11 struts from the dock window."""

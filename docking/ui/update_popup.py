@@ -24,7 +24,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, Gio, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from docking import __version__
 from docking.core.position import is_horizontal
@@ -41,6 +41,7 @@ from docking.core.updates import (
 )
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import targets
 from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
@@ -330,10 +331,7 @@ class UpdateCheckController:
         self._notify_visible(False)
 
     def _open_url(self, url: str) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(url, None)
-        except Exception as exc:
-            log.warning("Failed to open release URL: %s", exc)
+        targets.open_target(url)
 
     def _notify_visible(self, visible: bool) -> None:
         if self._visibility_changed is not None:

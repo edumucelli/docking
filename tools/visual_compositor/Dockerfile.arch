@@ -1,0 +1,159 @@
+# Lab image for compositors that Debian does not package.
+#
+# Arch is the base for niri, cosmic-comp and newer Wayfire from its official
+# Extra repository -- one extra base image rather than one per compositor.
+# Sources checked: niri 26.04 and cosmic-comp 1.8.0 are both in Arch Extra for
+# x86_64 and aarch64. Neither is in Debian at any version.
+#
+# See Dockerfile for the Debian lanes (sway, labwc, cage, cinnamon, kwin,
+# gnome) and for the pywayland rationale, which is the same here.
+#
+#   docker build -f Dockerfile.arch --target niri   -t docking-lab-arch:niri   .
+#   docker build -f Dockerfile.arch --target cosmic -t docking-lab-arch:cosmic .
+#
+# tools/visual_compositor_matrix.sh picks this file for the compositors it
+# covers, based on the COMPOSITOR_BASE mapping near the top of that script.
+
+# ---------------------------------------------------------------------------
+# Stage: build pywayland from source.
+#
+# Debian's python3-pywayland lacked the staging protocol bindings Docking's
+# Wayland runtime imports; Arch's packaging has the same gap, and the project
+# vendors its own for exactly this reason
+# (packaging/deb/build-wayland-vendors.sh). Same approach, same install layout.
+# ---------------------------------------------------------------------------
+ARG ARCH_IMAGE=archlinux@sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
+ARG ARCH_SNAPSHOT=2026/10/02
+FROM ${ARCH_IMAGE} AS pywayland-builder
+ARG ARCH_SNAPSHOT
+RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+
+RUN pacman -Syyuu --noconfirm --needed \
+        base-devel \
+        python \
+        python-pip \
+        libffi \
+        wayland \
+        wayland-protocols \
+        pkgconf \
+    && pacman -Scc --noconfirm
+
+RUN python -m pip install --upgrade --ignore-installed --break-system-packages pip \
+    && python -m pip install --no-compile --no-binary=pywayland --break-system-packages \
+        --target="/vendors/vendor-python$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')" \
+        "pywayland==0.4.19" \
+    && rm -rf /vendors/vendor-python*/bin
+
+RUN PYTHONPATH="$(ls -d /vendors/vendor-python*)" python -c \
+        "from pywayland.client import Display; from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1; from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1"
+
+
+# ---------------------------------------------------------------------------
+# Stage: shared Arch base.
+# ---------------------------------------------------------------------------
+FROM ${ARCH_IMAGE} AS base
+ARG ARCH_SNAPSHOT
+RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+
+# Software rendering: correctness-representative, not performance-representative.
+ENV LIBGL_ALWAYS_SOFTWARE=1
+
+RUN pacman -Syyuu --noconfirm --needed \
+        python \
+        python-gobject \
+        python-cairo \
+        python-cffi \
+        gtk3 \
+        gtk-layer-shell \
+        glib2 \
+        dbus \
+        grim \
+        jq \
+        mesa \
+        mesa-utils \
+        adwaita-icon-theme \
+        hicolor-icon-theme \
+        ttf-dejavu \
+        ca-certificates \
+        util-linux \
+        diffutils \
+        sway \
+    && pacman -Scc --noconfirm
+
+# Arch ships sway with cap_sys_nice=ep on the binary. Executing a file with a
+# capability the container's bounding set does not include fails with EPERM
+# before main() runs, which surfaces as a bare "Operation not permitted" and
+# looks nothing like a capability problem. The capability only requests
+# realtime scheduling priority; dropping it costs the lab nothing.
+RUN setcap -r /usr/bin/sway && getcap /usr/bin/sway || true
+
+COPY --from=pywayland-builder /vendors/ /usr/lib/docking/
+
+# Same self-check shape as the Debian image: prove the pieces every lane needs
+# before a run depends on them.
+RUN set -eu; \
+    missing=""; \
+    for tool in gdbus dbus-run-session grim jq python3; do \
+        command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"; \
+    done; \
+    if [ -n "$missing" ]; then echo "missing tools:$missing" >&2; exit 1; fi; \
+    python3 -c 'import gi; gi.require_version("Gtk","3.0"); from gi.repository import Gtk, Gdk, Gio; import cairo; print("gi stack ok")'; \
+    python3 -c 'from gi.repository import GtkLayerShell; print("layer-shell GIR importable")' 2>/dev/null \
+        || echo "note: GtkLayerShell GIR needs a display to use (expected)"; \
+    vendor="$(ls -d /usr/lib/docking/vendor-python*)"; \
+    PYTHONPATH="$vendor" python3 -c "from pywayland.client import Display; from pywayland.protocol.ext_idle_notify_v1 import ExtIdleNotifierV1; print('vendored pywayland ok')"
+
+LABEL org.docking.purpose="headless Wayland compositor lab (non-Debian compositors)"
+
+
+# ---------------------------------------------------------------------------
+# Target: niri -- Smithay-based scrolling compositor.
+#
+# RUNS NESTED, inside the sway this image already carries. An earlier version of
+# this file said niri had no nested mode; that was wrong, and the error was
+# self-reinforcing -- the adapter set no parent display, niri fell through to
+# its TTY backend, and the resulting libseat error was read as proof that no
+# other route existed.
+#
+# niri picks its backend in src/niri.rs:741-755: with WAYLAND_DISPLAY,
+# WAYLAND_SOCKET or DISPLAY set it uses the winit (windowed) backend, otherwise
+# TTY. Nested needs no seat and no DRM device. Verified end to end: Docking runs
+# inside nested niri, selects wayland-layer-shell, and places correctly.
+# ---------------------------------------------------------------------------
+FROM base AS niri
+RUN pacman -Syu --noconfirm --needed niri && pacman -Scc --noconfirm
+RUN command -v niri && niri --version
+
+
+# ---------------------------------------------------------------------------
+# Target: cosmic -- cosmic-comp, Smithay-based.
+#
+# Same correction as niri, different switch: src/backend/mod.rs:20-46 reads
+# COSMIC_BACKEND (x11 | winit | kms). Unset, cosmic picks KMS unless a display
+# variable is set, and KMS is where LibSeatSession::new() fails with "Failed to
+# acquire session" -- the message this lab recorded and misattributed. The winit
+# and x11 backends never touch libseat.
+#
+# Verified: Docking selects its native COSMIC backend and places on all edges.
+# ---------------------------------------------------------------------------
+FROM base AS cosmic
+RUN pacman -Syu --noconfirm --needed cosmic-comp sway && pacman -Scc --noconfirm
+RUN setcap -r /usr/bin/sway; command -v sway && command -v cosmic-comp && cosmic-comp --version
+
+
+# ---------------------------------------------------------------------------
+# Target: all -- every non-Debian compositor.
+# ---------------------------------------------------------------------------
+FROM base AS all
+RUN pacman -Syu --noconfirm --needed niri cosmic-comp wayfire hyprland && pacman -Scc --noconfirm
+RUN command -v niri && command -v cosmic-comp
+
+# Wayfire >=0.11/wlroots >=0.19 supports Pixman without a DRM device.
+FROM base AS wayfire
+RUN pacman -Syu --noconfirm --needed wayfire && pacman -Scc --noconfirm
+RUN command -v wayfire && wayfire --version
+
+# Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
+FROM base AS hyprland
+RUN pacman -Syu --noconfirm --needed hyprland && pacman -Scc --noconfirm
+RUN command -v Hyprland && command -v hyprctl

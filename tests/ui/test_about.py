@@ -130,7 +130,6 @@ class TestAboutDialogController:
             "Gtk",
             _fake_gtk(),
         )
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
 
         # When
@@ -150,7 +149,6 @@ class TestAboutDialogController:
             "Gtk",
             _fake_gtk(),
         )
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
         controller.show()
         dialog = controller._dialog
@@ -165,30 +163,6 @@ class TestAboutDialogController:
         assert dialog.destroyed is True
         assert controller._dialog is None
 
-    def test_version_fallback_when_package_missing(self, monkeypatch):
-        # Given
-        monkeypatch.setattr(
-            about_mod,
-            "pkg_version",
-            MagicMock(side_effect=about_mod.PackageNotFoundError),
-        )
-        controller = about_mod.AboutDialogController(parent=object())
-
-        # When
-        result = controller._project_version()
-
-        # Then
-        assert result == about_mod.PROJECT_VERSION_FALLBACK
-        assert result == about_mod.docking_version
-
-    def test_source_version_is_preferred_over_installed_metadata(self, monkeypatch):
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "9.9.9")
-        controller = about_mod.AboutDialogController(parent=object())
-
-        result = controller._project_version()
-
-        assert result == about_mod.docking_version
-
     def test_show_sets_license(self, monkeypatch):
         # Given
         monkeypatch.setattr(
@@ -196,7 +170,6 @@ class TestAboutDialogController:
             "Gtk",
             _fake_gtk(),
         )
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         monkeypatch.setattr(about_mod, "PROJECT_LICENSE_PATH", MagicMock())
         about_mod.PROJECT_LICENSE_PATH.read_text.return_value = "GPL text"
         controller = about_mod.AboutDialogController(parent=object())
@@ -217,7 +190,6 @@ class TestAboutDialogController:
             "Gtk",
             _fake_gtk(),
         )
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "9.9.9")
         controller = about_mod.AboutDialogController(parent=object())
 
         controller.show()
@@ -250,7 +222,6 @@ class TestAboutDialogController:
 
     def test_show_sets_website_and_github_button(self, monkeypatch):
         monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
-        monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
         controller = about_mod.AboutDialogController(parent=object())
 
         controller.show()
@@ -263,21 +234,14 @@ class TestAboutDialogController:
 
     def test_help_response_opens_project_github(self, monkeypatch):
         monkeypatch.setattr(about_mod, "Gtk", _fake_gtk())
-        launch_default_for_uri = MagicMock()
-        monkeypatch.setattr(
-            about_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            launch_default_for_uri,
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(about_mod.targets, "open_target", open_target)
         controller = about_mod.AboutDialogController(parent=object())
         dialog = FakeAboutDialog()
 
         controller._on_response(dialog, about_mod.Gtk.ResponseType.HELP)
 
-        launch_default_for_uri.assert_called_once_with(
-            about_mod.PROJECT_GITHUB_URL,
-            None,
-        )
+        open_target.assert_called_once_with(about_mod.PROJECT_GITHUB_URL)
         assert dialog.hidden is False
 
     def test_license_fallback_when_license_file_missing(self, monkeypatch):

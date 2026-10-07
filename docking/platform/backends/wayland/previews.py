@@ -26,7 +26,8 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
@@ -35,7 +36,8 @@ from docking.platform.backends.base import (
 )
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 SHM_ARGB8888 = 0
@@ -53,8 +55,16 @@ class _PreviewToplevelState:
     title: str = ""
     app_id: str = ""
     identifier: str = ""
-    desktop_id: str | None = None
+    application_match: ApplicationMatch | None = None
     closed: bool = False
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 @dataclass
@@ -111,9 +121,19 @@ class _PhocCaptureRequest:
 class WaylandPreviewHandleTracker:
     """Tracks ext-foreign-toplevel-list handles for preview capture."""
 
-    def __init__(self, *, model: DockModel, launcher: Launcher, protocol: object):
+    def __init__(
+        self,
+        *,
+        model: DockModel,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+        protocol: object,
+    ):
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._protocol = protocol
         self._state_by_handle: dict[object, _PreviewToplevelState] = {}
         self._handle_by_window_id: dict[WindowId, object] = {}
@@ -196,12 +216,15 @@ class WaylandPreviewHandleTracker:
 
     def _refresh_match(self, state: _PreviewToplevelState) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
-        state.desktop_id = self._matcher.match(state.app_id) if state.app_id else None
+        state.application_match = (
+            self._matcher.match_result(state.app_id) if state.app_id else None
+        )
 
     def _match_handle(
         self, *, desktop_id: str | None, app_id: str, title: str
     ) -> object | None:
         self._matcher.sync_visible_items(self._model.visible_items())
+        matches = []
         for state in self._state_by_handle.values():
             if state.closed:
                 continue
@@ -209,11 +232,15 @@ class WaylandPreviewHandleTracker:
                 self._refresh_match(state)
             if desktop_id and state.desktop_id != desktop_id:
                 continue
-            if title and state.title and state.title == title:
-                return state.handle
-            if app_id and state.app_id and state.app_id == app_id:
-                return state.handle
-        return None
+            if app_id and state.app_id != app_id and not desktop_id:
+                continue
+            if title and state.title != title:
+                continue
+            if desktop_id or app_id:
+                matches.append(state.handle)
+        # Native IPC and listing protocols do not share IDs. Ambiguous title/app
+        # matches must not expose a different window's contents.
+        return matches[0] if len(matches) == 1 else None
 
 
 class WaylandPreviewService(PreviewService):
@@ -262,10 +289,15 @@ class WaylandPreviewService(PreviewService):
         handle = self._handles.handle_for_window_id(window_id)
         if handle is None:
             return
+        source = None
         try:
             source = self._protocol.create_source(handle)
             session = self._protocol.create_session(source)
         except Exception:
+            destroy = getattr(source, "destroy", None)
+            if callable(destroy):
+                with suppress(Exception):
+                    destroy()
             return
         request = _CaptureRequest(
             window_id=window_id,
@@ -295,6 +327,8 @@ class WaylandPreviewService(PreviewService):
         request.shm_formats.add(int(format_))
 
     def _on_constraints_done(self, request: _CaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         if request.frame is not None:
             return
         if request.width <= 0 or request.height <= 0:
@@ -458,6 +492,8 @@ class HyprlandPreviewService(PreviewService):
         request.stride = int(stride)
 
     def _on_buffer_done(self, request: _HyprlandCaptureRequest) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         if request.width <= 0 or request.height <= 0 or request.stride <= 0:
             self._finish_failed(request)
             return
@@ -578,6 +614,8 @@ class PhocPreviewService(PreviewService):
         height: int,
         stride: int,
     ) -> None:
+        if self._pending.get(request.window_id) is not request:
+            return
         format_ = int(format_)
         if format_ not in _PREFERRED_SHM_FORMATS:
             self._finish_failed(request)

@@ -32,7 +32,9 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
@@ -49,10 +51,11 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 log = get_logger(name="backend.gnome.bridge")
@@ -167,6 +170,18 @@ class GnomeShellBridgeClient:
         result = self._call("ActivateWorkspace", GLib.Variant("(u)", (bridge_id,)))
         return bool(result.unpack()[0]) if result is not None else False
 
+    def subscribe_available(self, callback: Callable[[], None]) -> int:
+        """Notify when the extension returns after losing its bus name."""
+
+        def owner_changed(proxy: Gio.DBusProxy, _property: object) -> None:
+            if proxy.get_name_owner():
+                callback()
+
+        return self._proxy.connect("notify::g-name-owner", owner_changed)
+
+    def unsubscribe_available(self, handle: int) -> None:
+        self._proxy.disconnect(handle)
+
     def subscribe_changed(self, callback: Callable[[], None]) -> int | None:
         """Subscribe to extension state changes."""
         connection = self._proxy.get_connection()
@@ -224,7 +239,7 @@ class _BridgeWindow:
     bridge_id: int
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     minimized: bool
     maximized: bool
@@ -232,10 +247,23 @@ class _BridgeWindow:
     monitor: int | None
     workspace_id: str | None
     geometry: Rect | None
+    pid: int | None
+    visible: bool
+    sticky: bool
+    dialog: bool
+    skip_taskbar: bool
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=f"gnome:{self.bridge_id}")
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 class GnomeShellBridgeWindowService(WindowService):
@@ -245,15 +273,20 @@ class GnomeShellBridgeWindowService(WindowService):
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         bridge: object,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._bridge = bridge
         self._windows_by_id: dict[int, _BridgeWindow] = {}
         self._changed_handle: object | None = None
         self._poll_source_id = 0
+        self._changes = WindowChanges()
 
     def start(self) -> None:
         subscribe = getattr(self._bridge, "subscribe_changed", None)
@@ -271,6 +304,7 @@ class GnomeShellBridgeWindowService(WindowService):
             unsubscribe(self._changed_handle)
         self._changed_handle = None
         self._windows_by_id.clear()
+        self._changes.clear()
         self._model.update_running(running={})
 
     def refresh(self) -> None:
@@ -284,6 +318,13 @@ class GnomeShellBridgeWindowService(WindowService):
                 windows[window.bridge_id] = window
         self._windows_by_id = windows
         self._publish_running()
+        self._changes.notify()
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         return tuple(
@@ -294,7 +335,7 @@ class GnomeShellBridgeWindowService(WindowService):
         return tuple(
             self._snapshot_for(window)
             for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id
+            if window.desktop_id == desktop_id and not window.skip_taskbar
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -368,13 +409,16 @@ class GnomeShellBridgeWindowService(WindowService):
         if bridge_id is None:
             return None
         app_id = _str_from_row(row, "app-id")
-        desktop_id = self._matcher.match(app_id) if app_id else None
+        pid = _int_from_row(row, "pid")
+        if pid is not None and pid <= 0:
+            pid = None
+        match = self._matcher.match_result(app_id, process_id=pid) if app_id else None
         geometry = _rect_from_row(row)
         return _BridgeWindow(
             bridge_id=bridge_id,
             title=_str_from_row(row, "title") or "Window",
             app_id=app_id,
-            desktop_id=desktop_id,
+            application_match=match,
             active=_bool_from_row(row, "active"),
             minimized=_bool_from_row(row, "minimized"),
             maximized=_bool_from_row(row, "maximized"),
@@ -382,12 +426,17 @@ class GnomeShellBridgeWindowService(WindowService):
             monitor=_int_from_row(row, "monitor"),
             workspace_id=_workspace_id_from_row(row),
             geometry=geometry,
+            pid=pid,
+            visible=row.get("visible") is True,
+            sticky=row.get("sticky") is True,
+            dialog=row.get("dialog") is True,
+            skip_taskbar=row.get("skip-taskbar") is True,
         )
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for window in self._windows_by_id.values():
-            if window.desktop_id is None:
+            if window.desktop_id is None or window.skip_taskbar:
                 continue
             windows_by_desktop.setdefault(window.desktop_id, []).append(
                 RunningWindowInfo(
@@ -397,6 +446,11 @@ class GnomeShellBridgeWindowService(WindowService):
                     active=window.active,
                     urgent=False,
                     window=window.bridge_id,
+                    runtime_app=(
+                        window.application_match.runtime_app
+                        if window.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -422,13 +476,18 @@ class GnomeShellBridgeWindowService(WindowService):
             can_minimize=True,
             can_close=True,
             can_preview=True,
+            visible=window.visible,
+            sticky=window.sticky,
+            dialog=window.dialog,
+            pid=window.pid,
+            skip_taskbar=window.skip_taskbar,
         )
 
     def _windows_for_desktop(self, desktop_id: str) -> list[_BridgeWindow]:
         return [
             window
             for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id
+            if window.desktop_id == desktop_id and not window.skip_taskbar
         ]
 
     def _first_window_for_desktop(self, desktop_id: str) -> _BridgeWindow | None:
@@ -649,6 +708,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         self._position_retry_source_id: int = 0
         self._position_retry_attempts_remaining: int = 0
         self._latest_position_request: PlacementRequest | None = None
+        self._available_handle: int | None = None
         # Wayland: GTK does not know the absolute screen position.
         # We track it here so get_surface_position() can return it.
         self._surface_x: int | None = None
@@ -657,13 +717,25 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     # -- SurfaceService ---------------------------------------------------
 
     def start(self) -> None:
-        pass
+        subscribe = getattr(self._bridge, "subscribe_available", None)
+        if callable(subscribe) and self._available_handle is None:
+            self._available_handle = subscribe(self._bridge_available)
+
+    def _bridge_available(self) -> None:
+        request = self._latest_position_request
+        if request is not None:
+            self._position_retry_attempts_remaining = _DOCK_POSITION_RETRY_ATTEMPTS
+            self._apply_position_request(request)
+            self._schedule_position_retry()
 
     @property
     def popups_use_parent_relative_coordinates(self) -> bool:
         return True
 
     def stop(self) -> None:
+        if self._available_handle is not None:
+            self._bridge.unsubscribe_available(self._available_handle)
+            self._available_handle = None
         if self._position_retry_source_id:
             GLib.source_remove(self._position_retry_source_id)
             self._position_retry_source_id = 0

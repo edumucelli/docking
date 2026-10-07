@@ -31,6 +31,7 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
@@ -52,7 +53,8 @@ from docking.platform.backends.wayland.wayfire_ipc import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -69,6 +71,7 @@ class WayfireRuntimeServices:
     screen_capture: ScreenCaptureService | None
     window_picker: WindowPickService | None
     protocol_runtime: WaylandProtocolRuntime | None
+    idle: IdleService | None
 
 
 class WayfireSessionBackend(SessionBackend):
@@ -79,7 +82,8 @@ class WayfireSessionBackend(SessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
@@ -98,7 +102,8 @@ class WayfireSessionBackend(SessionBackend):
 
         windows = window_service or load_wayfire_window_service(
             model=model,
-            launcher=launcher,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
         )
         if windows is None:
             windows = ReducedWindowService()
@@ -135,6 +140,9 @@ class WayfireSessionBackend(SessionBackend):
             else load_portal_color_picker(),
             window_picker=picker,
             protocol_runtime=runtime,
+            idle=WaylandIdleService(protocol=runtime.idle_protocol)
+            if runtime is not None and runtime.idle_protocol is not None
+            else None,
         )
 
     @property
@@ -174,6 +182,7 @@ class WayfireSessionBackend(SessionBackend):
         # pointer barriers, blur hints, idle time, and per-window workspace
         # coordinates for current-workspace filtering.
         return PlatformCapabilities(
+            supports_idle_time=self._services.idle is not None,
             tracks_windows=tracks_windows,
             tracks_active_window=tracks_windows,
             tracks_minimized=tracks_windows,
@@ -231,13 +240,15 @@ class WayfireSessionBackend(SessionBackend):
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._services.idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
         return self._services.window_picker
 
     def start(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.start()
         self._services.previews.start()
         self._services.windows.start()
         self._services.surface.start()
@@ -252,6 +263,8 @@ class WayfireSessionBackend(SessionBackend):
             self._services.window_picker.start()
 
     def stop(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.stop()
         if self._services.window_picker is not None:
             self._services.window_picker.stop()
         if self._services.screen_capture is not None:

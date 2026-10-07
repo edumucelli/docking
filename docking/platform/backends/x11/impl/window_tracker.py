@@ -116,9 +116,11 @@ Wnck emits:
 - window-opened
 - window-closed
 - active-window-changed
+- per-window state-changed
 
-On each relevant signal, this module rescans the current window list and
-rebuilds the aggregate. That is a pragmatic design:
+On each relevant signal, including attention-state transitions, this module
+rescans the current window list and rebuilds the aggregate. That is a pragmatic
+design:
 
 - simpler than maintaining many incremental partial updates,
 - resilient to window-manager state changing underneath us,
@@ -151,6 +153,8 @@ pretending the X11 world is stable during every scan.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import gi
@@ -162,7 +166,9 @@ import os
 from gi.repository import GLib, Gtk, Wnck
 
 from docking.log import get_logger, with_context
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -170,7 +176,15 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.backends.diagnostics import (
+    IdentityHintStatus,
+    WindowDiagnostic,
+    WindowIdentityHint,
+    WindowReason,
+    WindowTrackingDiagnostic,
+    with_match,
+)
+from docking.platform.backends.x11.impl.identity_hints import X11IdentityHintReader
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
 # so only add it to the catch tuple when it actually is one.
@@ -185,7 +199,8 @@ log = with_context(get_logger(name="window_tracker"))
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -193,40 +208,88 @@ class WindowMatcher:
     """Matches live Wnck windows to desktop IDs using WM_CLASS-like hints.
 
     This is a thin X11-specific wrapper around the shared
-    :class:`~docking.platform.app_matcher.AppIdMatcher`.  The wrapping
+    :class:`~docking.platform.applications.matcher.AppIdMatcher`. The wrapping
     handles Wnck-specific window property extraction (class group,
     class instance) and defensive error handling; all matching
     heuristics live in the shared matcher so they apply uniformly
     across X11 and Wayland backends.
     """
 
-    def __init__(self, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        *,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
         self._app_matcher = AppIdMatcher(
-            launcher=launcher,
+            registry=application_registry,
+            process_identity_service=process_identity_service,
             cache_missed_desktop_ids=True,
         )
+        self.last_diagnostic = WindowDiagnostic()
+        self._identity_read_errors: list[str] = []
 
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
         """Refresh pinned/transient alias hints from current dock items."""
         self._app_matcher.sync_visible_items(items)
 
-    def match(self, window: Wnck.Window) -> str | None:
-        """Return the desktop ID for a window, or None when no match is known."""
+    def match_result(
+        self,
+        window: Wnck.Window,
+        *,
+        identity_hints: tuple[WindowIdentityHint, ...] = (),
+    ) -> ApplicationMatch | None:
+        """Match explicit application identities before WM_CLASS heuristics."""
+        self._identity_read_errors = []
         class_group = self._class_group_for(window=window)
-        if not class_group:
-            return None
         class_instance = self._class_instance_for(window=window)
-        return self._app_matcher.match(
-            app_id=class_group,
+        application_ids = tuple(
+            hint.value
+            for hint in identity_hints
+            if hint.status is IdentityHintStatus.PRESENT and hint.value
+        )
+        attempt = self._app_matcher.match_attempt(
+            app_id=class_group or "",
             instance_hint=class_instance,
             prefer_raw_app_id=False,
             defer_wm_class_lookup=True,
+            process_id=self._pid_for(window=window),
+            application_ids=application_ids,
         )
+        class_failed = "wm-class" in self._identity_read_errors
+        reason = (
+            WindowReason.CLASS_READ_FAILED
+            if class_failed
+            else WindowReason.EMPTY_CLASS
+            if not class_group
+            else WindowReason.NO_MATCH
+        )
+        self.last_diagnostic = with_match(
+            WindowDiagnostic(
+                identities=(
+                    ("wm-class", class_group or ""),
+                    ("wm-class-instance", class_instance or ""),
+                ),
+                pid=attempt.pid,
+                executable_path=str(attempt.executable_path)
+                if attempt.executable_path
+                else None,
+                sandbox_app_id=attempt.sandbox_app_id,
+                script_basename=attempt.script_basename,
+                outcome="error" if class_failed else "unmatched",
+                reason=reason,
+                read_errors=tuple(self._identity_read_errors),
+                identity_hints=identity_hints,
+            ),
+            attempt.match,
+        )
+        return attempt.match
 
     def _class_group_for(self, *, window: Wnck.Window) -> str | None:
         try:
             return window.get_class_group_name() or None
         except _RECOVERABLE_ERRORS as exc:
+            self._identity_read_errors.append("wm-class")
             log.bind(action="class_group").warning(
                 f"Skipping window: failed to read class group: {exc}"
             )
@@ -236,22 +299,50 @@ class WindowMatcher:
         try:
             return window.get_class_instance_name() or None
         except _RECOVERABLE_ERRORS as exc:
+            self._identity_read_errors.append("wm-class-instance")
             log.bind(action="class_instance").warning(
                 f"Failed to read class instance name: {exc}"
             )
             return None
 
+    def _pid_for(self, *, window: Wnck.Window) -> int | None:
+        try:
+            pid = int(window.get_pid())
+        except _GEOMETRY_ERRORS as exc:
+            self._identity_read_errors.append("pid")
+            log.bind(action="window_pid").debug(
+                "Failed to read window process ID: %s",
+                exc,
+            )
+            return None
+        return pid if pid > 0 else None
+
 
 class WindowTracker:
     """Tracks running applications and maps them to dock items via WM_CLASS."""
 
-    def __init__(self, model: DockModel, launcher: Launcher, config: Config) -> None:
+    def __init__(
+        self,
+        model: DockModel,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+    ) -> None:
         self._model = model
         self._config = config
-        self._launcher = launcher
+        self._application_registry = application_registry
+        self._identity_hint_reader = X11IdentityHintReader()
+        self._tracking_diagnostic = WindowTrackingDiagnostic(
+            status="pending", detail="No window tracking scan has completed."
+        )
         self._screen: Wnck.Screen | None = None
         self._screen_signal_ids: list[int] = []
-        self._matcher = WindowMatcher(launcher=launcher)
+        self._window_state_signal_ids: dict[int, tuple[Wnck.Window, int]] = {}
+        self._matcher = WindowMatcher(
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         # Latest known window XIDs per desktop_id from _update_running().
         # Preview/toggle paths use this cache to avoid rematching WM_CLASS
         # during hover-time UI events.
@@ -303,9 +394,66 @@ class WindowTracker:
                 )
         self._screen_signal_ids = []
 
+    def _disconnect_window_state_signal(self, *, xid: int) -> None:
+        registration = self._window_state_signal_ids.pop(xid, None)
+        if registration is None:
+            return
+        window, handler_id = registration
+        try:
+            window.disconnect(handler_id)
+        except Exception as exc:
+            log.bind(action="disconnect_window_state", xid=str(xid)).debug(
+                "Failed to disconnect window state signal: %s",
+                exc,
+            )
+
+    def _disconnect_window_state_signals(self) -> None:
+        for xid in list(self._window_state_signal_ids):
+            self._disconnect_window_state_signal(xid=xid)
+
+    def _reconcile_window_state_signals(
+        self, *, windows: Iterable[Wnck.Window]
+    ) -> None:
+        """Track attention-state signals for the current tasklist windows."""
+        current_by_xid: dict[int, Wnck.Window] = {}
+        for window in windows:
+            xid = self._xid_for(window=window)
+            if xid:
+                current_by_xid[xid] = window
+
+        for xid, (window, _handler_id) in list(self._window_state_signal_ids.items()):
+            if current_by_xid.get(xid) is not window:
+                self._disconnect_window_state_signal(xid=xid)
+
+        for xid, window in current_by_xid.items():
+            if xid in self._window_state_signal_ids:
+                continue
+            try:
+                handler_id = window.connect(
+                    "state-changed", self._on_window_state_changed
+                )
+            except _RECOVERABLE_ERRORS as exc:
+                log.bind(action="connect_window_state", xid=str(xid)).warning(
+                    "Failed to connect window state signal: %s",
+                    exc,
+                )
+                continue
+            self._window_state_signal_ids[xid] = (window, handler_id)
+
     def _on_window_changed(self, _screen: Wnck.Screen, *_args: Any) -> None:
         """Called when any window state changes."""
         self._update_running()
+
+    def _on_window_state_changed(
+        self,
+        _window: Wnck.Window,
+        changed_mask: Wnck.WindowState,
+        _new_state: Wnck.WindowState,
+    ) -> None:
+        """Refresh only for state changes that can alter urgency."""
+        attention_mask = Wnck.WindowState.DEMANDS_ATTENTION | Wnck.WindowState.URGENT
+        if changed_mask & attention_mask:
+            self._update_running()
 
     def _update_running(self) -> None:
         """Scan all windows and update the dock model."""
@@ -323,16 +471,48 @@ class WindowTracker:
             if self._config.current_workspace_only
             else None
         )
+        records: list[WindowDiagnostic] = []
+        discovery = self._application_registry.diagnostic_snapshot()
+        try:
+            windows = list(self._iter_tasklist_windows(diagnostics=records))
+        except Exception:
+            self._tracking_diagnostic = WindowTrackingDiagnostic(
+                status="failed",
+                scanned_at=datetime.now(tz=timezone.utc),
+                registry_generation=discovery.generation,
+                application_discovery=discovery,
+                windows=tuple(records),
+                detail="X11 window enumeration failed.",
+            )
+            raise
+        self._reconcile_window_state_signals(windows=windows)
+
         snapshots_by_desktop: dict[str, list[RunningWindowInfo]] = {}
-        for window in self._iter_tasklist_windows():
+        for window in windows:
             if active_workspace is not None and not self._window_on_workspace(
                 window=window,
                 workspace=active_workspace,
             ):
+                records.append(
+                    self._diagnostic_record(
+                        window, outcome="excluded", reason=WindowReason.WORKSPACE
+                    )
+                )
                 continue
-            desktop_id = self._matcher.match(window=window)
-            if desktop_id is None:
+            try:
+                hints = self._identity_hint_reader.read(int(window.get_xid()))
+            except _GEOMETRY_ERRORS:
+                hints = ()
+            match = self._matcher.match_result(window=window, identity_hints=hints)
+            record = replace(
+                self._matcher.last_diagnostic,
+                window_id=self._diagnostic_record(window).window_id,
+                workspace=self._diagnostic_workspace(window),
+            )
+            if match is None:
+                records.append(record)
                 continue
+            desktop_id = match.desktop_id
             # Preserve the old scan semantics: once a window matched a desktop
             # ID, the app existed in the aggregate even if a later XID read
             # failed. That can produce count=0 for a racey window, but it avoids
@@ -343,9 +523,19 @@ class WindowTracker:
                 window=window,
                 desktop_id=desktop_id,
                 active_xid=active_xid,
+                match=match,
             )
             if snapshot is not None:
                 snapshots_by_desktop[desktop_id].append(snapshot)
+                records.append(record)
+            else:
+                records.append(
+                    replace(
+                        record,
+                        outcome="error",
+                        reason=WindowReason.XID_READ_FAILED,
+                    )
+                )
 
         running = self._aggregate_running(windows_by_desktop=snapshots_by_desktop)
         self._last_running = dict(running)
@@ -353,7 +543,39 @@ class WindowTracker:
             desktop_id: list(info.xids) for desktop_id, info in running.items()
         }
         self._cleanup_cycle_state(active_desktop_ids=set(running))
+        self._tracking_diagnostic = WindowTrackingDiagnostic(
+            status="available",
+            scanned_at=datetime.now(tz=timezone.utc),
+            registry_generation=discovery.generation,
+            application_discovery=discovery,
+            windows=tuple(records),
+            detail="Last completed window tracking scan.",
+        )
         self._model.update_running(running=running)
+
+    def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
+        return self._tracking_diagnostic
+
+    @staticmethod
+    def _diagnostic_workspace(window: Wnck.Window) -> str | None:
+        try:
+            workspace = window.get_workspace()
+            return str(workspace.get_number()) if workspace is not None else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _diagnostic_record(
+        window: Wnck.Window,
+        *,
+        outcome="unmatched",
+        reason: WindowReason = WindowReason.NO_MATCH,
+    ) -> WindowDiagnostic:
+        try:
+            window_id = str(WindowId.x11(window.get_xid()))
+        except Exception:
+            window_id = None
+        return WindowDiagnostic(window_id=window_id, outcome=outcome, reason=reason)
 
     def _active_xid(self) -> int:
         """Return the active window XID for the current scan."""
@@ -370,15 +592,25 @@ class WindowTracker:
             )
             return 0
 
-    def _iter_tasklist_windows(self) -> Iterable[Wnck.Window]:
+    def _iter_tasklist_windows(
+        self, *, diagnostics: list[WindowDiagnostic] | None = None
+    ) -> Iterable[Wnck.Window]:
         """Yield windows that should count as application tasklist windows."""
         if self._screen is None:
             return
         own_pid = os.getpid()
+
+        def record(window, outcome, reason):
+            if diagnostics is not None:
+                diagnostics.append(
+                    self._diagnostic_record(window, outcome=outcome, reason=reason)
+                )
+
         for window in self._screen.get_windows():
             try:
                 window_type = window.get_window_type()
             except _RECOVERABLE_ERRORS as exc:
+                record(window, "error", WindowReason.WINDOW_TYPE_READ_FAILED)
                 log.bind(action="window_type").warning(
                     f"Skipping window: failed to read window type: {exc}"
                 )
@@ -387,11 +619,14 @@ class WindowTracker:
             # protects later matching code from desktop-shell windows that can
             # be unsafe to query for WM_CLASS on some environments.
             if window_type in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK):
+                record(window, "excluded", WindowReason.DESKTOP_OR_DOCK)
                 continue
             try:
                 if window.is_skip_tasklist():
+                    record(window, "excluded", WindowReason.SKIP_TASKLIST)
                     continue
             except _RECOVERABLE_ERRORS as exc:
+                record(window, "error", WindowReason.SKIP_TASKLIST_READ_FAILED)
                 log.bind(action="skip_tasklist").warning(
                     f"Skipping window: failed to read skip-tasklist state: {exc}"
                 )
@@ -399,13 +634,19 @@ class WindowTracker:
             # Never track windows belonging to Docking itself (settings dialog, etc.).
             try:
                 if window.get_pid() == own_pid:
+                    record(window, "excluded", WindowReason.OWN_PROCESS)
                     continue
             except _RECOVERABLE_ERRORS:
                 pass
             yield window
 
     def _window_snapshot(
-        self, *, window: Wnck.Window, desktop_id: str, active_xid: int
+        self,
+        *,
+        window: Wnck.Window,
+        desktop_id: str,
+        active_xid: int,
+        match: ApplicationMatch,
     ) -> RunningWindowInfo | None:
         """Convert one live Wnck window into typed running state."""
         # Wnck windows are live wrappers around X11 state. The window can vanish
@@ -434,6 +675,7 @@ class WindowTracker:
             active=xid == active_xid,
             urgent=urgent,
             window=window,
+            runtime_app=match.runtime_app,
         )
 
     @staticmethod

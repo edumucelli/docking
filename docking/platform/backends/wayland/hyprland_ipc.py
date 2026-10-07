@@ -17,6 +17,7 @@ compositor.
 from __future__ import annotations
 
 import json
+import math
 import os
 import socket
 import threading
@@ -24,10 +25,14 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from gi.repository import GLib
 
 from docking.log import get_logger
-from docking.platform.app_matcher import AppIdMatcher
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -35,8 +40,14 @@ from docking.platform.backends.base import (
     WindowId,
     WindowService,
     WindowSnapshot,
+    WorkspaceService,
+    WorkspaceSnapshot,
 )
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.backends.visibility import WindowChanges
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
 
 log = get_logger(name="hyprland_ipc")
 
@@ -52,6 +63,12 @@ _TASKBAR_EVENTS = {
     "fullscreen",
     "pin",
     "minimized",
+    "activespecialv2",
+    "monitoraddedv2",
+    "monitorremoved",
+    "createworkspacev2",
+    "destroyworkspacev2",
+    "moveworkspacev2",
 }
 
 
@@ -85,7 +102,7 @@ class HyprlandWindowRecord:
     address: str
     title: str
     app_id: str
-    desktop_id: str | None
+    application_match: ApplicationMatch | None
     active: bool
     urgent: bool
     minimized: bool | None
@@ -93,10 +110,22 @@ class HyprlandWindowRecord:
     pinned: bool | None
     geometry: Rect | None
     workspace_id: str | None
+    pid: int | None
+    mapped: bool = True
+    hidden: bool = False
+    maximized: bool | None = None
 
     @property
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.address)
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 class HyprlandIpcClient:
@@ -167,6 +196,7 @@ class HyprlandEventStream:
         """Start the reader thread once."""
         if self._thread is not None:
             return
+        self._stop.clear()
         self._thread = threading.Thread(
             target=self._run,
             name="docking-hyprland-events",
@@ -180,7 +210,7 @@ class HyprlandEventStream:
         sock = self._socket
         if sock is not None:
             with suppress(OSError):
-                sock.close()
+                sock.shutdown(socket.SHUT_RDWR)
         thread = self._thread
         if thread is not None:
             thread.join(timeout=self._timeout)
@@ -194,16 +224,20 @@ class HyprlandEventStream:
                 sock.settimeout(self._timeout)
                 sock.connect(str(self._paths.events))
                 sock.settimeout(None)
-                file_obj = sock.makefile("rb")
-                for raw_line in file_obj:
-                    if self._stop.is_set():
-                        break
-                    event = parse_hyprland_event(raw_line.decode("utf-8", "replace"))
-                    if event is not None:
-                        self._callback(event)
+                with sock.makefile("rb") as file_obj:
+                    for raw_line in file_obj:
+                        if self._stop.is_set():
+                            break
+                        event = parse_hyprland_event(
+                            raw_line.decode("utf-8", "replace")
+                        )
+                        if event is not None:
+                            self._callback(event)
         except OSError as exc:
             if not self._stop.is_set():
                 log.info("Hyprland event stream stopped: %s", exc)
+        finally:
+            self._socket = None
 
 
 class HyprlandWindowService(WindowService):
@@ -213,7 +247,8 @@ class HyprlandWindowService(WindowService):
         self,
         *,
         model,
-        launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         client: HyprlandIpcClient,
         event_stream_factory: Callable[
             [Callable[[HyprlandEvent], None]], HyprlandEventStream | None
@@ -221,19 +256,36 @@ class HyprlandWindowService(WindowService):
         preview_handle_source: object | None = None,
     ) -> None:
         self._model = model
-        self._matcher = AppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._client = client
         self._event_stream_factory = event_stream_factory
         self._event_stream: HyprlandEventStream | None = None
         self._preview_handle_source = preview_handle_source
         self._records_by_address: dict[str, HyprlandWindowRecord] = {}
+        self._visible_workspaces: set[str] = set()
+        self._changes = WindowChanges()
+        self._pending = 0
+        self._started = False
 
-    def set_preview_handle_source(self, source: object | None) -> None:
-        """Set a companion protocol service used only for preview handle lookup."""
-        self._preview_handle_source = source
+    @property
+    def client(self) -> HyprlandIpcClient:
+        return self._client
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
+
+    def refresh(self) -> None:
+        self._refresh()
 
     def start(self) -> None:
         """Load initial clients and subscribe to taskbar-relevant changes."""
+        self._started = True
         self._start_preview_handle_source()
         self._refresh()
         self._event_stream = self._event_stream_factory(self._on_event)
@@ -242,11 +294,18 @@ class HyprlandWindowService(WindowService):
 
     def stop(self) -> None:
         """Stop event delivery and clear published running state."""
+        self._started = False
+        if self._pending:
+            GLib.source_remove(self._pending)
+            self._pending = 0
         if self._event_stream is not None:
             self._event_stream.stop()
             self._event_stream = None
         self._stop_preview_handle_source()
         self._records_by_address.clear()
+        self._visible_workspaces.clear()
+        self._changes.notify()
+        self._changes.clear()
         self._model.update_running(running={})
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
@@ -302,18 +361,12 @@ class HyprlandWindowService(WindowService):
         return self.activate_most_recent(desktop_id=desktop_id)
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
-        """Minimize all known windows for an app."""
-        records = self._records_for_desktop(desktop_id)
-        if not records:
-            return ActionResult.NOT_FOUND
-        result = ActionResult.OK
-        for record in records:
-            action = self._client.dispatch(
-                f"setprop address:{record.address} minimized 1"
-            )
-            if action is not ActionResult.OK:
-                result = action
-        return result
+        """Hyprland has no public minimize dispatcher or client state."""
+        return (
+            ActionResult.UNSUPPORTED
+            if self._records_for_desktop(desktop_id)
+            else ActionResult.NOT_FOUND
+        )
 
     def close(self, window_id: WindowId) -> ActionResult:
         """Close a Hyprland window by address."""
@@ -344,27 +397,44 @@ class HyprlandWindowService(WindowService):
         return self.close(record.window_id)
 
     def toggle_focus(self, desktop_id: str) -> ActionResult:
-        """Focus inactive apps; minimize active apps when possible."""
+        """Focus the app without inventing an unsupported minimize request."""
         record = self._first_record_for_desktop(desktop_id)
         if record is None:
             return ActionResult.NOT_FOUND
-        if record.active:
-            return self._client.dispatch(
-                f"setprop address:{record.address} minimized 1"
-            )
         return self.activate(record.window_id)
 
     def _on_event(self, event: HyprlandEvent) -> None:
-        if event.name in _TASKBAR_EVENTS:
+        if self._started and event.name in _TASKBAR_EVENTS and not self._pending:
+            self._pending = GLib.idle_add(self._dispatch_refresh)
+
+    def _dispatch_refresh(self) -> bool:
+        self._pending = 0
+        if self._started:
             self._refresh()
+        return False
 
     def _refresh(self) -> None:
         try:
             clients = self._client.query_json("clients")
             active = self._client.query_json("activewindow")
+            monitors = self._client.query_json("monitors")
         except (OSError, json.JSONDecodeError) as exc:
             log.info("Hyprland IPC snapshot unavailable: %s", exc)
+            self._records_by_address.clear()
+            self._visible_workspaces.clear()
+            self._publish_running()
+            self._changes.notify()
             return
+        visible: set[str] = set()
+        if isinstance(monitors, list):
+            for monitor in monitors:
+                if not isinstance(monitor, Mapping) or monitor.get("disabled") is True:
+                    continue
+                for key in ("activeWorkspace", "specialWorkspace"):
+                    workspace = monitor.get(key)
+                    if isinstance(workspace, Mapping) and workspace.get("id"):
+                        visible.add(str(workspace["id"]))
+        self._visible_workspaces = visible
         active_address = (
             _normalize_address(_mapping_value(active, "address", ""))
             if isinstance(active, Mapping)
@@ -386,6 +456,7 @@ class HyprlandWindowService(WindowService):
                 records[record.address] = record
         self._records_by_address = records
         self._publish_running()
+        self._changes.notify()
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
@@ -400,6 +471,11 @@ class HyprlandWindowService(WindowService):
                     active=record.active,
                     urgent=record.urgent,
                     window=record.address,
+                    runtime_app=(
+                        record.application_match.runtime_app
+                        if record.application_match is not None
+                        else None
+                    ),
                 )
             )
         self._model.update_running(
@@ -418,13 +494,21 @@ class HyprlandWindowService(WindowService):
             active=record.active,
             urgent=record.urgent,
             minimized=record.minimized,
+            maximized=record.maximized,
             fullscreen=record.fullscreen,
             geometry=record.geometry,
             workspace_id=record.workspace_id,
             can_activate=True,
-            can_minimize=True,
+            can_minimize=False,
             can_close=True,
             can_preview=self._preview_handle_for_record(record) is not None,
+            visible=record.mapped
+            and not record.hidden
+            and (
+                record.pinned is True or record.workspace_id in self._visible_workspaces
+            ),
+            sticky=record.pinned is True,
+            pid=record.pid,
         )
 
     def _records_for_desktop(self, desktop_id: str) -> list[HyprlandWindowRecord]:
@@ -462,7 +546,13 @@ class HyprlandWindowService(WindowService):
             stop()
 
 
-def load_hyprland_window_service(*, model, launcher) -> HyprlandWindowService | None:
+def load_hyprland_window_service(
+    *,
+    model,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+    preview_handle_source: object | None = None,
+) -> HyprlandWindowService | None:
     """Return a Hyprland WindowService when IPC sockets are detectable."""
     paths = hyprland_socket_paths()
     if paths is None or not paths.command.exists() or not paths.events.exists():
@@ -470,12 +560,14 @@ def load_hyprland_window_service(*, model, launcher) -> HyprlandWindowService | 
     client = HyprlandIpcClient(paths=paths)
     return HyprlandWindowService(
         model=model,
-        launcher=launcher,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
         client=client,
         event_stream_factory=lambda callback: HyprlandEventStream(
             paths=paths,
             callback=callback,
         ),
+        preview_handle_source=preview_handle_source,
     )
 
 
@@ -521,7 +613,8 @@ def _record_from_client(
         or _mapping_value(item, "initialClass", "")
         or ""
     ).strip()
-    desktop_id = matcher.match(app_id) if app_id else None
+    pid = _optional_int(_mapping_value(item, "pid", None))
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
     workspace = _mapping_value(item, "workspace", {})
     workspace_id = None
     if isinstance(workspace, Mapping):
@@ -532,14 +625,18 @@ def _record_from_client(
         address=address,
         title=str(_mapping_value(item, "title", "") or "Window"),
         app_id=app_id,
-        desktop_id=desktop_id,
+        application_match=match,
         active=address == active_address,
         urgent=bool(_mapping_value(item, "urgent", False)),
-        minimized=_optional_bool(_mapping_value(item, "minimized", None)),
-        fullscreen=_optional_bool(_mapping_value(item, "fullscreen", None)),
+        minimized=None,
+        fullscreen=item.get("fullscreen") == 2,
+        maximized=item.get("fullscreen") == 1,
         pinned=_optional_bool(_mapping_value(item, "pinned", None)),
         geometry=geometry,
         workspace_id=workspace_id,
+        pid=pid,
+        mapped=item.get("mapped") is not False,
+        hidden=item.get("hidden") is True,
     )
 
 
@@ -555,15 +652,76 @@ def _geometry_from_client(item: Mapping[str, Any]) -> Rect | None:
         or len(size) < 2
     ):
         return None
-    try:
-        return Rect(
-            x=int(at[0]),
-            y=int(at[1]),
-            width=int(size[0]),
-            height=int(size[1]),
-        )
-    except (TypeError, ValueError):
+    values = [*at[:2], *size[:2]]
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        for value in values
+    ):
         return None
+    x, y, width, height = values
+    if width <= 0 or height <= 0:
+        return None
+    left, top = math.floor(x), math.floor(y)
+    return Rect(left, top, math.ceil(x + width) - left, math.ceil(y + height) - top)
+
+
+class HyprlandWorkspaceService(WorkspaceService):
+    """IPC workspaces, including those absent from ext-workspace advertising."""
+
+    def __init__(self, *, windows: HyprlandWindowService) -> None:
+        self._windows = windows
+        self._client = windows.client
+
+    def start(self) -> None:
+        """The native window service owns the shared event stream."""
+
+    def stop(self) -> None:
+        """Subscriptions are removed by callers/window-service shutdown."""
+
+    def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
+        try:
+            rows = self._client.query_json("workspaces")
+            active = self._client.query_json("activeworkspace")
+        except (OSError, json.JSONDecodeError):
+            return ()
+        active_id = active.get("id") if isinstance(active, Mapping) else None
+        if not isinstance(rows, list):
+            return ()
+        return tuple(
+            WorkspaceSnapshot(
+                id=str(row["id"]),
+                number=row["id"],
+                name=str(row.get("name", row["id"])),
+                active=row["id"] == active_id,
+            )
+            for row in sorted(
+                (
+                    row
+                    for row in rows
+                    if isinstance(row, Mapping)
+                    and isinstance(row.get("id"), int)
+                    and row["id"] > 0
+                ),
+                key=lambda row: row["id"],
+            )
+        )
+
+    def active_workspace(self) -> WorkspaceSnapshot | None:
+        return next((row for row in self.list_workspaces() if row.active), None)
+
+    def activate(self, workspace_id: str) -> ActionResult:
+        if not any(row.id == workspace_id for row in self.list_workspaces()):
+            return ActionResult.NOT_FOUND
+        # IDs were obtained from the compositor, never interpolate workspace names.
+        return self._client.dispatch(f"workspace {int(workspace_id)}")
+
+    def watch_active_workspace(self, on_change: Callable[[], None]) -> object:
+        return self._windows.watch(on_change)
+
+    def unwatch_active_workspace(self, handle: object) -> None:
+        self._windows.unwatch(handle)
 
 
 def _mapping_value(mapping: Mapping[str, Any], key: str, default: Any) -> Any:
@@ -587,6 +745,21 @@ def _optional_bool(value: object) -> bool | None:
     if isinstance(value, int):
         return bool(value)
     return None
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed > 0 else None
 
 
 def _window_address(window_id: WindowId) -> str | None:

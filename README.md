@@ -36,7 +36,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 ## Highlights
 
 - Fast launcher workflow with running indicators, previews, app actions, and drag-and-drop organization.
-- Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, Niri, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
+- Native Linux desktop integration across X11 and Wayland, with support for GNOME, KDE Plasma, COSMIC, Hyprland, Niri, Wayfire, Treeland, wlroots compositors, MATE, Xfce, Cinnamon, and reduced fallback mode.
 - Unified global search for applications, dock items, open windows, recent files, calculator expressions, and direct paths.
 - 65 built-in applets for launching apps and commands, messaging, monitoring system state, controlling media, managing notes, files, folders, screenshots, power, networking, weather, and more.
 - Folder stacks and pinned files/folders, so directories and documents can live directly in the dock alongside applications.
@@ -53,6 +53,8 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension
   - KDE Plasma 6 through the native KWin backend
+  - COSMIC through native toplevel, workspace, overlap, and preview protocols
+  - Sway, Hyprland, Niri, and Wayfire through compositor-specific IPC plus layer-shell
   - wlroots-style compositors through layer-shell and advertised Wayland protocols
   - reduced mode when compositor integration is unavailable
 - System packages (Ubuntu/Debian):
@@ -97,6 +99,146 @@ pip install -e ".[wayland]"
 
 ## Installation
 
+The [website](https://docking.cc/#install) also provides expandable APT and RPM
+installation instructions.
+
+### Debian and Ubuntu (APT)
+
+On Ubuntu 22.04/24.04/26.04 and Debian 12/13, add Docking's APT repository once
+to receive updates through your package manager. Both amd64 and arm64 are
+available. Ubuntu derivatives that expose
+`UBUNTU_CODENAME`, including Linux Mint 21.x/22.x, use their Ubuntu base.
+Derivative desktops are not separately covered by the Debian/Ubuntu CI matrix.
+
+Download the public signing key and check its fingerprint before continuing:
+
+```bash
+sudo apt update
+sudo apt install curl ca-certificates gnupg
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+```
+
+The fingerprint must be `811B48CD4A69170DD98F4F49185CED80A7947754`.
+
+Copy the complete block below. It detects the distribution base and stops before
+writing the source if that base is unsupported or cannot be identified.
+
+```bash
+(
+set -eu
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
+. /etc/os-release
+APT_DISTRO="${ID:-}"
+APT_SUITE="${VERSION_CODENAME:-}"
+if [ -n "${UBUNTU_CODENAME:-}" ]; then
+    APT_DISTRO=ubuntu
+    APT_SUITE="$UBUNTU_CODENAME"
+fi
+if [ "$APT_DISTRO" = debian ] && [ -z "$APT_SUITE" ]; then
+    DEBIAN_VERSION=$(cat /etc/debian_version 2>/dev/null || true)
+    case "$DEBIAN_VERSION" in
+        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
+        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
+    esac
+fi
+case "$APT_DISTRO:$APT_SUITE" in
+    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
+    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" >&2; exit 1 ;;
+esac
+sudo tee /etc/apt/sources.list.d/docking.sources > /dev/null <<EOF
+Types: deb
+URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
+Suites: ${APT_SUITE}
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
+EOF
+sudo apt update
+sudo apt install docking
+)
+```
+
+For subsequent updates, run `sudo apt update` and `sudo apt upgrade`. Existing
+`.deb` installations can upgrade directly through APT.
+
+### Fedora and openSUSE (RPM)
+
+Repository installation is available after the first verified RPM publication.
+Until then, use the [RPM release downloads](https://github.com/edumucelli/docking/releases/latest).
+
+On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository
+once to receive updates through your package manager. Both x86_64 and aarch64 are
+available.
+
+Download the public signing key and check its fingerprint before continuing:
+
+```bash
+if command -v zypper > /dev/null 2>&1; then
+    sudo zypper --non-interactive install curl gpg2
+else
+    sudo dnf install -y curl gnupg2
+fi
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+```
+
+The fingerprint must be `04C7240DAD480161C0DFC791859E104126138494`.
+
+Copy the complete block below. It installs the key, writes the signed repository
+definition, and selects DNF on Fedora or Zypper on openSUSE.
+
+```bash
+(
+set -eu
+sudo rpm --import /tmp/docking-cloudsmith.asc
+# dnf reads /etc/yum.repos.d, while openSUSE ships only /etc/zypp/repos.d.
+if command -v zypper > /dev/null 2>&1; then
+    REPO_DIR=/etc/zypp/repos.d
+else
+    REPO_DIR=/etc/yum.repos.d
+fi
+sudo install -d -m 0755 "$REPO_DIR"
+sudo tee "$REPO_DIR/docking-rpm.repo" > /dev/null <<'EOF'
+[docking-rpm]
+name=Docking
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+
+[docking-rpm-noarch]
+name=Docking noarch
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+EOF
+if command -v zypper > /dev/null 2>&1; then
+    sudo zypper --gpg-auto-import-keys refresh
+    sudo zypper install docking
+else
+    sudo dnf install docking
+fi
+)
+```
+
+For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
+`.rpm` installations can upgrade directly through the repository.
+
+### Release downloads
+
 The latest prebuilt packages are available on
 [GitHub Releases](https://github.com/edumucelli/docking/releases) and linked
 directly below.
@@ -105,7 +247,7 @@ directly below.
 - `RPM`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm)
 - `Flatpak`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak)
 - `Snap`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap)
-- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst)
+- `Arch package`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz)
 - `Nix`: [x64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt), [x64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz), [arm64 store path](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt), [arm64 output tarball](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz)
 
 Typical local install/run commands after downloading a release asset:
@@ -118,10 +260,13 @@ ARCH=x86_64  # Use aarch64 for ARM64.
 chmod +x "docking-latest-linux-${ARCH}.AppImage"
 ./docking-latest-linux-${ARCH}.AppImage
 
-# Debian / RPM / Arch
+# Debian / RPM
 sudo apt install "./docking-latest-linux-${ARCH}.deb"
-sudo dnf install "./docking-latest-linux-${ARCH}.rpm"
-sudo pacman -U "./docking-latest-linux-${ARCH}.pkg.tar.zst"
+sudo dnf install "./docking-latest-linux-${ARCH}.rpm"   # or: sudo zypper install ...
+
+# Arch (use the command matching your architecture)
+sudo pacman -U "./docking-latest-linux-x86_64.pkg.tar.zst"
+sudo pacman -U "./docking-latest-linux-aarch64.pkg.tar.xz"
 
 # Flatpak / Snap
 flatpak install --user "./docking-latest-linux-${ARCH}.flatpak"
@@ -179,12 +324,15 @@ one with `DOCKING_BACKEND`.
 
 | Backend | Compositor | Coverage |
 |---|---|---|
-| **GNOME Shell bridge** | GNOME / Mutter 45+ | Full: dock placement, window tracking, window actions (activate / minimize / close), window previews, workspace switching, Show Desktop, Alt+Tab hiding |
-| **KWin** | KDE Plasma 6 Wayland | Dock placement (layer-shell), window tracking with titles via AT-SPI accessibility bus, workspace switching via KWin D-Bus. No window actions (KWin 6 does not expose a public activate/close/minimize protocol) |
-| **Hyprland** | Hyprland Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions, geometry, workspace association, and optional previews |
-| **Niri** | Niri Wayland | Dock placement (layer-shell), IPC-based window tracking, active state, window actions (focus, close), window previews, workspace association |
-| **Native layer-shell** | Protocol-capable Wayland compositors | Dock placement. Window tracking, workspace switching, previews, and idle-time support are enabled independently when the compositor publishes the corresponding standard protocols |
-| **Cinnamon Wayland** | Current Muffin | Dock placement plus read-only running, active, attention, geometry, and workspace state through Muffin's `org.cinnamon.Muffin.Debug.ListWindows` snapshot API. Muffin does not expose window actions, previews, or change signals, so Docking polls every two seconds |
+| **GNOME Shell bridge** | GNOME / Mutter 45+ | Dock placement, native windows/actions/previews, workspaces, workspace-aware dodge, Show Desktop, Alt+Tab hiding, Mutter idle time and optional portal color picking |
+| **KWin** | KDE Plasma 6 Wayland | Layer-shell placement, native scripting windows/actions/state/geometry, workspaces/filtering, dodge, Show Desktop, optional idle/color picking and authorized ScreenShot2 previews. AT-SPI remains fallback when scripting is unavailable |
+| **COSMIC** | COSMIC Wayland | Native layer-shell placement with COSMIC toplevel, workspace, overlap, preview and idle protocol paths where available |
+| **Hyprland** | Hyprland Wayland | Layer-shell placement, IPC windows/focus/close, per-output and special-workspace dodge, native workspaces, optional idle/previews. Minimization is unsupported |
+| **Niri** | Niri Wayland | Layer-shell placement, IPC windows/focus/close/previews/workspaces, idle and overlap where native tile positions are known. Current Niri exposes positions for floating windows, not tiled windows |
+| **Sway** | Sway Wayland | Layer-shell placement, native IPC windows/focus/close/geometry/workspaces/filtering and dodge, optional idle/previews. Minimization is unsupported |
+| **Wayfire** | Wayfire Wayland | Layer-shell placement, IPC windows/actions/workspaces, Show Desktop, dodge, window/color picking and advertised idle notifications |
+| **Native layer-shell** | Protocol-capable Wayland compositors | Independent window/workspace/preview/idle protocol support. Standard toplevel listing alone is read-only, without focus, geometry or window actions |
+| **Cinnamon Wayland** | Cinnamon 6.4+ | Dock placement, running-window tracking, focus/cycling, minimize and close through Cinnamon's built-in shell API, including activation across workspaces. Newer Muffin uses layer-shell placement when available. Native services also provide workspaces and filtering, dodge hiding, previews, Show Desktop, idle time, color picking and window selection. Read-only window tracking remains a fallback when only Muffin's snapshot API is available. |
 | **Native layer-shell** | GameScope | Dock placement as a GameScope external overlay. Docking automatically uses `GAMESCOPE_WAYLAND_DISPLAY`, including sessions started without `--expose-wayland`. GameScope does not expose general window management |
 | **Native layer-shell** | Jay | Dock placement, window actions, workspaces, previews, and idle time after granting Docking the required Jay client capabilities |
 | **Native layer-shell** | Miriway | Dock placement, window actions, and workspaces when Docking is launched as a trusted Miriway shell component |
@@ -219,7 +367,23 @@ configuration. The support table above summarizes the capabilities that KWin's
 public interfaces make available. You can also select it explicitly with
 `DOCKING_BACKEND=kwin`.
 
+Docking loads, runs and unloads only its own uniquely named KWin script. It does
+not start or change user scripts. Native compositor UUIDs identify windows;
+AT-SPI identifiers are never used for native actions or capture. Script denial
+or unavailability retains accessibility-based tracking.
+
+ScreenShot2 previews require KWin's screenshot effect and authorization from an
+installed desktop entry. Missing or denied capture returns no preview, never a
+whole-screen or active-window substitute. Source launches may be unauthorized.
+
 #### Native layer-shell
+
+On Cinnamon Wayland, Docking prefers native layer-shell when available. Older
+Muffin uses an XWayland dock surface so the dock stays out of Cinnamon's panel
+application list and Alt+Tab. Window tracking and applet services still use
+Cinnamon's native API, including for native Wayland applications. This fallback
+requires a working XWayland display; explicit `GDK_BACKEND` and unrelated
+`DOCKING_BACKEND` choices are preserved.
 
 Native layer-shell mode needs a compositor with `zwlr_layer_shell_v1`.
 See [Requirements](#requirements) for the `gtk-layer-shell` GIR and optional
@@ -234,8 +398,11 @@ To force a specific backend for testing:
 ```bash
 DOCKING_BACKEND=gnome-shell docking          # GNOME / Mutter 45+
 DOCKING_BACKEND=kwin docking                  # KDE Plasma 6 Wayland
+DOCKING_BACKEND=sway docking                  # Sway IPC + layer-shell
+DOCKING_BACKEND=cosmic docking                # COSMIC protocols + layer-shell
 DOCKING_BACKEND=hyprland docking              # Hyprland IPC + layer-shell
 DOCKING_BACKEND=niri docking                  # Niri IPC + layer-shell
+DOCKING_BACKEND=wayfire docking               # Wayfire IPC + layer-shell
 DOCKING_BACKEND=wayland-layer-shell docking   # wlroots compositors
 DOCKING_BACKEND=reduced docking               # any Wayland (no WM integration)
 DOCKING_BACKEND=x11 docking                   # X11 (full support)
@@ -310,7 +477,11 @@ The first things to explore are:
 - **Folder stacks**: pin a folder and open it from the dock for quick access to
   its contents.
 - **Diagnostics**: open right-click -> **Diagnostics** when checking backend
-  support or preparing a support report.
+  support or preparing a support report. **Copy Report** or **Save Report...**
+  includes dock placement settings, monitor geometry and GDK-reported workareas,
+  architecture, and kernel version. Feature support is reported by the backend;
+  the report does not verify that each feature is working. Refresh after changing
+  settings before sharing a report with a bug report.
 
 ## Global Search
 
@@ -566,3 +737,6 @@ every package format live in the [packaging guide](packaging/README.md).
 ## License
 
 GPL-3.0-or-later
+
+APT repository hosting is provided free for this open-source project by
+[Cloudsmith](https://cloudsmith.com).

@@ -292,6 +292,7 @@ class AutoHideController:
         self._unhide_timer_id: int = 0
         self._anim_timer_id: int = 0
         self._anim_progress: float = 0.0
+        self._anim_last_tick_us: int = 0
         self._hide_after_show: bool = False
         self._window_should_hide: bool = False
 
@@ -439,6 +440,7 @@ class AutoHideController:
         """Start the animation tick loop."""
         if self._anim_timer_id:
             self._anim_timer_id = _clear_source(source_id=self._anim_timer_id)
+        self._anim_last_tick_us = GLib.get_monotonic_time()
         self._anim_timer_id = GLib.timeout_add(FRAME_INTERVAL_MS, self._animation_tick)
 
     # Autohide state machine:
@@ -456,14 +458,20 @@ class AutoHideController:
     # SHOWING: hide_offset animates 1->0 using ease_out_cubic (decelerating)
     # VISIBLE/HIDDEN: stable states, no animation running
     #
-    # Each animation frame advances _anim_progress by a fixed step
-    # (FRAME_INTERVAL_MS / hide_time_ms), giving consistent timing
-    # regardless of how many frames actually render.
+    # Advance by elapsed monotonic time: GLib timeouts can be delayed and
+    # do not catch up missed frames. Restart the clock on reversal so the
+    # opposite animation continues from the current visual position.
 
     def _animation_tick(self) -> bool:
         """Single animation frame."""
+        if self.state not in (HideState.HIDING, HideState.SHOWING):
+            self._anim_timer_id = 0
+            return False
+        now_us = GLib.get_monotonic_time()
+        elapsed_ms = (now_us - self._anim_last_tick_us) / 1000
+        self._anim_last_tick_us = now_us
         duration = self._config.hide_time_ms
-        step = FRAME_INTERVAL_MS / duration if duration > 0 else 1.0
+        step = elapsed_ms / duration if duration > 0 else 1.0
         self._anim_progress = min(1.0, self._anim_progress + step)
 
         if self.state == HideState.HIDING:

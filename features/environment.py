@@ -12,11 +12,37 @@ if str(ROOT) not in sys.path:
 from tests.bdd_support.harness import DockHarness
 
 
-def before_scenario(context, _scenario) -> None:
+def before_scenario(context, scenario) -> None:
+    if "native_services" in scenario.effective_tags:
+        return
+    if "atspi_session" in scenario.effective_tags:
+        context.accessibility_sessions = []
+        return
+    if "gtk_preview" in scenario.effective_tags:
+        from tests.ui.preview_support import PreviewHarness
+
+        context.preview = PreviewHarness()
+        return
+    if "gtk_stack" in scenario.effective_tags:
+        from tests.ui.stack_support import StackHarness
+
+        context.stack = StackHarness()
+        return
     context.harness = DockHarness()
     context.harness.start()
 
 
 def after_scenario(context, _scenario) -> None:
+    if hasattr(context, "native_monitor"):
+        context.native_monitor.stop()
+    if hasattr(context, "native_backend"):
+        context.native_backend.stop()
+    if hasattr(context, "accessibility_sessions"):
+        for session in reversed(context.accessibility_sessions):
+            session.close()
+    if hasattr(context, "preview"):
+        context.preview.close()
     if hasattr(context, "harness"):
         context.harness.stop()
+    if hasattr(context, "stack"):
+        context.stack.close()

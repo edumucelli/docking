@@ -1,0 +1,106 @@
+name: Wayland compositors
+
+on:
+  pull_request:
+    branches: [master, visual-compositor-lab]
+    paths: ["docking/**", "tools/visual_compositor/**", "tools/visual_compositor_matrix.sh", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
+  push:
+    branches: [master]
+    paths: ["docking/**", "tools/visual_compositor/**", "tools/visual_compositor_matrix.sh", ".github/workflows/compositor.yml"]
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compositor-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compositor:
+    name: Real Wayland (${{ matrix.compositor }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","cage","gnome"]' || '["sway","cinnamon","niri","kwin","gnome"]') }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install comparison dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-cairo
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
+          .venv/bin/python -m pip install -e '.[dev]'
+      - uses: docker/setup-buildx-action@v3
+      - name: Build pinned-base compositor image
+        uses: docker/build-push-action@v6
+        with:
+          context: tools/visual_compositor
+          file: tools/visual_compositor/${{ contains(fromJSON('["niri","cosmic","wayfire"]'), matrix.compositor) && 'Dockerfile.arch' || 'Dockerfile' }}
+          target: ${{ matrix.compositor }}
+          tags: docking-ci:${{ matrix.compositor }}
+          load: true
+          cache-from: type=gha,scope=compositor-${{ matrix.compositor }}
+          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }}
+      - name: Check real compositor geometry and lifecycle
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
+          COMPOSITOR: ${{ matrix.compositor }}
+        run: |
+          if [ "$COMPOSITOR" = cinnamon ]; then
+            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
+            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+            bash tools/visual_compositor/cinnamon_services.sh
+          elif [ "$COMPOSITOR" = cage ] || [ "$COMPOSITOR" = gnome ]; then
+            # Negative compatibility lanes still verify backend, startup and shutdown.
+            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
+          else
+            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --behavior placement \
+              --case placement-bottom --case placement-top --case placement-left \
+              --case placement-right --case placement-bottom-gap --geometry-only --require-supported
+          fi
+      - name: Check pointer-driven behaviour
+        if: matrix.compositor == 'sway'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:sway
+        run: |
+          bash tools/visual_compositor_matrix.sh --compositor sway --behavior visibility \
+            --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
+          bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+          bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
+          bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+      - name: Check native Wayfire dodge
+        if: matrix.compositor == 'wayfire'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:wayfire
+        run: bash tools/visual_compositor_matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
+      - name: Check native services and independent dock pixels
+        if: contains(fromJSON('["sway","niri","gnome","kwin","cosmic","wayfire"]'), matrix.compositor)
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
+          COMPOSITOR: ${{ matrix.compositor }}
+        run: |
+          if [ "$COMPOSITOR" = kwin ]; then
+            # GPU-less QPainter validates state/actions, not animation pixels or
+            # the OpenGL-only ScreenShot2 effect. Keep this distinction in JSON.
+            bash tools/visual_compositor/native_services.sh kwin services
+          elif [ "$COMPOSITOR" = cosmic ] || [ "$COMPOSITOR" = wayfire ]; then
+            bash tools/visual_compositor/native_services.sh "$COMPOSITOR" idle
+          else
+            bash tools/visual_compositor/native_services.sh "$COMPOSITOR"
+          fi
+      - name: Upload captures, geometry, input proof and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compositor-${{ matrix.compositor }}
+          path: tools/visual_compositor/evidence/
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 14

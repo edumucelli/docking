@@ -62,11 +62,13 @@ from docking.core.config import (
     MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
     MAX_PRESSURE_THRESHOLD,
+    MAX_RECENT_APPS_RETENTION_DAYS,
     MAX_TRANSPARENCY,
     MAX_ZOOM_PERCENT,
     MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
     MIN_ICON_SIZE,
     MIN_PRESSURE_THRESHOLD,
+    MIN_RECENT_APPS_RETENTION_DAYS,
     MIN_TRANSPARENCY,
     MIN_ZOOM_PERCENT,
     LeftClickAction,
@@ -247,8 +249,10 @@ class SettingsWindowController:
         self._config = config
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
-        self._actions.add_search_shortcut_status_listener(
-            self._update_search_shortcut_status
+        self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
+            self._actions.add_search_shortcut_status_listener(
+                self._update_search_shortcut_status
+            )
         )
 
         self._hide_mode_combo: Any = None
@@ -288,7 +292,7 @@ class SettingsWindowController:
         self._update_status_label: Any = None
         self._recent_apps_switch: Any = None
         self._recent_apps_max_spin: Any = None
-        self._recent_apps_retention_combo: Any = None
+        self._recent_apps_retention_spin: Any = None
         self._recent_docs_switch: Any = None
         self._recent_docs_max_spin: Any = None
         self._global_search_switch: Any = None
@@ -308,6 +312,19 @@ class SettingsWindowController:
         self._rebuild_applet_tab()
         self._window.show_all()
         self._window.present()
+
+    def close(self) -> None:
+        """Release the status subscription and destroy the preferences window."""
+        unsubscribe = self._unsubscribe_search_shortcut_status
+        self._unsubscribe_search_shortcut_status = None
+        window = self._window
+        self._window = None
+        try:
+            if unsubscribe is not None:
+                unsubscribe()
+        finally:
+            if window is not None:
+                window.destroy()
 
     def _build_window(self) -> Gtk.Window:
         window = Gtk.Window(
@@ -543,9 +560,11 @@ class SettingsWindowController:
         self._recent_apps_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=15, step=1
         )
-        self._recent_apps_retention_combo = Gtk.ComboBoxText()
-        for days in (3, 7, 14, 30):
-            self._recent_apps_retention_combo.append(str(days), str(days))
+        self._recent_apps_retention_spin = self._new_numeric_spin_button(
+            minimum=MIN_RECENT_APPS_RETENTION_DAYS,
+            maximum=MAX_RECENT_APPS_RETENTION_DAYS,
+            step=1,
+        )
         self._recent_docs_switch = self._new_switch()
         self._recent_docs_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=25, step=1
@@ -846,7 +865,7 @@ class SettingsWindowController:
                 ),
                 (
                     _("Keep Recent Apps For"),
-                    self._recent_apps_retention_combo,
+                    self._recent_apps_retention_spin,
                     _("Remove recent apps after this many days of inactivity."),
                 ),
             ],
@@ -1319,19 +1338,12 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_apps_max",
                 widget=self._recent_apps_max_spin,
-                on_change=self._actions.queue_draw,
+                on_change=self._after_recent_apps_policy_changed,
             ),
-            self._register_numeric_binding(
+            self._register_int_binding(
                 config_attr="recent_apps_retention_days",
-                widget=self._recent_apps_retention_combo,
-                read_widget=lambda: int(
-                    self._recent_apps_retention_combo.get_active_id() or 14
-                ),
-                write_widget=lambda value: (
-                    self._recent_apps_retention_combo.set_active_id(str(value))
-                ),
-                signal="changed",
-                on_change=self._actions.queue_draw,
+                widget=self._recent_apps_retention_spin,
+                on_change=self._after_recent_apps_policy_changed,
             ),
             # Recent Documents
             self._register_switch_binding(
@@ -1688,11 +1700,13 @@ class SettingsWindowController:
 
     def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
-        if not self._config.show_recent_apps:
-            self._config.recent_apps.clear()
-            self._config.save()
+        self._model.rebuild_recent_apps()
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
+
+    def _after_recent_apps_policy_changed(self) -> None:
+        """Redraw after a policy update that applies on the next reconciliation."""
+        self._actions.queue_draw()
 
     def _after_hide_mode_changed(self) -> None:
         self._actions.on_hide_mode_changed()
@@ -1756,8 +1770,8 @@ class SettingsWindowController:
         recent_sensitive = bool(self._config.show_recent_apps)
         if self._recent_apps_max_spin is not None:
             self._recent_apps_max_spin.set_sensitive(recent_sensitive)
-        if self._recent_apps_retention_combo is not None:
-            self._recent_apps_retention_combo.set_sensitive(recent_sensitive)
+        if self._recent_apps_retention_spin is not None:
+            self._recent_apps_retention_spin.set_sensitive(recent_sensitive)
         docs_sensitive = bool(self._config.show_recent_docs_in_menu)
         if self._recent_docs_max_spin is not None:
             self._recent_docs_max_spin.set_sensitive(docs_sensitive)

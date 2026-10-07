@@ -329,10 +329,6 @@ msgstr ""
 msgid "Error: {msg}"
 msgstr ""
 
-#: docking/applets/apod/applet.py:132
-msgid "Open on apod.nasa.gov"
-msgstr ""
-
 #: docking/applets/apod/applet.py:137
 msgid "Copy Explanation"
 msgstr ""
@@ -3856,7 +3852,7 @@ msgstr ""
 msgid "Reload"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:104
+#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:104
 msgid "Open in Browser"
 msgstr ""
 
@@ -5528,4 +5524,26 @@ msgstr ""
 
 #: docking/ui/update_popup.py:247
 msgid "Ignore"
+msgstr ""
+
+#: docking/ui/diagnostics.py:186
+msgid ""
+"Features describe backend-reported support; actual behavior has not been "
+"verified."
+msgstr ""
+
+#: docking/ui/diagnostics.py:218
+msgid "Architecture"
+msgstr ""
+
+#: docking/ui/diagnostics.py:219
+msgid "Kernel"
+msgstr ""
+
+#: docking/ui/diagnostics.py:230
+msgid "Dock Settings"
+msgstr ""
+
+#: docking/ui/diagnostics.py:253
+msgid "GDK-reported workarea"
 msgstr ""

@@ -2,20 +2,108 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
 from gi.repository import GLib
 
-from docking.platform.status_notifier import (
-    RegisteredItemAddress,
-    TrayItem,
-    tray_item_from_properties,
-)
+from docking.platform.status_notifier import backend
 from docking.platform.status_notifier.backend import (
+    RegisteredItemAddress,
+    StatusNotifierBackend,
+    TrayItem,
     _argb_to_rgba,
     _best_icon_pixmap,
     _bytes_from_dbus_array,
     _tooltip_parts,
     _unpack_variant,
+    parse_registered_item,
+    tray_item_from_properties,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+class TestWatcherIdentifiers:
+    @pytest.mark.parametrize("service", [":1.74", "org.example.Tray"])
+    def test_gnome_identifier(self, service):
+        assert parse_registered_item(
+            f"{service}@/org/ayatana/NotificationItem/remmina_icon"
+        ) == RegisteredItemAddress(
+            service=service, path="/org/ayatana/NotificationItem/remmina_icon"
+        )
+
+    @pytest.mark.parametrize(
+        "identifier",
+        [
+            ":1.74@@/Tray",
+            "invalid/Tray",
+            ":1.74@/bad-path",
+            ":1.74/Tray//Icon",
+            "org.example.Tray@",
+            "@/Tray",
+        ],
+    )
+    def test_invalid_address_is_rejected(self, identifier):
+        assert parse_registered_item(identifier) is None
+
+    def test_invalid_sender_is_rejected(self):
+        assert parse_registered_item("/Tray", default_service=":1.74@") is None
+
+
+class TestItemReadFailures:
+    @pytest.mark.parametrize("reply", [None, (), ({}, {}), ("invalid",)])
+    def test_missing_or_malformed_reply_is_skipped(self, reply):
+        bus = Mock()
+        bus.call_sync.return_value = reply
+        assert (
+            backend._read_item(
+                bus=bus,
+                address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+            )
+            is None
+        )
+
+    def test_invalid_address_never_reaches_gio(self):
+        bus = Mock()
+        assert (
+            backend._read_item(
+                bus=bus,
+                address=RegisteredItemAddress(service=":1.74@", path="/Tray"),
+            )
+            is None
+        )
+        bus.call_sync.assert_not_called()
+
+    def test_poll_keeps_good_items_after_failed_reads(self, monkeypatch):
+        bus = Mock()
+        bus.call_sync.side_effect = [
+            None,
+            ({"IconPixmap": [(1, 1, ["invalid byte"])]},),
+            GLib.Variant("(a{sv})", ({"Title": GLib.Variant("s", "Healthy")},)),
+        ]
+        client = StatusNotifierBackend()
+        monkeypatch.setattr(client, "_connection", lambda: bus)
+        monkeypatch.setattr(backend, "_name_has_owner", lambda **kwargs: True)
+        monkeypatch.setattr(
+            client, "_register_with_existing_watcher", lambda **kw: None
+        )
+        monkeypatch.setattr(
+            client,
+            "_existing_watcher_addresses",
+            lambda **kw: [
+                RegisteredItemAddress(service=f":1.{number}", path="/Tray")
+                for number in (74, 75, 76)
+            ],
+        )
+        state = client.get_state()
+        assert state.available
+        assert [item.title for item in state.items] == ["Healthy"]
+        assert state.items[0].service == ":1.76"
+        assert bus.call_sync.call_count == 3
 
 
 class TestTooltipParts:
@@ -38,6 +126,136 @@ class TestTooltipParts:
         title, body = _tooltip_parts(variant)
         assert title == "VTitle"
         assert body == "VBody"
+
+    def test_variant_with_pixmap_reads_text_without_unpacking(self):
+        variant = GLib.Variant(
+            "(sa(iiay)ss)",
+            ("icon", [(64, 64, bytes(64 * 64 * 4))], "TTitle", "TBody"),
+        )
+        assert _tooltip_parts(variant) == ("TTitle", "TBody")
+
+    def test_variant_with_unexpected_child_types_matches_plain_tuple(self):
+        variant = GLib.Variant("(siis)", ("icon", 1, 2, "body"))
+        assert _tooltip_parts(variant) == _tooltip_parts(("icon", 1, 2, "body"))
+
+    def test_short_variant_tuple_returns_empty(self):
+        assert _tooltip_parts(GLib.Variant("(ss)", ("a", "b"))) == ("", "")
+
+    def test_array_variant_matches_plain_list(self):
+        variant = GLib.Variant("as", ["a", "b", "title", "body"])
+        assert _tooltip_parts(variant) == _tooltip_parts(["a", "b", "title", "body"])
+
+    def test_dictionary_variant_returns_empty(self):
+        variant = GLib.Variant(
+            "a{sv}",
+            {f"k{index}": GLib.Variant("s", "v") for index in range(4)},
+        )
+        assert _tooltip_parts(variant) == ("", "")
+
+
+class TestMalformedTooltipsDoNotAbort:
+    """A non-container ToolTip must not kill the process.
+
+    ``Variant.n_children()`` on a scalar reaches a GLib ``g_error()`` that
+    aborts the interpreter with SIGABRT, which no exception handler can catch,
+    so the offending shapes have to be exercised in a subprocess.
+    """
+
+    SCRIPT = """
+from unittest.mock import Mock
+
+from gi.repository import GLib
+
+from docking.platform.status_notifier.backend import (
+    RegisteredItemAddress,
+    _read_item,
+    _tooltip_parts,
+)
+
+# A tray app publishing a scalar ToolTip used to abort the dock here.
+assert _tooltip_parts(GLib.Variant("s", "")) == ("", "")
+assert _tooltip_parts(GLib.Variant("i", 7)) == ("", "")
+assert _tooltip_parts(GLib.Variant("v", GLib.Variant("s", ""))) == ("", "")
+
+TOOLTIPS = [
+    GLib.Variant(signature, value)
+    for signature, value in [
+        ("s", ""),
+        ("i", 1),
+        ("b", True),
+        ("as", ["a", "b", "c", "d"]),
+        ("ay", bytes(8)),
+        ("a{sv}", {f"k{index}": GLib.Variant("s", "v") for index in range(5)}),
+        ("(ss)", ("a", "b")),
+        ("mi", 5),
+        ("v", GLib.Variant("s", "")),
+    ]
+] + [GLib.Variant("(sa(iiay)ss)", ("", [(4, 4, bytes(64))], "T", "B"))]
+
+PIXMAPS = [
+    GLib.Variant(signature, value)
+    for signature, value in [
+        ("s", ""),
+        ("i", 3),
+        ("as", ["a"]),
+        ("a{sv}", {"k": GLib.Variant("s", "v")}),
+        ("a(iiay)", []),
+        ("a(iiay)", [(0, 0, b"")]),
+        ("a(iiay)", [(4, 4, bytes(4))]),
+        ("a(iiay)", [(2, 2, bytes(16))]),
+    ]
+]
+
+for pixmap in PIXMAPS:
+    for tooltip in TOOLTIPS:
+        reply = GLib.Variant(
+            "(a{sv})",
+            (
+                {
+                    "Title": GLib.Variant("s", "Tray"),
+                    "IconPixmap": pixmap,
+                    "ToolTip": tooltip,
+                    "AttentionIconPixmap": pixmap,
+                    "OverlayIconPixmap": GLib.Variant("s", ""),
+                },
+            ),
+        )
+        bus = Mock()
+        bus.call_sync.return_value = reply
+        item = _read_item(
+            bus=bus, address=RegisteredItemAddress(service=":1.74", path="/Tray")
+        )
+        assert item is not None
+        assert item.title == "Tray"
+
+well_formed = GLib.Variant(
+    "(a{sv})",
+    (
+        {
+            "Title": GLib.Variant("s", "Tray"),
+            "IconPixmap": GLib.Variant("a(iiay)", [(2, 2, bytes(16))]),
+            "ToolTip": GLib.Variant("(sa(iiay)ss)", ("", [(4, 4, bytes(64))], "T", "B")),
+        },
+    ),
+)
+bus = Mock()
+bus.call_sync.return_value = well_formed
+item = _read_item(bus=bus, address=RegisteredItemAddress(service=":1.74", path="/Tray"))
+assert item is not None
+assert (item.tooltip_title, item.tooltip_text) == ("T", "B")
+assert item.icon_pixmap is not None and item.icon_pixmap.width == 2
+print("ok")
+"""
+
+    def test_scalar_tooltips_do_not_abort(self):
+        result = subprocess.run(
+            [sys.executable, "-c", self.SCRIPT],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "ok"
 
 
 class TestBytesFromDBusArray:
@@ -170,6 +388,103 @@ class TestBestIconPixmap:
         assert result is not None
         assert result.width == 2
         assert result.height == 2
+
+
+class TestBestIconPixmapVariants:
+    def test_matches_plain_python_result(self):
+        pixmaps = [(2, 2, bytes(range(16))), (4, 4, bytes(range(64)))]
+        variant = GLib.Variant("a(iiay)", pixmaps)
+        assert _best_icon_pixmap(variant) == _best_icon_pixmap(pixmaps)
+
+    def test_skips_larger_entry_with_insufficient_data(self):
+        value = GLib.Variant("a(iiay)", [(10, 10, bytes(4)), (1, 1, bytes(4))])
+        result = _best_icon_pixmap(value)
+        assert result is not None
+        assert result.width == 1
+
+    def test_non_pixmap_variant_is_ignored(self):
+        assert _best_icon_pixmap(GLib.Variant("as", ["nope"])) is None
+
+    def test_unwraps_variant_wrapper(self):
+        pixmaps = GLib.Variant("a(iiay)", [(3, 3, bytes(3 * 3 * 4))])
+        wrapper = GLib.Variant("v", pixmaps)
+        result = _best_icon_pixmap(wrapper)
+        assert result is not None
+        assert result.width == 3
+
+
+class TestReadItemKeepsIconBytesAsVariants:
+    """Icon byte arrays must never be unpacked into Python lists (issue #377)."""
+
+    @staticmethod
+    def _reply(*, title="Tray", sizes=(2, 4)):
+        pixmaps = [(size, size, bytes(size * size * 4)) for size in sizes]
+        return GLib.Variant(
+            "(a{sv})",
+            (
+                {
+                    "Title": GLib.Variant("s", title),
+                    "IconPixmap": GLib.Variant("a(iiay)", pixmaps),
+                    "ToolTip": GLib.Variant(
+                        "(sa(iiay)ss)", ("", [(8, 8, bytes(8 * 8 * 4))], "TT", "TB")
+                    ),
+                },
+            ),
+        )
+
+    def test_icon_properties_are_handed_over_as_variants(self, monkeypatch):
+        captured: dict = {}
+        original = backend.tray_item_from_properties
+
+        def spy(*, address, properties):
+            captured.update(properties)
+            return original(address=address, properties=properties)
+
+        monkeypatch.setattr(backend, "tray_item_from_properties", spy)
+        bus = Mock()
+        bus.call_sync.return_value = self._reply()
+        item = backend._read_item(
+            bus=bus,
+            address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+        )
+        assert item is not None
+        assert isinstance(captured["IconPixmap"], GLib.Variant)
+        assert isinstance(captured["ToolTip"], GLib.Variant)
+        assert captured["Title"] == "Tray"
+        assert item.icon_pixmap is not None
+        assert item.icon_pixmap.width == 4
+        assert (item.tooltip_title, item.tooltip_text) == ("TT", "TB")
+
+    def test_byte_arrays_never_reach_variant_unpack(self, monkeypatch):
+        original_unpack = GLib.Variant.unpack
+
+        def guarded(self):
+            assert "ay" not in self.get_type_string(), (
+                "icon byte arrays must not be unpacked"
+            )
+            return original_unpack(self)
+
+        monkeypatch.setattr(GLib.Variant, "unpack", guarded)
+        bus = Mock()
+        bus.call_sync.return_value = self._reply(sizes=(16, 32, 128))
+        item = backend._read_item(
+            bus=bus,
+            address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+        )
+        assert item is not None
+        assert item.icon_pixmap is not None
+        assert item.icon_pixmap.width == 128
+
+    def test_reply_of_unexpected_variant_type_is_skipped(self):
+        bus = Mock()
+        bus.call_sync.return_value = GLib.Variant("(as)", (["Tray"],))
+        assert (
+            backend._read_item(
+                bus=bus,
+                address=RegisteredItemAddress(service=":1.74", path="/Tray"),
+            )
+            is None
+        )
 
 
 class TestUnpackVariant:

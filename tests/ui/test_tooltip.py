@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import docking.ui.tooltip as tooltip_mod
 from docking.core.layout import LayoutItem
 from docking.core.position import Position
+from docking.platform.backends.base import Rect as SurfaceRect
 from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect
 from docking.ui.tooltip import (
     TOOLTIP_BASE_GAP,
@@ -725,6 +726,11 @@ class _FakeTooltipWindow:
 
     def set_transient_for(self, window) -> None:
         self._transient_for = window
+        surface = window.surface_service
+        if isinstance(surface, MagicMock):
+            surface.external_workarea.return_value = None
+        else:
+            surface.external_workarea = lambda _monitor: None
 
     def get_transient_for(self):
         return self._transient_for
@@ -752,6 +758,27 @@ class _FakeTooltipWindow:
 
     def set_app_paintable(self, _value: bool) -> None:
         return
+
+    def get_display(self):
+        parent = self._transient_for
+        relative = (
+            parent is not None
+            and parent.surface_service.popups_use_parent_relative_coordinates is True
+        )
+        bounds = (
+            SurfaceRect(0, 0, 1920, 1080) if relative else SurfaceRect(0, 0, 200, 100)
+        )
+        monitor = SimpleNamespace(
+            get_geometry=lambda: bounds,
+            get_workarea=lambda: bounds,
+            get_scale_factor=lambda: 1,
+        )
+        return SimpleNamespace(
+            get_monitor_at_point=lambda x, y: monitor,
+            get_n_monitors=lambda: 1,
+            get_monitor=lambda index: monitor,
+            get_primary_monitor=lambda: monitor,
+        )
 
     def get_screen(self):
         return self._screen

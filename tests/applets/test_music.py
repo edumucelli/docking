@@ -6,8 +6,11 @@ import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.music.applet as music_applet_mod
 import docking.applets.music.state as music_state_mod
+import docking.platform.applications.registry as registry_mod
 from docking.applets.music.applet import MusicApplet
 from docking.applets.music.render import create_music_icon
 from docking.applets.music.state import (
@@ -23,6 +26,16 @@ from docking.applets.music.state import (
     unavailable_state,
 )
 from docking.core.config import Config
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+    TransientApplicationInfo,
+)
+from tests.platform.application_fakes import (
+    ApplicationRegistryHarness,
+    GioApplicationFake,
+)
 
 
 def _state(**overrides: object) -> MusicState:
@@ -44,6 +57,25 @@ def _state(**overrides: object) -> MusicState:
     values = {field: getattr(base, field) for field in MusicState.__dataclass_fields__}
     values.update(overrides)
     return MusicState(**values)
+
+
+def _application_listing(
+    desktop_id: str = "org.videolan.VLC.desktop",
+) -> ApplicationInfo:
+    return ApplicationInfo(
+        desktop_id=desktop_id,
+        name="VLC",
+        declared_icon="vlc",
+        wm_class="vlc",
+        exec_line="vlc %U",
+        origin=ApplicationOrigin.INSTALLED,
+        location=ApplicationLocation.SANDBOX,
+        desktop_file=None,
+        executable_path=None,
+        aliases=("vlc",),
+        visible=True,
+        has_gio_source=True,
+    )
 
 
 class _StubMpris:
@@ -181,16 +213,65 @@ class TestMusicStateHelpers:
         assert play_pause_menu_label(_state(playback_status="Playing")) == "Pause"
         assert play_pause_menu_label(_state(playback_status="Paused")) == "Play"
 
+    def test_active_media_ignores_idle_and_internal_webkit_players(self):
+        idle_browser = _state(
+            playback_status="Stopped",
+            title="",
+            artist="",
+            album="",
+            track_url="",
+            can_play_pause=False,
+        )
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+
+        assert music_state_mod.has_active_media(idle_browser) is False
+        assert music_state_mod.has_active_media(internal_webkit) is False
+        assert music_state_mod.has_active_media(_state()) is True
+
     def test_normalize_volume_percent(self):
         assert _normalize_volume_percent(0.78) == 78
         assert _normalize_volume_percent(78.0) == 78
 
-    def test_normalize_desktop_entry(self):
-        assert _normalize_desktop_entry("clementine.desktop") == "clementine"
-        assert _normalize_desktop_entry("org.gnome.Rhythmbox3.desktop") == "rhythmbox"
-        assert _normalize_desktop_entry("/usr/share/applications/vlc.desktop") == "vlc"
-        assert _normalize_desktop_entry("") == ""
-        assert _normalize_desktop_entry("org.example.Player") == "player"
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("", ""),
+            ("  Clementine.DESKTOP  ", "clementine"),
+            ("/usr/share/applications/vlc.desktop", "vlc"),
+            (r"C:\usr\share\applications\VLC.desktop", "vlc"),
+            ("org.mpris.MediaPlayer2.spotify", "spotify"),
+        ],
+        ids=["empty", "desktop-id", "unix-path", "windows-path", "mpris-name"],
+    )
+    def test_normalize_desktop_entry_raw_identifier_forms(self, raw, expected):
+        assert _normalize_desktop_entry(raw) == expected
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("rhythmbox3", "rhythmbox"),
+            ("org.gnome.Rhythmbox3.desktop", "rhythmbox"),
+            ("org.videolan.VLC.desktop", "vlc"),
+            ("spotify.instance42", "spotify"),
+            ("UnregisteredPlayer", "unregisteredplayer"),
+        ],
+        ids=[
+            "rhythmbox3",
+            "rhythmbox-reverse-dns",
+            "reverse-dns",
+            "instance-suffix",
+            "unknown",
+        ],
+    )
+    def test_normalize_desktop_entry_preserves_current_fallbacks(self, raw, expected):
+        assert _normalize_desktop_entry(raw) == expected
 
     def test_rhythmbox_unknown_tooltip_avoids_fake_volume(self):
         text = tooltip_text(
@@ -206,6 +287,15 @@ class TestMusicStateHelpers:
         )
         assert text == "Music"
         assert "Rhythmbox" not in text
+
+    def test_empty_artist_metadata_does_not_leak_list_repr_into_tooltip(self):
+        artist = music_state_mod._metadata_artist({})
+
+        text = tooltip_text(_state(title="", artist=artist, album=""))
+
+        assert artist == ""
+        assert text == "Music"
+        assert "[]" not in text
 
     def test_normalize_playback_and_misc_helpers(self):
         assert music_state_mod._normalize_playback_status(" paused ") == "Paused"
@@ -288,6 +378,21 @@ class TestMprisBackendInternals:
     def test_get_state_unavailable_when_no_players(self):
         backend = self._make_backend()
         backend.list_players = list  # type: ignore[method-assign]
+        assert backend.get_state().available is False
+
+    def test_get_state_ignores_internal_webkit_player(self):
+        backend = self._make_backend()
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+        backend.list_players = lambda: [internal_webkit.player_bus_name]  # type: ignore[method-assign]
+        backend._read_state = lambda bus_name: internal_webkit  # type: ignore[method-assign]
+
         assert backend.get_state().available is False
 
     def test_has_owner_and_list_players_branches(self, monkeypatch):
@@ -424,6 +529,8 @@ class TestMprisBackendInternals:
         state = backend._read_state("org.mpris.MediaPlayer2.spotify")
         assert state is not None
         assert state.player_name == "Spotify"
+        assert state.player_icon_name == "spotify"
+        assert state.player_desktop_entry == "spotify.desktop"
         assert state.title == "Song"
         assert state.artist == "Artist"
         assert state.volume_percent == 42
@@ -436,6 +543,29 @@ class TestMprisBackendInternals:
             backend._player_display_name("org.mpris.MediaPlayer2.firefox.instance")
             == "Firefox"
         )
+
+    @pytest.mark.parametrize(
+        ("bus_name", "expected_icon"),
+        [
+            ("org.mpris.MediaPlayer2.rhythmbox3", "rhythmbox"),
+            ("org.mpris.MediaPlayer2.org.videolan.VLC", "vlc"),
+            ("org.mpris.MediaPlayer2.spotify.instance42", "spotify"),
+            ("org.mpris.MediaPlayer2.UnregisteredPlayer", "unregisteredplayer"),
+        ],
+        ids=["rhythmbox3", "reverse-dns", "instance-suffix", "unknown"],
+    )
+    def test_read_state_without_desktop_entry_uses_bus_name_fallback(
+        self, bus_name, expected_icon
+    ):
+        backend = self._make_backend()
+        backend._get_props_proxy = lambda bus_name: object()  # type: ignore[method-assign]
+        backend._get_property = lambda **kwargs: None  # type: ignore[method-assign]
+
+        state = backend._read_state(bus_name)
+
+        assert state is not None
+        assert state.player_icon_name == expected_icon
+        assert state.player_desktop_entry == ""
 
     def test_get_property_call_method_and_proxy_caches(self, monkeypatch):
         backend = self._make_backend()
@@ -617,7 +747,13 @@ class TestHybridBackend:
         assert selected.player_bus_name == "org.gnome.Rhythmbox3"
 
 
-def _make_applet(monkeypatch, state: MusicState):
+def _make_applet(
+    monkeypatch,
+    state: MusicState,
+    *,
+    registry=None,
+    launcher=None,
+):
     backend = MagicMock()
     backend.poll.return_value = state
     backend.play_pause.return_value = True
@@ -630,7 +766,20 @@ def _make_applet(monkeypatch, state: MusicState):
 
     monkeypatch.setattr(music_applet_mod, "HybridBackend", lambda: backend)
     monkeypatch.setattr(music_applet_mod, "CoverArtResolver", lambda: resolver)
-    return MusicApplet(48, config=Config()), backend, resolver
+    if registry is None:
+        registry = MagicMock()
+        registry.get.return_value = None
+        registry.preferred_listing_for_content_types.return_value = None
+    return (
+        MusicApplet(
+            48,
+            config=Config(),
+            application_registry=registry,
+            application_launcher=launcher or MagicMock(),
+        ),
+        backend,
+        resolver,
+    )
 
 
 class TestMusicApplet:
@@ -638,10 +787,220 @@ class TestMusicApplet:
         applet, _backend, _resolver = _make_applet(monkeypatch, _state())
         assert applet.item.icon is not None
 
+    def test_constructor_performs_initial_poll_and_artwork_resolution(
+        self, monkeypatch
+    ):
+        initial = _state(title="Initial")
+
+        applet, backend, resolver = _make_applet(monkeypatch, initial)
+
+        backend.poll.assert_called_once_with()
+        resolver.resolve.assert_called_once_with(state=initial)
+        assert applet._state == initial
+        assert applet._album_art is None
+
+    def test_constructor_resolves_initial_state_only_once(self, monkeypatch):
+        initial = _state(
+            player_icon_name="vlc",
+            player_desktop_entry="org.videolan.VLC",
+        )
+        application = SimpleNamespace(declared_icon="vlc-installed")
+        registry = MagicMock()
+        registry.get.return_value = application
+        launcher = MagicMock()
+        applet, _backend, _resolver = _make_applet(
+            monkeypatch,
+            initial,
+            registry=registry,
+            launcher=launcher,
+        )
+
+        registry.get.assert_called_once_with("org.videolan.VLC.desktop")
+        registry.refresh.assert_not_called()
+        assert applet._state.player_icon_name == "vlc-installed"
+        assert applet._state.player_desktop_entry == "org.videolan.VLC"
+
+    @pytest.mark.parametrize(
+        ("raw", "installed_id"),
+        [
+            ("spotify", "spotify.desktop"),
+            ("org.videolan.VLC", "org.videolan.VLC.desktop"),
+            (
+                "org.mpris.MediaPlayer2.org.videolan.VLC",
+                "org.videolan.VLC.desktop",
+            ),
+            ("rhythmbox3", "org.gnome.Rhythmbox3.desktop"),
+        ],
+        ids=["suffix", "reverse-dns", "mpris-prefix", "rhythmbox3"],
+    )
+    def test_registry_icon_resolution_preserves_desktop_entry_heuristics(
+        self,
+        monkeypatch,
+        raw,
+        installed_id,
+    ):
+        initial = _state(
+            player_icon_name="worker-fallback",
+            player_desktop_entry=raw,
+        )
+        application = SimpleNamespace(declared_icon=f"installed:{installed_id}")
+        registry = MagicMock()
+        registry.get.side_effect = lambda desktop_id: (
+            application if desktop_id == installed_id else None
+        )
+
+        applet, _backend, _resolver = _make_applet(
+            monkeypatch,
+            initial,
+            registry=registry,
+        )
+
+        assert applet._state.player_icon_name == f"installed:{installed_id}"
+        registry.refresh.assert_not_called()
+
+    def test_unresolved_registry_icon_keeps_worker_fallback_byte_for_byte(
+        self, monkeypatch
+    ):
+        fallback = "MiXeD/Icon Name.desktop"
+        initial = _state(
+            player_icon_name=fallback,
+            player_desktop_entry="org.example.MissingPlayer",
+        )
+        registry = MagicMock()
+        registry.get.return_value = None
+        applet, _backend, _resolver = _make_applet(
+            monkeypatch,
+            initial,
+            registry=registry,
+        )
+
+        assert applet._state.player_icon_name == fallback
+        assert applet._state is initial
+        registry.refresh.assert_not_called()
+
     def test_on_clicked_toggles_play_pause(self, monkeypatch):
         applet, backend, _resolver = _make_applet(monkeypatch, _state())
         applet.on_clicked()
         backend.play_pause.assert_called_once()
+
+    def test_on_clicked_launches_media_app_when_no_player_is_open(self, monkeypatch):
+        application = _application_listing()
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = application
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=registry,
+            launcher=launcher,
+        )
+
+        applet.on_clicked()
+
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
+
+    def test_media_complete_handler_flows_through_real_registry_to_applet(
+        self, monkeypatch
+    ):
+        handler = GioApplicationFake(
+            "org.videolan.VLC.desktop",
+            name="VLC",
+            icon="vlc-canonical",
+            commandline="vlc %U",
+            categories="AudioVideo;",
+        )
+        harness = ApplicationRegistryHarness((handler,))
+        get_recommended = MagicMock(return_value=[])
+        get_all = MagicMock(return_value=[handler])
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_default_for_type",
+            lambda _content_type, _must_support_uris: None,
+        )
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_recommended_for_type",
+            get_recommended,
+        )
+        monkeypatch.setattr(
+            registry_mod.Gio.AppInfo,
+            "get_all_for_type",
+            get_all,
+        )
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=harness.registry,
+            launcher=launcher,
+        )
+
+        selected = harness.registry.get("org.videolan.VLC.desktop")
+        applet.on_clicked()
+
+        assert selected is not None
+        assert selected.declared_icon == "vlc-canonical"
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
+        assert get_recommended.call_count == len(music_applet_mod.MEDIA_CONTENT_TYPES)
+        get_all.assert_called_once_with("audio/mpeg")
+
+    def test_on_clicked_ignores_idle_empty_browser_mpris_service(self, monkeypatch):
+        idle_browser = _state(
+            player_name="Chrome",
+            player_bus_name="org.mpris.MediaPlayer2.chromium.instance1",
+            playback_status="Stopped",
+            title="",
+            artist="",
+            album="",
+            track_url="",
+            can_play_pause=False,
+        )
+        application = _application_listing()
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = application
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            idle_browser,
+            registry=registry,
+            launcher=launcher,
+        )
+
+        applet.on_clicked()
+
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
+
+    def test_on_clicked_ignores_internal_webkit_media_service(self, monkeypatch):
+        internal_webkit = _state(
+            player_name="Docking",
+            player_bus_name=(
+                "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
+            ),
+            playback_status="Playing",
+            title="WhatsApp",
+        )
+        application = _application_listing()
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = application
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            internal_webkit,
+            registry=registry,
+            launcher=launcher,
+        )
+
+        applet.on_clicked()
+
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
 
     def test_scroll_up_adjusts_volume(self, monkeypatch):
         applet, backend, _resolver = _make_applet(
@@ -711,6 +1070,115 @@ class TestMusicApplet:
         applet._poll_worker = lambda: (calls.append("poll"), (_state(), None))[1]  # type: ignore[assignment]
         assert applet._tick() is True
         assert calls == ["poll", "poll"]
+
+    def test_tick_applies_poll_only_through_async_result_callback(self, monkeypatch):
+        initial = _state(title="Initial")
+        updated = _state(title="Async update")
+        applet, backend, resolver = _make_applet(monkeypatch, initial)
+        artwork = object()
+        backend.poll.return_value = updated
+        resolver.resolve.return_value = artwork
+        applet.present = MagicMock()
+        applet._worker.run_guarded = MagicMock(return_value=True)  # type: ignore[method-assign]
+
+        assert applet._tick() is True
+
+        scheduled = applet._worker.run_guarded.call_args.kwargs
+        assert scheduled["key"] == "poll"
+        assert scheduled["name"] == "music-poll"
+        result = scheduled["fn"]()
+        assert result == (updated, artwork)
+        assert applet._state == initial
+
+        assert scheduled["on_result"](result) is False
+        assert applet._state == updated
+        assert applet._album_art is artwork
+        applet.present.assert_called_once_with()
+
+    def test_poll_worker_defers_registry_and_theme_access_to_result_callback(
+        self, monkeypatch
+    ):
+        initial = _state(
+            player_icon_name="initial",
+            player_desktop_entry="initial",
+        )
+        updated = _state(
+            title="Worker result",
+            player_icon_name="worker-fallback",
+            player_desktop_entry="org.example.Player",
+        )
+        registry = MagicMock()
+        registry.get.return_value = SimpleNamespace(declared_icon="installed")
+        applet, backend, resolver = _make_applet(
+            monkeypatch,
+            initial,
+            registry=registry,
+        )
+        registry.reset_mock()
+        backend.poll.return_value = updated
+        theme_lookup = MagicMock(side_effect=AssertionError("theme lookup in worker"))
+        monkeypatch.setattr(
+            music_applet_mod.Gtk.IconTheme,
+            "get_default",
+            theme_lookup,
+        )
+
+        result = applet._poll_worker()
+
+        assert result == (updated, resolver.resolve.return_value)
+        registry.get.assert_not_called()
+        registry.refresh.assert_not_called()
+        theme_lookup.assert_not_called()
+
+        applet._on_poll_result(result)
+        registry.get.assert_called_once_with("org.example.Player.desktop")
+        assert applet._state.player_icon_name == "installed"
+
+    def test_sync_refresh_resolves_registry_icon_on_calling_thread(self, monkeypatch):
+        initial = _state(title="Initial")
+        updated = _state(
+            title="Synchronous update",
+            player_icon_name="worker-fallback",
+            player_desktop_entry="org.example.Player",
+        )
+        registry = MagicMock()
+        registry.get.return_value = SimpleNamespace(declared_icon="installed")
+        applet, backend, resolver = _make_applet(
+            monkeypatch,
+            initial,
+            registry=registry,
+        )
+        registry.reset_mock()
+        backend.poll.return_value = updated
+        resolver.resolve.return_value = object()
+        applet.present = MagicMock()
+
+        applet._refresh_now()
+
+        registry.get.assert_called_once_with("org.example.Player.desktop")
+        registry.refresh.assert_not_called()
+        assert applet._state.player_icon_name == "installed"
+
+    def test_refresh_now_polls_and_applies_result_synchronously(self, monkeypatch):
+        initial = _state(title="Initial")
+        updated = _state(title="Synchronous update")
+        applet, backend, resolver = _make_applet(monkeypatch, initial)
+        artwork = object()
+        backend.poll.reset_mock()
+        resolver.resolve.reset_mock()
+        backend.poll.return_value = updated
+        resolver.resolve.return_value = artwork
+        applet.present = MagicMock()
+        applet._worker.run_guarded = MagicMock()  # type: ignore[method-assign]
+
+        applet._refresh_now()
+
+        backend.poll.assert_called_once_with()
+        resolver.resolve.assert_called_once_with(state=updated)
+        applet._worker.run_guarded.assert_not_called()
+        assert applet._state == updated
+        assert applet._album_art is artwork
+        applet.present.assert_called_once_with()
 
     def test_action_methods_poll_and_volume_alias(self, monkeypatch):
         applet, backend, _resolver = _make_applet(monkeypatch, _state())
@@ -825,6 +1293,76 @@ class TestMusicApplet:
 
         widget = applet._build_tooltip_widget()
         assert widget.get_children()
+
+    def test_registry_media_lookup_preserves_type_order_and_visibility(
+        self, monkeypatch
+    ):
+        visible = _application_listing("visible.desktop")
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = visible
+        applet, _backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=registry,
+        )
+
+        selected = applet._find_media_application()
+
+        assert selected is visible
+        registry.preferred_listing_for_content_types.assert_called_once_with(
+            music_applet_mod.MEDIA_CONTENT_TYPES
+        )
+        registry.refresh.assert_not_called()
+
+    def test_click_launches_registry_selected_media_app_through_launcher(
+        self, monkeypatch
+    ):
+        application = _application_listing()
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = application
+        launcher = MagicMock()
+        launcher.launch.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=registry,
+            launcher=launcher,
+        )
+        applet.on_clicked()
+
+        launcher.launch.assert_called_once_with("org.videolan.VLC.desktop")
+        backend.play_pause.assert_not_called()
+        registry.refresh.assert_not_called()
+
+    def test_click_launches_transient_media_handler_by_opaque_listing_key(
+        self, monkeypatch
+    ):
+        listing = TransientApplicationInfo(
+            listing_key="gio-content:4:2",
+            name="Unregistered Media Handler",
+            categories_raw="AudioVideo;",
+            declared_icon="media-handler",
+            desktop_file=None,
+            exec_line="media-handler %U",
+            description="Play media",
+            generic_name="Media Player",
+        )
+        registry = MagicMock()
+        registry.preferred_listing_for_content_types.return_value = listing
+        launcher = MagicMock()
+        launcher.launch_listing.return_value = True
+        applet, backend, _resolver = _make_applet(
+            monkeypatch,
+            unavailable_state(),
+            registry=registry,
+            launcher=launcher,
+        )
+
+        applet.on_clicked()
+
+        launcher.launch_listing.assert_called_once_with("gio-content:4:2")
+        launcher.launch.assert_not_called()
+        backend.play_pause.assert_not_called()
 
 
 class TestMusicRender:
@@ -962,6 +1500,7 @@ class TestRhythmboxClientBackendInternals:
         assert state.playback_status == "Playing"
         assert state.title == "Song"
         assert state.volume_percent == 55
+        assert state.player_desktop_entry == "org.gnome.Rhythmbox3"
 
         backend._run = lambda **kwargs: ""
         assert backend.set_volume(50) is True
@@ -1223,6 +1762,7 @@ class TestMusicAdditionalBranches:
         assert state.available is True
         assert state.volume_percent == 0
         assert state.player_icon_name == "player"
+        assert state.player_desktop_entry == "player.desktop"
         assert backend._run_action(None, "play-pause") is False
         assert backend._run_action("spotify", "play-pause") is True
 

@@ -45,6 +45,7 @@ _PROPERTIES_IFACE = "org.freedesktop.DBus.Properties"
 _RB_SERVICE = "org.gnome.Rhythmbox3"
 _RB_MPRIS_SERVICE = f"{_MPRIS_PREFIX}rhythmbox"
 _RB_VOLUME_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)")
+_WEBKIT_MPRIS_MARKER = "org.webkit.app-"
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,7 @@ class MusicState:
     available: bool = False
     player_name: str = ""
     player_icon_name: str = ""
+    player_desktop_entry: str = ""
     player_bus_name: str = ""
     playback_status: str = "Stopped"
     title: str = ""
@@ -65,6 +67,25 @@ class MusicState:
     can_go_previous: bool = False
     art_url: str = ""
     track_url: str = ""
+
+
+def _is_internal_webkit_player(state: MusicState) -> bool:
+    """Return whether an embedded Docking WebKit view exported this player."""
+    return (
+        state.player_name.casefold() == "docking"
+        and _WEBKIT_MPRIS_MARKER in state.player_bus_name.casefold()
+    )
+
+
+def has_active_media(state: MusicState) -> bool:
+    """Return whether a player exposes a usable current media session."""
+    if not state.available or _is_internal_webkit_player(state):
+        return False
+    return (
+        state.playback_status in {"Playing", "Paused"}
+        or bool(state.title or state.artist or state.album or state.track_url)
+        or state.can_play_pause
+    )
 
 
 def clamp_percent(value: int) -> int:
@@ -207,8 +228,8 @@ def _metadata_str(metadata: dict[str, Any], key: str) -> str:
 
 def _metadata_artist(metadata: dict[str, Any]) -> str:
     value = _unpack(metadata.get("xesam:artist", []))
-    if isinstance(value, list | tuple) and value:
-        return str(value[0])
+    if isinstance(value, list | tuple):
+        return str(value[0]) if value else ""
     return _as_str(value)
 
 
@@ -243,7 +264,7 @@ class MprisBackend:
         states: list[MusicState] = []
         for bus_name in self.list_players():
             state = self._read_state(bus_name=bus_name)
-            if state is not None:
+            if state is not None and not _is_internal_webkit_player(state):
                 states.append(state)
         if not states:
             return unavailable_state()
@@ -256,7 +277,7 @@ class MprisBackend:
         if not self.has_owner(bus_name=bus_name):
             return unavailable_state()
         state = self._read_state(bus_name=bus_name)
-        if state is None:
+        if state is None or _is_internal_webkit_player(state):
             return unavailable_state()
         self._last_active_bus_name = state.player_bus_name
         return state
@@ -378,14 +399,15 @@ class MprisBackend:
         if self._get_props_proxy(bus_name=bus_name) is None:
             return None
 
-        player_icon_name = _normalize_desktop_entry(
-            _as_str(
-                self._get_property(
-                    bus_name=bus_name,
-                    interface_name=_MPRIS_ROOT_IFACE,
-                    property_name="DesktopEntry",
-                )
+        player_desktop_entry = _as_str(
+            self._get_property(
+                bus_name=bus_name,
+                interface_name=_MPRIS_ROOT_IFACE,
+                property_name="DesktopEntry",
             )
+        )
+        player_icon_name = _normalize_desktop_entry(
+            player_desktop_entry
         ) or _icon_name_from_bus_name(bus_name)
 
         metadata_raw = self._get_property(
@@ -448,6 +470,7 @@ class MprisBackend:
             available=True,
             player_name=self._player_display_name(bus_name=bus_name),
             player_icon_name=player_icon_name,
+            player_desktop_entry=player_desktop_entry,
             player_bus_name=bus_name,
             playback_status=playback_status,
             title=_metadata_str(metadata=metadata, key="xesam:title"),
@@ -682,6 +705,7 @@ class PlayerctlBackend:
             except ValueError as exc:
                 log.debug("Invalid playerctl volume output %r: %s", volume_raw, exc)
                 volume_percent = 0
+        playback_status = _normalize_playback_status(status)
 
         return MusicState(
             available=True,
@@ -690,15 +714,17 @@ class PlayerctlBackend:
                 _normalize_desktop_entry(desktop_entry)
                 or _normalize_desktop_entry(player)
             ),
+            player_desktop_entry=desktop_entry or player,
             player_bus_name=player,
-            playback_status=_normalize_playback_status(status),
+            playback_status=playback_status,
             title=title,
             artist=artist,
             album=album,
             volume_percent=volume_percent,
-            can_play_pause=True,
-            can_go_next=True,
-            can_go_previous=True,
+            can_play_pause=bool(title or artist or album or track_url)
+            or playback_status in {"Playing", "Paused"},
+            can_go_next=bool(title or artist or album or track_url),
+            can_go_previous=bool(title or artist or album or track_url),
             art_url=art_url,
             track_url=track_url,
         )
@@ -854,6 +880,7 @@ class RhythmboxClientBackend:
             available=True,
             player_name="Rhythmbox",
             player_icon_name="rhythmbox",
+            player_desktop_entry="org.gnome.Rhythmbox3",
             player_bus_name=_RB_SERVICE,
             playback_status=playback_status,
             title=title,
@@ -1004,11 +1031,11 @@ class HybridBackend:
         candidates: list[tuple[str, MusicState]] = []
 
         rb_mpris_state = self._mpris.get_state_for_bus_name(_RB_MPRIS_SERVICE)
-        if rb_mpris_state.available:
+        if has_active_media(rb_mpris_state):
             candidates.append(("mpris-rhythmbox", rb_mpris_state))
 
         mpris_state = self._mpris.get_state()
-        if mpris_state.available:
+        if has_active_media(mpris_state):
             candidates.append(("mpris", mpris_state))
 
         rb_state = self._rhythmbox.get_state()
@@ -1025,10 +1052,10 @@ class HybridBackend:
             preferred=preferred_for_playerctl,
             strict_preferred=strict_playerctl,
         )
-        if playerctl_state.available:
+        if has_active_media(playerctl_state):
             candidates.append(("playerctl", playerctl_state))
 
-        if rb_state.available:
+        if has_active_media(rb_state):
             candidates.append(("rhythmbox", rb_state))
 
         if not candidates:

@@ -1,10 +1,10 @@
 """Search installed applications and expose their contextual launcher actions.
 
-The provider consumes immutable application catalog snapshots, but delegates
-launching, pinning, window activation, and recent-document opening to existing
-platform and model services. Base results stay cheap. Expensive preview data
-and contextual actions are built only when the user asks to refine or preview
-a selected application.
+The provider consumes immutable canonical registry snapshots and explicit
+projections, but delegates launching, pinning, window activation, and
+recent-document opening to existing platform and model services. Base results
+stay cheap. Expensive preview data and contextual actions are built only when
+the user asks to refine or preview a selected application.
 
 Application desktop IDs are used as stable identities. Canonical keys allow an
 application result to deduplicate equivalent entities from another provider,
@@ -20,12 +20,15 @@ from urllib.parse import unquote, urlparse
 
 from docking.core.items import APP_KIND
 from docking.i18n import _
-from docking.platform import launcher as launcher_actions
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.recent_documents import recent_documents_for
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationInfo
 from docking.platform.backends.base import WindowId, WindowService
-from docking.platform.launcher import Launcher
 from docking.platform.model import DockModel
-from docking.platform.recent_docs import recent_docs_for_app
+from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
+from docking.search.matcher import normalize_search_text
 from docking.search.providers.base import (
     action,
     action_parts,
@@ -33,7 +36,6 @@ from docking.search.providers.base import (
     metadata,
     score_fields,
 )
-from docking.search.services.application_catalog import ApplicationCatalog
 from docking.search.types import (
     SearchBatch,
     SearchIdentity,
@@ -50,20 +52,23 @@ class ApplicationSearchProvider:
     def __init__(
         self,
         *,
-        catalog: ApplicationCatalog,
-        launcher: Launcher,
+        registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        target_service: TargetService,
         model: DockModel,
         windows: WindowService,
         recent_docs_limit: int,
     ) -> None:
-        """Bind the immutable catalog to existing launcher and model services."""
-        self._catalog = catalog
-        self._launcher = launcher
+        """Bind canonical applications to launch, target, and model services."""
+        self._registry = registry
+        self._application_launcher = application_launcher
+        self._target_service = target_service
         self._model = model
         self._windows = windows
         self._recent_docs_limit = recent_docs_limit
         self._refined_window_ids: dict[tuple[str, str], WindowId] = {}
         self._preview_cache: dict[str, SearchPreview] = {}
+        self._applications_by_id: dict[str, ApplicationInfo] = {}
 
     def search(self, request: SearchRequest):
         """Yield ranked installed applications for one current request."""
@@ -79,9 +84,31 @@ class ApplicationSearchProvider:
             for item in self._model.visible_items()
             if item.kind == APP_KIND
         }
+        canonical = {
+            application.desktop_id: application
+            for application in self._registry.snapshot()
+        }
+        applications = tuple(
+            sorted(
+                (
+                    application
+                    for application in canonical.values()
+                    if application.visible
+                ),
+                key=lambda application: (
+                    normalize_search_text(_application_name(application)),
+                    application.desktop_id.casefold(),
+                ),
+            )
+        )
+        self._applications_by_id = canonical
         results: list[SearchResult] = []
-        for application in self._catalog.snapshot():
+        for application in applications:
             request.raise_if_cancelled()
+            name = _application_name(application)
+            description = _clean_text(application.description)
+            categories = _normalized_values(application.categories)
+            keywords = _normalized_values(application.keywords)
             item = visible_apps.get(application.desktop_id)
             pinned = bool(item and item.is_pinned)
             running = bool(item and item.is_running)
@@ -96,10 +123,10 @@ class ApplicationSearchProvider:
                 score = score_fields(
                     request,
                     (
-                        application.name,
-                        application.description,
-                        *application.keywords,
-                        *application.categories,
+                        name,
+                        description,
+                        *keywords,
+                        *categories,
                     ),
                     source_boost=6,
                     state_boost=(12 if pinned else 0)
@@ -182,13 +209,13 @@ class ApplicationSearchProvider:
                         self.provider_id,
                         application.desktop_id,
                     ),
-                    title=application.name,
-                    description=application.description,
+                    title=name,
+                    description=description,
                     score=score,
-                    icon_name=_icon_name(application.icon.kind, application.icon.value),
+                    icon_name=_icon_name(application.declared_icon),
                     source=_("Applications"),
                     state=" · ".join(states),
-                    keywords=application.keywords,
+                    keywords=keywords,
                     actions=tuple(actions),
                     metadata=metadata(desktop_id=application.desktop_id),
                     canonical_key=f"app:{application.desktop_id}",
@@ -203,27 +230,31 @@ class ApplicationSearchProvider:
         cached = self._preview_cache.get(desktop_id)
         if cached is not None:
             return cached
-        application = self._catalog.get(desktop_id)
+        canonical = self._canonical_application(desktop_id)
         windows = self._windows.list_windows(desktop_id)
-        documents = recent_docs_for_app(
-            desktop_id,
-            launcher=self._launcher,
-            limit=min(5, self._recent_docs_limit),
+        documents = (
+            recent_documents_for(
+                canonical,
+                limit=min(5, self._recent_docs_limit),
+            )
+            if canonical is not None
+            else []
         )
         lines = []
         description = (
-            application.description if application is not None else result.description
+            _clean_text(canonical.description)
+            if canonical is not None
+            else result.description
         )
         if description:
             lines.extend((description, ""))
         lines.append(_("Desktop ID: {desktop_id}").format(desktop_id=desktop_id))
         if result.state:
             lines.append(_("State: {state}").format(state=result.state))
-        if application is not None and application.categories:
+        categories = _normalized_values(canonical.categories) if canonical else ()
+        if categories:
             lines.append(
-                _("Categories: {categories}").format(
-                    categories=", ".join(application.categories)
-                )
+                _("Categories: {categories}").format(categories=", ".join(categories))
             )
         if windows:
             lines.extend(("", _("Windows")))
@@ -243,11 +274,11 @@ class ApplicationSearchProvider:
         return preview
 
     def refine(self, result: SearchResult) -> SearchResult:
-        """Expand a selected application with live windows and recent files."""
         """Add per-window and recent-document actions for Tab refinement."""
         if result.identity.provider_id != self.provider_id:
             return result
         desktop_id = result.identity.key
+        canonical = self._canonical_application(desktop_id)
         window_actions = []
         for window in self._windows.list_windows(desktop_id):
             if not window.can_activate:
@@ -271,10 +302,10 @@ class ApplicationSearchProvider:
                 action_id=f"recent:{document.uri}",
                 label=_("Open Recent: {name}").format(name=document.name),
             )
-            for document in recent_docs_for_app(
-                desktop_id,
-                launcher=self._launcher,
-                limit=self._recent_docs_limit,
+            for document in (
+                recent_documents_for(canonical, limit=self._recent_docs_limit)
+                if canonical is not None
+                else []
             )
         ]
         existing = list(result.actions)
@@ -301,8 +332,7 @@ class ApplicationSearchProvider:
             return False
         desktop_id, action_id = parts
         if action_id == "open":
-            launcher_actions.launch(desktop_id=desktop_id)
-            return True
+            return self._application_launcher.launch(desktop_id)
         if action_id == "focus":
             return self._windows.activate_most_recent(desktop_id).succeeded
         if action_id.startswith("window:"):
@@ -311,16 +341,14 @@ class ApplicationSearchProvider:
             )
             return window_id is not None and self._windows.activate(window_id).succeeded
         if action_id.startswith("recent:"):
-            return launcher_actions.open_target(action_id.removeprefix("recent:"))
+            return self._target_service.open_target(action_id.removeprefix("recent:"))
         if action_id == "new-window":
-            launcher_actions.launch_new_window(desktop_id=desktop_id)
-            return True
+            return self._application_launcher.launch_new_window(desktop_id)
         if action_id.startswith("desktop:"):
-            launcher_actions.launch_action(
-                desktop_id=desktop_id,
-                action_id=action_id.removeprefix("desktop:"),
+            return self._application_launcher.launch_action(
+                desktop_id,
+                action_id.removeprefix("desktop:"),
             )
-            return True
         if action_id == "pin":
             return self._model.pin_application(desktop_id)
         if action_id == "unpin":
@@ -330,11 +358,43 @@ class ApplicationSearchProvider:
             return self._windows.close_all(desktop_id).succeeded
         return False
 
+    def _canonical_application(self, desktop_id: str) -> ApplicationInfo | None:
+        application = self._applications_by_id.get(desktop_id)
+        if application is not None:
+            return application
+        return self._registry.get(desktop_id)
 
-def _icon_name(kind: str, value: str) -> str | None:
+
+def _application_name(application: ApplicationInfo) -> str:
+    return (
+        _clean_text(application.name)
+        or application.desktop_id.removesuffix(".desktop")
+        or application.desktop_id
+    )
+
+
+def _normalized_values(values: tuple[str, ...]) -> tuple[str, ...]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        clean = _clean_text(value)
+        key = normalize_search_text(clean)
+        if clean and key not in seen:
+            seen.add(key)
+            result.append(clean)
+    return tuple(result)
+
+
+def _clean_text(value: object) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split())
+
+
+def _icon_name(value: str) -> str | None:
     if not value:
         return None
-    if kind == "file" and value.startswith("file://"):
+    if value.startswith("file://"):
         return unquote(urlparse(value).path)
     return value
 

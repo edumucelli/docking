@@ -9,7 +9,7 @@ import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 from docking.core.config import Config
 
@@ -37,6 +37,9 @@ def _install_fake_gi(monkeypatch):
 
 def _import_about_module(monkeypatch):
     _install_fake_gi(monkeypatch)
+    targets_module = types.ModuleType("docking.platform.targets")
+    targets_module.open_target = MagicMock()
+    monkeypatch.setitem(sys.modules, "docking.platform.targets", targets_module)
     sys.modules.pop("docking.ui.about", None)
     return importlib.import_module("docking.ui.about")
 
@@ -47,6 +50,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     platform_pkg = types.ModuleType("docking.platform")
     platform_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
+
+    applications_pkg = types.ModuleType("docking.platform.applications")
+    applications_pkg.__path__ = []
+    monkeypatch.setitem(
+        sys.modules,
+        "docking.platform.applications",
+        applications_pkg,
+    )
 
     backends_pkg = types.ModuleType("docking.platform.backends")
     backends_pkg.__path__ = []
@@ -60,6 +71,15 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     ui_pkg.__path__ = []
     monkeypatch.setitem(sys.modules, "docking.ui", ui_pkg)
 
+    class _RecentApplicationsPersistence:
+        def __init__(self, config):
+            self.config = config
+
+    class _RecentApplications:
+        def __init__(self, registry, persistence):
+            self.registry = registry
+            self.persistence = persistence
+
     stub_modules = {
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
@@ -68,8 +88,37 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "apply_tweaks": lambda **_kwargs: None,
             "detect_desktop": lambda: "test",
         },
-        "docking.platform.launcher": {
-            "Launcher": type("Launcher", (), {}),
+        "docking.platform.applications.registry": {
+            "ApplicationRegistry": type("ApplicationRegistry", (), {}),
+        },
+        "docking.platform.applications.identity": {
+            "LaunchProvenanceStore": type("LaunchProvenanceStore", (), {}),
+            "ProcessIdentityService": type(
+                "ProcessIdentityService",
+                (),
+                {"__init__": lambda self, _store: None},
+            ),
+        },
+        "docking.platform.applications.launcher": {
+            "ApplicationLauncher": type(
+                "ApplicationLauncher",
+                (),
+                {"__init__": lambda self, _registry, _store: None},
+            ),
+        },
+        "docking.platform.applications.recents": {
+            "RecentApplications": _RecentApplications,
+            "RecentApplicationsPersistence": _RecentApplicationsPersistence,
+        },
+        "docking.platform.icons": {
+            "IconLoader": type("IconLoader", (), {}),
+        },
+        "docking.platform.targets": {
+            "TargetService": type(
+                "TargetService",
+                (),
+                {"__init__": lambda self, **_kwargs: None},
+            ),
         },
         "docking.platform.model": {
             "DockModel": type("DockModel", (), {}),
@@ -85,6 +134,11 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
                 "StatusNotifierNotificationBridge",
                 (),
                 {},
+            ),
+            "StatusNotifierService": type(
+                "StatusNotifierService",
+                (),
+                {"start": lambda self: None, "stop": lambda self: None},
             ),
         },
         "docking.ui.factory": {
@@ -240,7 +294,6 @@ def test_config_load_existing_file_smoke(tmp_path):
 def test_about_dialog_controller_smoke(monkeypatch):
     about_mod = _import_about_module(monkeypatch)
     monkeypatch.setattr(about_mod, "Gtk", _fake_about_gtk())
-    monkeypatch.setattr(about_mod, "pkg_version", lambda _name: "1.2.3")
     controller = about_mod.AboutDialogController(parent=object())
 
     controller.show()
@@ -260,10 +313,14 @@ def test_app_main_smoke(monkeypatch):
         icon_size=48,
         transparency=1.0,
         startup_tips_enabled=True,
+        show_recent_apps=False,
+        recent_apps_max=7,
+        recent_apps_retention_days=30,
+        recent_apps=[],
     )
     theme = MagicMock()
     theme.with_opacity.return_value = object()
-    launcher = MagicMock()
+    registry = MagicMock()
     model = MagicMock()
     renderer = MagicMock()
     tracker = MagicMock()
@@ -283,6 +340,7 @@ def test_app_main_smoke(monkeypatch):
         stop=MagicMock(),
     )
     items_service = MagicMock()
+    registry.generation = 0
 
     config_cls = MagicMock()
     config_cls.load.return_value = config
@@ -292,7 +350,8 @@ def test_app_main_smoke(monkeypatch):
     theme_cls.load.return_value = theme
     monkeypatch.setattr(app_mod, "Theme", theme_cls)
 
-    monkeypatch.setattr(app_mod, "Launcher", MagicMock(return_value=launcher))
+    registry_cls = MagicMock(return_value=registry)
+    monkeypatch.setattr(app_mod, "ApplicationRegistry", registry_cls)
     monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
     monkeypatch.setattr(
@@ -314,12 +373,30 @@ def test_app_main_smoke(monkeypatch):
     def idle_add(callback, *args):
         return callback(*args)
 
+    def refresh_registry():
+        registry.generation = 1
+        return True
+
+    registry.refresh.side_effect = refresh_registry
     fake_glib.idle_add.side_effect = idle_add
 
     app_mod.main()
 
     ui.start.assert_called_once()
     ui.stop.assert_called_once()
+    registry_cls.assert_called_once_with()
+    registry.refresh.assert_called_once_with()
+    registry.start.assert_called_once_with()
+    registry.stop.assert_called_once_with()
+    app_mod.UnityLauncherListener.assert_called_once_with(
+        model=model,
+        application_registry=registry,
+    )
+    app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
+        model=model,
+        application_registry=registry,
+        service=ANY,
+    )
 
     fake_gtk.main.assert_called_once()
     assert fake_glib.unix_signal_add.call_count == 2
@@ -338,5 +415,8 @@ def test_app_quit_smoke(monkeypatch):
     result = app_mod._quit()
 
     assert result is False
+    fake_gtk.main_quit.assert_not_called()
+    _fake_glib.idle_add.assert_called_once_with(fake_gtk.main_quit)
+    _fake_glib.idle_add.call_args.args[0]()
     fake_gtk.main_quit.assert_called_once()
     _fake_glib.timeout_add_seconds.assert_called_once_with(3, app_mod._force_quit)

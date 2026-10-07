@@ -243,6 +243,24 @@ class TestMultiMonitorGap:
 class TestHiDPIScale:
     """Struts are in physical pixels - all values multiplied by scale."""
 
+    def test_custom_partial_span_is_half_open_and_scaled(self):
+        struts = compute_struts(
+            dock_height=81,
+            monitor_x=0,
+            monitor_y=0,
+            monitor_w=1920,
+            monitor_h=1080,
+            screen_w=1920,
+            screen_h=1080,
+            scale=2,
+            position=Position.TOP,
+            span_start=894,
+            span_end=1026,
+        )
+
+        assert struts[2] == 162
+        assert struts[8:10] == [1788, 2051]
+
     def test_scale_2x_doubles_all_values(self):
         s1 = compute_struts(
             dock_height=DOCK_H,
@@ -303,6 +321,8 @@ class TestHiDPIMultiMonitor:
             screen_h=2160,
             scale=2,
             position=Position.TOP,
+            span_start=None,
+            span_end=None,
         )
         assert s[2] == (DOCK_H + 1080) * 2
 
@@ -514,6 +534,8 @@ class TestStrutWriters:
             screen_h=1080,
             scale=2,
             position=Position.TOP,
+            span_start=None,
+            span_end=None,
         )
         set_mock.assert_called_once_with(gdk_window=gdk_window, struts=computed)
 

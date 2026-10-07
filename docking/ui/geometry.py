@@ -233,6 +233,7 @@ the geometry frame here, not to patch individual consumers elsewhere.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
@@ -241,6 +242,7 @@ from docking.core.config import effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
+    compute_item_widths,
     compute_layout,
     content_bounds,
 )
@@ -256,6 +258,48 @@ if TYPE_CHECKING:
 
 TRIGGER_PX = 2
 TRIGGER_PX_TOP = 8
+
+
+@dataclass(frozen=True)
+class DockCrossMetrics:
+    """Cross-axis extents shared by placement, geometry, and rendering."""
+
+    surface_extent: int
+    resting_extent: int
+    edge_padding: float
+    animation_headroom: float
+
+
+def dock_edge_padding(*, theme: Theme) -> float:
+    """Return the nonnegative resting inset from the dock's content edge."""
+    return max(0.0, float(theme.bottom_padding))
+
+
+def resting_dock_cross_extent(*, icon_size: int, theme: Theme) -> int:
+    """Return visible dock thickness, excluding gap and animation headroom."""
+    edge_padding = dock_edge_padding(theme=theme)
+    return max(1, math.ceil(icon_size + edge_padding))
+
+
+def compute_dock_cross_metrics(
+    *, icon_size: int, zoom: float, theme: Theme
+) -> DockCrossMetrics:
+    """Return the surface allocation required by every icon animation."""
+    edge_padding = dock_edge_padding(theme=theme)
+    launch_headroom = icon_size * max(0.0, float(theme.launch_bounce_height))
+    urgent_headroom = icon_size * max(0.0, float(theme.urgent_bounce_height))
+    animation_headroom = launch_headroom + urgent_headroom
+    max_icon_extent = icon_size * max(1.0, float(zoom))
+    surface_extent = math.ceil(max_icon_extent + edge_padding + animation_headroom)
+    return DockCrossMetrics(
+        surface_extent=max(1, surface_extent),
+        resting_extent=resting_dock_cross_extent(
+            icon_size=icon_size,
+            theme=theme,
+        ),
+        edge_padding=edge_padding,
+        animation_headroom=animation_headroom,
+    )
 
 
 class Rect(NamedTuple):
@@ -343,6 +387,9 @@ class DockGeometryFrame:
     local_cursor_main: float
     zoomed_main_offset: float
     cross_size: float
+    # Low-coordinate origin of content. TOP/LEFT reserve the edge gap first;
+    # BOTTOM/RIGHT place the gap after the content extent.
+    content_cross_origin: float = 0.0
     # Pre-computed shelf drawing coordinates (orientation-independent).
     shelf_main_pos: float = 0.0
     shelf_main_extent: float = 0.0
@@ -399,6 +446,7 @@ class DockGeometryInputs:
     zoom_progress: float
     hide_offset: float
     drop_insert_index: int = -1
+    constrain_main_axis: bool = False
 
 
 class DockGeometryBuilder:
@@ -433,6 +481,7 @@ class DockGeometryBuilder:
             zoom_progress=inputs.zoom_progress,
             hide_offset=inputs.hide_offset,
             drop_insert_index=inputs.drop_insert_index,
+            constrain_main_axis=inputs.constrain_main_axis,
         )
 
 
@@ -488,15 +537,16 @@ def map_icon_position(
     scaled_size: float,
     hide_cross: float = 0.0,
     bounce: float = 0.0,
+    edge_origin: float = 0.0,
 ) -> tuple[float, float]:
     """Map main-axis item position to the icon draw origin."""
     cross_rest = cross_size - edge_padding - scaled_size
     if pos == Position.BOTTOM:
         return main_pos, cross_rest + hide_cross - bounce
     if pos == Position.TOP:
-        return main_pos, edge_padding - hide_cross + bounce
+        return main_pos, edge_origin + edge_padding - hide_cross + bounce
     if pos == Position.LEFT:
-        return edge_padding - hide_cross + bounce, main_pos
+        return edge_origin + edge_padding - hide_cross + bounce, main_pos
     return cross_rest + hide_cross - bounce, main_pos
 
 
@@ -512,6 +562,7 @@ def build_geometry_frame(
     zoom_progress: float = 1.0,
     hide_offset: float = 0.0,
     drop_insert_index: int = -1,
+    constrain_main_axis: bool = False,
 ) -> DockGeometryFrame:
     """Build one shared dock geometry snapshot from current runtime state."""
     pos = config.pos
@@ -519,6 +570,23 @@ def build_geometry_frame(
     main_size = window_w if horizontal else window_h
     gap = effective_edge_gap(theme, config)
     cross_size = (window_h if horizontal else window_w) - gap
+    content_cross_origin = float(gap if pos in (Position.TOP, Position.LEFT) else 0)
+    drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
+
+    # Fit only compositor-sized surfaces. Keep the configured icon size/theme
+    # unchanged, and use the same fitted layout for paint, hover and clicks.
+    layout_scale = 1.0
+    if constrain_main_axis:
+        resting_layout = compute_layout(
+            items,
+            config,
+            NO_CURSOR_SENTINEL,
+            item_padding=theme.item_padding,
+            horizontal_padding=theme.horizontal_padding,
+        )
+        layout_scale = _main_axis_fit_scale(
+            resting_layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+        )
 
     local_cursor_main = _local_cursor_main(
         items=items,
@@ -526,6 +594,7 @@ def build_geometry_frame(
         theme=theme,
         main_size=main_size,
         cursor_main=cursor_main,
+        layout_scale=layout_scale,
     )
     layout = tuple(
         compute_layout(
@@ -537,6 +606,19 @@ def build_geometry_frame(
             zoom_progress=zoom_progress,
         )
     )
+    if constrain_main_axis:
+        fit_scale = _main_axis_fit_scale(
+            layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+        )
+        if fit_scale < 1.0:
+            layout = tuple(
+                LayoutItem(
+                    x=item.x * fit_scale,
+                    width=int(item.width * fit_scale),
+                    scale=item.scale,
+                )
+                for item in layout
+            )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
@@ -544,9 +626,14 @@ def build_geometry_frame(
         item_padding=theme.item_padding,
     )
     zoomed_w = right_edge - left_edge
-    dock_main_offset = (main_size - zoomed_w) / 2
+    dock_main_offset = (
+        main_size - zoomed_w - (drop_gap if constrain_main_axis else 0)
+    ) / 2
     zoomed_main_offset = dock_main_offset - left_edge
-    content_cross = int(config.icon_size + theme.bottom_padding)
+    content_cross = resting_dock_cross_extent(
+        icon_size=config.icon_size,
+        theme=theme,
+    )
     static_dock_rect = compute_input_rect(
         pos=pos,
         window_w=window_w,
@@ -560,7 +647,6 @@ def build_geometry_frame(
         distance_from_edge=gap,
     )
 
-    drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
     item_geometries, background_rect = _build_item_geometries(
         items=items,
         layout=layout,
@@ -570,6 +656,7 @@ def build_geometry_frame(
         static_dock_rect=static_dock_rect,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+        content_cross_origin=content_cross_origin,
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
@@ -614,6 +701,7 @@ def build_geometry_frame(
         local_cursor_main=local_cursor_main,
         zoomed_main_offset=zoomed_main_offset,
         cross_size=cross_size,
+        content_cross_origin=content_cross_origin,
         shelf_main_pos=float(background_rect.x if horizontal else background_rect.y),
         shelf_main_extent=float(background_rect.w if horizontal else background_rect.h),
         shelf_cross_pos=shelf_cross_pos,
@@ -659,7 +747,25 @@ def capture_geometry_inputs(
         zoom_progress=zoom_progress,
         hide_offset=hide_offset,
         drop_insert_index=drop_insert_index,
+        constrain_main_axis=window.surface_service.compositor_sizes_main_axis,
     )
+
+
+def _main_axis_fit_scale(
+    layout: Sequence[LayoutItem], *, main_size: int, theme: Theme, drop_gap: float
+) -> float:
+    """Leave room for the shelf border, integer rounding and insertion gap."""
+    visible = [item for item in layout if item.width > 0]
+    if not visible:
+        return 1.0
+    span = visible[-1].x + visible[-1].width * visible[-1].scale - visible[0].x
+    padding = (
+        theme.item_padding
+        + 2 * theme.horizontal_padding
+        + 4 * max(0.0, theme.stroke_width)
+    )
+    available = max(0.0, main_size - padding - drop_gap - 2)
+    return min(1.0, available / span) if span > 0 else 1.0
 
 
 def _local_cursor_main(
@@ -669,13 +775,23 @@ def _local_cursor_main(
     theme: Theme,
     main_size: int,
     cursor_main: float,
+    layout_scale: float = 1.0,
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
     pad = theme.horizontal_padding + theme.item_padding / 2
-    total_main = sum(item.main_size or config.icon_size for item in items)
-    base_w = pad * 2 + total_main + max(0, len(items) - 1) * theme.item_padding
-    return cursor_main - (main_size - base_w) / 2
+    widths = compute_item_widths(items, config.icon_size)
+    visible_widths = [width for width in widths if width > 0]
+    base_w = (
+        pad * 2
+        + sum(visible_widths)
+        + max(0, len(visible_widths) - 1) * theme.item_padding
+    )
+    if layout_scale <= 0:
+        return NO_CURSOR_SENTINEL
+    if layout_scale == 1.0:
+        return cursor_main - (main_size - base_w) / 2
+    return (cursor_main - main_size / 2) / layout_scale + base_w / 2
 
 
 def _build_item_geometries(
@@ -688,6 +804,7 @@ def _build_item_geometries(
     static_dock_rect: Rect,
     zoomed_main_offset: float,
     cross_size: float,
+    content_cross_origin: float,
     hide_offset: float,
     drop_gap: float,
 ) -> tuple[tuple[ItemGeometry, ...], Rect]:
@@ -697,22 +814,23 @@ def _build_item_geometries(
     hide_cross = hide_offset * cross_size
 
     for item, layout_item in zip(items, layout, strict=True):
-        base_size = layout_item.width or config.icon_size
+        base_size = layout_item.width
         scaled_size = base_size * layout_item.scale
         main_pos = layout_item.x + zoomed_main_offset
         draw_x, draw_y = map_icon_position(
             pos=pos,
             main_pos=main_pos,
             cross_size=cross_size,
-            edge_padding=theme.bottom_padding,
+            edge_padding=dock_edge_padding(theme=theme),
             scaled_size=scaled_size,
             hide_cross=hide_cross,
+            edge_origin=content_cross_origin,
         )
         draw_rect = Rect(
             math.floor(draw_x),
             math.floor(draw_y),
-            max(1, math.ceil(scaled_size)),
-            max(1, math.ceil(scaled_size)),
+            max(0, math.ceil(scaled_size)),
+            max(0, math.ceil(scaled_size)),
         )
         anchor_x, anchor_y = _item_anchor(
             pos=pos, draw_x=draw_x, draw_y=draw_y, scaled_size=scaled_size
@@ -721,28 +839,44 @@ def _build_item_geometries(
             (item, layout_item, draw_rect, anchor_x, anchor_y, scaled_size, main_pos)
         )
 
+    expanded = [
+        (index, geometry)
+        for index, geometry in enumerate(partial_geometries)
+        if geometry[5] > 0.0
+    ]
+    expanded_draw_rects = [geometry[2] for _, geometry in expanded]
     background_rect = _compute_background_rect(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         static_dock_rect=static_dock_rect,
         theme=theme,
         edge_gap=effective_edge_gap(theme, config),
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
-    hover_rects = _compute_item_hover_rects(
+    expanded_hover_rects = _compute_item_hover_rects(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         static_dock_rect=static_dock_rect,
         background_rect=background_rect,
         theme=theme,
     )
-    hit_rects = _compute_item_hit_rects(
+    expanded_hit_rects = _compute_item_hit_rects(
         pos=pos,
-        draw_rects=[draw_rect for _, _, draw_rect, *_ in partial_geometries],
+        draw_rects=expanded_draw_rects,
         background_rect=background_rect,
         theme=theme,
     )
+    hover_rects = [Rect(0, 0, 0, 0) for _ in partial_geometries]
+    hit_rects = [Rect(0, 0, 0, 0) for _ in partial_geometries]
+    for (index, _), hover_rect, hit_rect in zip(
+        expanded,
+        expanded_hover_rects,
+        expanded_hit_rects,
+        strict=True,
+    ):
+        hover_rects[index] = hover_rect
+        hit_rects[index] = hit_rect
 
     item_geometries: list[ItemGeometry] = []
     for (

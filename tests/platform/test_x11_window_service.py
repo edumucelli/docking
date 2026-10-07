@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -16,9 +17,13 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
 
 import docking.platform.backends.x11.impl.window_tracker as tracker_mod
 from docking.core.config import Config
+from docking.platform.applications.running import RunningAppInfo
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.x11.services.windows import X11WindowService
-from docking.platform.running import RunningAppInfo
+
+
+def test_window_service_remains_concrete() -> None:
+    assert not inspect.isabstract(X11WindowService)
 
 
 class FakeWorkspace:
@@ -136,7 +141,30 @@ def make_service(
     service._cycle_index = {}
     service._cycle_order_by_desktop = {}
     service._screen_signal_ids = []
+    service._window_state_signal_ids = {}
     return service
+
+
+def test_constructor_reuses_canonical_identity_services(monkeypatch):
+    monkeypatch.setattr(tracker_mod.GLib, "idle_add", MagicMock(return_value=1))
+    model = MagicMock()
+    model.visible_items.return_value = []
+    registry = MagicMock()
+    registry.generation = 7
+    process_identity_service = MagicMock()
+
+    service = X11WindowService(
+        model=model,
+        config=Config(),
+        application_registry=registry,
+        process_identity_service=process_identity_service,
+    )
+
+    assert service._matcher._app_matcher._registry is registry
+    assert (
+        service._matcher._app_matcher._process_identity_service
+        is process_identity_service
+    )
 
 
 def test_list_windows_returns_backend_snapshots(monkeypatch):
@@ -182,13 +210,17 @@ def test_list_windows_returns_backend_snapshots(monkeypatch):
 def test_stop_disconnects_screen_signals():
     service = make_service([FakeWindow(10)])
     screen = MagicMock()
+    window = MagicMock()
     service._screen = screen
     service._screen_signal_ids = [1, 2]
+    service._window_state_signal_ids = {10: (window, 3)}
 
     service.stop()
 
+    window.disconnect.assert_called_once_with(3)
     screen.disconnect.assert_any_call(1)
     screen.disconnect.assert_any_call(2)
+    assert service._window_state_signal_ids == {}
     assert service._screen_signal_ids == []
     assert service._screen is None
 

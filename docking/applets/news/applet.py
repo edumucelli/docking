@@ -10,9 +10,8 @@ from urllib.parse import urlsplit
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.freshness import cadence_label
@@ -55,6 +54,7 @@ from docking.applets.popup import prepare_dialog_content
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.ui.tooltip import parse_timestamp
 
 if TYPE_CHECKING:
@@ -462,10 +462,7 @@ class NewsApplet(Applet):
 
     @staticmethod
     def _open_uri(uri: str) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(uri, None)
-        except GLib.Error as exc:
-            log.bind(action="open_url").warning("Failed to open URL: %s", exc)
+        targets.open_target(uri)
 
     def _add_and_select_source(self, source: NewsSource) -> None:
         updated = add_source(self._sources, source=source)

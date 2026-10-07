@@ -123,12 +123,10 @@ class TestHelperFunctions:
         assert result == Path("/tmp/test-xdg/config") / "kiorc"
 
     def test_open_trash_uri_handles_glib_error(self):
-        from gi.repository import GLib
-
         with (
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("no handler"),
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
             ),
             patch("docking.applets.trash.backend.shutil.which", return_value=False),
         ):
@@ -413,13 +411,11 @@ class TestGioTrashBackend:
     def test_open_launches_default_trash_uri(self):
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
 
     def test_open_prefers_sanitized_host_gio_in_flatpak(self):
         with (
@@ -429,9 +425,7 @@ class TestGioTrashBackend:
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.subprocess.Popen") as popen,
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
@@ -453,7 +447,7 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_not_called()
+        open_target.assert_not_called()
 
     def test_open_falls_back_to_gio_when_host_open_unavailable(self):
         with (
@@ -467,8 +461,8 @@ class TestGioTrashBackend:
                 side_effect=OSError("spawn failed"),
             ) as popen,
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-            ) as launch,
+                "docking.applets.trash.backend.targets.open_target",
+            ) as open_target,
         ):
             GioTrashBackend().open()
 
@@ -490,17 +484,15 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
 
     def test_mate_open_falls_back_to_caja_when_gio_rejects_trash_uri(self):
-        from gi.repository import GLib
-
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("operation not supported"),
-            ) as launch,
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
+            ) as open_target,
             patch(
                 "docking.applets.trash.backend.shutil.which",
                 side_effect=lambda command: (
@@ -511,14 +503,12 @@ class TestGioTrashBackend:
         ):
             MateTrashBackend().open()
 
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
         popen.assert_called_once_with(("caja", "trash:///"))
 
     def test_open_falls_back_to_visible_trash_files_directory_when_uri_handlers_fail(
         self, tmp_path
     ):
-        from gi.repository import GLib
-
         files_dir = tmp_path / "Trash" / "files"
         files_dir.mkdir(parents=True)
         with (
@@ -528,8 +518,8 @@ class TestGioTrashBackend:
                 return_value=files_dir,
             ),
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("operation not supported"),
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
             ),
             patch(
                 "docking.applets.trash.backend.shutil.which",
@@ -1063,12 +1053,10 @@ class TestKdeTrashBackend:
             "docking.applets.trash.backend.subprocess.Popen",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("failed")),
         )
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+        with patch("docking.applets.trash.backend.targets.open_target") as open_target:
             KdeTrashBackend().open()
 
-        launch.assert_called_once_with("trash:/", None)
+        open_target.assert_called_once_with("trash:/")
 
     def test_kde_delete_directory_contents_oserror(self, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/root/restricted")

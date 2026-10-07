@@ -309,9 +309,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - debian: "11"
+          - debian: "12"
             python: "3.10"
-            image: python:3.10-bullseye
+            image: python:3.10-bookworm
           - debian: "12"
             python: "3.12"
             image: python:3.12-bookworm
@@ -529,10 +529,12 @@ jobs:
             tests/ui/test_menu_integration.py \
             tests/applets/test_trivia.py
 
+  # Package builds run alongside tests after quality passes. The release job
+  # below joins both branches before any tag or release can be published.
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -545,7 +547,12 @@ jobs:
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
+      - name: Build native Wayland fallbacks
+        run: bash packaging/deb/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build .deb
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           bash packaging/deb/build.sh
           mkdir -p artifacts
@@ -607,7 +614,7 @@ jobs:
   build-deb-arm64:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -620,7 +627,12 @@ jobs:
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
+      - name: Build native Wayland fallbacks
+        run: bash packaging/deb/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build .deb
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           bash packaging/deb/build.sh
           mkdir -p artifacts
@@ -685,19 +697,30 @@ jobs:
   build-rpm-arm64:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
@@ -711,19 +734,30 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
@@ -737,7 +771,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -767,7 +801,7 @@ jobs:
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -797,7 +831,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -828,7 +862,7 @@ jobs:
   build-snap-arm64:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -862,7 +896,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -891,7 +925,7 @@ jobs:
   build-appimage-arm64:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -920,7 +954,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     container:
       image: archlinux:latest
     steps:
@@ -951,7 +985,7 @@ jobs:
   build-arch-arm64:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -982,7 +1016,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
@@ -1015,7 +1049,7 @@ jobs:
   build-nix-arm64:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -1045,13 +1079,145 @@ jobs:
             artifacts/docking-nix-output.tar.gz
             artifacts/docking-nix-store-path.txt
 
+  test-deb-install:
+    name: Install .deb (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [build-deb, build-deb-arm64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12', 'debian:13']
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            artifact: docking-deb
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: docking-deb-arm64
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/deb
+      - name: Install the release binary and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e DEBIAN_FRONTEND=noninteractive -e PACKAGE_ARCH \
+            -v "$PWD/artifacts/deb:/packages:ro" \
+            -v "$PWD/packaging/deb:/checks:ro" \
+            "$IMAGE" bash -euc '
+              apt-get update
+              apt-get install -y xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
+              test "$(dpkg-query -W -f="\${Status}" docking)" = "install ok installed"
+              test "$(dpkg --print-architecture)" = "$PACKAGE_ARCH"
+              bash /checks/runtime-smoke.sh
+            '
+
+  test-rpm-install:
+    name: Install RPM (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [build-rpm, build-rpm-arm64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'fedora:45', 'opensuse/tumbleweed:latest', 'opensuse/leap:16.0']
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            artifact: docking-rpm
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: docking-rpm-arm64
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/rpm
+      - name: Install the release RPM and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/artifacts/rpm:/packages:ro" \
+            -v "$PWD/packaging:/checks:ro" \
+            "$IMAGE" bash -euc '
+              # The container architecture decides which asset is expected, so
+              # nothing has to be passed across the docker boundary.
+              shopt -s nullglob
+              expected="$(uname -m)"
+              echo "Container architecture: ${expected}"
+              ls -l /packages
+              package=(/packages/docking-*."${expected}".rpm)
+              if [ "${#package[@]}" -ne 1 ]; then
+                echo "Expected exactly one RPM for ${expected}, found ${#package[@]}" >&2
+                exit 1
+              fi
+              # Weak dependencies stay disabled so a green run proves the hard
+              # Requires in the spec are complete on their own.
+              if command -v dnf >/dev/null 2>&1; then
+                dnf install -y --setopt=install_weak_deps=False "${package[0]}"
+                dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon glib2 sway
+              else
+                # CI artifacts are unsigned; Cloudsmith signs published RPMs.
+                zypper --non-interactive install --no-recommends --allow-unsigned-rpm "${package[0]}"
+                zypper --non-interactive install --no-recommends xvfb-run xauth dbus-1-daemon glib2-tools sway
+              fi
+              installed="$(rpm -q --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" docking)"
+              built="$(rpm -qp --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" "${package[0]}")"
+              if [ "${installed}" != "${built}" ]; then
+                echo "Installed ${installed}, expected ${built}" >&2
+                exit 1
+              fi
+              echo "Installed ${installed}"
+              bash /checks/deb/runtime-smoke.sh
+            '
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
+    needs:
+      - changes
+      - quality
+      - bdd-visual
+      - test-ubuntu
+      - test-debian
+      - test-arm64
+      - test-fedora-smoke
+      - test-opensuse-smoke
+      - build-deb
+      - build-deb-arm64
+      - test-deb-install
+      - build-rpm
+      - build-rpm-arm64
+      - test-rpm-install
+      - build-flatpak
+      - build-flatpak-arm64
+      - build-snap
+      - build-snap-arm64
+      - build-appimage
+      - build-appimage-arm64
+      - build-arch
+      - build-arch-arm64
+      - build-nix
+      - build-nix-arm64
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
+    outputs:
+      published: ${{ steps.release_check.outputs.should_release }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
 
@@ -1279,14 +1445,24 @@ jobs:
             cp -f "${src}" "${release_dir}/${latest_name}"
           }
 
-          deb_candidates=("${source_dir}"/deb-amd64/docking_*.deb)
-          deb_file="$(pick_candidate "deb" "${deb_candidates[@]}")"
-          deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
-          deb_arch="$(normalize_arch "${deb_arch}")"
-          copy_release_asset \
-            "${deb_file}" \
-            "docking-${version}-linux-${deb_arch}.deb" \
-            "docking-latest-linux-${deb_arch}.deb"
+          for deb_arch in amd64 arm64; do
+            deb_candidates=("${source_dir}/deb-${deb_arch}"/docking_*_"${deb_arch}".deb)
+            if [ "${#deb_candidates[@]}" -ne 1 ]; then
+              echo "Expected exactly one docking .deb for ${deb_arch}" >&2
+              exit 1
+            fi
+            deb_file="${deb_candidates[0]}"
+            if [ "$(dpkg-deb -f "${deb_file}" Package)" != docking ] || \
+               [ "$(dpkg-deb -f "${deb_file}" Architecture)" != "${deb_arch}" ]; then
+              echo "Unexpected package metadata: ${deb_file}" >&2
+              exit 1
+            fi
+            asset_arch="$(normalize_arch "${deb_arch}")"
+            copy_release_asset \
+              "${deb_file}" \
+              "docking-${version}-linux-${asset_arch}.deb" \
+              "docking-latest-linux-${asset_arch}.deb"
+          done
 
           for rpm_dir in "${source_dir}"/rpm-*; do
             [ -d "${rpm_dir}" ] || continue
@@ -1402,3 +1578,14 @@ jobs:
           echo "Release skipped: ${{ steps.release_check.outputs.reason }}"
           echo "Latest release tag: ${{ steps.release_check.outputs.latest_tag }}"
           echo "Current pyproject version: ${{ steps.version.outputs.version }}"
+
+  publish-cloudsmith:
+    name: Publish Cloudsmith APT packages
+    needs: [release]
+    if: needs.release.outputs.published == 'true' && vars.CLOUDSMITH_ENABLED == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/cloudsmith.yml
+    with:
+      release_tag: ${{ needs.release.outputs.tag }}

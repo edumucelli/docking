@@ -21,6 +21,9 @@ class FakeX11Window:
     def get_scale_factor(self) -> int:
         return 2
 
+    def get_xid(self) -> int:
+        return 1234
+
 
 def _monitor_snapshot(scale: int = 1) -> MonitorSnapshot:
     return MonitorSnapshot(
@@ -63,6 +66,66 @@ def test_on_realize_initializes_pointer_barrier_for_x11_display(monkeypatch):
     service.on_realize(window)
 
     barrier.initialize.assert_called_once_with(gdk_display=display)
+
+
+def test_on_realize_initializes_external_workarea_tracker(monkeypatch):
+    class FakeX11Display:
+        pass
+
+    monkeypatch.setattr(surface_mod.GdkX11, "X11Display", FakeX11Display, raising=False)
+    monkeypatch.setattr(surface_mod.GdkX11, "X11Window", FakeX11Window, raising=False)
+    display = FakeX11Display()
+    x11_window = FakeX11Window()
+    window = MagicMock()
+    window.get_display.return_value = display
+    window.get_window.return_value = x11_window
+    tracker = MagicMock()
+    service = X11SurfaceService(
+        barrier=MagicMock(),
+        workarea_tracker=tracker,
+    )
+
+    service.on_realize(window)
+
+    tracker.initialize.assert_called_once_with(
+        gdk_display=display,
+        own_xid=1234,
+    )
+
+
+def test_external_workarea_and_change_handler_delegate_to_tracker():
+    tracker = MagicMock()
+    expected = Rect(10, 48, 300, 152)
+    tracker.workarea_for.return_value = expected
+    service = X11SurfaceService(workarea_tracker=tracker)
+    callback = MagicMock()
+
+    service.set_external_workarea_changed_handler(callback)
+    result = service.external_workarea(_monitor_snapshot())
+
+    tracker.set_change_handler.assert_called_once_with(callback)
+    tracker.workarea_for.assert_called_once_with(_monitor_snapshot())
+    assert result == expected
+
+
+def test_external_workarea_refresh_delegates_to_tracker():
+    tracker = MagicMock()
+    service = X11SurfaceService(workarea_tracker=tracker)
+
+    service.refresh_external_workarea()
+
+    tracker.refresh.assert_called_once_with()
+
+
+def test_stop_releases_barrier_and_external_workarea_tracker():
+    barrier = MagicMock()
+    tracker = MagicMock()
+    service = X11SurfaceService(barrier=barrier, workarea_tracker=tracker)
+
+    service.stop()
+
+    tracker.stop.assert_called_once_with()
+    barrier.shutdown.assert_called_once_with()
 
 
 def test_set_workspace_scope_toggles_x11_stickiness():
@@ -114,6 +177,9 @@ def test_set_reservation_writes_struts_for_x11_window(monkeypatch):
             monitor=_monitor_snapshot(),
             position=Position.BOTTOM,
             thickness=56,
+            edge_offset=28,
+            span_start=110,
+            span_end=210,
         )
     )
 
@@ -126,6 +192,9 @@ def test_set_reservation_writes_struts_for_x11_window(monkeypatch):
     assert kwargs["monitor_geom"].height == 200
     assert kwargs["screen"] is screen
     assert kwargs["position"] == Position.BOTTOM
+    assert kwargs["edge_offset"] == 28
+    assert kwargs["span_start"] == 110
+    assert kwargs["span_end"] == 210
 
 
 def test_clear_reservation_clears_x11_struts(monkeypatch):

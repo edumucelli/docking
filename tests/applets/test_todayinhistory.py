@@ -512,27 +512,21 @@ class TestTodayInHistoryApplet:
         assert applet.item.tooltip_builder() is label
         build_label.assert_called_once_with(format_history_event(ENTRY))
 
-    def test_open_current_article_noop_success_and_error(self, monkeypatch):
+    def test_open_current_article_noop_success_and_target_failure(self, monkeypatch):
         applet = TodayInHistoryApplet(48, config=Config())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(today_applet_mod.targets, "open_target", open_target)
         applet._current = None
         applet._open_current_article()
 
         applet._current = HistoryEvent(1, "No URL", "Summary")
         applet._open_current_article()
+        open_target.assert_not_called()
 
-        opened: list[str] = []
         applet._current = ENTRY
-        monkeypatch.setattr(
-            today_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda url, _ctx: opened.append(url),
-        )
         applet._open_current_article()
-        assert opened == [ENTRY.article_url]
+        open_target.assert_called_once_with(ENTRY.article_url)
 
-        monkeypatch.setattr(
-            today_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
-        )
+        open_target.return_value = False
         applet._open_current_article()
+        assert open_target.call_count == 2

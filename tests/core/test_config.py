@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -137,39 +138,61 @@ class TestConfigLoad:
             PinnedEntry(kind=APP_KIND, target="browser.desktop"),
             PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
         ]
-        monkeypatch.setattr("docking.core.config._build_initial_pinned", lambda: seeded)
+        initial_pinned_factory = MagicMock(return_value=seeded)
+        original_save = Config.save
+        saves: list[Path] = []
+
+        def recording_save(config, path=None):
+            saves.append(Path(path))
+            return original_save(config, path=path)
+
+        monkeypatch.setattr(Config, "save", recording_save)
         # When
-        config = Config.load(path)
+        config = Config.load(
+            path,
+            initial_pinned_factory=initial_pinned_factory,
+        )
         # Then
         assert config.icon_size == 48
         assert config.pinned == seeded
         assert path.exists()
+        initial_pinned_factory.assert_called_once_with()
+        assert saves == [path]
 
-    def test_load_missing_file_seeds_starter_applets_after_launchers(
-        self, tmp_path, monkeypatch
-    ):
+    def test_load_missing_file_seeds_starter_applets_after_launchers(self, tmp_path):
         path = tmp_path / "dock.json"
+        available = {
+            "firefox.desktop",
+            "files.desktop",
+            "gnome-terminal.desktop",
+            "editor.desktop",
+            "mail.desktop",
+            "gnome-calculator.desktop",
+            "gnome-software.desktop",
+        }
+        defaults = {
+            "inode/directory": "files.desktop",
+            "text/plain": "editor.desktop",
+            "x-scheme-handler/mailto": "mail.desktop",
+        }
 
-        monkeypatch.setattr(
-            "docking.core.config._build_initial_launcher_entries",
-            lambda: [
-                PinnedEntry(kind=APP_KIND, target="browser.desktop"),
-                PinnedEntry(kind=APP_KIND, target="terminal.desktop"),
-                PinnedEntry(kind=APP_KIND, target="mail.desktop"),
-                PinnedEntry(kind=APP_KIND, target="calc.desktop"),
-                PinnedEntry(kind=APP_KIND, target="store.desktop"),
-            ],
+        config = Config.load(
+            path,
+            initial_pinned_factory=lambda: config_mod.build_initial_pinned(
+                desktop_id_exists=available.__contains__,
+                default_desktop_id_for=defaults.get,
+            ),
         )
-
-        config = Config.load(path)
 
         assert config.pinned == [
             PinnedEntry(kind=APPLET_KIND, target="applet://applications"),
-            PinnedEntry(kind=APP_KIND, target="browser.desktop"),
-            PinnedEntry(kind=APP_KIND, target="terminal.desktop"),
+            PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
+            PinnedEntry(kind=APP_KIND, target="files.desktop"),
+            PinnedEntry(kind=APP_KIND, target="gnome-terminal.desktop"),
+            PinnedEntry(kind=APP_KIND, target="editor.desktop"),
             PinnedEntry(kind=APP_KIND, target="mail.desktop"),
-            PinnedEntry(kind=APP_KIND, target="calc.desktop"),
-            PinnedEntry(kind=APP_KIND, target="store.desktop"),
+            PinnedEntry(kind=APP_KIND, target="gnome-calculator.desktop"),
+            PinnedEntry(kind=APP_KIND, target="gnome-software.desktop"),
             PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
             PinnedEntry(kind=APPLET_KIND, target="applet://calendar"),
             PinnedEntry(kind=APPLET_KIND, target="applet://weather"),
@@ -177,6 +200,18 @@ class TestConfigLoad:
             PinnedEntry(kind=APPLET_KIND, target="applet://hydration"),
             PinnedEntry(kind=APPLET_KIND, target="applet://notifications"),
             PinnedEntry(kind=APPLET_KIND, target="applet://session"),
+        ]
+
+    def test_load_missing_file_without_factory_uses_pure_applet_fallback(
+        self, tmp_path
+    ):
+        path = tmp_path / "dock.json"
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=APPLET_KIND, target=f"applet://{applet_id}")
+            for applet_id in config_mod.STARTER_APPLET_IDS
         ]
 
     def test_load_previews_enabled(self, tmp_path):
@@ -425,20 +460,31 @@ class TestConfigLoad:
         assert backup.exists()
         assert json.loads(backup.read_text())["icon_size"] == 72
 
-    def test_load_existing_file_does_not_reseed_first_run_pins(
-        self, tmp_path, monkeypatch
-    ):
+    def test_load_existing_file_does_not_reseed_first_run_pins(self, tmp_path):
         path = tmp_path / "dock.json"
         path.write_text(json.dumps({"pinned": ["existing.desktop"]}), encoding="utf-8")
 
         def fail_if_called():
             raise AssertionError("first-run seeding should not run for existing config")
 
-        monkeypatch.setattr("docking.core.config._build_initial_pinned", fail_if_called)
-
-        config = Config.load(path)
+        config = Config.load(path, initial_pinned_factory=fail_if_called)
 
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="existing.desktop")]
+
+    def test_load_existing_empty_pins_are_never_reseeded(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"pinned": []}), encoding="utf-8")
+        initial_pinned_factory = MagicMock(
+            side_effect=AssertionError("existing empty pins must remain empty")
+        )
+
+        config = Config.load(
+            path,
+            initial_pinned_factory=initial_pinned_factory,
+        )
+
+        assert config.pinned == []
+        initial_pinned_factory.assert_not_called()
 
     def test_load_invalid_primary_and_backup_falls_back_to_default(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -706,7 +752,6 @@ class TestConfigSave:
 
 class TestNormalizeHideMode:
     def test_normalize_hide_mode_returns_default_on_value_error(self, monkeypatch):
-
         warnings: list[str] = []
 
         class _Capture:
@@ -722,66 +767,6 @@ class TestNormalizeHideMode:
         assert config_mod._normalize_hide_mode(42) == "none"
         assert config_mod._normalize_hide_mode(None) == "none"
         assert config_mod._normalize_hide_mode(["autohide"]) == "none"
-
-
-class TestDefaultDesktopIdFor:
-    def test_glib_error_returns_none(self, monkeypatch):
-        import gi
-
-        gi.require_version("Gio", "2.0")
-        from gi.repository import GLib
-
-        monkeypatch.setattr(
-            gi.repository,
-            "Gio",
-            SimpleNamespace(
-                AppInfo=SimpleNamespace(
-                    get_default_for_type=lambda _ct, _must_support_uris: (
-                        _ for _ in ()
-                    ).throw(
-                        GLib.Error(
-                            message="No app for type", domain="g-io-error-quark", code=0
-                        )
-                    )
-                )
-            ),
-        )
-        result = config_mod._default_desktop_id_for("application/x-nope")
-        assert result is None
-
-    def test_app_info_none_returns_none(self, monkeypatch):
-        import gi
-
-        gi.require_version("Gio", "2.0")
-        monkeypatch.setattr(
-            gi.repository,
-            "Gio",
-            SimpleNamespace(
-                AppInfo=SimpleNamespace(
-                    get_default_for_type=lambda _ct, _must_support_uris: None
-                )
-            ),
-        )
-        result = config_mod._default_desktop_id_for("application/x-none")
-        assert result is None
-
-    def test_empty_desktop_id_returns_none(self, monkeypatch):
-        import gi
-
-        gi.require_version("Gio", "2.0")
-        monkeypatch.setattr(
-            gi.repository,
-            "Gio",
-            SimpleNamespace(
-                AppInfo=SimpleNamespace(
-                    get_default_for_type=lambda _ct, _must_support_uris: (
-                        SimpleNamespace(get_id=lambda: "")
-                    )
-                )
-            ),
-        )
-        result = config_mod._default_desktop_id_for("application/x-empty")
-        assert result is None
 
 
 class TestUriIsDir:
@@ -976,9 +961,6 @@ class TestConfigSaveEdgeCases:
         )
 
 
-from types import SimpleNamespace
-
-
 class TestConfigHelpers:
     def test_pinned_entry_equality_and_raw_shapes(self, tmp_path):
         folder_uri = tmp_path.as_uri()
@@ -1002,37 +984,54 @@ class TestConfigHelpers:
         assert PinnedEntry.from_raw({"kind": "bad", "target": "x"}) is None
         assert PinnedEntry.from_raw(["bad"]) is None
 
-    def test_resolve_initial_desktop_id_uses_candidates_and_fallbacks(
-        self, monkeypatch
-    ):
-        monkeypatch.setattr(
-            config_mod,
-            "_desktop_id_exists",
-            lambda desktop_id: desktop_id == "good.desktop",
-        )
+    def test_resolve_initial_desktop_id_uses_candidates_and_fallbacks(self):
         assert (
             config_mod._resolve_initial_desktop_id(
                 candidates=("bad.desktop", "good.desktop"),
                 fallback_content_types=(),
+                desktop_id_exists=lambda desktop_id: desktop_id == "good.desktop",
+                default_desktop_id_for=lambda _content_type: None,
             )
             == "good.desktop"
         )
 
-        monkeypatch.setattr(config_mod, "_desktop_id_exists", lambda _desktop_id: True)
-        monkeypatch.setattr(
-            config_mod,
-            "_default_desktop_id_for",
-            lambda content_type: (
-                "fallback.desktop" if content_type == "text/plain" else None
-            ),
-        )
         assert (
             config_mod._resolve_initial_desktop_id(
                 candidates=(),
                 fallback_content_types=("text/plain",),
+                desktop_id_exists=lambda _desktop_id: True,
+                default_desktop_id_for=lambda content_type: (
+                    "fallback.desktop" if content_type == "text/plain" else None
+                ),
             )
             == "fallback.desktop"
         )
+
+    def test_build_initial_pinned_suppresses_duplicate_callback_results(self):
+        available = {"firefox.desktop", "gnome-terminal.desktop"}
+        defaults = {
+            "inode/directory": "firefox.desktop",
+            "text/plain": "gnome-terminal.desktop",
+            "x-scheme-handler/mailto": "firefox.desktop",
+        }
+
+        pinned = config_mod.build_initial_pinned(
+            desktop_id_exists=available.__contains__,
+            default_desktop_id_for=defaults.get,
+        )
+
+        assert pinned == [
+            PinnedEntry(kind=APPLET_KIND, target="applet://applications"),
+            PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
+            PinnedEntry(kind=APP_KIND, target="gnome-terminal.desktop"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://calendar"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://weather"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://systemmonitor"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://hydration"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://notifications"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://session"),
+        ]
 
     def test_read_config_data_rejects_non_object(self, tmp_path):
         path = tmp_path / "dock.json"

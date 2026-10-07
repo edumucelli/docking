@@ -55,6 +55,7 @@ from docking.platform.backends.base import (
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
 )
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.portals import (
     load_portal_color_picker,
 )
@@ -69,7 +70,8 @@ from docking.platform.backends.wayland.toplevels import (
 )
 
 if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
 
@@ -84,6 +86,7 @@ class CosmicRuntimeServices:
     workspaces: WorkspaceService | None
     screen_capture: ScreenCaptureService | None
     protocol_runtime: WaylandProtocolRuntime | None
+    idle: IdleService | None
 
 
 class CosmicOverlapVisibilityService(VisibilityService):
@@ -174,7 +177,8 @@ class CosmicSessionBackend(SessionBackend):
         *,
         layer_shell: object,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
     ) -> None:
@@ -200,7 +204,8 @@ class CosmicSessionBackend(SessionBackend):
         if preview_protocol is not None:
             preview_handles = WaylandPreviewHandleTracker(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=preview_protocol,
             )
 
@@ -211,7 +216,8 @@ class CosmicSessionBackend(SessionBackend):
             # (for listing) and zcosmic_toplevel_info_v1 (for richer info)
             windows = WaylandForeignToplevelWindowService(
                 model=model,
-                launcher=launcher,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
                 protocol=cosmic_toplevel,
                 preview_handles=preview_handles,
                 can_preview=preview_protocol is None
@@ -225,7 +231,8 @@ class CosmicSessionBackend(SessionBackend):
             if generic_toplevel is not None:
                 windows = WaylandForeignToplevelWindowService(
                     model=model,
-                    launcher=launcher,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
                     protocol=generic_toplevel,
                     preview_handles=preview_handles,
                 )
@@ -304,10 +311,14 @@ class CosmicSessionBackend(SessionBackend):
             if screen_capture is not None
             else load_portal_color_picker(),
             protocol_runtime=runtime,
+            idle=WaylandIdleService(protocol=runtime.idle_protocol)
+            if runtime is not None and runtime.idle_protocol is not None
+            else None,
         )
 
         # Stash overlap adapter for late binding to the layer surface
         self._cosmic_overlap = cosmic_overlap
+        self._cosmic_toplevel = cosmic_toplevel
 
     @property
     def name(self) -> str:
@@ -331,13 +342,17 @@ class CosmicSessionBackend(SessionBackend):
             self._services.visibility, CosmicOverlapVisibilityService
         )
         return PlatformCapabilities(
+            supports_idle_time=self._services.idle is not None,
             tracks_windows=tracks_windows,
             tracks_active_window=tracks_windows,
             tracks_minimized=tracks_windows,
             tracks_maximized=tracks_windows,
             tracks_fullscreen=tracks_windows,
-            tracks_window_geometry=tracks_windows,
-            tracks_window_workspace=tracks_windows,
+            tracks_window_geometry=tracks_windows
+            and bool(getattr(self._cosmic_toplevel, "supports_geometry", False)),
+            tracks_window_workspace=tracks_windows
+            and supports_workspaces
+            and bool(getattr(self._cosmic_toplevel, "supports_workspace", False)),
             supports_activate=tracks_windows,
             supports_minimize=tracks_windows,
             supports_close=tracks_windows,
@@ -382,13 +397,15 @@ class CosmicSessionBackend(SessionBackend):
 
     @property
     def idle(self) -> IdleService | None:
-        return None
+        return self._services.idle
 
     @property
     def window_picker(self) -> WindowPickService | None:
         return None
 
     def start(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.start()
         self._services.previews.start()
         self._services.windows.start()
         self._services.surface.start()
@@ -399,6 +416,8 @@ class CosmicSessionBackend(SessionBackend):
             self._services.screen_capture.start()
 
     def stop(self) -> None:
+        if self._services.idle is not None:
+            self._services.idle.stop()
         if self._services.screen_capture is not None:
             self._services.screen_capture.stop()
         if self._services.workspaces is not None:

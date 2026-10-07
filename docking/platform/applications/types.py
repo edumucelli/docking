@@ -1,0 +1,239 @@
+"""Binding-free canonical values for installed and matched applications."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+
+
+class ApplicationOrigin(Enum):
+    """How an application identity entered Docking's model."""
+
+    INSTALLED = "installed"
+    GENERATED = "generated"
+    RUNTIME = "runtime"
+
+
+class ApplicationLocation(Enum):
+    """Where the application must execute."""
+
+    SANDBOX = "sandbox"
+    HOST = "host"
+
+
+class ActionSource(Enum):
+    """Metadata source that declared a desktop action."""
+
+    GIO = "gio"
+    DESKTOP_FILE = "desktop-file"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ApplicationAction:
+    """One source-aware action declared for an application."""
+
+    action_id: str
+    name: str
+    sources: frozenset[ActionSource]
+    file_exec_line: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ApplicationInfo:
+    """Source-faithful metadata for one resolvable application."""
+
+    desktop_id: str
+    name: str
+    declared_icon: str
+    wm_class: str
+    exec_line: str
+    origin: ApplicationOrigin
+    location: ApplicationLocation
+    desktop_file: Path | None
+    executable_path: Path | None
+    aliases: tuple[str, ...]
+    visible: bool
+    has_gio_source: bool
+    flatpak_app_id: str = ""
+    generic_name: str = ""
+    description: str = ""
+    categories: tuple[str, ...] = ()
+    categories_raw: str = ""
+    keywords: tuple[str, ...] = ()
+    actions: tuple[ApplicationAction, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TransientApplicationInfo:
+    """Launchable Gio metadata without a stable desktop application ID."""
+
+    listing_key: str = field(compare=False)
+    name: str
+    declared_icon: str
+    desktop_file: Path | None
+    exec_line: str = ""
+    description: str = ""
+    generic_name: str = ""
+    categories: tuple[str, ...] = ()
+    categories_raw: str = ""
+    desktop_id: None = field(default=None, init=False, compare=False)
+    has_gio_source: bool = field(default=True, init=False, compare=False)
+
+
+ApplicationListing = ApplicationInfo | TransientApplicationInfo
+
+
+@dataclass(frozen=True, slots=True)
+class ApplicationDiagnostic:
+    """Shareable effective metadata and declarations for a registered app."""
+
+    desktop_id: str
+    name: str
+    desktop_file: Path | None
+    visible: bool
+    has_gio_source: bool
+    wm_class: str
+    launcher_basename: str
+    aliases: tuple[str, ...]
+    gio_startup_wm_class: str | None = None
+    file_startup_wm_class: str | None = None
+    flatpak_app_id: str = ""
+
+
+class DiscoveryReason(Enum):
+    """Why a discovery source was overridden or could not be registered."""
+
+    SHADOWED = "shadowed-source"
+    HIDDEN = "hidden-entry"
+    NON_APPLICATION = "non-application-entry"
+    UNREADABLE = "unreadable-metadata"
+    NO_IDENTITY = "missing-desktop-id"
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryDecision:
+    """Source evidence retained even when no canonical application results."""
+
+    source: str
+    reason: DiscoveryReason
+    desktop_id: str = ""
+    desktop_file: Path | None = None
+    name: str = ""
+    startup_wm_class: str | None = None
+    launcher_basename: str = ""
+    winning_path: Path | None = None
+
+
+class DiscoveryDirectoryStatus(Enum):
+    """Whether normal discovery could enumerate an application directory."""
+
+    SEARCHED = "searched"
+    MISSING = "missing"
+    UNREADABLE = "unreadable"
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryDirectoryDiagnostic:
+    path: Path
+    status: DiscoveryDirectoryStatus
+
+
+@dataclass(frozen=True, slots=True)
+class ApplicationDiscoveryDiagnostic:
+    """Immutable evidence from the last completed registry discovery."""
+
+    generation: int
+    registered_count: int
+    visible_count: int
+    directories: tuple[Path, ...]
+    loaded: bool
+    applications: tuple[ApplicationDiagnostic, ...] = ()
+    decisions: tuple[DiscoveryDecision, ...] = ()
+    directory_statuses: tuple[DiscoveryDirectoryDiagnostic, ...] = ()
+
+
+class MatchMethod(Enum):
+    """Evidence route that selected an application identity."""
+
+    LAUNCH_PROVENANCE = "launch-provenance"
+    WINE_INSTANCE = "wine-instance"
+    VISIBLE_ALIAS = "visible-alias"
+    INSTANCE_HINT = "instance-hint"
+    DESKTOP_ID = "desktop-id"
+    WM_CLASS = "wm-class"
+    RUNTIME_PATH_SPLIT = "runtime-path-split"
+    APPLICATION_ID = "application-id"
+    SANDBOX_ID = "sandbox-id"
+    SCRIPT_NAME = "script-name"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MatchEvidence:
+    """Raw runtime evidence retained with a structured match."""
+
+    method: MatchMethod
+    raw_app_id: str
+    instance_hint: str = ""
+    pid: int | None = None
+    executable_path: Path | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ApplicationMatch:
+    """A desktop identity selected from runtime evidence."""
+
+    desktop_id: str
+    application: ApplicationInfo | None
+    evidence: MatchEvidence
+
+    @property
+    def runtime_app(self) -> ApplicationInfo | None:
+        """Return metadata only when this is a runtime-only identity."""
+        if (
+            self.application is not None
+            and self.application.origin is ApplicationOrigin.RUNTIME
+        ):
+            return self.application
+        return None
+
+
+class MatchFailureReason(Enum):
+    """Why runtime identity did not produce an application match."""
+
+    NO_IDENTITY = "no-identity"
+    NO_MATCH = "no-match"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ApplicationMatchAttempt:
+    """Identity evidence retained even when no application matches."""
+
+    match: ApplicationMatch | None
+    pid: int | None = None
+    executable_path: Path | None = None
+    failure_reason: MatchFailureReason | None = None
+    sandbox_app_id: str | None = None
+    script_basename: str | None = None
+
+
+__all__ = [
+    "ActionSource",
+    "ApplicationAction",
+    "ApplicationDiagnostic",
+    "ApplicationDiscoveryDiagnostic",
+    "ApplicationInfo",
+    "ApplicationListing",
+    "ApplicationLocation",
+    "ApplicationMatch",
+    "ApplicationMatchAttempt",
+    "ApplicationOrigin",
+    "DiscoveryDecision",
+    "DiscoveryDirectoryDiagnostic",
+    "DiscoveryDirectoryStatus",
+    "DiscoveryReason",
+    "MatchEvidence",
+    "MatchFailureReason",
+    "MatchMethod",
+    "TransientApplicationInfo",
+]

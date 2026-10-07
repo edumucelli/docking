@@ -474,16 +474,12 @@ class TestRedditApplet:
     def test_click_opens_current_reddit_page(self, monkeypatch):
         applet = _make_applet()
         applet._posts = [_post()]
-        launch = MagicMock()
-        monkeypatch.setattr(
-            reddit_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            launch,
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(reddit_applet_mod.targets, "open_target", open_target)
 
         applet.on_clicked()
 
-        launch.assert_called_once_with(_post().url, None)
+        open_target.assert_called_once_with(_post().url)
 
     def test_menu_contains_navigation_source_and_management(self):
         applet = _make_applet()

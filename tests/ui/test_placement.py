@@ -31,8 +31,13 @@ def _make_window(**overrides):
             top_padding=4,
             bottom_padding=8,
             urgent_bounce_height=0.5,
+            launch_bounce_height=0.25,
             distance_from_edge=0,
+            horizontal_padding=12,
+            item_padding=6,
+            stroke_width=0,
         ),
+        model=SimpleNamespace(visible_items=list),
         get_display=MagicMock(),
         get_screen=MagicMock(),
         get_window=MagicMock(),
@@ -42,6 +47,7 @@ def _make_window(**overrides):
         resize=MagicMock(),
         move=MagicMock(),
         drawing_area=SimpleNamespace(queue_draw=MagicMock()),
+        _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         surface_service=surface_service,
     )
@@ -83,6 +89,23 @@ def _fake_monitor(
 
 
 class TestPlacementControllerLifecycle:
+    def test_registers_and_removes_external_workarea_handler(self):
+        window = _make_window()
+        controller = _make_controller(window)
+
+        callback = (
+            window.surface_service.set_external_workarea_changed_handler.call_args.args[
+                0
+            ]
+        )
+        assert callback == controller.schedule_reposition
+
+        controller.on_destroy()
+
+        window.surface_service.set_external_workarea_changed_handler.assert_called_with(
+            None
+        )
+
     def test_on_realize_initializes_surface_and_active_display(self):
         screen = SimpleNamespace(connect=MagicMock(side_effect=[51, 52]))
         window = _make_window(
@@ -144,6 +167,16 @@ class TestPlacementControllerLifecycle:
 
         controller.schedule_reposition.assert_called_once()
 
+    def test_screen_metrics_refresh_external_snapshot_before_reposition(self):
+        window = _make_window()
+        controller = _make_controller(window)
+        controller.schedule_reposition = MagicMock()
+
+        controller.on_screen_metrics_changed()
+
+        window.surface_service.refresh_external_workarea.assert_called_once_with()
+        controller.schedule_reposition.assert_called_once_with()
+
     def test_schedule_reposition_coalesces_until_idle_runs(self, monkeypatch):
         window = _make_window()
         controller = _make_controller(window)
@@ -187,8 +220,8 @@ class TestPlacementControllerLifecycle:
 
         controller.apply_scheduled_reposition()
 
-        window.resize.assert_called_with(2560, 93)
-        window.move.assert_called_with(0, 987)
+        window.resize.assert_called_with(2560, 102)
+        window.move.assert_called_with(0, 978)
 
     def test_on_destroy_cleans_geometry_refresh_and_screen_handlers(self, monkeypatch):
         screen = SimpleNamespace(disconnect=MagicMock())
@@ -213,6 +246,83 @@ class TestPlacementControllerLifecycle:
 
 
 class TestPlacementControllerGeometry:
+    @pytest.mark.parametrize(
+        ("position", "expected_move", "expected_size"),
+        [
+            (Position.TOP, (10, 20), (900, 102)),
+            (Position.BOTTOM, (10, 518), (900, 102)),
+            (Position.LEFT, (10, 20), (102, 600)),
+            (Position.RIGHT, (808, 20), (102, 600)),
+        ],
+    )
+    def test_external_panels_bound_placement_on_every_edge(
+        self, position, expected_move, expected_size
+    ):
+        geom = SimpleNamespace(x=0, y=0, width=1000, height=700)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        config = SimpleNamespace(
+            icon_size=48,
+            zoom_enabled=True,
+            zoom_percent=1.2,
+            pos=position,
+            active_display=False,
+            hide_mode="none",
+            monitor_index=-1,
+            monitor_connector=None,
+            additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
+        )
+        window = _make_window(config=config, get_display=lambda: display)
+        window.surface_service.external_workarea.return_value = placement_mod.Rect(
+            10, 20, 900, 600
+        )
+        controller = _make_controller(window)
+        controller.update_barrier = MagicMock()
+
+        controller.position_dock()
+
+        window.move.assert_called_once_with(*expected_move)
+        window.resize.assert_called_once_with(*expected_size)
+
+    def test_available_x11_monitor_without_panel_uses_full_geometry(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        own_strut_workarea = SimpleNamespace(x=0, y=53, width=1920, height=1027)
+        monitor = _fake_monitor(geometry=geom, workarea=own_strut_workarea)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        config = SimpleNamespace(
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            pos=Position.TOP,
+            active_display=False,
+            hide_mode="none",
+            monitor_index=-1,
+            monitor_connector=None,
+            additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
+        )
+        window = _make_window(config=config, get_display=lambda: display)
+        window.surface_service.external_workarea.return_value = placement_mod.Rect(
+            0, 0, 1920, 1080
+        )
+        controller = _make_controller(window)
+        controller.update_barrier = MagicMock()
+
+        controller.position_dock()
+
+        window.move.assert_called_once_with(0, 0)
+
     def test_current_monitor_choice_handles_missing_and_invalid_monitors(self):
         window = _make_window(get_display=lambda: None)
         controller = _make_controller(window)
@@ -369,6 +479,7 @@ class TestPlacementControllerGeometry:
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.0,
+                launch_bounce_height=0.0,
                 distance_from_edge=6,
             ),
         )
@@ -377,7 +488,7 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(0, 1014)
+        window.move.assert_called_once_with(0, 1018)
 
     def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -406,6 +517,7 @@ class TestPlacementControllerGeometry:
                 top_padding=4,
                 bottom_padding=8,
                 urgent_bounce_height=0.0,
+                launch_bounce_height=0.0,
                 distance_from_edge=6,
             ),
         )
@@ -414,7 +526,7 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(1854, 24)
+        window.move.assert_called_once_with(1858, 24)
 
     def test_position_dock_uses_selected_monitor_index(self):
         geom_primary = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -518,6 +630,99 @@ class TestPlacementControllerGeometry:
 
 
 class TestPlacementControllerStruts:
+    def test_set_struts_waits_until_window_is_realized(self):
+        window = _make_window(get_realized=lambda: False)
+        controller = _make_controller(window)
+
+        controller.set_struts()
+
+        window.surface_service.set_reservation.assert_not_called()
+
+    def test_external_panel_offset_and_final_shelf_span_are_reserved(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        config = SimpleNamespace(
+            hide_mode="none",
+            icon_size=48,
+            pos=Position.TOP,
+            active_display=False,
+            monitor_index=-1,
+            monitor_connector=None,
+            additional_distance_from_edge=0,
+            pressure_reveal_enabled=False,
+            pressure_threshold=50,
+        )
+        theme = SimpleNamespace(
+            bottom_padding=8,
+            distance_from_edge=0,
+            horizontal_padding=12,
+            item_padding=6,
+            stroke_width=0,
+        )
+        model = SimpleNamespace(
+            visible_items=lambda: [
+                SimpleNamespace(main_size=0),
+                SimpleNamespace(main_size=0),
+            ]
+        )
+        window = _make_window(
+            config=config,
+            theme=theme,
+            model=model,
+            get_display=lambda: display,
+        )
+        window.surface_service.external_workarea.return_value = placement_mod.Rect(
+            0, 28, 1920, 1052
+        )
+        controller = _make_controller(window)
+
+        controller.set_struts()
+
+        request = window.surface_service.set_reservation.call_args.args[0]
+        assert request.thickness == 56
+        assert request.edge_offset == 28
+        assert (request.span_start, request.span_end) == (894, 1026)
+
+    def test_identical_reservation_is_not_republished(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(get_display=lambda: display)
+        controller = _make_controller(window)
+
+        controller.set_struts()
+        controller.set_struts()
+
+        window.surface_service.set_reservation.assert_called_once()
+
+    def test_own_workarea_change_does_not_republish_same_reservation(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        workarea = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=workarea)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(get_display=lambda: display)
+        controller = _make_controller(window)
+
+        controller.set_struts()
+        workarea.y = 53
+        workarea.height = 1027
+        controller.set_struts()
+
+        window.surface_service.set_reservation.assert_called_once()
+
     def test_set_struts_clears_when_autohide_enabled(self):
         window = _make_window(
             config=SimpleNamespace(
@@ -589,6 +794,35 @@ class TestPlacementControllerStruts:
             width=1920,
             height=1080,
         )
+
+    def test_set_struts_rounds_visible_fractional_extent_up(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="none",
+                icon_size=48,
+                pos=Position.BOTTOM,
+                active_display=False,
+                monitor_index=-1,
+                additional_distance_from_edge=0,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
+            theme=SimpleNamespace(bottom_padding=4.8, distance_from_edge=0),
+            get_display=lambda: display,
+        )
+        controller = _make_controller(window)
+
+        controller.set_struts()
+
+        request = window.surface_service.set_reservation.call_args.args[0]
+        assert request.thickness == 53
 
     def test_set_struts_uses_active_display_monitor_when_enabled(self):
         primary_geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -725,6 +959,29 @@ class TestPlacementControllerStruts:
 
         kwargs = window.surface_service.update_pointer_barrier.call_args.kwargs
         assert kwargs["monitor"].scale == 2
+
+    def test_external_panel_does_not_move_barrier_from_physical_edge(self):
+        geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        monitor = _fake_monitor(geometry=geom, workarea=geom)
+        window = _make_window(
+            config=SimpleNamespace(
+                hide_mode="autohide",
+                pos=Position.TOP,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+            ),
+            get_scale_factor=lambda: 1,
+        )
+        window.surface_service.external_workarea.return_value = placement_mod.Rect(
+            0, 28, 1920, 1052
+        )
+        controller = _make_controller(window)
+        controller._resolve_target_monitor = MagicMock(return_value=monitor)
+
+        controller.update_barrier()
+
+        request = window.surface_service.update_pointer_barrier.call_args.kwargs
+        assert request["monitor"].geometry == placement_mod.Rect(0, 0, 1920, 1080)
 
     @pytest.mark.parametrize(
         "scale",
@@ -1010,6 +1267,7 @@ class TestPlacementControllerStruts:
 
         controller.reposition()
 
+        window._invalidate_current_geometry_frame.assert_called_once()
         controller.position_dock.assert_called_once()
         controller.set_struts.assert_called_once()
         window.update_input_region.assert_called_once()

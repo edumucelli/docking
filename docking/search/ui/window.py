@@ -33,7 +33,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk, Pango
 
 from docking.i18n import _
-from docking.platform.launcher import Launcher
+from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -72,13 +72,13 @@ class _ResultRow(Gtk.ListBoxRow):
         self,
         result: SearchResult,
         *,
-        launcher: Launcher,
+        icon_loader: IconLoader,
     ) -> None:
         super().__init__()
         self.result = result
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         box.set_border_width(8)
-        icon = launcher.load_icon(
+        icon = icon_loader.load_icon(
             icon_name=result.icon_name or "system-search",
             size=SEARCH_ICON_SIZE,
         )
@@ -142,7 +142,7 @@ class SearchWindow:
     def __init__(
         self,
         *,
-        launcher: Launcher,
+        icon_loader: IconLoader,
         on_query_changed: Callable[[str], None],
         on_result_selected: Callable[[SearchIdentity | None], None],
         on_result_activated: Callable[[SearchResult], None],
@@ -155,7 +155,7 @@ class SearchWindow:
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
-        self._launcher = launcher
+        self._icon_loader = icon_loader
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -384,7 +384,7 @@ class SearchWindow:
             for result in self._results:
                 row = _ResultRow(
                     result,
-                    launcher=self._launcher,
+                    icon_loader=self._icon_loader,
                 )
                 self.results_list.add(row)
                 if (

@@ -284,9 +284,11 @@ class NotificationsApplet(Applet):
                 [
                     "sh",
                     "-c",
-                    "command -v dbus-monitor >/dev/null || exit 127; "
-                    f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                    f"exec dbus-monitor --session {monitor_rule}",
+                    (
+                        "command -v dbus-monitor >/dev/null || exit 127; "
+                        f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                        f"exec dbus-monitor --session {monitor_rule}"
+                    ),
                 ]
             )
 
