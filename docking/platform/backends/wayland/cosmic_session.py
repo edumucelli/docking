@@ -72,6 +72,7 @@ from docking.platform.backends.wayland.toplevels import (
 if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.backends.wayland.cosmic import CosmicOverlapAdapter
     from docking.platform.model import DockModel
 
 
@@ -92,7 +93,7 @@ class CosmicRuntimeServices:
 class CosmicOverlapVisibilityService(VisibilityService):
     """VisibilityService backed by COSMIC zcosmic_overlap_notify_v1."""
 
-    def __init__(self, *, overlap_adapter: object) -> None:
+    def __init__(self, *, overlap_adapter: CosmicOverlapAdapter) -> None:
         self._overlap_adapter = overlap_adapter
         self._monitors: list[CosmicOverlapMonitor] = []
         self._layer_surface: object | None = None
@@ -136,7 +137,7 @@ class CosmicOverlapMonitor(VisibilityMonitor):
     def __init__(
         self,
         *,
-        adapter: object,
+        adapter: CosmicOverlapAdapter,
         on_change: Callable[[bool], None],
     ) -> None:
         self._adapter = adapter
@@ -349,10 +350,12 @@ class CosmicSessionBackend(SessionBackend):
             tracks_maximized=tracks_windows,
             tracks_fullscreen=tracks_windows,
             tracks_window_geometry=tracks_windows
-            and bool(getattr(self._cosmic_toplevel, "supports_geometry", False)),
+            and self._cosmic_toplevel is not None
+            and self._cosmic_toplevel.supports_geometry,
             tracks_window_workspace=tracks_windows
             and supports_workspaces
-            and bool(getattr(self._cosmic_toplevel, "supports_workspace", False)),
+            and self._cosmic_toplevel is not None
+            and self._cosmic_toplevel.supports_workspace,
             supports_activate=tracks_windows,
             supports_minimize=tracks_windows,
             supports_close=tracks_windows,

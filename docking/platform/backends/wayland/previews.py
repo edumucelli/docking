@@ -19,7 +19,7 @@ import mmap
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Protocol
 
 import gi
 
@@ -38,6 +38,15 @@ from docking.platform.backends.base import (
 if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.backends.wayland.hyprland_ipc import HyprlandWindowService
+    from docking.platform.backends.wayland.runtime import (
+        HyprlandPreviewProtocolAdapter,
+        PhocPreviewProtocolAdapter,
+        PreviewProtocolAdapter,
+    )
+    from docking.platform.backends.wayland.toplevels import (
+        WaylandForeignToplevelWindowService,
+    )
     from docking.platform.model import DockModel
 
 SHM_ARGB8888 = 0
@@ -45,8 +54,18 @@ SHM_XRGB8888 = 1
 _PREFERRED_SHM_FORMATS = (SHM_ARGB8888, SHM_XRGB8888)
 
 
+class _CaptureResource(Protocol):
+    def destroy(self) -> None: ...
+
+
+class _ShmPool(_CaptureResource, Protocol):
+    def create_buffer(
+        self, offset: int, width: int, height: int, stride: int, format_: int
+    ) -> _CaptureResource: ...
+
+
 class _ShmProtocol(Protocol):
-    def create_shm_pool(self, fd: int, size: int) -> object: ...
+    def create_shm_pool(self, fd: int, size: int) -> _ShmPool: ...
 
 
 @dataclass
@@ -72,15 +91,15 @@ class _CaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    source: object
-    session: object
+    source: _CaptureResource | None
+    session: _CaptureResource | None
     width: int = 0
     height: int = 0
     shm_formats: set[int] = field(default_factory=set)
-    frame: object | None = None
+    frame: _CaptureResource | None = None
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: object | None = None
+    buffer: _CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -91,12 +110,12 @@ class _HyprlandCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: object
+    frame: _CaptureResource | None
     width: int = 0
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: object | None = None
+    buffer: _CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -107,12 +126,12 @@ class _PhocCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: object
+    frame: _CaptureResource | None
     width: int = 0
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: object | None = None
+    buffer: _CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -246,7 +265,9 @@ class WaylandPreviewHandleTracker:
 class WaylandPreviewService(PreviewService):
     """Nonblocking generic Wayland preview service."""
 
-    def __init__(self, *, protocol: object, handles: WaylandPreviewHandleTracker):
+    def __init__(
+        self, *, protocol: PreviewProtocolAdapter, handles: WaylandPreviewHandleTracker
+    ):
         self._protocol = protocol
         self._handles = handles
         self._cache: dict[WindowId, PreviewImage] = {}
@@ -294,10 +315,9 @@ class WaylandPreviewService(PreviewService):
             source = self._protocol.create_source(handle)
             session = self._protocol.create_session(source)
         except Exception:
-            destroy = getattr(source, "destroy", None)
-            if callable(destroy):
+            if source is not None:
                 with suppress(Exception):
-                    destroy()
+                    source.destroy()
             return
         request = _CaptureRequest(
             window_id=window_id,
@@ -393,16 +413,18 @@ class WaylandPreviewService(PreviewService):
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _CaptureRequest) -> None:
-        _cleanup_capture_request(
-            request,
-            object_attributes=("frame", "buffer", "session", "source"),
-        )
+        _cleanup_capture_request(request)
 
 
 class HyprlandPreviewService(PreviewService):
     """PreviewService backed by Hyprland's toplevel export protocol."""
 
-    def __init__(self, *, protocol: object, windows: object):
+    def __init__(
+        self,
+        *,
+        protocol: HyprlandPreviewProtocolAdapter,
+        windows: WaylandForeignToplevelWindowService | HyprlandWindowService,
+    ):
         self._protocol = protocol
         self._windows = windows
         self._cache: dict[WindowId, PreviewImage] = {}
@@ -440,14 +462,7 @@ class HyprlandPreviewService(PreviewService):
         return None
 
     def _start_capture(self, *, window_id: WindowId, width: int, height: int) -> None:
-        handle_for_window_id = getattr(
-            self._windows,
-            "protocol_handle_for_window_id",
-            None,
-        )
-        if not callable(handle_for_window_id):
-            return
-        handle = handle_for_window_id(window_id)
+        handle = self._windows.protocol_handle_for_window_id(window_id)
         if handle is None:
             return
         try:
@@ -535,13 +550,18 @@ class HyprlandPreviewService(PreviewService):
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _HyprlandCaptureRequest) -> None:
-        _cleanup_capture_request(request, object_attributes=("frame", "buffer"))
+        _cleanup_capture_request(request)
 
 
 class PhocPreviewService(PreviewService):
     """Window thumbnails provided by phoc's optional phosh_private protocol."""
 
-    def __init__(self, *, protocol: object, windows: object):
+    def __init__(
+        self,
+        *,
+        protocol: PhocPreviewProtocolAdapter,
+        windows: WaylandForeignToplevelWindowService,
+    ):
         self._protocol = protocol
         self._windows = windows
         self._cache: dict[WindowId, PreviewImage] = {}
@@ -579,12 +599,7 @@ class PhocPreviewService(PreviewService):
         return None
 
     def _start_capture(self, *, window_id: WindowId, width: int, height: int) -> None:
-        handle_for_window_id = getattr(
-            self._windows, "protocol_handle_for_window_id", None
-        )
-        if not callable(handle_for_window_id):
-            return
-        handle = handle_for_window_id(window_id)
+        handle = self._windows.protocol_handle_for_window_id(window_id)
         if handle is None:
             return
         try:
@@ -665,49 +680,49 @@ class PhocPreviewService(PreviewService):
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _PhocCaptureRequest) -> None:
-        _cleanup_capture_request(request, object_attributes=("frame", "buffer"))
+        _cleanup_capture_request(request)
 
 
 def _allocate_shm_buffer(
     request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
     *,
-    protocol: object,
+    protocol: _ShmProtocol,
     label: str,
     width: int,
     height: int,
     stride: int,
     format_: int,
-) -> object:
+) -> _CaptureResource:
     """Allocate capture storage while recording each resource immediately."""
     size = stride * height
     request.fd = os.memfd_create(label)
     os.ftruncate(request.fd, size)
     request.mmap_obj = mmap.mmap(request.fd, size)
-    pool = cast(_ShmProtocol, protocol).create_shm_pool(request.fd, size)
+    pool = protocol.create_shm_pool(request.fd, size)
     try:
         buffer = pool.create_buffer(0, width, height, stride, format_)
         request.buffer = buffer
         return buffer
     finally:
-        destroy = getattr(pool, "destroy", None)
-        if callable(destroy):
-            with suppress(Exception):
-                destroy()
+        with suppress(Exception):
+            pool.destroy()
 
 
 def _cleanup_capture_request(
     request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
-    *,
-    object_attributes: tuple[str, ...],
 ) -> None:
     """Release a capture request once, even if multiple terminal events arrive."""
-    for attribute in object_attributes:
-        obj = getattr(request, attribute, None)
-        setattr(request, attribute, None)
-        destroy = getattr(obj, "destroy", None)
-        if callable(destroy):
+    resources = (request.frame, request.buffer)
+    request.frame = None
+    request.buffer = None
+    if isinstance(request, _CaptureRequest):
+        resources += (request.session, request.source)
+        request.session = None
+        request.source = None
+    for resource in resources:
+        if resource is not None:
             with suppress(Exception):
-                destroy()
+                resource.destroy()
     mmap_obj = request.mmap_obj
     request.mmap_obj = None
     if mmap_obj is not None:
@@ -725,7 +740,7 @@ def _pixbuf_from_request(
 ) -> PreviewImage:
     assert request.mmap_obj is not None
     source = request.mmap_obj[: request.stride * request.height]
-    if getattr(request, "y_inverted", False):
+    if request.y_inverted:
         rows = [
             source[index : index + request.stride]
             for index in range(0, len(source), request.stride)

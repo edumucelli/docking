@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import struct
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from docking.log import get_logger
 from docking.platform.backends.base import Rect
@@ -43,6 +43,15 @@ if TYPE_CHECKING:
     )
 
 log = get_logger(name="cosmic_protocols")
+
+
+class _PendingToplevelData(TypedDict, total=False):
+    title: str
+    app_id: str
+    done: bool
+    state: Iterable[object]
+    geometry: tuple[object, int, int, int, int]
+    ext_workspaces: list[object]
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +99,7 @@ class CosmicToplevelAdapter:
 
         # Pending toplevel data during initial enumeration
         self._pending_toplevels: list[object] = []
-        self._pending_data: dict[object, dict[str, object]] = {}
+        self._pending_data: dict[object, _PendingToplevelData] = {}
 
         # Known COSMIC info handles keyed by ext toplevel handle
         self._cosmic_handles: dict[object, object] = {}
@@ -183,11 +192,11 @@ class CosmicToplevelAdapter:
             service.toplevel_created(toplevel)
             data = self._pending_data.get(toplevel, {})
             if "title" in data:
-                service.title_changed(toplevel, str(data["title"]))
+                service.title_changed(toplevel, data["title"])
             if "app_id" in data:
-                service.app_id_changed(toplevel, str(data["app_id"]))
+                service.app_id_changed(toplevel, data["app_id"])
             state = data.get("state")
-            if isinstance(state, Iterable):
+            if state is not None:
                 service.state_changed(toplevel, state)
             self._publish_location(toplevel)
             if data.get("done"):
@@ -385,7 +394,7 @@ class CosmicToplevelAdapter:
             self._on_cosmic_workspace_leave(toplevel, ws)
         )
 
-    def _on_cosmic_state(self, toplevel: object, states) -> None:
+    def _on_cosmic_state(self, toplevel: object, states: Iterable[object]) -> None:
         self._pending_data.setdefault(toplevel, {})["state"] = states
         self._dirty_toplevels.add(toplevel)
         if self._service is not None:
@@ -411,20 +420,17 @@ class CosmicToplevelAdapter:
         )
         self._dirty_toplevels.add(toplevel)
 
-    def _on_cosmic_workspace_enter(self, toplevel: object, workspace) -> None:
+    def _on_cosmic_workspace_enter(self, toplevel: object, workspace: object) -> None:
         data = self._pending_data.setdefault(toplevel, {})
-        data["ext_workspace"] = workspace
         handles = data.setdefault("ext_workspaces", [])
-        if isinstance(handles, list) and workspace not in handles:
+        if workspace not in handles:
             handles.append(workspace)
         self._dirty_toplevels.add(toplevel)
 
-    def _on_cosmic_workspace_leave(self, toplevel: object, workspace) -> None:
+    def _on_cosmic_workspace_leave(self, toplevel: object, workspace: object) -> None:
         data = self._pending_data.get(toplevel, {})
-        if data.get("ext_workspace") is workspace:
-            data.pop("ext_workspace", None)
         handles = data.get("ext_workspaces")
-        if isinstance(handles, list) and workspace in handles:
+        if handles is not None and workspace in handles:
             handles.remove(workspace)
         self._dirty_toplevels.add(toplevel)
 
@@ -434,7 +440,7 @@ class CosmicToplevelAdapter:
             return
         data = self._pending_data.get(toplevel, {})
         geometry = data.get("geometry")
-        if isinstance(geometry, tuple) and len(geometry) == 5:
+        if geometry is not None:
             output, x, y, width, height = geometry
             origin = self._output_origin(output)
             rect = (
@@ -444,7 +450,7 @@ class CosmicToplevelAdapter:
             )
             service.geometry_changed(toplevel, rect)
         handles = data.get("ext_workspaces")
-        if isinstance(handles, list):
+        if handles is not None:
             workspace_id = self._workspace_id(handles[0]) if len(handles) == 1 else None
             service.workspace_changed(toplevel, workspace_id)
 

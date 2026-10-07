@@ -71,10 +71,10 @@ def test_cosmic_event_preserves_object_argument(event, interface, integers):
         elif event == "geometry":
             assert adapter._pending_data[toplevel]["geometry"] == (obj, *integers)
         elif event == "ext_workspace_enter":
-            assert adapter._pending_data[toplevel]["ext_workspace"] is obj
+            assert adapter._pending_data[toplevel]["ext_workspaces"] == [obj]
         else:
-            adapter._pending_data[toplevel] = {"ext_workspace": obj}
+            adapter._on_cosmic_workspace_enter(toplevel, obj)
             proxy.dispatcher[event](proxy, *decoded)
-            assert "ext_workspace" not in adapter._pending_data[toplevel]
+            assert adapter._pending_data[toplevel]["ext_workspaces"] == []
     finally:
         interface.registry.pop(pointer, None)

@@ -61,7 +61,7 @@ class SwaySessionBackend(WaylandLayerShellSessionBackend):
             # Sway container IDs are not foreign-toplevel handles. Never capture
             # an unrelated window by treating them as protocol IDs.
             previews=WaylandPreviewService(protocol=protocol, handles=handles)
-            if handles is not None
+            if protocol is not None and handles is not None
             else ReducedPreviewService(),
         )
 

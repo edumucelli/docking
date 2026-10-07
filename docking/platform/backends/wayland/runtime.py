@@ -22,9 +22,15 @@ from typing import TYPE_CHECKING
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.platform.backends.wayland.cosmic import (
+        CosmicOverlapAdapter,
+        CosmicToplevelAdapter,
+    )
     from docking.platform.backends.wayland.idle import WaylandIdleService
     from docking.platform.backends.wayland.previews import (
         WaylandPreviewHandleTracker,
+        _CaptureResource,
+        _ShmPool,
     )
     from docking.platform.backends.wayland.toplevels import (
         WaylandForeignToplevelWindowService,
@@ -564,17 +570,17 @@ class PreviewProtocolAdapter:
         self._shm_formats.clear()
         self.available = False
 
-    def create_source(self, handle: object) -> object:
+    def create_source(self, handle: object) -> _CaptureResource:
         if not self.capture_available or self._source_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
         return self._source_manager.create_source(handle)
 
-    def create_session(self, source: object) -> object:
+    def create_session(self, source: object) -> _CaptureResource:
         if not self.capture_available or self._capture_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
         return self._capture_manager.create_session(source, 0)
 
-    def create_shm_pool(self, fd: int, size: int) -> object:
+    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Wayland preview shm is unavailable")
         return self._shm.create_pool(fd, size)
@@ -682,12 +688,12 @@ class HyprlandPreviewProtocolAdapter:
         self._flush = None
         self.available = False
 
-    def create_frame(self, handle: object) -> object:
+    def create_frame(self, handle: object) -> _CaptureResource:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Hyprland preview capture is unavailable")
         return self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle)
 
-    def create_shm_pool(self, fd: int, size: int) -> object:
+    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Hyprland preview shm is unavailable")
         return self._shm.create_pool(fd, size)
@@ -727,12 +733,12 @@ class PhocPreviewProtocolAdapter:
 
         self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
 
-    def create_frame(self, handle: object, width: int, height: int) -> object:
+    def create_frame(self, handle: object, width: int, height: int) -> _CaptureResource:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Phoc preview capture is unavailable")
         return self._manager.get_thumbnail(handle, width, height)
 
-    def create_shm_pool(self, fd: int, size: int) -> object:
+    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Phoc preview shm is unavailable")
         return self._shm.create_pool(fd, size)
@@ -765,8 +771,8 @@ class WaylandProtocolRuntime:
         hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
         phoc_preview_adapter: PhocPreviewProtocolAdapter | None = None,
         idle_adapter: IdleProtocolAdapter | None = None,
-        cosmic_toplevel_adapter: object | None = None,
-        cosmic_overlap_adapter: object | None = None,
+        cosmic_toplevel_adapter: CosmicToplevelAdapter | None = None,
+        cosmic_overlap_adapter: CosmicOverlapAdapter | None = None,
     ) -> None:
         from docking.platform.backends.wayland.cosmic import (
             CosmicOverlapAdapter,
@@ -802,42 +808,42 @@ class WaylandProtocolRuntime:
         self._running = False
 
     @property
-    def foreign_toplevel_protocol(self) -> object | None:
+    def foreign_toplevel_protocol(self) -> ForeignToplevelProtocolAdapter | None:
         return self.foreign_toplevel if self.foreign_toplevel.available else None
 
     @property
-    def workspace_protocol(self) -> object | None:
+    def workspace_protocol(self) -> WorkspaceProtocolAdapter | None:
         return self.workspaces if self.workspaces.available else None
 
     @property
-    def preview_protocol(self) -> object | None:
+    def preview_protocol(self) -> PreviewProtocolAdapter | None:
         return self.previews if self.previews.capture_available else None
 
     @property
-    def hyprland_preview_protocol(self) -> object | None:
+    def hyprland_preview_protocol(self) -> HyprlandPreviewProtocolAdapter | None:
         return (
             self.hyprland_previews if self.hyprland_previews.capture_available else None
         )
 
     @property
-    def phoc_preview_protocol(self) -> object | None:
+    def phoc_preview_protocol(self) -> PhocPreviewProtocolAdapter | None:
         return self.phoc_previews if self.phoc_previews.capture_available else None
 
     @property
-    def idle_protocol(self) -> object | None:
+    def idle_protocol(self) -> IdleProtocolAdapter | None:
         return self.idle if self.idle.available else None
 
     @property
-    def cosmic_toplevel_protocol(self) -> object | None:
+    def cosmic_toplevel_protocol(self) -> CosmicToplevelAdapter | None:
         return self.cosmic_toplevel if self.cosmic_toplevel.available else None
 
     @property
-    def standard_toplevel_protocol(self) -> object | None:
+    def standard_toplevel_protocol(self) -> CosmicToplevelAdapter | None:
         """Standard listing shared with COSMIC, without assuming management."""
         return self.cosmic_toplevel if self.cosmic_toplevel.available else None
 
     @property
-    def cosmic_overlap_protocol(self) -> object | None:
+    def cosmic_overlap_protocol(self) -> CosmicOverlapAdapter | None:
         return self.cosmic_overlap if self.cosmic_overlap.available else None
 
     @property

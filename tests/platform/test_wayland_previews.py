@@ -247,14 +247,8 @@ def test_capture_allocation_failure_releases_partial_resources(monkeypatch) -> N
             format_=SHM_ARGB8888,
         )
 
-    preview_mod._cleanup_capture_request(
-        request,
-        object_attributes=("buffer",),
-    )
-    preview_mod._cleanup_capture_request(
-        request,
-        object_attributes=("buffer",),
-    )
+    preview_mod._cleanup_capture_request(request)
+    preview_mod._cleanup_capture_request(request)
 
     mmap_obj.close.assert_called_once_with()
     close.assert_called_once_with(51)
