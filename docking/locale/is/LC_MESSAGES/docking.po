@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-10 22:37+0200\n"
+"POT-Creation-Date: 2026-10-08 01:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,55 +21,55 @@ msgstr ""
 msgid "AI Usage"
 msgstr "GV notkun"
 
-#: docking/applets/aiusage/applet.py:139
+#: docking/applets/aiusage/applet.py:137
 msgid "Auto"
 msgstr "Sjálfvirkt"
 
-#: docking/applets/aiusage/applet.py:140
+#: docking/applets/aiusage/applet.py:138
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:141
+#: docking/applets/aiusage/applet.py:139
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:142
+#: docking/applets/aiusage/applet.py:140
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:151
+#: docking/applets/aiusage/applet.py:149
 msgid "Show Cost"
 msgstr "Syna kostnad"
 
-#: docking/applets/aiusage/applet.py:152
+#: docking/applets/aiusage/applet.py:150
 msgid "Show Tokens"
 msgstr "Syna token"
 
-#: docking/applets/aiusage/applet.py:159
-#: docking/applets/deskpresence/applet.py:121
+#: docking/applets/aiusage/applet.py:157
+#: docking/applets/deskpresence/applet.py:119
 msgid "Reset Today"
 msgstr "Endurstilla í dag"
 
-#: docking/applets/aiusage/applet.py:220 docking/applets/aiusage/applet.py:235
+#: docking/applets/aiusage/applet.py:218 docking/applets/aiusage/applet.py:233
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr "{name}: engin notkun í dag"
 
-#: docking/applets/aiusage/applet.py:252
+#: docking/applets/aiusage/applet.py:250
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:296
+#: docking/applets/aiusage/applet.py:294
 #, python-brace-format
 msgid "This week: {value}"
 msgstr "Thessa viku: {value}"
 
-#: docking/applets/aiusage/state.py:499
+#: docking/applets/aiusage/state.py:515
 msgid "no usage today"
 msgstr "engin notkun í dag"
 
-#: docking/applets/aiusage/state.py:503
+#: docking/applets/aiusage/state.py:519
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr "Í dag: {cost}"
@@ -78,7 +78,8 @@ msgstr "Í dag: {cost}"
 msgid "Alarm"
 msgstr "Viðvörun"
 
-#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:208
+#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:209
+#: docking/applets/plantcare/applet.py:376
 msgid "Snooze"
 msgstr "Blunda"
 
@@ -91,6 +92,7 @@ msgid "Add Alarm..."
 msgstr "Bæta við vekjara..."
 
 #: docking/applets/alarm/applet.py:132
+#, python-brace-format
 msgid "Edit {label}..."
 msgstr "Breyta {label}..."
 
@@ -102,42 +104,45 @@ msgstr "Breyta vekjara"
 msgid "Add Alarm"
 msgstr "Bæta við viðvörun"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/certwatch/state.py:246
-#: docking/applets/clock/applet.py:218 docking/applets/quicknote/applet.py:87
+#: docking/applets/alarm/applet.py:164 docking/applets/certwatch/state.py:246
+#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr "OK"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
-#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
-#: docking/applets/runcommand/applet.py:122
-#: docking/applets/runcommand/applet.py:340
-#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:263
-#: docking/applets/weather/applet.py:273 docking/ui/diagnostics.py:342
-#: docking/ui/menu.py:439
+#: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:231
+#: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:512
+#: docking/applets/plantcare/applet.py:474
+#: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:430
+#: docking/applets/runcommand/applet.py:147
+#: docking/applets/runcommand/applet.py:368
+#: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:264
+#: docking/applets/weather/applet.py:272 docking/applets/whatsapp/applet.py:175
+#: docking/ui/diagnostics.py:391 docking/ui/menu.py:449
 msgid "Cancel"
 msgstr "Cancel"
 
-#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/applet.py:170
+#: docking/applets/alarm/applet.py:166 docking/applets/certwatch/applet.py:168
+#: docking/applets/plantcare/applet.py:477
 msgid "Remove"
 msgstr "Remove"
 
-#: docking/applets/alarm/applet.py:189
+#: docking/applets/alarm/applet.py:190 docking/ui/settings.py:904
 msgid "Enabled"
 msgstr "Virkt"
 
-#: docking/applets/alarm/applet.py:202
+#: docking/applets/alarm/applet.py:203
 msgid "Label"
 msgstr "Merki"
 
-#: docking/applets/alarm/applet.py:204 docking/applets/clock/applet.py:255
+#: docking/applets/alarm/applet.py:205 docking/applets/clock/applet.py:268
 msgid "Hour"
 msgstr "Hour"
 
-#: docking/applets/alarm/applet.py:206 docking/applets/clock/applet.py:257
+#: docking/applets/alarm/applet.py:207 docking/applets/clock/applet.py:270
 msgid "Minute"
 msgstr "Minute"
 
-#: docking/applets/alarm/applet.py:211
+#: docking/applets/alarm/applet.py:212
 msgid "Repeat"
 msgstr "Endurtaktu"
 
@@ -174,6 +179,7 @@ msgid "Ring"
 msgstr "Hringur"
 
 #: docking/applets/alarm/state.py:227
+#, python-brace-format
 msgid "{hours}h"
 msgstr "{hours}klst"
 
@@ -184,6 +190,7 @@ msgid "{minutes}m"
 msgstr "{minutes}m"
 
 #: docking/applets/alarm/state.py:236
+#, python-brace-format
 msgid "Alarm ringing: {label}"
 msgstr "Viðvörun hringir: {label}"
 
@@ -192,6 +199,7 @@ msgid "Alarm: no enabled alarms"
 msgstr "Viðvörun: engar virkjaðar viðvaranir"
 
 #: docking/applets/alarm/state.py:240
+#, python-brace-format
 msgid "Next alarm: {label} at {time}"
 msgstr "Næsta viðvörun: {label} kl. {time}"
 
@@ -200,6 +208,7 @@ msgid "No enabled alarms"
 msgstr "Engar virkjaðar vekjarar"
 
 #: docking/applets/alarm/state.py:253
+#, python-brace-format
 msgid "{label}: {time} ({duration})"
 msgstr "{label}: {time} ({duration})"
 
@@ -233,10 +242,12 @@ msgid "daily"
 msgstr "daglega"
 
 #: docking/applets/alarm/state.py:304
+#, python-brace-format
 msgid "{days}d {hours}h"
 msgstr "{days}d {hours}klst"
 
 #: docking/applets/alarm/state.py:306 docking/applets/sunrise/state.py:417
+#, python-brace-format
 msgid "{hours}h {minutes}m"
 msgstr "{hours}h {minutes}m"
 
@@ -285,7 +296,7 @@ msgstr "Pink Noise"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "Spilar: {sound} ({pct}%)"
 
-#: docking/applets/apod/applet.py:68 docking/applets/apod/state.py:114
+#: docking/applets/apod/applet.py:70 docking/applets/apod/state.py:114
 #: docking/applets/apod/state.py:132
 msgid "Astronomy Picture of the Day"
 msgstr "Astronomy Picture of the Day"
@@ -300,42 +311,45 @@ msgid "Untitled"
 msgstr "Untitled"
 
 #: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
-#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
-#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:101
+#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:145
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:116
 msgid "Checks"
 msgstr "Athuganir"
 
-#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:139
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:203
-#: docking/applets/hackernews/applet.py:189
-#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
-#: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
-#: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:567
+#: docking/applets/hackernews/applet.py:192
+#: docking/applets/lastfm/applet.py:173 docking/applets/news/applet.py:273
+#: docking/applets/reddit/applet.py:195 docking/applets/speedtest/applet.py:114
+#: docking/applets/thermals/applet.py:145 docking/applets/tooltip.py:46
+#: docking/applets/weather/applet.py:181 docking/applets/weather/applet.py:566
 #, python-brace-format
 msgid "Error: {msg}"
 msgstr "Error: {msg}"
 
-#: docking/applets/apod/applet.py:134
-msgid "Open on apod.nasa.gov"
-msgstr "Open on apod.nasa.gov"
+#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:101
+msgid "Open in Browser"
+msgstr "Opna í vafra"
 
 #: docking/applets/apod/applet.py:139
 msgid "Copy Explanation"
 msgstr "Copy Explanation"
 
-#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:216
 #: docking/applets/camshield/applet.py:127
 #: docking/applets/capslock/applet.py:97
-#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
+#: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
-#: docking/applets/hackernews/applet.py:206
-#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
-#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
-#: docking/applets/systemtray/applet.py:142
-#: docking/applets/thermals/applet.py:157
-#: docking/applets/todayinhistory/applet.py:112
-#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:190
+#: docking/applets/hackernews/applet.py:209
+#: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:301
+#: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:104
+#: docking/applets/reddit/applet.py:215
+#: docking/applets/systemtray/applet.py:175
+#: docking/applets/thermals/applet.py:155
+#: docking/applets/todayinhistory/applet.py:107
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:188
 msgid "Refresh Now"
 msgstr "Refresh Now"
 
@@ -344,11 +358,12 @@ msgstr "Refresh Now"
 msgid "(c) {who}"
 msgstr "(c) {who}"
 
-#: docking/applets/applications/applet.py:50
+#: docking/applets/applications/applet.py:56
+#: docking/search/providers/applications.py:216
 msgid "Applications"
 msgstr "Applications"
 
-#: docking/applets/applications/applet.py:91
+#: docking/applets/applications/applet.py:107
 msgid "Search applications..."
 msgstr "Leita að forritum..."
 
@@ -356,23 +371,23 @@ msgstr "Leita að forritum..."
 msgid "Battery"
 msgstr "Battery"
 
-#: docking/applets/battery/applet.py:109
+#: docking/applets/battery/applet.py:108
 msgid "No overlay"
 msgstr "Engin yfirlögn"
 
-#: docking/applets/battery/applet.py:110
+#: docking/applets/battery/applet.py:109
 msgid "Percentage"
 msgstr "Hlutfall"
 
-#: docking/applets/battery/applet.py:111
+#: docking/applets/battery/applet.py:110
 msgid "Power (W)"
 msgstr "Afl (W)"
 
-#: docking/applets/battery/applet.py:121
+#: docking/applets/battery/applet.py:120
 msgid "Power Settings"
 msgstr "Power Settings"
 
-#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:644
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:780
 msgid "Mouse"
 msgstr "Mouse"
 
@@ -487,108 +502,109 @@ msgstr "{hours}h {minutes:02d}m"
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:181
+#: docking/applets/bluetooth/applet.py:180
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth unavailable"
 
-#: docking/applets/bluetooth/applet.py:185
+#: docking/applets/bluetooth/applet.py:184
 msgid "No Bluetooth adapter"
 msgstr "No Bluetooth adapter"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr "On"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
 #: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr "Off"
 
-#: docking/applets/bluetooth/applet.py:196
+#: docking/applets/bluetooth/applet.py:195
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Tengd {connected}"
 
-#: docking/applets/bluetooth/applet.py:207
+#: docking/applets/bluetooth/applet.py:206
 msgid "Continuous Discovery"
 msgstr "Continuous Discovery"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:255
+#: docking/applets/bluetooth/applet.py:254
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:269
+#: docking/applets/bluetooth/applet.py:268
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:277
+#: docking/applets/bluetooth/applet.py:276
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:283
+#: docking/applets/bluetooth/applet.py:282
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:289
+#: docking/applets/bluetooth/applet.py:288
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:296
+#: docking/applets/bluetooth/applet.py:295
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:301
+#: docking/applets/bluetooth/applet.py:300
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:325
+#: docking/applets/bluetooth/applet.py:324
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:343
+#: docking/applets/bluetooth/applet.py:342
 msgid "Connected Devices"
 msgstr "Tengd tæki"
 
-#: docking/applets/bluetooth/applet.py:344
+#: docking/applets/bluetooth/applet.py:343
 msgid "Paired Devices"
 msgstr "Pöruð tæki"
 
-#: docking/applets/bluetooth/applet.py:345
+#: docking/applets/bluetooth/applet.py:344
 msgid "Discovered Devices"
 msgstr "Uppgötvuð tæki"
 
-#: docking/applets/bluetooth/applet.py:370
+#: docking/applets/bluetooth/applet.py:369
+#: docking/applets/whatsapp/applet.py:176
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: docking/applets/bluetooth/applet.py:379
+#: docking/applets/bluetooth/applet.py:378
 msgid "Connect"
 msgstr "Connect"
 
-#: docking/applets/bluetooth/applet.py:389
+#: docking/applets/bluetooth/applet.py:388
 msgid "Pair"
 msgstr "Pair"
 
-#: docking/applets/bluetooth/applet.py:403
+#: docking/applets/bluetooth/applet.py:402
 msgid "Remove Pairing"
 msgstr "Remove Pairing"
 
-#: docking/applets/bluetooth/applet.py:415
+#: docking/applets/bluetooth/applet.py:414
 msgid "Trusted"
 msgstr "Trusted"
 
-#: docking/applets/bluetooth/applet.py:430
+#: docking/applets/bluetooth/applet.py:429
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Rafhlaða: {percent}%"
@@ -628,35 +644,35 @@ msgstr "Paired: {n}"
 msgid "Discovering: {state}"
 msgstr "Discovering: {state}"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "Yes"
 msgstr "Yes"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "No"
 msgstr "No"
 
-#: docking/applets/bookmarks/applet.py:55
+#: docking/applets/bookmarks/applet.py:53
 msgid "Bookmarks"
 msgstr "Bókamerki"
 
-#: docking/applets/bookmarks/applet.py:87
+#: docking/applets/bookmarks/applet.py:85
 msgid "Add Bookmark..."
 msgstr "Bæta við bókamerki..."
 
-#: docking/applets/bookmarks/applet.py:90
+#: docking/applets/bookmarks/applet.py:88
 msgid "Remove All"
 msgstr "Fjarlægja allt"
 
-#: docking/applets/bookmarks/applet.py:111
+#: docking/applets/bookmarks/applet.py:104
 msgid "Add Bookmark"
 msgstr "Bæta við bókamerki"
 
-#: docking/applets/bookmarks/applet.py:124
+#: docking/applets/bookmarks/applet.py:118
 msgid "Bookmark name"
 msgstr "Nafn bókamerkis"
 
-#: docking/applets/bookmarks/applet.py:129
+#: docking/applets/bookmarks/applet.py:123
 msgid "https://..."
 msgstr "https://..."
 
@@ -664,13 +680,13 @@ msgstr "https://..."
 msgid "Brightness"
 msgstr "Brightness"
 
-#: docking/applets/brightness/applet.py:85
+#: docking/applets/brightness/applet.py:84
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "Brightness: {pct}%"
 
-#: docking/applets/brightness/applet.py:109
-#: docking/applets/volume/applet.py:126
+#: docking/applets/brightness/applet.py:108
+#: docking/applets/volume/applet.py:125
 msgid "Show Level"
 msgstr "Show Level"
 
@@ -705,23 +721,28 @@ msgid "Caffeine: keeping awake"
 msgstr "Koffín: halda vöku"
 
 #: docking/applets/caffeine/state.py:120
+#, python-brace-format
 msgid "Caffeine: {time} remaining"
 msgstr "Koffín: {time} eftir"
 
-#: docking/applets/caffeine/state.py:130
+#: docking/applets/caffeine/state.py:130 docking/search/controller.py:251
+#: docking/search/controller.py:269 docking/search/providers/windows.py:95
 msgid "Active"
 msgstr "Virkur"
 
 #: docking/applets/caffeine/state.py:131
+#, python-brace-format
 msgid "Active - {time} left"
 msgstr "Virkt - {time} eftir"
 
 #: docking/applets/calculator/applet.py:78
 #: docking/applets/calculator/applet.py:96
+#: docking/search/providers/calculator.py:66
+#: docking/search/providers/calculator.py:85
 msgid "Calculator"
 msgstr "Reiknivél"
 
-#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+#: docking/applets/calendar/applet.py:69 docking/applets/calendar/applet.py:75
 msgid "Calendar"
 msgstr "Calendar"
 
@@ -761,8 +782,8 @@ msgstr "Camera lock helper unavailable"
 msgid "{command} (PID {pid}) using {devices}"
 msgstr "{command} (PID {pid}) using {devices}"
 
-#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
-#: docking/applets/usbwatch/state.py:98
+#: docking/applets/camshield/state.py:91 docking/applets/devices/state.py:132
+#: docking/applets/micshield/state.py:223 docking/applets/usbwatch/state.py:99
 #, python-brace-format
 msgid "{count} more"
 msgstr "{count} more"
@@ -774,8 +795,9 @@ msgstr "{command} (PID {pid}) - {devices}"
 
 #: docking/applets/camshield/state.py:192
 #: docking/applets/deskpresence/state.py:185
-#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
-#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:396
+#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:116
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:258
+#: docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -813,22 +835,22 @@ msgstr "{name}: {state}"
 msgid "Cert Watch"
 msgstr "Cert Watch"
 
-#: docking/applets/certwatch/applet.py:130
+#: docking/applets/certwatch/applet.py:128
 #: docking/applets/certwatch/state.py:264
 #: docking/applets/certwatch/state.py:312
 #, python-brace-format
 msgid "{host}: loading..."
 msgstr "{host}: loading..."
 
-#: docking/applets/certwatch/applet.py:152
+#: docking/applets/certwatch/applet.py:150
 msgid "Add Domain..."
 msgstr "Add Domain..."
 
-#: docking/applets/certwatch/applet.py:306
+#: docking/applets/certwatch/applet.py:304
 msgid "Add Domain"
 msgstr "Add Domain"
 
-#: docking/applets/certwatch/applet.py:319
+#: docking/applets/certwatch/applet.py:318
 msgid "example.com or example.com:8443"
 msgstr "example.com or example.com:8443"
 
@@ -841,11 +863,12 @@ msgid "Expired"
 msgstr "Expired"
 
 #: docking/applets/certwatch/state.py:250
+#: docking/search/providers/calculator.py:67
 msgid "Error"
 msgstr "Error"
 
 #: docking/applets/certwatch/state.py:251
-#: docking/applets/speedtest/applet.py:74
+#: docking/applets/speedtest/applet.py:72
 msgid "..."
 msgstr "..."
 
@@ -882,7 +905,7 @@ msgstr "{host}: ekki tiltækt"
 msgid "Clippy"
 msgstr "Clippy"
 
-#: docking/applets/clippy/applet.py:108
+#: docking/applets/clippy/applet.py:107
 msgid "Clear"
 msgstr "Clear"
 
@@ -890,53 +913,53 @@ msgstr "Clear"
 msgid "Clippy (empty)"
 msgstr "Klippiborð (tómt)"
 
-#: docking/applets/clock/applet.py:53
+#: docking/applets/clock/applet.py:54
 msgid "Clock"
 msgstr "Clock"
 
-#: docking/applets/clock/applet.py:100
+#: docking/applets/clock/applet.py:109
 msgid "Digital Clock"
 msgstr "Digital Clock"
 
-#: docking/applets/clock/applet.py:104
+#: docking/applets/clock/applet.py:113
 msgid "24-Hour Clock"
 msgstr "24-Hour Clock"
 
-#: docking/applets/clock/applet.py:108
+#: docking/applets/clock/applet.py:117
 msgid "Show Date"
 msgstr "Show Date"
 
-#: docking/applets/clock/applet.py:113
+#: docking/applets/clock/applet.py:122
 msgid "Show Seconds"
 msgstr "Show Seconds"
 
-#: docking/applets/clock/applet.py:117
+#: docking/applets/clock/applet.py:126
 msgid "Set Alarm..."
 msgstr "Set Alarm..."
 
-#: docking/applets/clock/applet.py:123
+#: docking/applets/clock/applet.py:132
 msgid "Clear Alarm"
 msgstr "Clear Alarm"
 
-#: docking/applets/clock/applet.py:128
+#: docking/applets/clock/applet.py:137
 msgid "Acknowledge Alarm"
 msgstr "Acknowledge Alarm"
 
-#: docking/applets/clock/applet.py:215
+#: docking/applets/clock/applet.py:227
 msgid "Set Alarm"
 msgstr "Set Alarm"
 
 #: docking/applets/colorpicker/applet.py:59
-#: docking/applets/colorpicker/applet.py:94
+#: docking/applets/colorpicker/applet.py:93
 msgid "Color Picker"
 msgstr "Color Picker"
 
-#: docking/applets/colorpicker/applet.py:108
+#: docking/applets/colorpicker/applet.py:107
 #, python-brace-format
 msgid "Copy {hex}"
 msgstr "Afrita {hex}"
 
-#: docking/applets/colorpicker/applet.py:112
+#: docking/applets/colorpicker/applet.py:111
 msgid "Show Hex"
 msgstr "Show Hex"
 
@@ -982,6 +1005,7 @@ msgid "No price data"
 msgstr "Engar verðupplýsingar"
 
 #: docking/applets/crypto/applet.py:381
+#, python-brace-format
 msgid "{asset}: {price} ({change})"
 msgstr "{asset}: {price} ({change})"
 
@@ -989,40 +1013,43 @@ msgstr "{asset}: {price} ({change})"
 msgid "Add Crypto Asset"
 msgstr "Bæta við dulritunareign"
 
-#: docking/applets/crypto/applet.py:418
+#: docking/applets/crypto/applet.py:419
 msgid "bitcoin or cryptopunks"
 msgstr "bitcoin eða cryptopunks"
 
-#: docking/applets/crypto/applet.py:420
+#: docking/applets/crypto/applet.py:421
 msgid "BTC"
 msgstr "BTC"
 
-#: docking/applets/crypto/applet.py:422
+#: docking/applets/crypto/applet.py:423
 msgid "Bitcoin"
 msgstr "Bitcoin"
 
-#: docking/applets/crypto/applet.py:425
+#: docking/applets/crypto/applet.py:426
 msgid "Type"
 msgstr "Tegund"
 
-#: docking/applets/crypto/applet.py:426
+#: docking/applets/crypto/applet.py:427
 msgid "CoinGecko ID"
 msgstr "CoinGecko auðkenni"
 
-#: docking/applets/crypto/applet.py:427
+#: docking/applets/crypto/applet.py:428
 msgid "Symbol"
 msgstr "Tákn"
 
-#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+#: docking/applets/crypto/applet.py:429 docking/applets/plantcare/applet.py:493
+#: docking/ui/folder/_browser.py:35
 msgid "Name"
 msgstr "Nafn"
 
 #: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
 #: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
+#: docking/search/controller.py:271
 msgid "Unavailable"
 msgstr "Ekki tiltækt"
 
 #: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+#, python-brace-format
 msgid "Interval: {interval}"
 msgstr "Bil: {interval}"
 
@@ -1079,13 +1106,13 @@ msgstr "{pair}: {rate} ({change})"
 msgid "Add FX Pair"
 msgstr "Bæta við FX-pari"
 
-#: docking/applets/currencyfx/applet.py:505
+#: docking/applets/currencyfx/applet.py:506
 msgid "Base"
 msgstr "Grunnur"
 
-#: docking/applets/currencyfx/applet.py:507 docking/applets/quote/applet.py:56
-#: docking/applets/quote/applet.py:96 docking/applets/quote/applet.py:221
-#: docking/applets/quote/applet.py:227
+#: docking/applets/currencyfx/applet.py:508 docking/applets/quote/applet.py:56
+#: docking/applets/quote/applet.py:95 docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:226
 msgid "Quote"
 msgstr "Quote"
 
@@ -1099,35 +1126,35 @@ msgstr "1 {base} = {rate} {quote}"
 msgid "Desk Presence"
 msgstr "Desk Presence"
 
-#: docking/applets/deskpresence/applet.py:102
+#: docking/applets/deskpresence/applet.py:100
 #, python-brace-format
 msgid "{status}"
 msgstr "{status}"
 
-#: docking/applets/deskpresence/applet.py:110
+#: docking/applets/deskpresence/applet.py:108
 msgid "Idle Threshold"
 msgstr "Idle Threshold"
 
-#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/applet.py:211
 #: docking/applets/deskpresence/state.py:183
 msgid "At desk"
 msgstr "At desk"
 
-#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/applet.py:212
 #: docking/applets/deskpresence/state.py:184
 msgid "Away"
 msgstr "Away"
 
-#: docking/applets/deskpresence/applet.py:215
+#: docking/applets/deskpresence/applet.py:213
 msgid "Status unknown"
 msgstr "Status unknown"
 
-#: docking/applets/deskpresence/applet.py:222
+#: docking/applets/deskpresence/applet.py:220
 #, python-brace-format
 msgid "{m} min"
 msgstr "{m} min"
 
-#: docking/applets/deskpresence/applet.py:223
+#: docking/applets/deskpresence/applet.py:221
 #, python-brace-format
 msgid "{s} sec"
 msgstr "{s} sec"
@@ -1184,15 +1211,38 @@ msgid "Week total at desk: {d}"
 msgstr "Week total at desk: {d}"
 
 #: docking/applets/desktop/applet.py:41
-#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:162
 msgid "Desktop"
 msgstr "Desktop"
+
+#: docking/applets/devices/applet.py:66 docking/applets/devices/state.py:127
+#: docking/applets/devices/state.py:134
+msgid "Devices"
+msgstr "Tæki"
+
+#: docking/applets/devices/applet.py:118
+msgid "Refresh Devices"
+msgstr "Endurnýja tæki"
+
+#: docking/applets/devices/state.py:128
+msgid "No mounted devices"
+msgstr "Engin tæki tengd"
+
+#: docking/applets/devices/state.py:135 docking/applets/usbwatch/state.py:102
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr "{count} tengd tæki"
+
+#: docking/applets/devices/state.py:158 docking/applets/devices/state.py:173
+msgid "Mounted Device"
+msgstr "Tengt tæki"
 
 #: docking/applets/docker/applet.py:54
 msgid "Docker"
 msgstr "Hafnarmaður"
 
 #: docking/applets/docker/applet.py:109
+#, python-brace-format
 msgid "Docker unavailable: {error}"
 msgstr "Docker ekki tiltækur: {error}"
 
@@ -1205,6 +1255,7 @@ msgid "No running containers"
 msgstr "Engir hlaupandi gámar"
 
 #: docking/applets/docker/applet.py:119
+#, python-brace-format
 msgid "{count} running containers"
 msgstr "{count} hlaupandi gámar"
 
@@ -1225,6 +1276,7 @@ msgid "Restart"
 msgstr "Restart"
 
 #: docking/applets/docker/applet.py:204
+#, python-brace-format
 msgid "{name} ({image})"
 msgstr "{name} ({image})"
 
@@ -1237,6 +1289,7 @@ msgid "Docker is unavailable"
 msgstr "Docker er ekki tiltækur"
 
 #: docking/applets/docker/state.py:80
+#, python-brace-format
 msgid "Docker: {error}"
 msgstr "Hafnarmaður: {error}"
 
@@ -1301,29 +1354,29 @@ msgstr "Drop a local file to upload"
 msgid "Copy Last URL"
 msgstr "Copy Last URL"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 msgid "1 hour"
 msgstr "1 klst"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 #, python-brace-format
 msgid "{count} hours"
 msgstr "{count} klst"
 
-#: docking/applets/freshness.py:33 docking/ui/tooltip.py:213
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:214
 msgid "1 minute"
 msgstr "1 mín"
 
-#: docking/applets/freshness.py:35 docking/ui/tooltip.py:215
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:216
 #, python-brace-format
 msgid "{count} minutes"
 msgstr "{count} mín"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:206
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:207
 msgid "1 second"
 msgstr "1 sek"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:209
 #, python-brace-format
 msgid "{count} seconds"
 msgstr "{count} sek"
@@ -1334,7 +1387,7 @@ msgid "{verb} every {interval}"
 msgstr "{verb} á {interval} fresti"
 
 #: docking/applets/freshness.py:43 docking/applets/freshness.py:50
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:359
 msgid "Updates"
 msgstr "Uppfærslur"
 
@@ -1344,67 +1397,96 @@ msgid "{verb} on demand"
 msgstr "{verb} eftir þörfum"
 
 #: docking/applets/freshness.py:62
+#, python-brace-format
 msgid "Updated: {age}"
 msgstr "Uppfært: {age}"
 
-#: docking/applets/hackernews/applet.py:69
-#: docking/applets/hackernews/state.py:157
+#: docking/applets/hackernews/applet.py:71
 msgid "Hacker News"
 msgstr "Hacker News"
 
-#: docking/applets/hackernews/applet.py:161
-#: docking/applets/hackernews/state.py:163
-#: docking/applets/hackernews/state.py:196
+#: docking/applets/hackernews/applet.py:164
+#: docking/applets/hackernews/state.py:198
+#: docking/applets/hackernews/state.py:231 docking/applets/news/applet.py:238
+#: docking/applets/news/state.py:331 docking/applets/news/state.py:351
+#: docking/applets/reddit/applet.py:168 docking/applets/reddit/state.py:348
+#: docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr "Endurnýjanir"
 
-#: docking/applets/hackernews/applet.py:173
-#: docking/applets/hackernews/state.py:178
+#: docking/applets/hackernews/applet.py:176
+#: docking/applets/hackernews/state.py:213
 #, python-brace-format
 msgid "{score} points, {comments} comments"
 msgstr "{score} stig, {comments} ummæli"
 
-#: docking/applets/hackernews/applet.py:194
+#: docking/applets/hackernews/applet.py:197
 msgid "Open Story"
 msgstr "Opna sögu"
 
-#: docking/applets/hackernews/applet.py:198
+#: docking/applets/hackernews/applet.py:201
 msgid "Open Comments"
 msgstr "Opna ummæli"
 
-#: docking/applets/hackernews/applet.py:202
+#: docking/applets/hackernews/applet.py:205 docking/applets/news/applet.py:288
+#: docking/applets/reddit/applet.py:206
 msgid "Next Headline"
 msgstr "Næsta fyrirsögn"
 
-#: docking/applets/hackernews/applet.py:328
+#: docking/applets/hackernews/applet.py:214
+msgid "Page"
+msgstr "Síða"
+
+#: docking/applets/hackernews/applet.py:358
 msgid "No Hacker News stories"
 msgstr "Engar Hacker News-fréttir"
 
-#: docking/applets/hackernews/state.py:114
+#: docking/applets/hackernews/state.py:71
+msgid "Top Stories"
+msgstr "Helstu fréttir"
+
+#: docking/applets/hackernews/state.py:72
+msgid "Show HN"
+msgstr "Show HN"
+
+#: docking/applets/hackernews/state.py:73
+msgid "Jobs"
+msgstr "Störf"
+
+#: docking/applets/hackernews/state.py:144 docking/applets/news/state.py:285
+#: docking/applets/reddit/state.py:308
 msgid "now"
 msgstr "núna"
 
-#: docking/applets/hackernews/state.py:117
+#: docking/applets/hackernews/state.py:147 docking/applets/news/state.py:288
+#: docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr "fyrir {minutes} mín"
 
-#: docking/applets/hackernews/state.py:120
+#: docking/applets/hackernews/state.py:150 docking/applets/news/state.py:291
+#: docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr "fyrir {hours} klst"
 
-#: docking/applets/hackernews/state.py:122
+#: docking/applets/hackernews/state.py:152 docking/applets/news/state.py:292
+#: docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr "fyrir {days} d"
 
-#: docking/applets/hackernews/state.py:171
+#: docking/applets/hackernews/state.py:180 docking/applets/news/applet.py:806
+#, python-brace-format
+msgid "{source} - {feed}"
+msgstr "{source} - {feed}"
+
+#: docking/applets/hackernews/state.py:206
 #, python-brace-format
 msgid "{source} {rank}"
 msgstr "{source} {rank}"
 
-#: docking/applets/hackernews/state.py:187
+#: docking/applets/hackernews/state.py:222
 msgid "Loading next stories..."
 msgstr "Hleður næstu sögur..."
 
@@ -1442,36 +1524,38 @@ msgstr "Keyboard Settings"
 msgid "Show Current Layout"
 msgstr "Show Current Layout"
 
-#: docking/applets/lastfm/applet.py:80
+#: docking/applets/lastfm/applet.py:81
 msgid "Last.fm"
 msgstr "Last.fm"
 
-#: docking/applets/lastfm/applet.py:157
+#: docking/applets/lastfm/applet.py:156
 msgid "Set username..."
 msgstr "Stilltu notendanafn..."
 
-#: docking/applets/lastfm/applet.py:159
+#: docking/applets/lastfm/applet.py:158
 msgid "Set API key and username..."
 msgstr "Stilltu API lykil og notandanafn..."
 
-#: docking/applets/lastfm/applet.py:165
+#: docking/applets/lastfm/applet.py:164
 #, python-brace-format
 msgid "Recent tracks for {user} ({count})"
 msgstr "Nýleg lög fyrir {user} ({count})"
 
-#: docking/applets/lastfm/applet.py:182
+#: docking/applets/lastfm/applet.py:181
 msgid "Configure..."
 msgstr "Stilla..."
 
-#: docking/applets/lastfm/applet.py:188
+#: docking/applets/lastfm/applet.py:187
+#, python-brace-format
 msgid "Open {service} Profile"
 msgstr "Opnaðu {service} prófíl"
 
-#: docking/applets/lastfm/applet.py:377
+#: docking/applets/lastfm/applet.py:376
 msgid "Scrobbler Settings"
 msgstr "Scrobbler stillingar"
 
-#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:341
+#: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr "Vista"
 
@@ -1523,6 +1607,7 @@ msgid "Stale data"
 msgstr "Úreltar gögn"
 
 #: docking/applets/live_state.py:138
+#, python-brace-format
 msgid "Stale: last updated {age}"
 msgstr "Gamaldags: síðast uppfært {age}"
 
@@ -1577,20 +1662,21 @@ msgstr "{command} (PID {pid})"
 msgid "Moon"
 msgstr "Moon"
 
-#: docking/applets/moon/applet.py:105
+#: docking/applets/moon/applet.py:104
 msgid "Moon (loading...)"
 msgstr "Moon (loading...)"
 
-#: docking/applets/moon/applet.py:112
+#: docking/applets/moon/applet.py:111
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "Illumination: {pct}%"
 
-#: docking/applets/moon/applet.py:133
+#: docking/applets/moon/applet.py:132
 msgid "Show Phase Name"
 msgstr "Show Phase Name"
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
+#: docking/applets/reddit/state.py:159
 msgid "New"
 msgstr "New"
 
@@ -1652,48 +1738,48 @@ msgstr "1st Quarter"
 msgid "3rd Quarter"
 msgstr "3rd Quarter"
 
-#: docking/applets/music/applet.py:58 docking/applets/music/state.py:142
-#: docking/applets/music/state.py:156
+#: docking/applets/music/applet.py:105 docking/applets/music/state.py:163
+#: docking/applets/music/state.py:177
 msgid "Music"
 msgstr "Music"
 
-#: docking/applets/music/applet.py:118 docking/applets/music/state.py:143
+#: docking/applets/music/applet.py:180 docking/applets/music/state.py:164
 msgid "No active player"
 msgstr "No active player"
 
-#: docking/applets/music/applet.py:120
+#: docking/applets/music/applet.py:182
 msgid "Previous"
 msgstr "Previous"
 
-#: docking/applets/music/applet.py:128
+#: docking/applets/music/applet.py:190
 msgid "Next"
 msgstr "Next"
 
-#: docking/applets/music/applet.py:132
+#: docking/applets/music/applet.py:194
 msgid "Volume Up"
 msgstr "Volume Up"
 
-#: docking/applets/music/applet.py:138
+#: docking/applets/music/applet.py:200
 msgid "Volume Down"
 msgstr "Volume Down"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Pause"
 msgstr "Pause"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:89
+#: docking/applets/music/state.py:110
 msgid "Playing"
 msgstr "Playing"
 
-#: docking/applets/music/state.py:91
+#: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
 
-#: docking/applets/music/state.py:93
+#: docking/applets/music/state.py:114
 msgid "Stopped"
 msgstr "Stopped"
 
@@ -1702,86 +1788,759 @@ msgstr "Stopped"
 msgid "Network"
 msgstr "Network"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:126
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:136
+#: docking/applets/network/applet.py:135
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:141 docking/applets/network/state.py:247
+#: docking/applets/network/applet.py:140 docking/applets/network/state.py:247
 msgid "Not connected"
 msgstr "Not connected"
 
-#: docking/applets/network/applet.py:145
+#: docking/applets/network/applet.py:144
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:156
+#: docking/applets/network/applet.py:155
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:162
+#: docking/applets/network/applet.py:161
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:172
+#: docking/applets/network/applet.py:171
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:179
+#: docking/applets/network/applet.py:178
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:183
+#: docking/applets/network/applet.py:182
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:194
+#: docking/applets/network/applet.py:193
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:211
+#: docking/applets/network/applet.py:210
 msgid "Show Download"
 msgstr "Sýna niðurhal"
 
-#: docking/applets/network/applet.py:212
+#: docking/applets/network/applet.py:211
 msgid "Show Upload"
 msgstr "Sýna upphal"
 
-#: docking/applets/network/applet.py:213
+#: docking/applets/network/applet.py:212
 msgid "Hide Speeds"
 msgstr "Fela hraða"
 
-#: docking/applets/network/applet.py:262
+#: docking/applets/network/applet.py:261
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:266
+#: docking/applets/network/applet.py:265
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:268
+#: docking/applets/network/applet.py:267
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:277
+#: docking/applets/network/applet.py:276
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:289
+#: docking/applets/network/applet.py:288
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:292
+#: docking/applets/network/applet.py:291
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
+
+#: docking/applets/news/applet.py:110
+msgid "News"
+msgstr "Fréttir"
+
+#: docking/applets/news/applet.py:229
+msgid "No news source selected"
+msgstr "Engin fréttaveita valin"
+
+#: docking/applets/news/applet.py:250
+msgid "Open Headline"
+msgstr "Opna fyrirsögn"
+
+#: docking/applets/news/applet.py:258
+msgid "Open Publication"
+msgstr "Opna blað"
+
+#: docking/applets/news/applet.py:278 docking/applets/reddit/applet.py:200
+msgid "Previous Headline"
+msgstr "Fyrri fyrirsögn"
+
+#: docking/applets/news/applet.py:308 docking/applets/quote/applet.py:108
+msgid "Source"
+msgstr "Source"
+
+#: docking/applets/news/applet.py:319
+msgid "Remove Current News Source"
+msgstr "Fjarlægja núverandi fréttaveitu"
+
+#: docking/applets/news/applet.py:323
+msgid "Add News Source..."
+msgstr "Bæta við fréttaveitu..."
+
+#: docking/applets/news/applet.py:426
+msgid "No news articles returned"
+msgstr "Engar fréttagreinar bárust"
+
+#: docking/applets/news/applet.py:506
+msgid "Choose News Source"
+msgstr "Veldu fréttaveitu"
+
+#: docking/applets/news/applet.py:511
+msgid "Update List"
+msgstr "Uppfæra listann"
+
+#: docking/applets/news/applet.py:513 docking/applets/reddit/applet.py:429
+msgid "Add"
+msgstr "Bæta við"
+
+#: docking/applets/news/applet.py:526
+msgid "Choose a country, then select a publication or edition."
+msgstr "Veldu land og síðan blað eða útgáfu."
+
+#: docking/applets/news/applet.py:548
+msgid "Loading news sources..."
+msgstr "Hleður fréttaveitum..."
+
+#: docking/applets/news/applet.py:556
+msgid "Country"
+msgstr "Land"
+
+#: docking/applets/news/applet.py:560
+msgid "Search countries"
+msgstr "Leita í löndum"
+
+#: docking/applets/news/applet.py:578
+msgid "Publication or Edition"
+msgstr "Blað eða útgáfa"
+
+#: docking/applets/news/applet.py:582
+msgid "Search publications"
+msgstr "Leita í blöðum"
+
+#: docking/applets/news/applet.py:622
+msgid "Updating news sources..."
+msgstr "Uppfæri fréttaveitur..."
+
+#: docking/applets/news/applet.py:637
+#, python-brace-format
+msgid "Could not load news sources: {error}"
+msgstr "Gat ekki hlaðið fréttaveitum: {error}"
+
+#: docking/applets/news/applet.py:640
+#, python-brace-format
+msgid "Could not update news sources; using cached list: {error}"
+msgstr "Gat ekki uppfært fréttaveitur; notar vistaðan lista: {error}"
+
+#: docking/applets/news/applet.py:654
+#, python-brace-format
+msgid "{count} sources - updated {time}"
+msgstr "{count} veitur - uppfært {time}"
+
+#: docking/applets/news/countries.py:13
+msgid "Afghanistan"
+msgstr "Afganistan"
+
+#: docking/applets/news/countries.py:14
+msgid "Albania"
+msgstr "Albanía"
+
+#: docking/applets/news/countries.py:15
+msgid "Andorra"
+msgstr "Andorra"
+
+#: docking/applets/news/countries.py:16
+msgid "Argentina"
+msgstr "Argentína"
+
+#: docking/applets/news/countries.py:17
+msgid "Armenia"
+msgstr "Armenía"
+
+#: docking/applets/news/countries.py:18
+msgid "Australia"
+msgstr "Ástralía"
+
+#: docking/applets/news/countries.py:19
+msgid "Austria"
+msgstr "Austurríki"
+
+#: docking/applets/news/countries.py:20
+msgid "Azerbaijan"
+msgstr "Aserbaídsjan"
+
+#: docking/applets/news/countries.py:21
+msgid "Burundi"
+msgstr "Búrúndí"
+
+#: docking/applets/news/countries.py:22
+msgid "Belgium"
+msgstr "Belgía"
+
+#: docking/applets/news/countries.py:23
+msgid "Benin"
+msgstr "Benín"
+
+#: docking/applets/news/countries.py:24
+msgid "Bangladesh"
+msgstr "Bangladess"
+
+#: docking/applets/news/countries.py:25
+msgid "Bulgaria"
+msgstr "Búlgaría"
+
+#: docking/applets/news/countries.py:26
+msgid "Bahamas"
+msgstr "Bahamaeyjar"
+
+#: docking/applets/news/countries.py:27
+msgid "Bosnia and Herzegovina"
+msgstr "Bosnía og Hersegóvína"
+
+#: docking/applets/news/countries.py:28
+msgid "Belarus"
+msgstr "Hvíta-Rússland"
+
+#: docking/applets/news/countries.py:29
+msgid "Belize"
+msgstr "Belís"
+
+#: docking/applets/news/countries.py:30
+msgid "Bermuda"
+msgstr "Bermúda"
+
+#: docking/applets/news/countries.py:31
+msgid "Bolivia"
+msgstr "Bólivía"
+
+#: docking/applets/news/countries.py:32
+msgid "Brazil"
+msgstr "Brasilía"
+
+#: docking/applets/news/countries.py:33
+msgid "Barbados"
+msgstr "Barbados"
+
+#: docking/applets/news/countries.py:34
+msgid "Canada"
+msgstr "Kanada"
+
+#: docking/applets/news/countries.py:35
+msgid "Switzerland"
+msgstr "Sviss"
+
+#: docking/applets/news/countries.py:36
+msgid "Chile"
+msgstr "Síle"
+
+#: docking/applets/news/countries.py:37
+msgid "China"
+msgstr "Kína"
+
+#: docking/applets/news/countries.py:38
+msgid "Cameroon"
+msgstr "Kamerún"
+
+#: docking/applets/news/countries.py:39
+msgid "Democratic Republic of the Congo"
+msgstr "Lýðveldið Kongó"
+
+#: docking/applets/news/countries.py:40
+msgid "Colombia"
+msgstr "Kólumbía"
+
+#: docking/applets/news/countries.py:41
+msgid "Costa Rica"
+msgstr "Kostaríka"
+
+#: docking/applets/news/countries.py:42
+msgid "Cuba"
+msgstr "Kúba"
+
+#: docking/applets/news/countries.py:43
+msgid "Cayman Islands"
+msgstr "Caymaneyjar"
+
+#: docking/applets/news/countries.py:44
+msgid "Cyprus"
+msgstr "Kýpur"
+
+#: docking/applets/news/countries.py:45
+msgid "Czechia"
+msgstr "Tékkland"
+
+#: docking/applets/news/countries.py:46
+msgid "Germany"
+msgstr "Þýskaland"
+
+#: docking/applets/news/countries.py:47
+msgid "Djibouti"
+msgstr "Djíbútí"
+
+#: docking/applets/news/countries.py:48
+msgid "Dominica"
+msgstr "Dóminíka"
+
+#: docking/applets/news/countries.py:49
+msgid "Denmark"
+msgstr "Danmörk"
+
+#: docking/applets/news/countries.py:50
+msgid "Dominican Republic"
+msgstr "Dóminíska lýðveldið"
+
+#: docking/applets/news/countries.py:51
+msgid "Algeria"
+msgstr "Alsír"
+
+#: docking/applets/news/countries.py:52
+msgid "Ecuador"
+msgstr "Ekvador"
+
+#: docking/applets/news/countries.py:53
+msgid "Egypt"
+msgstr "Egyptaland"
+
+#: docking/applets/news/countries.py:54
+msgid "Eritrea"
+msgstr "Erítrea"
+
+#: docking/applets/news/countries.py:55
+msgid "Spain"
+msgstr "Spánn"
+
+#: docking/applets/news/countries.py:56
+msgid "Estonia"
+msgstr "Eistland"
+
+#: docking/applets/news/countries.py:57
+msgid "Ethiopia"
+msgstr "Eþíópía"
+
+#: docking/applets/news/countries.py:58
+msgid "Finland"
+msgstr "Finnland"
+
+#: docking/applets/news/countries.py:59
+msgid "France"
+msgstr "Frakkland"
+
+#: docking/applets/news/countries.py:60
+msgid "Gabon"
+msgstr "Gabon"
+
+#: docking/applets/news/countries.py:61
+msgid "United Kingdom"
+msgstr "Bretland"
+
+#: docking/applets/news/countries.py:62
+msgid "Ghana"
+msgstr "Gana"
+
+#: docking/applets/news/countries.py:63
+msgid "Gibraltar"
+msgstr "Gíbraltar"
+
+#: docking/applets/news/countries.py:64
+msgid "Guinea"
+msgstr "Gínea"
+
+#: docking/applets/news/countries.py:65
+msgid "Greece"
+msgstr "Grikkland"
+
+#: docking/applets/news/countries.py:66
+msgid "Guatemala"
+msgstr "Gvatemala"
+
+#: docking/applets/news/countries.py:67
+msgid "French Guiana"
+msgstr "Franska Gvæjana"
+
+#: docking/applets/news/countries.py:68
+msgid "Guyana"
+msgstr "Gvæjana"
+
+#: docking/applets/news/countries.py:69
+msgid "Hong Kong"
+msgstr "Hong Kong"
+
+#: docking/applets/news/countries.py:70
+msgid "Croatia"
+msgstr "Króatía"
+
+#: docking/applets/news/countries.py:71
+msgid "Haiti"
+msgstr "Haítí"
+
+#: docking/applets/news/countries.py:72
+msgid "Hungary"
+msgstr "Ungverjaland"
+
+#: docking/applets/news/countries.py:73
+msgid "Indonesia"
+msgstr "Indónesía"
+
+#: docking/applets/news/countries.py:74
+msgid "Isle of Man"
+msgstr "Mön"
+
+#: docking/applets/news/countries.py:75
+msgid "India"
+msgstr "Indland"
+
+#: docking/applets/news/countries.py:76
+msgid "Ireland"
+msgstr "Írland"
+
+#: docking/applets/news/countries.py:77
+msgid "Iran"
+msgstr "Íran"
+
+#: docking/applets/news/countries.py:78
+msgid "Iceland"
+msgstr "Ísland"
+
+#: docking/applets/news/countries.py:79
+msgid "Israel"
+msgstr "Ísrael"
+
+#: docking/applets/news/countries.py:80
+msgid "Italy"
+msgstr "Ítalía"
+
+#: docking/applets/news/countries.py:81
+msgid "Jamaica"
+msgstr "Jamaíka"
+
+#: docking/applets/news/countries.py:82
+msgid "Japan"
+msgstr "Japan"
+
+#: docking/applets/news/countries.py:83
+msgid "Kazakhstan"
+msgstr "Kasakstan"
+
+#: docking/applets/news/countries.py:84
+msgid "Kenya"
+msgstr "Kenía"
+
+#: docking/applets/news/countries.py:85
+msgid "Kyrgyzstan"
+msgstr "Kirgistan"
+
+#: docking/applets/news/countries.py:86
+msgid "Cambodia"
+msgstr "Kambódía"
+
+#: docking/applets/news/countries.py:87
+msgid "Liberia"
+msgstr "Líbería"
+
+#: docking/applets/news/countries.py:88
+msgid "Sri Lanka"
+msgstr "Srí Lanka"
+
+#: docking/applets/news/countries.py:89
+msgid "Lithuania"
+msgstr "Litháen"
+
+#: docking/applets/news/countries.py:90
+msgid "Luxembourg"
+msgstr "Lúxemborg"
+
+#: docking/applets/news/countries.py:91
+msgid "Latvia"
+msgstr "Lettland"
+
+#: docking/applets/news/countries.py:92
+msgid "Morocco"
+msgstr "Marokkó"
+
+#: docking/applets/news/countries.py:93
+msgid "Monaco"
+msgstr "Mónakó"
+
+#: docking/applets/news/countries.py:94
+msgid "Moldova"
+msgstr "Moldóva"
+
+#: docking/applets/news/countries.py:95
+msgid "Madagascar"
+msgstr "Madagaskar"
+
+#: docking/applets/news/countries.py:96
+msgid "Maldives"
+msgstr "Maldíveyjar"
+
+#: docking/applets/news/countries.py:97
+msgid "Mexico"
+msgstr "Mexíkó"
+
+#: docking/applets/news/countries.py:98
+msgid "North Macedonia"
+msgstr "Norður-Makedónía"
+
+#: docking/applets/news/countries.py:99
+msgid "Mali"
+msgstr "Malí"
+
+#: docking/applets/news/countries.py:100
+msgid "Malta"
+msgstr "Malta"
+
+#: docking/applets/news/countries.py:101
+msgid "Montenegro"
+msgstr "Svartfjallaland"
+
+#: docking/applets/news/countries.py:102
+msgid "Martinique"
+msgstr "Martinique"
+
+#: docking/applets/news/countries.py:103
+msgid "Malawi"
+msgstr "Malaví"
+
+#: docking/applets/news/countries.py:104
+msgid "Malaysia"
+msgstr "Malasía"
+
+#: docking/applets/news/countries.py:105
+msgid "Namibia"
+msgstr "Namibía"
+
+#: docking/applets/news/countries.py:106
+msgid "Niger"
+msgstr "Níger"
+
+#: docking/applets/news/countries.py:107
+msgid "Nigeria"
+msgstr "Nígería"
+
+#: docking/applets/news/countries.py:108
+msgid "Nicaragua"
+msgstr "Níkaragva"
+
+#: docking/applets/news/countries.py:109
+msgid "Netherlands"
+msgstr "Holland"
+
+#: docking/applets/news/countries.py:110
+msgid "Norway"
+msgstr "Noregur"
+
+#: docking/applets/news/countries.py:111
+msgid "Nepal"
+msgstr "Nepal"
+
+#: docking/applets/news/countries.py:112
+msgid "New Zealand"
+msgstr "Nýja-Sjáland"
+
+#: docking/applets/news/countries.py:113
+msgid "Pakistan"
+msgstr "Pakistan"
+
+#: docking/applets/news/countries.py:114
+msgid "Panama"
+msgstr "Panama"
+
+#: docking/applets/news/countries.py:115
+msgid "Peru"
+msgstr "Perú"
+
+#: docking/applets/news/countries.py:116
+msgid "Philippines"
+msgstr "Filippseyjar"
+
+#: docking/applets/news/countries.py:117
+msgid "Poland"
+msgstr "Pólland"
+
+#: docking/applets/news/countries.py:118
+msgid "Puerto Rico"
+msgstr "Púertó Ríkó"
+
+#: docking/applets/news/countries.py:119
+msgid "Portugal"
+msgstr "Portúgal"
+
+#: docking/applets/news/countries.py:120
+msgid "Palestine"
+msgstr "Palestína"
+
+#: docking/applets/news/countries.py:121
+msgid "French Polynesia"
+msgstr "Franska Pólýnesía"
+
+#: docking/applets/news/countries.py:122
+msgid "Romania"
+msgstr "Rúmenía"
+
+#: docking/applets/news/countries.py:123
+msgid "Russia"
+msgstr "Rússland"
+
+#: docking/applets/news/countries.py:124
+msgid "Senegal"
+msgstr "Senegal"
+
+#: docking/applets/news/countries.py:125
+msgid "Singapore"
+msgstr "Singapúr"
+
+#: docking/applets/news/countries.py:126
+msgid "Solomon Islands"
+msgstr "Salómonseyjar"
+
+#: docking/applets/news/countries.py:127
+msgid "Sierra Leone"
+msgstr "Síerra Leóne"
+
+#: docking/applets/news/countries.py:128
+msgid "San Marino"
+msgstr "San Marínó"
+
+#: docking/applets/news/countries.py:129
+msgid "Somalia"
+msgstr "Sómalía"
+
+#: docking/applets/news/countries.py:130
+msgid "Serbia"
+msgstr "Serbía"
+
+#: docking/applets/news/countries.py:131
+msgid "Suriname"
+msgstr "Súrínam"
+
+#: docking/applets/news/countries.py:132
+msgid "Slovakia"
+msgstr "Slóvakía"
+
+#: docking/applets/news/countries.py:133
+msgid "Slovenia"
+msgstr "Slóvenía"
+
+#: docking/applets/news/countries.py:134
+msgid "Sweden"
+msgstr "Svíþjóð"
+
+#: docking/applets/news/countries.py:135
+msgid "Togo"
+msgstr "Tógó"
+
+#: docking/applets/news/countries.py:136
+msgid "Thailand"
+msgstr "Taíland"
+
+#: docking/applets/news/countries.py:137
+msgid "Tunisia"
+msgstr "Túnis"
+
+#: docking/applets/news/countries.py:138
+msgid "Türkiye"
+msgstr "Tyrkland"
+
+#: docking/applets/news/countries.py:139
+msgid "Uganda"
+msgstr "Úganda"
+
+#: docking/applets/news/countries.py:140
+msgid "Ukraine"
+msgstr "Úkraína"
+
+#: docking/applets/news/countries.py:141
+msgid "Uruguay"
+msgstr "Úrúgvæ"
+
+#: docking/applets/news/countries.py:142
+msgid "United States"
+msgstr "Bandaríkin"
+
+#: docking/applets/news/countries.py:143
+msgid "Uzbekistan"
+msgstr "Úsbekistan"
+
+#: docking/applets/news/countries.py:144
+msgid "Venezuela"
+msgstr "Venesúela"
+
+#: docking/applets/news/countries.py:145
+msgid "U.S. Virgin Islands"
+msgstr "Bandarísku Jómfrúareyjar"
+
+#: docking/applets/news/countries.py:146
+msgid "Vietnam"
+msgstr "Víetnam"
+
+#: docking/applets/news/countries.py:147
+msgid "Kosovo"
+msgstr "Kosóvó"
+
+#: docking/applets/news/countries.py:148
+msgid "Yemen"
+msgstr "Jemen"
+
+#: docking/applets/news/countries.py:149
+msgid "South Africa"
+msgstr "Suður-Afríka"
+
+#: docking/applets/news/countries.py:150
+msgid "Zambia"
+msgstr "Sambía"
+
+#: docking/applets/news/countries.py:151
+msgid "Zimbabwe"
+msgstr "Simbabve"
+
+#: docking/applets/news/countries.py:159
+msgid "Global"
+msgstr "Alþjóðlegt"
+
+#: docking/applets/news/state.py:187
+#, python-brace-format
+msgid "{publication} - {category}"
+msgstr "{publication} - {category}"
+
+#: docking/applets/news/state.py:213
+msgid "Unsafe RSS response"
+msgstr "Óörugg RSS-svörun"
+
+#: docking/applets/news/state.py:217
+msgid "Invalid RSS response"
+msgstr "Ógild RSS-svörun"
+
+#: docking/applets/news/state.py:310
+msgid "Click to choose a country and news source"
+msgstr "Smelltu til að velja land og fréttaveitu"
+
+#: docking/applets/news/state.py:339
+#, python-brace-format
+msgid "By {author}"
+msgstr "Eftir {author}"
 
 #: docking/applets/notifications/applet.py:78
 #: docking/applets/notifications/state.py:62
@@ -1859,6 +2618,230 @@ msgstr "Spennt/ur!"
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
+#: docking/applets/plantcare/applet.py:62
+#: docking/applets/plantcare/applet.py:241
+#: docking/applets/plantcare/state.py:438
+msgid "Plant Care"
+msgstr "Plöntugæsla"
+
+#: docking/applets/plantcare/applet.py:124
+#: docking/applets/plantcare/applet.py:306
+#: docking/applets/plantcare/applet.py:389
+msgid "Add Plant..."
+msgstr "Bæta við plöntu..."
+
+#: docking/applets/plantcare/applet.py:126
+msgid "Manage Plants..."
+msgstr "Stjórna plöntum..."
+
+#: docking/applets/plantcare/applet.py:148
+#, python-brace-format
+msgid "{action} {plant}"
+msgstr "{action} {plant}"
+
+#: docking/applets/plantcare/applet.py:155
+#: docking/applets/plantcare/applet.py:374
+msgid "Done"
+msgstr "Lokið"
+
+#: docking/applets/plantcare/applet.py:160
+msgid "Snooze 1 Day"
+msgstr "Blunda í 1 dag"
+
+#: docking/applets/plantcare/applet.py:175
+#, python-brace-format
+msgid "{count} more due task"
+msgid_plural "{count} more due tasks"
+msgstr[0] "{count} annað verkefni á gjalddaga"
+msgstr[1] "{count} önnur verkefni á gjalddaga"
+
+#: docking/applets/plantcare/applet.py:244
+#: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
+#: docking/ui/menu.py:584 docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr "Close"
+
+#: docking/applets/plantcare/applet.py:284
+msgid "Care"
+msgstr "Umhirða"
+
+#: docking/applets/plantcare/applet.py:288
+msgid "Plants"
+msgstr "Plöntur"
+
+#: docking/applets/plantcare/applet.py:301
+msgid "Add a plant to start tracking care."
+msgstr "Bættu við plöntu til að byrja að fylgjast með umhirðu."
+
+#: docking/applets/plantcare/applet.py:312
+msgid "No care schedules are enabled."
+msgstr "Engar umhirðuáætlanir eru virkar."
+
+#: docking/applets/plantcare/applet.py:326
+msgid "Due"
+msgstr "Á gjalddaga"
+
+#: docking/applets/plantcare/applet.py:335
+msgid "Upcoming"
+msgstr "Væntanlegt"
+
+#: docking/applets/plantcare/applet.py:360
+#, python-brace-format
+msgid "{plant} - {care}"
+msgstr "{plant} - {care}"
+
+#: docking/applets/plantcare/applet.py:395
+msgid "No plants configured."
+msgstr "Engar plöntur stilltar."
+
+#: docking/applets/plantcare/applet.py:421
+msgid "Edit"
+msgstr "Breyta"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Edit Plant"
+msgstr "Breyta plöntu"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Add Plant"
+msgstr "Bæta við plöntu"
+
+#: docking/applets/plantcare/applet.py:495
+msgid "Species"
+msgstr "Tegund"
+
+#: docking/applets/plantcare/applet.py:497
+msgid "Care Schedule"
+msgstr "Umhirðuáætlun"
+
+#: docking/applets/plantcare/applet.py:498
+msgid "Days"
+msgstr "Dagar"
+
+#: docking/applets/plantcare/state.py:108
+msgid "Watering"
+msgstr "Vökvun"
+
+#: docking/applets/plantcare/state.py:109
+msgid "Fertilizing"
+msgstr "Áburður"
+
+#: docking/applets/plantcare/state.py:110
+msgid "Misting"
+msgstr "Úðun"
+
+#: docking/applets/plantcare/state.py:111
+msgid "Rotating"
+msgstr "Snúningur"
+
+#: docking/applets/plantcare/state.py:112
+msgid "Pruning"
+msgstr "Klipping"
+
+#: docking/applets/plantcare/state.py:113
+msgid "Repotting"
+msgstr "Uppotun"
+
+#: docking/applets/plantcare/state.py:114
+msgid "Pest check"
+msgstr "Meindýraskoðun"
+
+#: docking/applets/plantcare/state.py:122
+msgid "Water"
+msgstr "Vökva"
+
+#: docking/applets/plantcare/state.py:123
+msgid "Fertilize"
+msgstr "Bera áburð"
+
+#: docking/applets/plantcare/state.py:124
+msgid "Mist"
+msgstr "Úða"
+
+#: docking/applets/plantcare/state.py:125
+msgid "Rotate"
+msgstr "Snúa"
+
+#: docking/applets/plantcare/state.py:126
+msgid "Prune"
+msgstr "Klippa"
+
+#: docking/applets/plantcare/state.py:127
+msgid "Repot"
+msgstr "Potta upp"
+
+#: docking/applets/plantcare/state.py:128
+msgid "Check for pests"
+msgstr "Athuga meindýr"
+
+#: docking/applets/plantcare/state.py:186
+#: docking/applets/plantcare/state.py:544
+msgid "Plant"
+msgstr "Planta"
+
+#: docking/applets/plantcare/state.py:416
+#, python-brace-format
+msgid "overdue by {count} day"
+msgid_plural "overdue by {count} days"
+msgstr[0] "{count} degi yfir gjalddaga"
+msgstr[1] "{count} dögum yfir gjalddaga"
+
+#: docking/applets/plantcare/state.py:421
+msgid "due today"
+msgstr "á gjalddaga í dag"
+
+#: docking/applets/plantcare/state.py:424
+#, python-brace-format
+msgid "in {count} day"
+msgid_plural "in {count} days"
+msgstr[0] "eftir {count} dag"
+msgstr[1] "eftir {count} daga"
+
+#: docking/applets/plantcare/state.py:428
+#, python-brace-format
+msgid "{plant}: {care} {duration}"
+msgstr "{plant}: {care} {duration}"
+
+#: docking/applets/plantcare/state.py:440
+#: docking/applets/plantcare/state.py:475
+msgid "No plants configured"
+msgstr "Engar plöntur stilltar"
+
+#: docking/applets/plantcare/state.py:443
+#: docking/applets/plantcare/state.py:477
+msgid "No care schedules enabled"
+msgstr "Engar umhirðuáætlanir virkar"
+
+#: docking/applets/plantcare/state.py:449
+#: docking/applets/plantcare/state.py:480
+#: docking/applets/plantcare/state.py:495
+#, python-brace-format
+msgid "{count} task due"
+msgid_plural "{count} tasks due"
+msgstr[0] "{count} verkefni komið á gjalddaga"
+msgstr[1] "{count} verkefni komin á gjalddaga"
+
+#: docking/applets/plantcare/state.py:455
+msgid "All plants are on schedule"
+msgstr "Allar plöntur eru á áætlun"
+
+#: docking/applets/plantcare/state.py:463
+#, python-brace-format
+msgid "{count} more task"
+msgid_plural "{count} more tasks"
+msgstr[0] "{count} annað verkefni"
+msgstr[1] "{count} önnur verkefni"
+
+#: docking/applets/plantcare/state.py:492
+#, python-brace-format
+msgid "{plant} - no schedules"
+msgstr "{plant} - engar áætlanir"
+
+#: docking/applets/plantcare/state.py:499
+#, python-brace-format
+msgid "{plant} - {due}"
+msgstr "{plant} - {due}"
+
 #: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr "Pomodoro"
@@ -1933,74 +2916,175 @@ msgstr "Breyta glósu"
 msgid "Clear Note"
 msgstr "Hreinsa glósu"
 
-#: docking/applets/quote/applet.py:99
+#: docking/applets/quote/applet.py:98
 msgid "Next Quote"
 msgstr "Next Quote"
 
-#: docking/applets/quote/applet.py:102
+#: docking/applets/quote/applet.py:101
 msgid "Copy Quote"
 msgstr "Copy Quote"
 
-#: docking/applets/quote/applet.py:109
-msgid "Source"
-msgstr "Source"
-
-#: docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:219
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: loading..."
 
-#: docking/applets/recentfiles/applet.py:48
+#: docking/applets/recentfiles/applet.py:50
+#: docking/search/providers/recent.py:61
 msgid "Recent Files"
 msgstr "Nýlegar skrár"
 
-#: docking/applets/recentfiles/applet.py:95
+#: docking/applets/recentfiles/applet.py:121
 msgid "Clear Recent Files"
 msgstr "Hreinsa nýlegar skrár"
 
-#: docking/applets/runcommand/applet.py:63
-#: docking/applets/runcommand/applet.py:88
-#: docking/applets/runcommand/applet.py:118
-#: docking/applets/runcommand/applet.py:262
+#: docking/applets/reddit/applet.py:67
+msgid "Reddit"
+msgstr "Reddit"
+
+#: docking/applets/reddit/applet.py:179 docking/applets/reddit/state.py:356
+#, python-brace-format
+msgid "Posted by u/{author}"
+msgstr "Sent inn af u/{author}"
+
+#: docking/applets/reddit/applet.py:183
+msgid "Open Post"
+msgstr "Opna færslu"
+
+#: docking/applets/reddit/applet.py:220
+msgid "Subreddit"
+msgstr "Subreddit"
+
+#: docking/applets/reddit/applet.py:230
+msgid "Sort"
+msgstr "Röðun"
+
+#: docking/applets/reddit/applet.py:240
+msgid "Top Period"
+msgstr "Tímabil topps"
+
+#: docking/applets/reddit/applet.py:252
+msgid "Add Subreddit..."
+msgstr "Bæta við subreddit..."
+
+#: docking/applets/reddit/applet.py:258
+#, python-brace-format
+msgid "Remove r/{subreddit}"
+msgstr "Fjarlægja r/{subreddit}"
+
+#: docking/applets/reddit/applet.py:374
+msgid "No Reddit posts returned"
+msgstr "Engar Reddit-færslur bárust"
+
+#: docking/applets/reddit/applet.py:423
+msgid "Add Subreddit"
+msgstr "Bæta við subreddit"
+
+#: docking/applets/reddit/applet.py:439
+msgid "Subreddit name or URL"
+msgstr "Heiti subreddits eða slóð"
+
+#: docking/applets/reddit/applet.py:457
+msgid "Enter a valid subreddit name."
+msgstr "Sláðu inn gilt subreddit-heiti."
+
+#: docking/applets/reddit/state.py:158
+msgid "Hot"
+msgstr "Vinsælt"
+
+#: docking/applets/reddit/state.py:160
+msgid "Top"
+msgstr "Toppur"
+
+#: docking/applets/reddit/state.py:161
+msgid "Rising"
+msgstr "Vaxandi"
+
+#: docking/applets/reddit/state.py:169
+#: docking/search/recognizers/temporal.py:155
+msgid "Today"
+msgstr "Í dag"
+
+#: docking/applets/reddit/state.py:170
+msgid "This Week"
+msgstr "Þessa viku"
+
+#: docking/applets/reddit/state.py:171
+msgid "This Month"
+msgstr "Þennan mánuð"
+
+#: docking/applets/reddit/state.py:172
+msgid "This Year"
+msgstr "Á þessu ári"
+
+#: docking/applets/reddit/state.py:173
+msgid "All Time"
+msgstr "Allan tímann"
+
+#: docking/applets/reddit/state.py:187
+msgid "Invalid subreddit name"
+msgstr "Ógilt subreddit-heiti"
+
+#: docking/applets/reddit/state.py:203
+#, python-brace-format
+msgid "{sort}, {period}"
+msgstr "{sort}, {period}"
+
+#: docking/applets/reddit/state.py:207
+#, python-brace-format
+msgid "r/{subreddit} - {listing}"
+msgstr "r/{subreddit} - {listing}"
+
+#: docking/applets/reddit/state.py:225
+msgid "Invalid Reddit RSS response"
+msgstr "Ógild RSS-svörun frá Reddit"
+
+#: docking/applets/runcommand/applet.py:75
+#: docking/applets/runcommand/applet.py:113
+#: docking/applets/runcommand/applet.py:143
+#: docking/applets/runcommand/applet.py:287
 msgid "Run Application"
 msgstr "Keyra forrit"
 
-#: docking/applets/runcommand/applet.py:121
+#: docking/applets/runcommand/applet.py:146
 msgid "Help"
 msgstr "Hjálp"
 
-#: docking/applets/runcommand/applet.py:123
+#: docking/applets/runcommand/applet.py:148
 msgid "Run"
 msgstr "Hlaupa"
 
-#: docking/applets/runcommand/applet.py:168
+#: docking/applets/runcommand/applet.py:193
 msgid "Run in terminal"
 msgstr "Keyra í flugstöðinni"
 
-#: docking/applets/runcommand/applet.py:170
+#: docking/applets/runcommand/applet.py:195
 msgid "Run with file..."
 msgstr "Keyra með skrá..."
 
-#: docking/applets/runcommand/applet.py:175
+#: docking/applets/runcommand/applet.py:200
 msgid "Show list of known applications"
 msgstr "Sýna lista yfir þekkt forrit"
 
-#: docking/applets/runcommand/applet.py:181
-#: docking/applets/runcommand/applet.py:286
+#: docking/applets/runcommand/applet.py:206
+#: docking/applets/runcommand/applet.py:311
 msgid "Select an application to view its description."
 msgstr "Veldu forrit til að skoða lýsingu þess."
 
-#: docking/applets/runcommand/applet.py:265
+#: docking/applets/runcommand/applet.py:290
 msgid "Type a command or select an application to launch it."
 msgstr "Sláðu inn skipun eða veldu forrit til að ræsa það."
 
-#: docking/applets/runcommand/applet.py:336
+#: docking/applets/runcommand/applet.py:364
 msgid "Run with file"
 msgstr "Keyra með skrá"
 
-#: docking/applets/runcommand/applet.py:341
-#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:441
-#: docking/ui/menu.py:526
+#: docking/applets/runcommand/applet.py:369
+#: docking/applets/systemtray/applet.py:289
+#: docking/search/providers/applications.py:158
+#: docking/search/providers/dock.py:78 docking/search/providers/recent.py:68
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:595
+#: docking/ui/menu.py:451 docking/ui/menu.py:536
 msgid "Open"
 msgstr "Opna"
 
@@ -2013,35 +3097,40 @@ msgstr "Screenshot"
 msgid "Full Screen in {delay}s"
 msgstr "Full Screen in {delay}s"
 
+#: docking/applets/search/applet.py:25 docking/applets/search/applet.py:38
+msgid "Search"
+msgstr "Leita"
+
 #: docking/applets/separator/applet.py:51
 msgid "Separator"
 msgstr "Separator"
 
-#: docking/applets/separator/applet.py:132
+#: docking/applets/separator/applet.py:129
 msgid "Increase Gap"
 msgstr "Increase Gap"
 
-#: docking/applets/separator/applet.py:134
+#: docking/applets/separator/applet.py:131
 msgid "Decrease Gap"
 msgstr "Decrease Gap"
 
-#: docking/applets/separator/applet.py:137
+#: docking/applets/separator/applet.py:134
 msgid "Style"
 msgstr "Stíll"
 
-#: docking/applets/separator/applet.py:139
+#: docking/applets/separator/applet.py:136
 msgid "Line"
 msgstr "Lína"
 
-#: docking/applets/separator/applet.py:140
+#: docking/applets/separator/applet.py:137
+#: docking/search/ui/shortcut_capture.py:91
 msgid "Space"
 msgstr "Bil"
 
-#: docking/applets/separator/applet.py:147
+#: docking/applets/separator/applet.py:144
 msgid "Invert Color"
 msgstr "Umsnúa lit"
 
-#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:163
 msgid "Session"
 msgstr "Session"
 
@@ -2067,30 +3156,30 @@ msgstr "Shut Down"
 msgid "Speedtest"
 msgstr "Speedtest"
 
-#: docking/applets/speedtest/applet.py:93 docking/applets/speedtest/state.py:86
+#: docking/applets/speedtest/applet.py:91 docking/applets/speedtest/state.py:86
 msgid "Runs"
 msgstr "Keyrslur"
 
-#: docking/applets/speedtest/applet.py:96
-#: docking/applets/speedtest/applet.py:114
+#: docking/applets/speedtest/applet.py:94
+#: docking/applets/speedtest/applet.py:112
 #: docking/applets/speedtest/state.py:90
 msgid "Running..."
 msgstr "Running..."
 
-#: docking/applets/speedtest/applet.py:96
+#: docking/applets/speedtest/applet.py:94
 msgid "Run Test"
 msgstr "Run Test"
 
-#: docking/applets/speedtest/applet.py:103
+#: docking/applets/speedtest/applet.py:101
 msgid "Copy Last Result"
 msgstr "Copy Last Result"
 
-#: docking/applets/speedtest/applet.py:119
+#: docking/applets/speedtest/applet.py:117
 #, python-brace-format
 msgid "Down {d:.1f} / Up {u:.1f} Mbps"
 msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
 
-#: docking/applets/speedtest/applet.py:176
+#: docking/applets/speedtest/applet.py:174
 #, python-brace-format
 msgid ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
@@ -2156,28 +3245,28 @@ msgstr "Næsta teyging eftir {time}"
 msgid "Sunrise"
 msgstr "Sólarupprás"
 
-#: docking/applets/sunrise/applet.py:116
+#: docking/applets/sunrise/applet.py:114
 msgid "Times shown in system timezone"
 msgstr "Tímar sýndir í tímabelti kerfisins"
 
-#: docking/applets/sunrise/applet.py:121
+#: docking/applets/sunrise/applet.py:119
 msgid "Change City..."
 msgstr "Breyta borg..."
 
-#: docking/applets/sunrise/applet.py:126
+#: docking/applets/sunrise/applet.py:124
 msgid "Label Mode"
 msgstr "Merkihamur"
 
-#: docking/applets/sunrise/applet.py:148 docking/applets/weather/applet.py:218
+#: docking/applets/sunrise/applet.py:146 docking/applets/weather/applet.py:216
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "Fjarlægja {city}"
 
-#: docking/applets/sunrise/applet.py:185 docking/applets/weather/applet.py:270
+#: docking/applets/sunrise/applet.py:183 docking/applets/weather/applet.py:268
 msgid "Search for the city"
 msgstr "Leita að borg"
 
-#: docking/applets/sunrise/applet.py:198 docking/applets/weather/applet.py:283
+#: docking/applets/sunrise/applet.py:197 docking/applets/weather/applet.py:282
 msgid "Type city name..."
 msgstr "Sláðu inn borgarheiti..."
 
@@ -2228,7 +3317,7 @@ msgid "Civil"
 msgstr "Borgaraleg"
 
 #: docking/applets/sunrise/state.py:390
-#: docking/applets/todayinhistory/applet.py:109
+#: docking/applets/todayinhistory/applet.py:104
 msgid "Next Event"
 msgstr "Næsti viðburður"
 
@@ -2245,6 +3334,7 @@ msgid "No city selected"
 msgstr "Engin borg valin"
 
 #: docking/applets/sunrise/state.py:401
+#, python-brace-format
 msgid "{city}: {phase}"
 msgstr "{city}: {phase}"
 
@@ -2290,20 +3380,22 @@ msgstr "Stjörnufræðileg rökkur"
 msgid "System Monitor"
 msgstr "System Monitor"
 
-#: docking/applets/systemmonitor/applet.py:102
+#: docking/applets/systemmonitor/applet.py:100
 msgid "Show Disk Usage"
 msgstr "Show Disk Usage"
 
-#: docking/applets/systemmonitor/applet.py:107
-#: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:201
+#: docking/applets/systemmonitor/applet.py:105
+#: docking/applets/thermals/applet.py:160 docking/applets/weather/applet.py:199
 msgid "Temperature Unit"
 msgstr "Hitastigseining"
 
 #: docking/applets/systemmonitor/gpu.py:145
+#, python-brace-format
 msgid "GPU: {pct}%"
 msgstr "GPU: {pct}%"
 
 #: docking/applets/systemmonitor/gpu.py:147
+#, python-brace-format
 msgid "GPU: {name}"
 msgstr "GPU: {name}"
 
@@ -2332,37 +3424,37 @@ msgstr "{text} | Hiti: {temp}"
 msgid "Disk: {usage}"
 msgstr "Disk: {usage}"
 
-#: docking/applets/systemtray/applet.py:52
+#: docking/applets/systemtray/applet.py:60
 msgid "System Tray"
 msgstr "Kerfisbakki"
 
-#: docking/applets/systemtray/applet.py:81
+#: docking/applets/systemtray/applet.py:106
 #, python-brace-format
 msgid "System Tray: {n} legacy item(s)"
 msgstr "Kerfisbakki: {n} eldri vara(r)"
 
-#: docking/applets/systemtray/applet.py:127
+#: docking/applets/systemtray/applet.py:160
 msgid "Activate"
 msgstr "Virkjaðu"
 
-#: docking/applets/systemtray/applet.py:132
+#: docking/applets/systemtray/applet.py:165
 msgid "Context Menu"
 msgstr "Samhengisvalmynd"
 
-#: docking/applets/systemtray/applet.py:190
+#: docking/applets/systemtray/applet.py:225
 msgid "D-Bus unavailable"
 msgstr "D-rúta ekki tiltæk"
 
-#: docking/applets/systemtray/applet.py:199
+#: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
 msgstr "Eldri X11 bakki er virkur með {n} hlut(um)."
 
-#: docking/applets/systemtray/applet.py:203
+#: docking/applets/systemtray/applet.py:238
 msgid "Legacy X11 tray is active and waiting for tray apps."
 msgstr "Legacy X11 bakki er virkur og bíður eftir bakkaforritum."
 
-#: docking/applets/systemtray/applet.py:211
+#: docking/applets/systemtray/applet.py:246
 #, python-brace-format
 msgid ""
 "No StatusNotifier apps are registered. Legacy tray icons are currently owned "
@@ -2373,7 +3465,7 @@ msgstr ""
 "eigu {owner}. Notaðu Take Over Legacy Tray úr smáforritavalmyndinni ef þú "
 "vilt að Docking hýsi þá."
 
-#: docking/applets/systemtray/applet.py:217
+#: docking/applets/systemtray/applet.py:252
 msgid ""
 "No tray applications are registered. Use Start Legacy Tray from the applet "
 "menu for older X11 tray apps."
@@ -2381,53 +3473,53 @@ msgstr ""
 "Engin bakkaforrit eru skráð. Notaðu Start Legacy Tray úr "
 "smáforritavalmyndinni fyrir eldri X11 bakkaforrit."
 
-#: docking/applets/systemtray/applet.py:261
+#: docking/applets/systemtray/applet.py:296
 msgid "Menu"
 msgstr "Matseðill"
 
-#: docking/applets/systemtray/applet.py:308
+#: docking/applets/systemtray/applet.py:381
 msgid "Release Legacy Tray"
 msgstr "Slepptu Legacy Bakki"
 
-#: docking/applets/systemtray/applet.py:312
+#: docking/applets/systemtray/applet.py:385
 #, python-brace-format
 msgid "Legacy X11 tray active: {n} item(s)"
 msgstr "Eldri X11 bakki virkur: {n} atriði"
 
-#: docking/applets/systemtray/applet.py:321
+#: docking/applets/systemtray/applet.py:394
 msgid "Take Over Legacy Tray"
 msgstr "Taktu yfir Legacy Bakki"
 
-#: docking/applets/systemtray/applet.py:325
+#: docking/applets/systemtray/applet.py:398
 #, python-brace-format
 msgid "Legacy X11 tray owned by {owner}"
 msgstr "Eldri X11 bakki í eigu {owner}"
 
-#: docking/applets/systemtray/applet.py:333
+#: docking/applets/systemtray/applet.py:406
 msgid "Start Legacy Tray"
 msgstr "Byrjaðu Legacy Tray"
 
-#: docking/applets/systemtray/applet.py:349
+#: docking/applets/systemtray/applet.py:422
 msgid "Unknown X11 tray error"
 msgstr "Óþekkt X11 bakka villa"
 
-#: docking/applets/systemtray/applet.py:355
+#: docking/applets/systemtray/applet.py:428
 msgid "Could not start the legacy tray"
 msgstr "Gat ekki ræst gamla bakkann"
 
-#: docking/applets/systemtray/applet.py:362
+#: docking/applets/systemtray/applet.py:435
 msgid "another tray"
 msgstr "annan bakka"
 
-#: docking/applets/systemtray/applet.py:368
+#: docking/applets/systemtray/applet.py:441
 msgid "Take over the legacy tray?"
 msgstr "Taka við arfleifðarbakkanum?"
 
-#: docking/applets/systemtray/applet.py:370
+#: docking/applets/systemtray/applet.py:443
 msgid "Take Over"
 msgstr "Taktu yfir"
 
-#: docking/applets/systemtray/applet.py:373
+#: docking/applets/systemtray/applet.py:446
 #, python-brace-format
 msgid ""
 "Docking will replace {owner} as the X11 system tray host. Existing legacy "
@@ -2437,54 +3529,51 @@ msgstr ""
 "þurft að endurræsa núverandi eldri bakkaforrit áður en þau leggjast í "
 "tengikví."
 
-#: docking/applets/systemtray/applet.py:436
+#: docking/applets/systemtray/applet.py:509
 msgid "Menu Item"
 msgstr "Valmyndaratriði"
 
-#: docking/applets/systemtray/applet.py:481
+#: docking/applets/systemtray/applet.py:559
 msgid "System Tray unavailable"
 msgstr "Kerfisbakki ekki tiltækur"
 
-#: docking/applets/systemtray/applet.py:483
+#: docking/applets/systemtray/applet.py:561
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr "Gestgjafi kerfisbakka: {n} atriði"
 
-#: docking/applets/systemtray/applet.py:484
-#: docking/applets/systemtray/state.py:158
+#: docking/applets/systemtray/applet.py:562
+#: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
 msgstr "Kerfisbakki: {n} atriði"
 
-#: docking/applets/systemtray/state.py:148
+#: docking/applets/systemtray/state.py:12
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Kerfisbakki: {error}"
 
-#: docking/applets/systemtray/state.py:149
+#: docking/applets/systemtray/state.py:13
 msgid "System Tray: D-Bus unavailable"
 msgstr "Kerfisbakki: D-Bus ekki tiltækur"
 
-#: docking/applets/systemtray/state.py:152
+#: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
 msgstr "Kerfisbakki: eldri bakki í eigu {owner}"
 
-#: docking/applets/systemtray/state.py:156
+#: docking/applets/systemtray/state.py:20
 msgid "System Tray: waiting for tray apps"
 msgstr "Kerfisbakki: bíður eftir bakkaforritum"
 
-#: docking/applets/systemtray/state.py:157
+#: docking/applets/systemtray/state.py:21
 msgid "System Tray: no tray apps"
 msgstr "Kerfisbakki: engin bakkaforrit"
 
-#: docking/applets/systemtray/state.py:162
+#: docking/applets/systemtray/state.py:26
+#, python-brace-format
 msgid "and {n} more"
 msgstr "og {n} í viðbót"
-
-#: docking/applets/systemtray/state.py:243
-msgid "session bus unavailable"
-msgstr "fundur strætó ekki tiltækur"
 
 #: docking/applets/temperature.py:44
 msgid "Fahrenheit"
@@ -2500,28 +3589,28 @@ msgstr "Celsius"
 msgid "Thermals"
 msgstr "Hitastig"
 
-#: docking/applets/thermals/applet.py:109 docking/applets/thermals/state.py:128
+#: docking/applets/thermals/applet.py:107 docking/applets/thermals/state.py:128
 #: docking/applets/thermals/state.py:441
 msgid "lm-sensors not installed"
 msgstr "lm-sensors er ekki uppsett"
 
-#: docking/applets/thermals/applet.py:118 docking/applets/thermals/state.py:460
+#: docking/applets/thermals/applet.py:116 docking/applets/thermals/state.py:460
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr "Heitt: {label} {temp}"
 
-#: docking/applets/thermals/applet.py:132 docking/applets/thermals/state.py:472
+#: docking/applets/thermals/applet.py:130 docking/applets/thermals/state.py:472
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr "Vifta: {label} {rpm}"
 
-#: docking/applets/thermals/applet.py:152 docking/applets/thermals/state.py:427
+#: docking/applets/thermals/applet.py:150 docking/applets/thermals/state.py:427
 #: docking/applets/thermals/state.py:439 docking/applets/thermals/state.py:451
 #: docking/applets/thermals/state.py:487
 msgid "Samples"
 msgstr "Sýni"
 
-#: docking/applets/thermals/applet.py:270
+#: docking/applets/thermals/applet.py:268
 msgid "Thermal readings unavailable"
 msgstr "Hitamælingar ekki tiltækar"
 
@@ -2541,17 +3630,17 @@ msgstr "Heitt: ekki tiltækt"
 msgid "Fan: unavailable"
 msgstr "Vifta: ekki tiltæk"
 
-#: docking/applets/todayinhistory/applet.py:60
-#: docking/applets/todayinhistory/applet.py:130
-#: docking/applets/todayinhistory/applet.py:142
+#: docking/applets/todayinhistory/applet.py:55
+#: docking/applets/todayinhistory/applet.py:126
+#: docking/applets/todayinhistory/applet.py:138
 msgid "Today in History"
 msgstr "Dagurinn í dag í sögunni"
 
-#: docking/applets/todayinhistory/applet.py:105
+#: docking/applets/todayinhistory/applet.py:100
 msgid "Open Article"
 msgstr "Opna grein"
 
-#: docking/applets/todayinhistory/applet.py:125
+#: docking/applets/todayinhistory/applet.py:121
 msgid "Today in History: loading..."
 msgstr "Dagurinn í dag í sögunni: hleður..."
 
@@ -2572,7 +3661,7 @@ msgstr "Trash"
 msgid "Open Trash"
 msgstr "Open Trash"
 
-#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:264
+#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:265
 msgid "Empty Trash"
 msgstr "Empty Trash"
 
@@ -2585,11 +3674,11 @@ msgstr "Gat ekki tæmt ruslið. Sum atriði gætu krafist stjórnandaheimilda."
 msgid "Could not empty Trash."
 msgstr "Gat ekki tæmt ruslið."
 
-#: docking/applets/trash/applet.py:258
+#: docking/applets/trash/applet.py:259
 msgid "Empty all items from Trash?"
 msgstr "Tæma allt úr ruslinu?"
 
-#: docking/applets/trash/applet.py:261
+#: docking/applets/trash/applet.py:262
 msgid "All items in the Trash will be permanently deleted."
 msgstr "Öll atriði í ruslinu verða eytt varanlega."
 
@@ -2678,6 +3767,7 @@ msgstr "Stytting..."
 
 #: docking/applets/urlshortener/applet.py:190
 #: docking/applets/urlshortener/applet.py:209
+#: docking/search/providers/temporal.py:65
 msgid "Copy"
 msgstr "Afrita"
 
@@ -2685,12 +3775,12 @@ msgstr "Afrita"
 msgid "Copied!"
 msgstr "Afritað!"
 
-#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
-#: docking/applets/usbwatch/state.py:100
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/state.py:101
 msgid "USB Watch"
 msgstr "USB Watch"
 
-#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:95
 msgid "No mounted USB devices"
 msgstr "Engin tengd USB-tæki"
 
@@ -2699,12 +3789,7 @@ msgstr "Engin tengd USB-tæki"
 msgid "Safely Remove {name}"
 msgstr "Fjarlægja {name} örugglega"
 
-#: docking/applets/usbwatch/state.py:101
-#, python-brace-format
-msgid "{count} mounted device(s)"
-msgstr "{count} tengd tæki"
-
-#: docking/applets/usbwatch/state.py:108
+#: docking/applets/usbwatch/state.py:109
 msgid "Removable Drive"
 msgstr "Færanlegt drif"
 
@@ -2712,16 +3797,16 @@ msgstr "Færanlegt drif"
 msgid "Volume"
 msgstr "Hljóðstyrkur"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 msgid "Muted"
 msgstr "Muted"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "Hljóðstyrkur: {pct}%"
 
-#: docking/applets/volume/applet.py:133
+#: docking/applets/volume/applet.py:132
 msgid "Volume Settings"
 msgstr "Volume Settings"
 
@@ -2729,29 +3814,30 @@ msgstr "Volume Settings"
 msgid "Weather"
 msgstr "Weather"
 
-#: docking/applets/weather/applet.py:194
+#: docking/applets/weather/applet.py:192
 msgid "Show Temperature"
 msgstr "Show Temperature"
 
-#: docking/applets/weather/applet.py:452
+#: docking/applets/weather/applet.py:451
 msgid "No weather data"
 msgstr "Engin veðurgögn"
 
-#: docking/applets/weather/applet.py:515 docking/applets/weather/state.py:216
+#: docking/applets/weather/applet.py:514 docking/applets/weather/state.py:216
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr "{temp}, {desc}"
 
-#: docking/applets/weather/applet.py:528 docking/applets/weather/state.py:202
+#: docking/applets/weather/applet.py:527 docking/applets/weather/state.py:202
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Air: {label}"
 
-#: docking/applets/weather/applet.py:534 docking/applets/weather/state.py:205
+#: docking/applets/weather/applet.py:533 docking/applets/weather/state.py:205
+#, python-brace-format
 msgid "UV Index: {value}"
 msgstr "UV vísitala: {value}"
 
-#: docking/applets/weather/applet.py:548
+#: docking/applets/weather/applet.py:547
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr "{date}: {temp_range}"
@@ -2761,11 +3847,162 @@ msgstr "{date}: {temp_range}"
 msgid "{city}: {temp}"
 msgstr "{city}: {temp}"
 
-#: docking/applets/windowkiller/applet.py:78
+#: docking/applets/whatsapp/applet.py:40
+#: docking/applets/whatsapp/browser.py:268
+#: docking/applets/whatsapp/browser.py:278
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Hide WhatsApp"
+msgstr "Fela WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Open WhatsApp"
+msgstr "Opna WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:95
+msgid "Reload"
+msgstr "Endurhlaða"
+
+#: docking/applets/whatsapp/applet.py:104
+msgid "Disconnect WhatsApp"
+msgstr "Aftengja WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:167
+msgid "Disconnect WhatsApp?"
+msgstr "Aftengja WhatsApp?"
+
+#: docking/applets/whatsapp/applet.py:171
+msgid ""
+"This clears the WhatsApp Web session stored by Docking. You will need to "
+"scan the QR code again."
+msgstr "Þetta hreinsar WhatsApp Web-lotuna sem Docking geymir. Þú þarft að "
+"skanna QR-kóðann aftur."
+
+#: docking/applets/whatsapp/applet.py:192
+msgid "Could not disconnect WhatsApp"
+msgstr "Gat ekki aftengt WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:194
+msgid "Unknown WebKit error"
+msgstr "Óþekkt WebKit-villa"
+
+#: docking/applets/whatsapp/browser.py:154
+msgid "WebKitGTK is unavailable"
+msgstr "WebKitGTK er ekki tiltækt"
+
+#: docking/applets/whatsapp/browser.py:279
+msgid "Docking applet"
+msgstr "Docking-smáforrit"
+
+#: docking/applets/whatsapp/browser.py:285
+msgid "Reload WhatsApp Web"
+msgstr "Endurhlaða WhatsApp Web"
+
+#: docking/applets/whatsapp/browser.py:389
+msgid "browser process stopped"
+msgstr "vafraferli stöðvað"
+
+#: docking/applets/whatsapp/browser.py:473
+msgid "camera and microphone"
+msgstr "myndavél og hljóðnemi"
+
+#: docking/applets/whatsapp/browser.py:475
+msgid "camera"
+msgstr "myndavél"
+
+#: docking/applets/whatsapp/browser.py:477
+msgid "microphone"
+msgstr "hljóðnemi"
+
+#: docking/applets/whatsapp/browser.py:483
+#, python-brace-format
+msgid "Allow WhatsApp to use your {device}?"
+msgstr "Leyfa WhatsApp að nota {device}?"
+
+#: docking/applets/whatsapp/browser.py:485
+msgid "Deny"
+msgstr "Synja"
+
+#: docking/applets/whatsapp/browser.py:486
+msgid "Allow"
+msgstr "Leyfa"
+
+#: docking/applets/whatsapp/browser.py:544
+msgid "WhatsApp requires WebKitGTK"
+msgstr "WhatsApp krefst WebKitGTK"
+
+#: docking/applets/whatsapp/browser.py:548
+msgid ""
+"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr "Settu upp WebKitGTK 4.1 eða 4.0 introspection-pakkann og endurræstu "
+"Docking."
+
+#: docking/applets/whatsapp/browser.py:590
+msgid "unknown browser error"
+msgstr "óþekkt vafravilla"
+
+#: docking/applets/whatsapp/state.py:152
+msgid "WhatsApp: WebKitGTK is not installed"
+msgstr "WhatsApp: WebKitGTK er ekki uppsett"
+
+#: docking/applets/whatsapp/state.py:154
+msgid "WhatsApp: loading..."
+msgstr "WhatsApp: hleður..."
+
+#: docking/applets/whatsapp/state.py:156
+msgid "WhatsApp: scan the QR code to connect"
+msgstr "WhatsApp: skannaðu QR-kóðann til að tengjast"
+
+#: docking/applets/whatsapp/state.py:158
+msgid "WhatsApp: synchronizing..."
+msgstr "WhatsApp: samstillir..."
+
+#: docking/applets/whatsapp/state.py:160
+msgid "WhatsApp: offline"
+msgstr "WhatsApp: ótengt"
+
+#: docking/applets/whatsapp/state.py:163
+#, python-brace-format
+msgid "WhatsApp: {error}"
+msgstr "WhatsApp: {error}"
+
+#: docking/applets/whatsapp/state.py:164
+msgid "WhatsApp: could not load WhatsApp Web"
+msgstr "WhatsApp: gat ekki hlaðið WhatsApp Web"
+
+#: docking/applets/whatsapp/state.py:168
+msgid "WhatsApp: 1 new notification"
+msgstr "WhatsApp: 1 ný tilkynning"
+
+#: docking/applets/whatsapp/state.py:169
+#, python-brace-format
+msgid "WhatsApp: {count} new notifications"
+msgstr "WhatsApp: {count} nýjar tilkynningar"
+
+#: docking/applets/whatsapp/state.py:173
+msgid "WhatsApp: 1 unread message"
+msgstr "WhatsApp: 1 ólesin skilaboð"
+
+#: docking/applets/whatsapp/state.py:175
+#, python-brace-format
+msgid "WhatsApp: {count} unread messages"
+msgstr "WhatsApp: {count} ólesin skilaboð"
+
+#: docking/applets/whatsapp/state.py:178
+msgid "WhatsApp: no unread messages"
+msgstr "WhatsApp: engin ólesin skilaboð"
+
+#: docking/applets/whatsapp/state.py:179
+msgid "WhatsApp: click to open"
+msgstr "WhatsApp: smelltu til að opna"
+
+#: docking/applets/windowkiller/applet.py:80
 msgid "Window Killer"
 msgstr "Gluggadrepari"
 
-#: docking/applets/windowkiller/applet.py:94
+#: docking/applets/windowkiller/applet.py:96
 msgid "Click, then select a window to kill"
 msgstr "Smelltu, veldu síðan glugga til að loka"
 
@@ -2911,10 +4148,36 @@ msgstr ""
 "sem hann táknar."
 
 #: docking/core/tips.py:148
+msgid "Keep mounted devices within reach"
+msgstr "Hafðu tengd tæki innan seilingar"
+
+#: docking/core/tips.py:150
+msgid ""
+"Add the Devices applet to browse every mounted device in a live stack. "
+"Mounts appear and disappear automatically, and Preferences -> Behavior "
+"controls whether stacks open on hover or click."
+msgstr "Bættu Tæki-smáforritinu við til að skoða öll tengd tæki í lifandi "
+"stafla. Tengingar birtast og hverfa sjálfkrafa og Preferences -> Behavior "
+"stýrir því hvort staflar opnast við yfirferð eða smell."
+
+#: docking/core/tips.py:158
+msgid "Follow news sources by country"
+msgstr "Fylgdu fréttaveitum eftir landi"
+
+#: docking/core/tips.py:160
+msgid ""
+"Add the News applet, choose a country, and select a publication or edition. "
+"Scroll through its latest headlines, or add more sources and switch between "
+"them from the applet menu."
+msgstr "Bættu Fréttir-smáforritinu við, veldu land og veldu blað eða útgáfu. "
+"Skrunaðu í gegnum nýjustu fyrirsagnir eða bættu við fleiri veitum og skiptu "
+"milli þeirra úr valmynd smáforritsins."
+
+#: docking/core/tips.py:167
 msgid "Customize pinned icons"
 msgstr "Sérsníddu fest tákn"
 
-#: docking/core/tips.py:150
+#: docking/core/tips.py:169
 msgid ""
 "Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
 "Custom icons are stored in Docking's config, so the original desktop file or "
@@ -2924,11 +4187,11 @@ msgstr ""
 "skrá. Sérsniðin tákn eru geymd í stillingum Docking, þannig að upprunalega "
 "skrifborðsskráin eða skráin á disknum er ósnortin."
 
-#: docking/core/tips.py:157
+#: docking/core/tips.py:176
 msgid "Use the Applications applet search"
 msgstr "Notaðu forritaforritaleitina"
 
-#: docking/core/tips.py:159
+#: docking/core/tips.py:178
 msgid ""
 "Add the Applications applet, open it, and type to filter installed apps. It "
 "gives you a compact launcher menu without leaving the dock."
@@ -2936,11 +4199,36 @@ msgstr ""
 "Bættu við forritaforritinu, opnaðu það og sláðu inn til að sía uppsett "
 "forrit. Það gefur þér þéttan ræsivalmynd án þess að fara úr bryggju."
 
-#: docking/core/tips.py:166
+#: docking/core/tips.py:185
+msgid "Drag apps straight to the dock"
+msgstr "Dragðu forrit beint í dockinn"
+
+#: docking/core/tips.py:187
+msgid ""
+"Open the Applications applet and drag any application from its menu onto the "
+"shelf. Drop it where you want its launcher to stay in the dock."
+msgstr "Opnaðu Forrit-smáforritið og dragðu hvaða forrit sem er úr valmynd "
+"þess yfir á hilluna. Slepptu því þar sem þú vilt að ræsir þess haldist í "
+"dockinum."
+
+#: docking/core/tips.py:194
+msgid "Keep WhatsApp in the dock"
+msgstr "Hafðu WhatsApp í dockinum"
+
+#: docking/core/tips.py:196
+msgid ""
+"Add the WhatsApp applet for a persistent WhatsApp Web window, desktop "
+"notifications, and an unread-message badge. Closing the window hides it "
+"without signing out."
+msgstr "Bættu WhatsApp-smáforritinu við fyrir varanlegan WhatsApp Web-glugga, "
+"skjáborðstilkynningar og merki um ólesin skilaboð. Að loka glugganum felur "
+"hann án þess að skrá þig út."
+
+#: docking/core/tips.py:203
 msgid "Use Run Application like Alt+F2"
 msgstr "Notaðu Run forrit eins og Alt+F2"
 
-#: docking/core/tips.py:168
+#: docking/core/tips.py:205
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
@@ -2950,11 +4238,11 @@ msgstr ""
 "frá bryggjunni. Þegar þú skrifar birtast samsvarandi forrit svo þú getur "
 "ræst með nafni eða keyrt sjálfstæða skipun."
 
-#: docking/core/tips.py:175
+#: docking/core/tips.py:212
 msgid "Use window previews"
 msgstr "Notaðu forskoðun glugga"
 
-#: docking/core/tips.py:177
+#: docking/core/tips.py:214
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
@@ -2962,11 +4250,11 @@ msgstr ""
 "Snúðu hlaupandi forritum til að skoða opna glugga áður en þú skiptir. "
 "Forskoðun hjálpar þegar eitt forrit hefur nokkra glugga opna."
 
-#: docking/core/tips.py:183
+#: docking/core/tips.py:220
 msgid "Choose your click behavior"
 msgstr "Veldu smellahegðun þína"
 
-#: docking/core/tips.py:185
+#: docking/core/tips.py:222
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
@@ -2976,11 +4264,11 @@ msgstr ""
 "eða fókusa á nýjasta gluggann. Veldu hegðun sem passar við hvernig þú "
 "skiptir á milli keyrandi forrita."
 
-#: docking/core/tips.py:192
+#: docking/core/tips.py:229
 msgid "Ctrl-click opens a new window"
 msgstr "Ctrl-smelltu opnar nýjan glugga"
 
-#: docking/core/tips.py:194
+#: docking/core/tips.py:231
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
@@ -2989,11 +4277,23 @@ msgstr ""
 "Þetta virkar jafnvel þegar appið er þegar í gangi og venjulegur smellur "
 "myndi einbeita sér að því."
 
-#: docking/core/tips.py:201
+#: docking/core/tips.py:238
+msgid "Use Clock as a calendar"
+msgstr "Notaðu Klukku sem dagatal"
+
+#: docking/core/tips.py:240
+msgid ""
+"Left-click the Clock applet to open the same calendar popup as the Calendar "
+"applet. Use Clock when you want the time and calendar in one dock item."
+msgstr "Vinstri-smelltu á Klukku-smáforritið til að opna sömu dagatalssprettu "
+"og Dagatal-smáforritið. Notaðu Klukku þegar þú vilt tímann og dagatalið í "
+"einum dock-hlut."
+
+#: docking/core/tips.py:247
 msgid "Use app right-click menus"
 msgstr "Notaðu hægrismella valmyndir forritsins"
 
-#: docking/core/tips.py:203
+#: docking/core/tips.py:249
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
@@ -3003,11 +4303,11 @@ msgstr ""
 "festa og loka aðgerðum. Mörg forrit afhjúpa gagnlegar flýtileiðir þar, eins "
 "og að opna einkaglugga eða semja ný skilaboð."
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:257
 msgid "Use Recent Files"
 msgstr "Notaðu Nýlegar skrár"
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:259
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
@@ -3016,11 +4316,11 @@ msgstr ""
 "notaðir nýlega. Það er hraðari leið þegar þú manst eftir skránni, ekki "
 "möppunni."
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:266
 msgid "Use System Tray when needed"
 msgstr "Notaðu kerfisbakkann þegar þörf krefur"
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:268
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
@@ -3030,11 +4330,11 @@ msgstr ""
 "stjórna bakkaeign þegar það er stutt. Þetta hjálpar með eldri forritum sem "
 "enn treysta á klassískt tilkynningasvæði."
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:275
 msgid "Use Diagnostics for support"
 msgstr "Notaðu Diagnostics til stuðnings"
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:277
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "
@@ -3044,378 +4344,840 @@ msgstr ""
 "bakenda, lotu og eiginleika. Að láta þá skýrslu fylgja með gerir það miklu "
 "auðveldara að skilja vandamál í samsetningu, skjá og umhverfi."
 
-#: docking/ui/about.py:68
+#: docking/platform/status_notifier/backend.py:239
+msgid "session bus unavailable"
+msgstr "fundur strætó ekki tiltækur"
+
+#: docking/search/controller.py:213
+#, python-brace-format
+msgid "Active: {shortcut} (X11)"
+msgstr "Virk: {shortcut} (X11)"
+
+#: docking/search/controller.py:218
+msgid "Shortcut already in use"
+msgstr "Flýtileið er þegar í notkun"
+
+#: docking/search/controller.py:219 docking/search/controller.py:244
+msgid "Registration failed"
+msgstr "Skráning mistókst"
+
+#: docking/search/controller.py:222 docking/search/controller.py:245
+msgid "Not active"
+msgstr "Ekki virk"
+
+#: docking/search/controller.py:229
+msgid "Connecting..."
+msgstr "Tengist..."
+
+#: docking/search/controller.py:235
+#, python-brace-format
+msgid "Assigned: {shortcut}"
+msgstr "Úthlutað: {shortcut}"
+
+#: docking/search/controller.py:236
+msgid "Assigned by desktop"
+msgstr "Úthlutað af skjáborðinu"
+
+#: docking/search/controller.py:238
+msgid "Unavailable on this desktop"
+msgstr "Ekki tiltækt á þessu skjáborði"
+
+#: docking/search/controller.py:240
+msgid "Permission denied"
+msgstr "Aðgangi hafnað"
+
+#: docking/search/controller.py:242
+msgid "Setup cancelled"
+msgstr "Uppsetningu hætt við"
+
+#: docking/search/controller.py:254
+msgid "Conflict"
+msgstr "Árekstur"
+
+#: docking/search/controller.py:255 docking/search/controller.py:277
+msgid "Failed"
+msgstr "Mistókst"
+
+#: docking/search/controller.py:258 docking/search/controller.py:278
+msgid "Inactive"
+msgstr "Óvirk"
+
+#: docking/search/controller.py:264
+msgid "Connecting"
+msgstr "Tengist"
+
+#: docking/search/controller.py:273
+msgid "Denied"
+msgstr "Synjað"
+
+#: docking/search/controller.py:275
+msgid "Cancelled"
+msgstr "Hætt við"
+
+#: docking/search/controller.py:734
+msgid "Live Window"
+msgstr "Lifandi gluggi"
+
+#: docking/search/preview.py:112
+msgid "Empty folder"
+msgstr "Tóm mappa"
+
+#: docking/search/preview.py:141
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Image is too large to preview."
+msgstr "{path}\nMyndin er of stór til forskoðunar."
+
+#: docking/search/preview.py:148
+#, python-brace-format
+msgid ""
+"{path}\n"
+"File is too large to preview."
+msgstr "{path}\nSkráin er of stór til forskoðunar."
+
+#: docking/search/preview.py:235
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Archive is too large to preview."
+msgstr "{path}\nSafnskráin er of stór til forskoðunar."
+
+#: docking/search/preview.py:256
+msgid "Empty archive"
+msgstr "Tóm safnskrá"
+
+#: docking/search/providers/applications.py:149
+msgid "Focus"
+msgstr "Fókus"
+
+#: docking/search/providers/applications.py:166
+msgid "Open New Window"
+msgstr "Opna nýjan glugga"
+
+#: docking/search/providers/applications.py:183
+#: docking/search/providers/dock.py:94 docking/ui/menu.py:523
+#: docking/ui/menu.py:545 docking/ui/menu.py:568 docking/ui/menu.py:619
+msgid "Remove from Dock"
+msgstr "Remove from Dock"
+
+#: docking/search/providers/applications.py:183 docking/ui/menu.py:575
+msgid "Keep in Dock"
+msgstr "Keep in Dock"
+
+#: docking/search/providers/applications.py:192 docking/ui/menu.py:584
+msgid "Close All"
+msgstr "Close All"
+
+#: docking/search/providers/applications.py:200
+msgid "Running"
+msgstr "Í gangi"
+
+#: docking/search/providers/applications.py:201
+#: docking/search/providers/dock.py:106
+msgid "Pinned"
+msgstr "Fest"
+
+#: docking/search/providers/applications.py:202
+#: docking/search/providers/recent.py:62
+msgid "Recent"
+msgstr "Nýlegt"
+
+#: docking/search/providers/applications.py:251
+#, python-brace-format
+msgid "Desktop ID: {desktop_id}"
+msgstr "Skjáborðsauðkenni: {desktop_id}"
+
+#: docking/search/providers/applications.py:253
+#, python-brace-format
+msgid "State: {state}"
+msgstr "Staða: {state}"
+
+#: docking/search/providers/applications.py:257
+#, python-brace-format
+msgid "Categories: {categories}"
+msgstr "Flokkar: {categories}"
+
+#: docking/search/providers/applications.py:260
+#: docking/search/providers/windows.py:94
+msgid "Windows"
+msgstr "Gluggar"
+
+#: docking/search/providers/applications.py:263 docking/search/ui/window.py:234
+#: docking/ui/settings.py:1010
+msgid "Actions"
+msgstr "Aðgerðir"
+
+#: docking/search/providers/applications.py:266 docking/ui/menu.py:807
+#: docking/ui/settings.py:882
+msgid "Recent Documents"
+msgstr "Nýleg skjöl"
+
+#: docking/search/providers/applications.py:293
+#, python-brace-format
+msgid "Activate “{title}”"
+msgstr "Virkja “{title}”"
+
+#: docking/search/providers/applications.py:294
+#: docking/search/providers/windows.py:90
+#: docking/search/providers/windows.py:102 docking/ui/menu.py:826
+msgid "Window"
+msgstr "Window"
+
+#: docking/search/providers/applications.py:303
+#, python-brace-format
+msgid "Open Recent: {name}"
+msgstr "Opna nýlegt: {name}"
+
+#: docking/search/providers/calculator.py:54
+msgid "Division by zero"
+msgstr "Deiling með núlli"
+
+#: docking/search/providers/calculator.py:55
+msgid "Invalid value or mathematical domain"
+msgstr "Ógilt gildi eða stærðfræðilegt skilgreiningarsvið"
+
+#: docking/search/providers/calculator.py:56
+msgid "Result is too large"
+msgstr "Niðurstaðan er of stór"
+
+#: docking/search/providers/calculator.py:57
+msgid "Expression is too complex"
+msgstr "Tjáningin er of flókin"
+
+#: docking/search/providers/calculator.py:58
+msgid "Unsupported or incomplete expression"
+msgstr "Óstudd eða ófullkomin tjáning"
+
+#: docking/search/providers/calculator.py:62
+msgid "Invalid expression"
+msgstr "Ógild tjáning"
+
+#: docking/search/providers/calculator.py:91
+#: docking/search/providers/converter.py:101
+#: docking/search/providers/converter.py:165
+msgid "Copy Result"
+msgstr "Afrita niðurstöðu"
+
+#: docking/search/providers/converter.py:87
+#: docking/search/providers/converter.py:151
+#, python-brace-format
+msgid "{value:g} {source} to {target}"
+msgstr "{value:g} {source} til {target}"
+
+#: docking/search/providers/converter.py:94
+#: docking/search/providers/converter.py:158
+#: docking/search/providers/converter.py:202
+msgid "Converter"
+msgstr "Umreiknari"
+
+#: docking/search/providers/converter.py:123
+msgid "Loading currency rates..."
+msgstr "Hleður gengi..."
+
+#: docking/search/providers/converter.py:130
+msgid "Currency rates unavailable"
+msgstr "Gengi ekki tiltækt"
+
+#: docking/search/providers/converter.py:142
+msgid "Currency pair unavailable"
+msgstr "Gjaldmiðlapar ekki tiltækt"
+
+#: docking/search/providers/converter.py:159
+#: docking/search/providers/converter.py:203
+msgid "Currency"
+msgstr "Gjaldmiðill"
+
+#: docking/search/providers/converter.py:190
+msgid "Retry"
+msgstr "Reyna aftur"
+
+#: docking/search/providers/dock.py:80 docking/search/providers/path.py:75
+#: docking/ui/folder/stack.py:396
+msgid "Open Folder"
+msgstr "Opna möppu"
+
+#: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
+msgid "Open File"
+msgstr "Opna skrá"
+
+#: docking/search/providers/dock.py:105
+msgid "Dock"
+msgstr "Dock"
+
+#: docking/search/providers/dock.py:118
+msgid "Dock applet"
+msgstr "Dock-smáforrit"
+
+#: docking/search/providers/path.py:68
+msgid "Path"
+msgstr "Slóð"
+
+#: docking/search/providers/path.py:69
+msgid "Folder"
+msgstr "Mappa"
+
+#: docking/search/providers/path.py:69
+msgid "File"
+msgstr "Skrá"
+
+#: docking/search/providers/path.py:81
+msgid "Copy Path"
+msgstr "Afrita slóð"
+
+#: docking/search/providers/temporal.py:58
+msgid "Date & Time"
+msgstr "Dagur og tími"
+
+#: docking/search/providers/web.py:82
+msgid "Compose email"
+msgstr "Semja tölvupóst"
+
+#: docking/search/providers/web.py:82
+msgid "Open URL"
+msgstr "Opna slóð"
+
+#: docking/search/providers/web.py:86 docking/search/providers/web.py:125
+msgid "Web"
+msgstr "Vefur"
+
+#: docking/search/providers/web.py:87
+msgid "Email"
+msgstr "Tölvupóstur"
+
+#: docking/search/providers/web.py:87
+msgid "URL"
+msgstr "Slóð"
+
+#: docking/search/providers/web.py:93
+msgid "Compose"
+msgstr "Semja"
+
+#: docking/search/providers/web.py:99 docking/search/providers/web.py:138
+msgid "Copy Address"
+msgstr "Afrita vistfang"
+
+#: docking/search/providers/web.py:118
+#, python-brace-format
+msgid "Search {engine} for “{query}”"
+msgstr "Leita í {engine} að “{query}”"
+
+#: docking/search/providers/web.py:132
+msgid "Search the Web"
+msgstr "Leita á vefnum"
+
+#: docking/search/providers/windows.py:72
+msgid "Activate Window"
+msgstr "Virkja glugga"
+
+#: docking/search/providers/windows.py:81
+msgid "Close Window"
+msgstr "Loka glugga"
+
+#: docking/search/recognizers/temporal.py:157
+msgid "Tomorrow"
+msgstr "Á morgun"
+
+#: docking/search/recognizers/temporal.py:159
+msgid "Yesterday"
+msgstr "Í gær"
+
+#: docking/search/recognizers/temporal.py:161
+#, python-brace-format
+msgid "In {count} days"
+msgstr "Eftir {count} daga"
+
+#: docking/search/recognizers/temporal.py:162
+#, python-brace-format
+msgid "{count} days ago"
+msgstr "Fyrir {count} dögum"
+
+#: docking/search/recognizers/temporal.py:176
+msgid "Date"
+msgstr "Dagsetning"
+
+#: docking/search/recognizers/temporal.py:235
+#: docking/search/recognizers/temporal.py:283
+msgid "Time Zone"
+msgstr "Tímabelti"
+
+#: docking/search/recognizers/temporal.py:277
+#, python-brace-format
+msgid "{time} {source} to {target}"
+msgstr "{time} {source} til {target}"
+
+#: docking/search/ui/shortcut_capture.py:84
+msgid "Not set"
+msgstr "Ekki stillt"
+
+#: docking/search/ui/shortcut_capture.py:86
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: docking/search/ui/shortcut_capture.py:87
+msgid "Alt"
+msgstr "Alt"
+
+#: docking/search/ui/shortcut_capture.py:88
+msgid "Shift"
+msgstr "Shift"
+
+#: docking/search/ui/shortcut_capture.py:89
+msgid "Super"
+msgstr "Super"
+
+#: docking/search/ui/shortcut_capture.py:90
+msgid "Num"
+msgstr "Num"
+
+#: docking/search/ui/shortcut_capture.py:92
+msgid "Enter"
+msgstr "Enter"
+
+#: docking/search/ui/shortcut_capture.py:93
+msgid "Escape"
+msgstr "Escape"
+
+#: docking/search/ui/shortcut_capture.py:94
+msgid "Tab"
+msgstr "Tab"
+
+#: docking/search/ui/shortcut_capture.py:95
+msgid "Backspace"
+msgstr "Backspace"
+
+#: docking/search/ui/shortcut_capture.py:135
+msgid "Search shortcut"
+msgstr "Leita að flýtileið"
+
+#: docking/search/ui/shortcut_capture.py:158
+msgid "Press shortcut..."
+msgstr "Ýttu á flýtileið..."
+
+#: docking/search/ui/window.py:181 docking/search/ui/window.py:193
+msgid "Docking Search"
+msgstr "Docking leit"
+
+#: docking/search/ui/window.py:238
+msgid "Filter actions..."
+msgstr "Sía aðgerðir..."
+
+#: docking/search/ui/window.py:300
+msgid "Actions  Ctrl+J"
+msgstr "Aðgerðir  Ctrl+J"
+
+#: docking/search/ui/window.py:303
+msgid "Preview  Ctrl+P"
+msgstr "Forskoðun  Ctrl+P"
+
+#: docking/search/ui/window.py:377
+msgid "No matching results"
+msgstr "Engar samsvarandi niðurstöður"
+
+#: docking/search/ui/window.py:557
+msgid "Unable to decode image preview"
+msgstr "Gat ekki afkóðað myndforskoðun"
+
+#: docking/search/ui/window.py:566
+#, python-brace-format
+msgid "{width} × {height} · {format} · {size}"
+msgstr "{width} × {height} · {format} · {size}"
+
+#: docking/search/ui/window.py:573
+#, python-brace-format
+msgid "{width} × {height} · {format}"
+msgstr "{width} × {height} · {format}"
+
+#: docking/search/ui/window.py:608
+#, python-brace-format
+msgid "{count} results"
+msgstr "{count} niðurstöður"
+
+#: docking/search/ui/window.py:610
+msgid "Type to search"
+msgstr "Skrifaðu til að leita"
+
+#: docking/search/ui/window.py:612
+msgid "No results"
+msgstr "Engar niðurstöður"
+
+#: docking/search/ui/window.py:614
+msgid "Searching..."
+msgstr "Leitar..."
+
+#: docking/search/ui/window.py:616
+msgid "Some sources failed"
+msgstr "Sumar veitur mistókust"
+
+#: docking/ui/about.py:65
 msgid "Website"
 msgstr "Vefsíða"
 
-#: docking/ui/diagnostics.py:71 docking/ui/menu.py:693
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:709
 msgid "Diagnostics"
 msgstr "Greining"
 
-#: docking/ui/diagnostics.py:93
+#: docking/ui/diagnostics.py:108
 msgid "Overview"
 msgstr "Yfirlit"
 
-#: docking/ui/diagnostics.py:97
+#: docking/ui/diagnostics.py:112
 msgid "Features"
 msgstr "Eiginleikar"
 
-#: docking/ui/diagnostics.py:105 docking/ui/diagnostics.py:223
+#: docking/ui/diagnostics.py:120 docking/ui/diagnostics.py:266
 msgid "Environment"
 msgstr "Umhverfi"
 
-#: docking/ui/diagnostics.py:109
+#: docking/ui/diagnostics.py:124
 msgid "Report"
 msgstr "Skýrsla"
 
-#: docking/ui/diagnostics.py:116
+#: docking/ui/diagnostics.py:131
 msgid "Refresh"
 msgstr "Endurnýja"
 
-#: docking/ui/diagnostics.py:118
+#: docking/ui/diagnostics.py:133
 msgid "Copy Report"
 msgstr "Afrita skýrslu"
 
-#: docking/ui/diagnostics.py:120
+#: docking/ui/diagnostics.py:135
 msgid "Save Report..."
 msgstr "Vista skýrslu..."
 
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
-#: docking/ui/startup_tips.py:216
-msgid "Close"
-msgstr "Close"
-
-#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
+#: docking/ui/diagnostics.py:160 docking/ui/dock_window.py:375
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/diagnostics.py:146
+#: docking/ui/diagnostics.py:161
 msgid "OS"
 msgstr "OS"
 
-#: docking/ui/diagnostics.py:149
+#: docking/ui/diagnostics.py:164
 msgid "Selected Backend"
 msgstr "Valinn bakendi"
 
-#: docking/ui/diagnostics.py:150
+#: docking/ui/diagnostics.py:165
 msgid "Display Server"
 msgstr "Skjár Server"
 
-#: docking/ui/diagnostics.py:151
+#: docking/ui/diagnostics.py:166
 msgid "GTK Backend"
 msgstr "GTK bakendi"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "Forced Backend"
 msgstr "Þvingaður bakenda"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "None"
 msgstr "Engin"
 
-#: docking/ui/diagnostics.py:153
+#: docking/ui/diagnostics.py:168
 msgid "XWayland"
 msgstr "XWayland"
 
-#: docking/ui/diagnostics.py:154
+#: docking/ui/diagnostics.py:169
 msgid "X11 Compositor"
 msgstr "X11 tónskáld"
 
-#: docking/ui/diagnostics.py:161
+#: docking/ui/diagnostics.py:176
 msgid "Warnings"
 msgstr "Viðvaranir"
 
-#: docking/ui/diagnostics.py:165
+#: docking/ui/diagnostics.py:180
 msgid "No compatibility warnings detected."
 msgstr "Engar viðvaranir um samhæfni fundust."
 
-#: docking/ui/diagnostics.py:191
+#: docking/ui/diagnostics.py:190
+msgid ""
+"Features describe backend-reported support; actual behavior has not been "
+"verified."
+msgstr "Eiginleikar lýsa stuðningi sem bakendinn greinir frá; raunveruleg "
+"hegðun hefur ekki verið staðfest."
+
+#: docking/ui/diagnostics.py:216
 msgid "Runtime"
 msgstr "Runtime"
 
-#: docking/ui/diagnostics.py:195
+#: docking/ui/diagnostics.py:220
 msgid "Python"
 msgstr "Python"
 
-#: docking/ui/diagnostics.py:196
+#: docking/ui/diagnostics.py:221
 msgid "GTK"
 msgstr "GTK"
 
-#: docking/ui/diagnostics.py:197
+#: docking/ui/diagnostics.py:222
+msgid "Architecture"
+msgstr "Arkitektúr"
+
+#: docking/ui/diagnostics.py:223
+msgid "Kernel"
+msgstr "Kjarni"
+
+#: docking/ui/diagnostics.py:224
 msgid "Backend Class"
 msgstr "Bakendaflokkur"
 
-#: docking/ui/diagnostics.py:198
+#: docking/ui/diagnostics.py:225
 msgid "Wayland Session"
 msgstr "Wayland fundur"
 
-#: docking/ui/diagnostics.py:199
+#: docking/ui/diagnostics.py:226
 msgid "X11 GTK Backend"
 msgstr "X11 GTK bakendi"
 
-#: docking/ui/diagnostics.py:205
+#: docking/ui/diagnostics.py:234
+msgid "Dock Settings"
+msgstr "Dock-stillingar"
+
+#: docking/ui/diagnostics.py:241
 msgid "Monitors"
 msgstr "Fylgjast"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "primary"
 msgstr "aðal"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "secondary"
 msgstr "aukaatriði"
 
-#: docking/ui/diagnostics.py:219
+#: docking/ui/diagnostics.py:257
+msgid "GDK-reported workarea"
+msgstr "Vinnusvæði samkvæmt GDK"
+
+#: docking/ui/diagnostics.py:262
 msgid "Monitor details unavailable."
 msgstr "Upplýsingar um eftirlit eru ekki tiltækar."
 
-#: docking/ui/diagnostics.py:338
+#: docking/ui/diagnostics.py:387
 msgid "Save Diagnostics Report"
 msgstr "Vista greiningarskýrslu"
 
-#: docking/ui/diagnostics.py:358
+#: docking/ui/diagnostics.py:407
 msgid "Failed to save diagnostics report."
 msgstr "Mistókst að vista greiningarskýrslu."
 
-#: docking/ui/folder/_browser.py:40
+#: docking/ui/folder/_browser.py:36
 msgid "Kind"
 msgstr "Tegund"
 
-#: docking/ui/folder/_browser.py:41
+#: docking/ui/folder/_browser.py:37
 msgid "Size"
 msgstr "Stærð"
 
-#: docking/ui/folder/_browser.py:42
+#: docking/ui/folder/_browser.py:38
 msgid "Created"
 msgstr "Búið til"
 
-#: docking/ui/folder/_browser.py:43
+#: docking/ui/folder/_browser.py:39
 msgid "Modified"
 msgstr "Breytt"
 
-#: docking/ui/folder/stack.py:678
+#: docking/ui/folder/stack.py:322
 msgid "Folder not found"
 msgstr "Mappa fannst ekki"
 
-#: docking/ui/folder/stack.py:692
+#: docking/ui/folder/stack.py:348 docking/ui/folder/stack.py:374
 msgid "Folder is empty"
 msgstr "Mappa er tóm"
 
-#: docking/ui/folder/stack.py:1149
+#: docking/ui/folder/stack.py:391
 #, python-format
 msgid "Open in %s"
 msgstr "Opna í %s"
 
-#: docking/ui/folder/stack.py:1151
+#: docking/ui/folder/stack.py:393
 #, python-format
 msgid "%d More in %s"
 msgstr "%d Fleiri í %s"
 
-#: docking/ui/folder/stack.py:1154
-msgid "Open Folder"
-msgstr "Opna möppu"
-
-#: docking/ui/folder/stack.py:1156
+#: docking/ui/folder/stack.py:398
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d Fleiri í möppu"
 
-#: docking/ui/menu.py:386
+#: docking/ui/menu.py:396
 msgid "Docking Icon"
 msgstr "Docking-tákn"
 
-#: docking/ui/menu.py:387
+#: docking/ui/menu.py:397
 msgid "System Icon"
 msgstr "Kerfistákn"
 
-#: docking/ui/menu.py:395 docking/ui/menu.py:404
+#: docking/ui/menu.py:405 docking/ui/menu.py:414
 msgid "Icon"
 msgstr "Tákn"
 
-#: docking/ui/menu.py:407
+#: docking/ui/menu.py:417
 msgid "Default Icon"
 msgstr "Sjálfgefið tákn"
 
-#: docking/ui/menu.py:411
+#: docking/ui/menu.py:421
 msgid "Choose From File..."
 msgstr "Veldu úr skrá..."
 
-#: docking/ui/menu.py:415
+#: docking/ui/menu.py:425
 msgid "Reset Custom Icon"
 msgstr "Endurstilla sérsniðið tákn"
 
-#: docking/ui/menu.py:434
+#: docking/ui/menu.py:444
 msgid "Choose Icon"
 msgstr "Veldu táknmynd"
 
-#: docking/ui/menu.py:457
+#: docking/ui/menu.py:467
 msgid "Images"
 msgstr "Myndir"
 
-#: docking/ui/menu.py:470
+#: docking/ui/menu.py:480
 msgid "Could not use selected icon"
 msgstr "Gat ekki notað valið tákn"
 
-#: docking/ui/menu.py:513 docking/ui/menu.py:535 docking/ui/menu.py:558
-#: docking/ui/menu.py:609
-msgid "Remove from Dock"
-msgstr "Remove from Dock"
-
-#: docking/ui/menu.py:565
-msgid "Keep in Dock"
-msgstr "Keep in Dock"
-
-#: docking/ui/menu.py:574
-msgid "Close All"
-msgstr "Close All"
-
-#: docking/ui/menu.py:591
+#: docking/ui/menu.py:601
 msgid "Sort By"
 msgstr "Raða eftir"
 
-#: docking/ui/menu.py:599
+#: docking/ui/menu.py:609
 msgid "Show Hidden Files"
 msgstr "Sýna faldar skrár"
 
-#: docking/ui/menu.py:639
+#: docking/ui/menu.py:638
+msgid "Search..."
+msgstr "Leita..."
+
+#: docking/ui/menu.py:654
 msgid "Add Applet"
 msgstr "Applets"
 
-#: docking/ui/menu.py:677
+#: docking/ui/menu.py:693
 msgid "No Applets Available"
 msgstr "Power Profiles unavailable"
 
-#: docking/ui/menu.py:684
+#: docking/ui/menu.py:700
 msgid "Add Separator"
 msgstr "Add Separator"
 
-#: docking/ui/menu.py:698 docking/ui/settings.py:268
+#: docking/ui/menu.py:714 docking/ui/settings.py:332
 msgid "Preferences"
 msgstr "Stillingar"
 
-#: docking/ui/menu.py:703
+#: docking/ui/menu.py:719
 msgid "About"
 msgstr "About"
 
-#: docking/ui/menu.py:708
+#: docking/ui/menu.py:724
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:715
+#: docking/ui/menu.py:731
 msgid "Quit"
 msgstr "Quit"
 
-#: docking/ui/menu.py:781
+#: docking/ui/menu.py:797
 msgid "Clear Recent Documents"
 msgstr "Hreinsaðu nýleg skjöl"
-
-#: docking/ui/menu.py:791 docking/ui/settings.py:746
-msgid "Recent Documents"
-msgstr "Nýleg skjöl"
-
-#: docking/ui/menu.py:810
-msgid "Window"
-msgstr "Window"
 
 #: docking/ui/new_year.py:207
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr "Happy new year {year} !!!"
 
-#: docking/ui/placement.py:269
+#: docking/ui/placement.py:281
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "Skjár {display}: {width}x{height}"
 
-#: docking/ui/settings.py:292
+#: docking/ui/settings.py:356
 msgid "Appearance"
 msgstr "Útlit"
 
-#: docking/ui/settings.py:293 docking/ui/settings.py:671
+#: docking/ui/settings.py:357 docking/ui/settings.py:807
 msgid "Behavior"
 msgstr "Hegðun"
 
-#: docking/ui/settings.py:294
+#: docking/ui/settings.py:358
 msgid "Applets"
 msgstr "Smáforrit"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:382
 msgid "Don't Hide"
 msgstr "Ekki fela"
 
-#: docking/ui/settings.py:319
+#: docking/ui/settings.py:383
 msgid "Always on Top"
 msgstr "Alltaf efst"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:384
 msgid "Auto-hide"
 msgstr "Auto-hide"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:385
 msgid "Intelligent"
 msgstr "Greindur"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:386
 msgid "Dodge Active"
 msgstr "Dodge Active"
 
-#: docking/ui/settings.py:323
+#: docking/ui/settings.py:387
 msgid "Dodge Windows"
 msgstr "Dodge Windows"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:388
 msgid "Dodge Maximized"
 msgstr "Forðast hámarkaðan"
 
-#: docking/ui/settings.py:335
+#: docking/ui/settings.py:399
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:400
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:337
+#: docking/ui/settings.py:401
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:344
+#: docking/ui/settings.py:408
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:345
+#: docking/ui/settings.py:409
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:410
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:353
+#: docking/ui/settings.py:417
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:418
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:361
+#: docking/ui/settings.py:425
 msgid "Default"
 msgstr "Sjálfgefið"
 
-#: docking/ui/settings.py:362
+#: docking/ui/settings.py:426
 msgid "Alphabetical"
 msgstr "Stafrófsröð"
 
-#: docking/ui/settings.py:380
+#: docking/ui/settings.py:447
 msgid "Daily"
 msgstr "Daglega"
 
-#: docking/ui/settings.py:381
+#: docking/ui/settings.py:448
 msgid "Weekly"
 msgstr "Vikulega"
 
-#: docking/ui/settings.py:402
+#: docking/ui/settings.py:469
 msgid ""
 "When Follow Cursor is enabled, the dock follows the pointer across monitors. "
 "The selected monitor is kept as the fallback."
@@ -3423,11 +5185,11 @@ msgstr ""
 "Þegar kveikt er á Fylgdu bendili fylgir bryggjan bendilinn yfir skjái. "
 "Valinn skjár er geymdur sem varahluti."
 
-#: docking/ui/settings.py:448
+#: docking/ui/settings.py:515
 msgid "Added on top of the theme's own distance from the edge."
 msgstr "Bætt ofan á eigin fjarlægð þemaðs frá brúninni."
 
-#: docking/ui/settings.py:488
+#: docking/ui/settings.py:555
 msgid ""
 "Pixels of cursor pressure against the edge required to reveal a hidden dock. "
 "Higher values mean the dock will not reveal as easily."
@@ -3435,197 +5197,221 @@ msgstr ""
 "Dílar af bendilþrýstingi á brúnina sem þarf til að sýna falinn bryggju. "
 "Hærri gildi þýðir að bryggjan mun ekki leiða í ljós eins auðveldlega."
 
-#: docking/ui/settings.py:510
+#: docking/ui/settings.py:625
 msgid "Look"
 msgstr "Útlit"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Theme"
 msgstr "Þema"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Choose the dock color palette."
 msgstr "Veldu litapallettu bryggjunnar."
 
-#: docking/ui/settings.py:514
+#: docking/ui/settings.py:629
 msgid "Icon Size"
 msgstr "Icon Size"
 
-#: docking/ui/settings.py:516
+#: docking/ui/settings.py:631
 msgid "Set the base size of dock icons before zoom is applied."
 msgstr "Stilltu grunnstærð bryggjutáknanna áður en aðdráttur er notaður."
 
-#: docking/ui/settings.py:519
+#: docking/ui/settings.py:634
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:521
+#: docking/ui/settings.py:636
 msgid "Adjust how transparent the dock background is."
 msgstr "Stilltu hversu gegnsær bryggjubakgrunnurinn er."
 
-#: docking/ui/settings.py:524
+#: docking/ui/settings.py:639
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:526
+#: docking/ui/settings.py:641
 msgid "Enlarge icons when the pointer hovers over the dock."
 msgstr "Stækka tákn þegar bendillinn sveimar yfir bryggjuna."
 
-#: docking/ui/settings.py:529
+#: docking/ui/settings.py:644
 msgid "Zoom Percent"
 msgstr "Aðdráttarprósenta"
 
-#: docking/ui/settings.py:531
+#: docking/ui/settings.py:646
 msgid "Set how much hovered icons grow when zoom is enabled."
 msgstr "Stilltu hversu mikið tákn sem sveima stækka þegar aðdráttur er virkur."
 
-#: docking/ui/settings.py:534
+#: docking/ui/settings.py:649
 msgid "Show Tooltips"
 msgstr "Sýna ábendingar"
 
-#: docking/ui/settings.py:536
+#: docking/ui/settings.py:651
 msgid "Show item names and details when hovering over dock items."
 msgstr "Sýndu nöfn og upplýsingar um hluti þegar þú sveimar yfir bryggjuhluti."
 
-#: docking/ui/settings.py:539
+#: docking/ui/settings.py:654
 msgid "Window Previews"
 msgstr "Window Previews"
 
-#: docking/ui/settings.py:541
+#: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Sýndu gluggasmámyndir þegar þú ferð yfir forrit sem eru í gangi."
 
-#: docking/ui/settings.py:544
+#: docking/ui/settings.py:659
+msgid "Outline Thumbnail on Hover"
+msgstr "Ummál á smámynd við yfirferð"
+
+#: docking/ui/settings.py:661
+msgid "Highlight the thumbnail under the pointer in the preview."
+msgstr "Auðkenna smámyndina undir bendlinum í forskoðuninni."
+
+#: docking/ui/settings.py:664
 msgid "Show Window Counts"
 msgstr "Sýna gluggatölur"
 
-#: docking/ui/settings.py:547
+#: docking/ui/settings.py:667
 msgid "Show a number on running app indicators when multiple windows are open."
 msgstr "Sýna númer á hlaupandi forritavísum þegar margir gluggar eru opnir."
 
-#: docking/ui/settings.py:555
+#: docking/ui/settings.py:672
+msgid "Application Badges"
+msgstr "Forritamerki"
+
+#: docking/ui/settings.py:675
+msgid "Show numeric counts reported by applications on their dock icons."
+msgstr "Sýna talnmerki sem forrit gefa upp á dock-táknum sínum."
+
+#: docking/ui/settings.py:680
+msgid "Application Progress"
+msgstr "Framvinda forrits"
+
+#: docking/ui/settings.py:683
+msgid "Show task progress reported by applications on their dock icons."
+msgstr "Sýna framvindu verkefna sem forrit gefa upp á dock-táknum sínum."
+
+#: docking/ui/settings.py:691
 msgid "Placement"
 msgstr "Staðsetning"
 
-#: docking/ui/settings.py:558
+#: docking/ui/settings.py:694
 msgid "Position"
 msgstr "Position"
 
-#: docking/ui/settings.py:560
+#: docking/ui/settings.py:696
 msgid "Choose which screen edge the dock uses."
 msgstr "Veldu hvaða skjábrún bryggjan notar."
 
-#: docking/ui/settings.py:562
+#: docking/ui/settings.py:698
 msgid "Extra Distance from Edge"
 msgstr "Auka fjarlægð frá brún"
 
-#: docking/ui/settings.py:564
+#: docking/ui/settings.py:700
 msgid "Current Workspace Only"
 msgstr "Current Workspace Only"
 
-#: docking/ui/settings.py:567
+#: docking/ui/settings.py:703
 msgid "Show running windows only from the active workspace when supported."
 msgstr ""
 "Sýna hlaupandi glugga aðeins frá virka vinnusvæðinu þegar það er stutt."
 
-#: docking/ui/settings.py:575 docking/ui/settings.py:585
+#: docking/ui/settings.py:711 docking/ui/settings.py:721
 msgid "Monitor"
 msgstr "Fylgjast með"
 
-#: docking/ui/settings.py:578
+#: docking/ui/settings.py:714
 msgid "Follow Cursor"
 msgstr "Follow Cursor"
 
-#: docking/ui/settings.py:581
+#: docking/ui/settings.py:717
 msgid "Move the dock to the monitor where the pointer is currently located."
 msgstr "Færðu bryggjuna á skjáinn þar sem bendillinn er staðsettur."
 
-#: docking/ui/settings.py:590
+#: docking/ui/settings.py:726
 msgid "Layout"
 msgstr "Uppsetning"
 
-#: docking/ui/settings.py:593
+#: docking/ui/settings.py:729
 msgid "Lock Positions"
 msgstr "Læsa stöður"
 
-#: docking/ui/settings.py:596
+#: docking/ui/settings.py:732
 msgid "Prevent dock items from being reordered or removed by drag and drop."
 msgstr ""
 "Komið í veg fyrir að bryggjuhlutir séu endurraðaðir eða fjarlægðir með því "
 "að draga og sleppa."
 
-#: docking/ui/settings.py:601
+#: docking/ui/settings.py:737
 msgid "Anchor Applets to End"
 msgstr "Anchor Applets to End"
 
-#: docking/ui/settings.py:603
+#: docking/ui/settings.py:739
 msgid "Keep applets grouped at the end of the dock."
 msgstr "Haltu smáforritum flokkuð við enda bryggjunnar."
 
-#: docking/ui/settings.py:606
+#: docking/ui/settings.py:742
 msgid "Anchor Files to End"
 msgstr "Festa skrár í enda"
 
-#: docking/ui/settings.py:608
+#: docking/ui/settings.py:744
 msgid "Keep pinned files and folders grouped at the end of the dock."
 msgstr "Hafðu festar skrár og möppur flokkaðar í lok bryggjunnar."
 
-#: docking/ui/settings.py:647
+#: docking/ui/settings.py:783
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:650
+#: docking/ui/settings.py:786
 msgid ""
 "Choose what happens when clicking a running app with the left mouse button."
 msgstr ""
 "Veldu hvað gerist þegar smellt er á forrit sem er í gangi með vinstri "
 "músarhnappi."
 
-#: docking/ui/settings.py:655
+#: docking/ui/settings.py:791
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:658
+#: docking/ui/settings.py:794
 msgid "Choose what happens when clicking an app with the middle mouse button."
 msgstr "Veldu hvað gerist þegar smellt er á forrit með miðjumúsarhnappi."
 
-#: docking/ui/settings.py:663
+#: docking/ui/settings.py:799
 msgid "Window List Sort"
 msgstr "Raða gluggalista"
 
-#: docking/ui/settings.py:665
+#: docking/ui/settings.py:801
 msgid "Choose how open windows are ordered in app context menus."
 msgstr "Veldu hvernig opnum gluggum er raðað í samhengisvalmyndum forrita."
 
-#: docking/ui/settings.py:673
+#: docking/ui/settings.py:809
 msgid "Hide Mode"
 msgstr "Feluhamur"
 
-#: docking/ui/settings.py:675
+#: docking/ui/settings.py:811
 msgid "Hide Delay"
 msgstr "Töf við felu"
 
-#: docking/ui/settings.py:678
+#: docking/ui/settings.py:814
 msgid "Set how long the dock waits before hiding after the pointer leaves."
 msgstr ""
 "Stilltu hversu lengi bryggjan bíður áður en hún felur sig eftir að "
 "bendillinn fer."
 
-#: docking/ui/settings.py:683
+#: docking/ui/settings.py:819
 msgid "Unhide Delay"
 msgstr "Töf við birtingu"
 
-#: docking/ui/settings.py:686
+#: docking/ui/settings.py:822
 msgid "Set how long the dock waits before showing after the pointer returns."
 msgstr ""
 "Stilltu hversu lengi bryggjan bíður áður en hún birtist eftir að bendillinn "
 "kemur aftur."
 
-#: docking/ui/settings.py:691
+#: docking/ui/settings.py:827
 msgid "Pressure Reveal"
 msgstr "Þrýstingur sýna"
 
-#: docking/ui/settings.py:694
+#: docking/ui/settings.py:830
 msgid ""
 "Require the pointer to push against the screen edge before revealing a "
 "hidden dock."
@@ -3633,15 +5419,15 @@ msgstr ""
 "Krefjast þess að bendillinn ýti á brún skjásins áður en falinn bryggju "
 "birtist."
 
-#: docking/ui/settings.py:698
+#: docking/ui/settings.py:834
 msgid "Pressure Threshold"
 msgstr "Þrýstiþröskuldur"
 
-#: docking/ui/settings.py:700
+#: docking/ui/settings.py:836
 msgid "Show Startup Tips"
 msgstr "Sýna ráðleggingar um ræsingu"
 
-#: docking/ui/settings.py:703
+#: docking/ui/settings.py:839
 msgid ""
 "Show one Docking usage tip after startup, unless a higher-priority startup "
 "notification is visible."
@@ -3649,143 +5435,174 @@ msgstr ""
 "Sýndu eina ábendingu um notkun á tengikví eftir ræsingu, nema "
 "ræsingartilkynning með hærri forgang sé sýnileg."
 
-#: docking/ui/settings.py:711
-msgid "Folder Stacks"
-msgstr "Folder Stacks"
+#: docking/ui/settings.py:847
+msgid "Stacks"
+msgstr "Staflar"
 
-#: docking/ui/settings.py:714
+#: docking/ui/settings.py:850
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:716
-msgid "Choose whether folder stacks open on click or while hovering."
-msgstr ""
-"Veldu hvort möppusafla opnast þegar smellt er eða á meðan á sveimi stendur."
+#: docking/ui/settings.py:852
+msgid "Choose whether stacks open on click or while hovering."
+msgstr "Veldu hvort staflar opnist við smell eða yfirferð."
 
-#: docking/ui/settings.py:722
+#: docking/ui/settings.py:858
 msgid "Recent Apps"
 msgstr "Nýleg forrit"
 
-#: docking/ui/settings.py:725
+#: docking/ui/settings.py:861
 msgid "Show Recently Used Apps"
 msgstr "Sýna nýlega notuð forrit"
 
-#: docking/ui/settings.py:728
+#: docking/ui/settings.py:864
 msgid "Show recently closed apps between pinned launchers and running apps."
 msgstr ""
 "Sýndu nýlega lokuð forrit á milli festra ræsiforrita og keyrandi forrita."
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:869
 msgid "Number of Recent Apps"
 msgstr "Fjöldi nýlegra forrita"
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:871
 msgid "Maximum recently used app icons to display."
 msgstr "Hámarks nýlega notuð forritatákn til að sýna."
 
-#: docking/ui/settings.py:738
+#: docking/ui/settings.py:874
 msgid "Keep Recent Apps For"
 msgstr "Geymdu nýleg forrit fyrir"
 
-#: docking/ui/settings.py:740
+#: docking/ui/settings.py:876
 msgid "Remove recent apps after this many days of inactivity."
 msgstr "Fjarlægðu nýleg forrit eftir þessa margra daga óvirkni."
 
-#: docking/ui/settings.py:749
+#: docking/ui/settings.py:885
 msgid "Show Recent Documents"
 msgstr "Sýna nýleg skjöl"
 
-#: docking/ui/settings.py:752
+#: docking/ui/settings.py:888
 msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
 msgstr ""
 "Sýndu \\\"Nýleg skjöl\\\" undirvalmynd þegar hægrismellt er á forritatákn."
 
-#: docking/ui/settings.py:757
+#: docking/ui/settings.py:893
 msgid "Max Documents Per App"
 msgstr "Hámarks skjöl á hvert app"
 
-#: docking/ui/settings.py:759
+#: docking/ui/settings.py:895
 msgid "Maximum recent document entries shown per app."
 msgstr "Hámarksfærslur nýlegra skjala sýndar fyrir hvert forrit."
 
-#: docking/ui/settings.py:831
+#: docking/ui/settings.py:901
+msgid "Global Search"
+msgstr "Altæk leit"
+
+#: docking/ui/settings.py:906
+msgid "Enable Docking's process-wide search palette."
+msgstr "Virkja altæka leitarplötu Docking."
+
+#: docking/ui/settings.py:909
+msgid "Preferred Shortcut"
+msgstr "Æskileg flýtileið"
+
+#: docking/ui/settings.py:912
+msgid ""
+"Click the button, then press the desired key sequence. The desktop may "
+"reserve some shortcuts."
+msgstr "Smelltu á hnappinn og ýttu síðan á óskaða lyklaröð. Skjáborðið gæti "
+"áskilið sér sumar flýtileiðir."
+
+#: docking/ui/settings.py:917
+msgid "Search Engine"
+msgstr "Leitarvél"
+
+#: docking/ui/settings.py:919
+msgid "Choose the engine used by web fallback."
+msgstr "Veldu vélina sem notuð er í vefleit."
+
+#: docking/ui/settings.py:991
 msgid "Check Now"
 msgstr "Athuga núna"
 
-#: docking/ui/settings.py:833
+#: docking/ui/settings.py:993
 msgid "View Releases"
 msgstr "Skoða útgáfur"
 
-#: docking/ui/settings.py:845
+#: docking/ui/settings.py:1005
 msgid "Update Checks"
 msgstr "Athugun á uppfærslum"
 
-#: docking/ui/settings.py:847
+#: docking/ui/settings.py:1007
 msgid "Check Automatically"
 msgstr "Athuga sjálfkrafa"
 
-#: docking/ui/settings.py:848
+#: docking/ui/settings.py:1008
 msgid "Frequency"
 msgstr "Tíðni"
 
-#: docking/ui/settings.py:849
+#: docking/ui/settings.py:1009
 msgid "Status"
 msgstr "Staða"
 
-#: docking/ui/settings.py:850
-msgid "Actions"
-msgstr "Aðgerðir"
-
-#: docking/ui/settings.py:1293
+#: docking/ui/settings.py:1489
 msgid "Primary Display"
 msgstr "Aðalskjár"
 
-#: docking/ui/settings.py:1434
+#: docking/ui/settings.py:1500
+#, python-brace-format
+msgid "Shortcut Status: {status}"
+msgstr "Staða flýtileiðar: {status}"
+
+#: docking/ui/settings.py:1639
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr "Síðasta þekkta útgáfa: {version}"
 
-#: docking/ui/settings.py:1438
+#: docking/ui/settings.py:1643
 msgid "No update found yet"
 msgstr "Engin uppfærsla fundin enn"
 
-#: docking/ui/settings.py:1440
+#: docking/ui/settings.py:1645
 msgid "Not checked yet"
 msgstr "Ekki athugað enn"
 
-#: docking/ui/settings.py:1521
+#: docking/ui/settings.py:1728
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:1523
+#: docking/ui/settings.py:1730
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 "Alltaf sýnilegt og svífur yfir öllum gluggum án þess að taka frá skjápláss."
 
-#: docking/ui/settings.py:1526
+#: docking/ui/settings.py:1733
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:1528
+#: docking/ui/settings.py:1735
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:1530
+#: docking/ui/settings.py:1737
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:1532
+#: docking/ui/settings.py:1739
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:1535
+#: docking/ui/settings.py:1742
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#: docking/ui/stack.py:125
+msgid "No items"
+msgstr "Engir hlutir"
 
 #: docking/ui/startup_tips.py:187
 msgid "Tip of the day"
@@ -3799,40 +5616,42 @@ msgstr "Sýndu ábendingar um gangsetningu"
 msgid "Next Tip"
 msgstr "Næsta ráð"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
 msgid "1 day"
 msgstr "1 dag"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
+#, python-brace-format
 msgid "{count} days"
 msgstr "{count} dagar"
 
-#: docking/ui/tooltip.py:239
+#: docking/ui/tooltip.py:240
 msgid "just now"
 msgstr "bara núna"
 
-#: docking/ui/tooltip.py:240
+#: docking/ui/tooltip.py:241
+#, python-brace-format
 msgid "{age} ago"
 msgstr "{age} síðan"
 
-#: docking/ui/update_popup.py:233
+#: docking/ui/update_popup.py:231
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr "Docking {version} er tiltækt"
 
-#: docking/ui/update_popup.py:239
+#: docking/ui/update_popup.py:237
 #, python-brace-format
 msgid "You are using {version}."
 msgstr "Þú notar {version}."
 
-#: docking/ui/update_popup.py:248
+#: docking/ui/update_popup.py:246
 msgid "View Release"
 msgstr "Skoða útgáfu"
 
-#: docking/ui/update_popup.py:249
+#: docking/ui/update_popup.py:247
 msgid "Later"
 msgstr "Síðar"
 
-#: docking/ui/update_popup.py:250
+#: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "Hunsa"
