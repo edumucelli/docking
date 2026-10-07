@@ -222,12 +222,25 @@ Notes:
 
 ## RPM
 
+The Ubuntu build instructions below require Docker to be installed and usable
+by your user for the target-specific native fallback builds.
+
 ```bash
 # Install tooling
-sudo apt install rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+sudo apt install rpm python3-pip python3-venv gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+
+# Use current Python build tooling, including on Ubuntu 22.04.
+RPM_BUILD_ENV="$(mktemp -d)"
+python3 -m venv "$RPM_BUILD_ENV"
+. "$RPM_BUILD_ENV/bin/activate"
+python -m pip install --upgrade pip setuptools wheel
+
+# Build native fallbacks for the Fedora and openSUSE Python versions.
+bash packaging/rpm/build-wayland-vendors.sh "$RPM_BUILD_ENV/wayland-vendors"
 
 # Build RPM package
-./packaging/rpm/build.sh
+DOCKING_EXTRA_PYWAYLAND="$RPM_BUILD_ENV/wayland-vendors" ./packaging/rpm/build.sh
+deactivate
 ```
 
 Output artifact:
@@ -237,7 +250,11 @@ Output artifact:
 Install locally (RPM-based distros):
 
 ```bash
+# Fedora
 sudo dnf install ./artifacts/docking-*.rpm
+
+# openSUSE (local build artifacts are unsigned)
+sudo zypper install --allow-unsigned-rpm ./artifacts/docking-*.rpm
 ```
 
 Notes:
