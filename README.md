@@ -159,8 +159,7 @@ sudo apt install docking
 ```
 
 For subsequent updates, run `sudo apt update` and `sudo apt upgrade`. Existing
-`.deb` installations can upgrade directly through APT. Maintainers can find setup
-and publication details in the [Cloudsmith guide](packaging/cloudsmith/README.md).
+`.deb` installations can upgrade directly through APT.
 
 ### Fedora and openSUSE (RPM)
 
@@ -235,9 +234,7 @@ sudo zypper install docking
 ```
 
 For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
-`.rpm` installations can upgrade directly through the repository. Maintainers can
-find setup and publication details in the
-[Cloudsmith guide](packaging/cloudsmith/README.md).
+`.rpm` installations can upgrade directly through the repository.
 
 ### Release downloads
 
@@ -726,7 +723,6 @@ every package format live in the [packaging guide](packaging/README.md).
 - [D-Bus Remote Control](docs/DBUS.md)
 - [Icon Assets and Packaging](docs/ICONS.md)
 - [Packaging](packaging/README.md)
-- [Cloudsmith APT Repository Setup](packaging/cloudsmith/README.md)
 
 ## Contributing
 

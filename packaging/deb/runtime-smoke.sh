@@ -98,6 +98,13 @@ EOF
     if grep -E 'Traceback|Failed to start runtime stage|Forcing shutdown after the cleanup timeout' "$HOME/docking-$backend.log"; then exit 1; fi
     echo "Installed Docking passed $backend startup, D-Bus request, and graceful shutdown"
 else
+    # Fedora gives Sway a scheduling file capability that Docker excludes from
+    # its bounding set, causing exec to fail with EPERM. Headless rendering
+    # does not need it; remove it from the test compositor before launching.
+    sway_binary="$(command -v sway)"
+    if command -v getcap >/dev/null 2>&1 && getcap "$sway_binary" | grep -q cap_sys_nice; then
+        setcap -r "$sway_binary"
+    fi
     # Sway refuses to run with root privileges. Use an isolated unprivileged user.
     id docking-smoke >/dev/null 2>&1 || useradd --create-home --shell /bin/bash docking-smoke
     install -d -m 0700 -o docking-smoke -g docking-smoke /tmp/docking-runtime

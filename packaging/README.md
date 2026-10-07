@@ -96,9 +96,7 @@ Publication uses OIDC, validates both architectures, and supports safe retries o
 a specific release tag. Both formats publish from the same release, and CI installs
 the built RPM in Fedora and openSUSE containers before any publication happens.
 
-See the [maintainer guide](cloudsmith/README.md) for configuration, the re-signing
-caveat that makes RPM identity checks different from APT, and retries. User
-instructions live in the
+User installation instructions live in the
 [APT](../README.md#debian-and-ubuntu-apt) and
 [RPM](../README.md#fedora-and-opensuse-rpm) sections.
 
@@ -272,8 +270,7 @@ Notes:
   glue for the Fedora and openSUSE Python versions, and both distributions package
   PyWayland older than the protocol modules the Wayland backend imports.
 
-Stable releases also publish the RPM to the `docking-rpm` Cloudsmith repository; see
-the [maintainer guide](cloudsmith/README.md) and the
+Stable releases also publish the RPM to the `docking-rpm` Cloudsmith repository; see the
 [RPM installation instructions](../README.md#fedora-and-opensuse-rpm).
 
 ## Arch

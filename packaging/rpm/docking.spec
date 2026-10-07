@@ -13,6 +13,9 @@ Requires:       python3
 Requires:       python3-gobject
 Requires:       python3-cairo
 Requires:       python3-cffi
+# Gtk/Gdk imports also need the base cairo/xlib typelibs. Fedora keeps these
+# in gobject-introspection; SUSE separates them into girepository-1_0.
+Requires:       (gobject-introspection or girepository-1_0)
 # GObject introspection bindings ship inside the library package on Fedora but
 # as separate typelib-1_0-* packages on SUSE, so each is an alternative.
 Requires:       (gtk3 or typelib-1_0-Gtk-3_0)
