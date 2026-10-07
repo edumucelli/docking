@@ -410,11 +410,11 @@ class CosmicSessionBackend(SessionBackend):
         if self._services.idle is not None:
             self._services.idle.start()
         self._services.previews.start()
+        if self._services.workspaces is not None:
+            self._services.workspaces.start()
         self._services.windows.start()
         self._services.surface.start()
         self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
         if self._services.screen_capture is not None:
             self._services.screen_capture.start()
 

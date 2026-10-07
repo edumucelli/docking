@@ -167,6 +167,36 @@ def test_cosmic_runtime_uses_the_workspace_service_snapshot_id(protocol_id) -> N
     )
 
 
+@pytest.mark.parametrize("protocol_id", [None, "workspace-2"])
+def test_cosmic_session_replays_initial_windows_with_workspace_ids(protocol_id) -> None:
+    runtime = WaylandProtocolRuntime()
+    runtime.workspaces.available = True
+    runtime.cosmic_toplevel.available = True
+    workspace = _Handle()
+    runtime.workspaces._on_workspace(None, workspace)
+    if protocol_id is not None:
+        runtime.workspaces._on_workspace_id(workspace, protocol_id)
+    toplevel = _Handle()
+    runtime.cosmic_toplevel._on_toplevel(None, toplevel)
+    toplevel.dispatcher["app_id"](toplevel, "foot")
+    runtime.cosmic_toplevel._on_cosmic_workspace_enter(toplevel, workspace)
+    toplevel.dispatcher["done"](toplevel)
+    backend = CosmicSessionBackend(
+        layer_shell=SimpleNamespace(),
+        model=_model(),
+        **identity_services(application("foot.desktop", wm_class="foot")),
+        protocol_runtime=runtime,
+        screen_capture=MagicMock(),
+    )
+
+    backend.start()
+
+    workspace_snapshot = backend.workspaces.list_workspaces()[0]
+    window_snapshot = backend.windows.list_all_windows()[0]
+    assert workspace_snapshot.id == (protocol_id or "0")
+    assert window_snapshot.workspace_id == workspace_snapshot.id
+
+
 def test_cosmic_multiple_workspace_membership_is_not_reduced_to_last_enter() -> None:
     adapter = CosmicToplevelAdapter()
     adapter.set_workspace_id_probe(lambda workspace: workspace.id)
