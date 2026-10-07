@@ -38,17 +38,18 @@ class Package:
 
     def matches_remote(self, item: dict) -> bool:
         """Whether a Cloudsmith record refers to exactly this package."""
+        remote_release = item.get("release")
+        if (
+            self.release
+            and remote_release is not None
+            and remote_release != self.release
+        ):
+            return False
         remote = item.get("version")
         combined = f"{self.version}-{self.release}" if self.release else self.version
-        if remote == combined:
-            return True
-        if not self.release or remote != self.version:
-            return False
         # Cloudsmith may report an RPM with the release folded into the version
-        # or kept separate. A bare version is ambiguous across releases, so the
-        # release field has to agree whenever one is reported.
-        remote_release = item.get("release")
-        return remote_release is None or remote_release == self.release
+        # or kept separate; an explicit release must agree in either case.
+        return remote == combined or bool(self.release and remote == self.version)
 
 
 def deb_fields(path: Path) -> tuple[str, str, str, str]:

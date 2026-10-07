@@ -344,12 +344,13 @@ def test_rpm_accepts_a_combined_remote_version(monkeypatch, rpm_packages):
     assert uploads == []
 
 
-def test_rpm_release_must_match_when_cloudsmith_reports_one(rpm_packages):
-    """A bare version alone must not be mistaken for a different Release."""
+@pytest.mark.parametrize("version", ["2.13.6", "2.13.6-1"])
+def test_rpm_release_must_match_when_cloudsmith_reports_one(rpm_packages, version):
+    """An explicit release must agree even with a combined remote version."""
     assert (
         publisher.existing_package(
             rpm_packages[0],
-            [rpm_remote(rpm_packages[0], release="2")],
+            [rpm_remote(rpm_packages[0], version=version, release="2")],
             publisher.FORMATS["rpm"],
         )
         is None

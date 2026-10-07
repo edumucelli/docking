@@ -60,7 +60,8 @@ Keep the enable flag at repository scope: the calling job reads it before enteri
 the environment. These values and the signing fingerprint are public identifiers.
 
 Before enabling, require the binary installation checks to pass on Ubuntu
-22.04/24.04/26.04 and Debian 12/13 for both architectures. They verify runtime imports, X11 startup, and native Wayland startup under
+22.04/24.04/26.04, Debian 12/13, Fedora 44/45, and openSUSE Tumbleweed/Leap 16.0
+for both architectures. They verify runtime imports, X11 startup, and native Wayland startup under
 headless Sway, including the live foreign-toplevel protocol. Full desktop
 behavior still needs testing on intended compositors.
 
@@ -118,6 +119,12 @@ Python minor and CI passes them through `DOCKING_EXTRA_PYWAYLAND`. This is requi
 the RPM is built on Ubuntu runners, whose Python never matches Fedora or openSUSE,
 and both distributions package PyWayland older than the 0.4.18 protocol modules the
 native Wayland backend imports.
+
+The first RPM publication must use a stable release built with these packaging
+fixes. Older release assets lack the corrected dependencies and native fallbacks;
+retrying their publication cannot repair them. After the new release is published,
+require its signed verification matrix to pass before announcing repository
+installation. Direct GitHub RPM downloads remain available during this rollout.
 
 ## Retry a publication
 

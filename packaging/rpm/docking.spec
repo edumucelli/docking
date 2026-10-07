@@ -59,7 +59,10 @@ rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 
 py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
-python3 -m pip install --no-compile \
+# PyWayland wheels bundle renamed libffi/Wayland libraries whose versioned
+# symbols produce unsatisfiable RPM Requires. Link against system Wayland,
+# just as the distribution-specific fallback builds do.
+python3 -m pip install --no-compile --no-binary=pywayland \
   --target "%{buildroot}/usr/lib/docking/vendor-python${py_minor}" \
   "pywayland>=0.4.18,<0.5"
 # Fallback trees built for each target distribution Python. The build host

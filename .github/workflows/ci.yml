@@ -1158,7 +1158,8 @@ jobs:
                 dnf install -y --setopt=install_weak_deps=False "${package[0]}"
                 dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon glib2 sway
               else
-                zypper --non-interactive install --no-recommends "${package[0]}"
+                # CI artifacts are unsigned; Cloudsmith signs published RPMs.
+                zypper --non-interactive install --no-recommends --allow-unsigned-rpm "${package[0]}"
                 zypper --non-interactive install --no-recommends xvfb-run xauth dbus-1-daemon glib2-tools sway
               fi
               installed="$(rpm -q --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" docking)"

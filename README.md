@@ -164,6 +164,9 @@ and publication details in the [Cloudsmith guide](packaging/cloudsmith/README.md
 
 ### Fedora and openSUSE (RPM)
 
+Repository installation is available after the first verified RPM publication.
+Until then, use the [RPM release downloads](https://github.com/edumucelli/docking/releases/latest).
+
 On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository
 once to receive updates through your package manager. Both x86_64 and aarch64 are
 available.
