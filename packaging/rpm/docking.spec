@@ -26,7 +26,11 @@ Recommends:     python3-pywayland
 BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  python3-devel
+BuildRequires:  python3-pip
+BuildRequires:  python3-setuptools >= 61
+BuildRequires:  /usr/bin/pkg-config
 BuildRequires:  wayland-devel
+BuildRequires:  wayland-protocols-devel
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python

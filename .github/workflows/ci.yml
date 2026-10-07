@@ -701,10 +701,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -732,10 +738,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
