@@ -90,15 +90,21 @@ docking
 
 ## Package repositories (Cloudsmith)
 
-Stable releases publish to Cloudsmith after the installation matrix passes:
+When repository publication is enabled, stable releases publish to Cloudsmith
+after the installation matrix passes:
 `.deb` artifacts to `docking-apt` and `.rpm` artifacts to `docking-rpm`.
 Publication uses OIDC, validates both architectures, and supports safe retries of
 a specific release tag. Both formats publish from the same release, and CI installs
 the built RPM in Fedora and openSUSE containers before any publication happens.
+Disabling publication skips both package formats and their repository checks,
+including manual publication retries.
 
 User installation instructions live in the
 [APT](../README.md#debian-and-ubuntu-apt) and
 [RPM](../README.md#fedora-and-opensuse-rpm) sections.
+The [website](https://docking.cc/#install) presents both sets of instructions in
+expandable panels. The RPM repository requires its first verified publication
+before users can install from it; release downloads remain available.
 
 ## PPA (Launchpad)
 

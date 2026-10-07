@@ -99,6 +99,9 @@ pip install -e ".[wayland]"
 
 ## Installation
 
+The [website](https://docking.cc/#install) also provides expandable APT and RPM
+installation instructions.
+
 ### Debian and Ubuntu (APT)
 
 On Ubuntu 22.04/24.04/26.04 and Debian 12/13, add Docking's APT repository once
@@ -185,8 +188,8 @@ gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
 
 The fingerprint must be `04C7240DAD480161C0DFC791859E104126138494`.
 
-Copy the complete block below. It installs the key and writes the signed
-repository definition that both dnf and zypper read.
+Copy the complete block below. It installs the key, writes the signed repository
+definition, and selects DNF on Fedora or Zypper on openSUSE.
 
 ```bash
 (
@@ -222,15 +225,13 @@ sslverify=1
 type=rpm-md
 metadata_expire=300
 EOF
-sudo dnf install docking
+if command -v zypper > /dev/null 2>&1; then
+    sudo zypper --gpg-auto-import-keys refresh
+    sudo zypper install docking
+else
+    sudo dnf install docking
+fi
 )
-```
-
-On openSUSE, substitute the final line with:
-
-```bash
-sudo zypper --gpg-auto-import-keys refresh
-sudo zypper install docking
 ```
 
 For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
