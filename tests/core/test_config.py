@@ -73,6 +73,30 @@ class TestConfigDefaults:
         assert junk.preview_thumbnail_outline is False
         assert on.to_dict()["preview_thumbnail_outline"] is True
 
+    def test_window_preview_thumbnail_width_default_200(self):
+        # Given / When
+        c = Config()
+        # Then
+        assert c.window_preview_thumbnail_width == 200
+        assert c.to_dict()["window_preview_thumbnail_width"] == 200
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (320, 320),
+            ("320", 320),
+            (10, 120),
+            (9999, 400),
+            ("garbage", 200),
+            (None, 200),
+        ],
+    )
+    def test_window_preview_thumbnail_width_normalizes(self, raw, expected):
+        # Given / When
+        c = Config(window_preview_thumbnail_width=raw)
+        # Then
+        assert c.window_preview_thumbnail_width == expected
+
     def test_hide_delay_default_zero(self):
         # Given / When
         c = Config()

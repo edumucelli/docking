@@ -53,6 +53,9 @@ SHM_ARGB8888 = 0
 SHM_XRGB8888 = 1
 _PREFERRED_SHM_FORMATS = (SHM_ARGB8888, SHM_XRGB8888)
 
+# Previews are scaled to the requested size, so the size is part of the identity.
+_PreviewKey = tuple[WindowId, int, int]
+
 
 class _CaptureResource(Protocol):
     def destroy(self) -> None: ...
@@ -270,8 +273,8 @@ class WaylandPreviewService(PreviewService):
     ):
         self._protocol = protocol
         self._handles = handles
-        self._cache: dict[WindowId, PreviewImage] = {}
-        self._pending: dict[WindowId, _CaptureRequest] = {}
+        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._pending: dict[_PreviewKey, _CaptureRequest] = {}
 
     def start(self) -> None:
         """Start receiving ext-foreign-toplevel-list events."""
@@ -299,10 +302,11 @@ class WaylandPreviewService(PreviewService):
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
-        cached = self._cache.get(window_id)
+        key = (window_id, width, height)
+        cached = self._cache.get(key)
         if cached is not None:
             return cached
-        if window_id not in self._pending:
+        if key not in self._pending:
             self._start_capture(window_id=window_id, width=width, height=height)
         return None
 
@@ -326,7 +330,7 @@ class WaylandPreviewService(PreviewService):
             source=source,
             session=session,
         )
-        self._pending[window_id] = request
+        self._pending[_request_key(request)] = request
         session.dispatcher["buffer_size"] = lambda _session, w, h: self._on_buffer_size(
             request, w, h
         )
@@ -347,7 +351,7 @@ class WaylandPreviewService(PreviewService):
         request.shm_formats.add(int(format_))
 
     def _on_constraints_done(self, request: _CaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         if request.frame is not None:
             return
@@ -391,25 +395,25 @@ class WaylandPreviewService(PreviewService):
         self._protocol.flush()
 
     def _on_frame_ready(self, request: _CaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[request.window_id] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _pixbuf_from_request(request)
         self._finish_request(request)
 
     def _on_stopped(self, request: _CaptureRequest) -> None:
         self._finish_failed(request)
 
     def _finish_failed(self, request: _CaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._cache.pop(request.window_id, None)
+        _drop_window(self._cache, request.window_id)
         self._finish_request(request)
 
     def _finish_request(self, request: _CaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._pending.pop(request.window_id, None)
+        self._pending.pop(_request_key(request), None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _CaptureRequest) -> None:
@@ -427,8 +431,8 @@ class HyprlandPreviewService(PreviewService):
     ):
         self._protocol = protocol
         self._windows = windows
-        self._cache: dict[WindowId, PreviewImage] = {}
-        self._pending: dict[WindowId, _HyprlandCaptureRequest] = {}
+        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._pending: dict[_PreviewKey, _HyprlandCaptureRequest] = {}
 
     def start(self) -> None:
         """No separate toplevel-list tracker is needed for Hyprland export."""
@@ -454,10 +458,11 @@ class HyprlandPreviewService(PreviewService):
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
-        cached = self._cache.get(window_id)
+        key = (window_id, width, height)
+        cached = self._cache.get(key)
         if cached is not None:
             return cached
-        if window_id not in self._pending:
+        if key not in self._pending:
             self._start_capture(window_id=window_id, width=width, height=height)
         return None
 
@@ -475,7 +480,7 @@ class HyprlandPreviewService(PreviewService):
             requested_height=height,
             frame=frame,
         )
-        self._pending[window_id] = request
+        self._pending[_request_key(request)] = request
         frame.dispatcher["buffer"] = lambda _frame, fmt, w, h, stride: self._on_buffer(
             request, fmt, w, h, stride
         )
@@ -507,7 +512,7 @@ class HyprlandPreviewService(PreviewService):
         request.stride = int(stride)
 
     def _on_buffer_done(self, request: _HyprlandCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         if request.width <= 0 or request.height <= 0 or request.stride <= 0:
             self._finish_failed(request)
@@ -531,22 +536,22 @@ class HyprlandPreviewService(PreviewService):
         request.y_inverted = bool(int(flags) & 1)
 
     def _on_ready(self, request: _HyprlandCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[request.window_id] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _pixbuf_from_request(request)
         self._finish_request(request)
 
     def _finish_failed(self, request: _HyprlandCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._cache.pop(request.window_id, None)
+        _drop_window(self._cache, request.window_id)
         self._finish_request(request)
 
     def _finish_request(self, request: _HyprlandCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._pending.pop(request.window_id, None)
+        self._pending.pop(_request_key(request), None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _HyprlandCaptureRequest) -> None:
@@ -564,8 +569,8 @@ class PhocPreviewService(PreviewService):
     ):
         self._protocol = protocol
         self._windows = windows
-        self._cache: dict[WindowId, PreviewImage] = {}
-        self._pending: dict[WindowId, _PhocCaptureRequest] = {}
+        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._pending: dict[_PreviewKey, _PhocCaptureRequest] = {}
 
     def start(self) -> None:
         """The generic window service owns the foreign-toplevel handles."""
@@ -591,10 +596,11 @@ class PhocPreviewService(PreviewService):
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
-        cached = self._cache.get(window_id)
+        key = (window_id, width, height)
+        cached = self._cache.get(key)
         if cached is not None:
             return cached
-        if window_id not in self._pending:
+        if key not in self._pending:
             self._start_capture(window_id=window_id, width=width, height=height)
         return None
 
@@ -612,7 +618,7 @@ class PhocPreviewService(PreviewService):
             requested_height=height,
             frame=frame,
         )
-        self._pending[window_id] = request
+        self._pending[_request_key(request)] = request
         frame.dispatcher["buffer"] = lambda _frame, fmt, w, h, stride: self._on_buffer(
             request, fmt, w, h, stride
         )
@@ -629,7 +635,7 @@ class PhocPreviewService(PreviewService):
         height: int,
         stride: int,
     ) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         format_ = int(format_)
         if format_ not in _PREFERRED_SHM_FORMATS:
@@ -661,26 +667,38 @@ class PhocPreviewService(PreviewService):
         request.y_inverted = bool(int(flags) & 1)
 
     def _on_ready(self, request: _PhocCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[request.window_id] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _pixbuf_from_request(request)
         self._finish_request(request)
 
     def _finish_failed(self, request: _PhocCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._cache.pop(request.window_id, None)
+        _drop_window(self._cache, request.window_id)
         self._finish_request(request)
 
     def _finish_request(self, request: _PhocCaptureRequest) -> None:
-        if self._pending.get(request.window_id) is not request:
+        if self._pending.get(_request_key(request)) is not request:
             return
-        self._pending.pop(request.window_id, None)
+        self._pending.pop(_request_key(request), None)
         self._cleanup_request(request)
 
     def _cleanup_request(self, request: _PhocCaptureRequest) -> None:
         _cleanup_capture_request(request)
+
+
+def _request_key(
+    request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
+) -> _PreviewKey:
+    return (request.window_id, request.requested_width, request.requested_height)
+
+
+def _drop_window(cache: dict[_PreviewKey, PreviewImage], window_id: WindowId) -> None:
+    """Forget every cached size of one window."""
+    for key in [key for key in cache if key[0] == window_id]:
+        del cache[key]
 
 
 def _allocate_shm_buffer(

@@ -121,6 +121,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
+from docking.core.config import DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.backends.base import Size, WindowId, WindowService, WindowSnapshot
@@ -133,11 +134,12 @@ if TYPE_CHECKING:
 
 log = get_logger(name="preview")
 
-THUMB_W = 200
+THUMB_W = DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
 THUMB_H = 150
 POPUP_PADDING = 8
 THUMB_SPACING = 8
-LABEL_MAX_CHARS = 25
+LABEL_CHARS_DIVISOR = 8
+LABEL_MIN_CHARS = 12
 PREVIEW_HIDE_DELAY_MS = 300
 ICON_FALLBACK_SIZE = 64
 PREVIEW_GAP_PX = 40
@@ -170,6 +172,17 @@ _CSS = b"""
     margin-top: -4px;
 }
 """
+
+
+def thumbnail_size(width: int) -> tuple[int, int]:
+    """Return (width, height) for a thumbnail, keeping the 4:3 default ratio."""
+    height = (2 * width * THUMB_H + THUMB_W) // (2 * THUMB_W)
+    return width, height
+
+
+def label_max_chars(width: int) -> int:
+    """Title length that fits under a thumbnail of ``width`` pixels."""
+    return max(LABEL_MIN_CHARS, width // LABEL_CHARS_DIVISOR)
 
 
 def _install_css() -> None:
@@ -206,6 +219,7 @@ class PreviewPopup(Gtk.Window):
         self._hide_timer_id: int = 0
         self._current_desktop_id: str = ""
         self._thumbnail_outline_enabled: Callable[[], bool] = lambda: False
+        self._thumbnail_width: Callable[[], int] = lambda: THUMB_W
 
         self.set_decorated(False)
         self.set_skip_taskbar_hint(True)
@@ -229,6 +243,10 @@ class PreviewPopup(Gtk.Window):
     def set_thumbnail_outline_enabled(self, enabled: Callable[[], bool]) -> None:
         """Set the live probe for the hovered-thumbnail border (polled per hover)."""
         self._thumbnail_outline_enabled = enabled
+
+    def set_thumbnail_width_probe(self, probe: Callable[[], int]) -> None:
+        """Set the live thumbnail width probe (polled each time the popup is built)."""
+        self._thumbnail_width = probe
 
     def set_pointer_inside_dock_probe(self, probe: Callable[[], bool]) -> None:
         self._pointer_inside_dock = probe
@@ -368,8 +386,9 @@ class PreviewPopup(Gtk.Window):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         # Thumbnail image
+        thumb_w, thumb_h = thumbnail_size(self._thumbnail_width())
         preview = self._preview_service.capture(
-            window.id, width=THUMB_W, height=THUMB_H
+            window.id, width=thumb_w, height=thumb_h
         )
         if preview is not None:
             image = Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
@@ -377,13 +396,14 @@ class PreviewPopup(Gtk.Window):
             image = Gtk.Image.new_from_icon_name(
                 fallback_icon_name, Gtk.IconSize.DIALOG
             )
-        image.set_size_request(THUMB_W, THUMB_H)
+        image.set_size_request(thumb_w, thumb_h)
         vbox.pack_start(image, False, False, 0)
 
         # Window title
         title = window.title
-        if len(title) > LABEL_MAX_CHARS:
-            title = title[: LABEL_MAX_CHARS - 1] + "\u2026"
+        max_chars = label_max_chars(thumb_w)
+        if len(title) > max_chars:
+            title = title[: max_chars - 1] + "\u2026"
         label = Gtk.Label(label=title)
         label.get_style_context().add_class("preview-label")
         label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
