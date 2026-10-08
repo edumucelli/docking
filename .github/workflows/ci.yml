@@ -1,13 +1,12 @@
 name: CI
 
-# ── Supply-chain cooldown ─────────────────────────────────────────────
+# Supply-chain cooldown
 # Every pip install step exports PIP_UPLOADED_PRIOR_TO set to 7 days ago
 # (pip >= 26.1).  This prevents freshly-published packages from being
 # resolved, mitigating supply-chain attacks where a compromised release
 # is pushed to PyPI.  Dependabot is also configured with a weekly schedule
-# (.github/dependabot.yml) so new versions age at least 0–7 days before a PR
+# (.github/dependabot.yml) so new versions age at least 0 to 7 days before a PR
 # is opened.
-# ──────────────────────────────────────────────────────────────────────
 
 on:
   push:
@@ -16,7 +15,7 @@ on:
   pull_request:
     branches: [master]
 
-# ── Transient-failure hardening ───────────────────────────────────────
+# Transient-failure hardening
 # pip resolves PIP_<OPTION> for every CLI flag, so these cover every pip
 # invocation in this workflow (and the ones inside packaging/*/build.sh)
 # without touching a single call site.  --timeout defaults to 15s, which is

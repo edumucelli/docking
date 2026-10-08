@@ -11,7 +11,7 @@ on:
   schedule:
     - cron: "23 4 * * 1"
 
-# ── Transient-failure hardening ───────────────────────────────────────
+# Transient-failure hardening
 # pip resolves PIP_<OPTION> for every CLI flag, so these apply to every pip
 # invocation in this workflow without touching a call site.  Note they do NOT
 # reach into `docker run` containers, which need -e passed explicitly.
