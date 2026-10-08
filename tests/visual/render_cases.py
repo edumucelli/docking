@@ -300,7 +300,7 @@ def _folder_stack_handler() -> MenuHandler:
     config = SimpleNamespace(
         lock_icons=False,
         hide_mode="autohide",
-        previews_enabled=True,
+        window_preview_thumbnails_enabled=True,
         tooltips_enabled=True,
         monitor_index=-1,
         active_display=False,

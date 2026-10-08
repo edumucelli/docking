@@ -1383,7 +1383,7 @@ class DockHarness:
             hover=None,
         )
         self._hover_config = SimpleNamespace(
-            previews_enabled=True,
+            window_preview_thumbnails_enabled=True,
             icon_size=48,
             pos=Position.BOTTOM,
             tooltips_enabled=True,

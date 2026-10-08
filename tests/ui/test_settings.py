@@ -736,8 +736,8 @@ def _parent_window(display: FakeDisplay | None = None):
 def _config():
     return SimpleNamespace(
         hide_mode="autohide",
-        previews_enabled=True,
-        preview_thumbnail_outline=True,
+        window_preview_thumbnails_enabled=True,
+        window_preview_highlight_thumbnails_on_hover=True,
         window_preview_thumbnail_width=200,
         tooltips_enabled=True,
         left_click_action="toggle",
@@ -838,8 +838,18 @@ class TestSettingsWindowController:
         assert section_labels == [
             "<b>Look</b>",
             "<b>Placement</b>",
+            "<b>Preview</b>",
             "<b>Monitor</b>",
             "<b>Layout</b>",
+        ]
+        preview_section = appearance_box.get_children()[2]
+        assert [
+            row.get_children()[0].get_label()
+            for row in preview_section.get_children()[1].get_children()
+        ] == [
+            "Display Window Preview Thumbnails",
+            "Outline Thumbnail on Hover",
+            "Thumbnail Width",
         ]
         behavior_box = _stack_page_child(stack, 1)
         behavior_labels = [
@@ -1175,7 +1185,7 @@ class TestSettingsWindowController:
             "Zoom",
             "Zoom Percent",
             "Show Tooltips",
-            "Window Previews",
+            "Display Window Preview Thumbnails",
             "Show Window Counts",
             "Application Badges",
             "Application Progress",
@@ -1602,10 +1612,11 @@ class TestSettingsWindowController:
         assert controller._zoom_percent_spin.sensitive is False
 
     @pytest.mark.parametrize(
-        ("previews_enabled", "expected_sensitive"), [(True, True), (False, False)]
+        ("window_preview_thumbnails_enabled", "expected_sensitive"),
+        [(True, True), (False, False)],
     )
-    def test_thumbnail_controls_follow_previews_switch(
-        self, monkeypatch, previews_enabled, expected_sensitive
+    def test_thumbnail_controls_follow_window_preview_thumbnails_enabled_switch(
+        self, monkeypatch, window_preview_thumbnails_enabled, expected_sensitive
     ):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
@@ -1613,7 +1624,7 @@ class TestSettingsWindowController:
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
-        config.previews_enabled = previews_enabled
+        config.window_preview_thumbnails_enabled = window_preview_thumbnails_enabled
         controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
@@ -1623,7 +1634,7 @@ class TestSettingsWindowController:
 
         controller.show()
 
-        switch = controller._preview_thumbnail_outline_switch
+        switch = controller._window_preview_highlight_thumbnails_on_hover_switch
         assert switch.sensitive is expected_sensitive
         assert (
             controller._window_preview_thumbnail_width_spin.sensitive
@@ -1645,10 +1656,12 @@ class TestSettingsWindowController:
         )
 
         controller.show()
-        controller._preview_thumbnail_outline_switch.set_active(False)
-        controller._preview_thumbnail_outline_switch.emit_notify_active()
+        controller._window_preview_highlight_thumbnails_on_hover_switch.set_active(
+            False
+        )
+        controller._window_preview_highlight_thumbnails_on_hover_switch.emit_notify_active()
 
-        assert config.preview_thumbnail_outline is False
+        assert config.window_preview_highlight_thumbnails_on_hover is False
 
     def test_thumbnail_width_spin_range_and_persistence(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

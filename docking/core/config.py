@@ -267,8 +267,8 @@ DEFAULT_MONITOR_INDEX = -1
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
 DEFAULT_HIDE_TIME_MS = 250
-DEFAULT_PREVIEWS_ENABLED = True
-DEFAULT_PREVIEW_THUMBNAIL_OUTLINE = False
+DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED = True
+DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER = False
 DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH = 200
 DEFAULT_LOCK_ICONS = False
 DEFAULT_CURRENT_WORKSPACE_ONLY = False
@@ -790,8 +790,10 @@ class Config:
     # Duration of the hide/show slide animation in ms
     hide_time_ms: int = DEFAULT_HIDE_TIME_MS
     # Whether to show window preview thumbnails on hover
-    previews_enabled: bool = DEFAULT_PREVIEWS_ENABLED
-    preview_thumbnail_outline: bool = DEFAULT_PREVIEW_THUMBNAIL_OUTLINE
+    window_preview_thumbnails_enabled: bool = DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED
+    window_preview_highlight_thumbnails_on_hover: bool = (
+        DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER
+    )
     # Width in pixels of window preview thumbnails (height keeps the 4:3 ratio)
     window_preview_thumbnail_width: int = DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
     # Whether icon reordering, drag-in, and drag-off removal are locked
@@ -929,13 +931,13 @@ class Config:
             default=DEFAULT_HIDE_TIME_MS,
             minimum=0,
         )
-        self.previews_enabled = _normalize_bool(
-            self.previews_enabled,
-            default=DEFAULT_PREVIEWS_ENABLED,
+        self.window_preview_thumbnails_enabled = _normalize_bool(
+            self.window_preview_thumbnails_enabled,
+            default=DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED,
         )
-        self.preview_thumbnail_outline = _normalize_bool(
-            self.preview_thumbnail_outline,
-            default=DEFAULT_PREVIEW_THUMBNAIL_OUTLINE,
+        self.window_preview_highlight_thumbnails_on_hover = _normalize_bool(
+            self.window_preview_highlight_thumbnails_on_hover,
+            default=DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER,
         )
         self.window_preview_thumbnail_width = _normalize_int(
             self.window_preview_thumbnail_width,
@@ -1159,6 +1161,13 @@ class Config:
         data = _read_config_data(path=path)
         if "stack_unfold" not in data and "folder_stack_unfold" in data:
             data["stack_unfold"] = data["folder_stack_unfold"]
+        legacy_window_preview_keys = {
+            "previews_enabled": "window_preview_thumbnails_enabled",
+            "preview_thumbnail_outline": "window_preview_highlight_thumbnails_on_hover",
+        }
+        for old_key, new_key in legacy_window_preview_keys.items():
+            if new_key not in data and old_key in data:
+                data[new_key] = data[old_key]
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered and isinstance(filtered["pinned"], list):

@@ -86,7 +86,7 @@ BASE_CONFIG = {
     "pinned": STATIC_PINNED,
     "recent_apps": [],
     "show_window_count_numbers": False,
-    "previews_enabled": False,
+    "window_preview_thumbnails_enabled": False,
     "active_display": False,
 }
 

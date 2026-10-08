@@ -76,7 +76,7 @@ class _ScenarioHarness:
             zoom_percent=1.5,
             scaled_icon_size=72,
             zoom_enabled=True,
-            previews_enabled=True,
+            window_preview_thumbnails_enabled=True,
             stack_unfold="click",
             lock_icons=False,
             pinned=[],

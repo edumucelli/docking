@@ -294,7 +294,7 @@ class HoverManager:
 
         if not self._preview:
             return
-        if not self._config.previews_enabled:
+        if not self._config.window_preview_thumbnails_enabled:
             self.cancel()
             return
 
@@ -377,7 +377,7 @@ class HoverManager:
             not self._preview
             or self.hovered_item is not item
             or not self._window.dock_hovered
-            or not self._config.previews_enabled
+            or not self._config.window_preview_thumbnails_enabled
             or not item.is_running
             or item.instance_count <= 0
         ):

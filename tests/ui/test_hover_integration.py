@@ -44,7 +44,7 @@ def _make_hover():
     )
     model = MagicMock()
     config = SimpleNamespace(
-        previews_enabled=True,
+        window_preview_thumbnails_enabled=True,
         icon_size=48,
         pos=Position.BOTTOM,
     )
@@ -112,7 +112,7 @@ class TestHoverUpdates:
         frame.hover_item_at_point.return_value = item
         preview = MagicMock()
         hover.set_preview(preview)
-        config.previews_enabled = True
+        config.window_preview_thumbnails_enabled = True
 
         # When
         hover.update(cursor_main=20.0)
@@ -224,7 +224,7 @@ class TestPreviewReentry:
         hover, _window, config, frame, item, _preview, timer = retained_hover
         hover._preview_timer_id = 55
         if reason == "disabled":
-            config.previews_enabled = False
+            config.window_preview_thumbnails_enabled = False
         elif reason == "stopped":
             item.is_running = False
         else:
@@ -242,7 +242,7 @@ class TestPreviewReentry:
         if reason == "off-dock":
             window.dock_hovered = False
         elif reason == "disabled":
-            config.previews_enabled = False
+            config.window_preview_thumbnails_enabled = False
         elif reason == "stopped":
             item.is_running = False
         else:

@@ -162,7 +162,7 @@ def _config() -> object:
         icon_size=ICON_SIZE,
         zoom_percent=1.5,
         zoom_enabled=True,
-        previews_enabled=False,
+        window_preview_thumbnails_enabled=False,
         tooltips_enabled=True,
     )
 

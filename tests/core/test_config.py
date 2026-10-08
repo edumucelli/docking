@@ -33,7 +33,7 @@ class TestConfigDefaults:
         assert c.monitor_index == -1
         assert c.hide_mode == "none"
         assert c.hide_delay_ms == 0
-        assert c.previews_enabled is True
+        assert c.window_preview_thumbnails_enabled is True
         assert c.tooltips_enabled is True
         assert c.update_check_enabled is True
         assert c.update_check_interval_hours == 24
@@ -52,26 +52,28 @@ class TestConfigDefaults:
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
 
-    def test_previews_enabled_default_true(self):
+    def test_window_preview_thumbnails_enabled_default_true(self):
         # Given / When
         c = Config()
         # Then
-        assert c.previews_enabled is True
+        assert c.window_preview_thumbnails_enabled is True
 
-    def test_preview_thumbnail_outline_default_false(self):
+    def test_window_preview_highlight_thumbnails_on_hover_default_false(self):
         # Given / When
         c = Config()
         # Then
-        assert c.preview_thumbnail_outline is False
+        assert c.window_preview_highlight_thumbnails_on_hover is False
 
-    def test_preview_thumbnail_outline_normalizes_and_roundtrips(self):
+    def test_window_preview_highlight_thumbnails_on_hover_normalizes_and_roundtrips(
+        self,
+    ):
         # Given / When
-        on = Config(preview_thumbnail_outline="yes")
-        junk = Config(preview_thumbnail_outline="garbage")
+        on = Config(window_preview_highlight_thumbnails_on_hover="yes")
+        junk = Config(window_preview_highlight_thumbnails_on_hover="garbage")
         # Then
-        assert on.preview_thumbnail_outline is True
-        assert junk.preview_thumbnail_outline is False
-        assert on.to_dict()["preview_thumbnail_outline"] is True
+        assert on.window_preview_highlight_thumbnails_on_hover is True
+        assert junk.window_preview_highlight_thumbnails_on_hover is False
+        assert on.to_dict()["window_preview_highlight_thumbnails_on_hover"] is True
 
     def test_window_preview_thumbnail_width_default_200(self):
         # Given / When
@@ -122,7 +124,7 @@ class TestConfigDefaults:
             monitor_index="bad",
             hide_delay_ms="bad",
             transparency="bad",
-            previews_enabled="off",
+            window_preview_thumbnails_enabled="off",
             lock_icons="on",
             current_workspace_only=0,
             anchor_applets=1,
@@ -143,7 +145,7 @@ class TestConfigDefaults:
         assert c.monitor_index == -1
         assert c.hide_delay_ms == 0
         assert c.transparency == 1.0
-        assert c.previews_enabled is False
+        assert c.window_preview_thumbnails_enabled is False
         assert c.lock_icons is True
         assert c.current_workspace_only is False
         assert c.anchor_applets is True
@@ -253,15 +255,60 @@ class TestConfigLoad:
             for applet_id in config_mod.STARTER_APPLET_IDS
         ]
 
-    def test_load_previews_enabled(self, tmp_path):
+    def test_load_window_preview_thumbnails_enabled(self, tmp_path):
         # Given
         path = tmp_path / "dock.json"
-        data = {"previews_enabled": False}
+        data = {"window_preview_thumbnails_enabled": False}
         path.write_text(json.dumps(data))
         # When
         config = Config.load(path)
         # Then
-        assert config.previews_enabled is False
+        assert config.window_preview_thumbnails_enabled is False
+
+    @pytest.mark.parametrize(
+        ("legacy_key", "new_key"),
+        [
+            ("previews_enabled", "window_preview_thumbnails_enabled"),
+            (
+                "preview_thumbnail_outline",
+                "window_preview_highlight_thumbnails_on_hover",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("value", [True, False, "on", "off"])
+    def test_legacy_window_preview_settings_migrate_and_save(
+        self, tmp_path, legacy_key, new_key, value
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({legacy_key: value}))
+
+        config = Config.load(path)
+
+        assert getattr(config, new_key) is (value in (True, "on"))
+        config.save()
+        saved = json.loads(path.read_text())
+        assert saved[new_key] is getattr(config, new_key)
+        assert legacy_key not in saved
+        assert getattr(Config.load(path), new_key) is getattr(config, new_key)
+
+    @pytest.mark.parametrize(
+        ("legacy_key", "new_key"),
+        [
+            ("previews_enabled", "window_preview_thumbnails_enabled"),
+            (
+                "preview_thumbnail_outline",
+                "window_preview_highlight_thumbnails_on_hover",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("value", [True, False])
+    def test_new_window_preview_settings_take_precedence(
+        self, tmp_path, legacy_key, new_key, value
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({legacy_key: not value, new_key: value}))
+
+        assert getattr(Config.load(path), new_key) is value
 
     def test_load_tooltips_enabled(self, tmp_path):
         # Given
@@ -355,7 +402,7 @@ class TestConfigLoad:
             json.dumps(
                 {
                     "hide_mode": "autohide",
-                    "previews_enabled": "false",
+                    "window_preview_thumbnails_enabled": "false",
                     "tooltips_enabled": "yes",
                     "zoom_enabled": 0,
                     "left_click_action": "cycle",
@@ -372,7 +419,7 @@ class TestConfigLoad:
         config = Config.load(path)
 
         assert config.hide_mode == "autohide"
-        assert config.previews_enabled is False
+        assert config.window_preview_thumbnails_enabled is False
         assert config.tooltips_enabled is True
         assert config.zoom_enabled is False
         assert config.left_click_action == "cycle"

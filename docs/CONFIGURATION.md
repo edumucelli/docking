@@ -65,12 +65,17 @@ should not be edited by hand.
 | `zoom_percent` | `1.5` | `1.0` to `4.0` | Maximum zoom multiplier. `1.5` is 150 percent. |
 | `zoom_range` | `3` | integer, minimum `0` | Number of icon widths over which parabolic zoom tapers off. This is currently file-only. |
 | `tooltips_enabled` | `true` | boolean | Shows item names and dynamic details on hover. |
-| `previews_enabled` | `true` | boolean | Shows window thumbnails when hovering over running applications. |
-| `preview_thumbnail_outline` | `false` | boolean | Draws a blue border around the preview thumbnail under the pointer. Off by default to keep the popup minimal. Works on every session type. |
+| `window_preview_thumbnails_enabled` | `true` | boolean | Shows window thumbnails when hovering over running applications. |
+| `window_preview_highlight_thumbnails_on_hover` | `false` | boolean | Draws a blue border around the preview thumbnail under the pointer. Off by default to keep the popup minimal. Works on every session type. |
 | `window_preview_thumbnail_width` | `200` | integer, `120` to `400` | Width in pixels of window preview thumbnails; the height follows a 4:3 ratio and the title length shown under each thumbnail scales with the width. Applied the next time a preview opens. |
 | `show_window_count_numbers` | `false` | boolean | Adds a number to a running indicator when an application has multiple windows. |
 | `show_launcher_badges` | `true` | boolean | Shows numeric counts reported through launcher integration. |
 | `show_launcher_progress` | `true` | boolean | Shows progress reported through launcher integration. |
+
+The Appearance tab groups the thumbnail controls under **Preview**.
+Older configuration files using `previews_enabled` or `preview_thumbnail_outline`
+are migrated when loaded. The new `window_preview_` keys take precedence when
+both names are present, and subsequent saves use only the new names.
 
 See the [Themes guide](THEMES.md) for theme locations, built-in themes, and the
 custom theme format.

@@ -445,7 +445,7 @@ class DockWindow(Gtk.Window):
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
         self.preview.set_thumbnail_outline_enabled(
-            lambda: self.config.preview_thumbnail_outline
+            lambda: self.config.window_preview_highlight_thumbnails_on_hover
         )
         self.preview.set_thumbnail_width_probe(
             lambda: self.config.window_preview_thumbnail_width

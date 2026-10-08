@@ -45,7 +45,9 @@ def preview_hover(preview):
             draw_rect=SimpleNamespace(x=600, y=740, w=48, h=48)
         ),
     )
-    config = SimpleNamespace(previews_enabled=True, pos=Position.BOTTOM)
+    config = SimpleNamespace(
+        window_preview_thumbnails_enabled=True, pos=Position.BOTTOM
+    )
     hover = HoverManager(
         window=window,
         config=config,

@@ -267,8 +267,8 @@ class SettingsWindowController:
         self._window_count_numbers_switch: Any = None
         self._launcher_badges_switch: Any = None
         self._launcher_progress_switch: Any = None
-        self._previews_switch: Any = None
-        self._preview_thumbnail_outline_switch: Any = None
+        self._window_preview_thumbnails_enabled_switch: Any = None
+        self._window_preview_highlight_thumbnails_on_hover_switch: Any = None
         self._window_preview_thumbnail_width_spin: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -431,8 +431,8 @@ class SettingsWindowController:
         ]:
             self._window_list_sort_combo.append(sort_value, sort_label)
 
-        self._previews_switch = self._new_switch()
-        self._preview_thumbnail_outline_switch = self._new_switch()
+        self._window_preview_thumbnails_enabled_switch = self._new_switch()
+        self._window_preview_highlight_thumbnails_on_hover_switch = self._new_switch()
         self._window_preview_thumbnail_width_spin = self._new_numeric_spin_button(
             minimum=MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
             maximum=MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
@@ -660,24 +660,6 @@ class SettingsWindowController:
                     _("Show item names and details when hovering over dock items."),
                 ),
                 (
-                    _("Window Previews"),
-                    self._previews_switch,
-                    _("Show window thumbnails when hovering over running apps."),
-                ),
-                (
-                    _("Outline Thumbnail on Hover"),
-                    self._preview_thumbnail_outline_switch,
-                    _("Highlight the thumbnail under the pointer in the preview."),
-                ),
-                (
-                    _("Thumbnail Width"),
-                    self._window_preview_thumbnail_width_spin,
-                    _(
-                        "Set the width in pixels of window thumbnails. "
-                        "Wider thumbnails also show more of the window title."
-                    ),
-                ),
-                (
                     _("Show Window Counts"),
                     self._window_count_numbers_switch,
                     _(
@@ -719,6 +701,30 @@ class SettingsWindowController:
                     _(
                         "Show running windows only from the active workspace "
                         "when supported."
+                    ),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Preview"),
+            rows=[
+                (
+                    _("Display Window Preview Thumbnails"),
+                    self._window_preview_thumbnails_enabled_switch,
+                    _("Show window thumbnails when hovering over running apps."),
+                ),
+                (
+                    _("Outline Thumbnail on Hover"),
+                    self._window_preview_highlight_thumbnails_on_hover_switch,
+                    _("Highlight the thumbnail under the pointer in the preview."),
+                ),
+                (
+                    _("Thumbnail Width"),
+                    self._window_preview_thumbnail_width_spin,
+                    _(
+                        "Set the width in pixels of window thumbnails. "
+                        "Wider thumbnails also show more of the window title."
                     ),
                 ),
             ],
@@ -1226,16 +1232,16 @@ class SettingsWindowController:
                 on_change=self._actions.refresh_launcher_overlay_visibility,
             ),
             self._register_switch_binding(
-                config_attr="previews_enabled",
-                widget=self._previews_switch,
+                config_attr="window_preview_thumbnails_enabled",
+                widget=self._window_preview_thumbnails_enabled_switch,
             ),
             self._register_int_binding(
                 config_attr="window_preview_thumbnail_width",
                 widget=self._window_preview_thumbnail_width_spin,
             ),
             self._register_switch_binding(
-                config_attr="preview_thumbnail_outline",
-                widget=self._preview_thumbnail_outline_switch,
+                config_attr="window_preview_highlight_thumbnails_on_hover",
+                widget=self._window_preview_highlight_thumbnails_on_hover_switch,
             ),
             self._register_switch_binding(
                 config_attr="tooltips_enabled",
@@ -1783,13 +1789,13 @@ class SettingsWindowController:
         self._actions.reposition()
 
     def _update_dependent_sensitivity(self) -> None:
-        if self._preview_thumbnail_outline_switch is not None:
-            self._preview_thumbnail_outline_switch.set_sensitive(
-                bool(self._config.previews_enabled)
+        if self._window_preview_highlight_thumbnails_on_hover_switch is not None:
+            self._window_preview_highlight_thumbnails_on_hover_switch.set_sensitive(
+                bool(self._config.window_preview_thumbnails_enabled)
             )
         if self._window_preview_thumbnail_width_spin is not None:
             self._window_preview_thumbnail_width_spin.set_sensitive(
-                bool(self._config.previews_enabled)
+                bool(self._config.window_preview_thumbnails_enabled)
             )
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))

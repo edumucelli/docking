@@ -523,7 +523,9 @@ class TestPreviewPopupIntegration:
 
     def test_thumb_enter_does_not_set_prelight_with_default_config(self):
         popup = _make_popup()
-        popup._thumbnail_outline_enabled = lambda: Config().preview_thumbnail_outline
+        popup._thumbnail_outline_enabled = lambda: (
+            Config().window_preview_highlight_thumbnails_on_hover
+        )
         widget = MagicMock()
 
         preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock())
