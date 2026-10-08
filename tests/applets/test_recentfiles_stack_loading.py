@@ -38,7 +38,7 @@ def test_only_visible_stack_entries_resolve_icons(applet, count):
     visible = entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
     icons = {entry.uri: object() for entry in visible}
     applet._target_service.resolve_file.side_effect = lambda uri, _size: (
-        SimpleNamespace(icon=icons[uri])
+        SimpleNamespace(icon=icons[uri], is_thumbnail=False)
     )
 
     content = applet.stack_content(32)
@@ -55,6 +55,7 @@ def test_only_visible_stack_entries_resolve_icons(applet, count):
         entry.name for entry in visible
     ]
     assert [entry.icon for entry in content.entries] == list(icons.values())
+    assert not any(entry.thumbnail_style for entry in content.entries)
     for entry in content.entries:
         entry.activate()
     assert applet._target_service.open_target.call_args_list == [
@@ -73,6 +74,7 @@ def test_hidden_stack_entries_remain_in_menu_and_can_be_opened(applet):
     menu = applet.get_menu_items()
 
     assert len(content.entries) == FOLDER_STACK_MAX_VISIBLE_ROWS
+    assert not any(entry.thumbnail_style for entry in content.entries)
     assert [item.get_label() for item in menu[:MAX_ENTRIES]] == [
         entry.name for entry in entries
     ]
@@ -98,3 +100,25 @@ def test_stack_fallback_icons_are_loaded_only_for_visible_entries(applet):
         applet._icon_loader.load_icon.call_args_list
         == [call("text-x-generic", 64)] * FOLDER_STACK_MAX_VISIBLE_ROWS
     )
+
+
+def test_only_successful_image_thumbnails_receive_rounded_style(applet):
+    applet._entries = [
+        RecentEntry(name=name, uri=f"file:///{name}")
+        for name in ("photo.jpeg", "screenshot.png", "broken.png", "report.txt")
+    ]
+    applet._target_service.resolve_file.side_effect = [
+        SimpleNamespace(icon=object(), is_thumbnail=True),
+        SimpleNamespace(icon=object(), is_thumbnail=True),
+        SimpleNamespace(icon=object(), is_thumbnail=False),
+        SimpleNamespace(icon=object(), is_thumbnail=False),
+    ]
+
+    content = applet.stack_content(48)
+
+    assert [entry.thumbnail_style for entry in content.entries] == [
+        True,
+        True,
+        False,
+        False,
+    ]

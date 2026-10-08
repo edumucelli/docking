@@ -176,7 +176,7 @@ class TestApplet:
             "file:///b.txt": object(),
         }
         applet._target_service.resolve_file.side_effect = lambda uri, _size: (
-            SimpleNamespace(icon=icons[uri])
+            SimpleNamespace(icon=icons[uri], is_thumbnail=False)
         )
 
         content = applet.stack_content(32)

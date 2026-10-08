@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import tempfile
 import time
 from pathlib import Path
@@ -60,6 +61,7 @@ SHORT_STACK_CASES = (
     "item-stack-two-items-bottom",
     "item-stack-three-items-bottom",
 )
+RECENTFILES_STACK_CASES = ("recentfiles-stack-images-bottom",)
 POPUP_CASES = (
     "tooltip-open-bottom",
     "preview-popup-open-bottom",
@@ -79,6 +81,7 @@ VISUAL_CASES = (
     + POSITION_CHANGE_CASES
     + FOLDER_STACK_CASES
     + SHORT_STACK_CASES
+    + RECENTFILES_STACK_CASES
     + POPUP_CASES
     + SEARCH_CASES
 )
@@ -368,6 +371,57 @@ def _folder_stack_rows() -> list[dict[str, object]]:
     return rows
 
 
+def _recentfiles_stack_entries() -> tuple[StackEntry, ...]:
+    """Mixed image and document fixtures, independent of the installed icon theme."""
+    entries = []
+    for name in ("Holiday.jpeg", "Screenshot.png", "Report.txt", "Transparent.png"):
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, ICON_SIZE, ICON_SIZE)
+        cr = cairo.Context(surface)
+        if name == "Report.txt":
+            cr.set_source_rgb(0.96, 0.96, 0.96)
+            cr.rectangle(8, 2, 32, 44)
+            cr.fill()
+            cr.set_source_rgb(0.55, 0.55, 0.55)
+            for y in range(12, 38, 5):
+                cr.rectangle(13, y, 22, 1)
+                cr.fill()
+        elif name == "Screenshot.png":
+            cr.set_source_rgb(0.08, 0.12, 0.16)
+            cr.paint()
+            for y in range(7, 42, 5):
+                cr.set_source_rgb(0.3, 0.55, 0.8)
+                cr.rectangle(5, y, 24 + y % 12, 2)
+                cr.fill()
+        else:
+            sky = cairo.LinearGradient(0, 0, 0, ICON_SIZE)
+            sky.add_color_stop_rgb(0, 0.25, 0.6, 0.9)
+            sky.add_color_stop_rgb(1, 0.8, 0.92, 1)
+            cr.set_source(sky)
+            cr.paint()
+            cr.set_source_rgb(0.23, 0.5, 0.26)
+            cr.move_to(0, 35)
+            cr.line_to(16, 20)
+            cr.line_to(35, 38)
+            cr.line_to(48, 29)
+            cr.line_to(48, 48)
+            cr.line_to(0, 48)
+            cr.fill()
+            if name == "Transparent.png":
+                cr.set_operator(cairo.OPERATOR_CLEAR)
+                cr.arc(24, 24, 8, 0, math.tau)
+                cr.fill()
+        entries.append(
+            StackEntry(
+                key=name,
+                label=name,
+                icon=Gdk.pixbuf_get_from_surface(surface, 0, 0, ICON_SIZE, ICON_SIZE),
+                activate=lambda: None,
+                thumbnail_style=name != "Report.txt",
+            )
+        )
+    return tuple(entries)
+
+
 def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
     handler = _folder_stack_handler()
     folder_item = DockItem(
@@ -376,7 +430,11 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
         target="file:///tmp/docs",
     )
     rows = _folder_stack_rows()
-    if case_name in SHORT_STACK_CASES:
+    if case_name in RECENTFILES_STACK_CASES:
+        cards, popup_w, popup_h = handler._folder_stack._stack_cards_for_content(
+            StackContent(entries=_recentfiles_stack_entries())
+        )
+    elif case_name in SHORT_STACK_CASES:
         count = 2 if case_name == "item-stack-two-items-bottom" else 3
         content = StackContent(
             entries=tuple(
@@ -403,13 +461,22 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
             card.target for card in cards if card.target and card.label == "Notes"
         )
         handler._folder_stack._folder_stack_hover_values[hover_target] = 1.0
-    elif case_name not in ("folder-stack-open-bottom", *SHORT_STACK_CASES):
+    elif case_name not in (
+        "folder-stack-open-bottom",
+        *SHORT_STACK_CASES,
+        *RECENTFILES_STACK_CASES,
+    ):
         raise AssertionError(f"Unknown folder stack case {case_name}")
 
     surface = cairo.ImageSurface(
         cairo.FORMAT_ARGB32,
         max(popup_w, STACK_WIDTH),
-        max(popup_h, 180 if case_name in SHORT_STACK_CASES else STACK_HEIGHT),
+        max(
+            popup_h,
+            180
+            if case_name in (*SHORT_STACK_CASES, *RECENTFILES_STACK_CASES)
+            else STACK_HEIGHT,
+        ),
     )
     cr = cairo.Context(surface)
     cr.set_operator(cairo.OPERATOR_CLEAR)
@@ -722,7 +789,7 @@ def render_case(case_name: str) -> cairo.ImageSurface:
         return _draw_renderer_case(case_name=case_name)
     if case_name == "dock-position-change-right-to-top":
         return _draw_position_change_case()
-    if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES):
+    if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES, *RECENTFILES_STACK_CASES):
         return _draw_folder_stack_case(case_name=case_name)
     if case_name == "tooltip-open-bottom":
         return _draw_tooltip_case()

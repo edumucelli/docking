@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -79,6 +80,24 @@ def test_layout_limits_provider_entries(caplog):
 
     assert len(layout.cards) == FOLDER_STACK_MAX_VISIBLE_ROWS
     assert "displaying the first" in caplog.text
+
+
+def test_thumbnail_style_invalidates_cached_layout_and_refresh_signature():
+    controller = _controller()
+    original = StackContent(entries=(_entry("photo"),))
+    styled = replace(
+        original,
+        entries=(replace(original.entries[0], thumbnail_style=True),),
+    )
+    first = controller._stack_layout(owner_id="recentfiles", content=original)
+    second = controller._stack_layout(owner_id="recentfiles", content=styled)
+
+    assert controller._stack_content_signature(original) != (
+        controller._stack_content_signature(styled)
+    )
+    assert not first.cards[0].thumbnail_style
+    assert second.cards[0].thumbnail_style
+    assert controller._stack_layout(owner_id="recentfiles", content=styled) is second
 
 
 def test_documented_curve_samples_for_48px_icons():

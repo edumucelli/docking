@@ -77,6 +77,9 @@ FOLDER_STACK_HOVER_SCALE = 1.14
 FOLDER_STACK_HOVER_EASE = 0.35
 FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES = 32
 FOLDER_STACK_REFRESH_DEBOUNCE_MS = 120
+STACK_THUMBNAIL_RADIUS_FACTOR = 3.0 / 48
+STACK_THUMBNAIL_SHADOW_OFFSET_FACTOR = 1.5 / 48
+STACK_THUMBNAIL_SHADOW_ALPHA = 0.10
 
 log = get_logger("stack")
 
@@ -105,6 +108,7 @@ class StackEntry:
     label: str
     icon: GdkPixbuf.Pixbuf | None
     activate: Callable[[], None]
+    thumbnail_style: bool = False
 
 
 @dataclass(frozen=True)
@@ -144,6 +148,7 @@ class StackCard:
     action: bool = False
     stack_progress: float = 0.0
     arc_span: float = 0.0
+    thumbnail_style: bool = False
 
     @property
     def key(self) -> str | None:
@@ -171,6 +176,32 @@ class StackLayout:
     popup_w: int
     popup_h: int
     fold_center_x: int
+
+
+def _draw_rounded_stack_thumbnail(
+    cr: cairo.Context,
+    pixbuf: GdkPixbuf.Pixbuf,
+    size: int,
+    geometry: StackCardGeometry,
+) -> None:
+    """Rotate a rounded image and its alpha-masked shadow as one unit."""
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    image_cr = cairo.Context(surface)
+    rounded_rect(image_cr, 0, 0, size, size, size * STACK_THUMBNAIL_RADIUS_FACTOR)
+    image_cr.clip()
+    Gdk.cairo_set_source_pixbuf(image_cr, pixbuf, 0, 0)
+    image_cr.paint()
+
+    half = size / 2
+    offset = size * STACK_THUMBNAIL_SHADOW_OFFSET_FACTOR
+    cr.save()
+    cr.translate(geometry.icon_center_x, geometry.icon_center_y)
+    cr.rotate(geometry.rotation_radians)
+    cr.set_source_rgba(0, 0, 0, STACK_THUMBNAIL_SHADOW_ALPHA * geometry.reveal)
+    cr.mask_surface(surface, -half + offset, -half + offset)
+    cr.set_source_surface(surface, -half, -half)
+    cr.paint_with_alpha(0.55 + 0.45 * geometry.reveal)
+    cr.restore()
 
 
 class StackLayoutCache:
@@ -437,7 +468,10 @@ class StackPopupController:
         """Return the visible structure while excluding replaceable callbacks."""
         entries = content.entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
         return (
-            tuple((entry.key, entry.label, id(entry.icon)) for entry in entries),
+            tuple(
+                (entry.key, entry.label, id(entry.icon), entry.thumbnail_style)
+                for entry in entries
+            ),
             (
                 (content.action.key, content.action.label)
                 if content.action is not None
@@ -962,6 +996,7 @@ class StackPopupController:
                     centered=False,
                     stack_progress=arc_progress,
                     arc_span=float(arc_span),
+                    thumbnail_style=entry.thumbnail_style,
                 )
             )
             max_right = max(max_right, icon_x + icon_px)
@@ -1149,29 +1184,32 @@ class StackPopupController:
                 if scaled is not None:
                     pixbuf = scaled
 
-            cr.save()
-            cr.translate(geometry.icon_center_x + 2, geometry.icon_center_y + 2)
-            cr.rotate(geometry.rotation_radians)
-            Gdk.cairo_set_source_pixbuf(
-                cr,
-                pixbuf,
-                -draw_icon_size / 2,
-                -draw_icon_size / 2,
-            )
-            cr.paint_with_alpha(0.16 * geometry.reveal)
-            cr.restore()
+            if card.thumbnail_style:
+                _draw_rounded_stack_thumbnail(cr, pixbuf, draw_icon_size, geometry)
+            else:
+                cr.save()
+                cr.translate(geometry.icon_center_x + 2, geometry.icon_center_y + 2)
+                cr.rotate(geometry.rotation_radians)
+                Gdk.cairo_set_source_pixbuf(
+                    cr,
+                    pixbuf,
+                    -draw_icon_size / 2,
+                    -draw_icon_size / 2,
+                )
+                cr.paint_with_alpha(0.16 * geometry.reveal)
+                cr.restore()
 
-            cr.save()
-            cr.translate(geometry.icon_center_x, geometry.icon_center_y)
-            cr.rotate(geometry.rotation_radians)
-            Gdk.cairo_set_source_pixbuf(
-                cr,
-                pixbuf,
-                -draw_icon_size / 2,
-                -draw_icon_size / 2,
-            )
-            cr.paint_with_alpha(0.55 + 0.45 * geometry.reveal)
-            cr.restore()
+                cr.save()
+                cr.translate(geometry.icon_center_x, geometry.icon_center_y)
+                cr.rotate(geometry.rotation_radians)
+                Gdk.cairo_set_source_pixbuf(
+                    cr,
+                    pixbuf,
+                    -draw_icon_size / 2,
+                    -draw_icon_size / 2,
+                )
+                cr.paint_with_alpha(0.55 + 0.45 * geometry.reveal)
+                cr.restore()
 
         radius = FOLDER_STACK_LABEL_RADIUS_PX
         label_center_x = geometry.label_x + card.label_w / 2
