@@ -2,18 +2,66 @@
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from docking.search.matcher import (
     SOURCE_BOOST_LIMIT,
     STATE_BOOST_LIMIT,
     MatchTier,
+    _fuzzy_positions,
     best_match,
     match_text,
     normalize_search_text,
     score_match,
 )
 from docking.search.types import SearchQuery
+
+
+def _reference_fuzzy_positions(query: str, candidate: str) -> tuple[int, ...] | None:
+    characters = (
+        (index, character)
+        for index, character in enumerate(candidate)
+        if character.isalnum()
+    )
+    positions = []
+    for character in query:
+        if not character.isalnum():
+            continue
+        index = next((index for index, value in characters if value == character), None)
+        if index is None:
+            return None
+        positions.append(index)
+    return tuple(positions) if positions else None
+
+
+@pytest.mark.parametrize(
+    ("query", "candidate", "positions"),
+    [
+        ("", "abc", None),
+        ("--", "abc", None),
+        ("aaa", "a---a.a", (0, 4, 6)),
+        ("aaa", "a--a", None),
+        ("a b", "a_b", (0, 2)),
+        ("12", "x1---2", (1, 5)),
+        ("abc", "acb", None),
+        ("a", "---a---", (3,)),
+    ],
+)
+def test_fuzzy_indices_and_order_are_preserved(query, candidate, positions):
+    assert _fuzzy_positions(query, candidate) == positions
+
+
+def test_fuzzy_matching_matches_reference_for_unicode_and_punctuation():
+    rng = random.Random(86927044)
+    alphabet = "abCDxyz123 -_./\u00e9\u03b1\u0414\u4e2d\u200d\u00b2"
+    for _ in range(20000):
+        query = "".join(rng.choices(alphabet, k=rng.randrange(14)))
+        candidate = "".join(rng.choices(alphabet, k=rng.randrange(90)))
+        assert _fuzzy_positions(query, candidate) == _reference_fuzzy_positions(
+            query, candidate
+        )
 
 
 def _match(query: str, candidate: str, **kwargs):
