@@ -116,27 +116,17 @@ def _token_start_positions(query: str, candidate: str) -> tuple[int, ...] | None
 
 
 def _fuzzy_positions(query: str, candidate: str) -> tuple[int, ...] | None:
-    query_characters = [character for character in query if character.isalnum()]
-    if not query_characters:
-        return None
-
-    candidate_characters = [
-        (index, character)
-        for index, character in enumerate(candidate)
-        if character.isalnum()
-    ]
     positions: list[int] = []
-    candidate_index = 0
-    for query_character in query_characters:
-        while candidate_index < len(candidate_characters):
-            index, candidate_character = candidate_characters[candidate_index]
-            candidate_index += 1
-            if candidate_character == query_character:
-                positions.append(index)
-                break
-        else:
+    start = 0
+    for character in query:
+        if not character.isalnum():
+            continue
+        index = candidate.find(character, start)
+        if index < 0:
             return None
-    return tuple(positions)
+        positions.append(index)
+        start = index + 1
+    return tuple(positions) if positions else None
 
 
 def _quality(*, candidate: str, positions: tuple[int, ...]) -> float:

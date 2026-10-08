@@ -217,6 +217,7 @@ def _make_popup():
     popup._hide_timer_id = 0
     popup._current_desktop_id = ""
     popup._thumbnail_outline_enabled = lambda: False
+    popup._thumbnail_width = lambda: preview_mod.THUMB_W
     popup.get_transient_for = MagicMock(return_value=None)
     return popup
 
@@ -337,6 +338,80 @@ class TestPreviewPopupIntegration:
         vbox = widget.child
         label = vbox.children[1]
         assert label.label.endswith("\u2026")
+
+    @staticmethod
+    def _patch_thumbnail_toolkit(monkeypatch, image_cls=FakeImage):
+        monkeypatch.setattr(
+            preview_mod,
+            "Gtk",
+            SimpleNamespace(
+                EventBox=FakeEventBox,
+                Box=FakeBox,
+                Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
+                Image=image_cls,
+                Label=FakeLabel,
+                IconSize=SimpleNamespace(DIALOG=1),
+                Align=SimpleNamespace(CENTER=1),
+                StateFlags=SimpleNamespace(NORMAL=1),
+            ),
+        )
+        monkeypatch.setattr(
+            preview_mod,
+            "Gdk",
+            SimpleNamespace(
+                EventMask=SimpleNamespace(
+                    BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2, LEAVE_NOTIFY_MASK=4
+                ),
+                RGBA=lambda *_args, **_kwargs: None,
+            ),
+        )
+
+    def test_configured_width_reaches_snapshot_request_and_size_request(
+        self, monkeypatch
+    ):
+        sizes = []
+
+        class RecordingImage(FakeImage):
+            def set_size_request(self, width: int, height: int) -> None:
+                sizes.append((width, height))
+
+        self._patch_thumbnail_toolkit(monkeypatch, RecordingImage)
+        popup = _make_popup()
+        popup._thumbnail_width = lambda: 320
+        popup._preview_service.capture.return_value = None
+
+        preview_mod.PreviewPopup._make_thumbnail_for_window(
+            popup, window=_snapshot(7), fallback_icon_name="app"
+        )
+
+        popup._preview_service.capture.assert_called_once_with(
+            _snapshot(7).id, width=320, height=240
+        )
+        assert sizes == [(320, 240)]
+
+    def test_wider_thumbnail_keeps_more_of_the_title(self, monkeypatch):
+        self._patch_thumbnail_toolkit(monkeypatch)
+        title = "PartnerBookingRulesApi.yml - bookings-api - VSCodium"
+        labels = {}
+        for width in (200, 320):
+            popup = _make_popup()
+            popup._thumbnail_width = lambda width=width: width
+            popup._preview_service.capture.return_value = None
+            widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
+                popup, window=_snapshot(1, title=title), fallback_icon_name="app"
+            )
+            labels[width] = widget.child.children[1].label
+
+        assert len(labels[200]) == 25
+        assert len(labels[320]) == 40
+        assert labels[320].startswith(labels[200][:-1])
+
+    def test_set_thumbnail_width_probe_stores_probe(self):
+        popup = _make_popup()
+
+        preview_mod.PreviewPopup.set_thumbnail_width_probe(popup, lambda: 300)
+
+        assert popup._thumbnail_width() == 300
 
     def test_timer_and_leave_branches(self, monkeypatch):
         # Given

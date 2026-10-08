@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except Exception:
@@ -20,7 +22,89 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
-from docking.platform.icons import IconLoader
+from docking.platform.icons import FileIconInfo, IconLoader
+
+
+@pytest.mark.parametrize("image_format", ["png", "jpeg"])
+def test_file_thumbnail_provenance_survives_cache_and_pixbuf_wrapper(
+    tmp_path, image_format
+):
+    path = tmp_path / f"photo.{image_format}"
+    pixbuf = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, False, 8, 80, 40
+    )
+    pixbuf.fill(0x4684DCFF)
+    pixbuf.savev(str(path), image_format, [], [])
+    loader = IconLoader()
+    args = {
+        "target": path.as_uri(),
+        "gicon": None,
+        "content_type": f"image/{image_format}",
+        "size": 48,
+        "is_dir": False,
+    }
+
+    result = loader.resolve_file_icon_info(**args)
+
+    assert result.is_thumbnail is True
+    assert (result.icon.get_width(), result.icon.get_height()) == (48, 24)
+    assert loader.resolve_file_icon_info(**args) == result
+    assert loader.resolve_file_icon(**args) is result.icon
+
+
+@pytest.mark.parametrize("failure", ["missing", "decode", "disappeared", "empty"])
+def test_failed_image_thumbnail_keeps_fallback_icon_unstyled(
+    tmp_path, monkeypatch, failure
+):
+    path = tmp_path / "broken.png"
+    if failure != "missing":
+        path.write_bytes(b"not an image")
+    loader = IconLoader()
+    fallback = object()
+    load_gicon = MagicMock(return_value=fallback)
+    monkeypatch.setattr(loader, "load_gicon", load_gicon)
+    if failure == "disappeared":
+        monkeypatch.setattr(
+            loader,
+            "_load_cached_file_icon",
+            MagicMock(side_effect=FileNotFoundError("removed before decode")),
+        )
+    elif failure == "empty":
+        monkeypatch.setattr(loader, "_load_cached_file_icon", lambda **_kwargs: None)
+
+    result = loader.resolve_file_icon_info(
+        target=path.as_uri(),
+        gicon=None,
+        content_type="image/png",
+        size=48,
+        is_dir=False,
+        thumbnail_size=192,
+    )
+
+    assert result == FileIconInfo(icon=fallback, is_thumbnail=False)
+    load_gicon.assert_called_once_with(gicon=None, size=48)
+
+
+def test_file_thumbnail_can_load_larger_source_without_enlarging_themed_icons(tmp_path):
+    path = tmp_path / "photo.png"
+    pixbuf = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, False, 8, 320, 160
+    )
+    pixbuf.fill(0x4684DCFF)
+    pixbuf.savev(str(path), "png", [], [])
+    loader = IconLoader()
+
+    result = loader.resolve_file_icon_info(
+        target=path.as_uri(),
+        gicon=None,
+        content_type="image/png",
+        size=48,
+        is_dir=False,
+        thumbnail_size=192,
+    )
+
+    assert result.is_thumbnail
+    assert (result.icon.get_width(), result.icon.get_height()) == (192, 96)
 
 
 def _application(**changes) -> ApplicationInfo:

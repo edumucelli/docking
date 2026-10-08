@@ -28,6 +28,7 @@ class FileTargetInfo(NamedTuple):
     icon_name: str
     icon: GdkPixbuf.Pixbuf | None
     is_dir: bool
+    is_thumbnail: bool = False
 
 
 def normalize_file_target(target: str) -> str | None:
@@ -140,7 +141,9 @@ class TargetService:
         """Delegate default-handler opening to the canonical module function."""
         return open_target(target)
 
-    def resolve_file(self, target: str, size: int) -> FileTargetInfo | None:
+    def resolve_file(
+        self, target: str, size: int, *, thumbnail_size: int | None = None
+    ) -> FileTargetInfo | None:
         """Resolve a file URI or local path into display metadata."""
         uri = normalize_file_target(target)
         if uri is None:
@@ -161,20 +164,23 @@ class TargetService:
         gicon = info.get_icon()
         is_dir = info.get_file_type() == Gio.FileType.DIRECTORY
         icon_name = fallback_file_icon_name(is_dir=is_dir)
+        file_icon = self._icon_loader.resolve_file_icon_info(
+            target=uri,
+            gicon=gicon,
+            content_type=info.get_content_type() or "",
+            size=size,
+            is_dir=is_dir,
+            thumbnail_size=thumbnail_size,
+        )
         return FileTargetInfo(
             target=uri,
             name=info.get_display_name()
             or Path(unquote(urlparse(uri).path)).name
             or uri,
             icon_name=icon_name,
-            icon=self.resolve_file_icon(
-                target=uri,
-                gicon=gicon,
-                content_type=info.get_content_type() or "",
-                size=size,
-                is_dir=is_dir,
-            ),
+            icon=file_icon.icon,
             is_dir=is_dir,
+            is_thumbnail=file_icon.is_thumbnail,
         )
 
     def resolve_file_icon(

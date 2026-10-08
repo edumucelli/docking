@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import unquote, urlparse
 
 import gi
@@ -25,6 +26,13 @@ HOST_FILESYSTEM_ROOT = desktop_entries.HOST_FILESYSTEM_ROOT
 ICON_FILE_EXTENSIONS = (".png", ".svg", ".xpm")
 
 log = with_context(get_logger(name="icons"))
+
+
+class FileIconInfo(NamedTuple):
+    """Resolved file icon and whether its pixels came from the file itself."""
+
+    icon: GdkPixbuf.Pixbuf | None
+    is_thumbnail: bool = False
 
 
 def fallback_file_icon_name(*, is_dir: bool) -> str:
@@ -184,14 +192,38 @@ class IconLoader:
         is_dir: bool,
     ) -> GdkPixbuf.Pixbuf | None:
         """Resolve a file target icon, preferring image thumbnails when possible."""
+        return self.resolve_file_icon_info(
+            target=target,
+            gicon=gicon,
+            content_type=content_type,
+            size=size,
+            is_dir=is_dir,
+        ).icon
+
+    def resolve_file_icon_info(
+        self,
+        *,
+        target: str,
+        gicon: Gio.Icon | None,
+        content_type: str,
+        size: int,
+        is_dir: bool,
+        thumbnail_size: int | None = None,
+    ) -> FileIconInfo:
+        """Resolve an icon while preserving successful thumbnail provenance."""
         if not is_dir and content_type.lower().startswith("image/"):
             uri = _normalize_file_target_for_icon(target)
             if uri is not None:
                 path = Path(unquote(urlparse(uri).path))
                 if path.exists():
                     try:
-                        return self._load_cached_file_icon(path=path, size=size)
-                    except GLib.Error as exc:
+                        pixbuf = self._load_cached_file_icon(
+                            path=path,
+                            size=thumbnail_size if thumbnail_size is not None else size,
+                        )
+                        if pixbuf is not None:
+                            return FileIconInfo(icon=pixbuf, is_thumbnail=True)
+                    except (OSError, GLib.Error) as exc:
                         log.bind(target=target, action="resolve_file_icon").debug(
                             "Failed to load image thumbnail %s: %s",
                             path,
@@ -199,9 +231,9 @@ class IconLoader:
                         )
 
         icon_name = fallback_file_icon_name(is_dir=is_dir)
-        return self.load_gicon(gicon=gicon, size=size) or self.load_icon(
-            icon_name=icon_name,
-            size=size,
+        return FileIconInfo(
+            icon=self.load_gicon(gicon=gicon, size=size)
+            or self.load_icon(icon_name=icon_name, size=size),
         )
 
     def _load_cached_file_icon(

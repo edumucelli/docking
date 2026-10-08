@@ -11,17 +11,22 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import pytest
+
 import docking.platform.backends.x11.services.previews as x11_preview_mod
 import docking.ui.preview as preview_mod
 from docking.platform.backends.base import DisplayServer, WindowId
 from docking.platform.backends.x11.impl import preview_capture
 from docking.ui.preview import (
     ICON_FALLBACK_SIZE,
+    LABEL_MIN_CHARS,
     POPUP_PADDING,
     PREVIEW_HIDE_DELAY_MS,
     THUMB_H,
     THUMB_SPACING,
     THUMB_W,
+    label_max_chars,
+    thumbnail_size,
 )
 
 
@@ -129,6 +134,23 @@ class TestPreviewConstants:
     def test_icon_fallback_size(self):
         assert ICON_FALLBACK_SIZE > 0
         assert min(THUMB_W, THUMB_H) >= ICON_FALLBACK_SIZE
+
+
+class TestThumbnailSizing:
+    def test_default_width_keeps_todays_geometry(self):
+        assert thumbnail_size(200) == (200, 150)
+        assert label_max_chars(200) == 25
+
+    @pytest.mark.parametrize(
+        ("width", "height"), [(120, 90), (122, 92), (320, 240), (400, 300)]
+    )
+    def test_height_follows_four_by_three_rounded_half_up(self, width, height):
+        assert thumbnail_size(width) == (width, height)
+
+    def test_label_chars_scale_with_width_with_a_floor(self):
+        assert label_max_chars(320) == 40
+        assert label_max_chars(400) == 50
+        assert label_max_chars(40) == LABEL_MIN_CHARS
 
 
 class TestPreviewCss:

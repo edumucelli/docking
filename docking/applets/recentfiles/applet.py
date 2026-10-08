@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
+STACK_THUMBNAIL_SOURCE_SCALE = 4
 
 
 class RecentFilesApplet(TargetServicesApplet):
@@ -85,12 +86,7 @@ class RecentFilesApplet(TargetServicesApplet):
             return None
         return StackContent(
             entries=tuple(
-                StackEntry(
-                    key=entry.uri,
-                    label=entry.name,
-                    icon=self._stack_icon(entry=entry, size=icon_size),
-                    activate=lambda uri=entry.uri: self._open_uri(uri=uri),
-                )
+                self._stack_entry(entry=entry, size=icon_size)
                 for entry in self._entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
             ),
         )
@@ -151,16 +147,28 @@ class RecentFilesApplet(TargetServicesApplet):
     def _open_uri(self, *, uri: str) -> None:
         self._target_service.open_target(uri)
 
-    def _stack_icon(
+    def _stack_entry(
         self,
         *,
         entry: RecentEntry,
         size: int,
-    ) -> GdkPixbuf.Pixbuf | None:
-        target = self._target_service.resolve_file(entry.uri, size)
+    ) -> StackEntry:
+        target = self._target_service.resolve_file(
+            entry.uri, size, thumbnail_size=size * STACK_THUMBNAIL_SOURCE_SCALE
+        )
         if target is not None and target.icon is not None:
-            return target.icon
-        return self._icon_loader.load_icon("text-x-generic", size)
+            icon = target.icon
+            thumbnail_style = target.is_thumbnail
+        else:
+            icon = self._icon_loader.load_icon("text-x-generic", size)
+            thumbnail_style = False
+        return StackEntry(
+            key=entry.uri,
+            label=entry.name,
+            icon=icon,
+            activate=lambda uri=entry.uri: self._open_uri(uri=uri),
+            thumbnail_style=thumbnail_style,
+        )
 
     def _clear_recent(self) -> None:
         try:

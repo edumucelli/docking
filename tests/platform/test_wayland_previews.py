@@ -314,3 +314,162 @@ def test_capture_ignores_buffer_events_after_stop(monkeypatch, kind) -> None:
 
     allocate.assert_not_called()
     assert service._pending == {}
+
+
+class _SizedPreviewRig:
+    """Drives the three native preview services through full capture cycles.
+
+    Every capture gets its own fake frame/session, and ``_pixbuf_from_request``
+    is replaced so the produced image reports the size that was requested.
+    """
+
+    def __init__(self, kind: str, monkeypatch) -> None:
+        self.kind = kind
+        self.captures: list[FakeSession | FakeFrame] = []
+        handle = object()
+        handles = SimpleNamespace(
+            handle_for_window_id=lambda _: handle,
+            protocol_handle_for_window_id=lambda _: handle,
+            stop=MagicMock(),
+            start=MagicMock(),
+        )
+        protocol = SimpleNamespace(
+            create_frame=self._create_frame,
+            create_source=lambda _handle: SimpleNamespace(destroy=MagicMock()),
+            create_session=self._create_session,
+            create_shm_pool=lambda _fd, _size: FakePool(),
+            flush=MagicMock(),
+        )
+        monkeypatch.setattr(preview_mod, "_allocate_shm_buffer", MagicMock())
+        monkeypatch.setattr(
+            preview_mod,
+            "_pixbuf_from_request",
+            lambda request: PreviewImage(
+                image=object(),
+                width=request.requested_width,
+                height=request.requested_height,
+            ),
+        )
+        if kind == "wayland":
+            self.service = WaylandPreviewService(protocol=protocol, handles=handles)
+        elif kind == "hyprland":
+            self.service = HyprlandPreviewService(protocol=protocol, windows=handles)
+        else:
+            self.service = PhocPreviewService(protocol=protocol, windows=handles)
+
+    def _create_frame(self, *_args) -> FakeFrame:
+        frame = FakeFrame()
+        self.captures.append(frame)
+        return frame
+
+    def _create_session(self, _source) -> FakeSession:
+        session = FakeSession()
+        self.captures.append(session)
+        return session
+
+    def capture(self, window_id: WindowId, width: int, height: int):
+        return self.service.capture(window_id, width=width, height=height)
+
+    def complete(self, index: int) -> None:
+        capture = self.captures[index]
+        if self.kind == "wayland":
+            capture.dispatcher["buffer_size"](capture, 320, 240)
+            capture.dispatcher["shm_format"](capture, SHM_ARGB8888)
+            capture.dispatcher["done"](capture)
+            capture.frame.dispatcher["ready"](capture.frame)
+        elif self.kind == "hyprland":
+            capture.dispatcher["buffer"](capture, SHM_ARGB8888, 320, 240, 1280)
+            capture.dispatcher["buffer_done"](capture)
+            capture.dispatcher["ready"](capture, 0, 0, 0)
+        else:
+            capture.dispatcher["buffer"](capture, SHM_ARGB8888, 320, 240, 1280)
+            capture.dispatcher["ready"](capture, 0, 0, 0)
+
+    def fail(self, index: int) -> None:
+        capture = self.captures[index]
+        if self.kind == "wayland":
+            capture.dispatcher["stopped"](capture)
+        else:
+            capture.dispatcher["failed"](capture)
+
+
+_NATIVE_KINDS = ["wayland", "hyprland", "phoc"]
+_WINDOW = WindowId(DisplayServer.WAYLAND, 1)
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
+@pytest.mark.parametrize("size", [(400, 300), (120, 90)])
+def test_cached_preview_is_not_reused_for_a_different_size(
+    monkeypatch, kind, size
+) -> None:
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    assert rig.capture(_WINDOW, 200, 150) is None
+    rig.complete(0)
+    first = rig.capture(_WINDOW, 200, 150)
+    assert (first.width, first.height) == (200, 150)
+
+    assert rig.capture(_WINDOW, *size) is None
+    assert len(rig.captures) == 2
+    rig.complete(1)
+
+    resized = rig.capture(_WINDOW, *size)
+    assert (resized.width, resized.height) == size
+    assert rig.capture(_WINDOW, 200, 150) is first
+    assert len(rig.captures) == 2
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
+def test_pending_captures_of_different_sizes_do_not_merge(monkeypatch, kind) -> None:
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    assert rig.capture(_WINDOW, 200, 150) is None
+    assert rig.capture(_WINDOW, 400, 300) is None
+    assert rig.capture(_WINDOW, 400, 300) is None
+    assert len(rig.captures) == 2
+
+    rig.complete(1)
+    large = rig.capture(_WINDOW, 400, 300)
+    assert (large.width, large.height) == (400, 300)
+    assert rig.capture(_WINDOW, 200, 150) is None
+    assert len(rig.captures) == 2
+
+    rig.complete(0)
+    small = rig.capture(_WINDOW, 200, 150)
+    assert (small.width, small.height) == (200, 150)
+    assert rig.capture(_WINDOW, 400, 300) is large
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
+def test_failed_capture_drops_every_cached_size_of_that_window(
+    monkeypatch, kind
+) -> None:
+    other = WindowId(DisplayServer.WAYLAND, 2)
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    for index, (window, size) in enumerate(
+        [(_WINDOW, (200, 150)), (_WINDOW, (400, 300)), (other, (200, 150))]
+    ):
+        rig.capture(window, *size)
+        assert len(rig.captures) == index + 1
+        rig.complete(index)
+    assert len(rig.captures) == 3
+
+    rig.capture(_WINDOW, 120, 90)
+    rig.fail(3)
+
+    assert rig.capture(other, 200, 150) is not None
+    assert rig.capture(_WINDOW, 200, 150) is None
+    assert rig.capture(_WINDOW, 400, 300) is None
+    assert len(rig.captures) == 6
+    assert len(rig.service._pending) == 2
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
+def test_stop_clears_every_cached_and_pending_size(monkeypatch, kind) -> None:
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    rig.capture(_WINDOW, 200, 150)
+    rig.complete(0)
+    rig.capture(_WINDOW, 400, 300)
+
+    rig.service.stop()
+
+    assert rig.service._cache == {}
+    assert rig.service._pending == {}

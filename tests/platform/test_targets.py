@@ -21,7 +21,7 @@ except Exception:
 
 from docking.platform import icons as icons_mod
 from docking.platform import targets as targets_mod
-from docking.platform.icons import IconLoader
+from docking.platform.icons import FileIconInfo, IconLoader
 from docking.platform.targets import (
     FileTargetInfo,
     TargetService,
@@ -257,7 +257,7 @@ def test_resolve_file_preserves_target_metadata(
     gfile.query_info.return_value = info
     monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
     icon_loader = MagicMock()
-    icon_loader.resolve_file_icon.return_value = "pixbuf"
+    icon_loader.resolve_file_icon_info.return_value = FileIconInfo("pixbuf")
     service = TargetService(icon_loader=icon_loader)
     uri = normalize_file_target(target)
     assert uri is not None
@@ -276,12 +276,13 @@ def test_resolve_file_preserves_target_metadata(
         targets_mod.Gio.FileQueryInfoFlags.NONE,
         None,
     )
-    icon_loader.resolve_file_icon.assert_called_once_with(
+    icon_loader.resolve_file_icon_info.assert_called_once_with(
         target=uri,
         gicon=gicon,
         content_type=content_type,
         size=48,
         is_dir=is_dir,
+        thumbnail_size=None,
     )
 
 
@@ -321,6 +322,7 @@ def test_resolve_file_uses_image_thumbnail(tmp_path, monkeypatch):
 
     assert result is not None
     assert result.icon is thumbnail
+    assert result.is_thumbnail is True
     pixbuf_cls.new_from_file_at_scale.assert_called_once_with(
         str(path.resolve()),
         48,

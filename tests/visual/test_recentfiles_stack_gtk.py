@@ -27,7 +27,7 @@ def test_recentfiles_visible_stack_keeps_last_item_reachable(position):
     icon = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 96, 96)
     icon.fill(0x4684DCFF)
     targets = MagicMock()
-    targets.resolve_file.return_value = MagicMock(icon=icon)
+    targets.resolve_file.return_value = MagicMock(icon=icon, is_thumbnail=True)
     with patch(
         "docking.applets.recentfiles.applet.Gtk.RecentManager.get_default",
         return_value=manager,
@@ -50,6 +50,7 @@ def test_recentfiles_visible_stack_keeps_last_item_reachable(position):
         stack.assert_bounded()
         assert targets.resolve_file.call_count == FOLDER_STACK_MAX_VISIBLE_ROWS
         assert len(stack.stack._folder_stack_cards) == FOLDER_STACK_MAX_VISIBLE_ROWS
+        assert all(card.thumbnail_style for card in stack.stack._folder_stack_cards)
         if stack.scroller is not None:
             stack.scroll_to(True)
         stack.click_label(-1)
