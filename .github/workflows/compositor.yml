@@ -18,6 +18,14 @@ on:
 env:
   PIP_RETRIES: "5"
   PIP_TIMEOUT: "60"
+  # apt has no environment-variable form for its own options, so they live here
+  # as one flag list and are expanded at each call site as
+  #   apt-get ${APT_RETRY_OPTS:?} update
+  # The :? guard is deliberate: if this ever fails to reach a step the step
+  # fails loudly instead of silently running apt with no retries at all.
+  APT_RETRY_OPTS: >-
+    -o Acquire::Retries=3 -o Acquire::http::Timeout=30
+    -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=120
 
 permissions:
   contents: read
@@ -43,9 +51,8 @@ jobs:
         run: |
           . tools/retry.sh
           retry -a 3 -d 10 -l "apt-get update" -- \
-            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
-            install -y --no-install-recommends python3-cairo
+            sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y --no-install-recommends python3-cairo
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
