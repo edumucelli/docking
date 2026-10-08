@@ -1,7 +1,7 @@
 """Recent Files production-provider, GTK menu and bounded selection contracts."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from behave import given, then, when
 
@@ -27,8 +27,8 @@ def recent_history(context, count):
     loader = MagicMock()
     loader.load_icon.return_value = None
     context.recent_targets = MagicMock()
-    context.recent_targets.resolve_file.side_effect = lambda uri, _size: (
-        SimpleNamespace(icon=uri)
+    context.recent_targets.resolve_file.side_effect = lambda uri, _size, **_kwargs: (
+        SimpleNamespace(icon=uri, is_thumbnail=False)
     )
     context.recent_applet = RecentFilesApplet(
         48,
@@ -50,6 +50,10 @@ def open_recent_stack(context):
 def visible_recent_icons(context):
     assert len(context.recent_content.entries) == 9
     assert context.recent_targets.resolve_file.call_count == 9
+    assert context.recent_targets.resolve_file.call_args_list == [
+        call(entry.key, 48, thumbnail_size=192)
+        for entry in context.recent_content.entries
+    ]
     assert all(entry.icon == entry.key for entry in context.recent_content.entries)
 
 
