@@ -8,6 +8,13 @@ on:
   schedule:
     - cron: "0 6 * * 1"
 
+# pip resolves PIP_<OPTION> for every CLI flag, so these cover the pip
+# invocations here without touching a call site.  --timeout defaults to 15s,
+# short enough that a slow PyPI response fails this scan spuriously.
+env:
+  PIP_RETRIES: "5"
+  PIP_TIMEOUT: "60"
+
 jobs:
   scan:
     name: Dependency and SAST scan

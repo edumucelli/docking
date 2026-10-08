@@ -11,7 +11,8 @@ test "$(dpkg-deb -f "${current[0]}" Architecture)" = "$arch"
 expected="$(dpkg-deb -f "${current[0]}" Version)"
 apt-get update -o APT::Update::Error-Mode=any
 apt-get install -y --no-install-recommends curl ca-certificates gnupg xvfb xauth dbus libglib2.0-bin sway
-curl --retry 3 -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key -o /tmp/docking-cloudsmith.asc
+curl --retry 3 --retry-delay 2 --retry-all-errors --connect-timeout 15 -fsSL \
+    https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key -o /tmp/docking-cloudsmith.asc
 fingerprint="$(gpg --batch --show-keys --with-colons /tmp/docking-cloudsmith.asc | awk -F: '$1 == "fpr" {print $10; exit}')"
 test "$fingerprint" = 811B48CD4A69170DD98F4F49185CED80A7947754
 install -d -m 0755 /etc/apt/keyrings

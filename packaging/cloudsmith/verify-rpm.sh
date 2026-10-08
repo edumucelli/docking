@@ -88,7 +88,8 @@ expected_nevra="$(rpm -qp --queryformat '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' 
 # Repository signing keys are generated per repository, so the fingerprint is
 # pinned here rather than trusted on first use.
 key=/tmp/docking-cloudsmith.asc
-curl --retry 3 -fsSL "$BASE_URL/gpg.key" -o "$key"
+curl --retry 3 --retry-delay 2 --retry-all-errors --connect-timeout 15 -fsSL \
+    "$BASE_URL/gpg.key" -o "$key"
 fingerprint="$(gpg --batch --show-keys --with-colons "$key" | awk -F: '$1 == "fpr" {print $10; exit}')"
 test "$fingerprint" = "$EXPECTED_FINGERPRINT"
 rpm --import "$key"
