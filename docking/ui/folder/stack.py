@@ -305,11 +305,13 @@ class FolderStackController(StackPopupController):
         folder_item: DockItem,
         target: str,
         icon_px: int | None = None,
+        icon_limit: int | None = None,
     ) -> list[FolderRow]:
         return self._browser.list_directory(
             target=target,
             prefs=self._folder_prefs_for_item(folder_item),
             icon_px=icon_px,
+            icon_limit=icon_limit,
         )
 
     def _stack_content_for_item(
@@ -343,6 +345,7 @@ class FolderStackController(StackPopupController):
             folder_item=item,
             target=item.target,
             icon_px=icon_px,
+            icon_limit=FOLDER_STACK_MAX_VISIBLE_ROWS,
         )
         if not rows:
             return StackContent(empty_label=_("Folder is empty"))
