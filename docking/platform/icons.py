@@ -208,6 +208,7 @@ class IconLoader:
         content_type: str,
         size: int,
         is_dir: bool,
+        thumbnail_size: int | None = None,
     ) -> FileIconInfo:
         """Resolve an icon while preserving successful thumbnail provenance."""
         if not is_dir and content_type.lower().startswith("image/"):
@@ -216,7 +217,10 @@ class IconLoader:
                 path = Path(unquote(urlparse(uri).path))
                 if path.exists():
                     try:
-                        pixbuf = self._load_cached_file_icon(path=path, size=size)
+                        pixbuf = self._load_cached_file_icon(
+                            path=path,
+                            size=thumbnail_size if thumbnail_size is not None else size,
+                        )
                         if pixbuf is not None:
                             return FileIconInfo(icon=pixbuf, is_thumbnail=True)
                     except (OSError, GLib.Error) as exc:

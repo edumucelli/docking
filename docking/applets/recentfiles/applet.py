@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 log = with_context(get_logger(name="recentfiles"), applet_id=meta.id)
+STACK_THUMBNAIL_SOURCE_SCALE = 4
 
 
 class RecentFilesApplet(TargetServicesApplet):
@@ -152,7 +153,9 @@ class RecentFilesApplet(TargetServicesApplet):
         entry: RecentEntry,
         size: int,
     ) -> StackEntry:
-        target = self._target_service.resolve_file(entry.uri, size)
+        target = self._target_service.resolve_file(
+            entry.uri, size, thumbnail_size=size * STACK_THUMBNAIL_SOURCE_SCALE
+        )
         if target is not None and target.icon is not None:
             icon = target.icon
             thumbnail_style = target.is_thumbnail

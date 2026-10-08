@@ -61,7 +61,8 @@ def test_failed_image_thumbnail_keeps_fallback_icon_unstyled(
         path.write_bytes(b"not an image")
     loader = IconLoader()
     fallback = object()
-    monkeypatch.setattr(loader, "load_gicon", lambda **_kwargs: fallback)
+    load_gicon = MagicMock(return_value=fallback)
+    monkeypatch.setattr(loader, "load_gicon", load_gicon)
     if failure == "disappeared":
         monkeypatch.setattr(
             loader,
@@ -77,9 +78,33 @@ def test_failed_image_thumbnail_keeps_fallback_icon_unstyled(
         content_type="image/png",
         size=48,
         is_dir=False,
+        thumbnail_size=192,
     )
 
     assert result == FileIconInfo(icon=fallback, is_thumbnail=False)
+    load_gicon.assert_called_once_with(gicon=None, size=48)
+
+
+def test_file_thumbnail_can_load_larger_source_without_enlarging_themed_icons(tmp_path):
+    path = tmp_path / "photo.png"
+    pixbuf = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, False, 8, 320, 160
+    )
+    pixbuf.fill(0x4684DCFF)
+    pixbuf.savev(str(path), "png", [], [])
+    loader = IconLoader()
+
+    result = loader.resolve_file_icon_info(
+        target=path.as_uri(),
+        gicon=None,
+        content_type="image/png",
+        size=48,
+        is_dir=False,
+        thumbnail_size=192,
+    )
+
+    assert result.is_thumbnail
+    assert (result.icon.get_width(), result.icon.get_height()) == (192, 96)
 
 
 def _application(**changes) -> ApplicationInfo:

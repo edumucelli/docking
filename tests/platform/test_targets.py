@@ -282,6 +282,7 @@ def test_resolve_file_preserves_target_metadata(
         content_type=content_type,
         size=48,
         is_dir=is_dir,
+        thumbnail_size=None,
     )
 
 

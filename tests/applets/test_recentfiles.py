@@ -175,7 +175,7 @@ class TestApplet:
             "file:///a.txt": object(),
             "file:///b.txt": object(),
         }
-        applet._target_service.resolve_file.side_effect = lambda uri, _size: (
+        applet._target_service.resolve_file.side_effect = lambda uri, _size, **_kwargs: (
             SimpleNamespace(icon=icons[uri], is_thumbnail=False)
         )
 

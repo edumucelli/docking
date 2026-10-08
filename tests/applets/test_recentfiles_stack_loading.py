@@ -37,7 +37,7 @@ def test_only_visible_stack_entries_resolve_icons(applet, count):
     applet._entries = entries.copy()
     visible = entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
     icons = {entry.uri: object() for entry in visible}
-    applet._target_service.resolve_file.side_effect = lambda uri, _size: (
+    applet._target_service.resolve_file.side_effect = lambda uri, _size, **_kwargs: (
         SimpleNamespace(icon=icons[uri], is_thumbnail=False)
     )
 
@@ -45,7 +45,7 @@ def test_only_visible_stack_entries_resolve_icons(applet, count):
 
     assert applet._entries == entries
     assert applet._target_service.resolve_file.call_args_list == [
-        call(entry.uri, 32) for entry in visible
+        call(entry.uri, 32, thumbnail_size=128) for entry in visible
     ]
     if not visible:
         assert content is None

@@ -141,7 +141,9 @@ class TargetService:
         """Delegate default-handler opening to the canonical module function."""
         return open_target(target)
 
-    def resolve_file(self, target: str, size: int) -> FileTargetInfo | None:
+    def resolve_file(
+        self, target: str, size: int, *, thumbnail_size: int | None = None
+    ) -> FileTargetInfo | None:
         """Resolve a file URI or local path into display metadata."""
         uri = normalize_file_target(target)
         if uri is None:
@@ -168,6 +170,7 @@ class TargetService:
             content_type=info.get_content_type() or "",
             size=size,
             is_dir=is_dir,
+            thumbnail_size=thumbnail_size,
         )
         return FileTargetInfo(
             target=uri,

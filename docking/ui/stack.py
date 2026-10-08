@@ -181,25 +181,31 @@ class StackLayout:
 def _draw_rounded_stack_thumbnail(
     cr: cairo.Context,
     pixbuf: GdkPixbuf.Pixbuf,
-    size: int,
+    size: float,
     geometry: StackCardGeometry,
 ) -> None:
-    """Rotate a rounded image and its alpha-masked shadow as one unit."""
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    """Fit and rotate a rounded source image in a single sampling step."""
+    width, height = pixbuf.get_width(), pixbuf.get_height()
+    source_size = max(width, height)
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     image_cr = cairo.Context(surface)
-    rounded_rect(image_cr, 0, 0, size, size, size * STACK_THUMBNAIL_RADIUS_FACTOR)
+    rounded_rect(
+        image_cr, 0, 0, width, height, source_size * STACK_THUMBNAIL_RADIUS_FACTOR
+    )
     image_cr.clip()
     Gdk.cairo_set_source_pixbuf(image_cr, pixbuf, 0, 0)
     image_cr.paint()
 
-    half = size / 2
-    offset = size * STACK_THUMBNAIL_SHADOW_OFFSET_FACTOR
+    offset = source_size * STACK_THUMBNAIL_SHADOW_OFFSET_FACTOR
     cr.save()
     cr.translate(geometry.icon_center_x, geometry.icon_center_y)
     cr.rotate(geometry.rotation_radians)
+    scale = size / source_size
+    cr.scale(scale, scale)
     cr.set_source_rgba(0, 0, 0, STACK_THUMBNAIL_SHADOW_ALPHA * geometry.reveal)
-    cr.mask_surface(surface, -half + offset, -half + offset)
-    cr.set_source_surface(surface, -half, -half)
+    cr.mask_surface(surface, -width / 2 + offset, -height / 2 + offset)
+    cr.set_source_surface(surface, -width / 2, -height / 2)
+    cr.get_source().set_filter(cairo.FILTER_BEST)
     cr.paint_with_alpha(0.55 + 0.45 * geometry.reveal)
     cr.restore()
 
@@ -1171,22 +1177,22 @@ class StackPopupController:
 
         if card.icon is not None and card.icon_size > 0:
             pixbuf = card.icon
-            draw_icon_size = max(round(geometry.icon_size), 1)
-            if (
-                pixbuf.get_width() != draw_icon_size
-                or pixbuf.get_height() != draw_icon_size
-            ):
-                scaled = pixbuf.scale_simple(
-                    draw_icon_size,
-                    draw_icon_size,
-                    GdkPixbuf.InterpType.BILINEAR,
-                )
-                if scaled is not None:
-                    pixbuf = scaled
-
             if card.thumbnail_style:
-                _draw_rounded_stack_thumbnail(cr, pixbuf, draw_icon_size, geometry)
+                _draw_rounded_stack_thumbnail(cr, pixbuf, geometry.icon_size, geometry)
             else:
+                draw_icon_size = max(round(geometry.icon_size), 1)
+                if (
+                    pixbuf.get_width() != draw_icon_size
+                    or pixbuf.get_height() != draw_icon_size
+                ):
+                    scaled = pixbuf.scale_simple(
+                        draw_icon_size,
+                        draw_icon_size,
+                        GdkPixbuf.InterpType.BILINEAR,
+                    )
+                    if scaled is not None:
+                        pixbuf = scaled
+
                 cr.save()
                 cr.translate(geometry.icon_center_x + 2, geometry.icon_center_y + 2)
                 cr.rotate(geometry.rotation_radians)
