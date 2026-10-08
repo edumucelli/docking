@@ -1641,6 +1641,20 @@ class TestSettingsWindowController:
             is expected_sensitive
         )
 
+        enabled_switch = controller._window_preview_thumbnails_enabled_switch
+        for enabled in (
+            not window_preview_thumbnails_enabled,
+            window_preview_thumbnails_enabled,
+        ):
+            enabled_switch.set_active(enabled)
+            enabled_switch.emit_notify_active()
+
+            assert config.window_preview_thumbnails_enabled is enabled
+            assert switch.sensitive is enabled
+            assert controller._window_preview_thumbnail_width_spin.sensitive is enabled
+            assert config.window_preview_highlight_thumbnails_on_hover is True
+            assert config.window_preview_thumbnail_width == 200
+
     def test_thumbnail_outline_switch_persists_to_config(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
