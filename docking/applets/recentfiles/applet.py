@@ -32,7 +32,11 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.icons import IconLoader
 from docking.platform.targets import TargetService
-from docking.ui.stack import StackContent, StackEntry
+from docking.ui.stack import (
+    FOLDER_STACK_MAX_VISIBLE_ROWS,
+    StackContent,
+    StackEntry,
+)
 
 from .render import render_icon
 from .state import MAX_ENTRIES, RecentEntry, tooltip_text, truncate_name
@@ -87,7 +91,7 @@ class RecentFilesApplet(TargetServicesApplet):
                     icon=self._stack_icon(entry=entry, size=icon_size),
                     activate=lambda uri=entry.uri: self._open_uri(uri=uri),
                 )
-                for entry in self._entries
+                for entry in self._entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
             ),
         )
 
@@ -125,15 +129,20 @@ class RecentFilesApplet(TargetServicesApplet):
         return menu_sections(primary=primary, destructive=[clear_item], gtk=Gtk)
 
     def _refresh_entries(self) -> None:
-        """Read from Gtk.RecentManager, sort by modified time descending."""
+        """Select the newest existing files without statting older history."""
         manager = Gtk.RecentManager.get_default()
         raw_items = manager.get_items()
-        existing = [it for it in raw_items if it.exists()]
-        existing.sort(key=lambda it: it.get_modified(), reverse=True)
-        self._entries = [
-            RecentEntry(name=it.get_display_name(), uri=it.get_uri())
-            for it in existing[:MAX_ENTRIES]
-        ]
+        raw_items.sort(key=lambda it: it.get_modified(), reverse=True)
+        entries: list[RecentEntry] = []
+        for info in raw_items:
+            if not info.exists():
+                continue
+            entries.append(
+                RecentEntry(name=info.get_display_name(), uri=info.get_uri())
+            )
+            if len(entries) == MAX_ENTRIES:
+                break
+        self._entries = entries
 
     def _on_changed(self, *_args: object) -> None:
         self._refresh_entries()
