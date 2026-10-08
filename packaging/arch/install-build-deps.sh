@@ -21,7 +21,7 @@ pacman_flags=(--noconfirm)
 # :latest image, so probe rather than assume.  A slow Arch mirror tripping the
 # default low-speed timeout is a plausible cause of the ARM job needing three
 # attempts to get through this step.
-if pacman --help 2>&1 | grep -q -- --disable-download-timeout; then
+if pacman -S --help 2>&1 | grep -q -- --disable-download-timeout; then
     pacman_flags+=(--disable-download-timeout)
 fi
 

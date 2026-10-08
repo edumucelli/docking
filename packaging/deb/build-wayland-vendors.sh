@@ -14,8 +14,9 @@ for entry in 'ubuntu:22.04 3.10' 'debian:12 3.11' 'ubuntu:24.04 3.12' 'debian:13
     # Retried per image: a mirror blip on one distro should not throw away the
     # four trees that already built.  The .complete sentinel keeps finished
     # trees from being rebuilt on a later run.
-    retry -a 3 -d 20 -l "pywayland ${image}" -- timeout 420 \
-    docker run --rm -e DEBIAN_FRONTEND=noninteractive -e PIP_BREAK_SYSTEM_PACKAGES=1 \
+    retry -a 3 -d 20 -l "pywayland ${image}" -- \
+    bash "${SCRIPT_DIR}/../../tools/docker-run-timeout.sh" 420 -- \
+        -e DEBIAN_FRONTEND=noninteractive -e PIP_BREAK_SYSTEM_PACKAGES=1 \
         -e PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)" \
         -e PIP_RETRIES=5 -e PIP_TIMEOUT=60 \
         -e PYTHON_MINOR="$minor" -v "$output:/vendors" "$image" bash -euc '

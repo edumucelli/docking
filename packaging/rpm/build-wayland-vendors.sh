@@ -23,8 +23,9 @@ for image in fedora:44 fedora:45 opensuse/leap:16.0 opensuse/tumbleweed:latest; 
     # resolves python3-pip and pkg-config by those exact names.
     # Retried per image: one flaky mirror should not throw away the trees that
     # already built.  The .complete sentinel below keeps them from being rebuilt.
-    retry -a 3 -d 20 -l "pywayland ${image}" -- timeout 420 \
-    docker run --rm -e PIP_RETRIES=5 -e PIP_TIMEOUT=60 \
+    retry -a 3 -d 20 -l "pywayland ${image}" -- \
+    bash "${SCRIPT_DIR}/../../tools/docker-run-timeout.sh" 420 -- \
+        -e PIP_RETRIES=5 -e PIP_TIMEOUT=60 \
         -v "$output:/vendors" "$image" bash -euc '
         if command -v dnf >/dev/null 2>&1; then
             dnf install -y --setopt=install_weak_deps=False --setopt=timeout=60 \
