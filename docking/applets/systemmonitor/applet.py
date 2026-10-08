@@ -44,6 +44,7 @@ from docking.applets.systemmonitor.state import (
 )
 from docking.applets.systemmonitor.temperature import TemperatureReader
 from docking.applets.temperature import TemperatureUnit, temperature_unit_label
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -67,6 +68,9 @@ class SystemMonitorApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
+        self._sampling_active = False
+        self._sample_generation = 0
+        self._worker = BackgroundWorker(logger=log)
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
         self._mem: float = 0.0
@@ -146,10 +150,16 @@ class SystemMonitorApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start 1-second polling timer for /proc/stat and /proc/meminfo."""
         super().start(notify=notify)
+        if self._sampling_active:
+            return
+        self._sampling_active = True
+        self._sample_generation += 1
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
         """Stop the polling timer."""
+        self._sampling_active = False
+        self._sample_generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -167,7 +177,9 @@ class SystemMonitorApplet(Applet):
         return round(value, 1)
 
     def _tick(self) -> bool:
-        """Read CPU, memory, and temperature and refresh the applet state."""
+        """Read cheap CPU/memory counters; sample blocking sensors off GTK."""
+        if not self._sampling_active:
+            return False
         try:
             with _PROC_STAT.open() as f:
                 curr = parse_proc_stat(text=f.read())
@@ -193,10 +205,7 @@ class SystemMonitorApplet(Applet):
                 exc,
             )
 
-        previous_temperature = self._temperature_c
-        self._temperature_c = self._temperature_reader.read()
-        previous_gpu = self._gpu
-        self._gpu = self._gpu_reader.read()
+        self._sample_sensors()
 
         cpu_delta = abs(self._cpu - self._last_drawn_cpu)
         mem_delta = abs(self._mem - self._last_drawn_mem)
@@ -204,10 +213,35 @@ class SystemMonitorApplet(Applet):
             self._last_drawn_cpu = self._cpu
             self._last_drawn_mem = self._mem
             self.present()
-        else:
-            previous_display = self._display_temperature(previous_temperature)
-            current_display = self._display_temperature(self._temperature_c)
-            if previous_display != current_display or previous_gpu != self._gpu:
-                self._refresh_tooltip_only()
-
         return True
+
+    def _sample_sensors(self) -> None:
+        # Keep the guard across stop/restart: stateful readers must never race.
+        generation = self._sample_generation
+        self._worker.run_guarded(
+            key="sensors",
+            name="sample_sensors",
+            fn=self._read_sensors,
+            on_result=lambda sample: self._on_sensor_result(sample, generation),
+        )
+
+    def _read_sensors(self) -> tuple[float | None, GpuStats | None]:
+        return self._temperature_reader.read(), self._gpu_reader.read()
+
+    def _on_sensor_result(
+        self,
+        sample: tuple[float | None, GpuStats | None],
+        generation: int,
+    ) -> None:
+        """Publish on GTK only if this polling lifecycle is still active."""
+        if not self._sampling_active or generation != self._sample_generation:
+            return
+        temperature, gpu = sample
+        previous_display = self._display_temperature(self._temperature_c)
+        previous_gpu = self._gpu
+        self._temperature_c, self._gpu = temperature, gpu
+        if (
+            previous_display != self._display_temperature(temperature)
+            or previous_gpu != gpu
+        ):
+            self._refresh_tooltip_only()
