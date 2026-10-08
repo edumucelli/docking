@@ -764,16 +764,12 @@ def _pixbuf_from_request(
             for index in range(0, len(source), request.stride)
         ]
         source = b"".join(reversed(rows))
-    rgba = bytearray(len(source))
-    for index in range(0, len(source), 4):
-        b = source[index]
-        g = source[index + 1]
-        r = source[index + 2]
-        a = source[index + 3] if request.format == SHM_ARGB8888 else 255
-        rgba[index] = r
-        rgba[index + 1] = g
-        rgba[index + 2] = b
-        rgba[index + 3] = a
+    # Swap channels in bulk instead of visiting every capture pixel in Python.
+    rgba = bytearray(source)
+    rgba[0::4] = source[2::4]
+    rgba[2::4] = source[0::4]
+    if request.format != SHM_ARGB8888:
+        rgba[3::4] = b"\xff" * (len(source) // 4)
     data = GLib.Bytes.new(bytes(rgba))
     pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
         data,
