@@ -764,12 +764,14 @@ def _pixbuf_from_request(
             for index in range(0, len(source), request.stride)
         ]
         source = b"".join(reversed(rows))
-    # Swap channels in bulk instead of visiting every capture pixel in Python.
+    # Swap channels in bulk within each row so padding cannot shift channels.
     rgba = bytearray(source)
-    rgba[0::4] = source[2::4]
-    rgba[2::4] = source[0::4]
-    if request.format != SHM_ARGB8888:
-        rgba[3::4] = b"\xff" * (len(source) // 4)
+    for start in range(0, len(source), request.stride):
+        end = start + request.width * 4
+        rgba[start:end:4] = source[start + 2 : end : 4]
+        rgba[start + 2 : end : 4] = source[start:end:4]
+        if request.format != SHM_ARGB8888:
+            rgba[start + 3 : end : 4] = b"\xff" * request.width
     data = GLib.Bytes.new(bytes(rgba))
     pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
         data,

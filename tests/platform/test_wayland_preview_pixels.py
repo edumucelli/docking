@@ -41,7 +41,7 @@ def _pixels(pixbuf):
 @pytest.mark.parametrize("kind", ["wayland", "hyprland", "phoc"])
 @pytest.mark.parametrize("format_", [SHM_ARGB8888, SHM_XRGB8888])
 @pytest.mark.parametrize("inverted", [False, True])
-@pytest.mark.parametrize("padding", [0, 8])
+@pytest.mark.parametrize("padding", [0, 1, 2, 3, 8])
 def test_channels_alpha_stride_and_inversion(kind, format_, inverted, padding):
     bgra = [
         bytes([3, 2, 1, 0, 13, 12, 11, 64, 23, 22, 21, 128]),
