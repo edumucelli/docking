@@ -486,7 +486,9 @@ jobs:
           PYTHON_DEV_PKG="$(choose_pkg python313-devel python312-devel python311-devel python3-devel)"
           PYTHON_PIP_PKG="$(choose_pkg python313-pip python312-pip python311-pip python3-pip)"
           PANGOCAIRO_TYPELIB_PKG="$(choose_pkg typelib-1_0-PangoCairo-1_0 || true)"
-          zypper --non-interactive install --no-recommends \
+          # The rolling image can contain newer libraries than the repository's
+          # matching development packages; let the solver align their versions.
+          zypper --non-interactive install --no-recommends --allow-downgrade \
             git \
             gcc \
             meson \
