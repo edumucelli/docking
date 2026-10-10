@@ -648,6 +648,11 @@ def _feature_rows(capabilities: PlatformCapabilities) -> tuple[DiagnosticFeature
         ("close-windows", "Close windows", capabilities.supports_close),
         ("window-geometry", "Window geometry", capabilities.tracks_window_geometry),
         (
+            "window-outline",
+            "Window outline on preview hover",
+            capabilities.supports_window_outline,
+        ),
+        (
             "workspace-filter",
             "Current-workspace filtering",
             capabilities.supports_current_workspace_filter,

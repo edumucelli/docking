@@ -131,6 +131,7 @@ from docking.ui.display import scrolled_popup_size as preview_size
 if TYPE_CHECKING:
     from docking.platform.backends.base import PreviewService
     from docking.ui.autohide import AutoHideController
+    from docking.ui.window_outline import WindowOutline
 
 log = get_logger(name="preview")
 
@@ -220,6 +221,8 @@ class PreviewPopup(Gtk.Window):
         self._current_desktop_id: str = ""
         self._thumbnail_outline_enabled: Callable[[], bool] = lambda: False
         self._thumbnail_width: Callable[[], int] = lambda: THUMB_W
+        self._outline: WindowOutline | None = None
+        self._outline_enabled: Callable[[], bool] = lambda: False
 
         self.set_decorated(False)
         self.set_skip_taskbar_hint(True)
@@ -247,6 +250,13 @@ class PreviewPopup(Gtk.Window):
     def set_thumbnail_width_probe(self, probe: Callable[[], int]) -> None:
         """Set the live thumbnail width probe (polled each time the popup is built)."""
         self._thumbnail_width = probe
+
+    def set_window_outline(
+        self, outline: WindowOutline | None, enabled: Callable[[], bool]
+    ) -> None:
+        """Attach the hover outline overlay; ``enabled`` is polled per hover."""
+        self._outline = outline
+        self._outline_enabled = enabled
 
     def set_pointer_inside_dock_probe(self, probe: Callable[[], bool]) -> None:
         self._pointer_inside_dock = probe
@@ -282,6 +292,7 @@ class PreviewPopup(Gtk.Window):
 
         # Replace and resize off-screen, including when switching apps while
         # this long-lived popup is already visible.
+        self._hide_outline()
         self.hide()
         child = self.get_child()
         if child:
@@ -380,7 +391,7 @@ class PreviewPopup(Gtk.Window):
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
         event_box.connect("button-press-event", self._on_thumb_click, window.id)
-        event_box.connect("enter-notify-event", self._on_thumb_enter)
+        event_box.connect("enter-notify-event", self._on_thumb_enter, window)
         event_box.connect("leave-notify-event", self._on_thumb_leave)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -429,17 +440,37 @@ class PreviewPopup(Gtk.Window):
         self._do_hide()
         return True
 
-    def _on_thumb_enter(self, widget: Gtk.EventBox, _event: Gdk.EventCrossing) -> bool:
-        """Highlight the hovered thumbnail."""
+    def _on_thumb_enter(
+        self, widget: Gtk.EventBox, _event: Gdk.EventCrossing, window: WindowSnapshot
+    ) -> bool:
+        """Highlight the hovered thumbnail and outline its real window, if enabled."""
         # EventBox never sets PRELIGHT itself, so ``.preview-thumb:hover`` needs this.
         if self._thumbnail_outline_enabled():
             widget.set_state_flags(Gtk.StateFlags.PRELIGHT, False)
+        if (
+            self._outline is not None
+            and self._outline_enabled()
+            and window.geometry is not None
+            and not window.minimized
+            and window.visible is not False
+            and window.on_current_workspace is not False
+        ):
+            self._outline.show_around(window.geometry)
+            # The overlay is click-through but would still paint over the popup.
+            popup_window = self.get_window()
+            if popup_window is not None:
+                popup_window.raise_()
         return False
 
     def _on_thumb_leave(self, widget: Gtk.EventBox, event: Gdk.EventCrossing) -> bool:
         if event.detail != Gdk.NotifyType.INFERIOR:
             widget.unset_state_flags(Gtk.StateFlags.PRELIGHT)
+            self._hide_outline()
         return False
+
+    def _hide_outline(self) -> None:
+        if self._outline is not None:
+            self._outline.hide()
 
     @staticmethod
     def _on_horizontal_scroll(
@@ -530,6 +561,7 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview: hiding")
         self._hide_timer_id = 0
         self._current_desktop_id = ""
+        self._hide_outline()
         self.hide()
         self._release_dock_autohide_if_needed()
         return False

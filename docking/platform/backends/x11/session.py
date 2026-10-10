@@ -112,6 +112,7 @@ class X11SessionBackend(SessionBackend):
             supports_close=True,
             supports_window_menu=True,
             tracks_window_geometry=True,
+            supports_window_outline=True,
             tracks_window_workspace=True,
             supports_current_workspace_filter=True,
             supports_workspace_list=True,

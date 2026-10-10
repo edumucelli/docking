@@ -261,6 +261,9 @@ class TestBuildDockWindow:
             actions=components.settings_actions,
             model=model,
             config=config,
+            window_outline_supported=(
+                session_backend.capabilities.supports_window_outline
+            ),
         )
         factory_mod.MenuHandler.assert_called_once_with(
             about=components.about,

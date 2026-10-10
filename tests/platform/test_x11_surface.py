@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from docking.core.position import Position
 from docking.platform.backends.base import (
@@ -299,3 +299,39 @@ def test_set_blur_region_none_clears_hint(monkeypatch):
     service.set_blur_region(None)
 
     clear.assert_called_once_with(gdk_window=x11_window)
+
+
+def test_default_overlay_placement_moves_the_window_to_absolute_coordinates():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 1
+    service = X11SurfaceService()
+
+    service.prepare_overlay_window(window)
+    service.place_overlay(window, Rect(30, 40, 500, 400))
+
+    assert service.overlay_uses_toplevel is False
+    assert window.mock_calls == [
+        call.get_scale_factor(),
+        call.move(30, 40),
+        call.resize(500, 400),
+    ]
+
+
+def test_default_overlay_placement_converts_device_pixels_to_logical_units():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 2
+
+    X11SurfaceService().place_overlay(window, Rect(60, 80, 600, 400))
+
+    window.move.assert_called_once_with(30, 40)
+    window.resize.assert_called_once_with(300, 200)
+
+
+def test_default_overlay_placement_rounds_odd_values_outward_at_scale_two():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 2
+
+    X11SurfaceService().place_overlay(window, Rect(61, 81, 600, 400))
+
+    window.move.assert_called_once_with(30, 40)
+    window.resize.assert_called_once_with(301, 201)

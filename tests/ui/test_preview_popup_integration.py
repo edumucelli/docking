@@ -9,9 +9,12 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+
+import pytest
 
 from docking.core.config import Config
 from docking.core.position import Position
@@ -218,6 +221,8 @@ def _make_popup():
     popup._current_desktop_id = ""
     popup._thumbnail_outline_enabled = lambda: False
     popup._thumbnail_width = lambda: preview_mod.THUMB_W
+    popup._outline = None
+    popup._outline_enabled = lambda: False
     popup.get_transient_for = MagicMock(return_value=None)
     return popup
 
@@ -506,7 +511,9 @@ class TestPreviewPopupIntegration:
         popup._thumbnail_outline_enabled = lambda: True
         widget = MagicMock()
 
-        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock())
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
 
         widget.set_state_flags.assert_called_once_with(
             preview_mod.Gtk.StateFlags.PRELIGHT, False
@@ -517,7 +524,9 @@ class TestPreviewPopupIntegration:
         popup._thumbnail_outline_enabled = lambda: False
         widget = MagicMock()
 
-        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock())
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
 
         widget.set_state_flags.assert_not_called()
 
@@ -528,7 +537,9 @@ class TestPreviewPopupIntegration:
         )
         widget = MagicMock()
 
-        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock())
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
 
         widget.set_state_flags.assert_not_called()
 
@@ -553,3 +564,165 @@ class TestPreviewPopupIntegration:
         preview_mod.PreviewPopup.set_thumbnail_outline_enabled(popup, lambda: True)
 
         assert popup._thumbnail_outline_enabled() is True
+
+    @staticmethod
+    def _hover_popup(*, enabled: bool = True):
+        popup = _make_popup()
+        popup._outline = MagicMock()
+        popup._outline_enabled = lambda: enabled
+        popup.get_window = MagicMock()
+        return popup
+
+    def test_thumb_enter_applies_prelight_and_overlay_when_both_enabled(self):
+        popup = self._hover_popup()
+        popup._thumbnail_outline_enabled = lambda: True
+        widget = MagicMock()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock(), window)
+
+        widget.set_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT, False
+        )
+        popup._outline.show_around.assert_called_once_with(geometry)
+
+    def test_thumb_enter_overlay_only_does_not_set_prelight(self):
+        popup = self._hover_popup()
+        popup._thumbnail_outline_enabled = lambda: False
+        widget = MagicMock()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock(), window)
+
+        widget.set_state_flags.assert_not_called()
+        popup._outline.show_around.assert_called_once_with(geometry)
+
+    def test_thumb_enter_prelight_survives_overlay_skips(self):
+        popup = self._hover_popup(enabled=False)
+        popup._thumbnail_outline_enabled = lambda: True
+        widget = MagicMock()
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
+
+        widget.set_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT, False
+        )
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_leave_clears_prelight_and_hides_overlay(self):
+        popup = self._hover_popup()
+        widget = MagicMock()
+        outside = SimpleNamespace(detail=object())
+
+        preview_mod.PreviewPopup._on_thumb_leave(popup, widget, outside)
+
+        widget.unset_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT
+        )
+        popup._outline.hide.assert_called_once()
+
+    def test_thumb_enter_outlines_window_geometry_when_enabled(self):
+        popup = self._hover_popup()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        handled = preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        assert handled is False
+        popup._outline.show_around.assert_called_once_with(geometry)
+        popup.get_window.return_value.raise_.assert_called_once()
+
+    def test_thumb_enter_does_nothing_when_disabled(self):
+        popup = self._hover_popup(enabled=False)
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10))
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_enter_skips_unknown_geometry_and_minimized_windows(self):
+        popup = self._hover_popup()
+        no_geometry = _snapshot(1)
+        minimized = replace(_snapshot(2), geometry=Rect(0, 0, 10, 10), minimized=True)
+
+        for window in (no_geometry, minimized):
+            preview_mod.PreviewPopup._on_thumb_enter(
+                popup, MagicMock(), MagicMock(), window
+            )
+
+        popup._outline.show_around.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            {"visible": False},
+            {"on_current_workspace": False},
+        ],
+    )
+    def test_thumb_enter_skips_windows_that_are_not_on_screen(self, state):
+        popup = self._hover_popup()
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10), **state)
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_enter_outlines_when_visibility_is_unknown_or_true(self):
+        popup = self._hover_popup()
+        geometry = Rect(0, 0, 10, 10)
+
+        for state in ({}, {"visible": True, "on_current_workspace": True}):
+            window = replace(_snapshot(1), geometry=geometry, **state)
+            preview_mod.PreviewPopup._on_thumb_enter(
+                popup, MagicMock(), MagicMock(), window
+            )
+
+        assert popup._outline.show_around.call_count == 2
+
+    def test_thumb_enter_without_overlay_is_a_noop(self):
+        popup = _make_popup()
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10))
+
+        handled = preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        assert handled is False
+
+    def test_thumb_leave_hides_outline_except_for_inferior_crossings(self):
+        popup = self._hover_popup()
+        inferior = SimpleNamespace(detail=preview_mod.Gdk.NotifyType.INFERIOR)
+        outside = SimpleNamespace(detail=object())
+
+        preview_mod.PreviewPopup._on_thumb_leave(popup, MagicMock(), inferior)
+        popup._outline.hide.assert_not_called()
+        preview_mod.PreviewPopup._on_thumb_leave(popup, MagicMock(), outside)
+
+        popup._outline.hide.assert_called_once()
+
+    def test_do_hide_hides_outline(self):
+        popup = self._hover_popup()
+        popup.hide = MagicMock()
+
+        preview_mod.PreviewPopup._do_hide(popup)
+
+        popup._outline.hide.assert_called_once()
+
+    def test_set_window_outline_stores_overlay_and_probe(self):
+        popup = _make_popup()
+        overlay = MagicMock()
+
+        preview_mod.PreviewPopup.set_window_outline(popup, overlay, lambda: True)
+
+        assert popup._outline is overlay
+        assert popup._outline_enabled() is True

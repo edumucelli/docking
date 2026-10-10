@@ -99,6 +99,21 @@ class TestConfigDefaults:
         # Then
         assert c.window_preview_thumbnail_width == expected
 
+    def test_window_preview_outline_window_on_hover_default_false(self):
+        # Given / When
+        c = Config()
+        # Then
+        assert c.window_preview_outline_window_on_hover is False
+
+    def test_window_preview_outline_window_on_hover_normalizes_and_roundtrips(self):
+        # Given / When
+        on = Config(window_preview_outline_window_on_hover="yes")
+        off = Config(window_preview_outline_window_on_hover="garbage")
+        # Then
+        assert on.window_preview_outline_window_on_hover is True
+        assert off.window_preview_outline_window_on_hover is False
+        assert on.to_dict()["window_preview_outline_window_on_hover"] is True
+
     def test_hide_delay_default_zero(self):
         # Given / When
         c = Config()
