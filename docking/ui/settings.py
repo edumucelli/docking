@@ -245,11 +245,13 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
+        window_outline_supported: bool = False,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._window_outline_supported = window_outline_supported
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
         self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
@@ -269,6 +271,7 @@ class SettingsWindowController:
         self._launcher_progress_switch: Any = None
         self._window_preview_thumbnails_enabled_switch: Any = None
         self._window_preview_highlight_thumbnails_on_hover_switch: Any = None
+        self._preview_outline_switch: Any = None
         self._window_preview_thumbnail_width_spin: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
@@ -433,6 +436,7 @@ class SettingsWindowController:
 
         self._window_preview_thumbnails_enabled_switch = self._new_switch()
         self._window_preview_highlight_thumbnails_on_hover_switch = self._new_switch()
+        self._preview_outline_switch = self._new_switch()
         self._window_preview_thumbnail_width_spin = self._new_numeric_spin_button(
             minimum=MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
             maximum=MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
@@ -718,6 +722,20 @@ class SettingsWindowController:
                     _("Outline Thumbnail on Hover"),
                     self._window_preview_highlight_thumbnails_on_hover_switch,
                     _("Highlight the thumbnail under the pointer in the preview."),
+                ),
+                (
+                    _("Outline Window on Preview Hover"),
+                    self._preview_outline_switch,
+                    _(
+                        "Outline the real window on the desktop while hovering "
+                        "its thumbnail."
+                    )
+                    if self._window_outline_supported
+                    else _(
+                        "Outline the real window on the desktop while hovering "
+                        "its thumbnail. Not available in this session; "
+                        "requires X11 or Sway."
+                    ),
                 ),
                 (
                     _("Thumbnail Width"),
@@ -1242,6 +1260,10 @@ class SettingsWindowController:
             self._register_switch_binding(
                 config_attr="window_preview_highlight_thumbnails_on_hover",
                 widget=self._window_preview_highlight_thumbnails_on_hover_switch,
+            ),
+            self._register_switch_binding(
+                config_attr="window_preview_outline_window_on_hover",
+                widget=self._preview_outline_switch,
             ),
             self._register_switch_binding(
                 config_attr="tooltips_enabled",
@@ -1796,6 +1818,11 @@ class SettingsWindowController:
         if self._window_preview_thumbnail_width_spin is not None:
             self._window_preview_thumbnail_width_spin.set_sensitive(
                 bool(self._config.window_preview_thumbnails_enabled)
+            )
+        if self._preview_outline_switch is not None:
+            self._preview_outline_switch.set_sensitive(
+                self._window_outline_supported
+                and bool(self._config.window_preview_thumbnails_enabled)
             )
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))

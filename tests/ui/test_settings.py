@@ -738,6 +738,7 @@ def _config():
         hide_mode="autohide",
         window_preview_thumbnails_enabled=True,
         window_preview_highlight_thumbnails_on_hover=True,
+        window_preview_outline_window_on_hover=False,
         window_preview_thumbnail_width=200,
         tooltips_enabled=True,
         left_click_action="toggle",
@@ -849,6 +850,7 @@ class TestSettingsWindowController:
         ] == [
             "Display Window Preview Thumbnails",
             "Outline Thumbnail on Hover",
+            "Outline Window on Preview Hover",
             "Thumbnail Width",
         ]
         behavior_box = _stack_page_child(stack, 1)
@@ -1630,12 +1632,15 @@ class TestSettingsWindowController:
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=config,
+            window_outline_supported=True,
         )
 
         controller.show()
 
         switch = controller._window_preview_highlight_thumbnails_on_hover_switch
+        outline_switch = controller._preview_outline_switch
         assert switch.sensitive is expected_sensitive
+        assert outline_switch.sensitive is expected_sensitive
         assert (
             controller._window_preview_thumbnail_width_spin.sensitive
             is expected_sensitive
@@ -1651,6 +1656,7 @@ class TestSettingsWindowController:
 
             assert config.window_preview_thumbnails_enabled is enabled
             assert switch.sensitive is enabled
+            assert outline_switch.sensitive is enabled
             assert controller._window_preview_thumbnail_width_spin.sensitive is enabled
             assert config.window_preview_highlight_thumbnails_on_hover is True
             assert config.window_preview_thumbnail_width == 200
@@ -1699,6 +1705,53 @@ class TestSettingsWindowController:
         spin.emit_value_changed()
 
         assert config.window_preview_thumbnail_width == 320
+
+    @pytest.mark.parametrize(
+        ("supported", "previews_enabled", "expected_sensitive"),
+        [(True, True, True), (True, False, False), (False, True, False)],
+    )
+    def test_preview_outline_switch_sensitivity(
+        self, monkeypatch, supported, previews_enabled, expected_sensitive
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        config.window_preview_thumbnails_enabled = previews_enabled
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+            window_outline_supported=supported,
+        )
+
+        controller.show()
+
+        assert controller._preview_outline_switch.sensitive is expected_sensitive
+
+    def test_preview_outline_switch_persists_to_config(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda applet_id, size: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
+            config=config,
+            window_outline_supported=True,
+        )
+
+        controller.show()
+        controller._preview_outline_switch.set_active(True)
+        controller._preview_outline_switch.emit_notify_active()
+
+        assert config.window_preview_outline_window_on_hover is True
 
     def test_binding_change_updates_config_once_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

@@ -62,6 +62,7 @@ def test_x11_session_backend_groups_x11_services(monkeypatch):
     assert backend.window_picker is window_picker
     assert backend.capabilities.tracks_windows is True
     assert backend.capabilities.supports_window_menu is True
+    assert backend.capabilities.supports_window_outline is True
     assert backend.capabilities.supports_screen_reservation is True
     assert backend.capabilities.supports_overlap_active is True
     session.X11PreviewService.assert_called_once_with(window_tracker=windows)

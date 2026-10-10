@@ -124,8 +124,15 @@ DOCKING_LAB_IMAGE=docking-lab:niri bash tools/visual_compositor/native_services.
 DOCKING_LAB_IMAGE=docking-lab:kwin bash tools/visual_compositor/native_services.sh kwin services
 DOCKING_LAB_IMAGE=docking-lab:cosmic bash tools/visual_compositor/native_services.sh cosmic idle
 DOCKING_LAB_IMAGE=docking-lab:wayfire bash tools/visual_compositor/native_services.sh wayfire idle
+DOCKING_LAB_IMAGE=docking-lab:sway bash tools/visual_compositor/native_services.sh sway outline
 ```
 
+`outline` mode (Sway only) shows the real preview-hover window outline around a
+floating fixture and compares compositor screenshots taken with and without it: only
+the 4px stroke may change, clicks on the stroke must reach the window below, and
+keyboard focus must stay put. It also records whether the outline paints over the
+preview popup and over a fullscreen window. `LAB_OUTPUTS=2` repeats the pixel check on
+a second output; the popup check needs a single output.
 `services` mode explicitly records pixel failures without counting them as visual
 acceptance. `idle` mode requires a real, increasing compositor idle value.
 KWin preview tests separately exercise actual Unix FD transfer on a private bus,

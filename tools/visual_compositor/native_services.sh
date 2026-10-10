@@ -21,7 +21,7 @@ if [ "${1:-}" != --session ]; then
     printf 'lab:x:%s:%s:lab:/tmp:/bin/sh\n' "$lab_uid" "$lab_gid" >> "$evidence/.passwd"
     printf 'lab:x:%s:\n' "$lab_gid" >> "$evidence/.group"
     printf 'Evidence: %s\n' "$evidence"
-    docker run --rm --network none --user "$lab_uid:$lab_gid" -e HOME=/tmp "${device_args[@]}" \
+    docker run --rm --network none --user "$lab_uid:$lab_gid" -e HOME=/tmp -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" "${device_args[@]}" \
         -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
         -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
         "$image" dbus-run-session -- bash /src/tools/visual_compositor/native_services.sh --session "$compositor" "$mode"
@@ -67,9 +67,16 @@ adapter_start
 adapter_wait_ready
 export PYTHONPATH="$(docking_source_pythonpath)"
 positions="bottom top left right"
+probe=native_services_probe.py
+limit=40
 [ "$LAB_SERVICE_MODE" = idle ] && positions=idle
+if [ "$LAB_SERVICE_MODE" = outline ]; then
+    positions=bottom
+    probe=window_outline_probe.py
+    limit=60
+fi
 for position in $positions; do
-    timeout -k 5 40 /usr/bin/python3 "$LAB_SCRIPTS/probes/native_services_probe.py" "$position" \
+    timeout -k 5 "$limit" /usr/bin/python3 "$LAB_SCRIPTS/probes/$probe" "$position" \
         > "$LAB_DIR/$position.log" 2>&1 || {
             tail -60 "$LAB_DIR/$position.log"
             if [ "$compositor" = niri ]; then

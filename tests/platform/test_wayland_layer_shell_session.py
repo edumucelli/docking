@@ -40,6 +40,7 @@ from docking.platform.backends.wayland.services import (
     layer_shell_is_supported,
 )
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
+from docking.platform.backends.wayland.sway_session import SwaySessionBackend
 from docking.platform.backends.wayland.toplevels import (
     WaylandForeignToplevelWindowService,
 )
@@ -137,6 +138,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
     assert backend.capabilities.supports_minimize is True
     assert backend.capabilities.supports_close is True
     assert backend.capabilities.tracks_window_geometry is False
+    assert backend.capabilities.supports_window_outline is False
     assert backend.capabilities.tracks_window_workspace is False
 
 
@@ -299,6 +301,7 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
     assert backend.name == "hyprland"
     assert backend.display_server is DisplayServer.WAYLAND
     assert backend.windows is window_service
+    assert backend.capabilities.supports_window_outline is False
     assert backend.capabilities.tracks_windows is True
     assert backend.capabilities.tracks_active_window is True
     assert backend.capabilities.tracks_attention is True
@@ -511,6 +514,7 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
     assert backend.name == "niri"
     assert backend.display_server is DisplayServer.WAYLAND
     assert backend.windows is window_service
+    assert backend.capabilities.supports_window_outline is False
     assert backend.capabilities.tracks_windows is True
     assert backend.capabilities.tracks_active_window is True
     assert backend.capabilities.tracks_attention is True
@@ -542,3 +546,102 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
     assert isinstance(backend.windows, ReducedWindowService)
     assert backend.capabilities.tracks_windows is False
     assert backend.capabilities.supports_layer_shell is True
+
+
+def test_sway_session_supports_window_outline():
+    backend = SwaySessionBackend(
+        socket_path="/tmp/unused-sway.sock",
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        **identity_services(),
+        protocol_runtime=_empty_runtime(),
+    )
+
+    assert backend.capabilities.supports_window_outline is True
+    assert backend.capabilities.tracks_window_geometry is True
+    assert backend.surface.overlay_uses_toplevel is True
+
+
+def _overlay_window(monitor: SimpleNamespace) -> MagicMock:
+    window = MagicMock()
+    window.get_display.return_value.get_monitor_at_point.return_value = monitor
+    return window
+
+
+def _gdk_monitor(x: int, y: int) -> SimpleNamespace:
+    return SimpleNamespace(get_geometry=lambda: Rect(x, y, 1920, 1080))
+
+
+def test_layer_shell_prepare_overlay_window_assigns_unmanaged_corner_surface():
+    layer_shell = _layer_shell()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    window = MagicMock()
+
+    service.prepare_overlay_window(window)
+
+    layer_shell.init_for_window.assert_called_once_with(window)
+    layer_shell.set_namespace.assert_called_once_with(window, "docking-outline")
+    layer_shell.set_layer.assert_called_once_with(window, "top-layer")
+    layer_shell.set_keyboard_mode.assert_called_once_with(window, "no-keyboard")
+    layer_shell.set_exclusive_zone.assert_called_once_with(window, -1)
+    anchors = {call.args[1]: call.args[2] for call in layer_shell.set_anchor.mock_calls}
+    assert anchors == {"top": True, "left": True, "bottom": False, "right": False}
+
+
+def test_layer_shell_place_overlay_uses_margins_relative_to_the_monitor():
+    layer_shell = _layer_shell()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    monitor = _gdk_monitor(1920, 100)
+    window = _overlay_window(monitor)
+
+    service.place_overlay(window, Rect(2000, 300, 640, 480))
+
+    window.get_display.return_value.get_monitor_at_point.assert_called_once_with(
+        2320, 540
+    )
+    layer_shell.set_monitor.assert_called_once_with(window, monitor)
+    margins = {call.args[1]: call.args[2] for call in layer_shell.set_margin.mock_calls}
+    assert margins == {"left": 80, "top": 200}
+    window.set_size_request.assert_called_once_with(640, 480)
+    window.resize.assert_called_once_with(640, 480)
+    window.move.assert_not_called()
+
+
+def test_layer_shell_place_overlay_ignores_the_window_scale():
+    layer_shell = _layer_shell()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    window = _overlay_window(_gdk_monitor(1920, 100))
+    window.get_scale_factor.return_value = 2
+
+    service.place_overlay(window, Rect(2000, 300, 640, 480))
+
+    margins = {call.args[1]: call.args[2] for call in layer_shell.set_margin.mock_calls}
+    assert margins == {"left": 80, "top": 200}
+    window.set_size_request.assert_called_once_with(640, 480)
+    window.resize.assert_called_once_with(640, 480)
+    window.move.assert_not_called()
+
+
+def test_layer_shell_place_overlay_remaps_only_when_the_monitor_changes():
+    layer_shell = _layer_shell()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    first, second = _gdk_monitor(0, 0), _gdk_monitor(1920, 0)
+    window = _overlay_window(first)
+
+    service.place_overlay(window, Rect(10, 10, 100, 100))
+    service.place_overlay(window, Rect(20, 20, 100, 100))
+    window.get_display.return_value.get_monitor_at_point.return_value = second
+    service.place_overlay(window, Rect(2000, 20, 100, 100))
+
+    assert [c.args[1] for c in layer_shell.set_monitor.mock_calls] == [first, second]
+
+
+def test_layer_shell_place_overlay_without_a_monitor_changes_nothing():
+    layer_shell = _layer_shell()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    window = _overlay_window(None)
+
+    service.place_overlay(window, Rect(0, 0, 10, 10))
+
+    layer_shell.set_margin.assert_not_called()
+    window.set_size_request.assert_not_called()

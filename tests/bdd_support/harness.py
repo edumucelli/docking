@@ -1414,6 +1414,9 @@ class DockHarness:
         )
         self._preview_popup._hide_timer_id = 0
         self._preview_popup._current_desktop_id = ""
+        self._preview_popup._thumbnail_outline_enabled = lambda: False
+        self._preview_popup._outline = None
+        self._preview_popup._outline_enabled = lambda: False
         self._preview_popup.hide = MagicMock(side_effect=self._hide_preview_popup)
         self._preview_popup.show_for_item = MagicMock(
             side_effect=self._show_preview_popup

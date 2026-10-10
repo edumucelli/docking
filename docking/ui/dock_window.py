@@ -222,6 +222,7 @@ from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.placement import DockPlacementController
 from docking.ui.preview import PreviewPopup
 from docking.ui.tooltip import TooltipManager
+from docking.ui.window_outline import WindowOutline
 
 # Re-exported for existing callers/tests.
 TRIGGER_PX = geometry.TRIGGER_PX
@@ -450,6 +451,11 @@ class DockWindow(Gtk.Window):
         self.preview.set_thumbnail_width_probe(
             lambda: self.config.window_preview_thumbnail_width
         )
+        if self.session_backend.capabilities.supports_window_outline:
+            self.preview.set_window_outline(
+                WindowOutline(self.session_backend.surface),
+                lambda: self.config.window_preview_outline_window_on_hover,
+            )
         self.hover.set_preview(preview=self.preview)
 
     def is_pointer_inside_dock(self) -> bool:

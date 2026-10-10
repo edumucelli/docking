@@ -39,6 +39,21 @@ class TestRect:
     def test_does_not_overlap_when_edges_only_touch(self):
         assert not Rect(0, 0, 20, 20).overlaps(Rect(20, 0, 20, 20))
 
+    def test_device_to_logical_is_unchanged_at_scale_one(self):
+        rect = Rect(61, 81, 601, 401)
+
+        assert rect.device_to_logical(1) == rect
+
+    def test_device_to_logical_divides_by_the_scale(self):
+        assert Rect(60, 80, 600, 400).device_to_logical(2) == Rect(30, 40, 300, 200)
+
+    def test_device_to_logical_covers_the_rect_on_odd_values(self):
+        # Origin rounds down, far edges round up: 61..661 -> 30..331.
+        assert Rect(61, 81, 600, 400).device_to_logical(2) == Rect(30, 40, 301, 201)
+
+    def test_device_to_logical_floors_negative_origins(self):
+        assert Rect(-61, -3, 100, 10).device_to_logical(2) == Rect(-31, -2, 51, 6)
+
 
 class TestPlatformCapabilities:
     def test_defaults_to_no_capabilities(self):

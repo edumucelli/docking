@@ -187,6 +187,7 @@ def build_dock_window(
         actions=settings_actions,
         model=model,
         config=config,
+        window_outline_supported=(session_backend.capabilities.supports_window_outline),
     )
     menu = MenuHandler(
         about=about,

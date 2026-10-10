@@ -80,6 +80,7 @@ class SwaySessionBackend(WaylandLayerShellSessionBackend):
             tracks_fullscreen=True,
             tracks_maximized=False,
             tracks_window_geometry=True,
+            supports_window_outline=True,
             tracks_window_workspace=True,
             supports_current_workspace_filter=True,
             supports_activate=True,

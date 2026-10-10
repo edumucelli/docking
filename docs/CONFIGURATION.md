@@ -67,6 +67,7 @@ should not be edited by hand.
 | `tooltips_enabled` | `true` | boolean | Shows item names and dynamic details on hover. |
 | `window_preview_thumbnails_enabled` | `true` | boolean | Shows window thumbnails when hovering over running applications. |
 | `window_preview_highlight_thumbnails_on_hover` | `false` | boolean | Draws a blue border around the preview thumbnail under the pointer. Off by default to keep the popup minimal. Works on every session type. |
+| `window_preview_outline_window_on_hover` | `false` | boolean | Outlines the real window on the desktop while hovering its preview thumbnail. Requires an X11 session with a compositing window manager, or Sway; ignored elsewhere. |
 | `window_preview_thumbnail_width` | `200` | integer, `120` to `400` | Width in pixels of window preview thumbnails; the height follows a 4:3 ratio and the title length shown under each thumbnail scales with the width. Applied the next time a preview opens. |
 | `show_window_count_numbers` | `false` | boolean | Adds a number to a running indicator when an application has multiple windows. |
 | `show_launcher_badges` | `true` | boolean | Shows numeric counts reported through launcher integration. |
