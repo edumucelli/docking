@@ -1,13 +1,12 @@
 name: CI
 
-# ── Supply-chain cooldown ─────────────────────────────────────────────
+# Supply-chain cooldown
 # Every pip install step exports PIP_UPLOADED_PRIOR_TO set to 7 days ago
 # (pip >= 26.1).  This prevents freshly-published packages from being
 # resolved, mitigating supply-chain attacks where a compromised release
 # is pushed to PyPI.  Dependabot is also configured with a weekly schedule
-# (.github/dependabot.yml) so new versions age at least 0–7 days before a PR
+# (.github/dependabot.yml) so new versions age at least 0 to 7 days before a PR
 # is opened.
-# ──────────────────────────────────────────────────────────────────────
 
 on:
   push:
@@ -16,10 +15,31 @@ on:
   pull_request:
     branches: [master]
 
+# Transient-failure hardening
+# pip resolves PIP_<OPTION> for every CLI flag, so these cover every pip
+# invocation in this workflow (and the ones inside packaging/*/build.sh)
+# without touching a single call site.  --timeout defaults to 15s, which is
+# short enough that a slow PyPI response looks like a hard failure.
+# Note these do NOT reach into `docker run` containers, which need -e passed
+# explicitly (see packaging/*/build-wayland-vendors.sh).
+env:
+  PIP_RETRIES: "5"
+  PIP_TIMEOUT: "60"
+  # apt has no environment-variable form for its own options, so they live here
+  # as one flag list and are expanded at each call site as
+  #   apt-get ${APT_RETRY_OPTS:?} update
+  # The :? guard is deliberate: if this ever fails to reach a step (a bare
+  # `docker run` without -e, say) the step fails loudly instead of silently
+  # running apt with no retries at all.
+  APT_RETRY_OPTS: >-
+    -o Acquire::Retries=3 -o Acquire::http::Timeout=30
+    -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=120
+
 jobs:
   changes:
     name: Detect CI-relevant changes
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       run_ci: ${{ steps.filter.outputs.run_ci }}
     steps:
@@ -77,13 +97,14 @@ jobs:
     name: Quality (ruff + ty)
     needs: [changes]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
       - name: Install i18n tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y gettext
 
       - name: Cache pip downloads
         uses: actions/cache@v5
@@ -134,6 +155,7 @@ jobs:
     name: BDD + Visual Regression
     needs: [changes, quality]
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -147,12 +169,12 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get ${APT_RETRY_OPTS:?} update
           icon_theme_pkg="adwaita-icon-theme"
           if apt-cache show adwaita-icon-theme-full >/dev/null 2>&1; then
             icon_theme_pkg="adwaita-icon-theme-full"
           fi
-          sudo apt-get install -y \
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y \
             python3-venv \
             xvfb xauth \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
@@ -197,7 +219,11 @@ jobs:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
     needs: [changes, quality]
     runs-on: ubuntu-${{ matrix.ubuntu }}
+    timeout-minutes: 30
     strategy:
+      # Default is fail-fast: true, so one flaky leg cancels its healthy
+      # siblings and discards results that were about to pass.
+      fail-fast: false
       matrix:
         include:
           - ubuntu: "22.04"
@@ -226,12 +252,12 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get ${APT_RETRY_OPTS:?} update
           icon_theme_pkg="adwaita-icon-theme"
           if apt-cache show adwaita-icon-theme-full >/dev/null 2>&1; then
             icon_theme_pkg="adwaita-icon-theme-full"
           fi
-          sudo apt-get install -y \
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y \
             python3-venv \
             xvfb xauth \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
@@ -306,7 +332,11 @@ jobs:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
     needs: [changes, quality]
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     strategy:
+      # Default is fail-fast: true, so one flaky leg cancels its healthy
+      # siblings and discards results that were about to pass.
+      fail-fast: false
       matrix:
         include:
           - debian: "12"
@@ -334,8 +364,8 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          apt-get update
-          apt-get install -y \
+          apt-get ${APT_RETRY_OPTS:?} update
+          apt-get ${APT_RETRY_OPTS:?} install -y \
             build-essential \
             ca-certificates curl git \
             xvfb xauth pkg-config gobject-introspection libcairo2-dev libgirepository1.0-dev \
@@ -373,6 +403,7 @@ jobs:
     name: Test (Python 3.12, Ubuntu 24.04 ARM64)
     needs: [changes, quality]
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -387,12 +418,12 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get ${APT_RETRY_OPTS:?} update
           icon_theme_pkg="adwaita-icon-theme"
           if apt-cache show adwaita-icon-theme-full >/dev/null 2>&1; then
             icon_theme_pkg="adwaita-icon-theme-full"
           fi
-          sudo apt-get install -y \
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y \
             python3-venv \
             xvfb xauth \
             gir1.2-gtk-3.0 gir1.2-gdk-3.0 \
@@ -425,6 +456,7 @@ jobs:
     name: Smoke (Fedora 41)
     needs: [changes, quality]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     container:
       image: fedora:41
     steps:
@@ -465,6 +497,7 @@ jobs:
     name: Smoke (openSUSE Tumbleweed)
     needs: [changes, quality]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     container:
       image: opensuse/tumbleweed:latest
     steps:
@@ -472,7 +505,11 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          zypper --non-interactive refresh
+          . tools/retry.sh
+          # zypper has no per-invocation retry option, so the refresh -- the
+          # flakiest call in this job, and the one that fails the whole step
+          # before anything else can run -- has to be wrapped.
+          retry -a 3 -d 15 -l "zypper refresh" -- timeout 300 zypper --non-interactive refresh
           choose_pkg() {
             for pkg in "$@"; do
               if zypper --non-interactive info "$pkg" >/dev/null 2>&1; then
@@ -536,14 +573,15 @@ jobs:
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y \
             build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
             libwayland-dev wayland-protocols \
@@ -564,8 +602,8 @@ jobs:
       - name: Validate .deb install
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y ./artifacts/docking_*.deb
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y ./artifacts/docking_*.deb
           echo "[check] dpkg status"
           dpkg -s docking | grep -F "Status: install ok installed"
 
@@ -616,14 +654,15 @@ jobs:
   build-deb-arm64:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y \
             build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
             libwayland-dev wayland-protocols \
@@ -644,8 +683,8 @@ jobs:
       - name: Validate .deb install on ARM64
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y ./artifacts/docking_*.deb
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y ./artifacts/docking_*.deb
           echo "[check] dpkg status"
           dpkg -s docking | grep -F "Status: install ok installed"
 
@@ -699,6 +738,7 @@ jobs:
   build-rpm-arm64:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
@@ -709,8 +749,8 @@ jobs:
 
       - name: Install RPM tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
           export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
           python3 -m pip install --upgrade pip setuptools wheel
 
@@ -736,6 +776,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
@@ -746,8 +787,8 @@ jobs:
 
       - name: Install RPM tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
           export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
           python3 -m pip install --upgrade pip setuptools wheel
 
@@ -773,22 +814,29 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
       - name: Install Flatpak tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y flatpak flatpak-builder gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
       - name: Build Flatpak bundle
         run: |
+          . tools/retry.sh
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
+          # Several hundred MB from flathub, which intermittently 502s.
+          # flatpak-builder below is deliberately NOT wrapped: --force-clean
+          # already makes it idempotent, and retrying it would mean a 3x rebuild
+          # on a genuine build failure.
+          retry -a 3 -d 20 -l "flathub platform" -- timeout 600 \
+            flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
           flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
           flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
@@ -803,22 +851,29 @@ jobs:
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Flatpak tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y flatpak flatpak-builder gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
       - name: Build Flatpak bundle
         run: |
+          . tools/retry.sh
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
+          # Several hundred MB from flathub, which intermittently 502s.
+          # flatpak-builder below is deliberately NOT wrapped: --force-clean
+          # already makes it idempotent, and retrying it would mean a 3x rebuild
+          # on a genuine build failure.
+          retry -a 3 -d 20 -l "flathub platform" -- timeout 600 \
+            flatpak install --user -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
           flatpak-builder --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/cc.docking.Docking.json
           mkdir -p artifacts
           flatpak build-bundle flatpak-repo artifacts/cc.docking.Docking.flatpak cc.docking.Docking
@@ -833,25 +888,35 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
       - name: Install Snapcraft
         run: |
-          sudo apt-get update
-          sudo apt-get install -y snapcraft gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y snapcraft gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
       - name: Build Snap package
         run: |
+          . tools/retry.sh
           mkdir -p artifacts
-          (
-            cd packaging/snap
-            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
-          )
+          # snapcraft does not clean up after a partial run, so a retry would
+          # otherwise pack a stale parts/stage/prime tree.  Clean and pack as one
+          # retried unit.  timeout(1) cannot wrap a shell function, so a hang
+          # here is bounded by this job's timeout-minutes instead.
+          build_snap() {
+            (
+              cd packaging/snap
+              sudo snapcraft clean --destructive-mode || true
+              sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
+            )
+          }
+          retry -a 2 -d 30 -l "snapcraft pack" -- build_snap
           sudo chown "$USER:$USER" artifacts/docking.snap
           ls -lh artifacts/*.snap
 
@@ -864,14 +929,15 @@ jobs:
   build-snap-arm64:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Snapcraft
         run: |
-          sudo apt-get update
-          sudo apt-get install -y snapd gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y snapd gettext
           sudo systemctl start snapd.socket snapd.service
           sudo snap install snapcraft --classic
           echo "/snap/bin" >> "$GITHUB_PATH"
@@ -881,11 +947,20 @@ jobs:
 
       - name: Build Snap package
         run: |
+          . tools/retry.sh
           mkdir -p artifacts
-          (
-            cd packaging/snap
-            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
-          )
+          # snapcraft does not clean up after a partial run, so a retry would
+          # otherwise pack a stale parts/stage/prime tree.  Clean and pack as one
+          # retried unit.  timeout(1) cannot wrap a shell function, so a hang
+          # here is bounded by this job's timeout-minutes instead.
+          build_snap() {
+            (
+              cd packaging/snap
+              sudo snapcraft clean --destructive-mode || true
+              sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
+            )
+          }
+          retry -a 2 -d 30 -l "snapcraft pack" -- build_snap
           sudo chown "$USER:$USER" artifacts/docking.snap
           ls -lh artifacts/*.snap
 
@@ -898,14 +973,15 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
 
       - name: Install AppImage tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python3 -m pip install appimage-builder
@@ -927,14 +1003,15 @@ jobs:
   build-appimage-arm64:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install AppImage tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python3 -m pip install appimage-builder
@@ -956,6 +1033,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     container:
       image: archlinux:latest
@@ -963,10 +1041,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Arch build tooling
-        run: |
-          pacman -Sy --noconfirm archlinux-keyring
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+        run: bash packaging/arch/install-build-deps.sh
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -987,6 +1062,7 @@ jobs:
   build-arch-arm64:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     container:
       image: adyranov/archlinux:latest
@@ -994,10 +1070,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Arch build tooling
-        run: |
-          pacman -Sy --noconfirm archlinux-keyring
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+        run: bash packaging/arch/install-build-deps.sh
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -1018,6 +1091,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v6
@@ -1029,16 +1103,20 @@ jobs:
 
       - name: Install i18n tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
       - name: Build Nix package
         run: |
+          . tools/retry.sh
           mkdir -p artifacts
-          ./packaging/nix/build.sh
+          # nix-build is content-addressed and build.sh removes the result
+          # symlink first, so a retry is idempotent.  timeout 600 keeps
+          # 3 attempts inside this job's 45-minute budget.
+          retry -a 3 -d 20 -l "nix-build" -- timeout 600 ./packaging/nix/build.sh
 
       - name: Upload Nix artifact
         uses: actions/upload-artifact@v4
@@ -1051,6 +1129,7 @@ jobs:
   build-nix-arm64:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
@@ -1062,16 +1141,20 @@ jobs:
 
       - name: Install i18n tooling
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gettext
+          sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
       - name: Build Nix package
         run: |
+          . tools/retry.sh
           mkdir -p artifacts
-          ./packaging/nix/build.sh
+          # nix-build is content-addressed and build.sh removes the result
+          # symlink first, so a retry is idempotent.  timeout 600 keeps
+          # 3 attempts inside this job's 45-minute budget.
+          retry -a 3 -d 20 -l "nix-build" -- timeout 600 ./packaging/nix/build.sh
 
       - name: Upload ARM64 Nix artifact
         uses: actions/upload-artifact@v4
@@ -1085,6 +1168,7 @@ jobs:
     name: Install .deb (${{ matrix.image }}, ${{ matrix.arch }})
     needs: [build-deb, build-deb-arm64]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -1110,13 +1194,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          . tools/retry.sh
+          # Pull separately and retry just the pull, so a flaky image fetch does
+          # not force the whole in-container install below to be redone.
+          retry -a 3 -d 15 -l "docker pull ${IMAGE}" -- timeout 300 docker pull "$IMAGE"
           docker run --rm \
-            -e DEBIAN_FRONTEND=noninteractive -e PACKAGE_ARCH \
+            -e DEBIAN_FRONTEND=noninteractive -e PACKAGE_ARCH -e APT_RETRY_OPTS \
             -v "$PWD/artifacts/deb:/packages:ro" \
             -v "$PWD/packaging/deb:/checks:ro" \
             "$IMAGE" bash -euc '
-              apt-get update
-              apt-get install -y xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
+              apt-get ${APT_RETRY_OPTS:?} update
+              apt-get ${APT_RETRY_OPTS:?} install -y xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
               test "$(dpkg-query -W -f="\${Status}" docking)" = "install ok installed"
               test "$(dpkg --print-architecture)" = "$PACKAGE_ARCH"
               bash /checks/runtime-smoke.sh
@@ -1126,6 +1214,7 @@ jobs:
     name: Install RPM (${{ matrix.image }}, ${{ matrix.arch }})
     needs: [build-rpm, build-rpm-arm64]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -1151,6 +1240,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          . tools/retry.sh
+          # Pull separately and retry just the pull, so a flaky image fetch does
+          # not force the whole in-container install below to be redone.
+          retry -a 3 -d 15 -l "docker pull ${IMAGE}" -- timeout 300 docker pull "$IMAGE"
           docker run --rm \
             -v "$PWD/artifacts/rpm:/packages:ro" \
             -v "$PWD/packaging:/checks:ro" \
@@ -1189,6 +1282,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     needs:
       - changes
       - quality
@@ -1254,8 +1348,14 @@ jobs:
           current_version="${{ steps.version.outputs.version }}"
           api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
 
+          # A transient 5xx or connection reset here currently lands in the
+          # "!= 200" branch below and hard-fails a release that would otherwise
+          # go green.  curl only auto-retries 408/429/5xx, so the 404
+          # no-existing-release path is unaffected.
           status_code=$(
-            curl -sS -o /tmp/latest-release.json -w "%{http_code}" \
+            curl -sS --retry 5 --retry-delay 2 --retry-max-time 60 \
+              --retry-all-errors --connect-timeout 15 \
+              -o /tmp/latest-release.json -w "%{http_code}" \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               "${api_url}"

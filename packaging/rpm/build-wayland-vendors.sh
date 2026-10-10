@@ -7,6 +7,11 @@
 # builds one fallback tree per target Python minor and hands them to the spec
 # through DOCKING_EXTRA_PYWAYLAND.
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../tools/retry.sh
+. "${SCRIPT_DIR}/../../tools/retry.sh"
+
 mkdir -p "$1"
 output="$(cd "$1" && pwd)"
 # Trees are keyed by Python minor alone, so the first image to build a given
@@ -16,9 +21,14 @@ for image in fedora:44 fedora:45 opensuse/leap:16.0 opensuse/tumbleweed:latest; 
     echo "Building the PyWayland fallback from ${image}"
     # Both families ship the protocol XML in a -devel package, but only Fedora
     # resolves python3-pip and pkg-config by those exact names.
-    docker run --rm -v "$output:/vendors" "$image" bash -euc '
+    # Retried per image: one flaky mirror should not throw away the trees that
+    # already built.  The .complete sentinel below keeps them from being rebuilt.
+    retry -a 3 -d 20 -l "pywayland ${image}" -- \
+    bash "${SCRIPT_DIR}/../../tools/docker-run-timeout.sh" 420 -- \
+        -e PIP_RETRIES=5 -e PIP_TIMEOUT=60 \
+        -v "$output:/vendors" "$image" bash -euc '
         if command -v dnf >/dev/null 2>&1; then
-            dnf install -y --setopt=install_weak_deps=False \
+            dnf install -y --setopt=install_weak_deps=False --setopt=timeout=60 \
                 gcc python3-devel python3-pip libffi-devel wayland-devel \
                 wayland-protocols-devel pkgconf-pkg-config
         else
@@ -36,6 +46,11 @@ for image in fedora:44 fedora:45 opensuse/leap:16.0 opensuse/tumbleweed:latest; 
             echo "Reusing ${target} for python${minor}"
             exit 0
         fi
+        # Deliberately after the sentinel check: an earlier image in the loop
+        # donates its completed tree to later ones, and that reuse must survive.
+        # But a tree with no .complete was killed mid-build, and pip --target
+        # merges into an existing directory, so the retry has to start clean.
+        rm -rf "${target}"
         python3 -m pip install --break-system-packages --no-compile --no-binary=pywayland \
             --target="${target}" "pywayland>=0.4.18,<0.5"
         rm -rf "${target}/bin"

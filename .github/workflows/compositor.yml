@@ -11,6 +11,22 @@ on:
   schedule:
     - cron: "23 4 * * 1"
 
+# Transient-failure hardening
+# pip resolves PIP_<OPTION> for every CLI flag, so these apply to every pip
+# invocation in this workflow without touching a call site.  Note they do NOT
+# reach into `docker run` containers, which need -e passed explicitly.
+env:
+  PIP_RETRIES: "5"
+  PIP_TIMEOUT: "60"
+  # apt has no environment-variable form for its own options, so they live here
+  # as one flag list and are expanded at each call site as
+  #   apt-get ${APT_RETRY_OPTS:?} update
+  # The :? guard is deliberate: if this ever fails to reach a step the step
+  # fails loudly instead of silently running apt with no retries at all.
+  APT_RETRY_OPTS: >-
+    -o Acquire::Retries=3 -o Acquire::http::Timeout=30
+    -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=120
+
 permissions:
   contents: read
 
@@ -22,7 +38,9 @@ jobs:
   compositor:
     name: Real Wayland (${{ matrix.compositor }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # The cinnamon lane runs three retried probes (2 attempts each), so the
+    # worst case needs more than the 30 minutes this job used to allow.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -31,8 +49,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install comparison dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-cairo
+          . tools/retry.sh
+          retry -a 3 -d 10 -l "apt-get update" -- \
+            sudo apt-get ${APT_RETRY_OPTS:?} update
+          sudo apt-get ${APT_RETRY_OPTS:?} install -y --no-install-recommends python3-cairo
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
@@ -53,47 +73,71 @@ jobs:
           DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
           COMPOSITOR: ${{ matrix.compositor }}
         run: |
+          # Retried per phase, not per step: compositor startup races are
+          # transient, but re-running the whole lane would re-do work that
+          # already passed.  Each helper script allocates a fresh mktemp
+          # evidence directory and traps its own cleanup, so an attempt does not
+          # inherit state from the one before it.  -a 2 keeps the worst case
+          # inside this job's 30-minute budget.
+          . tools/retry.sh
           if [ "$COMPOSITOR" = cinnamon ]; then
-            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
-            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
-            bash tools/visual_compositor/cinnamon_services.sh
+            retry -a 2 -d 30 -l "cinnamon reservation" -- timeout 420 \
+              bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
+            retry -a 2 -d 30 -l "cinnamon windows" -- timeout 420 \
+              bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+            retry -a 2 -d 30 -l "cinnamon services" -- timeout 300 \
+              bash tools/visual_compositor/cinnamon_services.sh
           elif [ "$COMPOSITOR" = cage ] || [ "$COMPOSITOR" = gnome ]; then
             # Negative compatibility lanes still verify backend, startup and shutdown.
-            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
+            retry -a 2 -d 30 -l "$COMPOSITOR placement" -- timeout 420 \
+              bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
           else
-            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --behavior placement \
-              --case placement-bottom --case placement-top --case placement-left \
-              --case placement-right --case placement-bottom-gap --geometry-only --require-supported
+            retry -a 2 -d 30 -l "$COMPOSITOR placement" -- timeout 420 \
+              bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --behavior placement \
+                --case placement-bottom --case placement-top --case placement-left \
+                --case placement-right --case placement-bottom-gap --geometry-only --require-supported
           fi
       - name: Check pointer-driven behaviour
         if: matrix.compositor == 'sway'
         env:
           DOCKING_LAB_IMAGE: docking-ci:sway
         run: |
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior visibility \
-            --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+          . tools/retry.sh
+          retry -a 2 -d 30 -l "sway visibility" -- timeout 420 \
+            bash tools/visual_compositor_matrix.sh --compositor sway --behavior visibility \
+              --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
+          retry -a 2 -d 30 -l "sway interaction" -- timeout 420 \
+            bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+          retry -a 2 -d 30 -l "sway displays" -- timeout 420 \
+            bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
+          retry -a 2 -d 30 -l "sway layouts" -- timeout 420 \
+            bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
       - name: Check native Wayfire dodge
         if: matrix.compositor == 'wayfire'
         env:
           DOCKING_LAB_IMAGE: docking-ci:wayfire
-        run: bash tools/visual_compositor_matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
+        run: |
+          . tools/retry.sh
+          retry -a 2 -d 30 -l "wayfire dodge" -- timeout 420 \
+            bash tools/visual_compositor_matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
       - name: Check native services and independent dock pixels
         if: contains(fromJSON('["sway","niri","gnome","kwin","cosmic","wayfire"]'), matrix.compositor)
         env:
           DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
           COMPOSITOR: ${{ matrix.compositor }}
         run: |
+          . tools/retry.sh
           if [ "$COMPOSITOR" = kwin ]; then
             # GPU-less QPainter validates state/actions, not animation pixels or
             # the OpenGL-only ScreenShot2 effect. Keep this distinction in JSON.
-            bash tools/visual_compositor/native_services.sh kwin services
+            retry -a 2 -d 30 -l "kwin services" -- timeout 300 \
+              bash tools/visual_compositor/native_services.sh kwin services
           elif [ "$COMPOSITOR" = cosmic ] || [ "$COMPOSITOR" = wayfire ]; then
-            bash tools/visual_compositor/native_services.sh "$COMPOSITOR" idle
+            retry -a 2 -d 30 -l "$COMPOSITOR idle" -- timeout 300 \
+              bash tools/visual_compositor/native_services.sh "$COMPOSITOR" idle
           else
-            bash tools/visual_compositor/native_services.sh "$COMPOSITOR"
+            retry -a 2 -d 30 -l "$COMPOSITOR services" -- timeout 300 \
+              bash tools/visual_compositor/native_services.sh "$COMPOSITOR"
           fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
