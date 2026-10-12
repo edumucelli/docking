@@ -404,11 +404,10 @@ def main():
     position = sys.argv[1]
     applications = Path(os.environ["XDG_DATA_HOME"]) / "applications"
     applications.mkdir(parents=True, exist_ok=True)
-    icon = applications / "lab-native.svg"
-    icon.write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">'
-        '<rect width="64" height="64" fill="#0000ff"/></svg>'
-    )
+    icon = applications / "lab-native.png"
+    marker = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 64, 64)
+    marker.fill(0x0000FFFF)
+    marker.savev(str(icon), "png", [], [])
     (applications / "lab-native.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Native fixture\nExec=/usr/bin/true\n"
         f"StartupWMClass=lab-native\nIcon={icon}\n"

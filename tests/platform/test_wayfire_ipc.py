@@ -1035,16 +1035,98 @@ def test_wayfire_picker_selects_raised_older_window_instead_of_newest_allocation
     assert picker.pick_window_at(x=820, y=-60).id.value == "7"
 
 
-def test_wayfire_poll_restarts_disconnected_events_then_reconciles_snapshot():
+def test_wayfire_poll_restarts_disconnected_events_then_reconciles_snapshot(
+    monkeypatch,
+):
+    monkeypatch.setattr(wayfire_ipc, "GLib", None)
     client = _window_client([_view()])
     watcher = MagicMock()
-    watcher.running = False
+    watcher.start.return_value = True
     service = WayfireWindowService(
         model=_model(), **identity_services(), client=client, watcher=watcher
     )
+    service.start()
+    watcher.start.reset_mock()
+    watcher.running = False
     assert service._poll() is True
     watcher.start.assert_called_once()
     assert len(service.list_all_windows()) == 1
+
+
+def test_wayfire_initially_rejected_events_keep_polling_without_repeated_handshakes(
+    monkeypatch,
+):
+    monkeypatch.setattr(wayfire_ipc, "GLib", None)
+    client = _window_client([_view()])
+    watcher = MagicMock(running=False)
+    watcher.start.return_value = False
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, watcher=watcher
+    )
+    service.start()
+    client.data["window-rules/list-views"] = [_view(view_id=8)]
+    for _ in range(10):
+        assert service._poll() is True
+    watcher.start.assert_called_once()
+    assert service.list_all_windows()[0].id.value == "8"
+
+
+def test_wayfire_failed_reconnect_waits_before_trying_again(monkeypatch):
+    monkeypatch.setattr(wayfire_ipc, "GLib", None)
+    clock = [100.0]
+    monkeypatch.setattr(wayfire_ipc.time, "monotonic", lambda: clock[0])
+    watcher = MagicMock(running=False)
+    watcher.start.side_effect = [True, False, True]
+    service = WayfireWindowService(
+        model=_model(),
+        **identity_services(),
+        client=_window_client([_view()]),
+        watcher=watcher,
+    )
+    service.start()
+    service._poll()
+    for _ in range(10):
+        clock[0] += 2
+        service._poll()
+    assert watcher.start.call_count == 2
+    clock[0] = 161.0
+    service._poll()
+    assert watcher.start.call_count == 3
+    assert len(service.list_all_windows()) == 1
+
+
+@pytest.mark.parametrize(
+    "unknown", ["missing-output", "missing-geometry", "failed-query"]
+)
+def test_wayfire_unknown_workspace_state_retains_running_indicators(unknown):
+    view, output = _view(), _output()
+    if unknown == "missing-output":
+        view.pop("output-id")
+    elif unknown == "missing-geometry":
+        output.pop("geometry")
+    client = _window_client([view], [output])
+    if unknown == "failed-query":
+        request = client.request
+
+        def unavailable(method, data=None):
+            if method == "window-rules/list-outputs":
+                raise OSError("Output query temporarily unavailable")
+            return request(method, data)
+
+        client.request = unavailable
+    model = _model()
+    service = WayfireWindowService(
+        model=model,
+        **identity_services(),
+        client=client,
+        config=SimpleNamespace(current_workspace_only=True),
+    )
+    service._refresh()
+    windows = service.list_windows("Alacritty.desktop")
+    assert len(windows) == 1
+    assert windows[0].on_current_workspace is None
+    assert "Alacritty.desktop" in model.update_running.call_args.kwargs["running"]
+    assert service.close_all("Alacritty.desktop").succeeded
 
 
 def test_wayfire_maximized_state_distinguishes_partial_tiling_from_all_edges():

@@ -184,9 +184,11 @@ RUN command -v phoc
 # The real shell owns a singleton private protocol and therefore needs its own
 # lane in addition to the bare compositor's optional thumbnail capability.
 FROM phoc AS phosh
-RUN apt-get update && apt-get install -y --no-install-recommends phosh \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        phosh gnome-settings-daemon-common \
     && rm -rf /var/lib/apt/lists/*
 RUN test -x /usr/libexec/phosh
+RUN gsettings list-schemas | grep -q '^org.gnome.settings-daemon.peripherals.touchscreen$'
 
 # Weston's desktop shell is a reduced compatibility lane. Nest in a private
 # Xvfb for capture; clients under test connect only to Weston's Wayland socket.

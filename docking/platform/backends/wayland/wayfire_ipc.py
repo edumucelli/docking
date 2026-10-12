@@ -27,6 +27,7 @@ import os
 import socket
 import struct
 import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, replace
@@ -379,10 +380,13 @@ class WayfireWindowService(WindowService):
         self._outputs: dict[int, Mapping[str, JsonValue]] = {}
         self._poll_source_id = 0
         self._watcher = watcher
+        self._watcher_was_running = False
+        self._watcher_retry_after = 0.0
 
     def start(self) -> None:
         if self._watcher is not None:
-            self._watcher.start()
+            self._watcher_was_running = self._watcher.start()
+            self._watcher_retry_after = 0.0
         self._refresh()
         # The timer also reconciles dropped events and retries disconnected
         # subscriptions. In particular, the snapshot predates queued events.
@@ -398,6 +402,8 @@ class WayfireWindowService(WindowService):
         if GLib is not None and self._poll_source_id:
             GLib.source_remove(self._poll_source_id)
         self._poll_source_id = 0
+        self._watcher_was_running = False
+        self._watcher_retry_after = 0.0
         self._records.clear()
         self._outputs.clear()
         self._model.update_running(running={})
@@ -562,8 +568,17 @@ class WayfireWindowService(WindowService):
         )
 
     def _poll(self) -> bool:
-        if self._watcher is not None and not self._watcher.running:
-            self._watcher.start()
+        if (
+            self._watcher is not None
+            and self._watcher_was_running
+            and not self._watcher.running
+            and time.monotonic() >= self._watcher_retry_after
+        ):
+            # An initially rejected subscription keeps its polling fallback.
+            # Established streams can reconnect, with a cooldown on failure.
+            self._watcher_retry_after = (
+                0.0 if self._watcher.start() else time.monotonic() + 60.0
+            )
         self._refresh()
         return True
 
@@ -632,7 +647,7 @@ class WayfireWindowService(WindowService):
         return (
             self._config is None
             or not self._config.current_workspace_only
-            or self._snapshot_for(record).on_current_workspace is True
+            or self._snapshot_for(record).on_current_workspace is not False
         )
 
     def _records_for_desktop(self, desktop_id: str) -> list[WayfireWindowRecord]:
