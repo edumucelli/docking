@@ -116,7 +116,7 @@ def test_debian_without_codename(tmp_path, version, suite):
         assert not result.stdout
 
 
-@pytest.mark.parametrize("document", ["README.md", "website/index.html"])
+@pytest.mark.parametrize("document", ["docs/INSTALLATION.md", "website/index.html"])
 @pytest.mark.parametrize("version,supported", [("bookworm/sid", True), ("sid", False)])
 def test_documented_setup_validates_before_writing(
     tmp_path, document, version, supported
