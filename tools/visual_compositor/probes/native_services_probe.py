@@ -66,6 +66,14 @@ def fixture():
 
     area.connect("draw", draw)
     window.add(area)
+    geometry_file = os.environ.get("LAB_FIXTURE_SIZE_FILE")
+    if geometry_file:
+        def allocated(_widget, allocation):
+            target = Path(geometry_file)
+            pending = target.with_suffix(".tmp")
+            pending.write_text(json.dumps([allocation.width, allocation.height]))
+            pending.replace(target)
+        window.connect("size-allocate", allocated)
     window.connect("destroy", Gtk.main_quit)
     window.show_all()
     if not os.environ.get("NIRI_SOCKET"):
@@ -415,7 +423,7 @@ def main():
     Config(
         pinned=[PinnedEntry("app", "lab-native.desktop")],
         position="bottom" if position == "idle" else position,
-        hide_mode="dodge-active",
+        hide_mode=os.environ.get("LAB_PROBE_HIDE_MODE", "dodge-active"),
         hide_delay_ms=0,
         unhide_delay_ms=0,
         zoom_enabled=False,

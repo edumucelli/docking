@@ -43,6 +43,7 @@ adapter_capabilities() {
     session_probe_json | jq '{compositor:"phoc", expected_backend:"wayland-layer-shell",
         placement:.layer_shell_supported, native_geometry:false, pointer:false,
         panel:(env.LAB_PANEL_HEIGHT // "0" | tonumber > 0),
+        synthetic_panel:(env.LAB_PANEL_HEIGHT // "0" | tonumber > 0),
         screenshot_method:"grim", gtk_display_is_wayland, layer_shell_supported}'
 }
 

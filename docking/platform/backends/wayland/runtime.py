@@ -807,6 +807,12 @@ class WaylandProtocolRuntime:
         self._registry = None
         self._glib_source_id = 0
         self._running = False
+        self._advertised_globals: dict[int, str] = {}
+
+    @property
+    def is_phoc(self) -> bool:
+        """Identify Phoc without binding Phosh's singleton shell endpoint."""
+        return "phosh_private" in self._advertised_globals.values()
 
     @property
     def foreign_toplevel_protocol(self) -> ForeignToplevelProtocolAdapter | None:
@@ -930,8 +936,10 @@ class WaylandProtocolRuntime:
         self._display = None
         self._registry = None
         self._running = False
+        self._advertised_globals.clear()
 
     def _on_global(self, registry, name: int, interface: str, version: int) -> None:
+        self._advertised_globals[name] = interface
         if interface == "zwlr_foreign_toplevel_manager_v1":
             self.foreign_toplevel.bind(registry=registry, name=name, version=version)
         elif interface == "wl_seat":
@@ -1046,6 +1054,7 @@ class WaylandProtocolRuntime:
             self.idle.bind(registry=registry, name=name, version=version)
 
     def _on_global_remove(self, _registry, name: int) -> None:
+        self._advertised_globals.pop(name, None)
         self.treeland_overlap.unbind_output(name)
 
     def _install_glib_watch(

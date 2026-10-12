@@ -67,7 +67,7 @@ if [ "$compositor" = sway ]; then
     # Blue server decorations are not part of the fixture's red client image.
     printf '\ndefault_border none\ndefault_floating_border none\n' >> "$SWAY_CONFIG"
 fi
-if [ "$compositor" = niri ]; then
+if [ "$compositor" = niri ] && [ "$LAB_SERVICE_MODE" != picker ]; then
     # Niri currently exposes absolute positions for floating windows only.
     # Tiled windows must retain unknown geometry, not be guessed at the origin.
     printf '\nwindow-rule {\n match app-id="lab-native";\n open-floating true;\n default-floating-position x=0 y=0 relative-to="top-left";\n}\n' >> "$XDG_CONFIG_HOME/niri/config.kdl"
@@ -82,6 +82,15 @@ limit=40
 if [ "$LAB_SERVICE_MODE" = foreign ]; then
     positions=bottom
     probe=foreign_services_probe.py
+fi
+if [ "$LAB_SERVICE_MODE" = picker ]; then
+    positions=bottom
+    probe=niri_picker_probe.py
+fi
+if [ "$LAB_SERVICE_MODE" = panel ]; then
+    probe=phoc_panel_probe.py
+    limit=60
+    export LAB_PROBE_HIDE_MODE=none
 fi
 if [ "$LAB_SERVICE_MODE" = outline ]; then
     positions=bottom

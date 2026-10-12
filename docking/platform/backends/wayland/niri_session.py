@@ -44,6 +44,10 @@ from docking.platform.backends.wayland.niri_ipc import (
     load_niri_window_service,
     load_niri_workspace_service,
 )
+from docking.platform.backends.wayland.niri_picking import (
+    NiriWindowPickService,
+    load_niri_window_pick_service,
+)
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
@@ -71,6 +75,7 @@ class NiriRuntimeServices:
     screen_capture: ScreenCaptureService | None
     desktop_actions: DesktopActionService | None
     idle: IdleService | None
+    window_picker: WindowPickService | None
     protocol_runtime: WaylandProtocolRuntime | None
 
 
@@ -88,6 +93,7 @@ class NiriSessionBackend(SessionBackend):
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
         config: Config | None = None,
+        window_picker: WindowPickService | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -102,6 +108,9 @@ class NiriSessionBackend(SessionBackend):
         )
         if windows is None:
             windows = ReducedWindowService()
+
+        if window_picker is None and isinstance(windows, NiriWindowService):
+            window_picker = load_niri_window_pick_service(windows=windows)
 
         workspaces = load_niri_workspace_service()
         if workspaces is None:
@@ -148,6 +157,7 @@ class NiriSessionBackend(SessionBackend):
             screen_capture=screen_capture,
             desktop_actions=desktop_actions,
             idle=idle,
+            window_picker=window_picker,
             protocol_runtime=runtime,
         )
 
@@ -192,6 +202,13 @@ class NiriSessionBackend(SessionBackend):
             supports_input_region=True,
             supports_screen_color_pick=supports_color_pick,
             supports_idle_time=isinstance(self._services.idle, WaylandIdleService),
+            supports_window_pick=isinstance(
+                self._services.window_picker, NiriWindowPickService
+            ),
+            supports_window_pid=tracks_windows,
+            supports_process_kill=isinstance(
+                self._services.window_picker, NiriWindowPickService
+            ),
         )
 
     @property
@@ -228,9 +245,11 @@ class NiriSessionBackend(SessionBackend):
 
     @property
     def window_picker(self) -> WindowPickService | None:
-        return None
+        return self._services.window_picker
 
     def start(self) -> None:
+        if self._services.window_picker is not None:
+            self._services.window_picker.start()
         self._services.previews.start()
         self._services.windows.start()
         self._services.surface.start()
@@ -245,6 +264,8 @@ class NiriSessionBackend(SessionBackend):
             self._services.idle.start()
 
     def stop(self) -> None:
+        if self._services.window_picker is not None:
+            self._services.window_picker.stop()
         if self._services.idle is not None:
             self._services.idle.stop()
         if self._services.screen_capture is not None:

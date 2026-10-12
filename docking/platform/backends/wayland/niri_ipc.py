@@ -383,6 +383,20 @@ class NiriWindowService(WindowService):
         """Return every known Niri window."""
         return tuple(self._snapshot_for(record) for record in self._records.values())
 
+    def live_window(self, window_id: WindowId) -> WindowSnapshot | None:
+        """Resolve a fresh target; a failed query must not reuse cached PIDs."""
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None:
+            return None
+        raw = self._client.ok_data({"Windows": None}, "Windows")
+        if not isinstance(raw, list):
+            return None
+        self._replace_windows(raw)
+        self._publish_running()
+        self._changes.notify()
+        record = self._records.get(niri_id)
+        return self._snapshot_for(record) if record is not None else None
+
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return known Niri windows for one desktop ID."""
         return tuple(

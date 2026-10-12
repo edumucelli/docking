@@ -99,11 +99,15 @@ jobs:
           elif [ "$COMPOSITOR" = phoc ] || [ "$COMPOSITOR" = phosh ]; then
             bash tools/visual_compositor/native_services.sh "$COMPOSITOR" foreign
             if [ "$COMPOSITOR" = phoc ]; then
+              bash tools/visual_compositor/native_services.sh phoc panel
               # Explicit bare-compositor diagnostic, never the normal Phosh shell path.
               DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/visual_compositor/native_services.sh phoc foreign
             fi
           else
             bash tools/visual_compositor/native_services.sh "$COMPOSITOR"
+            if [ "$COMPOSITOR" = niri ]; then
+              bash tools/visual_compositor/native_services.sh niri picker
+            fi
           fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
