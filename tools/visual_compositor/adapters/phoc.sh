@@ -8,6 +8,10 @@ adapter_prepare() {
     export WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1
     export WLR_HEADLESS_OUTPUTS="${LAB_OUTPUTS:-1}"
     unset DISPLAY
+    PHOC_LAB_ARGS=()
+    if phoc --help | grep -q -- '--no-xwayland'; then
+        PHOC_LAB_ARGS+=(--no-xwayland)
+    fi
     mkdir -p "$XDG_CONFIG_HOME"
     cat >"$XDG_CONFIG_HOME/phoc.ini" <<EOF
 [core]
@@ -19,7 +23,7 @@ EOF
 }
 
 adapter_start() {
-    phoc --no-xwayland -C "$XDG_CONFIG_HOME/phoc.ini" >"$COMPOSITOR_LOG" 2>&1 &
+    phoc "${PHOC_LAB_ARGS[@]}" -C "$XDG_CONFIG_HOME/phoc.ini" >"$COMPOSITOR_LOG" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
     wait_for_wayland_socket 80
 }

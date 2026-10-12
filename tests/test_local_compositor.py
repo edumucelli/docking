@@ -9,6 +9,35 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize("no_xwayland", [False, True])
+def test_phoc_adapter_accepts_old_and_new_command_line_options(tmp_path, no_xwayland):
+    command = tmp_path / "phoc"
+    command.write_text(
+        f"#!/bin/sh\necho '{'--no-xwayland' if no_xwayland else '--config'}'\n"
+    )
+    command.chmod(0o755)
+    completed = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'set -eu; source "$1"; adapter_prepare; printf "%s" "${PHOC_LAB_ARGS[*]}"',
+            "test",
+            str(ROOT / "tools/visual_compositor/adapters/phoc.sh"),
+        ],
+        env={
+            **os.environ,
+            "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "LAB_DIR": str(tmp_path),
+            "XDG_CONFIG_HOME": str(tmp_path / "config"),
+        },
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert completed.stdout == ("--no-xwayland" if no_xwayland else "")
+    assert "xwayland=false" in (tmp_path / "config/phoc.ini").read_text()
+
+
 @pytest.mark.parametrize("nested", [False, True])
 def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
     command = tmp_path / "gnome-shell"

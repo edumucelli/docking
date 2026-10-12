@@ -11,7 +11,7 @@ adapter_start() {
     shell="$(command -v phosh || true)"
     if [ -z "$shell" ]; then shell=/usr/libexec/phosh; fi
     [ -x "$shell" ] || { log_adapter "Phosh shell executable missing"; return 1; }
-    phoc --no-xwayland -S -C "$XDG_CONFIG_HOME/phoc.ini" -E "$shell -U" \
+    phoc "${PHOC_LAB_ARGS[@]}" -S -C "$XDG_CONFIG_HOME/phoc.ini" -E "$shell -U" \
         >"$COMPOSITOR_LOG" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
     wait_for_wayland_socket 80
