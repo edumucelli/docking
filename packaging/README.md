@@ -100,8 +100,8 @@ Disabling publication skips both package formats and their repository checks,
 including manual publication retries.
 
 User installation instructions live in the
-[APT](../README.md#debian-and-ubuntu-apt) and
-[RPM](../README.md#fedora-and-opensuse-rpm) sections.
+[APT](../docs/INSTALLATION.md#debian-and-ubuntu-apt) and
+[RPM](../docs/INSTALLATION.md#fedora-and-opensuse-rpm) sections.
 The [website](https://docking.cc/#install) presents both sets of instructions in
 expandable panels. The RPM repository requires its first verified publication
 before users can install from it; release downloads remain available.
@@ -277,7 +277,7 @@ Notes:
   PyWayland older than the protocol modules the Wayland backend imports.
 
 Stable releases also publish the RPM to the `docking-rpm` Cloudsmith repository; see the
-[RPM installation instructions](../README.md#fedora-and-opensuse-rpm).
+[RPM installation instructions](../docs/INSTALLATION.md#fedora-and-opensuse-rpm).
 
 ## Arch
 
