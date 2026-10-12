@@ -402,7 +402,7 @@ class Probe:
         self.window.config.hide_mode = "dodge-active"
         self.window.autohide.reset()
         self.wait(lambda: self.window.autohide.hide_offset > 0.95)
-        hidden = self.capture("dodge-hidden")
+        hidden = None
 
         def pixel(image):
             offset = (
@@ -410,7 +410,16 @@ class Probe:
             )
             return tuple(image.get_pixels()[offset : offset + 3])
 
-        assert pixel(hidden) == (255, 0, 0), (point, pixel(hidden), self.row("alpha"))
+        def hidden_pixels_ready():
+            nonlocal hidden
+            hidden = self.capture("dodge-hidden")
+            return pixel(hidden) == (255, 0, 0)
+
+        # The animation tick queues a GTK repaint. A synchronous screenshot
+        # immediately afterward can still capture the previous dock frame.
+        # Pump GTK between captures and require actual disappearance, bounded
+        # by the same deadline as other native observations.
+        self.wait(hidden_pixels_ready)
         assert pixel(visible) != pixel(hidden)
         self.act("alpha", "w.move_resize_frame(true, 100, 100, 400, 300)")
         self.wait(lambda: self.window.autohide.hide_offset < 0.05)

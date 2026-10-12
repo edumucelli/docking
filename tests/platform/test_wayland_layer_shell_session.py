@@ -562,6 +562,52 @@ def test_sway_session_supports_window_outline():
     assert backend.surface.overlay_uses_toplevel is True
 
 
+def test_niri_session_exposes_and_stops_native_picker():
+    from docking.platform.backends.wayland.niri_picking import NiriWindowPickService
+
+    windows = NiriWindowService(
+        model=SimpleNamespace(
+            visible_items=MagicMock(return_value=[]), update_running=MagicMock()
+        ),
+        **identity_services(),
+        client=MagicMock(),
+        event_stream_factory=lambda _: None,
+    )
+    picker = NiriWindowPickService(windows=windows, socket_path="/unused")
+    picker.stop = MagicMock()
+    backend = NiriSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        **identity_services(),
+        protocol_runtime=_empty_runtime(),
+        window_service=windows,
+        window_picker=picker,
+    )
+    assert backend.window_picker is picker
+    assert backend.capabilities.supports_window_pick
+    assert backend.capabilities.supports_window_pid
+    assert backend.capabilities.supports_process_kill
+    backend.stop()
+    picker.stop.assert_called_once()
+
+
+def test_phoc_surface_selection_uses_advertised_protocol_without_a_private_binding():
+    from docking.platform.backends.wayland.phoc_surface import (
+        PhocLayerShellSurfaceService,
+    )
+
+    runtime = _empty_runtime()
+    runtime.is_phoc = True
+    backend = WaylandLayerShellSessionBackend(
+        layer_shell=_layer_shell(),
+        model=SimpleNamespace(),
+        **identity_services(),
+        protocol_runtime=runtime,
+    )
+    assert isinstance(backend.surface, PhocLayerShellSurfaceService)
+    assert backend.capabilities.supports_screen_reservation
+
+
 def _overlay_window(monitor: SimpleNamespace) -> MagicMock:
     window = MagicMock()
     window.get_display.return_value.get_monitor_at_point.return_value = monitor

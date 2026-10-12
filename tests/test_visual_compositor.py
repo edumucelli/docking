@@ -13,6 +13,34 @@ from PIL import Image, ImageDraw
 from tools.visual_compositor import behaviour, compare, scenarios
 
 
+@pytest.mark.parametrize("dock", ["correct", "over-panel", "absent"])
+def test_synthetic_panel_is_excluded_without_hiding_dock_overlap(dock):
+    image = Image.new("RGB", (400, 300), "black")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 260, 399, 299), fill=(30, 30, 76))
+    if dock == "correct":
+        draw.rectangle((160, 210, 239, 259), fill="white")
+    elif dock == "over-panel":
+        draw.rectangle((160, 250, 239, 299), fill="white")
+    bbox = compare.locate_content(
+        image=image,
+        band={"x": 0, "y": 0, "width": 400, "height": 300},
+        background=(0, 0, 0),
+        ignore_synthetic_panel=True,
+    )
+    if dock == "absent":
+        assert bbox is None
+    else:
+        passed, _distance, _detail = compare.check_edge(
+            bbox=bbox,
+            axis="y",
+            end="max",
+            limit=260,
+            tolerance=8,
+        )
+        assert passed is (dock == "correct")
+
+
 @pytest.fixture
 def window_evidence(tmp_path):
     def state(alpha=1, beta=1, focused=None, minimized=False, workspace=0):

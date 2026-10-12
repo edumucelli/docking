@@ -38,6 +38,7 @@ from docking.platform.backends.reduced.services import (
     ReducedWindowService,
 )
 from docking.platform.backends.wayland.idle import WaylandIdleService
+from docking.platform.backends.wayland.phoc_surface import PhocLayerShellSurfaceService
 from docking.platform.backends.wayland.portals import (
     WaylandPortalColorPickerService,
     load_portal_color_picker,
@@ -194,7 +195,11 @@ class WaylandLayerShellSessionBackend(SessionBackend):
         self._services = WaylandLayerShellRuntimeServices(
             windows=windows,
             previews=previews,
-            surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
+            surface=(
+                PhocLayerShellSurfaceService(layer_shell=layer_shell)
+                if runtime is not None and getattr(runtime, "is_phoc", False) is True
+                else WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+            ),
             visibility=ReducedVisibilityService(),
             workspaces=workspaces,
             screen_capture=screen_capture

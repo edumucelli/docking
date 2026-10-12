@@ -300,6 +300,8 @@ Example local commands:
 bash tools/visual_compositor/local_run.sh native wayfire contract
 bash tools/visual_compositor/local_run.sh native phosh foreign
 bash tools/visual_compositor/local_run.sh native phoc foreign
+bash tools/visual_compositor/local_run.sh native phoc panel
+bash tools/visual_compositor/local_run.sh native niri picker
 DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/visual_compositor/local_run.sh native phoc foreign
 bash tools/visual_compositor/local_run.sh matrix weston --case placement-bottom
 LAB_PARENT_RENDERER=gles2 WLR_RENDER_DRM_DEVICE=/dev/dri/renderD129 \
@@ -315,10 +317,16 @@ Validation includes the platform/harness suite, X11 UI/integration regressions,
 lint, formatting, type checks, shell syntax and package/translation checks.
 The complete suite and PR checks provide the final acceptance status.
 
+Phoc uses a transparent BOTTOM reservation and a non-exclusive TOP dock so TOP
+panels retain edge priority even when they start or restart after Docking. The
+panel probe checks all four edges, intact dock/panel pixels, actual maximized-client
+sizes, and reservation clearing/restoration. The shared pixel oracle excludes only
+the synthetic panel colour, preserving overlap failures.
+Niri's native picker probe selects a tiled window with unknown screen coordinates,
+checks its live PID, and terminates only the probe's own fixture.
+
 Remaining limits:
 
-- Phoc's same-layer exclusive panel can place the dock under the panel; a
-  no-panel placement pass does not establish correct panel offsets.
 - Host Cinnamon 6.4/XWayland crashed during its local software-rendered session;
   the pinned container passed. This is retained as a host-specific limitation.
 - GNOME requires its bridge. Older Muffin uses an XWayland dock surface. Hyprland

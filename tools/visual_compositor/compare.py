@@ -124,7 +124,8 @@ def _background_colour(image: Image.Image) -> tuple[int, int, int]:
 
 
 def locate_content(
-    *, image: Image.Image, band: dict, background: tuple[int, int, int]
+    *, image: Image.Image, band: dict, background: tuple[int, int, int],
+    ignore_synthetic_panel: bool = False,
 ) -> tuple[int, int, int, int] | None:
     """Bounding box of non-background pixels inside ``band``, in image coords.
 
@@ -143,6 +144,13 @@ def locate_content(
     for y in range(height):
         for x in range(width):
             red, green, blue = pixels[x, y]
+            # The controlled panel paints (0.12, 0.12, 0.30). Ignore only that
+            # colour, so a dock rendered over it remains measurable as a failure.
+            if ignore_synthetic_panel and all(
+                abs(actual - expected) <= 1
+                for actual, expected in zip((red, green, blue), (30, 30, 76))
+            ):
+                continue
             if (
                 abs(red - background[0]) > BACKGROUND_TOLERANCE
                 or abs(green - background[1]) > BACKGROUND_TOLERANCE
@@ -664,7 +672,10 @@ def evaluate(
         with Image.open(png_path) as image:
             image = image.convert("RGB")
             background = _background_colour(image)
-            bbox = locate_content(image=image, band=band["rect"], background=background)
+            bbox = locate_content(
+                image=image, band=band["rect"], background=background,
+                ignore_synthetic_panel=capabilities.get("synthetic_panel") is True,
+            )
 
             if bbox is None:
                 # Keep the full capture: when the dock is missing from its band
