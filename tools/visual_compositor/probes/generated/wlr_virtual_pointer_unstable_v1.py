@@ -28,9 +28,7 @@ import enum
 from pywayland.protocol_core import Argument, ArgumentType, Global, Interface, Proxy, Resource
 
 from pywayland.protocol.wayland import WlOutput
-from pywayland.protocol.wayland import WlOutputProxy
 from pywayland.protocol.wayland import WlSeat
-from pywayland.protocol.wayland import WlSeatProxy
 
 
 class ZwlrVirtualPointerManagerV1(Interface):
@@ -74,7 +72,7 @@ class ZwlrVirtualPointerManagerV1Proxy(Proxy[ZwlrVirtualPointerManagerV1]):
         Argument(ArgumentType.Object, interface=WlSeat, nullable=True),
         Argument(ArgumentType.NewId, interface=ZwlrVirtualPointerV1),
     )
-    def create_virtual_pointer(self, seat: WlSeatProxy | None) -> ZwlrVirtualPointerV1Proxy:
+    def create_virtual_pointer(self, seat: Proxy[WlSeat] | None) -> ZwlrVirtualPointerV1Proxy:
         """Create a new virtual pointer
 
         Creates a new virtual pointer. The optional seat is a suggestion to the
@@ -102,7 +100,7 @@ class ZwlrVirtualPointerManagerV1Proxy(Proxy[ZwlrVirtualPointerManagerV1]):
         Argument(ArgumentType.NewId, interface=ZwlrVirtualPointerV1),
         version=2,
     )
-    def create_virtual_pointer_with_output(self, seat: WlSeatProxy | None, output: WlOutputProxy | None) -> ZwlrVirtualPointerV1Proxy:
+    def create_virtual_pointer_with_output(self, seat: Proxy[WlSeat] | None, output: Proxy[WlOutput] | None) -> ZwlrVirtualPointerV1Proxy:
         """Create a new virtual pointer
 
         Creates a new virtual pointer. The seat and the output arguments are
@@ -325,11 +323,11 @@ class ZwlrVirtualPointerV1Proxy(Proxy[ZwlrVirtualPointerV1]):
         self._destroy()
 
 
-class ZwlrVirtualPointerManagerV1Global(Global[ZwlrVirtualPointerManagerV1]):
+class ZwlrVirtualPointerManagerV1Global(Global):
     interface = ZwlrVirtualPointerManagerV1
 
 
-class ZwlrVirtualPointerV1Global(Global[ZwlrVirtualPointerV1]):
+class ZwlrVirtualPointerV1Global(Global):
     interface = ZwlrVirtualPointerV1
 
 

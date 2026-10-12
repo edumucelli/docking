@@ -43,8 +43,10 @@ mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 # leaked WAYLAND_DISPLAY would silently point the lab at the wrong server.
 unset WAYLAND_DISPLAY GDK_BACKEND DOCKING_BACKEND
 unset GAMESCOPE_WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE NIRI_SOCKET SWAYSOCK
+unset XDG_SESSION_DESKTOP DESKTOP_SESSION WAYFIRE_SOCKET
 
 export GSETTINGS_BACKEND=memory
+export DOCKING_LAB_PRIVATE_SESSION=1
 export GTK_THEME="${GTK_THEME:-Adwaita}"
 # DEBUG is required: the placement line carrying the requested geometry is
 # log.debug (docking/ui/placement.py:423-426). DOCKING_LOG_LEVEL is read at

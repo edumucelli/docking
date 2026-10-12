@@ -47,7 +47,7 @@ adapter_prepare() {
     mkdir -p "$(dirname "$WAYFIRE_CONFIG")"
     cat >"$WAYFIRE_CONFIG" <<'INI'
 [core]
-plugins = ipc ipc-rules place grid move resize
+plugins = ipc ipc-rules place grid move resize wm-actions vswitch
 close_top_view = false
 INI
 }

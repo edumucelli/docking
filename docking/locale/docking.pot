@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-09 10:30+0200\n"
+"POT-Creation-Date: 2026-10-12 10:47+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -948,6 +948,11 @@ msgstr ""
 
 #: docking/applets/clock/applet.py:227
 msgid "Set Alarm"
+msgstr ""
+
+#: docking/applets/clock/state.py:140
+#, python-brace-format
+msgid "Alarm: {time}"
 msgstr ""
 
 #: docking/applets/colorpicker/applet.py:59
@@ -4425,6 +4430,13 @@ msgstr ""
 msgid "Windows"
 msgstr ""
 
+#: docking/search/providers/applications.py:261
+#: docking/search/providers/applications.py:294
+#: docking/search/providers/windows.py:90
+#: docking/search/providers/windows.py:102 docking/ui/menu.py:826
+msgid "Window"
+msgstr ""
+
 #: docking/search/providers/applications.py:263 docking/search/ui/window.py:234
 #: docking/ui/settings.py:1051
 msgid "Actions"
@@ -4438,12 +4450,6 @@ msgstr ""
 #: docking/search/providers/applications.py:293
 #, python-brace-format
 msgid "Activate “{title}”"
-msgstr ""
-
-#: docking/search/providers/applications.py:294
-#: docking/search/providers/windows.py:90
-#: docking/search/providers/windows.py:102 docking/ui/menu.py:826
-msgid "Window"
 msgstr ""
 
 #: docking/search/providers/applications.py:303
@@ -5008,6 +5014,10 @@ msgstr ""
 #: docking/ui/placement.py:281
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
+msgstr ""
+
+#: docking/ui/placement.py:291
+msgid "Primary"
 msgstr ""
 
 #: docking/ui/settings.py:363

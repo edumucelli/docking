@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -1028,7 +1029,14 @@ class WaylandProtocolRuntime:
                 name=name,
                 version=version,
             )
-        elif interface == "phosh_private":
+        elif (
+            interface == "phosh_private"
+            and version >= 4
+            and os.environ.get("DOCKING_PHOC_PRIVATE_PREVIEWS") == "1"
+        ):
+            # This is Phosh's singleton shell endpoint, not a public capture
+            # manager. Claiming it can disconnect Docking or prevent the shell
+            # from starting. Only bare-Phoc diagnostic sessions opt into it.
             self.phoc_previews.bind(
                 registry=registry,
                 name=name,

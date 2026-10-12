@@ -103,6 +103,7 @@ def create_session_backend(
         )
     if requested in {"cosmic", "cosmic-session"}:
         backend = _create_cosmic_backend(
+            config=config,
             model=model,
             reason=f"requested by DOCKING_BACKEND={requested}",
             **identity_arguments,
@@ -239,6 +240,7 @@ def create_session_backend(
         # COSMIC takes priority on its native desktop
         if detect_desktop() is Desktop.COSMIC:
             backend = _create_cosmic_backend(
+                config=config,
                 model=model,
                 reason=_non_x11_reason(),
                 **identity_arguments,
@@ -530,6 +532,7 @@ def _create_x11_backend(
 
 def _create_cosmic_backend(
     *,
+    config: Config | None = None,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -549,6 +552,7 @@ def _create_cosmic_backend(
         log.info("COSMIC backend unavailable: compositor does not support layer-shell")
         return None
     backend = CosmicSessionBackend(
+        config=config,
         layer_shell=layer_shell,
         model=model,
         **_identity_arguments(

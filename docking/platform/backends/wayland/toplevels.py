@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import importlib
 import struct
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -43,6 +43,7 @@ from docking.platform.backends.base import (
     WindowService,
     WindowSnapshot,
 )
+from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
@@ -54,11 +55,13 @@ STATE_ACTIVATED = "activated"
 STATE_MINIMIZED = "minimized"
 STATE_MAXIMIZED = "maximized"
 STATE_FULLSCREEN = "fullscreen"
+STATE_STICKY = "sticky"
 _STATE_BY_VALUE = {
     0: STATE_MAXIMIZED,
     1: STATE_MINIMIZED,
     2: STATE_ACTIVATED,
     3: STATE_FULLSCREEN,
+    4: STATE_STICKY,
 }
 
 
@@ -73,6 +76,7 @@ class _ToplevelState:
     minimized: bool | None = None
     maximized: bool | None = None
     fullscreen: bool | None = None
+    sticky: bool = False
     geometry: Rect | None = None
     workspace_id: str | None = None
     closed: bool = False
@@ -117,6 +121,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_handle: dict[object, _ToplevelState] = {}
         self._state_by_id: dict[int, _ToplevelState] = {}
         self._last_running: dict[str, RunningAppInfo] = {}
+        self._changes = WindowChanges()
 
     def start(self) -> None:
         """Start receiving foreign-toplevel events from the adapter."""
@@ -134,6 +139,17 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_id.clear()
         self._last_running = {}
         self._model.update_running(running={})
+        self._changes.clear()
+
+    def refresh(self) -> None:
+        """Reapply taskbar policy to the latest compositor state."""
+        self._publish_running()
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         """Return every current Wayland toplevel."""
@@ -173,8 +189,14 @@ class WaylandForeignToplevelWindowService(WindowService):
         return self._call_action(state=state, action="activate")
 
     def cycle(self, desktop_id: str) -> ActionResult:
-        """Cycle policy is reduced to activating a known window for PR16."""
-        return self.activate_most_recent(desktop_id=desktop_id)
+        """Activate the next app window, wrapping after the active window."""
+        states = self._states_for_desktop(desktop_id)
+        if not states:
+            return ActionResult.NOT_FOUND
+        index = next((i for i, state in enumerate(states) if state.active), -1)
+        return self._call_action(
+            state=states[(index + 1) % len(states)], action="activate"
+        )
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         """Request minimization for all known windows of an app."""
@@ -257,6 +279,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         state.minimized = STATE_MINIMIZED in normalized
         state.maximized = STATE_MAXIMIZED in normalized
         state.fullscreen = STATE_FULLSCREEN in normalized
+        state.sticky = STATE_STICKY in normalized
 
     def output_entered(self, handle: object, output: object) -> None:
         """Track the outputs a toplevel is visible on."""
@@ -280,8 +303,12 @@ class WaylandForeignToplevelWindowService(WindowService):
 
     def done(self, handle: object) -> None:
         """Publish state after a protocol atomic update batch."""
-        state = self._ensure_state(handle=handle)
-        self._refresh_match(state=state)
+        self.done_batch((handle,))
+
+    def done_batch(self, handles: Iterable[object]) -> None:
+        """Commit one compositor batch spanning several foreign toplevels."""
+        for handle in handles:
+            self._refresh_match(state=self._ensure_state(handle=handle))
         self._publish_running()
 
     def closed(self, handle: object) -> None:
@@ -310,7 +337,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._matcher.sync_visible_items(self._model.visible_items())
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for state in self._state_by_id.values():
-            if state.closed:
+            if state.closed or not self._taskbar_state(state):
                 continue
             if state.desktop_id is None:
                 self._refresh_match(state=state)
@@ -332,12 +359,18 @@ class WaylandForeignToplevelWindowService(WindowService):
         }
         self._last_running = dict(running)
         self._model.update_running(running=running)
+        self._changes.notify()
+
+    def _taskbar_state(self, state: _ToplevelState) -> bool:
+        return True
 
     def _states_for_desktop(self, desktop_id: str) -> list[_ToplevelState]:
         return [
             state
             for state in self._state_by_id.values()
-            if not state.closed and state.desktop_id == desktop_id
+            if not state.closed
+            and state.desktop_id == desktop_id
+            and self._taskbar_state(state)
         ]
 
     def _first_state_for_desktop(self, desktop_id: str) -> _ToplevelState | None:
@@ -378,6 +411,7 @@ class WaylandForeignToplevelWindowService(WindowService):
             fullscreen=state.fullscreen,
             geometry=state.geometry,
             workspace_id=state.workspace_id,
+            sticky=state.sticky,
             can_activate=self._supports_action("activate", state.handle),
             can_minimize=self._supports_action("set_minimized", state.handle),
             can_close=self._supports_action("close", state.handle),

@@ -15,6 +15,9 @@
 #   docker build --target labwc    -t docking-lab:labwc    tools/visual_compositor
 #   docker build --target wayfire  -t docking-lab:wayfire  tools/visual_compositor
 #   docker build --target cage     -t docking-lab:cage     tools/visual_compositor
+#   docker build --target phoc     -t docking-lab:phoc     tools/visual_compositor
+#   docker build --target phosh    -t docking-lab:phosh    tools/visual_compositor
+#   docker build --target weston   -t docking-lab:weston   tools/visual_compositor
 #   docker build --target all      -t docking-lab:all      tools/visual_compositor
 #
 # tools/visual_compositor_matrix.sh does this for you.
@@ -171,6 +174,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends cage \
     && rm -rf /var/lib/apt/lists/*
 RUN command -v cage
 
+# Phoc backs the Phosh mobile desktop and implements layer-shell, foreign
+# toplevel management, idle notifications, and private window thumbnails.
+FROM base AS phoc
+RUN apt-get update && apt-get install -y --no-install-recommends phoc \
+    && rm -rf /var/lib/apt/lists/*
+RUN command -v phoc
+
+# The real shell owns a singleton private protocol and therefore needs its own
+# lane in addition to the bare compositor's optional thumbnail capability.
+FROM phoc AS phosh
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        phosh gnome-settings-daemon-common \
+    && rm -rf /var/lib/apt/lists/*
+RUN test -x /usr/libexec/phosh
+RUN gsettings list-schemas | grep -q '^org.gnome.settings-daemon.peripherals.touchscreen$'
+
+# Weston's desktop shell is a reduced compatibility lane. Nest in a private
+# Xvfb for capture; clients under test connect only to Weston's Wayland socket.
+FROM base AS weston
+RUN apt-get update && apt-get install -y --no-install-recommends weston xvfb xauth \
+    && rm -rf /var/lib/apt/lists/*
+RUN command -v weston && command -v Xvfb
+
 
 # ---------------------------------------------------------------------------
 # Target: cinnamon -- Muffin nested inside Xvfb. The #347 lane.
@@ -222,15 +248,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         sway \
         labwc \
         wayfire \
-        wayfire-plugins-extra \
         cage \
+        phoc \
+        phosh \
+        weston \
         cinnamon \
         muffin \
         xvfb \
         xauth \
         kwin-wayland at-spi2-core \
     && rm -rf /var/lib/apt/lists/*
-RUN for tool in sway labwc wayfire cage cinnamon muffin kwin_wayland Xvfb; do \
+RUN for tool in sway labwc wayfire cage phoc weston cinnamon muffin kwin_wayland Xvfb; do \
         command -v "$tool" >/dev/null 2>&1 || { echo "missing $tool" >&2; exit 1; }; \
     done
 

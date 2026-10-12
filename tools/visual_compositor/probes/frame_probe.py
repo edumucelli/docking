@@ -1,4 +1,6 @@
-"""Black background surfaces keep otherwise empty headless outputs capturable."""
+"""Black surfaces keep headless outputs capturable in desktop and app scenes."""
+
+import sys
 
 import gi
 
@@ -48,7 +50,22 @@ def tick():
 
 
 Gtk.init([])
-Gdk.Screen.get_default().connect("monitors-changed", rebuild)
-rebuild()
+if "--application" in sys.argv:
+    # A normal client dismisses mobile shells' initial home/overview overlay.
+    # Layer-shell backgrounds do not change that state, and TOP docks correctly
+    # remain underneath the shell's overlay while it is open.
+    GLib.set_prgname("lab-background")
+    window = Gtk.Window(title="Compositor lab background")
+    window.set_decorated(False)
+    window.set_default_size(1280, 720)
+    area = Gtk.DrawingArea()
+    area.connect("draw", draw)
+    window.add(area)
+    window.show_all()
+    window.maximize()
+    windows.append(window)
+else:
+    Gdk.Screen.get_default().connect("monitors-changed", rebuild)
+    rebuild()
 GLib.timeout_add(200, tick)
 Gtk.main()

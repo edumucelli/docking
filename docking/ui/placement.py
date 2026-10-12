@@ -288,7 +288,8 @@ class DockPlacementController:
             elif model:
                 label += f" - {model}"
             if idx == primary_idx:
-                label += f" ({_('Primary')})"
+                primary_label = _("Primary")
+                label += f" ({primary_label})"
             choices.append(MonitorChoice(label=label, index=idx, connector=connector))
         return choices
 

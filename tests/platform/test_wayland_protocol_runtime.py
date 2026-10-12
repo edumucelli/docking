@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.items import DockItem
 from tests.platform.application_fakes import application, identity_services
 
 pytest.importorskip("pywayland")
@@ -280,7 +281,10 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
     ]
 
 
-def test_wayland_protocol_runtime_binds_phoc_preview_protocol():
+def test_wayland_protocol_runtime_binds_phoc_preview_protocol_only_when_opted_in(
+    monkeypatch,
+):
+    monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", "1")
     glib = FakeGLib()
     runtime = WaylandProtocolRuntime(factories=_factories(glib))
 
@@ -292,6 +296,35 @@ def test_wayland_protocol_runtime_binds_phoc_preview_protocol():
     assert runtime.phoc_preview_protocol is runtime.phoc_previews
     assert (35, PhoshPrivate, PhoshPrivate.version) in registry.bound
     assert (36, WlShm, WlShm.version) in registry.bound
+
+
+@pytest.mark.parametrize("opt_in", [None, "0", "true"])
+def test_wayland_runtime_leaves_phosh_shell_singleton_unclaimed(monkeypatch, opt_in):
+    if opt_in is None:
+        monkeypatch.delenv("DOCKING_PHOC_PRIVATE_PREVIEWS", raising=False)
+    else:
+        monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", opt_in)
+    runtime = WaylandProtocolRuntime()
+    registry = FakeRegistry()
+    # Refusal to bind is fatal on the display, so verify it is never requested.
+    runtime._on_global(registry, 35, "phosh_private", 7)
+    assert registry.bound == []
+    assert runtime.phoc_preview_protocol is None
+    runtime._on_global(registry, 36, "zwlr_foreign_toplevel_manager_v1", 3)
+    runtime._on_global(registry, 37, "ext_idle_notifier_v1", 1)
+    assert runtime.foreign_toplevel_protocol is not None
+    assert runtime.idle_protocol is not None
+
+
+def test_wayland_runtime_does_not_claim_old_phosh_endpoint_without_thumbnails(
+    monkeypatch,
+):
+    monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", "1")
+    runtime = WaylandProtocolRuntime()
+    registry = FakeRegistry()
+    runtime._on_global(registry, 35, "phosh_private", 3)
+    assert registry.bound == []
+    assert runtime.phoc_preview_protocol is None
 
 
 def test_phoc_preview_adapter_requires_protocol_v4_and_shm():
@@ -515,7 +548,7 @@ def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
 
     model = SimpleNamespace(
         visible_items=MagicMock(
-            return_value=[SimpleNamespace(desktop_id="foot.desktop", wm_class="foot")]
+            return_value=[DockItem(desktop_id="foot.desktop", wm_class="foot")]
         ),
         update_running=MagicMock(),
     )

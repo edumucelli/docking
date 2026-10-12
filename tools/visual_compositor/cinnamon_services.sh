@@ -16,13 +16,17 @@ if [ "${1:-}" != --session ]; then
         bash /src/tools/visual_compositor/cinnamon_services.sh --session
     exit
 fi
-export LAB_DIR=/evidence LAB_SCRIPTS=/src/tools/visual_compositor DOCKING_SOURCE=/src
+export LAB_DIR="${LAB_DIR:-/evidence}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/visual_compositor}"
+export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
 export XDG_RUNTIME_DIR="$(mktemp -d /tmp/cinnamon-services-runtime.XXXXXX)"
-export XDG_CONFIG_HOME=/tmp/cinnamon-services-config XDG_CACHE_HOME=/tmp/cinnamon-services-cache
-export XDG_DATA_HOME=/tmp/cinnamon-services-data XDG_STATE_HOME=/tmp/cinnamon-services-state
+export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"
+export XDG_DATA_HOME="$LAB_DIR/data" XDG_STATE_HOME="$LAB_DIR/state"
 export GSETTINGS_BACKEND=memory
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 unset WAYLAND_DISPLAY DISPLAY DOCKING_BACKEND
+unset XDG_SESSION_DESKTOP DESKTOP_SESSION SWAYSOCK NIRI_SOCKET WAYFIRE_SOCKET
+unset HYPRLAND_INSTANCE_SIGNATURE GAMESCOPE_WAYLAND_DISPLAY
 source "$LAB_SCRIPTS/adapters/common.sh"
 source "$LAB_SCRIPTS/adapters/cinnamon.sh"
 trap adapter_cleanup EXIT
@@ -30,5 +34,5 @@ adapter_prepare
 adapter_start
 adapter_wait_ready
 export PYTHONPATH="$(docking_source_pythonpath)"
-dpkg-query -W cinnamon muffin > /evidence/versions.txt
+dpkg-query -W cinnamon muffin > "$LAB_DIR/versions.txt"
 timeout 150 /usr/bin/python3 "$LAB_SCRIPTS/probes/cinnamon_services_probe.py"

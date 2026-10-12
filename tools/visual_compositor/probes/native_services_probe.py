@@ -19,6 +19,39 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 
+def dock_marker_points(image, bounds):
+    """Find the large blue launcher, excluding its small titlebar copy."""
+    x0, y0, x1, y1 = bounds
+    data = image.get_pixels()
+    stride, channels = image.get_rowstride(), image.get_n_channels()
+    remaining = {
+        (x, y)
+        for y in range(y0, y1)
+        for x in range(x0, x1)
+        if data[y * stride + x * channels : y * stride + x * channels + 3]
+        == b"\x00\x00\xff"
+    }
+    largest = set()
+    while remaining:
+        pending = [remaining.pop()]
+        component = set(pending)
+        while pending:
+            x, y = pending.pop()
+            for point in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if point in remaining:
+                    remaining.remove(point)
+                    component.add(point)
+                    pending.append(point)
+        if len(component) > len(largest):
+            largest = component
+    if not largest:
+        return set()
+    width = max(x for x, _ in largest) - min(x for x, _ in largest) + 1
+    height = max(y for _, y in largest) - min(y for _, y in largest) + 1
+    # The dock uses a 48px square; a compositor titlebar uses a 16–24px copy.
+    return largest if width >= 32 and height >= 32 else set()
+
+
 def fixture():
     GLib.set_prgname("lab-native")
     window = Gtk.Window(title="Native backend fixture")
@@ -82,6 +115,11 @@ class Probe:
                 [sys.executable, __file__, "--capture-x11", str(target)],
                 env=env,
                 check=True,
+            )
+        elif mode == "gnome":
+            subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("gnome_capture.py")), str(target)],
+                check=True, timeout=8,
             )
         else:
             env = dict(os.environ)
@@ -177,25 +215,17 @@ class Probe:
             y1 = min(y1, y0 + band)
         else:
             y0 = max(y0, y1 - band)
-        visible_data, hidden_data = visible.get_pixels(), hidden.get_pixels()
-        stride, channels = visible.get_rowstride(), visible.get_n_channels()
+        hidden_data = hidden.get_pixels()
         hidden_stride, hidden_channels = hidden.get_rowstride(), hidden.get_n_channels()
-        changed, painted = 0, 0
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                offset, hidden_offset = (
-                    y * stride + x * channels,
-                    y * hidden_stride + x * hidden_channels,
-                )
-                red, green, blue = visible_data[offset : offset + 3]
-                # The fixture launcher is blue. Ignore unchanged white/black
-                # cursor pixels and shell chrome outside the dock.
-                if blue > red + 20 and blue > green:
-                    painted += 1
-                    changed += (
-                        hidden_data[hidden_offset : hidden_offset + 3]
-                        == b"\xff\x00\x00"
-                    )
+        marker_points = dock_marker_points(visible, (x0, y0, x1, y1))
+        painted = len(marker_points)
+        changed = sum(
+            hidden_data[
+                y * hidden_stride + x * hidden_channels :
+                y * hidden_stride + x * hidden_channels + 3
+            ] != b"\x00\x00\xff"
+            for x, y in marker_points
+        )
         pixels_passed = changed >= max(32, painted * 0.98)
         if os.environ.get("LAB_SERVICE_MODE") != "services":
             assert pixels_passed, (
@@ -256,12 +286,26 @@ class Probe:
             lambda: self.window.autohide.hide_offset < 0.05,
             "Closed window still hides dock",
         )
-        await self.capture("restored")
+        restored = await self.capture("restored")
+        restored_data = restored.get_pixels()
+        restored_stride = restored.get_rowstride()
+        restored_channels = restored.get_n_channels()
+        restored_count = sum(
+            restored_data[
+                y * restored_stride + x * restored_channels :
+                y * restored_stride + x * restored_channels + 3
+            ] == b"\x00\x00\xff"
+            for x, y in marker_points
+        )
+        restore_passed = restored_count >= max(32, painted * 0.98)
+        if os.environ.get("LAB_SERVICE_MODE") != "services":
+            assert restore_passed, ("Dock pixels did not return", restored_count, painted)
         idle = self.backend.idle.idle_seconds() if self.backend.idle else None
         result = {
             "backend": self.backend.name,
             "position": self.position,
             "dodge_pixels": pixels_passed,
+            "restore_pixels": restore_passed,
             "dodge_policy": True,
             "actions": True,
             "workspace_switch_restore": True,
@@ -311,7 +355,7 @@ class Probe:
             "Off-workspace window still hides dock",
         )
         await self.capture("other-workspace-visible")
-        if self.backend.name in {"kwin", "sway"}:
+        if self.backend.name in {"kwin", "sway", "cosmic"}:
             self.window.config.current_workspace_only = True
             self.backend.windows.refresh()
             assert not self.backend.windows.list_windows("lab-native.desktop")
@@ -360,9 +404,13 @@ def main():
     position = sys.argv[1]
     applications = Path(os.environ["XDG_DATA_HOME"]) / "applications"
     applications.mkdir(parents=True, exist_ok=True)
+    icon = applications / "lab-native.png"
+    marker = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 64, 64)
+    marker.fill(0x0000FFFF)
+    marker.savev(str(icon), "png", [], [])
     (applications / "lab-native.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Native fixture\nExec=/usr/bin/true\n"
-        "StartupWMClass=lab-native\nIcon=application-x-executable\n"
+        f"StartupWMClass=lab-native\nIcon={icon}\n"
     )
     Config(
         pinned=[PinnedEntry("app", "lab-native.desktop")],

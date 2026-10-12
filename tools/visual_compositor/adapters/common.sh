@@ -35,7 +35,8 @@ docking_vendor_path() {
 # packaging/deb/docking's launcher constructs
 # (docs/HEADLESS_WAYLAND_TESTING.local.md:529-534).
 docking_source_pythonpath() {
-    printf '%s:%s' "${DOCKING_SOURCE:-/src}" "$(docking_vendor_path)"
+    printf '%s:%s%s' "${DOCKING_SOURCE:-/src}" "$(docking_vendor_path)" \
+        "${DOCKING_LAB_EXTRA_PYTHONPATH:+:$DOCKING_LAB_EXTRA_PYTHONPATH}"
 }
 
 # JSON describing the live session: whether a GTK client here actually gets a

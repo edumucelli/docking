@@ -6,6 +6,8 @@ import struct
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.applications.matcher import AppIdMatcher
 from docking.platform.backends.base import ActionResult, DisplayServer
 from docking.platform.backends.wayland.toplevels import (
@@ -193,6 +195,33 @@ def test_foreign_toplevel_service_actions_call_protocol_methods():
     protocol.activate.assert_any_call(handle)
     protocol.close.assert_any_call(handle)
     protocol.set_minimized.assert_any_call(handle)
+
+
+@pytest.mark.parametrize("active_index, next_index", [(None, 0), (0, 1), (1, 0)])
+def test_foreign_toplevel_cycle_selects_next_live_app_window(active_index, next_index):
+    protocol = _protocol()
+    service = WaylandForeignToplevelWindowService(
+        model=_model(_item("firefox.desktop")),
+        **identity_services(),
+        protocol=protocol,
+    )
+    handles = [object(), object()]
+    for index, handle in enumerate(handles):
+        service.toplevel_created(handle)
+        service.app_id_changed(handle, "firefox")
+        service.state_changed(
+            handle, [STATE_ACTIVATED] if index == active_index else []
+        )
+        service.done(handle)
+
+    assert service.cycle("firefox.desktop") is ActionResult.OK
+    protocol.activate.assert_called_once_with(handles[next_index])
+
+    service.closed(handles[next_index])
+    assert service.cycle("firefox.desktop") is ActionResult.OK
+    protocol.activate.assert_called_with(handles[1 - next_index])
+    service.closed(handles[1 - next_index])
+    assert service.cycle("firefox.desktop") is ActionResult.NOT_FOUND
 
 
 def test_foreign_toplevel_service_respects_protocol_action_support():

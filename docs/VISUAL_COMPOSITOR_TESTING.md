@@ -200,13 +200,20 @@ other compositor implementations.
 
 ### CI and image maintenance
 
-`.github/workflows/compositor.yml` runs Sway, Cinnamon, Niri, KWin and GNOME on
-relevant PRs and master pushes. Weekly and manually dispatched runs add labwc,
-COSMIC, Wayfire and Cage. Sway also runs the 16 new autohide, interaction, layout
-and output-change cases; Wayfire additionally checks native active-window dodge.
-Placement lanes require supported assertions; Cage and
-GNOME are explicit negative compatibility lanes. Failures retain screenshots,
-intermediate phases, geometry, input proof and logs for 14 days.
+`.github/workflows/compositor.yml` runs Sway, Cinnamon, Niri, COSMIC, KWin,
+Wayfire, Phoc, Phosh, Weston and GNOME on relevant PRs and master pushes. Weekly
+and manually dispatched runs also include labwc and Cage. Sway checks pointer,
+autohide, layout and output changes. Wayfire checks native dodge and a two-output
+contract both with and without optional action plugins. Phoc/Phosh check public
+window actions and idle; a separate bare-Phoc diagnostic explicitly opts into
+its private preview protocol. Weston and Cage retain reduced integration.
+
+Native service probes independently require dock pixels to disappear and return
+on all four edges where rendering permits it. GPU-less KWin and COSMIC lanes
+check native state, actions and workspace filtering in `services` mode; their
+JSON reports pixel results separately and does not convert an unrendered frame
+into a visual pass. Failures retain screenshots, geometry, input proof and logs
+for 14 days.
 
 CI uses **geometry and behavior assertions**, not pixel comparisons: separately
 built images can have different image identities. Dockerfiles pin base image
@@ -222,15 +229,102 @@ Sway baselines accompany this expansion. `--geometry-only` never writes baseline
 and cannot be combined with `--update-baselines`. `--require-supported` turns an
 unexpected unsupported case into an unsuccessful run.
 
-### A newly observed COSMIC gap
+### Wayland support audit (2026-10-12)
 
-Opening a real GTK toplevel during the native COSMIC dodge experiment produced
-callback `TypeError`s in `CosmicToplevelAdapter._request_cosmic_info`: callbacks
-expected an extra argument for output/workspace events. The compositor in this
-lane also lacks the overlap-notification protocol, so dodge is explicitly
-unsupported and the scheduled placement tests do not exercise that action.
-This is a separate production follow-up; placement passing does not establish
-complete COSMIC window-tracking or visibility coverage.
+Installed compositors run through `local_run.sh` in private home directories,
+runtime directories and session buses. The runner hides the host system bus and
+uses a private process/network namespace. It preserves the shared X11 capture
+path and does not reconfigure the host desktop. The host is GNOME Wayland;
+GPU render nodes are available outside the filesystem sandbox.
+
+The native pixel oracle uses a deterministic blue launcher on a red fixture. It
+selects the large launcher component, excluding the small copy in server-side
+window decorations, and checks disappearance and restoration at the same screen
+coordinates. These are behavior checks, without updating container baselines.
+
+| Runtime | New evidence |
+| --- | --- |
+| Sway 1.11 | Four-edge native pixel dodge/recovery, focus/close, workspace switch/restore and idle; pointer-driven interaction; independent generic foreign-toplevel cycling |
+| Niri 26.04 | Four-edge native pixel dodge/recovery, focus/close and workspace switch/restore with a floating fixture |
+| Wayfire 0.10.0 / wlroots 0.19.1 | Four-edge native pixels and actions; two-output global geometry, picking, dodge, workspace cell identities/filtering; unsupported action checks with plugins disabled |
+| COSMIC 1.0.0 | Four-edge native pixel dodge/recovery, actions, idle and current-workspace filtering using native geometry/workspace events and a GPU-rendered parent |
+| KWin 6.6.4 | Four-edge native pixel dodge/recovery, Show Desktop, minimize/restore, focus/close, workspace switch/restore and idle with GPU rendering |
+| GNOME 50.1 | Four-edge native pixel dodge/recovery, native actions/workspaces and idle using the existing bridge and a private headless compositor |
+| Cinnamon, pinned Debian image | All seven native service regressions passed, including geometry, workspace actions, visibility, previews, picking and idle |
+| Phoc 0.54 / Phosh 0.54 | Four-edge native placement; public window activate/close and idle without claiming unknown geometry/dodge; bare-Phoc private preview diagnostic captured the red fixture |
+| Weston 14.0.2 | Native Wayland GTK startup/shutdown and explicit reduced-backend compatibility |
+
+Production changes:
+
+- Generic foreign-toplevel cycling selects the next live application window and
+  wraps, rather than reactivating the active window. A separate Sway IPC oracle
+  observed `Cycle B → Cycle A → Cycle B → Cycle A` while exercising this service.
+- COSMIC replaces reduced visibility with snapshot visibility backed by native
+  geometry and verified active workspace memberships. This supports active,
+  any-window and maximized dodge plus current-workspace filtering, including
+  multiple active workspaces and multi-workspace window membership. Unknown
+  geometry/membership remains unknown. Workspace changes notify window watchers.
+- COSMIC checks negotiated protocol versions, management capabilities, seat and
+  extension handles. Standard listing handles are never passed to COSMIC
+  management requests. Typed object arguments and corrected callbacks have wire
+  regression coverage. The backend avoids a GTK/PyWayland layer-surface handoff
+  across separate connections. See the upstream
+  [management protocol](https://github.com/pop-os/cosmic-protocols/blob/main/unstable/cosmic-toplevel-management-unstable-v1.xml).
+- Wayfire translates output-relative geometry into global coordinates and uses
+  output viewport/minimized state to establish visibility. Window/workspace
+  services agree on grid-cell IDs, with native current-workspace filtering.
+  Picking and dodge use the correct monitor. PID, maximize and sticky state are
+  retained. `list-views` does not establish stacking order, so stacking remains
+  unsupported. Fields follow upstream
+  [snapshot serialization](https://github.com/WayfireWM/wayfire/blob/master/plugins/ipc-rules/ipc-rules-common.hpp).
+- Wayfire enumerates available IPC methods so missing `wm-actions` or `vswitch`
+  operations return unsupported without disabling listing, picking or close.
+  Fragmented events, EOF and reconnect cleanup have socket regressions. A bounded
+  GLib timer replaces an idle callback that continuously spun with no events.
+- Normal Phosh startup no longer binds its singleton private shell protocol.
+  Public toplevel/idle protocols remain independent. Only the exact opt-in
+  `DOCKING_PHOC_PRIVATE_PREVIEWS=1` and protocol version 4 or newer enable private
+  thumbnails, intended for bare-Phoc diagnostics.
+
+Harness additions include Phoc, Phosh and Weston adapters/images, a local runner,
+a multi-output Wayfire contract, modern GNOME headless startup/capture, and repaired
+virtual-pointer bindings. GNOME capture owns its permitted screenshot bus name
+only inside the explicitly private lab session, without replacing an existing
+owner. The legacy nested X11 path remains available.
+Phosh placement checks open a normal GTK client to leave the initial overview
+and retain the shell's normal layering; all five pinned-image edge/gap cases pass.
+
+Example local commands:
+
+```bash
+bash tools/visual_compositor/local_run.sh native wayfire contract
+bash tools/visual_compositor/local_run.sh native phosh foreign
+bash tools/visual_compositor/local_run.sh native phoc foreign
+DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/visual_compositor/local_run.sh native phoc foreign
+bash tools/visual_compositor/local_run.sh matrix weston --case placement-bottom
+LAB_PARENT_RENDERER=gles2 WLR_RENDER_DRM_DEVICE=/dev/dri/renderD129 \
+  bash tools/visual_compositor/local_run.sh native cosmic
+```
+
+Use a render node appropriate to the machine. Local evidence is retained in
+`tools/visual_compositor/evidence/local-*`; it is ignored by Git. Cinnamon/Muffin,
+Cage, Weston, Phoc/Phosh, grim, xdotool and dbus-x11 were installed locally;
+Sway, labwc, Niri, COSMIC, Wayfire, Hyprland, KWin and GNOME were already present.
+
+Validation includes the platform/harness suite, X11 UI/integration regressions,
+lint, formatting, type checks, shell syntax and package/translation checks.
+The complete suite and PR checks provide the final acceptance status.
+
+Remaining limits:
+
+- Phoc's same-layer exclusive panel can place the dock under the panel; a
+  no-panel placement pass does not establish correct panel offsets.
+- Host Cinnamon 6.4/XWayland crashed during its local software-rendered session;
+  the pinned container passed. This is retained as a host-specific limitation.
+- GNOME requires its bridge. Older Muffin uses an XWayland dock surface. Hyprland
+  and Treeland have dedicated backends but no new native visual pass in this audit.
+- Generic backends depend on advertised public protocols; detection alone does
+  not establish geometry, previews or dodge. Cage and Weston remain reduced.
 
 ## Why: what the existing lanes could not see
 

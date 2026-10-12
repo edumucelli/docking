@@ -14,23 +14,23 @@ object with ``method`` and ``data`` members.  The ``ipc-rules`` plugin registers
 the ``window-rules/*`` methods used here for windows, outputs, and workspace
 sets.
 
-This backend deliberately starts from the stable snapshot/action surface:
-``list-views``, ``get-focused-view``, ``focus-view``, ``close-view``,
-``list-outputs``, and ``list-wsets``.  Wayfire also has event watching, but
-snapshot refreshes after lifecycle/actions are enough for a conservative first
-integration and keep the service easy to reason about.
+Snapshots are reconciled with IPC events. View rectangles are output-relative;
+the service projects them into global coordinates and keeps workspace cells
+distinct from the workspace sets that contain them.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
 import socket
 import struct
 import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, cast
@@ -58,6 +58,7 @@ from docking.platform.backends.base import (
 )
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
 
@@ -80,12 +81,19 @@ _WAYFIRE_EVENTS = (
     "view-workspace-changed",
     "view-geometry-changed",
     "view-tiled",
+    "view-sticky",
+    "view-set-output",
+    "view-wset-changed",
+    "output-gain-focus",
+    "output-wset-changed",
+    "wset-workspace-changed",
 )
+_MAX_IPC_MESSAGE_BYTES = 16 * 1024 * 1024
 
 
 class WayfireEventWatcher:
     """Persistent socket watcher that reads Wayfire IPC events in a background
-    thread and dispatches them to the main loop via ``GLib.idle_add``."""
+    thread and dispatches them through a bounded GLib timer."""
 
     def __init__(
         self,
@@ -110,9 +118,11 @@ class WayfireEventWatcher:
         """
         if self._running:
             return True
+        self.stop()
+        sock = None
         try:
             sock = self._socket_factory(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(30)
+            sock.settimeout(1.0)
             sock.connect(self._path)
             payload = json.dumps(
                 {
@@ -122,15 +132,16 @@ class WayfireEventWatcher:
                 separators=(",", ":"),
             ).encode("utf-8")
             sock.sendall(struct.pack("I", len(payload)) + payload)
-            response_len = struct.unpack("I", _read_exact(sock, 4))[0]
-            response_text = _read_exact(sock, response_len).decode("utf-8")
+            response_text = _read_message(sock).decode("utf-8")
             response = as_json_object(cast(JsonValue, json.loads(response_text)))
             if not isinstance(response, Mapping) or response.get("result") != "ok":
                 log.info("Wayfire event subscription rejected: %s", response)
                 sock.close()
                 return False
-        except (OSError, json.JSONDecodeError, RuntimeError) as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             log.info("Wayfire event subscription failed: %s", exc)
+            if sock is not None:
+                sock.close()
             return False
 
         self._sock = sock
@@ -138,8 +149,13 @@ class WayfireEventWatcher:
         self._thread = threading.Thread(target=self._read_loop, daemon=True)
         self._thread.start()
         if GLib is not None:
-            self._glib_source_id = GLib.idle_add(self._drain_queue)
+            # A repeating idle callback runs continuously even with no events.
+            self._glib_source_id = GLib.timeout_add(50, self._drain_queue)
         return True
+
+    @property
+    def running(self) -> bool:
+        return self._running
 
     def stop(self) -> None:
         self._running = False
@@ -157,37 +173,48 @@ class WayfireEventWatcher:
         if GLib is not None and self._glib_source_id:
             GLib.source_remove(self._glib_source_id)
             self._glib_source_id = 0
+        self._queue = Queue()
 
     def _read_loop(self) -> None:
         sock = self._sock
-        while self._running and sock is not None:
-            try:
-                sock.settimeout(1.0)
-                evt_len_raw = sock.recv(4)
-                if not evt_len_raw:
+        pending = bytearray()
+        try:
+            while self._running and sock is not None:
+                try:
+                    chunk = sock.recv(65536)
+                except TimeoutError:
+                    # Keep partial headers/payloads across idle timeouts.
+                    continue
+                if not chunk:
                     break
-                while len(evt_len_raw) < 4:
-                    extra = sock.recv(4 - len(evt_len_raw))
-                    if not extra:
+                pending.extend(chunk)
+                while len(pending) >= 4:
+                    size = struct.unpack("I", pending[:4])[0]
+                    if size > _MAX_IPC_MESSAGE_BYTES:
+                        raise RuntimeError("Wayfire event frame exceeds size limit")
+                    if len(pending) < size + 4:
                         break
-                    evt_len_raw += extra
-                evt_len = struct.unpack("I", evt_len_raw)[0]
-                evt = _read_exact(sock, evt_len)
-                parsed = as_json_object(
-                    cast(JsonValue, json.loads(evt.decode("utf-8")))
-                )
-                if parsed is not None:
-                    self._queue.put(parsed)
-            except (TimeoutError, OSError):
-                if not self._running:
-                    break
-            except (json.JSONDecodeError, RuntimeError) as exc:
-                log.debug("Wayfire event parse error: %s", exc)
-                continue
+                    payload = bytes(pending[4 : size + 4])
+                    del pending[: size + 4]
+                    try:
+                        parsed = as_json_object(
+                            cast(JsonValue, json.loads(payload.decode("utf-8")))
+                        )
+                    except ValueError as exc:
+                        log.debug("Wayfire event parse error: %s", exc)
+                        continue
+                    if parsed is not None:
+                        self._queue.put(parsed)
+        except (OSError, RuntimeError) as exc:
+            if self._running:
+                log.debug("Wayfire event stream disconnected: %s", exc)
+        finally:
+            self._running = False
+            if sock is not None:
+                with suppress(OSError):
+                    sock.close()
 
     def _drain_queue(self) -> bool:
-        if not self._running:
-            return False
         handled = 0
         while handled < 20:  # bound per idle callback to avoid starving the loop
             try:
@@ -197,10 +224,14 @@ class WayfireEventWatcher:
             event_name = event.get("event", "")
             view_data = event.get("view")
             view = as_json_object(view_data)
-            if isinstance(event_name, str) and view is not None:
-                self._on_event(event_name, view)
+            if isinstance(event_name, str):
+                # Output/workspace events and focus loss do not contain a view.
+                self._on_event(event_name, view if view is not None else {})
             handled += 1
-        return True  # keep the idle source alive
+        if not self._running and self._queue.empty():
+            self._glib_source_id = 0
+            return False
+        return True
 
 
 @dataclass(frozen=True)
@@ -217,6 +248,11 @@ class WayfireWindowRecord:
     geometry: Rect | None
     workspace_id: str | None
     pid: int | None
+    output_id: int | None = None
+    wset_index: int | None = None
+    maximized: bool | None = None
+    sticky: bool = False
+    last_focus_timestamp: int = 0
 
     @property
     def window_id(self) -> WindowId:
@@ -257,6 +293,8 @@ class WayfireIpcClient:
         self._path = str(socket_path)
         self._socket_factory = socket_factory
         self._timeout = timeout
+        self._methods: frozenset[str] | None = None
+        self._methods_checked = False
 
     def request(
         self, method: str, data: Mapping[str, JsonValue] | None = None
@@ -273,21 +311,44 @@ class WayfireIpcClient:
             sock.settimeout(self._timeout)
             sock.connect(self._path)
             sock.sendall(struct.pack("I", len(payload)) + payload)
-            response_len = struct.unpack("I", _read_exact(sock, 4))[0]
-            response = _read_exact(sock, response_len)
+            response = _read_message(sock)
         return cast(JsonValue, json.loads(response.decode("utf-8")))
+
+    def supports_method(self, method: str) -> bool:
+        """Check the loaded plugins without executing a destructive action.
+
+        Older servers without method enumeration retain their action fallback.
+        """
+        if not self._methods_checked:
+            self._methods_checked = True
+            try:
+                response = self.request("list-methods")
+            except (OSError, ValueError, RuntimeError):
+                response = None
+            methods = response.get("methods") if isinstance(response, Mapping) else None
+            if isinstance(methods, list):
+                self._methods = frozenset(
+                    item for item in methods if isinstance(item, str)
+                )
+        return self._methods is None or method in self._methods
 
     def action(self, method: str, data: Mapping[str, JsonValue]) -> ActionResult:
         """Call an action method and map Wayfire's result/error to ActionResult."""
+        if not self.supports_method(method):
+            return ActionResult.UNSUPPORTED
         try:
             response = self.request(method, data)
-        except (OSError, json.JSONDecodeError, RuntimeError) as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             log.info("Wayfire IPC action failed: %s", exc)
             return ActionResult.FAILED
         if isinstance(response, Mapping) and response.get("result") == "ok":
             return ActionResult.OK
         if isinstance(response, Mapping) and "error" in response:
-            return ActionResult.NOT_FOUND
+            error = str(response.get("error")).lower()
+            if "no such method" in error or "method not found" in error:
+                return ActionResult.UNSUPPORTED
+            if "not found" in error or "no such view" in error:
+                return ActionResult.NOT_FOUND
         return ActionResult.FAILED
 
 
@@ -306,6 +367,7 @@ class WayfireWindowService(WindowService):
         process_identity_service: ProcessIdentityService,
         client: WayfireIpcClient,
         watcher: WayfireEventWatcher | None = None,
+        config: Config | None = None,
     ) -> None:
         self._model = model
         self._matcher = AppIdMatcher(
@@ -313,15 +375,21 @@ class WayfireWindowService(WindowService):
             process_identity_service=process_identity_service,
         )
         self._client = client
+        self._config = config
         self._records: dict[int, WayfireWindowRecord] = {}
+        self._outputs: dict[int, Mapping[str, JsonValue]] = {}
         self._poll_source_id = 0
         self._watcher = watcher
+        self._watcher_was_running = False
+        self._watcher_retry_after = 0.0
 
     def start(self) -> None:
+        if self._watcher is not None:
+            self._watcher_was_running = self._watcher.start()
+            self._watcher_retry_after = 0.0
         self._refresh()
-        if self._watcher is not None and self._watcher.start():
-            return
-        # Fall back to polling
+        # The timer also reconciles dropped events and retries disconnected
+        # subscriptions. In particular, the snapshot predates queued events.
         if GLib is not None and self._poll_source_id == 0:
             self._poll_source_id = GLib.timeout_add_seconds(
                 WAYFIRE_WINDOW_POLL_SECONDS,
@@ -334,7 +402,10 @@ class WayfireWindowService(WindowService):
         if GLib is not None and self._poll_source_id:
             GLib.source_remove(self._poll_source_id)
         self._poll_source_id = 0
+        self._watcher_was_running = False
+        self._watcher_retry_after = 0.0
         self._records.clear()
+        self._outputs.clear()
         self._model.update_running(running={})
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
@@ -344,7 +415,7 @@ class WayfireWindowService(WindowService):
         return tuple(
             self._snapshot_for(record)
             for record in self._records.values()
-            if record.desktop_id == desktop_id
+            if record.desktop_id == desktop_id and self._in_scope(record)
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -369,12 +440,24 @@ class WayfireWindowService(WindowService):
         return self.activate(record.window_id)
 
     def cycle(self, desktop_id: str) -> ActionResult:
-        return self.activate_most_recent(desktop_id=desktop_id)
+        records = self._records_for_desktop(desktop_id)
+        if not records:
+            return ActionResult.NOT_FOUND
+        # Keep creation order for cycling: sorting by focus time would reorder
+        # this ring after every activation and strand a third window.
+        active_index = next((i for i, row in enumerate(records) if row.active), -1)
+        return self.activate(records[(active_index + 1) % len(records)].window_id)
+
+    @property
+    def supports_minimize(self) -> bool:
+        return self._client.supports_method("wm-actions/set-minimized")
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         records = self._records_for_desktop(desktop_id)
         if not records:
             return ActionResult.NOT_FOUND
+        if not self.supports_minimize:
+            return ActionResult.UNSUPPORTED
         result = ActionResult.OK
         for record in records:
             action = self._client.action(
@@ -408,7 +491,9 @@ class WayfireWindowService(WindowService):
         return result
 
     def close_focused(self, desktop_id: str) -> ActionResult:
-        record = self._first_record_for_desktop(desktop_id)
+        record = next(
+            (row for row in self._records_for_desktop(desktop_id) if row.active), None
+        )
         if record is None:
             return ActionResult.NOT_FOUND
         return self.close(record.window_id)
@@ -418,6 +503,8 @@ class WayfireWindowService(WindowService):
         if record is None:
             return ActionResult.NOT_FOUND
         if record.active:
+            if not self.supports_minimize:
+                return ActionResult.UNSUPPORTED
             result = self._client.action(
                 "wm-actions/set-minimized",
                 {"view_id": record.id, "state": True},
@@ -434,9 +521,10 @@ class WayfireWindowService(WindowService):
         except (OSError, json.JSONDecodeError, RuntimeError) as exc:
             log.info("Wayfire IPC snapshot unavailable: %s", exc)
             return
+        self._outputs = _load_outputs(self._client)
         focused_id = _focused_view_id(focused)
         if not isinstance(views, list):
-            views = []
+            return
         self._matcher.sync_visible_items(self._model.visible_items())
         records: dict[int, WayfireWindowRecord] = {}
         for item in views:
@@ -455,7 +543,7 @@ class WayfireWindowService(WindowService):
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for record in self._records.values():
-            if record.desktop_id is None:
+            if record.desktop_id is None or not self._in_scope(record):
                 continue
             windows_by_desktop.setdefault(record.desktop_id, []).append(
                 RunningWindowInfo(
@@ -480,11 +568,38 @@ class WayfireWindowService(WindowService):
         )
 
     def _poll(self) -> bool:
+        if (
+            self._watcher is not None
+            and self._watcher_was_running
+            and not self._watcher.running
+            and time.monotonic() >= self._watcher_retry_after
+        ):
+            # An initially rejected subscription keeps its polling fallback.
+            # Established streams can reconnect, with a cooldown on failure.
+            self._watcher_retry_after = (
+                0.0 if self._watcher.start() else time.monotonic() + 60.0
+            )
         self._refresh()
         return True
 
     def _on_event(self, event_name: str, view: Mapping[str, JsonValue]) -> None:
         """Handle one Wayfire window event by updating the local record set."""
+        if event_name in (
+            "view-set-output",
+            "view-wset-changed",
+            "output-gain-focus",
+            "output-wset-changed",
+            "wset-workspace-changed",
+        ):
+            self._refresh()
+            return
+        if event_name == "view-focused" and not view:
+            self._records = {
+                rid: replace(record, active=False)
+                for rid, record in self._records.items()
+            }
+            self._publish_running()
+            return
         if event_name == "view-unmapped":
             view_id = _optional_int(view.get("id"))
             if view_id is not None:
@@ -498,6 +613,12 @@ class WayfireWindowService(WindowService):
             focused_id=None,
         )
         if record is None:
+            if event_name == "view-focused":
+                self._records = {
+                    rid: replace(existing, active=False)
+                    for rid, existing in self._records.items()
+                }
+                self._publish_running()
             return
         if event_name == "view-focused":
             self._records = {
@@ -518,35 +639,32 @@ class WayfireWindowService(WindowService):
         self._publish_running()
 
     def _snapshot_for(self, record: WayfireWindowRecord) -> WindowSnapshot:
-        return WindowSnapshot(
-            id=record.window_id,
-            desktop_id=record.desktop_id or "",
-            title=record.title,
-            app_id=record.app_id or None,
-            active=record.active,
-            urgent=False,
-            minimized=record.minimized,
-            fullscreen=record.fullscreen,
-            geometry=record.geometry,
-            workspace_id=record.workspace_id,
-            can_activate=True,
-            can_minimize=True,
-            can_close=True,
-            can_preview=True,
+        return _snapshot_from_record(
+            record, self._outputs, can_minimize=self.supports_minimize
+        )
+
+    def _in_scope(self, record: WayfireWindowRecord) -> bool:
+        return (
+            self._config is None
+            or not self._config.current_workspace_only
+            or self._snapshot_for(record).on_current_workspace is not False
         )
 
     def _records_for_desktop(self, desktop_id: str) -> list[WayfireWindowRecord]:
         return [
             record
             for record in self._records.values()
-            if record.desktop_id == desktop_id
+            if record.desktop_id == desktop_id and self._in_scope(record)
         ]
 
     def _first_record_for_desktop(self, desktop_id: str) -> WayfireWindowRecord | None:
         records = self._records_for_desktop(desktop_id)
         if not records:
             return None
-        return next((record for record in records if record.active), records[0])
+        return next(
+            (record for record in records if record.active),
+            max(records, key=lambda row: row.last_focus_timestamp),
+        )
 
 
 class WayfireWorkspaceService(WorkspaceService):
@@ -558,11 +676,23 @@ class WayfireWorkspaceService(WorkspaceService):
         self._watchers: dict[int, Callable[[], None]] = {}
         self._next_watch_id = 1
         self._active_ids: tuple[str, ...] = ()
+        self._poll_source_id = 0
+
+    @property
+    def supports_switch(self) -> bool:
+        return self._client.supports_method("vswitch/set-workspace")
 
     def start(self) -> None:
         self._refresh()
+        if GLib is not None and not self._poll_source_id:
+            self._poll_source_id = GLib.timeout_add_seconds(
+                WAYFIRE_WINDOW_POLL_SECONDS, self._poll
+            )
 
     def stop(self) -> None:
+        if GLib is not None and self._poll_source_id:
+            GLib.source_remove(self._poll_source_id)
+        self._poll_source_id = 0
         self._records.clear()
         self._watchers.clear()
         self._active_ids = ()
@@ -589,6 +719,8 @@ class WayfireWorkspaceService(WorkspaceService):
         record = self._records.get(workspace_id)
         if record is None:
             return ActionResult.NOT_FOUND
+        if not self.supports_switch:
+            return ActionResult.UNSUPPORTED
         result = self._client.action(
             "vswitch/set-workspace",
             {
@@ -646,19 +778,23 @@ class WayfireWorkspaceService(WorkspaceService):
         for callback in tuple(self._watchers.values()):
             callback()
 
+    def _poll(self) -> bool:
+        self._refresh()
+        return True
+
 
 class WayfireDesktopActionService(DesktopActionService):
     """DesktopActionService backed by Wayfire wm-actions/toggle_showdesktop."""
 
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
-        self._show_desktop_active = False
+        self._show_desktop_active: dict[int, bool] = {}
 
     def start(self) -> None:
         """No persistent runtime resources."""
 
     def stop(self) -> None:
-        self._show_desktop_active = False
+        self._show_desktop_active.clear()
 
     def show_desktop(self, show: bool | None = None) -> ActionResult:
         """Toggle or set show-desktop state.
@@ -666,15 +802,24 @@ class WayfireDesktopActionService(DesktopActionService):
         Wayfire only exposes a toggle method, so for explicit set requests
         the service tracks the last known state to avoid double-toggling.
         """
-        wants_toggle = show is None or show != self._show_desktop_active
+        try:
+            output_id = _focused_output_id(
+                self._client.request("window-rules/get-focused-output")
+            )
+        except (OSError, ValueError, RuntimeError):
+            return ActionResult.FAILED
+        if output_id is None:
+            return ActionResult.NOT_FOUND
+        active = self._show_desktop_active.get(output_id, False)
+        wants_toggle = show is None or show != active
         if not wants_toggle:
             return ActionResult.OK
         result = self._client.action(
             "wm-actions/toggle_showdesktop",
-            {"output-id": 1},
+            {"output-id": output_id},
         )
         if result is ActionResult.OK:
-            self._show_desktop_active = not self._show_desktop_active
+            self._show_desktop_active[output_id] = not active
         return result
 
 
@@ -769,29 +914,45 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
             return False
 
         focused_id = _focused_view_id(focused)
+        outputs = _load_outputs(self._client)
         windows: list[tuple[Rect | None, bool, bool, bool]] = []
         for item in views if isinstance(views, list) else []:
             if not isinstance(item, Mapping):
                 continue
-            if not bool(item.get("mapped", True)):
+            record = _record_from_view(
+                item, matcher=_NullMatcher(), focused_id=focused_id
+            )
+            if record is None:
                 continue
-            view_type = str(item.get("type", "") or "").strip().lower()
-            role = str(item.get("role", "") or "").strip().lower()
-            layer = str(item.get("layer", "") or "").strip().lower()
-            if view_type != "toplevel" and role != "toplevel" and layer != "workspace":
+            snapshot = _snapshot_from_record(record, outputs)
+            if snapshot.visible is False or snapshot.on_current_workspace is False:
                 continue
-            raw_id = item.get("id")
-            if not isinstance(raw_id, (int, float, str)):
-                continue
-            try:
-                view_id = int(raw_id)
-            except (TypeError, ValueError):
-                continue
-            geometry = _rect_from_mapping(item.get("geometry"))
-            is_active = bool(item.get("activated", False)) or view_id == focused_id
-            is_minimized = bool(item.get("minimized", False))
-            is_fullscreen = bool(item.get("fullscreen", False))
-            windows.append((geometry, is_active, is_minimized, is_fullscreen))
+            geometry = snapshot.geometry
+            output = outputs.get(record.output_id)
+            output_rect = _rect_from_mapping(output.get("geometry")) if output else None
+            if geometry is not None and output_rect is not None:
+                geometry = Rect(
+                    max(geometry.x, output_rect.x),
+                    max(geometry.y, output_rect.y),
+                    max(
+                        0,
+                        min(geometry.right, output_rect.right)
+                        - max(geometry.x, output_rect.x),
+                    ),
+                    max(
+                        0,
+                        min(geometry.bottom, output_rect.bottom)
+                        - max(geometry.y, output_rect.y),
+                    ),
+                )
+            windows.append(
+                (
+                    geometry,
+                    snapshot.active,
+                    bool(snapshot.minimized),
+                    bool(snapshot.fullscreen or snapshot.maximized),
+                )
+            )
 
         if isinstance(mode_value, str):
             if mode_value == "intelligent":
@@ -835,11 +996,10 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
         dock_rect: Rect,
         windows: list[tuple[Rect | None, bool, bool, bool]],
     ) -> bool:
-        for geometry, is_active, is_minimized, is_fullscreen in windows:
+        for geometry, _is_active, is_minimized, is_maximized in windows:
             if (
                 not is_minimized
-                and is_fullscreen
-                and is_active
+                and is_maximized
                 and geometry is not None
                 and dock_rect.overlaps(geometry)
             ):
@@ -880,28 +1040,45 @@ class WayfireWindowPickService(WindowPickService):
     def __init__(self, *, client: WayfireIpcClient) -> None:
         self._client = client
         self._records: dict[int, WayfireWindowRecord] = {}
+        self._outputs: dict[int, Mapping[str, JsonValue]] = {}
 
     def start(self) -> None:
         self._refresh()
 
     def stop(self) -> None:
         self._records.clear()
+        self._outputs.clear()
 
     def pick_window_at(self, *, x: int, y: int) -> WindowSnapshot | None:
         self._refresh()
-        candidates = [
-            record
-            for record in self._records.values()
-            if record.geometry is not None
-            and record.geometry.x <= x < record.geometry.right
-            and record.geometry.y <= y < record.geometry.bottom
-            and not record.minimized
-        ]
+        candidates = []
+        for record in self._records.values():
+            snapshot = self._snapshot_for(record)
+            geometry = snapshot.geometry
+            output = self._outputs.get(record.output_id)
+            output_rect = _rect_from_mapping(output.get("geometry")) if output else None
+            if output_rect is not None and not (
+                output_rect.x <= x < output_rect.right
+                and output_rect.y <= y < output_rect.bottom
+            ):
+                continue
+            if (
+                geometry is not None
+                and geometry.x <= x < geometry.right
+                and geometry.y <= y < geometry.bottom
+                and snapshot.visible is not False
+                and snapshot.on_current_workspace is not False
+                and not snapshot.minimized
+            ):
+                candidates.append((record, snapshot))
         if not candidates:
             return None
-        # Current Wayfire list-views output is bottom-to-top; use the last
-        # matching toplevel as the picked target.
-        return self._snapshot_for(candidates[-1])
+        # list-views is allocation order, not stacking order. Focus metadata
+        # supplies a better target when overlapping windows have been raised.
+        return max(
+            candidates,
+            key=lambda pair: (pair[0].active, pair[0].last_focus_timestamp, pair[0].id),
+        )[1]
 
     def pid_for(self, window_id: WindowId) -> int | None:
         wayfire_id = _wayfire_window_id(window_id)
@@ -931,6 +1108,7 @@ class WayfireWindowPickService(WindowPickService):
             log.info("Wayfire pick snapshot unavailable: %s", exc)
             return
         focused_id = _focused_view_id(focused)
+        self._outputs = _load_outputs(self._client)
         records: dict[int, WayfireWindowRecord] = {}
         for item in views if isinstance(views, list) else []:
             if not isinstance(item, Mapping):
@@ -944,21 +1122,8 @@ class WayfireWindowPickService(WindowPickService):
                 records[record.id] = record
         self._records = records
 
-    @staticmethod
-    def _snapshot_for(record: WayfireWindowRecord) -> WindowSnapshot:
-        return WindowSnapshot(
-            id=record.window_id,
-            desktop_id=record.desktop_id or "",
-            title=record.title,
-            app_id=record.app_id or None,
-            active=record.active,
-            minimized=record.minimized,
-            fullscreen=record.fullscreen,
-            geometry=record.geometry,
-            workspace_id=record.workspace_id,
-            can_activate=True,
-            can_close=True,
-        )
+    def _snapshot_for(self, record: WayfireWindowRecord) -> WindowSnapshot:
+        return _snapshot_from_record(record, self._outputs)
 
 
 def load_wayfire_window_service(
@@ -966,12 +1131,15 @@ def load_wayfire_window_service(
     model,
     application_registry: ApplicationRegistry,
     process_identity_service: ProcessIdentityService,
+    config: Config | None = None,
 ) -> WayfireWindowService | None:
     """Return a Wayfire WindowService when the IPC socket is detectable."""
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
     client = WayfireIpcClient(socket_path=socket_path)
+    if not _has_snapshot(client, "window-rules/list-views"):
+        return None
     # Create the service first without a watcher, then wire one up that
     # calls back into the service's _on_event handler.
     service = WayfireWindowService(
@@ -979,6 +1147,7 @@ def load_wayfire_window_service(
         application_registry=application_registry,
         process_identity_service=process_identity_service,
         client=client,
+        config=config,
     )
     watcher = WayfireEventWatcher(
         socket_path=str(socket_path),
@@ -993,7 +1162,10 @@ def load_wayfire_workspace_service() -> WayfireWorkspaceService | None:
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
-    return WayfireWorkspaceService(client=WayfireIpcClient(socket_path=socket_path))
+    client = WayfireIpcClient(socket_path=socket_path)
+    if not _has_snapshot(client, "window-rules/list-outputs"):
+        return None
+    return WayfireWorkspaceService(client=client)
 
 
 def load_wayfire_window_pick_service() -> WayfireWindowPickService | None:
@@ -1001,7 +1173,10 @@ def load_wayfire_window_pick_service() -> WayfireWindowPickService | None:
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
-    return WayfireWindowPickService(client=WayfireIpcClient(socket_path=socket_path))
+    client = WayfireIpcClient(socket_path=socket_path)
+    if not _has_snapshot(client, "window-rules/list-views"):
+        return None
+    return WayfireWindowPickService(client=client)
 
 
 def load_wayfire_desktop_action_service() -> WayfireDesktopActionService | None:
@@ -1009,9 +1184,10 @@ def load_wayfire_desktop_action_service() -> WayfireDesktopActionService | None:
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
-    return WayfireDesktopActionService(
-        client=WayfireIpcClient(socket_path=socket_path),
-    )
+    client = WayfireIpcClient(socket_path=socket_path)
+    if not client.supports_method("wm-actions/toggle_showdesktop"):
+        return None
+    return WayfireDesktopActionService(client=client)
 
 
 def load_wayfire_visibility_service(
@@ -1021,10 +1197,10 @@ def load_wayfire_visibility_service(
     socket_path = wayfire_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
-    return WayfireVisibilityService(
-        client=WayfireIpcClient(socket_path=socket_path),
-        config=config,
-    )
+    client = WayfireIpcClient(socket_path=socket_path)
+    if not _has_snapshot(client, "window-rules/list-views"):
+        return None
+    return WayfireVisibilityService(client=client, config=config)
 
 
 def load_wayfire_preview_service() -> None:
@@ -1064,6 +1240,114 @@ def _read_exact(sock: socket.socket, size: int) -> bytes:
     return b"".join(chunks)
 
 
+def _read_message(sock: socket.socket) -> bytes:
+    size = struct.unpack("I", _read_exact(sock, 4))[0]
+    if size > _MAX_IPC_MESSAGE_BYTES:
+        raise RuntimeError("Wayfire IPC frame exceeds size limit")
+    return _read_exact(sock, size)
+
+
+def _has_snapshot(client: WayfireIpcClient, method: str) -> bool:
+    try:
+        return isinstance(client.request(method), list)
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def _load_outputs(client: WayfireIpcClient) -> dict[int, Mapping[str, JsonValue]]:
+    try:
+        outputs = client.request("window-rules/list-outputs")
+    except (OSError, ValueError, RuntimeError):
+        return {}
+    result = {}
+    for output in outputs if isinstance(outputs, list) else []:
+        if isinstance(output, Mapping):
+            output_id = _optional_int(output.get("id"))
+            if output_id is not None:
+                result[output_id] = output
+    return result
+
+
+def _snapshot_from_record(
+    record: WayfireWindowRecord,
+    outputs: Mapping[int, Mapping[str, JsonValue]],
+    *,
+    can_minimize: bool = False,
+) -> WindowSnapshot:
+    """Project current-workspace-relative rectangles into global screen space."""
+    output = outputs.get(record.output_id) if record.output_id is not None else None
+    output_rect = _rect_from_mapping(output.get("geometry")) if output else None
+    geometry = record.geometry
+    workspace_id = None
+    on_current = None
+    visible = False if record.minimized else None
+    if record.output_id is not None and record.output_id < 0:
+        on_current = visible = False
+    if output is not None:
+        output_wset = _optional_int(output.get("wset-index"))
+        if (
+            record.wset_index is not None
+            and output_wset is not None
+            and record.wset_index != output_wset
+        ):
+            on_current = visible = False
+        elif (
+            output_rect
+            and output_rect.width > 0
+            and output_rect.height > 0
+            and geometry
+        ):
+            on_current = (
+                geometry.width > 0
+                and geometry.height > 0
+                and geometry.overlaps(Rect(0, 0, output_rect.width, output_rect.height))
+            )
+            visible = on_current and not record.minimized
+            workspace = as_json_object(output.get("workspace"))
+            if workspace is not None:
+                active_x = _optional_int(workspace.get("x"))
+                active_y = _optional_int(workspace.get("y"))
+                width = _optional_int(workspace.get("grid_width"))
+                height = _optional_int(workspace.get("grid_height"))
+                if active_x is not None and active_y is not None and width and height:
+                    # Same center-based, clamped main workspace used by Wayfire.
+                    x = active_x + math.floor(
+                        (geometry.x + geometry.width / 2) / output_rect.width
+                    )
+                    y = active_y + math.floor(
+                        (geometry.y + geometry.height / 2) / output_rect.height
+                    )
+                    x = min(max(x, 0), width - 1)
+                    y = min(max(y, 0), height - 1)
+                    workspace_id = f"{record.output_id}:{x},{y}"
+        if output_rect is not None and geometry is not None:
+            geometry = Rect(
+                geometry.x + output_rect.x,
+                geometry.y + output_rect.y,
+                geometry.width,
+                geometry.height,
+            )
+    return WindowSnapshot(
+        id=record.window_id,
+        desktop_id=record.desktop_id or "",
+        title=record.title,
+        app_id=record.app_id or None,
+        active=record.active,
+        minimized=record.minimized,
+        fullscreen=record.fullscreen,
+        maximized=record.maximized,
+        geometry=geometry,
+        workspace_id=workspace_id,
+        on_current_workspace=on_current,
+        sticky=record.sticky,
+        can_activate=True,
+        can_minimize=can_minimize,
+        can_close=True,
+        pid=record.pid,
+        visible=visible,
+    )
+
+
 def _record_from_view(
     view: Mapping[str, JsonValue],
     *,
@@ -1083,19 +1367,26 @@ def _record_from_view(
     app_id = str(view.get("app-id", "") or "").strip()
     pid = _optional_int(view.get("pid"))
     match = matcher.match_result(app_id, process_id=pid) if app_id else None
-    wset_index = view.get("wset-index")
-    workspace_id = str(wset_index) if wset_index not in (None, -1, "") else None
+    wset_index = _optional_int(view.get("wset-index"))
+    tiled_edges = _optional_int(view.get("tiled-edges"))
     return WayfireWindowRecord(
         id=view_id,
         title=str(view.get("title", "") or "Window"),
         app_id=app_id,
         application_match=match,
-        active=bool(view.get("activated", False)) or view_id == focused_id,
+        # Activation may persist on another output/workspace. Keyboard focus
+        # from get-focused-view is the authoritative active-window identity.
+        active=view_id == focused_id,
         minimized=_optional_bool(view.get("minimized")),
         fullscreen=_optional_bool(view.get("fullscreen")),
         geometry=_rect_from_mapping(view.get("geometry")),
-        workspace_id=workspace_id,
+        workspace_id=None,
         pid=pid,
+        output_id=_optional_int(view.get("output-id")),
+        wset_index=wset_index if wset_index is not None and wset_index >= 0 else None,
+        maximized=tiled_edges == 15 if tiled_edges is not None else None,
+        sticky=bool(view.get("sticky", False)),
+        last_focus_timestamp=_optional_int(view.get("last-focus-timestamp")) or 0,
     )
 
 
@@ -1138,7 +1429,8 @@ def _workspace_records_from_output(
     for y in range(max(1, grid_height)):
         for x in range(max(1, grid_width)):
             number = number_offset + len(records) + 1
-            record_id = f"{output_id or output_name}:{x},{y}"
+            identity = output_id if output_id is not None else output_name
+            record_id = f"{identity}:{x},{y}"
             active = output_id == focused_output_id and x == active_x and y == active_y
             records.append(
                 WayfireWorkspaceRecord(
@@ -1205,7 +1497,7 @@ def _optional_int(value: object) -> int | None:
         return None
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -1217,6 +1509,4 @@ def _replace_record(
     """Return a copy of *record* with the given fields replaced."""
     if active is None:
         return record
-    from dataclasses import replace
-
     return replace(record, active=active)

@@ -60,7 +60,7 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_id: dict[str, _WorkspaceState] = {}
         self._watchers: dict[int, Callable[[], None]] = {}
         self._next_watch_id = 1
-        self._active_id: str | None = None
+        self._active_ids: frozenset[str] = frozenset()
 
     def start(self) -> None:
         start = getattr(self._protocol, "start", None)
@@ -74,7 +74,7 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_handle.clear()
         self._state_by_id.clear()
         self._watchers.clear()
-        self._active_id = None
+        self._active_ids = frozenset()
 
     def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
         return tuple(
@@ -166,11 +166,12 @@ class WaylandWorkspaceService(WorkspaceService):
         )
 
     def done(self) -> None:
-        active = self.active_workspace()
-        active_id = active.id if active is not None else None
-        if active_id == self._active_id:
+        active_ids = frozenset(
+            workspace.id for workspace in self.list_workspaces() if workspace.active
+        )
+        if active_ids == self._active_ids:
             return
-        self._active_id = active_id
+        self._active_ids = active_ids
         for callback in tuple(self._watchers.values()):
             callback()
 
