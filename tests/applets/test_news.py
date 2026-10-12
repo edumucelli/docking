@@ -453,6 +453,10 @@ class TestSourcesAndPreferences:
 
 
 class TestFormattingAndRendering:
+    @pytest.mark.parametrize("published", [10**30, 253402300800])
+    def test_out_of_range_cached_timestamp_has_no_age(self, published):
+        assert article_age(article=_article(published=published)) == ""
+
     def test_source_labels_rank_index_and_age(self):
         assert source_label(_source()) == "Example News - Top Stories"
         assert source_detail(_source()) == "United States - English"

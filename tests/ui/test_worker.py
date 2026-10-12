@@ -2,7 +2,40 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import pytest
+
 from docking.applets.worker import BackgroundWorker
+
+
+@pytest.mark.parametrize("failure_stage", ["construct", "start"])
+def test_guarded_worker_can_retry_after_thread_startup_failure(failure_stage):
+    attempts = 0
+    delivered = []
+
+    def thread_factory(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            if failure_stage == "construct":
+                raise RuntimeError("thread creation failed")
+
+            class FailingThread:
+                def start(self):
+                    raise RuntimeError("thread start failed")
+
+            return FailingThread()
+        return _ImmediateThread(**kwargs)
+
+    worker = BackgroundWorker(
+        idle_add=lambda callback, *args: callback(*args), thread_factory=thread_factory
+    )
+    with pytest.raises(RuntimeError):
+        worker.run_guarded(key="refresh", name="refresh", fn=lambda: 1)
+
+    assert worker.run_guarded(
+        key="refresh", name="refresh", fn=lambda: 2, on_result=delivered.append
+    )
+    assert delivered == [2]
 
 
 class _ImmediateThread:

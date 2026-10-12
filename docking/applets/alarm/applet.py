@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import gi
@@ -239,6 +240,12 @@ class AlarmApplet(Applet):
         label_entry.grab_focus()
 
     def _upsert_preset(self, *, index: int | None, preset: AlarmPreset) -> None:
+        now = self._now()
+        if not preset.last_triggered and (preset.hour, preset.minute) <= (
+            now.hour,
+            now.minute,
+        ):
+            preset = replace(preset, last_triggered=now.date().isoformat())
         if index is None:
             self._state = add_preset(state=self._state, preset=preset)
         else:

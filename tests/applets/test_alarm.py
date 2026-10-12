@@ -45,6 +45,15 @@ _TZ = dt.timezone.utc
 
 
 class TestAlarmState:
+    @pytest.mark.parametrize("enabled", [False, "false", "off", "0"])
+    def test_disabled_preference_stays_disabled(self, enabled):
+        state = state_from_prefs({"presets": [{"enabled": enabled}]})
+
+        assert state.presets[0].enabled is False
+        assert not tick(
+            state, now=dt.datetime(2026, 5, 18, 8, 0, tzinfo=_TZ)
+        ).started_ringing
+
     def test_prefs_round_trip(self):
         state = AlarmState(
             presets=(
@@ -207,6 +216,27 @@ class TestAlarmState:
 
 
 class TestAlarmApplet:
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    @pytest.mark.parametrize("index", [None, 0])
+    def test_new_or_edited_past_time_waits_for_next_occurrence(
+        self, monkeypatch, repeat_days, index
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        if index is not None:
+            applet._state = AlarmState(presets=(AlarmPreset(hour=10),))
+
+        applet._upsert_preset(
+            index=index, preset=AlarmPreset(hour=7, repeat_days=repeat_days)
+        )
+
+        scheduled = next_alarm(applet._state, now=now)
+        assert scheduled is not None
+        assert scheduled.when == now.replace(day=19, hour=7)
+        assert not tick(applet._state, now=now).started_ringing
+        assert tick(applet._state, now=scheduled.when).started_ringing
+
     def test_creates_with_icon(self):
         applet = AlarmApplet(48, config=Config())
 

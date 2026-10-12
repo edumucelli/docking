@@ -63,7 +63,7 @@ def file_path_from_uri(uri: str) -> Path | None:
         return Path(urllib.parse.unquote(parsed.path))
     if parsed.scheme:
         return None
-    return Path(urllib.parse.unquote(uri)).expanduser()
+    return Path(uri).expanduser()
 
 
 def first_uploadable_file(uris: list[str]) -> Path | None:
@@ -135,7 +135,12 @@ def _multipart_body(*, path: Path, boundary: str) -> bytes:
 
 
 def _quote_header_value(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+    )
 
 
 def _url_from_response(payload: str) -> str:

@@ -38,4 +38,5 @@ def note_from_prefs(prefs: dict | None) -> str:
     """Load note text from preferences, default empty."""
     if not prefs:
         return ""
-    return prefs.get("note", "")
+    note = prefs.get("note", "")
+    return note if isinstance(note, str) else ""

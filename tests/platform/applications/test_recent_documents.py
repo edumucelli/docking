@@ -29,6 +29,7 @@ class _RecentItem:
         exists: bool = True,
         mime_type: str = "text/plain",
         associated: bool = True,
+        private: bool = False,
     ) -> None:
         self.uri = uri
         self.modified = modified
@@ -36,6 +37,7 @@ class _RecentItem:
         self.present = exists
         self.mime_type = mime_type
         self.associated = associated
+        self.private = private
         self.application_names: list[str] = []
 
     def get_uri(self) -> str:
@@ -59,6 +61,9 @@ class _RecentItem:
     def has_application(self, name: str) -> bool:
         self.application_names.append(name)
         return self.associated
+
+    def get_private_hint(self) -> bool:
+        return self.private
 
 
 def _manager(monkeypatch, items: list[_RecentItem]) -> MagicMock:
@@ -139,6 +144,20 @@ def test_sorts_newest_first_and_applies_limit(monkeypatch) -> None:
     documents = recent_documents_for(_application("Writer"), limit=2)
 
     assert [document.name for document in documents] == ["new.txt", "middle.txt"]
+
+
+def test_private_documents_do_not_appear_in_application_menus(monkeypatch) -> None:
+    _manager(
+        monkeypatch,
+        [
+            _RecentItem("file:///tmp/private.txt", modified=2, private=True),
+            _RecentItem("file:///tmp/public.txt", modified=1),
+        ],
+    )
+
+    documents = recent_documents_for(_application("Writer"), limit=1)
+
+    assert [document.name for document in documents] == ["public.txt"]
 
 
 def test_uses_exact_canonical_application_name(monkeypatch) -> None:
