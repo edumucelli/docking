@@ -25,9 +25,9 @@ def _reservation_window() -> object:
 class PhocLayerShellSurfaceService(WaylandLayerShellSurfaceService):
     """Reserve below TOP panels, and keep the visible dock above applications.
 
-    Phoc arranges exclusive surfaces in reverse creation order within a layer.
-    A newly started exclusive TOP dock can therefore displace an existing TOP
-    panel. A transparent BOTTOM reservation follows those panels independently
+    Phoc arranges exclusive surfaces oldest first within a layer. An exclusive
+    TOP dock can therefore displace a TOP panel that starts or restarts later.
+    A transparent BOTTOM reservation follows those panels independently
     of startup order. The non-exclusive TOP dock cancels only its own reservation
     with an equal negative margin; foreign panels still displace it normally.
     """
