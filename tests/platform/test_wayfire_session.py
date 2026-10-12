@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.backends.wayland import wayfire_session
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireWindowPickService,
@@ -18,7 +20,10 @@ def _service() -> SimpleNamespace:
     return SimpleNamespace(start=MagicMock(), stop=MagicMock())
 
 
-def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch):
+@pytest.mark.parametrize("optional_plugins", [True, False])
+def test_wayfire_session_capabilities_reflect_supported_ipc_surface(
+    monkeypatch, optional_plugins
+):
     surface = _service()
     monkeypatch.setattr(
         wayfire_session,
@@ -43,7 +48,9 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     monkeypatch.setattr(wayfire_session, "load_wayfire_preview_service", lambda: None)
 
     windows = MagicMock(spec=WayfireWindowService)
+    windows.supports_minimize = optional_plugins
     workspaces = MagicMock(spec=WayfireWorkspaceService)
+    workspaces.supports_switch = optional_plugins
     picker = MagicMock(spec=WayfireWindowPickService)
     backend = wayfire_session.WayfireSessionBackend(
         layer_shell=object(),
@@ -66,18 +73,18 @@ def test_wayfire_session_capabilities_reflect_supported_ipc_surface(monkeypatch)
     assert capabilities.tracks_active_window is True
     assert capabilities.tracks_attention is False
     assert capabilities.tracks_minimized is True
-    assert capabilities.tracks_maximized is False
+    assert capabilities.tracks_maximized is True
     assert capabilities.tracks_fullscreen is True
-    assert capabilities.tracks_stacking_order is True
+    assert capabilities.tracks_stacking_order is False
     assert capabilities.supports_activate is True
-    assert capabilities.supports_minimize is True
+    assert capabilities.supports_minimize is optional_plugins
     assert capabilities.supports_close is True
     assert capabilities.supports_window_menu is True
     assert capabilities.tracks_window_geometry is True
     assert capabilities.tracks_window_workspace is True
-    assert capabilities.supports_current_workspace_filter is False
+    assert capabilities.supports_current_workspace_filter is True
     assert capabilities.supports_workspace_list is True
-    assert capabilities.supports_workspace_switch is True
+    assert capabilities.supports_workspace_switch is optional_plugins
     assert capabilities.supports_show_desktop is False
     assert capabilities.supports_layer_shell is True
     assert capabilities.supports_screen_reservation is True

@@ -7,11 +7,16 @@ import pytest
 
 pytest.importorskip("pywayland")
 from pywayland import ffi
+from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelHandleV1
 from pywayland.protocol.wayland import WlOutput
 
 from docking.platform.backends.wayland.cosmic import CosmicToplevelAdapter
+from docking.platform.backends.wayland.protocols.cosmic_overlap_notify_v1 import (
+    ZcosmicOverlapNotificationV1,
+)
 from docking.platform.backends.wayland.protocols.cosmic_toplevel_info_v1 import (
     ZcosmicToplevelHandleV1,
+    ZcosmicToplevelInfoV1,
 )
 from docking.platform.backends.wayland.protocols.cosmic_workspace_v1 import (
     ZcosmicWorkspaceHandleV1,
@@ -23,6 +28,16 @@ from docking.platform.backends.wayland.protocols.ext_workspace_v1 import (
 
 class WireObject:
     """Keep an object alive in PyWayland's weak proxy registry."""
+
+
+def test_cosmic_info_request_matches_ext_toplevel_wire_type():
+    request = next(
+        message
+        for message in ZcosmicToplevelInfoV1.requests
+        if message.name == "get_cosmic_toplevel"
+    )
+    assert request.arguments[1].interface is ExtForeignToplevelHandleV1
+    assert request.arguments[1].nullable is False
 
 
 @pytest.mark.parametrize(
@@ -61,6 +76,7 @@ def test_cosmic_event_preserves_object_argument(event, interface, integers):
         service = MagicMock()
         adapter._service = service
         adapter._toplevel_info = SimpleNamespace(get_cosmic_toplevel=lambda _: proxy)
+        adapter._toplevel_info_version = 3
         toplevel = WireObject()
         adapter._request_cosmic_info(toplevel)
         proxy.dispatcher[event](proxy, *decoded)
@@ -78,3 +94,22 @@ def test_cosmic_event_preserves_object_argument(event, interface, integers):
             assert adapter._pending_data[toplevel]["ext_workspaces"] == []
     finally:
         interface.registry.pop(pointer, None)
+
+
+@pytest.mark.parametrize(
+    "event, integers", [("toplevel_enter", (10, 20, 640, 480)), ("toplevel_leave", ())]
+)
+def test_cosmic_overlap_wire_event_preserves_toplevel(event, integers):
+    storage = ffi.new("char[]", 1)
+    pointer = ffi.cast("struct wl_proxy *", storage)
+    toplevel = WireObject()
+    ExtForeignToplevelHandleV1.registry[pointer] = toplevel
+    args = ffi.new("union wl_argument[]", 1 + len(integers))
+    args[0].o = ffi.cast("struct wl_object *", pointer)
+    for index, value in enumerate(integers, 1):
+        args[index].i = value
+    message = next(m for m in ZcosmicOverlapNotificationV1.events if m.name == event)
+    try:
+        assert message.c_to_arguments(args) == [toplevel, *integers]
+    finally:
+        ExtForeignToplevelHandleV1.registry.pop(pointer, None)

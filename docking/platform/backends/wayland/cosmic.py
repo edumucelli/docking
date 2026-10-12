@@ -51,6 +51,7 @@ class _PendingToplevelData(TypedDict, total=False):
     done: bool
     state: Iterable[object]
     geometry: tuple[object, int, int, int, int]
+    geometries: dict[object, tuple[int, int, int, int]]
     ext_workspaces: list[object]
 
 
@@ -152,8 +153,12 @@ class CosmicToplevelAdapter:
             self._toplevel_info.dispatcher["done"] = self._on_info_done
 
     @property
-    def supports_geometry(self) -> bool:
+    def supports_state(self) -> bool:
         return self._toplevel_info is not None and self._toplevel_info_version >= 2
+
+    @property
+    def supports_geometry(self) -> bool:
+        return self.supports_state
 
     @property
     def supports_workspace(self) -> bool:
@@ -209,6 +214,10 @@ class CosmicToplevelAdapter:
                 self._request_cosmic_info(toplevel)
 
     def stop(self) -> None:
+        for handle in (*self._cosmic_handles.values(), *self._pending_toplevels):
+            destroy = getattr(handle, "destroy", None)
+            if callable(destroy):
+                destroy()
         for manager in (
             self._toplevel_list,
             self._toplevel_info,
@@ -237,9 +246,13 @@ class CosmicToplevelAdapter:
 
     # -- Action checks -------------------------------------------------------
 
-    def supports_action(self, action: str, handle: object) -> bool:
-        """Check whether a management action is available for a handle."""
-        if self._toplevel_manager is None:
+    def supports_action(self, action: str, handle: object | None) -> bool:
+        """Check management support; None queries session-wide capabilities."""
+        if self._toplevel_manager is None or not self.supports_state:
+            return False
+        # Management requests require the COSMIC extension handle, not the
+        # standard listing handle. Passing the latter is a protocol error.
+        if handle is not None and handle not in self._cosmic_handles:
             return False
         if action == "activate":
             return _CAP_ACTIVATE in self._capabilities and self._seat is not None
@@ -256,30 +269,30 @@ class CosmicToplevelAdapter:
     # -- Action execution ----------------------------------------------------
 
     def activate(self, handle: object) -> None:
-        if self._toplevel_manager is None or self._seat is None:
+        if not self.supports_action("activate", handle):
             return
-        cosmic = self._cosmic_handles.get(handle, handle)
+        cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.activate(cosmic, self._seat)
         self._flush_pending()
 
     def close(self, handle: object) -> None:
-        if self._toplevel_manager is None:
+        if not self.supports_action("close", handle):
             return
-        cosmic = self._cosmic_handles.get(handle, handle)
+        cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.close(cosmic)
         self._flush_pending()
 
     def set_minimized(self, handle: object) -> None:
-        if self._toplevel_manager is None:
+        if not self.supports_action("set_minimized", handle):
             return
-        cosmic = self._cosmic_handles.get(handle, handle)
+        cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.set_minimized(cosmic)
         self._flush_pending()
 
     def unset_minimized(self, handle: object) -> None:
-        if self._toplevel_manager is None:
+        if not self.supports_action("set_minimized", handle):
             return
-        cosmic = self._cosmic_handles.get(handle, handle)
+        cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.unset_minimized(cosmic)
         self._flush_pending()
 
@@ -330,6 +343,12 @@ class CosmicToplevelAdapter:
         cosmic_handle = self._cosmic_handles.pop(toplevel, None)
         if cosmic_handle is not None:
             self._ext_handles.pop(cosmic_handle, None)
+            destroy = getattr(cosmic_handle, "destroy", None)
+            if callable(destroy):
+                destroy()
+        destroy = getattr(toplevel, "destroy", None)
+        if callable(destroy):
+            destroy()
         self._dirty_toplevels.discard(toplevel)
         if self._service is not None:
             self._service.closed(toplevel)
@@ -347,8 +366,8 @@ class CosmicToplevelAdapter:
         self._dirty_toplevels.clear()
         for toplevel in toplevels:
             self._publish_location(toplevel)
-        for toplevel in toplevels:
-            service.done(toplevel)
+        if toplevels:
+            service.done_batch(toplevels)
 
     # -- zcosmic_toplevel_manager_v1 events ----------------------------------
 
@@ -361,7 +380,7 @@ class CosmicToplevelAdapter:
 
     def _request_cosmic_info(self, toplevel: object) -> None:
         """Request COSMIC info extension for an ext_foreign_toplevel_handle."""
-        if self._toplevel_info is None:
+        if not self.supports_state or toplevel in self._cosmic_handles:
             return
         get_info = getattr(self._toplevel_info, "get_cosmic_toplevel", None)
         if not callable(get_info):
@@ -373,7 +392,6 @@ class CosmicToplevelAdapter:
         self._cosmic_handles[toplevel] = cosmic_handle
         self._ext_handles[cosmic_handle] = toplevel
         # Wire COSMIC handle events to the service
-        service = self._service
         cosmic_handle.dispatcher["state"] = lambda _h, states: self._on_cosmic_state(
             toplevel, states
         )
@@ -381,10 +399,10 @@ class CosmicToplevelAdapter:
             self._on_cosmic_geometry(toplevel, output, x, y, w, h)
         )
         cosmic_handle.dispatcher["output_enter"] = lambda _h, output: (
-            service.output_entered(toplevel, output) if service is not None else None
+            self._on_cosmic_output(toplevel, output, entered=True)
         )
         cosmic_handle.dispatcher["output_leave"] = lambda _h, output: (
-            service.output_left(toplevel, output) if service is not None else None
+            self._on_cosmic_output(toplevel, output, entered=False)
         )
         # v3: ext_workspace_enter / ext_workspace_leave
         cosmic_handle.dispatcher["ext_workspace_enter"] = lambda _h, ws: (
@@ -393,12 +411,27 @@ class CosmicToplevelAdapter:
         cosmic_handle.dispatcher["ext_workspace_leave"] = lambda _h, ws: (
             self._on_cosmic_workspace_leave(toplevel, ws)
         )
+        self._flush_pending()
 
     def _on_cosmic_state(self, toplevel: object, states: Iterable[object]) -> None:
         self._pending_data.setdefault(toplevel, {})["state"] = states
         self._dirty_toplevels.add(toplevel)
         if self._service is not None:
             self._service.state_changed(toplevel, states)
+
+    def _on_cosmic_output(
+        self, toplevel: object, output: object, *, entered: bool
+    ) -> None:
+        self._dirty_toplevels.add(toplevel)
+        if not entered:
+            geometries = self._pending_data.get(toplevel, {}).get("geometries")
+            if geometries is not None:
+                geometries.pop(output, None)
+        if self._service is not None:
+            if entered:
+                self._service.output_entered(toplevel, output)
+            else:
+                self._service.output_left(toplevel, output)
 
     def _on_cosmic_geometry(
         self,
@@ -411,13 +444,15 @@ class CosmicToplevelAdapter:
     ) -> None:
         # COSMIC coordinates are output-relative; retain the output so they can
         # be translated into the screen coordinates used by WindowSnapshot.
-        self._pending_data.setdefault(toplevel, {})["geometry"] = (
+        data = self._pending_data.setdefault(toplevel, {})
+        data["geometry"] = (
             output,
             x,
             y,
             width,
             height,
         )
+        data.setdefault("geometries", {})[output] = (x, y, width, height)
         self._dirty_toplevels.add(toplevel)
 
     def _on_cosmic_workspace_enter(self, toplevel: object, workspace: object) -> None:
@@ -439,20 +474,33 @@ class CosmicToplevelAdapter:
         if service is None:
             return
         data = self._pending_data.get(toplevel, {})
-        geometry = data.get("geometry")
-        if geometry is not None:
-            output, x, y, width, height = geometry
-            origin = self._output_origin(output)
-            rect = (
-                Rect(origin[0] + x, origin[1] + y, width, height)
-                if origin is not None
-                else None
-            )
+        geometries = data.get("geometries")
+        if geometries is not None:
+            rect = None
+            # Each entered output reports the whole window relative to itself.
+            # An unresolved second output cannot erase a known screen rectangle.
+            for output, (x, y, width, height) in geometries.items():
+                origin = self._output_origin(output)
+                if origin is not None:
+                    rect = Rect(origin[0] + x, origin[1] + y, width, height)
+                    break
             service.geometry_changed(toplevel, rect)
         handles = data.get("ext_workspaces")
         if handles is not None:
             workspace_id = self._workspace_id(handles[0]) if len(handles) == 1 else None
             service.workspace_changed(toplevel, workspace_id)
+
+    def workspace_ids_for_handle(self, toplevel: object) -> frozenset[str] | None:
+        """Retain multi-workspace membership without guessing unknown IDs."""
+        handles = self._pending_data.get(toplevel, {}).get("ext_workspaces")
+        if handles is None:
+            return None
+        ids = [self._workspace_id(handle) for handle in handles]
+        if any(workspace_id is None for workspace_id in ids):
+            return None
+        return frozenset(
+            workspace_id for workspace_id in ids if workspace_id is not None
+        )
 
     def _flush_pending(self) -> None:
         if self._flush is not None:
@@ -541,6 +589,7 @@ class CosmicOverlapAdapter:
 
     def _on_toplevel_enter(
         self,
+        _notification: object,
         toplevel: object,
         x: int,
         y: int,
@@ -552,7 +601,7 @@ class CosmicOverlapAdapter:
         if was_empty and self._on_change is not None:
             self._on_change(True)
 
-    def _on_toplevel_leave(self, toplevel: object) -> None:
+    def _on_toplevel_leave(self, _notification: object, toplevel: object) -> None:
         self._overlapping_toplevels.discard(toplevel)
         if (
             not self._overlapping_toplevels
@@ -563,6 +612,7 @@ class CosmicOverlapAdapter:
 
     def _on_layer_enter(
         self,
+        _notification: object,
         identifier: str,
         namespace: str,
         exclusive: int,
@@ -581,7 +631,7 @@ class CosmicOverlapAdapter:
         ):
             self._on_change(True)
 
-    def _on_layer_leave(self, identifier: str) -> None:
+    def _on_layer_leave(self, _notification: object, identifier: str) -> None:
         self._overlapping_layers.discard(identifier)
         if (
             not self._overlapping_layers

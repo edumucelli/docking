@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelHandleV1
+
 from pywayland.protocol_core import (
     Argument,
     ArgumentType,
@@ -45,11 +47,11 @@ class ZcosmicToplevelInfoV1Proxy(Proxy[ZcosmicToplevelInfoV1]):
 
     @ZcosmicToplevelInfoV1.request(
         Argument(ArgumentType.NewId, interface=ZcosmicToplevelHandleV1),
-        Argument(ArgumentType.Object, nullable=True),
+        Argument(ArgumentType.Object, interface=ExtForeignToplevelHandleV1),
         version=2,
     )
     def get_cosmic_toplevel(
-        self, foreign_toplevel: object | None
+        self, foreign_toplevel: object
     ) -> Proxy[ZcosmicToplevelHandleV1]:
         """Get a zcosmic_toplevel_handle_v1 for an ext_foreign_toplevel_handle_v1."""
         return self._marshal_constructor(1, ZcosmicToplevelHandleV1, foreign_toplevel)

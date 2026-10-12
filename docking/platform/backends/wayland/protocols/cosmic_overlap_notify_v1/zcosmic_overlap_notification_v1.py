@@ -14,6 +14,7 @@ from pywayland.protocol_core import (
     Proxy,
     Resource,
 )
+from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelHandleV1
 
 
 class ZcosmicOverlapNotificationV1(Interface):
@@ -37,7 +38,7 @@ class ZcosmicOverlapNotificationV1Resource(Resource):
     interface = ZcosmicOverlapNotificationV1
 
     @ZcosmicOverlapNotificationV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ExtForeignToplevelHandleV1),
         Argument(ArgumentType.Int),
         Argument(ArgumentType.Int),
         Argument(ArgumentType.Int),
@@ -55,7 +56,7 @@ class ZcosmicOverlapNotificationV1Resource(Resource):
         self._post_event(0, toplevel, x, y, width, height)
 
     @ZcosmicOverlapNotificationV1.event(
-        Argument(ArgumentType.Object),
+        Argument(ArgumentType.Object, interface=ExtForeignToplevelHandleV1),
     )
     def toplevel_leave(self, toplevel: object) -> None:
         """A toplevel has left the surface area."""

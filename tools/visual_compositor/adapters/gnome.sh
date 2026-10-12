@@ -7,9 +7,23 @@ adapter_prepare() {
     export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
     export MUTTER_DEBUG_DUMMY_MODE_SPECS="${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}"
     export MUTTER_DEBUG_NUM_DUMMY_MONITORS=1
+    if gnome-shell --help | grep -q -- '--nested'; then
+        GNOME_LAB_MODE=nested
+    else
+        GNOME_LAB_MODE=headless
+        export LAB_CAPTURE_MODE=gnome
+    fi
     unset DISPLAY
 }
 adapter_start() {
+    if [ "$GNOME_LAB_MODE" = headless ]; then
+        gnome-shell --headless --wayland --no-x11 \
+            --virtual-monitor="${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}" \
+            >"$COMPOSITOR_LOG" 2>&1 &
+        ADAPTER_COMPOSITOR_PID=$!
+        wait_for_wayland_socket 240
+        return
+    fi
     xvfb-run -a -s "-screen 0 ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}x24 +extension GLX +render -noreset" \
         bash -c 'printf "%s\n" "$DISPLAY" >"$LAB_DIR/outer-display";
                  printf "%s\n" "$XAUTHORITY" >"$LAB_DIR/outer-authority";
@@ -31,12 +45,18 @@ adapter_wait_ready() {
     return 1
 }
 adapter_capabilities() {
-    session_probe_json | jq '{compositor:"gnome", expected_backend:"reduced",
+    local method=private-xvfb
+    [ "${GNOME_LAB_MODE:-nested}" = headless ] && method=org.gnome.Shell.Screenshot
+    session_probe_json | jq --arg method "$method" '{compositor:"gnome", expected_backend:"reduced",
         placement:false, native_geometry:false, pointer:false,
         unsupported_reasons:{placement:"GNOME requires the Docking Shell bridge, which this negative compatibility lane deliberately omits"},
-        gtk_display_is_wayland, screenshot_method:"private-xvfb"}'
+        gtk_display_is_wayland, screenshot_method:$method}'
 }
 adapter_screenshot() {
+    if [ "$GNOME_LAB_MODE" = headless ]; then
+        /usr/bin/python3 "$LAB_SCRIPTS/probes/gnome_capture.py" "$1"
+        return
+    fi
     GDK_BACKEND=x11 XAUTHORITY="$(cat "$LAB_DIR/outer-authority")" \
         /usr/bin/python3 "$LAB_SCRIPTS/probes/x11_capture.py" \
         "$(cat "$LAB_DIR/outer-display")" "$1"

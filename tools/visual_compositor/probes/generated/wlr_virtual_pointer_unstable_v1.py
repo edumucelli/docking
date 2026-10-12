@@ -28,9 +28,9 @@ import enum
 from pywayland.protocol_core import Argument, ArgumentType, Global, Interface, Proxy, Resource
 
 from pywayland.protocol.wayland import WlOutput
-from pywayland.protocol.wayland import WlOutputProxy
+from pywayland.protocol.wayland.wl_output import WlOutputProxy
 from pywayland.protocol.wayland import WlSeat
-from pywayland.protocol.wayland import WlSeatProxy
+from pywayland.protocol.wayland.wl_seat import WlSeatProxy
 
 
 class ZwlrVirtualPointerManagerV1(Interface):
@@ -325,11 +325,11 @@ class ZwlrVirtualPointerV1Proxy(Proxy[ZwlrVirtualPointerV1]):
         self._destroy()
 
 
-class ZwlrVirtualPointerManagerV1Global(Global[ZwlrVirtualPointerManagerV1]):
+class ZwlrVirtualPointerManagerV1Global(Global):
     interface = ZwlrVirtualPointerManagerV1
 
 
-class ZwlrVirtualPointerV1Global(Global[ZwlrVirtualPointerV1]):
+class ZwlrVirtualPointerV1Global(Global):
     interface = ZwlrVirtualPointerV1
 
 

@@ -100,7 +100,7 @@ SWAY
     # Closing the input probe must not leave an animated window snapshot behind
     # the dock. Headless nested render loops can retain a stable intermediate frame.
     mkdir -p "$XDG_CONFIG_HOME/niri"
-    printf 'animations { off; }\n' >"$XDG_CONFIG_HOME/niri/config.kdl"
+    printf 'animations { off; }\nhotkey-overlay { skip-at-startup; }\n' >"$XDG_CONFIG_HOME/niri/config.kdl"
 
     # DISPLAY is unset so nothing in this lane can quietly fall back to X11;
     # niri is given WAYLAND_DISPLAY explicitly instead.
@@ -115,7 +115,7 @@ adapter_start() {
     before="$(_wayland_sockets)"
 
     WLR_BACKENDS=headless \
-    WLR_RENDERER=pixman \
+    WLR_RENDERER="${LAB_PARENT_RENDERER:-pixman}" \
     WLR_LIBINPUT_NO_DEVICES=1 \
     WLR_HEADLESS_OUTPUTS="$outputs" \
         sway -c "$XDG_CONFIG_HOME/sway/config" >"$NIRI_PARENT_LOG" 2>&1 &

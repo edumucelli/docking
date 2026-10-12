@@ -29,22 +29,30 @@ if [ "${1:-}" != --session ]; then
 fi
 compositor="${2:?compositor required}"
 export LAB_SERVICE_MODE="${3:-visual}"
-export LAB_DIR=/evidence LAB_SCRIPTS=/src/tools/visual_compositor DOCKING_SOURCE=/src
+export LAB_DIR="${LAB_DIR:-/evidence}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/visual_compositor}"
+export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
 export XDG_RUNTIME_DIR="$(mktemp -d /tmp/docking-native.XXXXXX)"
-export XDG_CONFIG_HOME=/tmp/native-config XDG_CACHE_HOME=/tmp/native-cache
-export XDG_DATA_HOME=/tmp/native-data XDG_STATE_HOME=/tmp/native-state
+export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"
+export XDG_DATA_HOME="$LAB_DIR/data" XDG_STATE_HOME="$LAB_DIR/state"
 export GSETTINGS_BACKEND=memory DOCKING_LOG_LEVEL=DEBUG
 unset DISPLAY WAYLAND_DISPLAY DOCKING_BACKEND SWAYSOCK NIRI_SOCKET HYPRLAND_INSTANCE_SIGNATURE
+unset XDG_SESSION_DESKTOP DESKTOP_SESSION WAYFIRE_SOCKET
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 source "$LAB_SCRIPTS/adapters/common.sh"
 source "$LAB_SCRIPTS/adapters/$compositor.sh"
 trap adapter_cleanup EXIT
 export LAB_EXPECTED_BACKEND="$compositor" LAB_CAPTURE_MODE=wayland
+export LAB_COMPOSITOR="$compositor"
+export DOCKING_LAB_PRIVATE_SESSION=1
+if [ "$compositor" = phoc ] || [ "$compositor" = phosh ]; then
+    export LAB_EXPECTED_BACKEND=wayland-layer-shell
+fi
 if [ "$compositor" = gnome ]; then
     export GSETTINGS_BACKEND=keyfile LAB_EXPECTED_BACKEND=gnome-shell-bridge LAB_CAPTURE_MODE=x11
     extension="$XDG_DATA_HOME/gnome-shell/extensions/docking-bridge@docking.org"
     mkdir -p "$extension"
-    cp /src/docking/platform/backends/gnome/extension/* "$extension/"
+    cp "$DOCKING_SOURCE"/docking/platform/backends/gnome/extension/* "$extension/"
     gsettings set org.gnome.shell enabled-extensions "['docking-bridge@docking.org']"
     gsettings set org.gnome.desktop.notifications show-banners false
 elif [ "$compositor" = kwin ] || [ "$compositor" = cosmic ] || [ "$compositor" = hyprland ]; then
@@ -70,6 +78,10 @@ positions="bottom top left right"
 probe=native_services_probe.py
 limit=40
 [ "$LAB_SERVICE_MODE" = idle ] && positions=idle
+if [ "$LAB_SERVICE_MODE" = foreign ]; then
+    positions=bottom
+    probe=foreign_services_probe.py
+fi
 if [ "$LAB_SERVICE_MODE" = outline ]; then
     positions=bottom
     probe=window_outline_probe.py

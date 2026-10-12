@@ -69,10 +69,10 @@ adapter_capabilities() {
   "cosmic_overlap_supported": $(echo "$probe" | jq '.cosmic_overlap_supported // false'),
   "pointer": false,
   "placement": $(if [ "$(echo "$probe" | jq -r '.layer_shell_supported')" = true ]; then echo true; else echo false; fi),
-  "screenshot_method": "grim",
+  "screenshot_method": "parent-grim",
   "gtk_display_is_wayland": $(echo "$probe" | jq -r '.gtk_display_is_wayland'),
   "layer_shell_supported": $(echo "$probe" | jq -r '.layer_shell_supported'),
-  "note": "cosmic nested inside a headless sway via COSMIC_BACKEND=winit; not yet executed"
+  "note": "cosmic nested inside headless sway via COSMIC_BACKEND=winit; captures use the parent because COSMIC may only advertise modern image capture"
 }
 JSON
 }
@@ -104,7 +104,7 @@ adapter_start() {
     before="$(_wayland_sockets)"
 
     WLR_BACKENDS=headless \
-    WLR_RENDERER=pixman \
+    WLR_RENDERER="${LAB_PARENT_RENDERER:-pixman}" \
     WLR_LIBINPUT_NO_DEVICES=1 \
     WLR_HEADLESS_OUTPUTS="$outputs" \
         sway -c "$XDG_CONFIG_HOME/sway/config" >"$COSMIC_PARENT_LOG" 2>&1 &
@@ -163,7 +163,7 @@ adapter_wait_ready() {
     local probe="$XDG_RUNTIME_DIR/.ready.png"
     for _ in $(seq "$attempts"); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
-        if grim "$probe" 2>/dev/null; then
+        if WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" grim -s 1 "$probe" 2>/dev/null; then
             rm -f "$probe"
             return 0
         fi
@@ -175,12 +175,12 @@ adapter_wait_ready() {
 }
 
 adapter_screenshot() {
-    grim "$1"
+    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" grim -s 1 "$1"
 }
 
 adapter_geometry() {
     local probe="$XDG_RUNTIME_DIR/.geometry.png"
-    grim "$probe"
+    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" grim -s 1 "$probe"
     local dims width height
     dims="$(png_dimensions "$probe")"
     rm -f "$probe"
