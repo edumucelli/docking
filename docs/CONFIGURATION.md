@@ -5,6 +5,38 @@ configuration file. The preferences window is the recommended way to change
 normal settings because it validates values and applies most changes
 immediately.
 
+## First Use
+
+Start by opening the dock menu: right-click the shelf background between icons.
+If the dock is full or the background is hard to hit, hold **Ctrl** while
+right-clicking anywhere on the shelf to show the same dock menu.
+
+The first things to explore are:
+
+- **Preferences**: open right-click -> **Preferences** to choose position,
+  monitor behavior, icon size, zoom, hiding, click actions, themes, tooltips,
+  previews, and update checks.
+- **Add Applet**: right-click the shelf background -> **Add Applet** to add
+  launchers, system status, media, productivity, and utility applets.
+- **Add Separator**: right-click the shelf background where the separator
+  should appear -> **Add Separator**.
+- **Pin and remove items**: right-click a running app -> **Keep in Dock**,
+  right-click a pinned item -> **Remove from Dock**, or drag an unlocked item
+  off the dock to remove it.
+- **Drag items in**: drop applications, `.desktop` files, files, folders, and
+  AppImages onto the dock to pin them.
+- **Customize icons**: right-click a pinned app, file, or folder -> **Icon** ->
+  **Choose From File...** to use an image from disk, or reset it back to the
+  automatically detected icon.
+- **Folder stacks**: pin a folder and open it from the dock for quick access to
+  its contents.
+- **Diagnostics**: open right-click -> **Diagnostics** when checking backend
+  support or preparing a support report. **Copy Report** or **Save Report...**
+  includes dock placement settings, monitor geometry and GDK-reported workareas,
+  architecture, and kernel version. Feature support is reported by the backend;
+  the report does not verify that each feature is working. Refresh after changing
+  settings before sharing a report with a bug report.
+
 ## Configuration Surfaces
 
 - **Preferences** controls appearance, placement, monitor behavior, layout,
