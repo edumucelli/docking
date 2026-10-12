@@ -22,6 +22,24 @@ Date and time queries include `date`, `time`, `in 3 days`, `2 weeks ago`,
 conversion with an ISO date when daylight-saving rules for a specific day
 matter, for example `2026-12-01 10:00 Paris to Tokyo`.
 
+## Opening Search
+
+Open **Search...** from the dock menu, use the optional **Search** applet, or
+configure a system-wide shortcut under **Preferences -> Behavior -> Global
+Search**. Search understands applications, windows, files, calculations,
+conversions, dates, time zones, paths, and the web.
+
+Try these examples:
+
+- `Firefox` - find an installed application or open window.
+- `Time in Sao Paulo` - check the current time in another city.
+- `10 USD to EUR` - convert currencies using current rates.
+- `10 + pi` - calculate an expression.
+- `What is a Linux dockbar?` - search on the web.
+
+Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for
+more actions. See [Keyboard controls](#keyboard-controls) for all shortcuts.
+
 ## Provider examples
 
 Applications, dock items, windows, and recent files search discovered desktop
