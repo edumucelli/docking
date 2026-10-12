@@ -291,6 +291,8 @@ a multi-output Wayfire contract, modern GNOME headless startup/capture, and repa
 virtual-pointer bindings. GNOME capture owns its permitted screenshot bus name
 only inside the explicitly private lab session, without replacing an existing
 owner. The legacy nested X11 path remains available.
+Phosh placement checks open a normal GTK client to leave the initial overview
+and retain the shell's normal layering; all five pinned-image edge/gap cases pass.
 
 Example local commands:
 

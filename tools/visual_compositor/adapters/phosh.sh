@@ -39,3 +39,12 @@ adapter_capabilities() {
         placement:.layer_shell_supported, native_geometry:false, pointer:false,
         screenshot_method:"grim", gtk_display_is_wayland, layer_shell_supported}'
 }
+
+adapter_start_frame_clock() {
+    # Placement tests require the normal app scene. Phosh's initial overview
+    # covers TOP layer surfaces; open a real client instead of changing layering.
+    /usr/bin/python3 "$LAB_SCRIPTS/probes/frame_probe.py" --application \
+        >"$LAB_DIR/background.log" 2>&1 &
+    ADAPTER_FRAME_PID=$!
+    sleep 1
+}
