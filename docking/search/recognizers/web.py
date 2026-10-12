@@ -87,13 +87,16 @@ def normalize_web_target(text: str) -> str | None:
     value = text.strip()
     if not value or any(character.isspace() for character in value):
         return None
-    parsed = urlparse(value)
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return None
+    if parsed.scheme.casefold() in {"http", "https"}:
+        return value if parsed.netloc else None
     if parsed.scheme.casefold() == "mailto" and _EMAIL_RE.fullmatch(parsed.path):
         return value
     if _EMAIL_RE.fullmatch(value):
         return f"mailto:{value}"
-    if parsed.scheme.casefold() in {"http", "https"} and parsed.netloc:
-        return value
     if _DOMAIN_RE.fullmatch(value) or _IP_RE.fullmatch(value):
         return (
             f"http://{value}" if value.startswith("localhost") else f"https://{value}"

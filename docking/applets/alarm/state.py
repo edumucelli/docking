@@ -155,7 +155,10 @@ def set_enabled(state: AlarmState, index: int, enabled: bool) -> AlarmState:
         enabled=enabled,
         snoozed_until=None if not enabled else state.presets[index].snoozed_until,
     )
-    return replace_preset(state=state, index=index, preset=preset)
+    updated = replace_preset(state=state, index=index, preset=preset)
+    if not enabled and updated.ringing_index == index:
+        return dismiss_ringing(updated)
+    return updated
 
 
 def dismiss_ringing(state: AlarmState) -> AlarmState:
@@ -439,6 +442,7 @@ def _next_occurrence(*, preset: AlarmPreset, now: dt.datetime) -> dt.datetime | 
 
 
 def _trigger_key(*, preset: AlarmPreset, when: dt.datetime) -> str:
-    if preset.snoozed_until is not None:
-        return f"snooze:{when.isoformat(timespec='minutes')}"
+    # A snooze belongs to the original occurrence, even across midnight.
+    if preset.snoozed_until is not None and preset.last_triggered:
+        return preset.last_triggered
     return when.date().isoformat()

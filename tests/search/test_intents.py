@@ -9,7 +9,10 @@ from docking.search.intents import (
     parse_query_intent,
 )
 from docking.search.recognizers.calculation import CalculationValue
-from docking.search.recognizers.conversion import parse_unit_conversion
+from docking.search.recognizers.conversion import (
+    parse_currency_conversion,
+    parse_unit_conversion,
+)
 from docking.search.recognizers.temporal import TemporalValue
 from docking.search.recognizers.web import get_web_engine, normalize_web_target
 
@@ -91,6 +94,64 @@ def test_currency_conversion_is_routed_to_converter() -> None:
 
     assert intent.kind is QueryIntentKind.CONVERSION
     assert intent.provider_ids == ("converter",)
+
+
+@pytest.mark.parametrize("amount", ["", "+", "-", ".", "+.", "-."])
+def test_incomplete_conversion_amounts_are_not_claimed(amount: str) -> None:
+    unit_query = f"{amount} km to mi"
+    currency_query = f"{amount} USD to EUR"
+
+    assert parse_unit_conversion(unit_query) is None
+    assert parse_currency_conversion(currency_query) is None
+    assert parse_query_intent(currency_query).kind is QueryIntentKind.GLOBAL
+
+
+@pytest.mark.parametrize(
+    ("amount", "value"),
+    [(".5", 0.5), ("+.5", 0.5), ("-.5", -0.5), ("1,234.5", 1234.5)],
+)
+def test_conversion_amounts_support_signed_decimals_and_grouping(
+    amount: str, value: float
+) -> None:
+    unit = parse_unit_conversion(f"{amount} km to mi")
+    currency = parse_currency_conversion(f"{amount} USD to EUR")
+
+    assert unit is not None and unit.value == value
+    assert currency is not None and currency.value == value
+
+
+@pytest.mark.parametrize("amount", ["9" * 400, "-" + "9" * 400])
+def test_non_finite_conversion_inputs_are_not_claimed(amount: str) -> None:
+    assert parse_unit_conversion(f"{amount} km to mi") is None
+    assert parse_currency_conversion(f"{amount} USD to EUR") is None
+
+
+def test_overflowing_unit_conversion_result_is_not_claimed() -> None:
+    # The input fits in a float, but converting kilometres to millimetres does not.
+    assert parse_unit_conversion(f"{'9' * 308} km to mm") is None
+
+
+@pytest.mark.parametrize("query", ["http://[", "https://[::1", "https://[bad]/"])
+def test_incomplete_or_invalid_ipv6_urls_are_not_claimed(query: str) -> None:
+    assert normalize_web_target(query) is None
+    assert parse_query_intent(query).kind is QueryIntentKind.GLOBAL
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "https://user@example.com",
+        "https://user:password@example.com",
+        "https://example.com/path@other.com",
+        "http://example.com/?email=user@other.com",
+        "http://[::1]:8080/",
+    ],
+)
+def test_explicit_http_urls_keep_their_browser_target(query: str) -> None:
+    assert normalize_web_target(query) == query
+    intent = parse_query_intent(query)
+    assert intent.kind is QueryIntentKind.URL
+    assert intent.recognized == query
 
 
 def test_web_targets_and_templates_are_conservative() -> None:

@@ -45,7 +45,7 @@ def normalize_file_target(target: str) -> str | None:
         )
         return None
     if parsed.scheme == "file":
-        if not parsed.path:
+        if not parsed.path or parsed.netloc.casefold() not in {"", "localhost"}:
             return None
         path = Path(unquote(parsed.path))
     elif parsed.scheme == "":
@@ -53,8 +53,12 @@ def normalize_file_target(target: str) -> str | None:
     else:
         return None
     try:
-        return path.resolve().as_uri()
-    except ValueError as exc:
+        try:
+            resolved = path.resolve(strict=True)
+        except FileNotFoundError:
+            resolved = path.resolve()
+        return resolved.as_uri()
+    except (OSError, RuntimeError, ValueError) as exc:
         log.bind(target=target, action="normalize_file_target").debug(
             "Failed to normalize file target %s: %s",
             target,

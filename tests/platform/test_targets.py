@@ -66,6 +66,40 @@ def test_normalize_file_target_accepts_local_path_and_file_uri(tmp_path):
     assert normalize_file_target(path.as_uri()) == expected
 
 
+@pytest.mark.parametrize("authority", ["localhost", "LOCALHOST"])
+def test_file_uri_localhost_authority_keeps_local_target(tmp_path, authority):
+    path = tmp_path / "hello world.txt"
+    path.write_text("hello")
+    uri_path = path.as_uri().removeprefix("file://")
+
+    assert normalize_file_target(f"file://{authority}{uri_path}") == path.as_uri()
+
+
+@pytest.mark.parametrize("authority", ["server.example", "127.0.0.1"])
+def test_remote_file_uri_never_opens_same_local_path(tmp_path, monkeypatch, authority):
+    path = tmp_path / "report.txt"
+    path.write_text("local file with the same path")
+    target = f"file://{authority}{path.as_posix()}"
+    launch = MagicMock()
+    monkeypatch.setattr(targets_mod.Gio.AppInfo, "launch_default_for_uri", launch)
+
+    assert normalize_file_target(target) is None
+    assert open_target(target) is False
+    launch.assert_not_called()
+
+
+def test_symlink_loop_fails_without_launching_or_raising(tmp_path, monkeypatch):
+    first, second = tmp_path / "first", tmp_path / "second"
+    first.symlink_to(second)
+    second.symlink_to(first)
+    launch = MagicMock()
+    monkeypatch.setattr(targets_mod.Gio.AppInfo, "launch_default_for_uri", launch)
+
+    assert normalize_file_target(str(first)) is None
+    assert open_target(first.as_uri()) is False
+    launch.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "target",
     ("", "https://example.com", "mailto:test@example.com", "ftp://example.com"),

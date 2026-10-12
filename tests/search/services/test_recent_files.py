@@ -27,12 +27,14 @@ class _FakeRecentItem:
         *,
         exists: bool = True,
         mime_type: str = "",
+        private: bool = False,
     ) -> None:
         self.name = name
         self.uri = uri
         self.modified = modified
         self.is_present = exists
         self.mime_type = mime_type
+        self.private = private
 
     def exists(self) -> bool:
         return self.is_present
@@ -51,6 +53,9 @@ class _FakeRecentItem:
 
     def get_mime_type(self) -> str:
         return self.mime_type
+
+    def get_private_hint(self) -> bool:
+        return self.private
 
 
 class _FakeRecentManager:
@@ -182,6 +187,41 @@ def test_manager_changes_advance_generation_only_for_new_data():
     assert catalog.generation == 3
     assert notifications == [1, 2]
     catalog.stop()
+
+
+def test_private_files_are_filtered_before_applying_limit():
+    manager = _FakeRecentManager(
+        [
+            _FakeRecentItem("secret.txt", "file:///secret.txt", 20, private=True),
+            _FakeRecentItem("public.txt", "file:///public.txt", 10),
+        ]
+    )
+    catalog = _catalog()
+    catalog._manager_factory = lambda: manager
+    catalog._max_entries = 1
+
+    catalog.refresh()
+
+    assert [entry.uri for entry in catalog.snapshot()] == ["file:///public.txt"]
+
+
+@pytest.mark.parametrize(
+    "uri", ["file:///tmp/annual%20%20report.txt", "file:///tmp/annual  report.txt"]
+)
+def test_preserves_whitespace_inside_filenames_and_uris(uri):
+    manager = _FakeRecentManager([_FakeRecentItem("annual  report.txt", uri, 10)])
+    catalog = _catalog()
+    catalog._manager_factory = lambda: manager
+    launched: list[str] = []
+    catalog._uri_launcher = launched.append
+
+    catalog.refresh()
+    entry = catalog.snapshot()[0]
+
+    assert entry.name == "annual  report.txt"
+    assert entry.uri == uri
+    assert catalog.open(entry) is True
+    assert launched == [uri]
 
 
 def test_open_and_clear_helpers_update_the_catalog():

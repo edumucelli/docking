@@ -12,6 +12,7 @@ state-change notification and read the immutable unit tuple separately.
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from collections.abc import Callable
@@ -126,6 +127,8 @@ class CurrencyRatesCatalog:
         target_code: str,
     ) -> float | None:
         """Convert with the current immutable rates, returning none if unavailable."""
+        if not math.isfinite(value):
+            return None
         factors = {
             unit.symbol.upper(): unit.factor for unit in self._units if unit.factor > 0
         }
@@ -133,7 +136,8 @@ class CurrencyRatesCatalog:
         target = factors.get(target_code.upper())
         if source is None or target is None:
             return None
-        return value * source / target
+        converted = value * source / target
+        return converted if math.isfinite(converted) else None
 
     def _load(self, generation: int) -> None:
         try:
