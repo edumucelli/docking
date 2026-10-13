@@ -4,6 +4,7 @@ import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from gi import repository as gi_repository
 
 import docking.applets.brightness.state as brightness_state
@@ -312,6 +313,27 @@ class TestBrightnessApplet:
     def test_tooltip_shows_percentage(self):
         applet = _make_applet(brightness=0.75)
         assert "75%" in applet.item.name
+
+    @pytest.mark.parametrize(
+        ("steps", "expected"),
+        [(10, "80%"), (9, "82%"), (1, "98%")],
+    )
+    def test_tooltip_matches_the_percentage_applied_to_the_hardware(
+        self, steps, expected
+    ):
+        """Truncating the float error showed one percent less than was applied.
+
+        Stepping down ten times from 1.0 leaves 0.7999999999999998, which the
+        backend had already rounded to 80% when it set brightnessctl and
+        xrandr, so the tooltip and the icon label disagreed with the hardware.
+        """
+        brightness = 1.0
+        for _ in range(steps):
+            brightness = max(0.1, brightness - STEP)
+
+        applet = _make_applet(brightness=brightness)
+
+        assert expected in applet.item.name
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:

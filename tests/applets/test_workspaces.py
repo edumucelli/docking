@@ -1,15 +1,18 @@
 """Tests for the workspaces applet."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import cairo
 import pytest
 
 from docking.applets.services import AppletServices
+from docking.applets.workspaces import applet as applet_module
 from docking.applets.workspaces.applet import WorkspacesApplet
 from docking.applets.workspaces.render import _render_grid
 from docking.core.config import Config
-from docking.platform.backends.base import WorkspaceSnapshot
+from docking.platform.backends.base import ActionResult, WorkspaceSnapshot
+from docking.platform.backends.wayland.sway_ipc import SwayWorkspaceService
 
 
 def _workspace(
@@ -271,3 +274,123 @@ class TestWorkspacesBehavior:
         # Then
         service.activate.assert_called_once_with("2")
         refresh.assert_called_once()
+
+
+class TestWorkspaceNumbering:
+    """Backends disagree on ``WorkspaceSnapshot.number``; the applet must not.
+
+    libwnck, GNOME, Cinnamon, Niri and the Wayland portal count workspaces from
+    0, while Sway, KWin, Hyprland and Wayfire count from 1, so activation,
+    scrolling, the highlight and the label all have to follow the position of
+    the active workspace in the snapshot list.
+    """
+
+    @staticmethod
+    def _one_based(*, active_index: int) -> list[WorkspaceSnapshot]:
+        # Ids mirror the numbers, the way Sway ("1"), KWin and Hyprland report.
+        return [
+            _workspace(number, name=f"ws{number}", active=(index == active_index))
+            for index, number in enumerate((1, 2, 3, 4))
+        ]
+
+    @staticmethod
+    def _applet(snapshots) -> tuple[WorkspacesApplet, MagicMock]:
+        applet = WorkspacesApplet(48, config=Config())
+        service = MagicMock()
+        service.list_workspaces.return_value = snapshots
+        service.active_workspace.return_value = next(
+            (snapshot for snapshot in snapshots if snapshot.active), None
+        )
+        applet.set_services(AppletServices(workspaces=service))
+        return applet, service
+
+    def test_click_activates_the_next_workspace(self):
+        applet, service = self._applet(self._one_based(active_index=0))
+
+        applet.on_clicked()
+
+        service.activate.assert_called_once_with("2")
+
+    def test_scroll_up_wraps_from_the_first_workspace_to_the_last(self):
+        applet, service = self._applet(self._one_based(active_index=0))
+
+        applet.on_scroll(direction_up=True)
+
+        service.activate.assert_called_once_with("4")
+
+    def test_scroll_down_activates_the_next_workspace(self):
+        applet, service = self._applet(self._one_based(active_index=1))
+
+        applet.on_scroll(direction_up=False)
+
+        service.activate.assert_called_once_with("3")
+
+    def test_click_on_the_last_workspace_wraps_to_the_first(self):
+        applet, service = self._applet(self._one_based(active_index=3))
+
+        applet.on_clicked()
+
+        service.activate.assert_called_once_with("1")
+
+    def test_tooltip_names_the_active_workspace(self):
+        applet, _service = self._applet(self._one_based(active_index=1))
+
+        applet.present()
+
+        assert applet.item.name == "Workspace 2: ws2"
+
+    def test_menu_labels_number_workspaces_by_position(self):
+        applet, _service = self._applet(self._one_based(active_index=0))
+
+        items = applet.get_menu_items()
+
+        assert [item.get_label() for item in items] == [
+            "Workspace 1: ws1",
+            "Workspace 2: ws2",
+            "Workspace 3: ws3",
+            "Workspace 4: ws4",
+        ]
+
+    def _highlighted(self, monkeypatch, snapshots) -> list[int]:
+        highlighted: list[int] = []
+        monkeypatch.setattr(
+            applet_module,
+            "_render_grid",
+            lambda *, cr, size, count, active_num: highlighted.append(active_num),
+        )
+        applet, _service = self._applet(snapshots)
+        applet.present()
+        return highlighted
+
+    def test_highlight_is_the_active_position(self, monkeypatch):
+        highlighted = self._highlighted(monkeypatch, self._one_based(active_index=0))
+
+        assert highlighted[-1] == 0
+
+    def test_last_workspace_is_highlighted_when_active(self, monkeypatch):
+        # Regression: a 1-based number left the last cell unhighlighted because
+        # the index fell outside the grid.
+        highlighted = self._highlighted(monkeypatch, self._one_based(active_index=3))
+
+        assert highlighted[-1] == 3
+
+    def test_sway_snapshots_drive_activation_by_position(self):
+        # Sway numbers workspaces from 1; end to end, the applet must still
+        # activate the workspace next to the one the user sees highlighted.
+        client = SimpleNamespace(
+            query=lambda kind: [
+                {"id": 1, "name": "1", "focused": True},
+                {"id": 2, "name": "2", "focused": False},
+                {"id": 3, "name": "3", "focused": False},
+            ],
+            command=MagicMock(return_value=ActionResult.OK),
+        )
+        service = SwayWorkspaceService(client=client, windows=MagicMock())
+        applet = WorkspacesApplet(48, config=Config())
+
+        applet.set_services(AppletServices(workspaces=service))
+        applet.present()
+        applet.on_clicked()
+
+        assert applet.item.name == "Workspace 1: 1"
+        client.command.assert_called_once_with('workspace "2"')

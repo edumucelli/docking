@@ -217,6 +217,30 @@ def test_hyprland_workspace_switch_uses_known_numeric_ids_not_names():
     assert service.activate("2; closewindow") is ActionResult.NOT_FOUND
 
 
+def test_hyprland_workspace_numbers_are_positions_not_ids():
+    # Hyprland ids start at 1 and leave gaps when a workspace empties out;
+    # consumers index the returned sequence, so it has to start at 0.
+    client = SimpleNamespace(
+        query_json=lambda command: (
+            [
+                {"id": -99, "name": "special:scratch"},
+                {"id": 1, "name": "one"},
+                {"id": 3, "name": "three"},
+            ]
+            if command == "workspaces"
+            else {"id": 3}
+        ),
+        dispatch=MagicMock(return_value=ActionResult.OK),
+    )
+    service = HyprlandWorkspaceService(windows=SimpleNamespace(client=client))
+
+    workspaces = service.list_workspaces()
+
+    assert [workspace.id for workspace in workspaces] == ["1", "3"]
+    assert [workspace.number for workspace in workspaces] == [0, 1]
+    assert service.active_workspace() == workspaces[1]
+
+
 @pytest.mark.parametrize(
     "mode,fullscreen,maximized", [(0, False, False), (1, False, True), (2, True, False)]
 )

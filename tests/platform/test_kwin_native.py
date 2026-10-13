@@ -245,3 +245,31 @@ def test_bridge_rejects_publications_not_from_current_compositor():
         assert client.list_windows() == ()
     finally:
         client.stop()
+
+
+def test_workspace_numbers_are_positions_not_kwin_desktop_numbers():
+    # KWin desktop positions are 0-based; consumers index the sequence, so the
+    # published numbers have to match the list order.
+    desktop_one = "{11111111-2222-3333-4444-555555555555}"
+    desktop_two = "{66666666-7777-8888-9999-aaaaaaaaaaaa}"
+    current = MagicMock()
+    current.get_string.return_value = desktop_two
+    desktops = MagicMock()
+    desktops.unpack.return_value = [(0, desktop_one, "One"), (1, desktop_two, "Two")]
+    count = MagicMock()
+    count.get_uint32.return_value = 2
+    proxy = MagicMock()
+    proxy.get_cached_property.side_effect = {
+        "current": current,
+        "desktops": desktops,
+        "count": count,
+    }.get
+    service = session.KWinWorkspaceService()
+    service._proxy = proxy
+
+    service._refresh()
+
+    workspaces = service.list_workspaces()
+    assert [workspace.id for workspace in workspaces] == [desktop_one, desktop_two]
+    assert [workspace.number for workspace in workspaces] == [0, 1]
+    assert service.active_workspace() == workspaces[1]

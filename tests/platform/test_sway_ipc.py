@@ -3,6 +3,7 @@
 import json
 import socket
 import threading
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -107,6 +108,23 @@ def test_native_actions_and_workspace_names_are_not_command_injection():
     assert client.commands[-1] == 'workspace "1: \\"Work\\""'
     assert workspaces.activate("999") is ActionResult.NOT_FOUND
     service.stop()
+
+
+def test_workspace_numbers_are_positions_not_sway_numbers():
+    # Sway numbers its workspaces from 1 and skips the numbers of emptied
+    # ones; consumers index the returned sequence, so it has to start at 0.
+    client = MagicMock()
+    client.query.return_value = [
+        {"id": 1, "name": "1", "focused": False},
+        {"id": 3, "name": "3", "focused": True},
+    ]
+    service = SwayWorkspaceService(client=client, windows=MagicMock())
+
+    workspaces = service.list_workspaces()
+
+    assert [workspace.id for workspace in workspaces] == ["1", "3"]
+    assert [workspace.number for workspace in workspaces] == [0, 1]
+    assert service.active_workspace() == workspaces[1]
 
 
 @pytest.mark.parametrize("invalid", [False, True])

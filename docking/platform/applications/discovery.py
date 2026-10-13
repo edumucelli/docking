@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import stat
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -76,6 +77,52 @@ class _FileFacts:
     categories_raw: str
     keywords: tuple[str, ...]
     actions: tuple[_FileAction, ...]
+    only_show_in: tuple[str, ...] = ()
+    not_show_in: tuple[str, ...] = ()
+
+
+def current_desktop_names() -> tuple[str, ...]:
+    """Return the desktop names from ``XDG_CURRENT_DESKTOP``, in session order.
+
+    The order is part of the contract: OnlyShowIn/NotShowIn are resolved on the
+    first name in the list that appears in either of them.
+    """
+    raw = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    return tuple(part.strip().casefold() for part in raw.split(":") if part.strip())
+
+
+def desktop_entry_string_list(key_file: object, key: str) -> tuple[str, ...]:
+    """Read a ``;``-separated Desktop Entry list value."""
+    try:
+        values = key_file.get_string_list("Desktop Entry", key)  # type: ignore[attr-defined]
+    except Exception:
+        return ()
+    return tuple(text for text in (_clean_text(value) for value in values) if text)
+
+
+def visible_on_current_desktop(
+    *, only_show_in: tuple[str, ...], not_show_in: tuple[str, ...]
+) -> bool:
+    """Apply the Desktop Entry spec's OnlyShowIn/NotShowIn gate.
+
+    Both keys name desktop environments -- "GNOME", "sway" -- and the spec
+    resolves them against ``$XDG_CURRENT_DESKTOP`` in order: the first name in
+    that list which appears in either key decides, so "MATE:GNOME" with
+    OnlyShowIn=MATE and NotShowIn=GNOME is shown rather than hidden. When no
+    name matches, an entry restricted by OnlyShowIn stays hidden, which is also
+    what ``should_show()`` answers for the Gio-backed path -- the two sources
+    have to agree, or the same entry would appear once and not the other way.
+    """
+    if not only_show_in and not not_show_in:
+        return True
+    only = {name.casefold() for name in only_show_in}
+    excluded = {name.casefold() for name in not_show_in}
+    for name in current_desktop_names():
+        if name in only:
+            return True
+        if name in excluded:
+            return False
+    return not only
 
 
 def default_gio_applications() -> tuple[object, ...]:
@@ -357,6 +404,8 @@ def file_facts(path: Path | None) -> _FileFacts | None:
         ),
         hidden=desktop_entries.desktop_entry_bool(key_file, "Hidden"),
         no_display=desktop_entries.desktop_entry_bool(key_file, "NoDisplay"),
+        only_show_in=desktop_entry_string_list(key_file, "OnlyShowIn"),
+        not_show_in=desktop_entry_string_list(key_file, "NotShowIn"),
         generated=desktop_entries.desktop_entry_bool(
             key_file,
             desktop_entries.GENERATED_MARKER_KEY,
@@ -453,6 +502,9 @@ def _application_from_gio_with_diagnostic(
         desktop_file=desktop_file,
         visible=(
             not _safe_bool_call(app_info, "get_nodisplay")
+            # Gio answers the OnlyShowIn/NotShowIn gate here; without it an
+            # entry meant for another desktop is listed on this one.
+            and safe_call(app_info, "should_show") is not False
             and (visibility_facts is None or not visibility_facts.no_display)
             and (facts is None or not facts.no_display)
         ),
@@ -718,7 +770,11 @@ def _application_from_file(
         origin=_origin(desktop_id=desktop_id, generated=facts.generated),
         location=_location(path),
         desktop_file=path,
-        visible=not facts.no_display,
+        visible=not facts.no_display
+        and visible_on_current_desktop(
+            only_show_in=facts.only_show_in,
+            not_show_in=facts.not_show_in,
+        ),
         has_gio_source=False,
         generic_name=facts.generic_name,
         description=(

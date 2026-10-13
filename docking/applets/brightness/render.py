@@ -102,8 +102,9 @@ def create_icon(
     cr.fill()
     cr.restore()
 
-    # Level label at bottom
+    # Level label at bottom. Rounded for the same reason as the tooltip: the
+    # value applied to the hardware is a rounded percentage.
     if show_level:
-        draw_icon_label(cr=cr, text=f"{int(brightness * 100)}%", size=size)
+        draw_icon_label(cr=cr, text=f"{round(brightness * 100)}%", size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

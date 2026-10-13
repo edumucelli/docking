@@ -710,6 +710,56 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["icon_size"] == 72
 
+    def test_save_writes_through_a_symlinked_config(self, tmp_path):
+        """Dotfiles setups symlink the config into a repository.
+
+        The atomic replace unlinked the link and left a regular file in its
+        place, so the user's repository silently stopped tracking the config
+        after the first save -- and kept serving the stale values.
+        """
+        target = tmp_path / "dotfiles" / "dock.json"
+        target.parent.mkdir()
+        target.write_text(json.dumps({"icon_size": 96}))
+        link = tmp_path / "dock.json"
+        link.symlink_to(target)
+        config = Config.load(link)
+        config.icon_size = 32
+
+        config.save()
+
+        assert link.is_symlink()
+        assert json.loads(target.read_text())["icon_size"] == 32
+
+    def test_backup_of_a_symlinked_config_is_found_again_through_the_link(
+        self, tmp_path
+    ):
+        """Loading has to look for the backup where saving puts it.
+
+        The link was resolved on save but not on load, so saves refreshed a
+        backup beside the target while recovery looked for one beside the link.
+        A load creates that second, stale backup on its first successful read,
+        so a corrupt config restored values from before the last save.
+        """
+        target = tmp_path / "dotfiles" / "dock.json"
+        target.parent.mkdir()
+        target.write_text(json.dumps({"icon_size": 96}))
+        link = tmp_path / "dock.json"
+        link.symlink_to(target)
+
+        first = Config.load(link)
+        first.icon_size = 32
+        first.save()
+        second = Config.load(link)
+        second.icon_size = 64
+        second.save()
+
+        target.write_text("{ not json")
+
+        recovered = Config.load(link)
+
+        # The newest good state, not the value from before the first save.
+        assert recovered.icon_size == 32
+
     def test_save_persists_click_actions(self, tmp_path):
         path = tmp_path / "dock.json"
         config = Config(left_click_action="cycle", middle_click_action="close-focused")

@@ -380,6 +380,109 @@ def test_nested_id_does_not_shadow_a_top_level_file_of_the_same_name(tmp_path):
     assert names["extras-tool.desktop"] == "Nested tool"
 
 
+class TestDesktopEnvironmentGate:
+    """OnlyShowIn / NotShowIn, evaluated like Gio's ``should_show()``.
+
+    Both keys were ignored, so entries meant for another desktop were listed
+    here -- 47 of them on a stock install.
+    """
+
+    @pytest.mark.parametrize(
+        ("only", "excluded", "expected"),
+        [
+            ((), (), True),
+            (("GNOME",), (), False),  # this session is MATE
+            (("GNOME", "MATE"), (), True),
+            ((), ("MATE",), False),
+            ((), ("GNOME",), True),
+        ],
+    )
+    def test_gate_on_a_mate_session(self, monkeypatch, only, excluded, expected):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "MATE")
+
+        assert (
+            discovery_mod.visible_on_current_desktop(
+                only_show_in=only, not_show_in=excluded
+            )
+            is expected
+        )
+
+    def test_desktop_names_are_read_from_the_session_variable(self, monkeypatch):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "sway:GNOME")
+        # Order is part of the contract, so this is a sequence, not a set.
+        assert discovery_mod.current_desktop_names() == ("sway", "gnome")
+
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "")
+        assert discovery_mod.current_desktop_names() == ()
+
+    @pytest.mark.parametrize(
+        ("current", "expected"),
+        [("MATE:GNOME", True), ("GNOME:MATE", False)],
+    )
+    def test_the_first_matching_desktop_name_decides(
+        self, monkeypatch, current, expected
+    ):
+        """The spec resolves both keys against the session list in order.
+
+        With OnlyShowIn=MATE and NotShowIn=GNOME, "MATE:GNOME" is shown and
+        "GNOME:MATE" is hidden; testing the two as sets picked whichever
+        answered first and got the second case wrong.
+        """
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", current)
+
+        assert (
+            discovery_mod.visible_on_current_desktop(
+                only_show_in=("MATE",), not_show_in=("GNOME",)
+            )
+            is expected
+        )
+
+    def test_unknown_desktop_hides_an_only_show_in_entry(self, monkeypatch):
+        """An entry restricted to other desktops stays hidden.
+
+        This matches ``should_show()`` on the Gio-backed path; answering True
+        here made the same entry visible from one source and hidden from the
+        other depending on which discovered it.
+        """
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "")
+
+        assert (
+            discovery_mod.visible_on_current_desktop(
+                only_show_in=("GNOME",), not_show_in=()
+            )
+            is False
+        )
+        # An entry with no restriction is unaffected.
+        assert (
+            discovery_mod.visible_on_current_desktop(only_show_in=(), not_show_in=())
+            is True
+        )
+
+    def test_restricted_entries_are_not_listed_on_this_desktop(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", "sway")
+        first = tmp_path / "first"
+        _write_desktop(
+            first / "elsewhere.desktop", name="GNOME only", extra="OnlyShowIn=GNOME;\n"
+        )
+        _write_desktop(
+            first / "here.desktop",
+            name="Here too",
+            extra="OnlyShowIn=GNOME;sway;\n",
+        )
+        _write_desktop(
+            first / "never.desktop", name="Excluded", extra="NotShowIn=sway;\n"
+        )
+        _write_desktop(first / "plain.desktop", name="Plain")
+
+        registry = _registry(directories=[first])
+        registry.refresh()
+
+        listed = sorted(app.desktop_id for app in registry.snapshot())
+        assert listed == ["here.desktop", "plain.desktop"]
+
+
 def test_failed_initial_discovery_leaves_registry_unready():
     registry = _registry()
 

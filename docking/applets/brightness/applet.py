@@ -80,7 +80,11 @@ class BrightnessApplet(Applet):
         )
 
     def refresh_tooltip(self) -> None:
-        pct = int(self._brightness * 100)
+        # Rounding, not truncating: stepping the brightness applies a rounded
+        # percentage to the hardware, so truncating here showed 79% for a
+        # level that had just been set to 80% (0.02 steps accumulate as
+        # 0.7999999999999998).
+        pct = round(self._brightness * 100)
         self.item.name = _("Brightness: {pct}%").format(pct=pct)
 
     def start(self, notify: Callable[[], None]) -> None:

@@ -165,12 +165,15 @@ class KWinWorkspaceService(WorkspaceService):
                 desktops = desktops_v.unpack()
                 n = count_v.get_uint32()
                 self._workspaces.clear()
-                for entry in desktops[:n]:
+                for index, entry in enumerate(desktops[:n]):
                     # Each entry is (position, id, name)
-                    pos, ws_id, name = entry
+                    _, ws_id, name = entry
                     self._workspaces[str(ws_id)] = WorkspaceSnapshot(
                         id=str(ws_id),
-                        number=int(pos) + 1,
+                        # Consumers index the returned sequence, so publish the
+                        # position: desktop positions are 0-based and the dict
+                        # keeps them in that order.
+                        number=index,
                         name=str(name),
                         active=(str(ws_id) == self._active_id),
                     )

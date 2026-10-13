@@ -25,6 +25,12 @@ from enum import Enum
 _MAX_EXPRESSION_LENGTH = 256
 _MAX_AST_NODES = 64
 _MAX_EXPONENT = 1_000
+# Integers are evaluated exactly, so growth needs its own ceiling: the
+# exponent limit alone still allows a tower such as ((2^1000)^1000)^1000,
+# which is a million-bit number that takes seconds to build on every
+# keystroke. 4096 bits is about 1230 digits -- far beyond any answer a launcher
+# suggestion can show, and far above the largest value the tests expect.
+_MAX_RESULT_BITS = 4_096
 
 
 class CalculationError(str, Enum):
@@ -46,9 +52,10 @@ class CalculationValue:
     error: CalculationError | None = None
 
 
-BinaryOperation = Callable[[float, float], float]
-UnaryOperation = Callable[[float], float]
-Function = Callable[..., float]
+Number = int | float
+BinaryOperation = Callable[[Number, Number], Number]
+UnaryOperation = Callable[[Number], Number]
+Function = Callable[..., Number]
 
 _BINARY_OPERATIONS: dict[type[ast.operator], BinaryOperation] = {
     ast.Add: operator.add,
@@ -65,10 +72,17 @@ _UNARY_OPERATIONS: dict[type[ast.unaryop], UnaryOperation] = {
 _CONSTANTS = {"e": math.e, "pi": math.pi, "tau": math.tau}
 
 
-def _rounded(value: float, digits: float = 0.0) -> float:
-    if not digits.is_integer():
+def _rounded(value: Number, digits: Number = 0.0) -> Number:
+    # An integer precision arrives as an int now that exact integers are kept,
+    # so it is widened rather than assumed to be a float already.
+    precision = float(digits)
+    if not precision.is_integer():
         raise ValueError("round precision must be an integer")
-    return float(round(value, int(digits)))
+    result = round(value, int(precision))
+    # round() gives back an int for an int and a float for a float, and the
+    # int has to stay one: float() would re-round a value past 2**53, so
+    # round(9007199254740993) came back as ...992.
+    return result if isinstance(result, int) else float(result)
 
 
 _FUNCTIONS: dict[str, tuple[Function, frozenset[int]]] = {
@@ -92,14 +106,24 @@ _FUNCTIONS: dict[str, tuple[Function, frozenset[int]]] = {
 }
 
 
-def _finite(value: float) -> float:
+def _finite(value: int | float) -> int | float:
+    """Return the value, rejecting a result that grew out of bounds.
+
+    Integers pass through without a float conversion: forcing them through
+    ``float`` silently rounded any result past 2**53, which the answer was then
+    printed as though it were exact.
+    """
+    if isinstance(value, int):
+        if value.bit_length() > _MAX_RESULT_BITS:
+            raise OverflowError("integer result is too large")
+        return value
     numeric = float(value)
     if not math.isfinite(numeric):
         raise OverflowError("non-finite calculation result")
     return numeric
 
 
-def _evaluate_node(node: ast.AST) -> float:
+def _evaluate_node(node: ast.AST) -> int | float:
     # This explicit dispatcher is the security boundary. New AST node types
     # must remain rejected unless their complete behavior is understood and
     # covered by the same complexity and finite-number limits.
@@ -121,6 +145,20 @@ def _evaluate_node(node: ast.AST) -> float:
         right = _evaluate_node(node.right)
         if isinstance(node.op, ast.Pow) and abs(right) > _MAX_EXPONENT:
             raise OverflowError("exponent is too large")
+        if (
+            isinstance(node.op, ast.Pow)
+            and isinstance(left, int)
+            and isinstance(right, int)
+            and right > 0
+            # A lower bound, not an estimate: |left| >= 2**(bits-1), so the
+            # power has at least (bits-1)*right bits. The tighter
+            # `bits * right` would reject 16^1000, whose 4001-bit result is
+            # inside the limit; anything the bound lets through is settled by
+            # _finite on the result. A tower such as ((2^1000)^1000) is still
+            # caught here, before the expensive power is built.
+            and (left.bit_length() - 1) * right > _MAX_RESULT_BITS
+        ):
+            raise OverflowError("integer result is too large")
         return _finite(operation(left, right))
     if isinstance(node, ast.UnaryOp):
         operation = _UNARY_OPERATIONS.get(type(node.op))
@@ -196,7 +234,9 @@ def _is_supported_node(node: ast.AST) -> bool:
     return False
 
 
-def _format_answer(value: float) -> str:
+def _format_answer(value: int | float) -> str:
+    if isinstance(value, int):
+        return str(value)
     if value == 0:
         value = 0.0
     if value.is_integer():
