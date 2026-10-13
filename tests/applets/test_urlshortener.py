@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -220,6 +221,39 @@ class TestShortenUrl:
             mock.side_effect = TimeoutError()
             result = shorten_url("https://example.com")
         assert "timed out" in result.lower()
+
+    def test_non_utf8_success_body_is_returned_not_raised(self):
+        """A captive portal answers 200 with a page in the local encoding.
+
+        The documented contract is a short URL or a message starting with
+        "Error:". The success path used a strict decode while the HTTP-error
+        path two lines below already tolerated bad bytes, so a portal page
+        raised UnicodeDecodeError out of a bare worker thread: the applet
+        never re-enabled its button and stayed on "Shortening..." forever.
+        """
+        portal = b"<html><body>Portal required. P\xe1gina bloqueada.</body></html>"
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__ = lambda s: s
+            mock.return_value.__exit__ = MagicMock(return_value=False)
+            mock.return_value.read.return_value = portal
+
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result.startswith("<html>")
+        assert "�" in result  # the undecodable byte is replaced, not fatal
+
+    def test_truncated_response_returns_an_error_message(self):
+        """Anything at all escaping here wedges the dialog, so nothing may."""
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__ = lambda s: s
+            mock.return_value.__exit__ = MagicMock(return_value=False)
+            mock.return_value.read.side_effect = http.client.IncompleteRead(
+                b"partial", 100
+            )
+
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result.startswith("Error:")
 
 
 class TestPrefsPayload:

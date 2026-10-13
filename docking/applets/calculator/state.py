@@ -65,7 +65,11 @@ def _eval_node(node: ast.AST) -> float:
     """Recursively evaluate an AST node, allowing only basic arithmetic."""
     if isinstance(node, ast.Expression):
         return _eval_node(node.body)
-    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+    if (
+        isinstance(node, ast.Constant)
+        and not isinstance(node.value, bool)
+        and isinstance(node.value, int | float)
+    ):
         return float(node.value)
     if isinstance(node, ast.BinOp):
         op = _BINARY_OPS.get(type(node.op))
@@ -98,6 +102,13 @@ def evaluate(expression: str) -> str:
     except ZeroDivisionError as exc:
         log.debug("Division by zero in calculator expression %r: %s", expr, exc)
         return "Error: division by zero"
+    except OverflowError as exc:
+        # A pasted literal such as 1e400 parses to infinity, and an operand
+        # that large cannot be turned back into an integer for display. Without
+        # this the traceback escapes to the GTK handler, which leaves the entry
+        # unchanged and makes the "=" button look broken.
+        log.debug("Overflow in calculator expression %r: %s", expr, exc)
+        return "Error: result too large"
     except (ValueError, SyntaxError, TypeError) as exc:
         log.debug("Failed to evaluate calculator expression %r: %s", expr, exc)
         return "Error"

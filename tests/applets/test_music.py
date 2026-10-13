@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gettext
 import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -10,6 +11,7 @@ import pytest
 
 import docking.applets.music.applet as music_applet_mod
 import docking.applets.music.state as music_state_mod
+import docking.i18n as i18n_mod
 import docking.platform.applications.registry as registry_mod
 from docking.applets.music.applet import MusicApplet
 from docking.applets.music.render import create_music_icon
@@ -36,6 +38,21 @@ from tests.platform.application_fakes import (
     ApplicationRegistryHarness,
     GioApplicationFake,
 )
+
+_CATALOG_MESSAGES = {
+    "Play": "Abspielen",
+    "Playing": "Wiedergabe",
+    "Pause": "Pausieren",
+    "Paused": "Pausiert",
+    "Stopped": "Gestoppt",
+}
+
+
+class _FakeCatalog(gettext.NullTranslations):
+    """Stand-in for a shipped catalog that translates the transport labels."""
+
+    def gettext(self, message: str) -> str:
+        return _CATALOG_MESSAGES.get(message, message)
 
 
 def _state(**overrides: object) -> MusicState:
@@ -212,6 +229,28 @@ class TestMusicStateHelpers:
     def test_play_pause_menu_label(self):
         assert play_pause_menu_label(_state(playback_status="Playing")) == "Pause"
         assert play_pause_menu_label(_state(playback_status="Paused")) == "Play"
+
+    def test_playback_tokens_stay_canonical_under_a_translated_catalog(
+        self, monkeypatch
+    ):
+        """Playback status is a state token, not a label.
+
+        Most shipped catalogs translate "Playing" (74 of them), so normalizing
+        the backend status *into* the translation made every literal comparison
+        in the applet fail: a playing track showed the "Play" label, painted the
+        stopped badge, reported no active media, and scored below a paused
+        player when the applet picked a source.
+        """
+        monkeypatch.setattr(i18n_mod, "_get_translation", _FakeCatalog)
+
+        state = _state(
+            playback_status=music_state_mod._normalize_playback_status("playing")
+        )
+
+        assert state.playback_status == "Playing"
+        assert music_state_mod.has_active_media(state) is True
+        # Labels, unlike tokens, must still come from the catalog.
+        assert play_pause_menu_label(state) == "Pausieren"
 
     def test_active_media_ignores_idle_and_internal_webkit_players(self):
         idle_browser = _state(
@@ -1412,6 +1451,43 @@ class TestPlayerctlBackendInternals:
 
         backend._run = fake_run  # type: ignore[method-assign]
         assert backend._select_player() == "spotify"
+
+    def test_read_state_keeps_fields_aligned_when_the_artist_tag_is_missing(self):
+        """playerctl emits an empty field as a bare tab, not as a placeholder.
+
+        The metadata format fixes seven tab-separated fields, so stripping
+        leading whitespace from the whole line deletes the separator of an
+        empty first field: the title would be reported as the artist, the
+        album art URL as the album, and the player name as the track URL.
+        A missing artist tag is ordinary for internet radio and untagged files.
+        """
+        backend = self._make_backend()
+        metadata = (
+            "\tSong Title\tAlbum Name\thttps://art/cover.jpg"
+            "\tfile:///music/song.mp3\tSpotify\tspotify\n"
+        )
+
+        def fake_run(*, cmd, timeout):
+            _ = timeout
+            joined = " ".join(cmd)
+            if joined.endswith(" status"):
+                return "Playing\n"
+            if " metadata " in joined:
+                return metadata
+            if joined.endswith(" volume"):
+                return "0.5\n"
+            return ""
+
+        backend._run = fake_run  # type: ignore[method-assign]
+
+        state = backend._read_state("spotify")
+
+        assert state.artist == ""
+        assert state.title == "Song Title"
+        assert state.album == "Album Name"
+        assert state.art_url == "https://art/cover.jpg"
+        assert state.track_url == "file:///music/song.mp3"
+        assert state.player_name == "Spotify"
 
     def test_set_volume_retries_with_relaxed_match_when_strict_fails(self):
         backend = self._make_backend()

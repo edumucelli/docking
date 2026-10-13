@@ -401,6 +401,31 @@ class Theme:
 
     @classmethod
     def load(cls, name: str = "default", icon_size: int = 48) -> Theme:
+        """Load theme by name, degrading to the default instead of failing.
+
+        Theme files are user-editable -- docs/THEMES.md tells users to copy the
+        template and edit it -- and the selected name is already persisted in
+        the config file. Letting a malformed value escape therefore made the
+        dock fail to start on *every* later launch, with no way back except
+        hand-editing the config. A broken theme should cost the user their
+        theme, not the application. Field-level tolerance still lives in the
+        individual readers; this only decides what an unusable theme means.
+        """
+        try:
+            return cls._load_from_path(name=name, icon_size=icon_size)
+        except Exception as exc:
+            log.warning(
+                "Invalid theme %r; falling back to the default theme: %s", name, exc
+            )
+        if name != "default":
+            try:
+                return cls._load_from_path(name="default", icon_size=icon_size)
+            except Exception as exc:
+                log.warning("Default theme is unusable; using built-in values: %s", exc)
+        return cls()
+
+    @classmethod
+    def _load_from_path(cls, name: str = "default", icon_size: int = 48) -> Theme:
         """Load theme by name, applying the scaling unit system.
 
         The JSON theme file stores layout values in a scaling unit:

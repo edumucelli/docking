@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.calculator.applet as calculator_applet_mod
 from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
@@ -195,6 +197,31 @@ class TestEvaluate:
 
     def test_large_number(self):
         assert evaluate("999999*999999") == "999998000001"
+
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            "1e400",  # parses straight to infinity
+            "1" + "0" * 400,  # an integer too large to become a float
+            "1e308 * 10",  # finite operands, infinite product
+        ],
+    )
+    def test_overflow_reports_an_error_instead_of_escaping(self, expression):
+        """The docstring promises a result or an error message, never a raise.
+
+        The entry is pastable, so an over-large literal reaches the parser. The
+        raised OverflowError used to escape to the GTK callback, leaving the
+        entry untouched while a traceback went to stderr, so pressing "="
+        looked like it did nothing.
+        """
+        result = evaluate(expression)
+
+        assert result == "Error: result too large"
+
+    @pytest.mark.parametrize("expression", ["True", "False", "true"])
+    def test_boolean_literals_are_not_numbers(self, expression):
+        """bool is a subclass of int, so it slipped through the numeric check."""
+        assert "Error" in evaluate(expression)
 
 
 class TestPrefsPayload:

@@ -621,8 +621,11 @@ def _uri_is_dir(target: str) -> bool:
         return False
     try:
         return Path(unquote(urlparse(target).path)).is_dir()
-    except ValueError:
-        logger.warning("Invalid file URI in persisted config: %r", target)
+    except (ValueError, OSError) as exc:
+        # A parent directory the user cannot traverse makes is_dir() raise
+        # PermissionError. Letting that escape aborts the whole config load,
+        # so one unusable pin would reset every other setting.
+        logger.warning("Unusable file URI in persisted config: %r (%s)", target, exc)
         return False
 
 
@@ -1040,7 +1043,7 @@ class Config:
             minimum=MIN_PRESSURE_THRESHOLD,
             maximum=MAX_PRESSURE_THRESHOLD,
         )
-        self.pinned = normalize_pinned_entries(list(self.pinned))
+        self.pinned = normalize_pinned_entries(self.pinned)
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
         self.show_recent_apps = _normalize_bool(
@@ -1198,7 +1201,7 @@ class Config:
                 data[new_key] = data[old_key]
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
-        if "pinned" in filtered and isinstance(filtered["pinned"], list):
+        if "pinned" in filtered:
             filtered["pinned"] = normalize_pinned_entries(filtered["pinned"])
         filtered["applet_prefs"] = _normalize_pref_map(filtered.get("applet_prefs"))
         filtered["item_prefs"] = _normalize_pref_map(filtered.get("item_prefs"))
@@ -1225,12 +1228,33 @@ def effective_edge_gap(theme: Theme, config: Config) -> int:
     )
 
 
-def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
+def normalize_pinned_entries(raw_entries: object) -> list[PinnedEntry]:
+    """Rebuild typed pinned entries, dropping invalid ones and duplicates.
+
+    A value that is not a list is dropped rather than iterated: the persisted
+    file is hand-editable, and ``list()`` over a string or a number either
+    explodes into one pin per character or raises during ``__post_init__``,
+    which aborts the whole load and loses every other setting with it. Sibling
+    normalizers treat a wrong container type the same way.
+
+    Duplicates are treated as invalid because the dock can only hold one item
+    per entry: a repeated entry would draw the same app twice, and the copy
+    would be written straight back to disk on the next save. The first
+    occurrence wins so a hand-edited file keeps its ordering.
+    """
+    if not isinstance(raw_entries, list):
+        return []
     entries: list[PinnedEntry] = []
+    seen: set[tuple[str, str]] = set()
     for raw in raw_entries:
         entry = PinnedEntry.from_raw(raw)
-        if entry is not None:
-            entries.append(entry)
+        if entry is None:
+            continue
+        identity = (entry.kind, entry.target)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        entries.append(entry)
     return entries
 
 

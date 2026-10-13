@@ -571,6 +571,94 @@ class TestConfigLoad:
             PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
         ]
 
+    def test_load_drops_duplicate_pins_keeping_first_occurrence(self, tmp_path):
+        """A repeated pin must not become a second copy of the same dock item.
+
+        The pinned list is an ordered set: the model writes whatever it holds
+        straight back to disk, so a duplicate that survived loading would be
+        drawn twice and then persist across every later restart.
+        """
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        {"kind": "app", "target": "first.desktop"},
+                        {"kind": "app", "target": "second.desktop"},
+                        {"kind": "app", "target": "first.desktop"},
+                        "first.desktop",
+                        {"kind": "applet", "target": "applet://clock"},
+                        {"kind": "applet", "target": "applet://clock"},
+                    ]
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        # The legacy string form spells the same entry as the typed dict, so
+        # the two must collapse into the one entry that was seen first.
+        assert config.pinned == [
+            PinnedEntry(kind=APP_KIND, target="first.desktop"),
+            PinnedEntry(kind=APP_KIND, target="second.desktop"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+        ]
+
+    def test_load_keeps_same_target_under_different_kinds(self, tmp_path):
+        """Only identical kind+target pairs are duplicates."""
+        path = tmp_path / "dock.json"
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        {"kind": "file", "target": file_uri},
+                        {"kind": "folder", "target": file_uri},
+                    ]
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=FILE_KIND, target=file_uri),
+            PinnedEntry(kind=FOLDER_KIND, target=file_uri),
+        ]
+
+    @pytest.mark.parametrize("bad_pinned", [None, 5, 1.5, True, "firefox.desktop"])
+    def test_load_survives_a_pinned_value_that_is_not_a_list(
+        self, tmp_path, bad_pinned
+    ):
+        """One malformed field must not reset every other setting.
+
+        The value was iterated with ``list()`` whatever its JSON type, so a
+        null, number, or bool raised out of ``__post_init__`` and aborted the
+        whole load -- the user's position, theme and icon size reverted to the
+        defaults, which the next save wrote back over the file. A bare string
+        took the opposite wrong path and became one pin per character.
+        """
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "icon_size": 96,
+                    "theme": "glass",
+                    "position": "top",
+                    "anchor_applets": True,
+                    "pinned": bad_pinned,
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.icon_size == 96
+        assert config.theme == "glass"
+        assert config.position == "top"
+        assert config.anchor_applets is True
+        assert config.pinned == []
+
     def test_load_filters_invalid_pref_map_shapes(self, tmp_path):
         path = tmp_path / "dock.json"
         path.write_text(
@@ -997,7 +1085,33 @@ class TestUriIsDir:
         # Any file:// URI triggers the code path; Path.is_dir raises
         result = config_mod._uri_is_dir("file:///bad/path")
         assert result is False
-        assert any("Invalid file URI" in w for w in warnings)
+        assert any("file URI in persisted config" in w for w in warnings)
+
+    def test_unreadable_path_is_not_fatal_to_the_whole_config(self, monkeypatch):
+        """A parent directory that cannot be traversed makes is_dir() raise.
+
+        That is an OSError, not a ValueError, so it used to escape
+        PinnedEntry.from_raw and abort the entire config load -- one unusable
+        pin silently reset every other setting to its default. is_dir() is
+        patched rather than chmod-ed because the suite also runs as root, where
+        an unreadable directory is still readable.
+        """
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+
+        def _raise_permissionerror(_path):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(config_mod.Path, "is_dir", _raise_permissionerror)
+        result = config_mod._uri_is_dir("file:///locked/secret")
+
+        assert result is False
+        assert any("file URI in persisted config" in w for w in warnings)
 
 
 class TestNormalizeBool:

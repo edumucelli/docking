@@ -23,6 +23,7 @@ from docking.applets.live_state import (
 from docking.applets.news.countries import country_name
 from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
+from docking.applets.xml_safety import UnsafeXmlError, parse_untrusted_xml
 from docking.core.math import clamp_index
 from docking.i18n import _
 
@@ -37,7 +38,6 @@ REFRESH_INTERVAL_S = 10 * 60
 STARTUP_FETCH_DELAY_S = 2
 
 _COUNTRY_CODE_RE = re.compile(r"^[A-Z0-9_]{2,16}$")
-_UNSAFE_XML_RE = re.compile(rb"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,10 +209,10 @@ def parse_news_feed(
     if limit <= 0:
         return ()
     raw_bytes = payload.encode("utf-8") if isinstance(payload, str) else payload
-    if _UNSAFE_XML_RE.search(raw_bytes):
-        raise ValueError(_("Unsafe RSS response"))
     try:
-        root = ET.fromstring(raw_bytes)
+        root = parse_untrusted_xml(raw_bytes)
+    except UnsafeXmlError as exc:
+        raise ValueError(_("Unsafe RSS response")) from exc
     except (ET.ParseError, TypeError) as exc:
         raise ValueError(_("Invalid RSS response")) from exc
 

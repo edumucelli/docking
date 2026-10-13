@@ -86,6 +86,51 @@ class TestThemeLoad:
         # Defaults for unspecified
         assert t.indicator_radius == 2.5
 
+    def test_malformed_user_theme_falls_back_instead_of_breaking_startup(
+        self, tmp_path, monkeypatch
+    ):
+        """A broken theme must not make the dock unbootable.
+
+        Themes are hand-edited (docs/THEMES.md says to copy the template) and
+        the chosen name is already stored in the config file, so an unusable
+        value used to fail every single launch until the user edited the config
+        by hand. The rest of the theme is still validated field by field; this
+        only decides what a wholly unusable file means.
+        """
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"fill_start_color": [222, 222, 222]}}),
+            encoding="utf-8",
+        )
+
+        theme = Theme.load("broken", 96)
+
+        fallback = Theme.load("default", 96)
+        assert theme.fill_start == fallback.fill_start
+        assert theme.shelf_height == fallback.shelf_height
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"shelf": {"stroke_width_px": "thick"}},
+            {"shelf": {"corner_radius_px": 1e400}},
+            {"shelf": {"fill_start_color": "red"}},
+        ],
+    )
+    def test_other_malformed_theme_values_also_fall_back(
+        self, tmp_path, monkeypatch, payload
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        theme = Theme.load("broken", 48)
+
+        assert theme.shelf_height == Theme.load("default", 48).shelf_height
+
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
         directory = user_themes_dir()

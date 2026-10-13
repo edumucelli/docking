@@ -104,16 +104,25 @@ def play_pause_menu_label(state: MusicState) -> str:
 
 
 def _normalize_playback_status(raw: str) -> str:
-    """Normalize playback status values across backends."""
+    """Return the canonical playback token for a backend status string.
+
+    The token deliberately stays untranslated. It is a state value, not a
+    label: ``has_active_media``, ``play_pause_menu_label``, the icon badge,
+    and the backend scoring table all compare it against the literals below,
+    and the dataclass default and the Rhythmbox backend already produce them.
+    Translating here made every one of those comparisons fail on a
+    non-English desktop, which showed "Play" while music was playing and
+    scored a paused player above a playing one.
+    """
     value = raw.strip().lower()
     if value == "playing":
-        return _("Playing")
+        return "Playing"
     if value == "paused":
-        return _("Paused")
+        return "Paused"
     if value == "stopped":
-        return _("Stopped")
+        return "Stopped"
     if value == "unknown":
-        return _("Unknown")
+        return "Unknown"
     return raw.strip() or "Unknown"
 
 
@@ -683,8 +692,12 @@ class PlayerctlBackend:
             ],
             timeout=1.8,
         )
+        # Only the trailing newline may be removed. The format above separates
+        # seven fields with tabs, and playerctl emits an empty field as a bare
+        # tab, so stripping leading whitespace drops the separator of an empty
+        # first field and shifts every remaining field one place to the left.
         parts = [
-            *(metadata or "").strip().split("\t"),
+            *(metadata or "").rstrip("\n").split("\t"),
             "",
             "",
             "",

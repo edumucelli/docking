@@ -62,7 +62,10 @@ def shorten_url(url: str) -> str:
             headers={"User-Agent": _USER_AGENT},
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            return resp.read().decode().strip()
+            # A captive portal or a broken proxy answers with HTTP 200 and a
+            # body in some other encoding, so the success path cannot assume
+            # UTF-8 any more than the error path below it does.
+            return resp.read().decode(errors="replace").strip()
     except urllib.error.HTTPError as exc:
         log.debug("URL shortener HTTP error for %r: %s", url, exc)
         body = exc.read().decode(errors="replace").strip()
@@ -73,6 +76,13 @@ def shorten_url(url: str) -> str:
     except TimeoutError as exc:
         log.debug("URL shortener timeout for %r: %s", url, exc)
         return "Error: request timed out"
+    except Exception as exc:
+        # The documented contract is total: a caller runs this on a bare thread
+        # and only schedules its UI update if the call returns, so anything
+        # escaping here leaves the dialog stuck on "Shortening..." with the
+        # button insensitive. A truncated body (IncompleteRead) reaches this.
+        log.debug("URL shortener unexpected failure for %r: %s", url, exc)
+        return "Error: request failed"
 
 
 def prefs_payload(*, last_url: str) -> dict[str, Any]:

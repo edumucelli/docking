@@ -555,7 +555,7 @@ class TestGioTrashBackend:
             patch("docking.applets.trash.backend.Gio.bus_get_sync") as bus_get,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         bus_get.assert_not_called()
         delete_mock.assert_called_once()
@@ -568,6 +568,61 @@ class TestGioTrashBackend:
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            backend.empty(lambda: True)
+
+        delete_mock.assert_called_once()
+
+    def test_direct_delete_asks_first_when_no_file_manager_answers(self):
+        """Deleting here is irreversible, so the callback is mandatory.
+
+        Handing the request to Nautilus/Caja fails whenever no file manager is
+        running, which is the normal case on i3, sway, and XFCE. The backend
+        used to discard the callback and delete straight away, so the dock
+        emptied the trash for good without the user ever seeing the dialog
+        whose own text promises the items "will be permanently deleted".
+        """
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        asked: list[str] = []
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            result = backend.empty(lambda: asked.append("asked") or False)
+
+        assert asked == ["asked"]
+        delete_mock.assert_not_called()
+        assert result.attempted is False
+        assert result.remaining_count == result.before_count
+
+    def test_declined_confirmation_survives_a_dead_file_manager(self):
+        """Cancel must leave the trash exactly as it was found."""
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+            patch("docking.applets.trash.backend._empty_host_trash") as host_mock,
+        ):
+            result = backend.empty(lambda: False)
+
+        delete_mock.assert_not_called()
+        host_mock.assert_not_called()
+        assert result.attempted is False
+
+    def test_desktop_preference_false_skips_the_prompt_entirely(self):
+        """A desktop that turned the warning off must not be asked again."""
+        backend = MateTrashBackend()
+        with (
+            patch.object(backend, "_confirmation_preference", return_value=False),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             backend.empty(lambda: False)
@@ -591,7 +646,7 @@ class TestGioTrashBackend:
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             run_mock.return_value.returncode = 0
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         run_mock.assert_called_once_with(
             [
@@ -635,7 +690,7 @@ class TestGioTrashBackend:
             run_mock.return_value.returncode = 1
             run_mock.return_value.stderr = "nope"
             run_mock.return_value.stdout = ""
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete_mock.assert_called_once()
 
@@ -967,7 +1022,7 @@ class TestKdeTrashBackend:
 
         backend = KdeTrashBackend()
         with patch.object(backend, "_delete_contents") as delete:
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete.assert_called_once()
 
@@ -1137,7 +1192,7 @@ class TestKdeTrashBackend:
             trash.enumerate_children.return_value = MagicMock()
             trash.enumerate_children.return_value.next_file.return_value = None
             new_for_uri.return_value = trash
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
     def test_kde_monitor_files_not_flatpak(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
