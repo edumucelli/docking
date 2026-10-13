@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import cast
 
+import pytest
+
+import docking.search.services.global_shortcuts as shortcuts_mod
 from docking.search.services.global_shortcuts import (
     DBUS_BUS_NAME,
     DBUS_INTERFACE,
@@ -473,3 +477,380 @@ def test_stop_closes_an_outstanding_request_and_its_subscription() -> None:
     assert close_calls[0].interface == REQUEST_INTERFACE
     assert close_calls[0].object_path == request_path
     assert signals.active == {}
+
+
+class _FailingCalls(_Calls):
+    """A call adapter that fails one interface, as a missing portal would."""
+
+    def __init__(self, *, fail_interface: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._fail_interface = fail_interface
+
+    def __call__(self, connection, *, interface, **kwargs):
+        if interface == self._fail_interface:
+            raise RuntimeError(f"{interface} is not available")
+        return super().__call__(connection, interface=interface, **kwargs)
+
+
+def _service_with(
+    *,
+    version: int = 1,
+    fail_interface: str | None = None,
+) -> tuple[GlobalShortcutsService, _Calls, _Signals]:
+    calls: _Calls = (
+        _Calls(version=version)
+        if fail_interface is None
+        else _FailingCalls(fail_interface=fail_interface, version=version)
+    )
+    signals = _Signals()
+    service = GlobalShortcutsService(
+        app_id="org.docking.Docking",
+        on_activated=lambda _activation: None,
+        on_status_changed=lambda _status: None,
+        preferred_trigger="CTRL+LOGO+space",
+    )
+    service._connection = _Connection()
+    service._call_adapter = calls
+    service._signal_adapter = signals
+    service._token_factory = lambda: "fixed"
+    return service, calls, signals
+
+
+def test_start_reports_unavailable_when_the_session_bus_has_no_connection() -> None:
+    service, _calls, _signals = _service()
+    service._connection = None
+
+    def refuse_connection() -> object:
+        raise RuntimeError("no session bus")
+
+    service._connection_adapter = refuse_connection
+
+    service.start()
+
+    assert service.state is GlobalShortcutsState.UNAVAILABLE
+    assert "session bus unavailable" in (service.status.message or "")
+
+
+def test_start_is_idempotent_once_running() -> None:
+    service, calls, _signals = _service()
+
+    service.start()
+    registered = len(calls.by_method("Register"))
+    service.start()
+
+    assert len(calls.by_method("Register")) == registered
+
+
+def test_an_optional_registry_failure_does_not_abort_startup() -> None:
+    """Registering with the desktop is best effort and may not exist."""
+    service, calls, signals = _service_with(fail_interface=REGISTRY_INTERFACE)
+
+    service.start()
+
+    # The session request was still issued despite the registry refusal.
+    assert service.state is GlobalShortcutsState.CREATING
+    assert calls.by_method("CreateSession")
+
+    # And the sequence still completes normally.
+    _create_session(service, calls, signals)
+    _finish_binding(service, calls, signals)
+    assert service.state is GlobalShortcutsState.BOUND
+
+
+def test_an_unreadable_portal_version_reports_unavailable() -> None:
+    service, _calls, _signals = _service_with(version="not-a-number")
+
+    service.start()
+
+    assert service.state is GlobalShortcutsState.UNAVAILABLE
+    assert "portal unavailable" in (service.status.message or "")
+
+
+def test_create_session_without_a_usable_handle_is_an_error() -> None:
+    for results in ({}, {"session_handle": "relative/path"}, {"session_handle": 7}):
+        service, calls, signals = _service()
+        service.start()
+
+        signals.respond(calls.request("CreateSession"), 0, results)
+
+        assert service.state is GlobalShortcutsState.ERROR, results
+        assert "no session handle" in (service.status.message or "")
+
+
+def test_a_failed_session_subscription_rolls_the_session_back() -> None:
+    service, calls, signals = _service()
+    service.start()
+
+    def refuse_signals():
+        raise RuntimeError("bus is gone")
+
+    signals.subscribe = refuse_signals  # type: ignore[method-assign]
+    signals.respond(calls.request("CreateSession"), 0, {"session_handle": "/s/1"})
+
+    assert service.state is GlobalShortcutsState.ERROR
+    assert "could not subscribe to session signals" in (service.status.message or "")
+    assert service.session_handle is None
+    # The half-open remote session must be closed rather than leaked.
+    assert [call.interface for call in calls.by_method("Close")] == [SESSION_INTERFACE]
+
+
+def test_binding_without_the_toggle_shortcut_is_denied() -> None:
+    service, calls, signals = _service()
+    service.start()
+    _create_session(service, calls, signals)
+
+    signals.respond(calls.request("BindShortcuts"), 0, {"shortcuts": []})
+
+    assert service.state is GlobalShortcutsState.DENIED
+    assert "was not bound" in (service.status.message or "")
+
+
+def test_list_shortcuts_without_the_toggle_shortcut_is_denied() -> None:
+    service, calls, signals = _service()
+    _start_bound(service, calls, signals)
+
+    service.list_shortcuts()
+    signals.respond(calls.request("ListShortcuts"), 0, {"shortcuts": []})
+
+    assert service.state is GlobalShortcutsState.DENIED
+    assert "is not assigned" in (service.status.message or "")
+
+
+def test_a_denied_or_cancelled_response_is_surfaced_verbatim() -> None:
+    for response, expected in (
+        (1, GlobalShortcutsState.CANCELLED),
+        (2, GlobalShortcutsState.DENIED),
+    ):
+        service, calls, signals = _service()
+        service.start()
+
+        signals.respond(calls.request("CreateSession"), response)
+
+        assert service.state is expected, response
+
+    # Codes beyond the documented 0/1/2 are still reported, not swallowed.
+    service, calls, signals = _service()
+    service.start()
+    signals.respond(calls.request("CreateSession"), 9)
+    assert service.state is GlobalShortcutsState.ERROR
+
+
+def test_the_portal_closing_the_session_is_reported_as_an_error() -> None:
+    service, calls, signals = _service()
+    session_handle = _start_bound(service, calls, signals)
+
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path=session_handle,
+        interface=SESSION_INTERFACE,
+        signal="Closed",
+        parameters=(),
+    )
+
+    assert service.state is GlobalShortcutsState.ERROR
+    assert "session was closed" in (service.status.message or "")
+    assert service.session_handle is None
+
+
+def test_the_portal_restarting_restarts_the_registration_sequence() -> None:
+    service, calls, signals = _service()
+    _start_bound(service, calls, signals)
+
+    signals.owner_changed(":1.7", ":1.9")
+
+    # A new owner means a fresh session must be negotiated from scratch.
+    assert service.state is GlobalShortcutsState.CREATING
+    assert calls.methods().count("CreateSession") == 2
+
+
+def test_the_portal_disappearing_reports_unavailable() -> None:
+    service, calls, signals = _service()
+    _start_bound(service, calls, signals)
+
+    signals.owner_changed(":1.7", "")
+
+    assert service.state is GlobalShortcutsState.UNAVAILABLE
+    assert "portal stopped" in (service.status.message or "")
+
+
+def test_signals_for_other_names_sessions_and_arities_are_ignored() -> None:
+    service, calls, signals = _service()
+    session_handle = _start_bound(service, calls, signals)
+
+    # A change for an unrelated bus name must not disturb the session.
+    signals.emit(
+        sender=DBUS_BUS_NAME,
+        object_path=DBUS_OBJECT_PATH,
+        interface=DBUS_INTERFACE,
+        signal="NameOwnerChanged",
+        parameters=("org.example.Other", ":1.1", ":1.2"),
+    )
+    # A session-closed event for someone else's session is equally irrelevant.
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path="/org/freedesktop/portal/desktop/session/9_9/other",
+        interface=SESSION_INTERFACE,
+        signal="Closed",
+        parameters=(),
+    )
+    # A malformed ownership payload must not crash the service either.
+    service._on_name_owner_changed(("too", "short"))
+    service._on_name_owner_changed(("not", "a", "string", "triple"))
+
+    assert service.state is GlobalShortcutsState.BOUND
+    assert service.session_handle == session_handle
+
+
+class _Variant:
+    """Stand in for a GLib.Variant, which unpacks to a plain value."""
+
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    def unpack(self) -> object:
+        return self._value
+
+
+class TestPortalPayloadParsing:
+    """Portal replies cross a process boundary and are untrusted input."""
+
+    def test_deep_unpack_recurses_through_nested_variants(self):
+        nested = _Variant({"a": _Variant((_Variant(1), _Variant([_Variant("x")])))})
+
+        assert shortcuts_mod._deep_unpack(nested) == {"a": (1, ["x"])}
+
+    def test_deep_unpack_passes_plain_values_through(self):
+        for value in (5, "text", None, 1.5):
+            assert shortcuts_mod._deep_unpack(value) == value
+
+    def test_deep_unpack_handles_a_variant_that_unpacks_to_itself(self):
+        class _SelfUnpacking(dict):
+            def unpack(self):
+                return self
+
+        value = _SelfUnpacking({"k": _Variant(1)})
+
+        assert shortcuts_mod._deep_unpack(value) == {"k": 1}
+
+    def test_vardict_packs_strings_bools_and_signed_ints(self):
+        glib = SimpleNamespace(Variant=lambda signature, value: (signature, value))
+
+        packed = shortcuts_mod._gio_vardict(
+            glib, {"s": "x", "b": True, "n": 3, "i": -3}
+        )
+
+        assert packed == {
+            "s": ("s", "x"),
+            "b": ("b", True),
+            "n": ("u", 3),
+            "i": ("i", -3),
+        }
+
+    def test_vardict_refuses_values_it_cannot_pack(self):
+        glib = SimpleNamespace(Variant=lambda signature, value: (signature, value))
+
+        with pytest.raises(TypeError, match="unsupported variant value for data"):
+            shortcuts_mod._gio_vardict(glib, {"data": ["nested"]})
+
+    def test_response_values_reject_malformed_payloads(self):
+        for parameters in ((), ("only-one",), (0, {}, 3), ("not-an-int", {})):
+            with pytest.raises(ValueError):
+                shortcuts_mod._response_values(parameters)
+
+    def test_response_values_unpack_a_well_formed_reply(self):
+        response, results = shortcuts_mod._response_values(
+            (_Variant(0), _Variant({"shortcuts": []}))
+        )
+
+        assert response == 0
+        assert results == {"shortcuts": []}
+
+    def test_binding_extraction_skips_malformed_entries(self):
+        binding = shortcuts_mod._binding_from_shortcuts(
+            [
+                "not-a-pair",
+                ("too", "many", "fields"),
+                ("other-id", {"description": "Other"}),
+                (
+                    TOGGLE_SEARCH_SHORTCUT_ID,
+                    {
+                        "description": "Toggle Docking search",
+                        "trigger_description": "Super+Space",
+                    },
+                ),
+            ]
+        )
+
+        assert binding is not None
+        assert binding.shortcut_id == TOGGLE_SEARCH_SHORTCUT_ID
+        assert binding.description == "Toggle Docking search"
+        assert binding.trigger_description == "Super+Space"
+
+    def test_binding_extraction_returns_none_without_the_toggle_entry(self):
+        assert shortcuts_mod._binding_from_shortcuts([("other-id", {})]) is None
+        assert shortcuts_mod._binding_from_shortcuts("not-a-sequence") is None
+
+    def test_binding_from_results_tolerates_a_missing_shortcuts_key(self):
+        assert shortcuts_mod._binding_from_results({}) is None
+
+    def test_expected_request_path_uses_the_connection_unique_name(self):
+        connection = SimpleNamespace(get_unique_name=lambda: ":1.42")
+
+        assert (
+            shortcuts_mod._expected_request_path(connection, "tok")
+            == "/org/freedesktop/portal/desktop/request/1_42/tok"
+        )
+
+    def test_expected_request_path_falls_back_to_the_attribute(self):
+        assert shortcuts_mod._expected_request_path(
+            SimpleNamespace(unique_name=":1.7"), "tok"
+        ) == ("/org/freedesktop/portal/desktop/request/1_7/tok")
+        # Without any unique name the expected path cannot be predicted.
+        assert shortcuts_mod._expected_request_path(SimpleNamespace(), "tok") is None
+        assert (
+            shortcuts_mod._expected_request_path(SimpleNamespace(unique_name=""), "tok")
+            is None
+        )
+
+
+class TestTokenAndPublish:
+    def test_tokens_are_sanitized_for_dbus_and_made_unique(self):
+        service, _calls, _signals = _service()
+        service._token_factory = lambda: "a b/c:d"
+
+        first = service._new_token("create")
+        second = service._new_token("create")
+
+        assert first == "docking_create_1_a_b_c_d"
+        assert second == "docking_create_2_a_b_c_d"
+
+    def test_an_empty_token_factory_result_still_yields_a_usable_token(self):
+        service, _calls, _signals = _service()
+        service._token_factory = lambda: ""
+
+        token = service._new_token("create")
+
+        assert token.startswith("docking_create_1_")
+        assert len(token) > len("docking_create_1_")
+
+    def test_publishing_the_same_status_twice_notifies_once(self):
+        seen: list[GlobalShortcutsState] = []
+        service, _calls, _signals = _service()
+        service._on_status_changed = lambda status: seen.append(status.state)
+
+        service._publish(GlobalShortcutsState.STARTING)
+        service._publish(GlobalShortcutsState.STARTING)
+
+        assert seen == [GlobalShortcutsState.STARTING]
+
+    def test_a_failing_status_callback_does_not_break_the_service(self):
+        def explode(_status):
+            raise RuntimeError("listener failed")
+
+        service, calls, _signals = _service()
+        service._on_status_changed = explode
+
+        service.start()
+
+        # The portal sequence continues despite the listener blowing up.
+        assert calls.by_method("CreateSession")

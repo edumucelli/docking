@@ -28,6 +28,44 @@ def test_parse_xdg_shortcut_and_session_detection() -> None:
         parse_xdg_shortcut("CTRL+ALT")
 
 
+def test_parse_xdg_shortcut_rejects_shortcuts_without_a_usable_key() -> None:
+    for shortcut in ("", "   ", "+", "CTRL++ALT", "SHIFT"):
+        with pytest.raises(ValueError, match=r"must contain a key|non-modifier key"):
+            parse_xdg_shortcut(shortcut)
+
+
+def test_parse_xdg_shortcut_rejects_unknown_modifiers() -> None:
+    with pytest.raises(ValueError, match="unknown shortcut modifier: HYPER"):
+        parse_xdg_shortcut("HYPER+space")
+
+
+def test_parse_xdg_shortcut_rejects_keys_that_x11_cannot_grab() -> None:
+    for shortcut in ("CTRL+sp ace", "CTRL+sp/ace", "CTRL+!!"):
+        with pytest.raises(ValueError, match="invalid shortcut key"):
+            parse_xdg_shortcut(shortcut)
+
+
+def test_parse_xdg_shortcut_is_case_insensitive_and_ignores_padding() -> None:
+    modifiers, key = parse_xdg_shortcut("  ctrl + alt + F5  ")
+
+    assert modifiers == CONTROL_MASK | MOD1_MASK
+    assert key == "F5"
+
+    # A bare key with no modifier is still a valid grab.
+    assert parse_xdg_shortcut("F5") == (0, "F5")
+    assert parse_xdg_shortcut("Super")[1] == "Super"
+
+
+def test_session_detection_falls_back_to_display_variables() -> None:
+    # No XDG_SESSION_TYPE: DISPLAY alone means X11, but a Wayland socket wins.
+    assert is_x11_session({"DISPLAY": ":0"})
+    assert not is_x11_session({"DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0"})
+    assert not is_x11_session({})
+    assert not is_x11_session({"WAYLAND_DISPLAY": "wayland-0"})
+    # An explicit session type overrides the ambient variables.
+    assert not is_x11_session({"XDG_SESSION_TYPE": "wayland", "DISPLAY": ":0"})
+
+
 class _FakeWorker:
     def __init__(self, *, starts: bool = True, error: str | None = None) -> None:
         self.starts = starts

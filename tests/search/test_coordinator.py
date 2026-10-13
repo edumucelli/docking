@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable
 import pytest
 
 from docking.search.coordinator import (
+    SearchCancelledError,
     SearchCoordinator,
     SearchRequest,
     SearchSnapshot,
@@ -539,3 +540,311 @@ class TestProviderErrors:
         snapshot = coordinator.snapshot()
         assert snapshot.errors == ()
         assert snapshot.is_final
+
+
+class TestSelection:
+    """Selection is by identity so a re-ranked list cannot move it."""
+
+    def test_selecting_none_clears_the_selection(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+        coordinator.apply_batch(
+            SearchBatch.replace(
+                "apps", request.generation, [_result("apps", "firefox")]
+            )
+        )
+        assert coordinator.select(SearchIdentity("apps", "firefox")) is True
+
+        assert coordinator.select(None) is True
+        assert coordinator.snapshot().selected_identity is None
+
+    def test_selecting_an_invisible_identity_is_refused(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+        coordinator.apply_batch(
+            SearchBatch.replace(
+                "apps", request.generation, [_result("apps", "firefox")]
+            )
+        )
+        visible = coordinator.snapshot().selected_identity
+
+        assert coordinator.select(SearchIdentity("apps", "absent")) is False
+        # The refusal must leave the automatic selection untouched.
+        assert coordinator.snapshot().selected_identity == visible
+
+    def test_a_visible_identity_becomes_the_selection(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+        coordinator.apply_batch(
+            SearchBatch.replace(
+                "apps", request.generation, [_result("apps", "firefox")]
+            )
+        )
+        identity = SearchIdentity("apps", "firefox")
+
+        assert coordinator.select(identity) is True
+        assert coordinator.snapshot().selected_identity == identity
+
+    def test_a_non_identity_is_rejected(self):
+        coordinator = _coordinator("apps")
+
+        with pytest.raises(TypeError, match="identity must be a SearchIdentity"):
+            coordinator.select("apps:firefox")
+
+
+class TestRankAdjustmentBounds:
+    """A misbehaving ranker must not arbitrarily reorder results.
+
+    The adjustment only influences sort order, so these assert on which result
+    ranks first rather than on the stored score.
+    """
+
+    def _ranked(self, adjuster, first_score: float, second_score: float) -> list[str]:
+        coordinator = SearchCoordinator(
+            (_Provider("apps"),),
+            rank_adjuster=adjuster,
+        )
+        request = coordinator.begin("fire")
+        coordinator.apply_batch(
+            SearchBatch.replace(
+                "apps",
+                request.generation,
+                [
+                    _result("apps", "first", score=first_score),
+                    _result("apps", "second", score=second_score),
+                ],
+            )
+        )
+        return [result.title for result in coordinator.snapshot().results]
+
+    def test_non_finite_adjustments_are_ignored_rather_than_clamped(self):
+        # "first" trails by 5. A +inf boost would lift it to the top if it
+        # were merely clamped to the limit, so this pins the ignore path.
+        order = self._ranked(
+            lambda _result, _query: float("inf"),
+            first_score=100.0,
+            second_score=105.0,
+        )
+
+        assert order == ["Second", "First"]
+
+    def test_a_huge_boost_cannot_overtake_a_large_deficit(self):
+        # +1000 clamps to +19, so 100 + 19 stays below 130.
+        order = self._ranked(
+            lambda _result, _query: 1000.0,
+            first_score=100.0,
+            second_score=130.0,
+        )
+
+        assert order == ["Second", "First"]
+
+    def test_a_huge_penalty_cannot_sink_a_large_lead(self):
+        # -1000 clamps to -19, so 130 - 19 stays above 100.
+        order = self._ranked(
+            lambda _result, _query: -1000.0,
+            first_score=130.0,
+            second_score=100.0,
+        )
+
+        assert order == ["First", "Second"]
+
+
+class TestStateGuards:
+    def test_snapshot_before_any_request_is_an_error(self):
+        coordinator = _coordinator("apps")
+
+        with pytest.raises(RuntimeError, match="no search generation"):
+            coordinator.snapshot()
+
+    def test_cancel_reports_false_when_there_is_nothing_to_cancel(self):
+        coordinator = _coordinator("apps")
+
+        assert coordinator.cancel() is False
+
+        request = coordinator.begin("fire")
+        assert coordinator.cancel(generation=request.generation + 5) is False
+        assert coordinator.cancel() is True
+        assert coordinator.cancel() is False
+
+    def test_duplicate_and_invalid_provider_ids_are_rejected(self):
+        with pytest.raises(ValueError, match="duplicate search provider"):
+            SearchCoordinator(
+                (_Provider("apps"), _Provider("apps")),
+                rank_adjuster=lambda _result, _query: 0,
+            )
+
+        with pytest.raises(
+            ValueError, match="search providers must have a non-empty provider_id"
+        ):
+            SearchCoordinator(
+                (_Provider("   "),),
+                rank_adjuster=lambda _result, _query: 0,
+            )
+
+    def test_begin_rejects_wrong_argument_types(self):
+        coordinator = _coordinator("apps")
+
+        with pytest.raises(TypeError, match="query must be a string or SearchQuery"):
+            coordinator.begin(123)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="selected_identity"):
+            coordinator.begin("fire", selected_identity="apps:firefox")  # type: ignore[arg-type]
+
+    def test_apply_batch_rejects_non_batches_and_ignores_finished_providers(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+
+        with pytest.raises(TypeError, match="batch must be a SearchBatch"):
+            coordinator.apply_batch("not-a-batch")  # type: ignore[arg-type]
+
+        assert coordinator.apply_batch(SearchBatch.final("apps", request.generation))
+        assert (
+            coordinator.apply_batch(
+                SearchBatch.append(
+                    "apps", request.generation, [_result("apps", "firefox")]
+                )
+            )
+            is False
+        )
+
+    def test_apply_batch_rejects_an_unknown_provider(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+
+        with pytest.raises(ValueError, match="unknown search provider"):
+            coordinator.apply_batch(SearchBatch.final("ghost", request.generation))
+
+
+class TestProviderErrorRecording:
+    def test_records_an_error_for_a_pending_provider(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+
+        assert coordinator.record_provider_error(
+            provider_id="apps",
+            generation=request.generation,
+            error=RuntimeError("lookup failed"),
+        )
+        snapshot = coordinator.snapshot()
+        assert [error.provider_id for error in snapshot.errors] == ["apps"]
+        assert snapshot.is_final
+
+    def test_rejects_non_exceptions_unknown_providers_and_stale_generations(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+
+        with pytest.raises(TypeError, match="error must be an exception"):
+            coordinator.record_provider_error(
+                provider_id="apps",
+                generation=request.generation,
+                error="not-an-error",  # type: ignore[arg-type]
+            )
+        with pytest.raises(ValueError, match="unknown search provider"):
+            coordinator.record_provider_error(
+                provider_id="ghost",
+                generation=request.generation,
+                error=RuntimeError("x"),
+            )
+
+        coordinator.finish_provider(provider_id="apps", generation=request.generation)
+        assert (
+            coordinator.record_provider_error(
+                provider_id="apps",
+                generation=request.generation,
+                error=RuntimeError("late"),
+            )
+            is False
+        )
+
+
+class TestProviderStreamFailures:
+    def test_an_unknown_provider_cannot_be_run(self):
+        coordinator = _coordinator("apps")
+        request = coordinator.begin("fire")
+
+        with pytest.raises(ValueError, match="unknown search provider"):
+            coordinator.run_provider(provider_id="ghost", request=request)
+
+    def test_a_stale_request_returns_a_snapshot_without_running(self):
+        coordinator = _coordinator("apps")
+        stale = coordinator.begin("fire")
+        current = coordinator.begin("term")
+
+        snapshot = coordinator.run_provider(provider_id="apps", request=stale)
+
+        assert snapshot.generation == current.generation
+        assert snapshot.results == ()
+
+    def test_cancelling_before_the_first_batch_is_not_an_error(self):
+        def cancelled(_request):
+            raise SearchCancelledError()
+
+        coordinator = SearchCoordinator(
+            (_Provider("apps", cancelled),),
+            rank_adjuster=lambda _result, _query: 0,
+        )
+
+        snapshot = coordinator.run("fire")
+
+        assert snapshot.errors == ()
+
+    def test_failing_to_start_a_stream_is_recorded_as_a_provider_error(self):
+        def explode(_request):
+            raise RuntimeError("provider boot failed")
+
+        coordinator = SearchCoordinator(
+            (_Provider("apps", explode),),
+            rank_adjuster=lambda _result, _query: 0,
+        )
+
+        snapshot = coordinator.run("fire")
+
+        assert [error.provider_id for error in snapshot.errors] == ["apps"]
+
+    def test_a_misattributed_batch_is_reported_rather_than_crashing(self):
+        def wrong_provider(request):
+            yield SearchBatch.replace("other", request.generation, [])
+
+        coordinator = SearchCoordinator(
+            (_Provider("apps", wrong_provider),),
+            rank_adjuster=lambda _result, _query: 0,
+        )
+
+        snapshot = coordinator.run("fire")
+
+        assert [error.provider_id for error in snapshot.errors] == ["apps"]
+        assert snapshot.results == ()
+
+    def test_a_batch_from_a_stale_generation_is_reported(self):
+        def wrong_generation(request):
+            yield SearchBatch.replace("apps", request.generation + 1, [])
+
+        coordinator = SearchCoordinator(
+            (_Provider("apps", wrong_generation),),
+            rank_adjuster=lambda _result, _query: 0,
+        )
+
+        snapshot = coordinator.run("fire")
+
+        assert [error.provider_id for error in snapshot.errors] == ["apps"]
+
+    def test_run_stops_consuming_providers_after_a_mid_run_cancel(self):
+        consumed: list[str] = []
+
+        def first(request):
+            coordinator.cancel()
+            consumed.append("first")
+            return ()
+
+        def second(request):
+            consumed.append("second")
+            return ()
+
+        coordinator = SearchCoordinator(
+            (_Provider("first", first), _Provider("second", second)),
+            rank_adjuster=lambda _result, _query: 0,
+        )
+
+        snapshot = coordinator.run("fire")
+
+        assert consumed == ["first"]
+        assert snapshot.cancelled is True

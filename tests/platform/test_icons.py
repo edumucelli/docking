@@ -305,3 +305,56 @@ def test_application_metadata_reuses_desktop_cache_identity(monkeypatch):
     assert first is pixbuf
     assert second is first
     lookup.assert_called_once_with(icon_name=canonical.declared_icon, size=48)
+
+
+def test_theme_candidates_translate_gnome_app_ids_and_file_names():
+    """Reverse-DNS app ids rarely match a theme icon name verbatim."""
+    assert icons_mod._theme_icon_candidates("org.gnome.Calculator") == [
+        "org.gnome.Calculator",
+        "gnome-calculator",
+        "calculator",
+    ]
+    assert icons_mod._theme_icon_candidates("org.gnome.Software") == [
+        "org.gnome.Software",
+        "gnome-software",
+        "software",
+    ]
+    # A bare file name also gets probed without its extension.
+    assert icons_mod._theme_icon_candidates("firefox.png") == ["firefox.png", "firefox"]
+    assert icons_mod._theme_icon_candidates("notes.SVG") == ["notes.SVG", "notes"]
+
+
+def test_theme_candidates_leave_other_names_alone():
+    # An absolute path is not a theme lookup name, so no stem is derived.
+    assert icons_mod._theme_icon_candidates("/opt/example/icon.png") == [
+        "/opt/example/icon.png"
+    ]
+    # The extension is only stripped for known image types.
+    assert icons_mod._theme_icon_candidates("archive.tar.gz") == ["archive.tar.gz"]
+    assert icons_mod._theme_icon_candidates("firefox") == ["firefox"]
+    assert icons_mod._theme_icon_candidates("") == []
+
+
+def test_theme_candidates_are_deduplicated():
+    # "gnome-x" would otherwise be emitted twice for this input.
+    assert icons_mod._theme_icon_candidates("org.gnome.gnome-foo") == [
+        "org.gnome.gnome-foo",
+        "gnome-gnome-foo",
+        "gnome-foo",
+    ]
+
+
+def test_icon_theme_falls_back_to_a_custom_hicolor_theme(monkeypatch):
+    monkeypatch.setattr(
+        icons_mod.Gtk.IconTheme, "get_default", lambda: None, raising=False
+    )
+    monkeypatch.setattr(icons_mod, "HOST_PIXMAP_DIRS", ())
+
+    theme = icons_mod._create_icon_theme()
+
+    assert isinstance(theme, icons_mod.Gtk.IconTheme)
+
+
+def test_unroutable_local_target_has_no_icon():
+    """A path that cannot be resolved degrades to no icon instead of raising."""
+    assert icons_mod._normalize_file_target_for_icon("/tmp/embedded\0null.png") is None
