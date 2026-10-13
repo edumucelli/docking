@@ -673,3 +673,107 @@ def test_provider_refine_and_invoke_failures_are_contained(monkeypatch) -> None:
     controller._activate_action(result, result.actions[0])
 
     assert window.refinements == []
+
+
+def test_shortcut_status_text_covers_every_portal_state(monkeypatch) -> None:
+    """Every state the portal can report maps to a distinct user-facing label."""
+    controller, *_ = _make_controller(monkeypatch)
+    controller._shortcut_fallback = None
+    expected = {
+        GlobalShortcutsState.STOPPED: ("Not active", "Inactive"),
+        GlobalShortcutsState.STARTING: ("Connecting...", "Connecting"),
+        GlobalShortcutsState.CREATING: ("Connecting...", "Connecting"),
+        GlobalShortcutsState.BINDING: ("Connecting...", "Connecting"),
+        GlobalShortcutsState.UNAVAILABLE: (
+            "Unavailable on this desktop",
+            "Unavailable",
+        ),
+        GlobalShortcutsState.DENIED: ("Permission denied", "Denied"),
+        GlobalShortcutsState.CANCELLED: ("Setup cancelled", "Cancelled"),
+        GlobalShortcutsState.ERROR: ("Registration failed", "Failed"),
+    }
+
+    for state, (text, summary) in expected.items():
+        controller._shortcut_status = GlobalShortcutsStatus(state=state)
+
+        assert controller.shortcut_status_text() == text, state
+        assert controller.shortcut_status_summary() == summary, state
+
+
+def test_shortcut_status_names_the_trigger_when_the_desktop_reports_one(
+    monkeypatch,
+) -> None:
+    controller, *_ = _make_controller(monkeypatch)
+    controller._shortcut_fallback = None
+    controller._shortcut_status = GlobalShortcutsStatus(
+        state=GlobalShortcutsState.REASSIGNED,
+        binding=GlobalShortcutBinding(
+            shortcut_id="toggle-search",
+            description="Toggle Docking search",
+            trigger_description="Super+D",
+        ),
+    )
+
+    assert controller.shortcut_status_text() == "Assigned: Super+D"
+    assert controller.shortcut_status_summary() == "Active"
+
+    # A reassignment without a trigger still reports as desktop-assigned.
+    controller._shortcut_status = GlobalShortcutsStatus(
+        state=GlobalShortcutsState.REASSIGNED
+    )
+    assert controller.shortcut_status_text() == "Assigned by desktop"
+
+
+def test_shortcut_status_distinguishes_fallback_failures(monkeypatch) -> None:
+    """A shortcut conflict needs different advice than a generic failure."""
+    controller, *_ = _make_controller(monkeypatch)
+    fallback = MagicMock()
+    fallback.active = False
+    controller._shortcut_fallback = fallback
+
+    fallback.error = "shortcut is already in use"
+    assert controller.shortcut_status_text() == "Shortcut already in use"
+    assert controller.shortcut_status_summary() == "Conflict"
+
+    fallback.error = "GDBus.Error:org.freedesktop.DBus.Error.InvalidArgs"
+    assert controller.shortcut_status_text() == "Registration failed"
+    assert controller.shortcut_status_summary() == "Failed"
+
+
+def test_shortcut_status_listeners_subscribe_once_and_unsubscribe_idempotently(
+    monkeypatch,
+) -> None:
+    controller, *_ = _make_controller(monkeypatch)
+    listener = MagicMock()
+
+    unsubscribe = controller.add_shortcut_status_listener(listener)
+    controller.add_shortcut_status_listener(listener)
+
+    controller._notify_shortcut_status()
+    assert listener.call_count == 1
+
+    unsubscribe()
+    unsubscribe()
+    controller._notify_shortcut_status()
+
+    assert listener.call_count == 1
+
+
+def test_shortcut_status_notifications_do_not_leak_a_slow_listener(
+    monkeypatch,
+) -> None:
+    """A listener that unsubscribes during delivery must not break the loop."""
+    controller, *_ = _make_controller(monkeypatch)
+    seen: list[str] = []
+    unsubscribe_holder: list[Any] = []
+
+    def first() -> None:
+        seen.append("first")
+        unsubscribe_holder[0]()
+
+    unsubscribe_holder.append(controller.add_shortcut_status_listener(first))
+    controller.add_shortcut_status_listener(lambda: seen.append("second"))
+
+    controller._notify_shortcut_status()
+
+    assert seen == ["first", "second"]
