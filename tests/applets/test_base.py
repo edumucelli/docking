@@ -112,6 +112,26 @@ class TestAppletBaseHelpers:
         assert config.applet_prefs["session"] == {"foo": "bar"}
         config.save.assert_called_once_with()
 
+    def test_save_prefs_keeps_keys_the_payload_does_not_know_about(self):
+        """An applet's payload describes its own state, not every stored key.
+
+        Replacing the whole mapping dropped the icon source chosen from the
+        applet menu the first time the applet saved anything else, so the icon
+        silently reverted to the Docking-drawn one and the loss was written to
+        disk. Only these two applets combine a System Icon choice with
+        preference writes, but every applet saves through here.
+        """
+        config = MagicMock()
+        config.applet_prefs = {"session": {"icon_source": "system"}}
+        applet = _BasicApplet(config=config)
+
+        applet.save_prefs({"last_expression": "4"})
+
+        assert config.applet_prefs["session"] == {
+            "icon_source": "system",
+            "last_expression": "4",
+        }
+
     def test_default_hooks_are_safe_and_present_notifies(self):
         applet = _BasicApplet(Config())
         notify = MagicMock()

@@ -22,6 +22,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import keyword
 import sys
 from pathlib import Path
 
@@ -185,7 +186,9 @@ def _to_display(aid: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Scaffold a new docking applet")
-    parser.add_argument("name", help="Applet id (lowercase, no spaces)")
+    parser.add_argument(
+        "name", help="Applet id (a Python identifier: lowercase, no spaces)"
+    )
     parser.add_argument(
         "--category",
         choices=[c.name for c in AppletCategory],
@@ -195,6 +198,17 @@ def main() -> None:
     args = parser.parse_args()
 
     aid: str = args.name.lower().replace("-", "").replace("_", "")
+    # The id becomes a package name, an import path, and a class-name prefix in
+    # the generated files, so an id that is not a plain Python identifier would
+    # emit modules that cannot even be imported.
+    if not aid.isidentifier() or keyword.iskeyword(aid):
+        print(
+            f"ERROR: {args.name!r} is not a usable applet id (derived id: {aid!r}). "
+            "Use lowercase letters, digits, and underscores, starting with a "
+            "letter, and avoid Python keywords.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     category: str = args.category
     class_name = _to_class_name(aid)
     state_class = aid.capitalize() + "State"

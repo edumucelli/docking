@@ -35,6 +35,8 @@ from docking.i18n import _
 INDEFINITE = 0
 DURATION_PRESETS: tuple[int, ...] = (INDEFINITE, 15, 30, 60, 120)
 DEFAULT_DURATION = INDEFINITE
+MIN_DURATION_MIN = INDEFINITE
+MAX_DURATION_MIN = 24 * 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +52,23 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> CaffeineState:
     """Build applet state from persisted preferences (active never persists)."""
     if not prefs:
         return CaffeineState()
-    return CaffeineState(duration_min=int(prefs.get("duration_min", DEFAULT_DURATION)))
+    return CaffeineState(duration_min=coerce_duration(prefs.get("duration_min")))
+
+
+def coerce_duration(value: object) -> int:
+    """Coerce a persisted timer length into a usable number of minutes.
+
+    The value is read during applet construction, so a hand-edited config with
+    a string or a NaN raised there and the dock dropped the applet from the
+    bar, rather than starting with the default duration.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_DURATION
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return DEFAULT_DURATION
+    return max(MIN_DURATION_MIN, min(MAX_DURATION_MIN, parsed))
 
 
 def prefs_from_state(state: CaffeineState) -> dict[str, object]:

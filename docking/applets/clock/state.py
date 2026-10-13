@@ -31,6 +31,11 @@ DEFAULT_PREFS: dict[str, Any] = {
     "alarm_target": None,
 }
 
+# A one-shot alarm is set from the clock menu for the next occurrence of a
+# time of day, so anything past this is a corrupted or hand-mangled value
+# (a millisecond epoch, say) rather than an alarm the user asked for.
+MAX_ALARM_HORIZON_S = 366 * 24 * 60 * 60
+
 
 def minute_rotation(minute: int) -> float:
     """Rotation angle (radians) for the minute hand."""
@@ -62,27 +67,54 @@ def normalize_alarm_target(value: object, *, now_ts: float) -> int | None:
         target = int(value)
     else:
         return None
-    return target if target > int(now_ts) else None
+    now = int(now_ts)
+    if target <= now or target > now + MAX_ALARM_HORIZON_S:
+        return None
+    # The rest of the applet formats the target with time.localtime, which
+    # raises for a value the platform cannot represent. Such a persisted value
+    # used to escape the constructor, and the model then dropped the applet
+    # from the dock with only a log line, on every single start.
+    try:
+        time.localtime(target)
+    except (OSError, OverflowError, ValueError):
+        return None
+    return target
+
+
+def _wall_clock_target(
+    now_local: time.struct_time, *, day_offset: int, hour: int, minute: int
+) -> float:
+    """Timestamp of HH:MM, ``day_offset`` calendar days after ``now_local``.
+
+    ``mktime`` normalises an out-of-range day, and -1 makes the C library
+    resolve the daylight-saving state of the *target* instant. Reusing "now"'s
+    state instead pinned the result to the current offset, so an alarm set the
+    night before a change rang an hour out.
+    """
+    return time.mktime(
+        (
+            now_local.tm_year,
+            now_local.tm_mon,
+            now_local.tm_mday + day_offset,
+            hour,
+            minute,
+            0,
+            0,
+            0,
+            -1,
+        )
+    )
 
 
 def compute_alarm_target(*, now_ts: float, hour: int, minute: int) -> int:
     """Return the next timestamp for the requested wall-clock time."""
     now_local = time.localtime(now_ts)
-    target = time.mktime(
-        (
-            now_local.tm_year,
-            now_local.tm_mon,
-            now_local.tm_mday,
-            hour,
-            minute,
-            0,
-            now_local.tm_wday,
-            now_local.tm_yday,
-            now_local.tm_isdst,
-        )
-    )
+    target = _wall_clock_target(now_local, day_offset=0, hour=hour, minute=minute)
     if target <= now_ts:
-        target += 24 * 60 * 60
+        # Advance the calendar day rather than adding 24 hours: the next day
+        # is not 86400 seconds away across a daylight-saving change, and the
+        # alarm was landing an hour early because of it.
+        target = _wall_clock_target(now_local, day_offset=1, hour=hour, minute=minute)
     return int(target)
 
 

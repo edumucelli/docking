@@ -3,9 +3,17 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.clippy.applet as clippy_mod
 from docking.applets.clippy.applet import ClippyApplet
-from docking.applets.clippy.state import _truncate
+from docking.applets.clippy.state import (
+    DEFAULT_MAX_ENTRIES,
+    MAX_MAX_ENTRIES,
+    _truncate,
+    add_clip,
+    normalize_max_entries,
+)
 from docking.core.config import Config
 
 
@@ -191,6 +199,43 @@ class TestClipLifecycle:
             48, config=Config(applet_prefs={"clippy": {"max_entries": 7}})
         )
         assert applet._max_entries == 7
+
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            (-1, 1),  # used to raise IndexError on every single copy
+            (0, 1),
+            ("15", 15),  # used to raise TypeError on every copy
+            ("not a number", DEFAULT_MAX_ENTRIES),
+            (None, DEFAULT_MAX_ENTRIES),
+            (float("nan"), DEFAULT_MAX_ENTRIES),
+            (float("inf"), DEFAULT_MAX_ENTRIES),
+            (True, DEFAULT_MAX_ENTRIES),
+            (10**9, MAX_MAX_ENTRIES),
+        ],
+    )
+    def test_normalize_max_entries_survives_config_file_values(self, stored, expected):
+        """The cap has no UI, so the config file is its only input.
+
+        Passing it through raw left the applet unable to record a single
+        clipboard change, because the exception fired inside the owner-change
+        signal handler on every copy.
+        """
+        assert normalize_max_entries(stored) == expected
+
+    def test_negative_persisted_cap_still_records_clips(self):
+        applet = ClippyApplet(
+            48, config=Config(applet_prefs={"clippy": {"max_entries": -1}})
+        )
+
+        applet.add_clip("first")
+        applet.add_clip("second")
+
+        assert applet._clips == ["second"]
+
+    def test_add_clip_tolerates_a_zero_cap(self):
+        """The pop loop must stop at the empty list whatever the cap is."""
+        assert add_clip(clips=[], text="hi", max_entries=-5) == ([], 0)
 
     def test_on_clicked_copies_current_clip_when_available(self):
         applet = ClippyApplet(48, config=Config())
