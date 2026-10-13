@@ -92,7 +92,7 @@ def normalize_web_target(text: str) -> str | None:
     except ValueError:
         return None
     if parsed.scheme.casefold() in {"http", "https"}:
-        return value if parsed.netloc else None
+        return value if parsed.hostname else None
     if parsed.scheme.casefold() == "mailto" and _EMAIL_RE.fullmatch(parsed.path):
         return value
     if _EMAIL_RE.fullmatch(value):
