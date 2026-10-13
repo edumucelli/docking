@@ -140,6 +140,24 @@ def test_incomplete_or_invalid_ipv6_urls_are_not_claimed(query: str) -> None:
 @pytest.mark.parametrize(
     "query",
     [
+        "http://user@",
+        "https://user:password@",
+        "http://:80",
+        "https://:443/path",
+        "http://",
+        "https://?query=x",
+    ],
+)
+def test_http_urls_without_hostname_stay_global(query: str) -> None:
+    assert normalize_web_target(query) is None
+    intent = parse_query_intent(query)
+    assert intent.kind is QueryIntentKind.GLOBAL
+    assert intent.provider_ids == ()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
         "https://user@example.com",
         "https://user:password@example.com",
         "https://example.com/path@other.com",
