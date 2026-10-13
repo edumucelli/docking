@@ -41,6 +41,7 @@ its dynamic behavior explicit.
 from __future__ import annotations
 
 import json
+import math
 import urllib.request
 from enum import Enum
 from typing import Any, NamedTuple
@@ -169,17 +170,39 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         return None
 
     # v2 response: [{"base": "EUR", "quote": "USD", "rate": 1.08}, ...]
-    rates: dict[str, float] = {}
     if isinstance(data, list):
-        for entry in data:
-            code = entry.get("quote", "")
-            rate = entry.get("rate")
-            if code and isinstance(rate, int | float) and rate > 0:
-                rates[code] = float(rate)
-    elif isinstance(data, dict) and "rates" in data:
-        rates = data["rates"]
+        entries = [
+            (entry.get("quote"), entry.get("rate"))
+            for entry in data
+            if isinstance(entry, dict)
+        ]
+    elif isinstance(data, dict) and isinstance(data.get("rates"), dict):
+        entries = list(data["rates"].items())
+    else:
+        entries = []
 
-    if not rates:
+    factors: dict[str, float] = {}
+    for code, raw_rate in entries:
+        if (
+            not isinstance(code, str)
+            or len(code) != 3
+            or not code.isascii()
+            or not code.isalpha()
+            or isinstance(raw_rate, bool)
+            or not isinstance(raw_rate, int | float)
+        ):
+            continue
+        try:
+            rate = float(raw_rate)
+            if rate <= 0 or not math.isfinite(rate):
+                continue
+            factor = 1.0 / rate
+        except (OverflowError, ValueError):
+            continue
+        if factor > 0 and math.isfinite(factor):
+            factors[code.upper()] = factor
+
+    if not factors:
         log.warning("No currency rates in response")
         return None
 
@@ -188,9 +211,8 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
     # EUR is base, factor 1.0. For USD with rate 1.08 (1 EUR = 1.08 USD),
     # factor = 1/1.08 so that converting 100 EUR->USD = 100 * 1.0 / (1/1.08) = 108.
     units = [Unit("Euro", "EUR", 1.0)]
-    for code, rate in sorted(rates.items()):
-        if isinstance(rate, int | float) and rate > 0:
-            units.append(Unit(code, code, 1.0 / float(rate)))
+    for code, factor in sorted(factors.items()):
+        units.append(Unit(code, code, factor))
     return tuple(units)
 
 

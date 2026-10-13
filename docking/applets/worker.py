@@ -126,5 +126,9 @@ class BackgroundWorker:
                 return
             self._idle_add(guarded_result, result)
 
-        self._thread_factory(target=task, daemon=True).start()
+        try:
+            self._thread_factory(target=task, daemon=True).start()
+        except Exception:
+            finish()
+            raise
         return True

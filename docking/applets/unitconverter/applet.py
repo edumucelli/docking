@@ -287,6 +287,12 @@ class UnitConverterApplet(Applet):
             return
         f = self._from_combo.get_active()
         t = self._to_combo.get_active()
+        if f < 0:
+            f = self._unit_index_from_combo(
+                combo=self._from_combo, fallback=self._from_idx
+            )
+        if t < 0:
+            t = self._unit_index_from_combo(combo=self._to_combo, fallback=self._to_idx)
         self._from_combo.set_active(t)
         self._to_combo.set_active(f)
 
@@ -308,6 +314,14 @@ class UnitConverterApplet(Applet):
         """Resolve either selected or typed unit text into the current unit index."""
         typed = combo.get_child().get_text().strip()
         units = get_units(get_categories()[self._cat_idx])
+        normalized = typed.casefold()
+        for index, unit in enumerate(units):
+            if normalized in {
+                unit.name.casefold(),
+                unit.symbol.casefold(),
+                _unit_label(unit).casefold(),
+            }:
+                return index
         for index, unit in enumerate(units):
             if _unit_label_matches(typed, _unit_label(unit)):
                 return index

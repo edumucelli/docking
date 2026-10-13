@@ -279,7 +279,10 @@ def article_age(*, article: NewsArticle, now: dt.datetime | None = None) -> str:
     if article.published <= 0:
         return ""
     current = now or dt.datetime.now(dt.timezone.utc)
-    published = dt.datetime.fromtimestamp(article.published, tz=dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(article.published, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
     seconds = max(0, int((current - published).total_seconds()))
     if seconds < 60:
         return _("now")

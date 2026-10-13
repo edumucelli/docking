@@ -116,6 +116,11 @@ def _make_applet(config: Config | None = None) -> RedditApplet:
 
 
 class TestRedditSources:
+    @pytest.mark.parametrize("value", ["https://[", "https://[invalid]/r/linux"])
+    def test_malformed_subreddit_urls_are_rejected(self, value):
+        assert normalize_subreddit(value) is None
+        assert normalize_subreddits([value, "linux"]) == ("linux",)
+
     def test_normalize_subreddit_names_and_urls(self):
         assert normalize_subreddit(" Linux ") == "linux"
         assert normalize_subreddit("r/Python") == "python"
@@ -196,6 +201,14 @@ class TestRedditSources:
 
 
 class TestRedditFeedParsing:
+    def test_malformed_url_does_not_discard_valid_posts(self):
+        posts = parse_reddit_feed(
+            _feed(_entry(post_id="broken", url="https://[") + _entry()),
+            subreddit="linux",
+        )
+
+        assert [post.id for post in posts] == ["t3_abc123"]
+
     def test_parses_atom_entry(self):
         posts = parse_reddit_feed(
             _feed(_entry()),
@@ -352,6 +365,10 @@ class TestRedditPreferences:
 
 
 class TestRedditFormatting:
+    @pytest.mark.parametrize("published", [10**30, 253402300800])
+    def test_out_of_range_cached_timestamp_has_no_age(self, published):
+        assert post_age(post=_post(published=published)) == ""
+
     def test_rank_index_and_age_edges(self):
         assert post_rank(index=0, count=0) == ""
         assert post_rank(index=1, count=3) == "2/3"

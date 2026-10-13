@@ -41,7 +41,7 @@ def recent_documents_for(
         key=lambda candidate: candidate.get_modified(),
         reverse=True,
     ):
-        if not item.is_local() or not item.exists():
+        if item.get_private_hint() or not item.is_local() or not item.exists():
             continue
         mime_type = item.get_mime_type()
         if not mime_type or not item.has_application(application.name):

@@ -138,7 +138,10 @@ def story_age(*, story: HackerNewsStory, now: dt.datetime | None = None) -> str:
     if story.time <= 0:
         return ""
     current = now or dt.datetime.now(dt.timezone.utc)
-    published = dt.datetime.fromtimestamp(story.time, tz=dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(story.time, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
     seconds = max(0, int((current - published).total_seconds()))
     if seconds < 60:
         return _("now")

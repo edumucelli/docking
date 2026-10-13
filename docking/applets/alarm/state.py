@@ -328,12 +328,15 @@ def _preset_from_mapping(raw: object) -> AlarmPreset | None:
     if not isinstance(raw, Mapping):
         return None
     raw_dict = {str(key): value for key, value in raw.items()}
+    enabled = raw_dict.get("enabled", True)
+    if isinstance(enabled, str):
+        enabled = enabled.strip().casefold() not in {"", "0", "false", "no", "off"}
     try:
         preset = AlarmPreset(
             label=str(raw_dict.get("label", DEFAULT_LABEL)),
             hour=_parse_int(raw_dict.get("hour"), default=7),
             minute=_parse_int(raw_dict.get("minute"), default=0),
-            enabled=bool(raw_dict.get("enabled", True)),
+            enabled=bool(enabled),
             repeat_days=_parse_repeat_days(raw_dict.get("repeat_days")),
             snooze_minutes=_parse_int(
                 raw_dict.get("snooze_minutes"),

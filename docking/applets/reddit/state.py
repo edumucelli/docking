@@ -93,7 +93,10 @@ def normalize_subreddit(value: object) -> str | None:
     text = normalize_text(value).strip()
     if not text:
         return None
-    parsed = urlsplit(text)
+    try:
+        parsed = urlsplit(text)
+    except ValueError:
+        return None
     if parsed.scheme in {"http", "https"} and parsed.hostname in {
         "reddit.com",
         "www.reddit.com",
@@ -302,7 +305,10 @@ def post_age(*, post: RedditPost, now: dt.datetime | None = None) -> str:
     if post.published <= 0:
         return ""
     current = now or dt.datetime.now(dt.timezone.utc)
-    published = dt.datetime.fromtimestamp(post.published, tz=dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(post.published, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
     seconds = max(0, int((current - published).total_seconds()))
     if seconds < 60:
         return _("now")
@@ -520,7 +526,10 @@ def _entry_url(*, entry: ET.Element, namespace: str) -> str:
 def _is_reddit_url(value: str) -> bool:
     if not value:
         return False
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
     host = (parsed.hostname or "").casefold()
     return parsed.scheme in {"http", "https"} and (
         host in {"reddit.com", "redd.it"} or host.endswith((".reddit.com", ".redd.it"))

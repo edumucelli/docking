@@ -51,6 +51,31 @@ class _ImmediateThread:
 
 
 class TestState:
+    def test_plain_path_keeps_literal_percent_sequences(self, tmp_path):
+        path = tmp_path / "report%20draft.txt"
+        path.write_text("selected file")
+        (tmp_path / "report draft.txt").write_text("another file")
+
+        assert file_path_from_uri(str(path)) == path
+        assert first_uploadable_file([str(path)]) == path
+        assert file_path_from_uri(path.as_uri()) == path
+
+    def test_newlines_in_filename_stay_inside_multipart_filename(self, tmp_path):
+        path = tmp_path / "report\r\nX-Extra: header.txt"
+        path.write_text("payload")
+        captured = []
+
+        def opener(request, timeout):
+            captured.append(request.data)
+            return _Response(b'{"data":{"url":"https://tmpfiles.org/shared"}}')
+
+        upload_file(path, opener=opener)
+
+        header, body = captured[0].split(b"\r\n\r\n", 1)
+        assert b"report%0D%0AX-Extra: header.txt" in header
+        assert b"\r\nX-Extra:" not in header
+        assert body.startswith(b"payload")
+
     def test_file_path_from_uri_accepts_local_file_uri(self, tmp_path):
         file_path = tmp_path / "report 1.txt"
         file_path.write_text("hello", encoding="utf-8")

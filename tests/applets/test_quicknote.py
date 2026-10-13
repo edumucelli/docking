@@ -6,6 +6,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:
@@ -95,6 +97,16 @@ class TestRender:
 
 
 class TestApplet:
+    @pytest.mark.parametrize("note", [None, 42, [], {}])
+    def test_malformed_saved_note_keeps_applet_usable(self, note):
+        applet = quicknote_applet_mod.QuickNoteApplet(
+            48, config=Config(applet_prefs={"quicknote": {"note": note}})
+        )
+
+        assert applet._note == ""
+        assert applet.item.name == "Empty note"
+        assert applet.item.icon is not None
+
     """GTK lifecycle tests."""
 
     def test_creates_with_empty_note(self):

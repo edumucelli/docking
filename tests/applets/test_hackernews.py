@@ -5,6 +5,8 @@ from __future__ import annotations
 import datetime as dt
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.hackernews.applet as hackernews_applet_mod
 from docking.applets.hackernews.applet import HackerNewsApplet
 from docking.applets.hackernews.render import render_icon
@@ -89,6 +91,10 @@ def _make_applet(config: Config | None = None) -> HackerNewsApplet:
 
 
 class TestHackerNewsState:
+    @pytest.mark.parametrize("timestamp", [10**30, 253402300800])
+    def test_out_of_range_cached_timestamp_has_no_age(self, timestamp):
+        assert story_age(story=_story(time=timestamp)) == ""
+
     def test_normalize_text_decodes_entities_and_whitespace(self):
         assert normalize_text("Tom &amp;\n Jerry") == "Tom & Jerry"
 

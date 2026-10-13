@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 import docking.applets.popup as applet_popup_mod
 import docking.applets.unitconverter.applet as unitconverter_applet_mod
@@ -534,6 +537,39 @@ class TestCurrencyState:
         result = uc_state.fetch_currency_rates()
         assert result is None
 
+    def test_malformed_currency_rows_do_not_discard_valid_rates(self, monkeypatch):
+        payload = json.dumps(
+            [
+                None,
+                "invalid row",
+                {"quote": ["bad"], "rate": 1.0},
+                {"quote": "BAD", "rate": float("inf")},
+                {"quote": "TNY", "rate": 1e-320},
+                {"quote": "USD", "rate": 1.25},
+            ]
+        ).encode()
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = payload
+        monkeypatch.setattr(
+            uc_state.urllib.request, "urlopen", lambda *_a, **_k: response
+        )
+
+        units = uc_state.fetch_currency_rates()
+
+        assert units == (Unit("Euro", "EUR", 1.0), Unit("USD", "USD", 0.8))
+
+    @pytest.mark.parametrize("rates", [None, [], "invalid"])
+    def test_invalid_currency_rate_container_returns_none(self, monkeypatch, rates):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"rates": rates}
+        ).encode()
+        monkeypatch.setattr(
+            uc_state.urllib.request, "urlopen", lambda *_a, **_k: response
+        )
+
+        assert uc_state.fetch_currency_rates() is None
+
     def test_fetch_currency_rates_parses_v2_list(self, monkeypatch):
         import json
 
@@ -827,6 +863,30 @@ class TestAppletPopup:
 
         assert applet._from_idx == km_index
         applet.save_prefs.assert_called_once()
+
+    def test_exact_meter_symbol_wins_over_millimeter_prefix(self):
+        applet = _make_applet()
+        _seed_popup_widgets(applet)
+        applet._from_combo.entry.set_text("m")
+        applet._on_unit_changed(applet._from_combo)
+
+        assert get_units(Category.LENGTH)[applet._from_idx].symbol == "m"
+
+    def test_swap_resolves_typed_units_without_active_rows(self):
+        applet = _make_applet()
+        _seed_popup_widgets(applet)
+        applet._from_combo.set_active(-1)
+        applet._to_combo.set_active(-1)
+        applet._from_combo.entry.set_text("km")
+        applet._to_combo.entry.set_text("mi")
+        applet._on_unit_changed(applet._from_combo)
+
+        applet._on_swap(MagicMock())
+        applet._on_unit_changed(applet._from_combo)
+
+        units = get_units(Category.LENGTH)
+        assert units[applet._from_idx].symbol == "mi"
+        assert units[applet._to_idx].symbol == "km"
 
     def test_category_change_repopulates_and_saves(self):
         applet = _make_applet()
