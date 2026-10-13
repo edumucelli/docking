@@ -17,9 +17,23 @@ from docking.applets.clock.state import (
     hour_rotation_24h,
     load_prefs,
     minute_rotation,
+    normalize_alarm_target,
     seconds_rotation,
 )
 from docking.core.config import Config
+
+
+@pytest.fixture
+def timezone(monkeypatch):
+    """Switch the process timezone, which the C library caches until tzset()."""
+
+    def _set(zone: str) -> None:
+        monkeypatch.setenv("TZ", zone)
+        time.tzset()
+
+    yield _set
+    monkeypatch.undo()
+    time.tzset()
 
 
 class TestMinuteRotation:
@@ -109,6 +123,33 @@ class TestClockState:
         target = compute_alarm_target(now_ts=base, hour=10, minute=30)
         assert target == int(time.mktime((2024, 1, 3, 10, 30, 0, 1, 2, -1)))
 
+    @pytest.mark.parametrize(
+        ("zone", "night_before"),
+        [
+            # 22:00 on the evening the clocks go back an hour.
+            ("Europe/London", (2026, 10, 24, 22, 0)),
+            ("America/New_York", (2026, 10, 31, 22, 0)),
+            # ... and the evening they go forward.
+            ("Europe/London", (2026, 3, 28, 22, 0)),
+        ],
+    )
+    def test_alarm_rings_at_the_requested_wall_clock_across_a_dst_change(
+        self, timezone, zone, night_before
+    ):
+        """07:00 means 07:00 on the user's clock, whatever the offset does.
+
+        The target reused the daylight-saving flag of "now", and the rollover
+        to the next day added 24 hours rather than advancing the date. Set the
+        night the clocks change, the alarm rang an hour out -- which is the one
+        morning a user is least likely to forgive it.
+        """
+        timezone(zone)
+        now = time.mktime((*night_before, 0, 0, 0, 0))
+
+        target = compute_alarm_target(now_ts=now, hour=7, minute=0)
+
+        assert time.strftime("%H:%M", time.localtime(target)) == "07:00"
+
     def test_check_alarm_only_fires_at_or_after_target(self):
         assert not check_alarm(now_ts=99, alarm_target=100)
         assert check_alarm(now_ts=100, alarm_target=100)
@@ -129,6 +170,33 @@ class TestClockPrefs:
         assert clock._show_date is False
         assert clock._show_seconds is False
         assert clock._alarm_target is None
+
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            10**18,  # localtime() cannot represent it: OSError errno 75
+            2**63,  # timestamp out of range for platform time_t
+            -(10**18),
+            1.7e9 * 1000,  # a millisecond epoch, an easy hand-edit mistake
+        ],
+    )
+    def test_unusable_alarm_target_does_not_remove_the_applet(self, stored):
+        """The target is formatted during construction, so it must be usable.
+
+        normalize_alarm_target accepted anything larger than "now", and the
+        applet vanished from the dock on every start when the persisted value
+        could not be turned into a local time.
+        """
+        config = Config(applet_prefs={"clock": {"alarm_target": stored}})
+
+        clock = ClockApplet(48, config=config)
+
+        assert clock._alarm_target is None
+
+    def test_alarm_target_within_the_horizon_is_kept(self):
+        now = time.time()
+        target = int(now) + 3600
+        assert normalize_alarm_target(target, now_ts=now) == target
 
     def test_loads_prefs_from_config(self):
         config = Config(

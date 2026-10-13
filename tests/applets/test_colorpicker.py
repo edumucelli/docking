@@ -2,10 +2,12 @@
 
 from typing import ClassVar
 
+import pytest
+
 import docking.applets.colorpicker.applet as colorpicker_applet_mod
 from docking.applets.colorpicker.applet import ColorPickerApplet
 from docking.applets.colorpicker.render import create_icon
-from docking.applets.colorpicker.state import rgb_to_hex
+from docking.applets.colorpicker.state import coerce_channel, coerce_hex, rgb_to_hex
 from docking.applets.services import AppletServices
 from docking.core.config import Config
 
@@ -22,6 +24,64 @@ class TestRgbToHex:
 
     def test_mixed(self):
         assert rgb_to_hex(r=18, g=52, b=86) == "#123456"
+
+
+class TestPrefCoercion:
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            (0.25, 0.25),
+            ("0.5", 0.5),
+            (2, 1.0),
+            (-1, 0.0),
+            ("0.5", 0.5),
+            (None, 0.5),
+            ("not a number", 0.5),
+            (float("nan"), 0.5),
+            (float("inf"), 0.5),
+            (True, 0.5),
+        ],
+    )
+    def test_coerce_channel(self, stored, expected):
+        assert coerce_channel(stored, default=0.5) == expected
+
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            ("#1a2b3c", "#1A2B3C"),
+            ("1A2B3C", ""),
+            ("#12345", ""),
+            ("#GGGGGG", ""),
+            (16711680, ""),  # an int raised out of the menu label builder
+            (None, ""),
+        ],
+    )
+    def test_coerce_hex(self, stored, expected):
+        assert coerce_hex(stored) == expected
+
+    @pytest.mark.parametrize(
+        "prefs",
+        [
+            {"r": "0.5", "g": 0.5, "b": 0.5},
+            {"r": None, "g": 0.5, "b": 0.5},
+            {"hex": 16711680},
+            {"r": float("nan"), "g": float("inf"), "b": "x"},
+        ],
+    )
+    def test_unusable_persisted_colour_does_not_remove_the_applet(self, prefs):
+        """Construction renders the icon, so a bad value used to raise there.
+
+        The model drops an applet whose constructor raises, so the tile
+        disappeared from the dock with only a log line.
+        """
+        applet = ColorPickerApplet(
+            48, config=Config(applet_prefs={"colorpicker": prefs})
+        )
+
+        assert applet._hex == "" or applet._hex.startswith("#")
+        assert 0.0 <= applet._r <= 1.0
+        assert 0.0 <= applet._g <= 1.0
+        assert 0.0 <= applet._b <= 1.0
 
 
 class TestRenderIcon:

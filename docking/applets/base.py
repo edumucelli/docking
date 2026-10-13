@@ -378,8 +378,17 @@ class Applet(ABC):
         return dict(self._config.applet_prefs.get(self.id, {}))
 
     def save_prefs(self, prefs: dict[str, Any]) -> None:
-        """Save this applet's preferences to config."""
-        self._config.applet_prefs[self.id] = prefs
+        """Save this applet's preferences to config.
+
+        The payload is merged into what is already stored rather than
+        replacing it. An applet persists a payload built from its own state,
+        which knows nothing about keys written by other paths -- the chosen
+        icon source is one -- so replacing the mapping silently discarded
+        those choices on the next save.
+        """
+        merged = self.load_prefs()
+        merged.update(prefs)
+        self._config.applet_prefs[self.id] = merged
         self._config.save()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

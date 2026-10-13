@@ -32,6 +32,7 @@ from docking.applets.clippy.state import (
     _truncate,
     add_clip,
     cycle_position,
+    normalize_max_entries,
     tooltip_text,
 )
 from docking.applets.menu import menu_sections
@@ -57,7 +58,7 @@ class ClippyApplet(Applet):
         # Load prefs
         self._max_entries = 15
         prefs = config.applet_prefs.get("clippy", {})
-        self._max_entries = prefs.get("max_entries", 15)
+        self._max_entries = normalize_max_entries(prefs.get("max_entries", 15))
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

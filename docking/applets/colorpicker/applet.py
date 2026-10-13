@@ -26,7 +26,11 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.applets.base import Applet
 from docking.applets.colorpicker import meta
 from docking.applets.colorpicker.render import create_icon
-from docking.applets.colorpicker.state import rgb_to_hex
+from docking.applets.colorpicker.state import (
+    coerce_channel,
+    coerce_hex,
+    rgb_to_hex,
+)
 from docking.applets.menu import menu_sections
 from docking.applets.popup import (
     create_capture_overlay,
@@ -68,11 +72,12 @@ class ColorPickerApplet(Applet):
 
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_hex = prefs.get("show_hex", True)
-        # Restore last picked color
-        self._r = prefs.get("r", _DEFAULT_RGB[0])
-        self._g = prefs.get("g", _DEFAULT_RGB[1])
-        self._b = prefs.get("b", _DEFAULT_RGB[2])
-        self._hex = prefs.get("hex", "")
+        # Restore last picked color, tolerating a hand-edited config value:
+        # an unusable one must not stop the applet from being constructed.
+        self._r = coerce_channel(prefs.get("r"), default=_DEFAULT_RGB[0])
+        self._g = coerce_channel(prefs.get("g"), default=_DEFAULT_RGB[1])
+        self._b = coerce_channel(prefs.get("b"), default=_DEFAULT_RGB[2])
+        self._hex = coerce_hex(prefs.get("hex"))
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

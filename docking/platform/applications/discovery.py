@@ -584,7 +584,12 @@ def _discover_desktop_files(
         for path in directory.rglob(f"*{desktop_entries.DESKTOP_SUFFIX}"):
             if not path.is_file():
                 continue
-            application_id = path.relative_to(directory).as_posix()
+            # The desktop file id replaces subdirectory separators with "-",
+            # which is also what Gio.DesktopAppInfo.get_id() returns. Keeping
+            # the slash produced a second id for the same file, so an
+            # application living in a subdirectory was listed twice: the Gio
+            # source emitted "sub-foo.desktop" and this scan "sub/foo.desktop".
+            application_id = path.relative_to(directory).as_posix().replace("/", "-")
             if application_id not in winners:
                 winners[application_id] = path
                 order.append(application_id)

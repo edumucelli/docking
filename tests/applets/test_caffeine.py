@@ -4,13 +4,18 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.applets.caffeine.applet import CaffeineApplet
 from docking.applets.caffeine.inhibit import CompositeInhibitor
 from docking.applets.caffeine.state import (
     DEFAULT_DURATION,
     INDEFINITE,
+    MAX_DURATION_MIN,
+    MIN_DURATION_MIN,
     CaffeineState,
     activate,
+    coerce_duration,
     deactivate,
     duration_label,
     format_remaining,
@@ -173,6 +178,37 @@ class TestPrefs:
         assert state_from_prefs(prefs=None) == CaffeineState(
             duration_min=DEFAULT_DURATION
         )
+
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            (30, 30),
+            ("45", 45),
+            ("half-hour", DEFAULT_DURATION),
+            (None, DEFAULT_DURATION),
+            (float("nan"), DEFAULT_DURATION),
+            (float("inf"), DEFAULT_DURATION),
+            (-5, MIN_DURATION_MIN),
+            (10**9, MAX_DURATION_MIN),
+            (True, DEFAULT_DURATION),
+        ],
+    )
+    def test_coerce_duration(self, stored, expected):
+        assert coerce_duration(stored) == expected
+
+    @pytest.mark.parametrize("stored", ["half-hour", None, float("nan"), float("inf")])
+    def test_unusable_persisted_duration_does_not_remove_the_applet(self, stored):
+        """The duration is read during construction, so it must not raise.
+
+        The model drops an applet whose constructor raises, so a hand-edited
+        config took the caffeine tile off the dock instead of falling back to
+        the default timer.
+        """
+        applet = CaffeineApplet(
+            48, config=Config(applet_prefs={"caffeine": {"duration_min": stored}})
+        )
+
+        assert applet._data.duration_min == DEFAULT_DURATION
 
 
 # -- CompositeInhibitor -------------------------------------------------------

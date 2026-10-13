@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any, NamedTuple
@@ -75,9 +76,27 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AmbientState:
         return AmbientState()
     return AmbientState(
         current=str(prefs.get("sound", DEFAULT_SOUND)),
-        volume=float(prefs.get("volume", DEFAULT_VOLUME)),
+        volume=coerce_volume(prefs.get("volume")),
         playing=False,
     )
+
+
+def coerce_volume(value: object) -> float:
+    """Coerce a persisted volume into 0.0-1.0, falling back to the default.
+
+    The value is read during applet construction, so a hand-edited config with
+    a null, a string, or a NaN raised there and the dock dropped the applet
+    from the bar instead of showing it at the default volume.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_VOLUME
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return DEFAULT_VOLUME
+    if not math.isfinite(parsed):
+        return DEFAULT_VOLUME
+    return min(1.0, max(0.0, parsed))
 
 
 def prefs_from_state(state: AmbientState) -> dict[str, object]:

@@ -18,6 +18,26 @@ from __future__ import annotations
 from docking.i18n import _
 
 MAX_DISPLAY_LEN = 50
+DEFAULT_MAX_ENTRIES = 15
+MIN_MAX_ENTRIES = 1
+MAX_MAX_ENTRIES = 500
+
+
+def normalize_max_entries(value: object) -> int:
+    """Coerce the persisted history cap, falling back to the default.
+
+    The cap has no UI, so a value from the config file is the only input it
+    ever sees. It used to be used raw: a negative cap raised IndexError on
+    every clipboard change, which killed the applet's history for good, and a
+    string raised TypeError.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_MAX_ENTRIES
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return DEFAULT_MAX_ENTRIES
+    return max(MIN_MAX_ENTRIES, min(MAX_MAX_ENTRIES, parsed))
 
 
 def _truncate(text: str, max_len: int = MAX_DISPLAY_LEN) -> str:
@@ -41,7 +61,9 @@ def add_clip(clips: list[str], text: str, max_entries: int) -> tuple[list[str], 
     if text in next_clips:
         next_clips.remove(text)
     next_clips.append(text)
-    while len(next_clips) > max_entries:
+    # `next_clips and` keeps a nonsensical cap from raising on an empty list;
+    # the applet normalizes the persisted value, this is the second line.
+    while next_clips and len(next_clips) > max_entries:
         next_clips.pop(0)
     return next_clips, len(next_clips)
 

@@ -348,6 +348,38 @@ def test_successful_empty_initial_discovery_publishes_generation():
     assert registry.snapshot() == ()
 
 
+def test_application_in_a_subdirectory_gets_the_spec_desktop_file_id(tmp_path):
+    """The id replaces subdirectory separators with "-".
+
+    That is what Gio.DesktopAppInfo.get_id() returns, and the file scan has to
+    agree with it: keeping the slash gave the same file two ids, so every
+    application living in a subdirectory was listed twice. On a stock Ubuntu
+    install that is five duplicate launchers from /usr/share/applications.
+    """
+    first = tmp_path / "first"
+    _write_desktop(first / "popsquares.desktop", name="Top level")
+    _write_desktop(first / "screensavers" / "popsquares.desktop", name="Nested")
+
+    registry = _registry(directories=[first])
+    registry.refresh()
+
+    ids = [app.desktop_id for app in registry.snapshot()]
+    assert sorted(ids) == ["popsquares.desktop", "screensavers-popsquares.desktop"]
+
+
+def test_nested_id_does_not_shadow_a_top_level_file_of_the_same_name(tmp_path):
+    first = tmp_path / "first"
+    _write_desktop(first / "tool.desktop", name="Top level tool")
+    _write_desktop(first / "extras" / "tool.desktop", name="Nested tool")
+
+    registry = _registry(directories=[first])
+    registry.refresh()
+
+    names = {app.desktop_id: app.name for app in registry.snapshot()}
+    assert names["tool.desktop"] == "Top level tool"
+    assert names["extras-tool.desktop"] == "Nested tool"
+
+
 def test_failed_initial_discovery_leaves_registry_unready():
     registry = _registry()
 
