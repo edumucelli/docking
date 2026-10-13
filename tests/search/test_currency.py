@@ -37,6 +37,19 @@ def test_currency_rates_load_lazily_and_convert() -> None:
     ) == pytest.approx(8)
 
 
+@pytest.mark.parametrize("value", [float("inf"), float("nan"), 1.5e308])
+def test_currency_conversion_rejects_non_finite_values_and_results(
+    value: float,
+) -> None:
+    catalog = CurrencyRatesCatalog(schedule_idle=lambda _callback, *_args: 1)
+    catalog._units = (
+        Unit("Euro", "EUR", 1.0),
+        Unit("US Dollar", "USD", 0.8),
+    )
+
+    assert catalog.convert(value=value, source_code="EUR", target_code="USD") is None
+
+
 def test_currency_rate_failure_can_retry() -> None:
     attempts = 0
     finished = threading.Event()

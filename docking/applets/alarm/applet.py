@@ -231,9 +231,7 @@ class AlarmApplet(Applet):
                 )
                 self._upsert_preset(index=index, preset=updated)
             elif response_id == Gtk.ResponseType.REJECT and index is not None:
-                self._state = remove_preset(state=self._state, index=index)
-                self._save()
-                self.present()
+                self._remove_preset(index=index)
             dialog.destroy()
 
         dialog.connect("response", on_response)
@@ -245,13 +243,26 @@ class AlarmApplet(Applet):
             self._state = add_preset(state=self._state, preset=preset)
         else:
             self._state = replace_preset(state=self._state, index=index, preset=preset)
+            self._state = set_enabled(
+                state=self._state, index=index, enabled=preset.enabled
+            )
         self.item.is_urgent = self._state.ringing_index is not None
         self._save()
+        self._restart_timer()
+        self.present()
+
+    def _remove_preset(self, *, index: int) -> None:
+        self._state = remove_preset(state=self._state, index=index)
+        self.item.is_urgent = self._state.ringing_index is not None
+        self._save()
+        self._restart_timer()
         self.present()
 
     def _toggle_alarm(self, *, index: int, enabled: bool) -> None:
         self._state = set_enabled(state=self._state, index=index, enabled=enabled)
+        self.item.is_urgent = self._state.ringing_index is not None
         self._save()
+        self._restart_timer()
         self.present()
 
     def _snooze(self) -> None:

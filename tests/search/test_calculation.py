@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from docking.search.recognizers.calculation import (
     CalculationError,
     recognize_calculation,
@@ -26,6 +28,31 @@ def test_constants_require_explicit_input_without_an_operation() -> None:
 
     assert value is not None
     assert value.answer == "3.14159265359"
+
+
+@pytest.mark.parametrize(
+    ("expression", "answer"),
+    [
+        ("round(1.6)", "2"),
+        ("= round(-1.6)", "-2"),
+        ("round(2.5)", "2"),
+        ("round(1.56, 1)", "1.6"),
+        ("round(125, -1)", "120"),
+    ],
+)
+def test_round_with_optional_precision(expression: str, answer: str) -> None:
+    value = recognize_calculation(expression)
+
+    assert value is not None
+    assert value.error is None
+    assert value.answer == answer
+
+
+def test_round_rejects_fractional_precision() -> None:
+    value = recognize_calculation("= round(1.56, 1.5)")
+
+    assert value is not None
+    assert value.error is CalculationError.DOMAIN
 
 
 def test_invalid_and_dangerous_expressions_are_contained() -> None:

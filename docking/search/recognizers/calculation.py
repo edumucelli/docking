@@ -65,7 +65,7 @@ _UNARY_OPERATIONS: dict[type[ast.unaryop], UnaryOperation] = {
 _CONSTANTS = {"e": math.e, "pi": math.pi, "tau": math.tau}
 
 
-def _rounded(value: float, digits: float = 0) -> float:
+def _rounded(value: float, digits: float = 0.0) -> float:
     if not digits.is_integer():
         raise ValueError("round precision must be an integer")
     return float(round(value, int(digits)))

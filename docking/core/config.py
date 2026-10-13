@@ -144,6 +144,7 @@ state that was never persisted.
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 import threading
@@ -653,7 +654,7 @@ def _normalize_int(
             parsed = int(value.strip())
         else:
             return default
-    except (TypeError, ValueError):
+    except (OverflowError, TypeError, ValueError):
         logger.warning(
             "Invalid integer config value %r; using default %r",
             value,
@@ -683,7 +684,9 @@ def _normalize_float(
             parsed = float(value.strip())
         else:
             return default
-    except (TypeError, ValueError):
+        if not math.isfinite(parsed):
+            raise ValueError("non-finite number")
+    except (OverflowError, TypeError, ValueError):
         logger.warning(
             "Invalid float config value %r; using default %r",
             value,
@@ -758,7 +761,11 @@ def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
             continue
         if not isinstance(last_closed, int | float):
             continue
-        result.append({"desktop_id": desktop_id, "last_closed": int(last_closed)})
+        try:
+            timestamp = int(last_closed)
+        except (OverflowError, ValueError):
+            continue
+        result.append({"desktop_id": desktop_id, "last_closed": timestamp})
     return result
 
 

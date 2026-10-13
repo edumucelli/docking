@@ -536,6 +536,40 @@ def test_plain_text_keeps_all_providers_and_ranks_local_match(monkeypatch) -> No
     assert window.snapshots[-1].results[0].score == 250
 
 
+def test_hostless_http_urls_use_conditional_web_fallback(monkeypatch) -> None:
+    controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller._config.global_search_web_engine = "google"
+    controller.show(initial_query="http://user@")
+
+    for query in ("http://user@", "https://:443/path"):
+        window.callbacks["on_query_changed"](query)
+        snapshot = window.snapshots[-1]
+        assert snapshot.query.context_value("intent_kind") == "global"
+        assert snapshot.results[0].source == "Web"
+        assert snapshot.results[0].state == "Google"
+        assert snapshot.results[0].score == 75
+
+    window.callbacks["on_query_changed"]("Firefox")
+    assert [result.source for result in window.snapshots[-1].results] == [
+        "Applications"
+    ]
+
+
+def test_search_recovers_after_incomplete_currency_and_url_queries(monkeypatch) -> None:
+    controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller.show(initial_query="Firefox")
+
+    for query in ("+ USD to EUR", "- USD to EUR", "http://[", "https://[::1"):
+        window.callbacks["on_query_changed"](query)
+        snapshot = window.snapshots[-1]
+        assert snapshot.query.text == query
+        assert snapshot.results[0].source == "Web"
+        assert snapshot.errors == ()
+
+    window.callbacks["on_query_changed"]("6 * 7")
+    assert window.snapshots[-1].results[0].title == "42"
+
+
 def test_currency_conversion_uses_ready_rate_catalog(monkeypatch) -> None:
     from docking.applets.unitconverter.state import Unit
     from docking.search.services.currency_rates import (

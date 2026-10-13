@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pytest
+
+import docking.applets.alarm.applet as alarm_applet_mod
 from docking.applets.alarm.applet import AlarmApplet
 from docking.applets.alarm.state import (
     DEFAULT_LABEL,
@@ -137,6 +140,49 @@ class TestAlarmState:
         assert dismissed.ringing_index is None
         assert dismissed.ringing_since is None
 
+    @pytest.mark.parametrize("hour", [7, 23])
+    def test_dismissing_snooze_keeps_original_occurrence_consumed(self, hour):
+        now = dt.datetime(2026, 5, 18, hour, 58, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(hour=hour, minute=58, repeat_days=tuple(range(7))),)
+        )
+        ringing = tick(state, now=now).state
+        snoozed = snooze_ringing(ringing, now=now)
+        snooze_time = now + dt.timedelta(minutes=5)
+
+        result = tick(snoozed, now=snooze_time)
+        assert result.started_ringing
+        assert result.state.presets[0].last_triggered == now.date().isoformat()
+        # The occurrence marker also survives a dock restart after snoozing.
+        dismissed = state_from_prefs(prefs_from_state(dismiss_ringing(result.state)))
+        assert not tick(dismissed, now=snooze_time).started_ringing
+        tomorrow = now + dt.timedelta(days=1)
+        assert tick(dismissed, now=tomorrow).started_ringing
+
+    def test_disabling_ringing_alarm_clears_ringing_state(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        ringing = tick(
+            AlarmState(presets=(AlarmPreset(repeat_days=(0,)),)), now=now
+        ).state
+
+        disabled = set_enabled(ringing, index=0, enabled=False)
+
+        assert disabled.ringing_index is None
+        assert disabled.ringing_since is None
+        assert not tick(disabled, now=now).started_ringing
+
+    def test_disabling_another_alarm_keeps_current_alarm_ringing(self):
+        state = AlarmState(
+            presets=(AlarmPreset(), AlarmPreset()),
+            ringing_index=0,
+            ringing_since=dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ),
+        )
+
+        disabled = set_enabled(state, index=1, enabled=False)
+
+        assert disabled.ringing_index == 0
+        assert disabled.ringing_since == state.ringing_since
+
     def test_enable_toggle_clears_snooze_when_disabled(self):
         snoozed_until = dt.datetime(2026, 5, 18, 7, 9, tzinfo=_TZ)
         state = AlarmState(
@@ -186,6 +232,41 @@ class TestAlarmApplet:
 
         prefs = Config.load(path).applet_prefs["alarm"]
         assert prefs["presets"][0]["label"] == "Wake"
+
+    @pytest.mark.parametrize("action", ["disable", "remove", "edit"])
+    def test_stopping_ringing_alarm_clears_urgency_and_restores_timer(
+        self, monkeypatch, action
+    ):
+        applet = AlarmApplet(48, config=Config())
+        applet._state = AlarmState(
+            presets=(AlarmPreset(repeat_days=tuple(range(7))),),
+            ringing_index=0,
+            ringing_since=dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ),
+        )
+        applet.item.is_urgent = True
+        applet._notify = lambda: None
+        applet._timer_id = 123
+        removed = []
+        intervals = []
+        monkeypatch.setattr(alarm_applet_mod.GLib, "source_remove", removed.append)
+
+        def schedule(interval, _callback):
+            intervals.append(interval)
+            return 456
+
+        monkeypatch.setattr(alarm_applet_mod.GLib, "timeout_add_seconds", schedule)
+
+        if action == "disable":
+            applet._toggle_alarm(index=0, enabled=False)
+        elif action == "remove":
+            applet._remove_preset(index=0)
+        else:
+            applet._upsert_preset(index=0, preset=AlarmPreset(enabled=False))
+
+        assert applet._state.ringing_index is None
+        assert applet.item.is_urgent is False
+        assert removed == [123]
+        assert intervals == [alarm_applet_mod.TICK_SECONDS]
 
 
 class TestAlarmStateEdgeCases:
@@ -486,10 +567,13 @@ class TestAlarmHelpers:
     def test_trigger_key_snoozed(self):
         from docking.applets.alarm.state import _trigger_key
 
-        preset = AlarmPreset(snoozed_until=dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ))
+        preset = AlarmPreset(
+            last_triggered="2026-05-18",
+            snoozed_until=dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ),
+        )
         when = dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ)
         result = _trigger_key(preset=preset, when=when)
-        assert result.startswith("snooze:")
+        assert result == "2026-05-18"
 
     def test_due_alarm_empty_state(self):
         from docking.applets.alarm.state import _due_alarm

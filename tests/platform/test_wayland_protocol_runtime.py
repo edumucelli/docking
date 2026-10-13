@@ -63,8 +63,16 @@ class FakeProxy:
         self.commit = MagicMock()
         self.destroy = MagicMock()
         self.notifications: list[tuple[int, object, FakeHandle]] = []
+        self.notification_requests: list[str] = []
+
+    def get_idle_notification(self, timeout: int, seat: object) -> FakeHandle:
+        self.notification_requests.append("get_idle_notification")
+        notification = FakeHandle()
+        self.notifications.append((timeout, seat, notification))
+        return notification
 
     def get_input_idle_notification(self, timeout: int, seat: object) -> FakeHandle:
+        self.notification_requests.append("get_input_idle_notification")
         notification = FakeHandle()
         self.notifications.append((timeout, seat, notification))
         return notification
@@ -470,19 +478,28 @@ def test_workspace_adapter_replays_initial_events_after_service_start():
     assert service.activate("workspace-a") is not None
 
 
-def test_idle_protocol_adapter_creates_notification_and_forwards_events():
+@pytest.mark.parametrize(
+    ("version", "request_name"),
+    [(1, "get_idle_notification"), (2, "get_input_idle_notification")],
+)
+def test_idle_protocol_adapter_creates_notification_and_forwards_events(
+    monkeypatch, version, request_name
+):
+    # Exercise both protocol versions even with v1-only installed bindings.
+    monkeypatch.setattr(ExtIdleNotifierV1, "version", 2)
     registry = FakeRegistry()
     adapter = IdleProtocolAdapter()
     service = MagicMock()
     flush = MagicMock()
     adapter.set_flush_callback(flush)
 
-    adapter.bind(registry=registry, name=10, version=99)
+    adapter.bind(registry=registry, name=10, version=version)
     adapter.bind_seat(registry=registry, name=11, version=99)
     adapter.start(service)
 
     notifier = registry.proxies["ext_idle_notifier_v1"]
     seat = registry.proxies["wl_seat"]
+    assert notifier.notification_requests == [request_name]
     assert len(notifier.notifications) == 1
     timeout, notification_seat, notification = notifier.notifications[0]
     assert timeout == 0

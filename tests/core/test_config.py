@@ -360,6 +360,59 @@ class TestConfigLoad:
         assert config.icon_size == 32
         assert not hasattr(config, "unknown_key")
 
+    @pytest.mark.parametrize(
+        ("field", "raw", "expected"),
+        [
+            ("icon_size", float("inf"), 48),
+            ("icon_size", float("-inf"), 48),
+            ("icon_size", float("nan"), 48),
+            ("zoom_percent", "nan", 1.5),
+            ("zoom_percent", float("inf"), 1.5),
+            ("zoom_percent", float("-inf"), 1.5),
+            ("zoom_percent", 10**400, 1.5),
+            ("transparency", "NaN", 1.0),
+        ],
+    )
+    def test_load_invalid_numbers_preserves_other_settings(
+        self, tmp_path, field, raw, expected
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps({field: raw, "theme": "glass", "pinned": ["foo.desktop"]})
+        )
+
+        config = Config.load(path)
+
+        assert config.theme == "glass"
+        assert config.pinned == [PinnedEntry(kind=APP_KIND, target="foo.desktop")]
+        assert getattr(config, field) == expected
+        assert config.scaled_icon_size == 72
+        config.save()
+        json.loads(path.read_text(), parse_constant=lambda value: pytest.fail(value))
+
+    @pytest.mark.parametrize("last_closed", [float("nan"), float("inf"), float("-inf")])
+    def test_load_drops_invalid_recent_timestamps_preserving_settings(
+        self, tmp_path, last_closed
+    ):
+        path = tmp_path / "dock.json"
+        valid_entry = {"desktop_id": "good.desktop", "last_closed": 1234}
+        path.write_text(
+            json.dumps(
+                {
+                    "theme": "glass",
+                    "recent_apps": [
+                        {"desktop_id": "bad.desktop", "last_closed": last_closed},
+                        valid_entry,
+                    ],
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.theme == "glass"
+        assert config.recent_apps == [valid_entry]
+
     def test_load_empty_json_uses_defaults(self, tmp_path):
         # Given
         path = tmp_path / "dock.json"

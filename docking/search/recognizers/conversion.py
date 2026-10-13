@@ -14,6 +14,7 @@ meaningless expressions from being routed as conversions.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 
@@ -28,7 +29,7 @@ from docking.applets.unitconverter.state import (
 _CONVERSION_RE = re.compile(
     r"""
     ^\s*
-    (?P<value>[+-]?(?:\d+(?:,\d{3})*|\d*)(?:\.\d+)?)
+    (?P<value>[+-]?(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+))
     \s*
     (?P<source>[A-Za-z°/ ]+?)
     \s+(?:to|in|as|->)\s+
@@ -169,8 +170,6 @@ def parse_unit_conversion(expression: str) -> UnitConversion | None:
     if match is None:
         return None
     value_text = match.group("value")
-    if not value_text or value_text in {"+", "-", ".", "+.", "-."}:
-        return None
     source_record = _UNITS.get(_normalized_unit(match.group("source")))
     target_record = _UNITS.get(_normalized_unit(match.group("target")))
     if source_record is None or target_record is None:
@@ -180,12 +179,16 @@ def parse_unit_conversion(expression: str) -> UnitConversion | None:
     if source_category is not target_category:
         return None
     value = float(value_text.replace(",", ""))
+    if not math.isfinite(value):
+        return None
     result = convert(
         value=value,
         from_unit=source,
         to_unit=target,
         category=source_category,
     )
+    if not math.isfinite(result):
+        return None
     return UnitConversion(
         expression=expression.strip(),
         value=value,
@@ -210,12 +213,12 @@ def parse_currency_conversion(
         or target_code not in _KNOWN_CURRENCY_CODES
     ):
         return None
-    value_text = match.group("value")
-    if not value_text:
+    value = float(match.group("value").replace(",", ""))
+    if not math.isfinite(value):
         return None
     return CurrencyConversionRequest(
         expression=expression.strip(),
-        value=float(value_text.replace(",", "")),
+        value=value,
         source_code=source_code,
         target_code=target_code,
     )

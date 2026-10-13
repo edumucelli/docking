@@ -269,6 +269,8 @@ class RecentFilesCatalog:
 
 def _snapshot_from_item(item: object) -> RecentFileSnapshot | None:
     """Defensively extract searchable values from one RecentInfo-like object."""
+    if bool(_safe_call(item, "get_private_hint", default=False)):
+        return None
     if not bool(_safe_call(item, "exists", default=False)):
         return None
     uri = _clean_text(_safe_call(item, "get_uri"))
@@ -309,7 +311,7 @@ def _first_text(*values: Any) -> str:
 def _clean_text(value: Any) -> str:
     if value is None:
         return ""
-    return " ".join(str(value).split())
+    return str(value).strip()
 
 
 def _safe_call(
