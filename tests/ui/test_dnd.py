@@ -1,7 +1,11 @@
-"""Tests for drag-and-drop URI parsing."""
+"""Tests for drag-and-drop URI parsing and internal reorder placement."""
 
 import sys
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock
+
+import pytest
 
 try:
     import gi  # noqa: F401
@@ -11,8 +15,14 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.ui.dnd as dnd_mod
+from docking.core.items import APP_KIND
+from docking.core.position import Position
 from docking.platform.applications.entries import desktop_id_from_uri_or_path
-from docking.ui.dnd import DRAG_ICON_SCALE
+from docking.platform.model import DockItem, DockModel
+from docking.ui.autohide import HideState
+from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler
+from docking.ui.geometry import DockGeometryBuilder
 
 
 class TestConstants:
@@ -132,3 +142,199 @@ class TestUriToDesktopId:
     def test_non_desktop_plain_path(self):
         # Given / When / Then
         assert desktop_id_from_uri_or_path("readme.txt") is None
+
+
+_DRAG_IDS = ("a.desktop", "b.desktop", "c.desktop", "d.desktop")
+
+
+def _order_with_dragged_at(desktop_id: str, index: int) -> list[str]:
+    rest = [did for did in _DRAG_IDS if did != desktop_id]
+    return [*rest[:index], desktop_id, *rest[index:]]
+
+
+class _ReorderDock:
+    """Dock stub backed by the real model, geometry, and DnD handler.
+
+    Only the dock services the drag path never reads are faked, so drag-motion
+    here runs the production index math and the production reorder (including
+    its persistence) end to end.
+    """
+
+    def __init__(self) -> None:
+        self.config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_percent=1.5,
+            scaled_icon_size=48,
+            zoom_enabled=True,
+            lock_icons=False,
+            show_recent_apps=False,
+            anchor_applets=False,
+            anchor_files=False,
+            pinned=[],
+            item_prefs={},
+            save=MagicMock(),
+            additional_distance_from_edge=0,
+        )
+        self.theme = SimpleNamespace(
+            item_padding=8,
+            horizontal_padding=12,
+            top_padding=0,
+            bottom_padding=4,
+            shelf_height=21,
+            stroke_width=1.0,
+            distance_from_edge=0,
+            urgent_glow_time_ms=500,
+        )
+        self.model = DockModel(
+            config=self.config,
+            applet_services=MagicMock(),
+            application_registry=MagicMock(),
+            application_launcher=MagicMock(),
+            icon_loader=MagicMock(),
+            target_service=MagicMock(),
+            recent_applications=MagicMock(),
+        )
+        self.cursor_x = 0.0
+        self.cursor_y = 0.0
+        self.autohide = SimpleNamespace(
+            enabled=True,
+            state=HideState.VISIBLE,
+            zoom_progress=1.0,
+            hide_offset=0.0,
+            set_disabled=MagicMock(),
+            set_hovered=MagicMock(),
+            on_mouse_enter=MagicMock(),
+            on_mouse_leave=MagicMock(),
+        )
+        self.zoom_animator = SimpleNamespace(progress=1.0)
+        self.surface_service = SimpleNamespace(compositor_sizes_main_axis=False)
+        self.geometry = DockGeometryBuilder(cast(Any, self))
+        self.drawing_area = MagicMock()
+        self.dnd = DnDHandler(
+            drawing_area=self.drawing_area,
+            window=cast(Any, self),
+            model=self.model,
+            config=cast(Any, self.config),
+            renderer=SimpleNamespace(slide_offsets={}, prev_positions={}),
+            theme=cast(Any, self.theme),
+            geometry_builder=self.geometry,
+            folder_stack=MagicMock(),
+            application_registry=MagicMock(),
+            application_launcher=MagicMock(),
+            icon_loader=MagicMock(),
+            target_service=MagicMock(),
+        )
+        self.reset()
+
+    def get_size(self) -> tuple[int, int]:
+        return (1920, 122)
+
+    def reset(self) -> None:
+        """Restore the initial pinned order, as a fresh drag would find it."""
+        self.model.pinned_items = [
+            DockItem(desktop_id=did, name=did, kind=APP_KIND, is_pinned=True)
+            for did in _DRAG_IDS
+        ]
+
+    def order(self) -> list[str]:
+        return [item.desktop_id for item in self.model.visible_items()]
+
+    def slot_centres(self) -> list[float]:
+        frame = self.geometry.build_frame(main_cursor=-1.0)
+        return [geo.anchor_x for geo in frame.item_geometries]
+
+    def start_drag(self, index: int) -> None:
+        """Leave the handler in the state drag-begin leaves for an internal drag."""
+        self.dnd._drag_from = index
+        self.dnd.drag_index = index
+
+    def drag_to(self, cursor_x: float) -> None:
+        self.dnd._on_drag_motion(self.drawing_area, MagicMock(), int(cursor_x), 60, 0)
+
+
+class TestInternalReorderDragMotion:
+    """A rightward drag must rest the icon in the slot under the cursor.
+
+    ``insertion_index_for_main`` answers with a gap in the full list, dragged
+    item included, while ``reorder_visible`` wants a final index in the list
+    after the pop. Passing the gap through unconverted left the icon one slot
+    ahead of the cursor (and persisted that order) on every rightward drag.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _stub_drag_status(self, monkeypatch):
+        """Fake Gdk.drag_status only -- a real one needs a live drag context."""
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args: None)
+
+    def test_rightward_drag_visits_every_slot_under_the_cursor(self):
+        # Given the leftmost icon picked up and dragged rightwards 1px at a time
+        dock = _ReorderDock()
+        centres = dock.slot_centres()
+        dock.start_drag(0)
+        # When / Then
+        for cursor_x in range(int(centres[0]), int(centres[-1]) + 60):
+            dock.drag_to(cursor_x)
+            index = dock.order().index("a.desktop")
+            expected = max(
+                (slot for slot, centre in enumerate(centres) if centre <= cursor_x),
+                default=0,
+            )
+            assert index == expected, (
+                f"cursor at {cursor_x} rested the icon in slot {index}, "
+                f"expected slot {expected}"
+            )
+
+    def test_cursor_at_each_slot_centre_selects_that_slot(self):
+        # Given a drag of the leftmost icon whose motion arrives as one event
+        dock = _ReorderDock()
+        centres = dock.slot_centres()
+        # When / Then
+        for slot, centre in enumerate(centres):
+            dock.reset()
+            dock.start_drag(0)
+            dock.drag_to(centre)
+            assert dock.order() == _order_with_dragged_at("a.desktop", slot)
+
+    def test_grab_time_nudge_keeps_the_icon_in_its_slot(self):
+        # Given the drag just started on the leftmost icon
+        dock = _ReorderDock()
+        centres = dock.slot_centres()
+        dock.start_drag(0)
+        # When the cursor moves one pixel right of the grab point
+        dock.drag_to(centres[0] + 1)
+        # Then the cursor has not crossed the next centre, so nothing reorders
+        assert dock.order() == list(_DRAG_IDS)
+        assert dock.dnd.drag_index == 0
+
+    def test_drag_past_the_far_end_lands_on_the_last_slot(self):
+        # Given the leftmost icon dragged past the rightmost slot's centre
+        dock = _ReorderDock()
+        centres = dock.slot_centres()
+        dock.start_drag(0)
+        # When / Then the icon takes the last slot instead of stopping one short
+        dock.drag_to(centres[-1] + 200)
+        assert dock.order() == _order_with_dragged_at("a.desktop", 3)
+        assert dock.dnd.drag_index == 3
+
+    def test_leftward_drag_crosses_each_slot_on_the_way_back(self):
+        # Given the rightmost icon dragged leftwards 1px at a time
+        dock = _ReorderDock()
+        centres = dock.slot_centres()
+        dock.start_drag(len(centres) - 1)
+        transitions: dict[int, int] = {}
+        previous = len(centres) - 1
+        # When
+        for cursor_x in range(int(centres[-1]) + 40, int(centres[0]) - 4, -1):
+            dock.drag_to(cursor_x)
+            index = dock.order().index("d.desktop")
+            if index != previous:
+                transitions[cursor_x] = index
+                previous = index
+        # Then it moves one slot left each time the cursor passes a centre,
+        # exactly as it did before the rightward translation was added
+        assert transitions == {
+            int(centres[2]) - 1: 2,
+            int(centres[1]) - 1: 1,
+            int(centres[0]) - 1: 0,
+        }

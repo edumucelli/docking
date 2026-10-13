@@ -710,6 +710,26 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["icon_size"] == 72
 
+    def test_save_writes_through_a_symlinked_config(self, tmp_path):
+        """Dotfiles setups symlink the config into a repository.
+
+        The atomic replace unlinked the link and left a regular file in its
+        place, so the user's repository silently stopped tracking the config
+        after the first save -- and kept serving the stale values.
+        """
+        target = tmp_path / "dotfiles" / "dock.json"
+        target.parent.mkdir()
+        target.write_text(json.dumps({"icon_size": 96}))
+        link = tmp_path / "dock.json"
+        link.symlink_to(target)
+        config = Config.load(link)
+        config.icon_size = 32
+
+        config.save()
+
+        assert link.is_symlink()
+        assert json.loads(target.read_text())["icon_size"] == 32
+
     def test_save_persists_click_actions(self, tmp_path):
         path = tmp_path / "dock.json"
         config = Config(left_click_action="cycle", middle_click_action="close-focused")

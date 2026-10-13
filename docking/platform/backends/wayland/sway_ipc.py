@@ -280,15 +280,17 @@ class SwayWorkspaceService(WorkspaceService):
             return ()
         if not isinstance(rows, list):
             return ()
+        known_rows = [row for row in rows if isinstance(row, Mapping)]
         return tuple(
             WorkspaceSnapshot(
                 str(row.get("id")),
-                index + 1,
+                # Consumers index the returned sequence, so publish the
+                # position: sway numbers its workspaces from 1 and may skip.
+                index,
                 str(row.get("name", "")),
                 row.get("focused") is True,
             )
-            for index, row in enumerate(rows)
-            if isinstance(row, Mapping)
+            for index, row in enumerate(known_rows)
         )
 
     def active_workspace(self) -> WorkspaceSnapshot | None:

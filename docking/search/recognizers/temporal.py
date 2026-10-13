@@ -162,6 +162,23 @@ def _relative_date(value: dt.date, today: dt.date) -> str:
     return _("{count} days ago").format(count=abs(difference))
 
 
+def _date_from_components(text: str) -> dt.date | None:
+    """Parse YYYY-M-D or YYYY/M/D with or without zero padding.
+
+    ``_DATE_TEXT`` deliberately accepts one-digit month and day, but
+    ``date.fromisoformat`` requires them padded. A date written the natural way
+    therefore failed to parse, the query fell through to the calculator, and a
+    date came back as arithmetic: "2026-7-28" was reported as 1991.
+    """
+    parts = re.split(r"[-/]", text)
+    if len(parts) != 3:
+        return None
+    try:
+        return dt.date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except (TypeError, ValueError):
+        return None
+
+
 def _date_value(
     value: dt.date,
     *,
@@ -208,9 +225,8 @@ def _parse_date(text: str, *, today: dt.date) -> TemporalValue | None:
         else:
             difference = -((today.weekday() - wanted) % 7 or 7)
         return _date_value(today + dt.timedelta(days=difference), today=today)
-    try:
-        value = dt.date.fromisoformat(text.replace("/", "-"))
-    except ValueError:
+    value = _date_from_components(text)
+    if value is None:
         return None
     return _date_value(value, today=today)
 
@@ -256,13 +272,12 @@ def _converted_time_value(
     source_name, source_zone = source
     target_name, target_zone = target
     date_text = match.group("date")
-    try:
-        source_date = (
-            dt.date.fromisoformat(date_text.replace("/", "-"))
-            if date_text
-            else now.astimezone(source_zone).date()
-        )
-    except ValueError:
+    source_date = (
+        _date_from_components(date_text)
+        if date_text
+        else now.astimezone(source_zone).date()
+    )
+    if source_date is None:
         return None
     source_time = dt.datetime.combine(
         source_date,

@@ -208,5 +208,18 @@ def append_file_argument(*, command: str, path: str) -> str:
 
 
 def clean_desktop_exec(command: str) -> str:
-    """Remove freedesktop Exec field placeholders from a command line."""
-    return DESKTOP_EXEC_FIELD_CODES_RE.sub("", command).strip()
+    """Remove freedesktop Exec field placeholders from a command line.
+
+    ``%%`` is the spec's escape for a literal percent, and an unrecognised
+    ``%x`` code is consumed rather than passed on -- both match what GLib does
+    when it launches the same file. Leaving them in sent the application a
+    bogus argument.
+    """
+    # A sentinel keeps the escaped percents out of the code-stripping pass.
+    literal_percent = "\x00"
+    text = command.replace("%%", literal_percent)
+    text = DESKTOP_EXEC_FIELD_CODES_RE.sub("", text)
+    # Anything left is a code this build does not know; a percent that is not
+    # followed by a letter (a URL escape, a trailing "100%") is left alone.
+    text = re.sub(r"%[A-Za-z]", "", text)
+    return text.replace(literal_percent, "%").strip()

@@ -411,6 +411,16 @@ class DnDHandler:
 
         frame = self._geometry_builder.build_frame(main_cursor=-1.0)
         new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
+        if new_index > self.drag_index:
+            # insertion_index_for_main yields a gap in the full list, which
+            # still counts the dragged item itself. reorder_visible pops before
+            # inserting, so any gap to the right of the dragged item must shift
+            # down by one. Leftward gaps sit left of the dragged item, where
+            # popping changes nothing, so they stay as they are.
+            #
+            # Decrement before the clamp below: clamping a past-the-far-end gap
+            # first would leave the item one slot short of the last position.
+            new_index -= 1
         if frame.item_geometries:
             new_index = min(new_index, len(frame.item_geometries) - 1)
         else:

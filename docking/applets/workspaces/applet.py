@@ -59,7 +59,7 @@ class WorkspacesApplet(Applet):
         self._watch_handle: object | None = None
         self._last_logged_state: tuple[int, int, str, str] | None = None
         self._workspace_count: int = 1
-        self._active_num: int = -1
+        self._active_index: int = -1
         self._active_name: str = ""
         super().__init__(icon_size, config)
         self.present()
@@ -77,17 +77,18 @@ class WorkspacesApplet(Applet):
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         workspaces = self._workspace_snapshots()
-        active = self._active_workspace(workspaces=workspaces)
-        active_num = active.number if active is not None else -1
+        active_entry = self._active_entry(workspaces=workspaces)
+        active_index = active_entry[0] if active_entry is not None else -1
+        active = active_entry[1] if active_entry is not None else None
         count = workspace_count(count=len(workspaces) if workspaces else None)
         active_name = active.name if active is not None else ""
         self._workspace_count = count
-        self._active_num = active_num
+        self._active_index = active_index
         self._active_name = active_name
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr=cr, size=size, count=count, active_num=active_num)
+        _render_grid(cr=cr, size=size, count=count, active_num=active_index)
 
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
@@ -95,24 +96,24 @@ class WorkspacesApplet(Applet):
         label = (
             workspace_label(
                 name=self._active_name or None,
-                number=self._active_num,
+                index=self._active_index,
             )
-            if self._active_num >= 0
+            if self._active_index >= 0
             else _("Desktop")
         )
         self.item.name = label
         log_state = (
             self._workspace_count,
-            self._active_num,
+            self._active_index,
             self._active_name,
             label,
         )
         if log_state != self._last_logged_state:
             self._last_logged_state = log_state
             log.bind(action="refresh_tooltip").debug(
-                "workspace state count=%s active_num=%s active_name=%r label=%r",
+                "workspace state count=%s active_index=%s active_name=%r label=%r",
                 self._workspace_count,
-                self._active_num,
+                self._active_index,
                 self._active_name,
                 label,
             )
@@ -123,14 +124,15 @@ class WorkspacesApplet(Applet):
         if service is None:
             return
         workspaces = self._workspace_snapshots()
-        active = self._active_workspace(workspaces=workspaces)
-        if active is None:
+        active_entry = self._active_entry(workspaces=workspaces)
+        if active_entry is None:
             return
+        current_index = active_entry[0]
         count = len(workspaces)
-        next_num = next_workspace_index(current=active.number, count=count, delta=1)
+        next_num = next_workspace_index(current=current_index, count=count, delta=1)
         log.bind(action="on_clicked").debug(
-            "workspace switch current=%s next=%s count=%s",
-            active.number,
+            "workspace switch current_index=%s next_index=%s count=%s",
+            current_index,
             next_num,
             count,
         )
@@ -143,20 +145,21 @@ class WorkspacesApplet(Applet):
         if service is None:
             return
         workspaces = self._workspace_snapshots()
-        active = self._active_workspace(workspaces=workspaces)
-        if active is None:
+        active_entry = self._active_entry(workspaces=workspaces)
+        if active_entry is None:
             return
+        current_index = active_entry[0]
         count = len(workspaces)
         delta = -1 if direction_up else 1
         next_num = next_workspace_index(
-            current=active.number,
+            current=current_index,
             count=count,
             delta=delta,
         )
         log.bind(action="on_scroll").debug(
-            "workspace switch direction_up=%s current=%s next=%s count=%s",
+            "workspace switch direction_up=%s current_index=%s next_index=%s count=%s",
             direction_up,
-            active.number,
+            current_index,
             next_num,
             count,
         )
@@ -175,10 +178,10 @@ class WorkspacesApplet(Applet):
             display=radio_menu_items(
                 choices=tuple(
                     (
-                        workspace_label(name=ws.name, number=ws.number),
+                        workspace_label(name=ws.name, index=index),
                         ws.id,
                     )
-                    for ws in workspaces
+                    for index, ws in enumerate(workspaces)
                 ),
                 active_value=active_id,
                 is_active=lambda workspace_id: workspace_id == active_id,
@@ -233,3 +236,24 @@ class WorkspacesApplet(Applet):
         if self._workspace_service is None:
             return None
         return self._workspace_service.active_workspace()
+
+    def _active_entry(
+        self, *, workspaces: tuple[WorkspaceSnapshot, ...]
+    ) -> tuple[int, WorkspaceSnapshot] | None:
+        """Return the active workspace's position in the list and its snapshot.
+
+        Position, never ``WorkspaceSnapshot.number``, drives activation,
+        scrolling, the highlight and the label: compositors number workspaces
+        themselves (libwnck counts from 0, Sway, KWin, Hyprland and Wayfire from
+        1, and emptied workspaces leave gaps), so a backend that passes those
+        numbers through would send the applet to the wrong workspace.
+        """
+        active = self._active_workspace(workspaces=workspaces)
+        if active is None:
+            return None
+        for index, workspace in enumerate(workspaces):
+            if workspace.id == active.id:
+                return index, active
+        # A backend may report an active workspace it does not list; its
+        # position is unknown, so callers must not guess one.
+        return None

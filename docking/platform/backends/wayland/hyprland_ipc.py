@@ -689,23 +689,27 @@ class HyprlandWorkspaceService(WorkspaceService):
         active_id = active.get("id") if isinstance(active, Mapping) else None
         if not isinstance(rows, list):
             return ()
+        known_rows = sorted(
+            (
+                row
+                for row in rows
+                if isinstance(row, Mapping)
+                and isinstance(row.get("id"), int)
+                and row["id"] > 0
+            ),
+            key=lambda row: row["id"],
+        )
         return tuple(
             WorkspaceSnapshot(
                 id=str(row["id"]),
-                number=row["id"],
+                # Consumers index the returned sequence, so publish the
+                # position: Hyprland ids start at 1 and leave gaps when a
+                # workspace becomes empty.
+                number=index,
                 name=str(row.get("name", row["id"])),
                 active=row["id"] == active_id,
             )
-            for row in sorted(
-                (
-                    row
-                    for row in rows
-                    if isinstance(row, Mapping)
-                    and isinstance(row.get("id"), int)
-                    and row["id"] > 0
-                ),
-                key=lambda row: row["id"],
-            )
+            for index, row in enumerate(known_rows)
         )
 
     def active_workspace(self) -> WorkspaceSnapshot | None:

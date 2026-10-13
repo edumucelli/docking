@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pytest
+
 from docking.search.recognizers.temporal import (
     TemporalKind,
     _build_timezone_indexes,
@@ -37,6 +39,36 @@ def test_bare_relative_weekday_and_slash_dates_are_detected() -> None:
     assert future is not None and future.copy_text == "2026-07-31"
     assert past is not None and past.copy_text == "2026-07-14"
     assert next_monday is not None and next_monday.copy_text == "2026-08-03"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("2026-7-28", "2026-07-28"),
+        ("2026/7/28", "2026-07-28"),
+        ("2026-12-1", "2026-12-01"),
+    ],
+)
+def test_unpadded_dates_are_detected(text: str, expected: str) -> None:
+    """The pattern accepts one-digit month and day, so parsing must too.
+
+    ``date.fromisoformat`` requires them zero-padded, so these matched the date
+    pattern, failed to parse, and fell through to the calculator: typing
+    "2026-7-28" returned 1991 (a subtraction) instead of the date.
+    """
+    value = parse_temporal_query(text, now=NOW)
+
+    assert value is not None
+    assert value.kind is TemporalKind.DATE
+    assert value.copy_text == expected
+
+
+def test_unpadded_date_also_works_in_a_timezone_conversion() -> None:
+    value = parse_temporal_query("2026-7-28 15:00 utc to tokyo", now=NOW)
+
+    assert value is not None
+    assert value.kind is TemporalKind.TIME_CONVERSION
+    assert value.title == "2026-07-29 00:00 · Asia/Tokyo"
 
 
 def test_current_time_and_timezone_conversion_are_detected() -> None:

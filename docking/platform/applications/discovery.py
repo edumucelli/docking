@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import stat
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -76,6 +77,45 @@ class _FileFacts:
     categories_raw: str
     keywords: tuple[str, ...]
     actions: tuple[_FileAction, ...]
+    only_show_in: tuple[str, ...] = ()
+    not_show_in: tuple[str, ...] = ()
+
+
+def current_desktop_names() -> frozenset[str]:
+    """Return the desktop names from ``XDG_CURRENT_DESKTOP``, case-folded."""
+    raw = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    return frozenset(part.strip().casefold() for part in raw.split(":") if part.strip())
+
+
+def desktop_entry_string_list(key_file: object, key: str) -> tuple[str, ...]:
+    """Read a ``;``-separated Desktop Entry list value."""
+    try:
+        values = key_file.get_string_list("Desktop Entry", key)  # type: ignore[attr-defined]
+    except Exception:
+        return ()
+    return tuple(text for text in (_clean_text(value) for value in values) if text)
+
+
+def visible_on_current_desktop(
+    *, only_show_in: tuple[str, ...], not_show_in: tuple[str, ...]
+) -> bool:
+    """Apply the Desktop Entry spec's OnlyShowIn/NotShowIn gate.
+
+    Both keys list the desktop environments an entry is restricted to or
+    excluded from -- "GNOME", "sway", and so on -- and Gio gates on them
+    through ``should_show``. When the session does not say which desktop it is,
+    nothing is filtered: hiding every restricted entry would empty the launcher
+    on a bare window manager or in a test run, which is worse than showing a
+    few entries that were meant for another desktop.
+    """
+    if not only_show_in and not not_show_in:
+        return True
+    names = current_desktop_names()
+    if not names:
+        return True
+    if only_show_in and not names & {name.casefold() for name in only_show_in}:
+        return False
+    return not (not_show_in and names & {name.casefold() for name in not_show_in})
 
 
 def default_gio_applications() -> tuple[object, ...]:
@@ -357,6 +397,8 @@ def file_facts(path: Path | None) -> _FileFacts | None:
         ),
         hidden=desktop_entries.desktop_entry_bool(key_file, "Hidden"),
         no_display=desktop_entries.desktop_entry_bool(key_file, "NoDisplay"),
+        only_show_in=desktop_entry_string_list(key_file, "OnlyShowIn"),
+        not_show_in=desktop_entry_string_list(key_file, "NotShowIn"),
         generated=desktop_entries.desktop_entry_bool(
             key_file,
             desktop_entries.GENERATED_MARKER_KEY,
@@ -453,6 +495,9 @@ def _application_from_gio_with_diagnostic(
         desktop_file=desktop_file,
         visible=(
             not _safe_bool_call(app_info, "get_nodisplay")
+            # Gio answers the OnlyShowIn/NotShowIn gate here; without it an
+            # entry meant for another desktop is listed on this one.
+            and safe_call(app_info, "should_show") is not False
             and (visibility_facts is None or not visibility_facts.no_display)
             and (facts is None or not facts.no_display)
         ),
@@ -718,7 +763,11 @@ def _application_from_file(
         origin=_origin(desktop_id=desktop_id, generated=facts.generated),
         location=_location(path),
         desktop_file=path,
-        visible=not facts.no_display,
+        visible=not facts.no_display
+        and visible_on_current_desktop(
+            only_show_in=facts.only_show_in,
+            not_show_in=facts.not_show_in,
+        ),
         has_gio_source=False,
         generic_name=facts.generic_name,
         description=(

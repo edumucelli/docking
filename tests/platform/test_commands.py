@@ -354,6 +354,17 @@ def test_desktop_exec_field_code_regex_and_percent_semantics_are_preserved():
     for code in "uUfFdDnNickvm":
         assert clean_desktop_exec(f"example %{code}") == "example"
 
-    assert clean_desktop_exec("example %Z") == "example %Z"
-    assert clean_desktop_exec("example %%") == "example %%"
-    assert clean_desktop_exec("example %%U") == "example %"
+    # %% is the spec's escape for a literal percent, so it collapses to one.
+    # Passed through as-is, it reached the application as a bogus argument.
+    assert clean_desktop_exec("example %%") == "example %"
+    assert clean_desktop_exec("example 100%%") == "example 100%"
+    assert clean_desktop_exec("example %%U") == "example %U"
+    # An unrecognised code is consumed, which is what GLib does when it
+    # launches the same desktop file.
+    assert clean_desktop_exec("example %Z") == "example"
+    # A percent that is not a field code survives: a URL escape, or a
+    # trailing one.
+    assert clean_desktop_exec("example --url=http://x/?a=%20") == (
+        "example --url=http://x/?a=%20"
+    )
+    assert clean_desktop_exec("example 100%") == "example 100%"

@@ -1141,6 +1141,12 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
+        # Dotfiles setups symlink the config into a repository. Replacing the
+        # path would unlink the link and leave a regular file behind, so the
+        # user's repository silently stopped tracking the config after the
+        # first save; resolve it and write through to the real file.
+        if path.is_symlink():
+            path = Path(os.path.realpath(path))
         ensure_parent_dir(path)
         # Write to a sibling temp file and replace in one step so Ctrl+C or
         # process death never leaves the real config half-written.

@@ -6,6 +6,8 @@ import json
 import logging
 from datetime import datetime
 
+import pytest
+
 from docking.core.greeting import (
     StartupGreetingState,
     _coerce_bool,
@@ -199,6 +201,26 @@ class TestCoerceInt:
 
     def test_invalid_string_returns_default(self):
         assert _coerce_int("abc", default=7) == 7
+
+    @pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+    def test_unrepresentable_number_returns_default(self, value):
+        """The coercion is total: unusable input must not raise.
+
+        This runs in a startup timeout, so an escaping OverflowError printed a
+        traceback on every launch and the greeting could never fire again.
+        """
+        assert _coerce_int(value, default=7) == 7
+
+    def test_infinity_in_the_state_file_does_not_break_the_greeting(self, tmp_path):
+        path = tmp_path / "startup.json"
+        path.write_text(
+            json.dumps({"completed_first_launch": True, "last_year_greeted": 1e400}),
+            encoding="utf-8",
+        )
+
+        state = load_state(path=path)
+
+        assert state.last_year_greeted == 0
 
     def test_none_returns_default(self):
         assert _coerce_int(None, default=99) == 99
