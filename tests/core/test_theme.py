@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 from unittest.mock import patch
 
 import pytest
@@ -116,6 +117,7 @@ class TestThemeLoad:
         [
             {"shelf": {"stroke_width_px": "thick"}},
             {"shelf": {"corner_radius_px": 1e400}},
+            {"items": {"glow": {"urgent_size_ratio": -1e400}}},
             {"shelf": {"fill_start_color": "red"}},
         ],
     )
@@ -129,7 +131,16 @@ class TestThemeLoad:
 
         theme = Theme.load("broken", 48)
 
-        assert theme.shelf_height == Theme.load("default", 48).shelf_height
+        # Compare the values the payload aims at, not one unrelated field: an
+        # infinite number used to load without raising, so asserting only
+        # shelf_height passed while the Theme held infinity and the X11 blur
+        # path later raised OverflowError rounding it.
+        fallback = Theme.load("default", 48)
+        assert theme.shelf_height == fallback.shelf_height
+        assert theme.roundness == fallback.roundness
+        assert theme.urgent_glow_size == fallback.urgent_glow_size
+        assert math.isfinite(theme.roundness)
+        assert math.isfinite(theme.urgent_glow_size)
 
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))

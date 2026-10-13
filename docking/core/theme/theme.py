@@ -134,6 +134,7 @@ from __future__ import annotations
 
 import enum
 import json
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -317,6 +318,25 @@ class ActiveTint(str, enum.Enum):
 
     ICON = "icon"
     THEME = "theme"
+
+
+def reject_non_finite_numbers(data: object, *, path: str = "$") -> None:
+    """Raise if a loaded theme document holds an infinite or NaN number.
+
+    JSON has no literal for either, but ``1e400`` parses to infinity without
+    complaint, and an infinite layout value survives all the way to whichever
+    caller first rounds or multiplies it -- the X11 blur path raises
+    OverflowError on ``round(roundness * scale)``. Rejecting it while reading
+    sends the file down the same fallback as any other unusable theme.
+    """
+    if isinstance(data, float) and not math.isfinite(data):
+        raise ValueError(f"non-finite number at {path}")
+    if isinstance(data, dict):
+        for key, value in data.items():
+            reject_non_finite_numbers(value, path=f"{path}.{key}")
+    elif isinstance(data, list):
+        for index, value in enumerate(data):
+            reject_non_finite_numbers(value, path=f"{path}[{index}]")
 
 
 def _rgba(values: list[int]) -> RGBA:
@@ -508,6 +528,7 @@ class Theme:
 
         with path.open(encoding="utf-8") as f:
             data: dict[str, Any] = json.load(fp=f)
+        reject_non_finite_numbers(data)
         data = migrate_loaded_theme_data(
             data=data,
             path=path,
