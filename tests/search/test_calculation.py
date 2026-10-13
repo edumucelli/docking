@@ -116,6 +116,31 @@ def test_integer_arithmetic_is_exact_beyond_float_precision() -> None:
     assert recognize_calculation("= 2^64").answer == "18446744073709551616"
     # A power of ten stays exact rather than overflowing a float conversion.
     assert recognize_calculation("= 10^400").answer == "1" + "0" * 400
+    # round() is part of the same guarantee: widening its result back to float
+    # re-rounded it, so this answered ...992.
+    assert (
+        recognize_calculation("= round(9007199254740993)").answer == "9007199254740993"
+    )
+    assert recognize_calculation("= round(9007199254740993, 0)").answer == (
+        "9007199254740993"
+    )
+    # The float path keeps its old formatting.
+    assert recognize_calculation("= round(125, -1)").answer == "120"
+    assert recognize_calculation("= round(1.56, 1)").answer == "1.6"
+
+
+def test_power_size_guard_uses_a_lower_bound_not_an_estimate() -> None:
+    """The guard must reject only what provably cannot fit.
+
+    ``bit_length * exponent`` overshoots: 16^1000 is an estimate of 5000 bits
+    against a real 4001, so the tighter estimate rejected a result the limit
+    allows. The bound is ``(bits - 1) * exponent``, and the boundary cases are
+    settled on the result.
+    """
+    assert (16**1000).bit_length() == 4001
+    assert recognize_calculation("= 16^1000").answer == str(16**1000)
+    # Just over the ceiling is still refused, on the result.
+    assert recognize_calculation("= 2^4096").error is CalculationError.OVERFLOW
 
 
 def test_mixed_arithmetic_still_formats_like_a_float() -> None:

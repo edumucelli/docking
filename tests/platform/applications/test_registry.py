@@ -409,19 +409,52 @@ class TestDesktopEnvironmentGate:
 
     def test_desktop_names_are_read_from_the_session_variable(self, monkeypatch):
         monkeypatch.setenv("XDG_CURRENT_DESKTOP", "sway:GNOME")
-        assert discovery_mod.current_desktop_names() == frozenset({"sway", "gnome"})
+        # Order is part of the contract, so this is a sequence, not a set.
+        assert discovery_mod.current_desktop_names() == ("sway", "gnome")
 
         monkeypatch.setenv("XDG_CURRENT_DESKTOP", "")
-        assert discovery_mod.current_desktop_names() == frozenset()
+        assert discovery_mod.current_desktop_names() == ()
 
-    def test_unknown_desktop_filters_nothing(self, monkeypatch):
-        """A bare window manager must not lose entries it cannot classify."""
+    @pytest.mark.parametrize(
+        ("current", "expected"),
+        [("MATE:GNOME", True), ("GNOME:MATE", False)],
+    )
+    def test_the_first_matching_desktop_name_decides(
+        self, monkeypatch, current, expected
+    ):
+        """The spec resolves both keys against the session list in order.
+
+        With OnlyShowIn=MATE and NotShowIn=GNOME, "MATE:GNOME" is shown and
+        "GNOME:MATE" is hidden; testing the two as sets picked whichever
+        answered first and got the second case wrong.
+        """
+        monkeypatch.setenv("XDG_CURRENT_DESKTOP", current)
+
+        assert (
+            discovery_mod.visible_on_current_desktop(
+                only_show_in=("MATE",), not_show_in=("GNOME",)
+            )
+            is expected
+        )
+
+    def test_unknown_desktop_hides_an_only_show_in_entry(self, monkeypatch):
+        """An entry restricted to other desktops stays hidden.
+
+        This matches ``should_show()`` on the Gio-backed path; answering True
+        here made the same entry visible from one source and hidden from the
+        other depending on which discovered it.
+        """
         monkeypatch.setenv("XDG_CURRENT_DESKTOP", "")
 
         assert (
             discovery_mod.visible_on_current_desktop(
-                only_show_in=("GNOME",), not_show_in=("GNOME",)
+                only_show_in=("GNOME",), not_show_in=()
             )
+            is False
+        )
+        # An entry with no restriction is unaffected.
+        assert (
+            discovery_mod.visible_on_current_desktop(only_show_in=(), not_show_in=())
             is True
         )
 

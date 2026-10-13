@@ -81,10 +81,14 @@ class _FileFacts:
     not_show_in: tuple[str, ...] = ()
 
 
-def current_desktop_names() -> frozenset[str]:
-    """Return the desktop names from ``XDG_CURRENT_DESKTOP``, case-folded."""
+def current_desktop_names() -> tuple[str, ...]:
+    """Return the desktop names from ``XDG_CURRENT_DESKTOP``, in session order.
+
+    The order is part of the contract: OnlyShowIn/NotShowIn are resolved on the
+    first name in the list that appears in either of them.
+    """
     raw = os.environ.get("XDG_CURRENT_DESKTOP", "")
-    return frozenset(part.strip().casefold() for part in raw.split(":") if part.strip())
+    return tuple(part.strip().casefold() for part in raw.split(":") if part.strip())
 
 
 def desktop_entry_string_list(key_file: object, key: str) -> tuple[str, ...]:
@@ -101,21 +105,24 @@ def visible_on_current_desktop(
 ) -> bool:
     """Apply the Desktop Entry spec's OnlyShowIn/NotShowIn gate.
 
-    Both keys list the desktop environments an entry is restricted to or
-    excluded from -- "GNOME", "sway", and so on -- and Gio gates on them
-    through ``should_show``. When the session does not say which desktop it is,
-    nothing is filtered: hiding every restricted entry would empty the launcher
-    on a bare window manager or in a test run, which is worse than showing a
-    few entries that were meant for another desktop.
+    Both keys name desktop environments -- "GNOME", "sway" -- and the spec
+    resolves them against ``$XDG_CURRENT_DESKTOP`` in order: the first name in
+    that list which appears in either key decides, so "MATE:GNOME" with
+    OnlyShowIn=MATE and NotShowIn=GNOME is shown rather than hidden. When no
+    name matches, an entry restricted by OnlyShowIn stays hidden, which is also
+    what ``should_show()`` answers for the Gio-backed path -- the two sources
+    have to agree, or the same entry would appear once and not the other way.
     """
     if not only_show_in and not not_show_in:
         return True
-    names = current_desktop_names()
-    if not names:
-        return True
-    if only_show_in and not names & {name.casefold() for name in only_show_in}:
-        return False
-    return not (not_show_in and names & {name.casefold() for name in not_show_in})
+    only = {name.casefold() for name in only_show_in}
+    excluded = {name.casefold() for name in not_show_in}
+    for name in current_desktop_names():
+        if name in only:
+            return True
+        if name in excluded:
+            return False
+    return not only
 
 
 def default_gio_applications() -> tuple[object, ...]:

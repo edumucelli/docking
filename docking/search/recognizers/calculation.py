@@ -72,13 +72,17 @@ _UNARY_OPERATIONS: dict[type[ast.unaryop], UnaryOperation] = {
 _CONSTANTS = {"e": math.e, "pi": math.pi, "tau": math.tau}
 
 
-def _rounded(value: Number, digits: Number = 0.0) -> float:
+def _rounded(value: Number, digits: Number = 0.0) -> Number:
     # An integer precision arrives as an int now that exact integers are kept,
     # so it is widened rather than assumed to be a float already.
     precision = float(digits)
     if not precision.is_integer():
         raise ValueError("round precision must be an integer")
-    return float(round(value, int(precision)))
+    result = round(value, int(precision))
+    # round() gives back an int for an int and a float for a float, and the
+    # int has to stay one: float() would re-round a value past 2**53, so
+    # round(9007199254740993) came back as ...992.
+    return result if isinstance(result, int) else float(result)
 
 
 _FUNCTIONS: dict[str, tuple[Function, frozenset[int]]] = {
@@ -146,9 +150,13 @@ def _evaluate_node(node: ast.AST) -> int | float:
             and isinstance(left, int)
             and isinstance(right, int)
             and right > 0
-            # Reject the tower before building it: the cost is in the power,
-            # not in checking the answer afterwards.
-            and left.bit_length() * right > _MAX_RESULT_BITS
+            # A lower bound, not an estimate: |left| >= 2**(bits-1), so the
+            # power has at least (bits-1)*right bits. The tighter
+            # `bits * right` would reject 16^1000, whose 4001-bit result is
+            # inside the limit; anything the bound lets through is settled by
+            # _finite on the result. A tower such as ((2^1000)^1000) is still
+            # caught here, before the expensive power is built.
+            and (left.bit_length() - 1) * right > _MAX_RESULT_BITS
         ):
             raise OverflowError("integer result is too large")
         return _finite(operation(left, right))

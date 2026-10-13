@@ -1092,6 +1092,12 @@ class Config:
     ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
+        # Resolved the same way save() resolves it, so the file and its backup
+        # are read and written in one place. Otherwise a dotfiles symlink had
+        # the backup written beside its target while recovery looked for one
+        # beside the link, and a corrupt config restored a stale copy.
+        if path.is_symlink():
+            path = Path(os.path.realpath(path))
         if not path.exists():
             factory = (
                 build_initial_pinned
