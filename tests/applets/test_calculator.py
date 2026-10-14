@@ -147,6 +147,28 @@ class _FakeBuildBox:
 
 
 class TestEvaluate:
+    @pytest.mark.parametrize(
+        ("expression", "expected"),
+        [
+            ("9007199254740993", "9007199254740993"),
+            ("9007199254740993 + 1", "9007199254740994"),
+            ("9007199254740993 - 9007199254740992", "1"),
+            ("12345678901234567890 * 3", "37037036703703703670"),
+            ("-9007199254740993", "-9007199254740993"),
+            pytest.param("1" + "0" * 400, "1" + "0" * 400, id="large-integer"),
+        ],
+    )
+    def test_integer_results_keep_all_digits(self, expression, expected):
+        assert evaluate(expression) == expected
+
+    @pytest.mark.parametrize(
+        "expression",
+        ["+".join(["1"] * 1500), "-" * 3000 + "1"],
+        ids=["long-sum", "deep-unary"],
+    )
+    def test_deep_expression_returns_an_error(self, expression):
+        assert evaluate(expression).startswith("Error")
+
     def test_addition(self):
         assert evaluate("2+2") == "4"
 
@@ -202,7 +224,6 @@ class TestEvaluate:
         "expression",
         [
             "1e400",  # parses straight to infinity
-            "1" + "0" * 400,  # an integer too large to become a float
             "1e308 * 10",  # finite operands, infinite product
         ],
     )
