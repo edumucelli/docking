@@ -132,6 +132,7 @@ Downstream code should not need to re-interpret raw JSON theme semantics.
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import json
 import math
@@ -320,20 +321,22 @@ class ActiveTint(str, enum.Enum):
     THEME = "theme"
 
 
-def reject_non_finite_numbers(data: object, *, path: str = "$") -> None:
-    """Raise if a loaded theme document holds an infinite or NaN number.
+def reject_non_finite_theme(theme: Theme) -> None:
+    """Raise if any loaded value is infinite or NaN.
 
-    ``1e400`` parses to infinity without complaint and only raises later, in a
-    caller that rounds it, so the file is refused while it is read.
+    Checked on the built Theme rather than on the parsed document: JSON has no
+    literal for either, but the string "Infinity" converts to one, and a finite
+    value scaled by icon_size can overflow to one. Both would otherwise reach
+    whichever caller rounds or multiplies the value first.
     """
-    if isinstance(data, float) and not math.isfinite(data):
-        raise ValueError(f"non-finite number at {path}")
-    if isinstance(data, dict):
-        for key, value in data.items():
-            reject_non_finite_numbers(value, path=f"{path}.{key}")
-    elif isinstance(data, list):
-        for index, value in enumerate(data):
-            reject_non_finite_numbers(value, path=f"{path}[{index}]")
+    for field in dataclasses.fields(theme):
+        value = getattr(theme, field.name)
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError(f"non-finite value for {field.name}")
+        if isinstance(value, tuple) and any(
+            isinstance(part, float) and not math.isfinite(part) for part in value
+        ):
+            raise ValueError(f"non-finite value for {field.name}")
 
 
 def _rgba(values: list[int]) -> RGBA:
@@ -520,7 +523,6 @@ class Theme:
 
         with path.open(encoding="utf-8") as f:
             data: dict[str, Any] = json.load(fp=f)
-        reject_non_finite_numbers(data)
         data = migrate_loaded_theme_data(
             data=data,
             path=path,
@@ -685,7 +687,7 @@ class Theme:
         round_bottom = bool(_theme_value(data, "shelf.round_bottom", False))
         distance_from_edge = int(_theme_value(data, "layout.distance_from_edge_px", 0))
 
-        return cls(
+        theme = cls(
             fill_start=fill_start,
             fill_end=fill_end,
             stroke=stroke,
@@ -720,3 +722,5 @@ class Theme:
             active_tint=active_tint,
             active_color=active_color,
         )
+        reject_non_finite_theme(theme)
+        return theme

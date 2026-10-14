@@ -115,6 +115,10 @@ class TestThemeLoad:
             {"shelf": {"stroke_width_px": "thick"}},
             {"shelf": {"corner_radius_px": 1e400}},
             {"items": {"glow": {"urgent_size_ratio": -1e400}}},
+            # A string that converts to infinity: JSON has no literal for it,
+            # but float("Infinity") has the same effect.
+            {"shelf": {"corner_radius_px": "Infinity"}},
+            {"shelf": {"stroke_width_px": "-inf"}},
             {"shelf": {"fill_start_color": "red"}},
         ],
     )
