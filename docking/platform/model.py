@@ -597,15 +597,12 @@ class DockModel:
     def _recompute_badge(self, *, item: DockItem) -> None:
         item.badge_count = max(
             0,
-            item.launcher_entry_badge_count,
-            item.status_notifier_badge_count,
+            item.launcher_entry_badge_count if item.launcher_entry_badge_visible else 0,
+            item.status_notifier_badge_count
+            if item.status_notifier_badge_visible
+            else 0,
         )
-        has_visible_count = (
-            item.launcher_entry_badge_visible and item.launcher_entry_badge_count > 0
-        ) or (
-            item.status_notifier_badge_visible and item.status_notifier_badge_count > 0
-        )
-        item.badge_visible = self._config.show_launcher_badges and has_visible_count
+        item.badge_visible = self._config.show_launcher_badges and item.badge_count > 0
 
     def _recompute_urgent(self, *, item: DockItem) -> None:
         effective = (
@@ -1532,6 +1529,11 @@ class DockModel:
 
         item = items[from_index]
         target_item = items[to_index]
+        if any(
+            outgoing is item or outgoing is target_item
+            for outgoing in self._animating_out
+        ):
+            return
         candidates = (item,) if target_item is item else (item, target_item)
         for candidate in candidates:
             if not candidate.is_pinned and not self._prepare_runtime_item_for_pinning(

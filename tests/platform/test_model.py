@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -691,6 +693,23 @@ class TestCustomIcons:
 
 
 class TestReorderVisible:
+    @pytest.mark.parametrize(("source", "target"), [(1, 0), (0, 1)])
+    def test_reorder_does_not_resurrect_an_outgoing_item(self, source, target):
+        config = _make_config(["a.desktop", "b.desktop"])
+        model = _make_model(config, _make_dependencies("a.desktop", "b.desktop"))
+        outgoing = DockItem("removed.desktop", insert_factor=0.5, removal_index=1)
+        model._animating_out.append(outgoing)
+
+        model.reorder_visible(source, target)
+
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "a.desktop",
+            "b.desktop",
+        ]
+        assert len(model.visible_items()) == 3
+        assert not outgoing.is_pinned
+        config.save.assert_not_called()
+
     def test_pinned_items_list_accessible(self):
         # Given
         config = _make_config(["a.desktop", "b.desktop"])
@@ -1681,6 +1700,30 @@ class TestLauncherEntryState:
 
 
 class TestStatusNotifierOverlayState:
+    def test_invisible_launcher_count_does_not_override_visible_notifier(self):
+        model = _make_model(
+            _make_config(["a.desktop"]), _make_dependencies("a.desktop")
+        )
+        model.apply_status_notifier_overlay(
+            source_id="tray", desktop_id="a.desktop", badge_count=2
+        )
+        model.apply_launcher_entry(
+            sender_name=":1.7",
+            app_uri="application://a.desktop",
+            state=LauncherEntryState(
+                sender_name=":1.7",
+                app_uri="application://a.desktop",
+                desktop_id="a.desktop",
+                badge_count=99,
+                badge_visible=False,
+            ),
+        )
+
+        item = model.visible_items()[0]
+        assert item.badge_visible
+        assert item.badge_count == 2
+        assert item.launcher_entry_badge_count == 99
+
     def test_applies_badge_and_urgency_to_pinned_item(self, monkeypatch):
         config = _make_config(["slack.desktop"])
         dependencies = _make_dependencies("slack.desktop")

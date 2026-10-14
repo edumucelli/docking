@@ -231,6 +231,7 @@ class DnDHandler:
 
         self.drag_index: int = -1
         self._drag_from: int = -1
+        self._dragged_item: DockItem | None = None
         self.drop_insert_index: int = -1  # for external drops: where to insert
         self.drop_target_id: str = (
             ""  # launcher desktop_id under cursor during external drag
@@ -247,6 +248,17 @@ class DnDHandler:
     def set_theme(self, theme: Theme) -> None:
         """Update the theme used for drag-and-drop spacing."""
         self._theme = theme
+
+    def _current_drag_index(self) -> int:
+        """Find the grabbed object in the model's current visible order."""
+        return next(
+            (
+                index
+                for index, item in enumerate(self._model.visible_items())
+                if item is self._dragged_item
+            ),
+            -1,
+        )
 
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
@@ -303,6 +315,8 @@ class DnDHandler:
         a scaled pixbuf as the drag icon.
         """
         frame = self._geometry_builder.build_frame()
+        self._drag_from = self.drag_index = -1
+        self._dragged_item = None
         self._begin_drag_autohide()
         # Each internal reorder starts inside the dock. The drag-off removal
         # path must earn this flag through drag-leave during this drag cycle.
@@ -332,6 +346,7 @@ class DnDHandler:
                 self.drag_index = i
 
                 item = items[i]
+                self._dragged_item = item
                 if item.icon:
                     icon_size = int(self._config.icon_size * DRAG_ICON_SCALE)
                     scaled = item.icon.scale_simple(
@@ -410,6 +425,9 @@ class DnDHandler:
             return True
 
         frame = self._geometry_builder.build_frame(main_cursor=-1.0)
+        self.drag_index = self._current_drag_index()
+        if self.drag_index < 0:
+            return False
         new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
         if new_index > self.drag_index:
             # The gap counts the dragged item and reorder_visible pops first,
@@ -423,7 +441,7 @@ class DnDHandler:
         if new_index != self.drag_index:
             log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
             self._model.reorder_visible(self.drag_index, new_index)
-            self.drag_index = new_index
+            self.drag_index = self._current_drag_index()
 
         # Track cursor during drag so the renderer can pin the dragged item's
         # running-indicator dot under the drag ghost instead of letting it drift
@@ -687,9 +705,9 @@ class DnDHandler:
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
             display = self._window.get_display()
-            pos = get_pointer_position(display)
-            screen_x = pos.x if pos is not None else 0
-            screen_y = pos.y if pos is not None else 0
+            pointer_pos = get_pointer_position(display)
+            screen_x = pointer_pos.x if pointer_pos is not None else 0
+            screen_y = pointer_pos.y if pointer_pos is not None else 0
             window_pos = window_screen_position(self._window)
             win_x, win_y = window_pos.x, window_pos.y
             win_w, win_h = self._window.get_size()
@@ -721,26 +739,35 @@ class DnDHandler:
             # Conditions 2 and 3 from the docstring. If either fails, this was
             # a normal same-widget reorder/cleanup path, even when Wayland's
             # final global coordinate query appears to be outside the dock.
-            if not self._internal_drag_left_dock or self._drop_committed:
+            if (
+                pointer_pos is None
+                or not self._internal_drag_left_dock
+                or self._drop_committed
+            ):
                 outside = False
 
-            if outside and 0 <= self.drag_index < len(items):
-                item = items[self.drag_index]
-                if item.is_pinned:
-                    log.debug(
-                        "drag-end: unpinning %s (running=%s)",
-                        item.name,
-                        item.is_running,
-                    )
-                    if self._folder_stack.open_item_id() == item.desktop_id:
-                        self._folder_stack.close()
-                    show_poof(x=int(screen_x), y=int(screen_y))
-                    # Clear slide state to avoid stale offsets
-                    self._renderer.slide_offsets.clear()
-                    self._renderer.prev_positions.clear()
-                    self._model.unpin_item(item.desktop_id)
+            item = self._dragged_item
+            if (
+                outside
+                and item is not None
+                and item.is_pinned
+                and any(current is item for current in items)
+            ):
+                log.debug(
+                    "drag-end: unpinning %s (running=%s)",
+                    item.name,
+                    item.is_running,
+                )
+                if self._folder_stack.open_item_id() == item.desktop_id:
+                    self._folder_stack.close()
+                show_poof(x=int(screen_x), y=int(screen_y))
+                # Clear slide state to avoid stale offsets
+                self._renderer.slide_offsets.clear()
+                self._renderer.prev_positions.clear()
+                self._model.unpin_item(item.desktop_id)
 
         self.drag_index = -1
+        self._dragged_item = None
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False

@@ -263,6 +263,46 @@ class TestAutoHideUtilityBranches:
 
 
 class TestAutoHideTimersAndDelays:
+    def test_repeated_reconcile_does_not_leave_an_unhide_timer(self, monkeypatch):
+        ctrl = self._make_controller(unhide_delay=200)
+        pending = {}
+        next_id = 0
+
+        def schedule(_delay, callback):
+            nonlocal next_id
+            next_id += 1
+            pending[next_id] = callback
+            return next_id
+
+        def clear(source_id):
+            pending.pop(source_id, None)
+            return 0
+
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", schedule)
+        monkeypatch.setattr(autohide_mod, "_clear_source", clear)
+        ctrl.state = HideState.HIDDEN
+        ctrl.hide_offset = 1.0
+
+        ctrl.on_mouse_enter()
+        ctrl.reconcile()
+        ctrl.reconcile()
+        ctrl.on_mouse_leave()
+
+        assert pending == {}
+        assert ctrl.state == HideState.HIDDEN
+
+    @pytest.mark.parametrize("mode", ["none", "always-on-top"])
+    def test_window_hide_request_cannot_hide_disabled_dock(self, monkeypatch, mode):
+        ctrl = self._make_controller()
+        ctrl._config.hide_mode = mode
+        schedule = MagicMock()
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", schedule)
+
+        ctrl.set_window_should_hide(True)
+
+        schedule.assert_not_called()
+        assert ctrl.state == HideState.VISIBLE
+
     def _make_controller(self, hide_delay=0, unhide_delay=0):
         window = MagicMock()
         config = MagicMock()
