@@ -66,7 +66,11 @@ def shorten_url(url: str) -> str:
             return resp.read().decode(errors="replace").strip()
     except urllib.error.HTTPError as exc:
         log.debug("URL shortener HTTP error for %r: %s", url, exc)
-        body = exc.read().decode(errors="replace").strip()
+        try:
+            body = exc.read().decode(errors="replace").strip()
+        except Exception as body_exc:
+            log.debug("URL shortener HTTP error body could not be read: %s", body_exc)
+            return f"Error: HTTP {exc.code}"
         return f"Error: {body}" if body else f"Error: HTTP {exc.code}"
     except urllib.error.URLError as exc:
         log.debug("URL shortener network error for %r: %s", url, exc)

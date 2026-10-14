@@ -684,6 +684,42 @@ class TestConfigLoad:
         assert config.icon_size == 72
         assert config._path == path
 
+    @pytest.mark.parametrize(
+        ("target_backup", "expected_size"),
+        [(None, 96), ("{", 96), ('{"icon_size": 72}', 72)],
+    )
+    def test_symlink_recovers_legacy_backup_after_upgrade(
+        self, tmp_path, target_backup, expected_size
+    ):
+        target = tmp_path / "dotfiles" / "dock.json"
+        target.parent.mkdir()
+        target.write_text("{", encoding="utf-8")
+        link = tmp_path / "dock.json"
+        link.symlink_to(target)
+        legacy_backup = link.with_name("dock.json.bak")
+        legacy_backup.write_text(
+            json.dumps(
+                {"icon_size": 96, "theme": "glass", "pinned": ["saved.desktop"]}
+            ),
+            encoding="utf-8",
+        )
+        if target_backup is not None:
+            target.with_name("dock.json.bak").write_text(
+                target_backup, encoding="utf-8"
+            )
+
+        config = Config.load(link)
+
+        assert config.icon_size == expected_size
+        assert config._path == target
+        if expected_size == 96:
+            assert config.theme == "glass"
+            assert config.pinned == [PinnedEntry(kind=APP_KIND, target="saved.desktop")]
+        config.save()
+        assert link.is_symlink()
+        assert json.loads(target.read_text())["icon_size"] == expected_size
+        assert json.loads(legacy_backup.read_text())["icon_size"] == 96
+
     def test_load_creates_backup_when_primary_is_valid_and_backup_missing(
         self, tmp_path
     ):

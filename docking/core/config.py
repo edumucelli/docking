@@ -1094,6 +1094,7 @@ class Config:
     ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
+        original_path = path
         # Resolve as save() does, or the backup is written beside the target
         # while recovery looks for one beside the link and restores stale values.
         if path.is_symlink():
@@ -1112,9 +1113,15 @@ class Config:
         try:
             config = cls._load_existing_file(path=path)
         except Exception as exc:
-            backup_path = _backup_path_for(path)
+            backup_paths = [_backup_path_for(path)]
+            if original_path != path:
+                # Older versions kept the backup beside the symlink. Prefer
+                # the target's newer backup, but retain recovery after upgrade.
+                backup_paths.append(_backup_path_for(original_path))
             logger.warning("Failed to load config %s: %s", path, exc)
-            if backup_path.exists():
+            for backup_path in backup_paths:
+                if not backup_path.exists():
+                    continue
                 try:
                     config = cls._load_existing_file(path=backup_path)
                 except Exception as backup_exc:

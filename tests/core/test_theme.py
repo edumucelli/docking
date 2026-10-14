@@ -141,6 +141,30 @@ class TestThemeLoad:
         assert math.isfinite(theme.roundness)
         assert math.isfinite(theme.urgent_glow_size)
 
+    @pytest.mark.parametrize(
+        ("section", "key"),
+        [
+            ("layout", "horizontal_padding"),
+            ("layout", "top_padding"),
+            ("layout", "bottom_padding"),
+            ("layout", "item_padding"),
+            ("shelf", "stroke_width_px"),
+        ],
+    )
+    def test_finite_values_that_overflow_during_layout_fall_back(
+        self, tmp_path, monkeypatch, section, key
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({section: {key: 1e308}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 128)
+
+        assert theme == Theme.load("default", 128)
+
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
         directory = user_themes_dir()

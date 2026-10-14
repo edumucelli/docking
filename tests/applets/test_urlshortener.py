@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.client
+import io
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -251,6 +252,31 @@ class TestShortenUrl:
             result = shorten_url("https://example.com/very/long/url")
 
         assert result.startswith("Error:")
+
+    def test_truncated_http_error_body_returns_the_http_status(self):
+        sock = MagicMock()
+        sock.makefile.return_value = io.BytesIO(
+            b"HTTP/1.1 400 Bad Request\r\nContent-Length: 30\r\n\r\npartial"
+        )
+        response = http.client.HTTPResponse(sock)
+        response.begin()
+        error = urllib.error.HTTPError(
+            url="https://is.gd/create.php",
+            code=400,
+            msg="Bad Request",
+            hdrs=response.headers,
+            fp=response,
+        )
+        with (
+            error,
+            patch(
+                "docking.applets.urlshortener.state.urllib.request.urlopen",
+                side_effect=error,
+            ),
+        ):
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result == "Error: HTTP 400"
 
 
 class TestPrefsPayload:

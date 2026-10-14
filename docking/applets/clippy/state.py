@@ -27,7 +27,7 @@ def normalize_max_entries(value: object) -> int:
     """Coerce the persisted history cap, falling back to the default.
 
     A raw negative cap raised IndexError on every clipboard change, so history
-    stopped recording for good.
+    stopped recording for good. Zero disables history.
     """
     if isinstance(value, bool) or not isinstance(value, int | float | str):
         return DEFAULT_MAX_ENTRIES
@@ -35,6 +35,8 @@ def normalize_max_entries(value: object) -> int:
         parsed = int(value)
     except (TypeError, ValueError, OverflowError):
         return DEFAULT_MAX_ENTRIES
+    if parsed == 0:
+        return 0
     return max(MIN_MAX_ENTRIES, min(MAX_MAX_ENTRIES, parsed))
 
 
