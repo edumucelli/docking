@@ -578,10 +578,7 @@ class TestGioTrashBackend:
         """Deleting here is irreversible, so the callback is mandatory.
 
         Handing the request to Nautilus/Caja fails whenever no file manager is
-        running, which is the normal case on i3, sway, and XFCE. The backend
-        used to discard the callback and delete straight away, so the dock
-        emptied the trash for good without the user ever seeing the dialog
-        whose own text promises the items "will be permanently deleted".
+        running, which is the normal case on i3, sway, and XFCE.
         """
         from gi.repository import GLib
 

@@ -574,9 +574,8 @@ class TestConfigLoad:
     def test_load_drops_duplicate_pins_keeping_first_occurrence(self, tmp_path):
         """A repeated pin must not become a second copy of the same dock item.
 
-        The pinned list is an ordered set: the model writes whatever it holds
-        straight back to disk, so a duplicate that survived loading would be
-        drawn twice and then persist across every later restart.
+        The model writes its list straight back to disk, so a duplicate that
+        survived loading would be drawn twice and persist across every restart.
         """
         path = tmp_path / "dock.json"
         path.write_text(
@@ -596,8 +595,7 @@ class TestConfigLoad:
 
         config = Config.load(path)
 
-        # The legacy string form spells the same entry as the typed dict, so
-        # the two must collapse into the one entry that was seen first.
+        # The legacy string form spells the same entry, and the first one wins.
         assert config.pinned == [
             PinnedEntry(kind=APP_KIND, target="first.desktop"),
             PinnedEntry(kind=APP_KIND, target="second.desktop"),
@@ -632,11 +630,8 @@ class TestConfigLoad:
     ):
         """One malformed field must not reset every other setting.
 
-        The value was iterated with ``list()`` whatever its JSON type, so a
-        null, number, or bool raised out of ``__post_init__`` and aborted the
-        whole load -- the user's position, theme and icon size reverted to the
-        defaults, which the next save wrote back over the file. A bare string
-        took the opposite wrong path and became one pin per character.
+        Iterating the value whatever its JSON type aborted the whole load, and
+        a bare string became one pin per character.
         """
         path = tmp_path / "dock.json"
         path.write_text(
@@ -801,9 +796,8 @@ class TestConfigSave:
     def test_save_writes_through_a_symlinked_config(self, tmp_path):
         """Dotfiles setups symlink the config into a repository.
 
-        The atomic replace unlinked the link and left a regular file in its
-        place, so the user's repository silently stopped tracking the config
-        after the first save -- and kept serving the stale values.
+        The atomic replace unlinked the link, so the repository stopped
+        tracking the config after the first save.
         """
         target = tmp_path / "dotfiles" / "dock.json"
         target.parent.mkdir()
@@ -823,10 +817,8 @@ class TestConfigSave:
     ):
         """Loading has to look for the backup where saving puts it.
 
-        The link was resolved on save but not on load, so saves refreshed a
-        backup beside the target while recovery looked for one beside the link.
-        A load creates that second, stale backup on its first successful read,
-        so a corrupt config restored values from before the last save.
+        Resolving the link on save but not on load made recovery restore a
+        stale copy.
         """
         target = tmp_path / "dotfiles" / "dock.json"
         target.parent.mkdir()
@@ -1090,11 +1082,8 @@ class TestUriIsDir:
     def test_unreadable_path_is_not_fatal_to_the_whole_config(self, monkeypatch):
         """A parent directory that cannot be traversed makes is_dir() raise.
 
-        That is an OSError, not a ValueError, so it used to escape
-        PinnedEntry.from_raw and abort the entire config load -- one unusable
-        pin silently reset every other setting to its default. is_dir() is
-        patched rather than chmod-ed because the suite also runs as root, where
-        an unreadable directory is still readable.
+        That is an OSError, not a ValueError, so it escaped and aborted the
+        whole load; is_dir() is patched because the suite also runs as root.
         """
         warnings: list[str] = []
 

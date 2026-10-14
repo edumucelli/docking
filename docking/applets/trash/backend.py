@@ -399,8 +399,7 @@ class GioTrashBackend:
                 remaining_count=self.count_items(),
                 delegated=True,
             )
-        # A file manager would have shown its own prompt; deleting here means
-        # these files are gone for good, so the user has to agree first.
+        # No file manager will prompt, and these files would be gone for good.
         if not confirm():
             return TrashEmptyResult(
                 attempted=False,

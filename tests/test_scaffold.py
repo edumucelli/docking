@@ -109,9 +109,8 @@ def test_main_rejects_names_that_are_not_importable(
 ):
     """A name the generator cannot turn into valid Python must fail up front.
 
-    Every generated file embeds the id in an import path and a class name, so
-    an unusable id used to write out modules that raise SyntaxError on import
-    (and a test module that breaks collection for the whole suite).
+    An unusable id used to write out modules that raise SyntaxError on import,
+    which breaks suite collection.
     """
     applets_dir = tmp_path / "docking" / "applets"
     applets_dir.mkdir(parents=True)

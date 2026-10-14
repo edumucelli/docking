@@ -622,9 +622,8 @@ def _uri_is_dir(target: str) -> bool:
     try:
         return Path(unquote(urlparse(target).path)).is_dir()
     except (ValueError, OSError) as exc:
-        # A parent directory the user cannot traverse makes is_dir() raise
-        # PermissionError. Letting that escape aborts the whole config load,
-        # so one unusable pin would reset every other setting.
+        # is_dir() raises PermissionError for an untraversable parent, and
+        # letting that escape aborts the whole config load over one bad pin.
         logger.warning("Unusable file URI in persisted config: %r (%s)", target, exc)
         return False
 
@@ -1095,10 +1094,8 @@ class Config:
     ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
-        # Resolved the same way save() resolves it, so the file and its backup
-        # are read and written in one place. Otherwise a dotfiles symlink had
-        # the backup written beside its target while recovery looked for one
-        # beside the link, and a corrupt config restored a stale copy.
+        # Resolve as save() does, or the backup is written beside the target
+        # while recovery looks for one beside the link and restores stale values.
         if path.is_symlink():
             path = Path(os.path.realpath(path))
         if not path.exists():
@@ -1150,10 +1147,8 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
-        # Dotfiles setups symlink the config into a repository. Replacing the
-        # path would unlink the link and leave a regular file behind, so the
-        # user's repository silently stopped tracking the config after the
-        # first save; resolve it and write through to the real file.
+        # Dotfiles setups symlink the config into a repository, and replacing
+        # the link would leave the repo silently untracking it, so write through.
         if path.is_symlink():
             path = Path(os.path.realpath(path))
         ensure_parent_dir(path)
@@ -1231,16 +1226,8 @@ def effective_edge_gap(theme: Theme, config: Config) -> int:
 def normalize_pinned_entries(raw_entries: object) -> list[PinnedEntry]:
     """Rebuild typed pinned entries, dropping invalid ones and duplicates.
 
-    A value that is not a list is dropped rather than iterated: the persisted
-    file is hand-editable, and ``list()`` over a string or a number either
-    explodes into one pin per character or raises during ``__post_init__``,
-    which aborts the whole load and loses every other setting with it. Sibling
-    normalizers treat a wrong container type the same way.
-
-    Duplicates are treated as invalid because the dock can only hold one item
-    per entry: a repeated entry would draw the same app twice, and the copy
-    would be written straight back to disk on the next save. The first
-    occurrence wins so a hand-edited file keeps its ordering.
+    Iterating a hand-edited non-list either aborts the load or explodes into one
+    pin per character, and a duplicate would draw the same app twice and persist.
     """
     if not isinstance(raw_entries, list):
         return []

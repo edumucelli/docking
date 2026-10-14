@@ -235,11 +235,8 @@ class TestMusicStateHelpers:
     ):
         """Playback status is a state token, not a label.
 
-        Most shipped catalogs translate "Playing" (74 of them), so normalizing
-        the backend status *into* the translation made every literal comparison
-        in the applet fail: a playing track showed the "Play" label, painted the
-        stopped badge, reported no active media, and scored below a paused
-        player when the applet picked a source.
+        Most shipped catalogs translate "Playing", so normalizing the backend
+        status into the translation made every literal comparison fail.
         """
         monkeypatch.setattr(i18n_mod, "_get_translation", _FakeCatalog)
 
@@ -1455,11 +1452,8 @@ class TestPlayerctlBackendInternals:
     def test_read_state_keeps_fields_aligned_when_the_artist_tag_is_missing(self):
         """playerctl emits an empty field as a bare tab, not as a placeholder.
 
-        The metadata format fixes seven tab-separated fields, so stripping
-        leading whitespace from the whole line deletes the separator of an
-        empty first field: the title would be reported as the artist, the
-        album art URL as the album, and the player name as the track URL.
-        A missing artist tag is ordinary for internet radio and untagged files.
+        Stripping leading whitespace from the whole line therefore drops that
+        separator and shifts every remaining field one place to the left.
         """
         backend = self._make_backend()
         metadata = (

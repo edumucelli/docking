@@ -103,10 +103,8 @@ def evaluate(expression: str) -> str:
         log.debug("Division by zero in calculator expression %r: %s", expr, exc)
         return "Error: division by zero"
     except OverflowError as exc:
-        # A pasted literal such as 1e400 parses to infinity, and an operand
-        # that large cannot be turned back into an integer for display. Without
-        # this the traceback escapes to the GTK handler, which leaves the entry
-        # unchanged and makes the "=" button look broken.
+        # An infinite operand cannot be rendered, and a raise here makes "="
+        # look broken.
         log.debug("Overflow in calculator expression %r: %s", expr, exc)
         return "Error: result too large"
     except (ValueError, SyntaxError, TypeError) as exc:

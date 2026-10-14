@@ -92,11 +92,8 @@ class TestThemeLoad:
     ):
         """A broken theme must not make the dock unbootable.
 
-        Themes are hand-edited (docs/THEMES.md says to copy the template) and
-        the chosen name is already stored in the config file, so an unusable
-        value used to fail every single launch until the user edited the config
-        by hand. The rest of the theme is still validated field by field; this
-        only decides what a wholly unusable file means.
+        Themes are hand-edited and the chosen name is already in the config, so
+        an unusable value used to fail every later launch with no way back.
         """
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
         directory = user_themes_dir()
@@ -131,10 +128,8 @@ class TestThemeLoad:
 
         theme = Theme.load("broken", 48)
 
-        # Compare the values the payload aims at, not one unrelated field: an
-        # infinite number used to load without raising, so asserting only
-        # shelf_height passed while the Theme held infinity and the X11 blur
-        # path later raised OverflowError rounding it.
+        # Compare the fields the payload aims at: an infinite value loaded
+        # without raising, so an unrelated assertion passed anyway.
         fallback = Theme.load("default", 48)
         assert theme.shelf_height == fallback.shelf_height
         assert theme.roundness == fallback.roundness

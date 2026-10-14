@@ -207,9 +207,8 @@ def ping_jitter(
     for idx, value in enumerate(samples[1:], start=1):
         instant = abs(last - value)
         if idx == 1:
-            # Seed with the first interval. Skipping it left jitter at zero for
-            # any run of two samples, and three is the count server selection
-            # uses, so every reported "Jitter: X ms" was 0.0.
+            # Seed with the first interval: skipping it left the three-sample
+            # run server selection uses reporting "Jitter: 0.0 ms".
             jitter = instant
         elif jitter > instant:
             # Weighted smoothing used by librespeed-cli.

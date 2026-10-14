@@ -165,10 +165,8 @@ def _relative_date(value: dt.date, today: dt.date) -> str:
 def _date_from_components(text: str) -> dt.date | None:
     """Parse YYYY-M-D or YYYY/M/D with or without zero padding.
 
-    ``_DATE_TEXT`` deliberately accepts one-digit month and day, but
-    ``date.fromisoformat`` requires them padded. A date written the natural way
-    therefore failed to parse, the query fell through to the calculator, and a
-    date came back as arithmetic: "2026-7-28" was reported as 1991.
+    ``_DATE_TEXT`` accepts one-digit month and day but ``date.fromisoformat``
+    requires padding, so an unpadded date fell through to the calculator.
     """
     parts = re.split(r"[-/]", text)
     if len(parts) != 3:

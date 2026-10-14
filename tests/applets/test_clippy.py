@@ -215,12 +215,7 @@ class TestClipLifecycle:
         ],
     )
     def test_normalize_max_entries_survives_config_file_values(self, stored, expected):
-        """The cap has no UI, so the config file is its only input.
-
-        Passing it through raw left the applet unable to record a single
-        clipboard change, because the exception fired inside the owner-change
-        signal handler on every copy.
-        """
+        """A raw cap left the applet unable to record a single clipboard change."""
         assert normalize_max_entries(stored) == expected
 
     def test_negative_persisted_cap_still_records_clips(self):

@@ -242,11 +242,8 @@ class WorkspacesApplet(Applet):
     ) -> tuple[int, WorkspaceSnapshot] | None:
         """Return the active workspace's position in the list and its snapshot.
 
-        Position, never ``WorkspaceSnapshot.number``, drives activation,
-        scrolling, the highlight and the label: compositors number workspaces
-        themselves (libwnck counts from 0, Sway, KWin, Hyprland and Wayfire from
-        1, and emptied workspaces leave gaps), so a backend that passes those
-        numbers through would send the applet to the wrong workspace.
+        Position, never ``WorkspaceSnapshot.number``, drives activation, the
+        highlight and the label: compositors number workspaces differently.
         """
         active = self._active_workspace(workspaces=workspaces)
         if active is None:
@@ -254,6 +251,5 @@ class WorkspacesApplet(Applet):
         for index, workspace in enumerate(workspaces):
             if workspace.id == active.id:
                 return index, active
-        # A backend may report an active workspace it does not list; its
-        # position is unknown, so callers must not guess one.
+        # An active workspace the backend does not list has no known position.
         return None

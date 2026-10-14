@@ -702,9 +702,8 @@ class HyprlandWorkspaceService(WorkspaceService):
         return tuple(
             WorkspaceSnapshot(
                 id=str(row["id"]),
-                # Consumers index the returned sequence, so publish the
-                # position: Hyprland ids start at 1 and leave gaps when a
-                # workspace becomes empty.
+                # Consumers index the list, so publish the position: Hyprland
+                # ids start at 1 and leave gaps when a workspace empties.
                 number=index,
                 name=str(row.get("name", row["id"])),
                 active=row["id"] == active_id,

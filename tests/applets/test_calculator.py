@@ -207,13 +207,7 @@ class TestEvaluate:
         ],
     )
     def test_overflow_reports_an_error_instead_of_escaping(self, expression):
-        """The docstring promises a result or an error message, never a raise.
-
-        The entry is pastable, so an over-large literal reaches the parser. The
-        raised OverflowError used to escape to the GTK callback, leaving the
-        entry untouched while a traceback went to stderr, so pressing "="
-        looked like it did nothing.
-        """
+        """evaluate() promises a result or an error message, never a raise."""
         result = evaluate(expression)
 
         assert result == "Error: result too large"

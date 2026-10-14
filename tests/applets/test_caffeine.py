@@ -198,12 +198,7 @@ class TestPrefs:
 
     @pytest.mark.parametrize("stored", ["half-hour", None, float("nan"), float("inf")])
     def test_unusable_persisted_duration_does_not_remove_the_applet(self, stored):
-        """The duration is read during construction, so it must not raise.
-
-        The model drops an applet whose constructor raises, so a hand-edited
-        config took the caffeine tile off the dock instead of falling back to
-        the default timer.
-        """
+        """A raising constructor used to take the caffeine tile off the dock."""
         applet = CaffeineApplet(
             48, config=Config(applet_prefs={"caffeine": {"duration_min": stored}})
         )

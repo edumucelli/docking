@@ -31,9 +31,8 @@ DEFAULT_PREFS: dict[str, Any] = {
     "alarm_target": None,
 }
 
-# A one-shot alarm is set from the clock menu for the next occurrence of a
-# time of day, so anything past this is a corrupted or hand-mangled value
-# (a millisecond epoch, say) rather than an alarm the user asked for.
+# An alarm is always for the next occurrence of a time of day, so a target
+# past this is a corrupted or hand-mangled value, not one the user asked for.
 MAX_ALARM_HORIZON_S = 366 * 24 * 60 * 60
 
 
@@ -70,10 +69,8 @@ def normalize_alarm_target(value: object, *, now_ts: float) -> int | None:
     now = int(now_ts)
     if target <= now or target > now + MAX_ALARM_HORIZON_S:
         return None
-    # The rest of the applet formats the target with time.localtime, which
-    # raises for a value the platform cannot represent. Such a persisted value
-    # used to escape the constructor, and the model then dropped the applet
-    # from the dock with only a log line, on every single start.
+    # time.localtime raises for a value the platform cannot represent, and the
+    # applet formats the target during construction.
     try:
         time.localtime(target)
     except (OSError, OverflowError, ValueError):
@@ -86,10 +83,8 @@ def _wall_clock_target(
 ) -> float:
     """Timestamp of HH:MM, ``day_offset`` calendar days after ``now_local``.
 
-    ``mktime`` normalises an out-of-range day, and -1 makes the C library
-    resolve the daylight-saving state of the *target* instant. Reusing "now"'s
-    state instead pinned the result to the current offset, so an alarm set the
-    night before a change rang an hour out.
+    mktime normalises an out-of-range day, and the -1 dst flag makes it resolve
+    the target's own daylight-saving state rather than now's.
     """
     return time.mktime(
         (
@@ -111,9 +106,8 @@ def compute_alarm_target(*, now_ts: float, hour: int, minute: int) -> int:
     now_local = time.localtime(now_ts)
     target = _wall_clock_target(now_local, day_offset=0, hour=hour, minute=minute)
     if target <= now_ts:
-        # Advance the calendar day rather than adding 24 hours: the next day
-        # is not 86400 seconds away across a daylight-saving change, and the
-        # alarm was landing an hour early because of it.
+        # Advance the calendar day: the next day is not 86400 seconds away
+        # across a daylight-saving change.
         target = _wall_clock_target(now_local, day_offset=1, hour=hour, minute=minute)
     return int(target)
 

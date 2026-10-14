@@ -36,8 +36,7 @@ def test_doctype_and_entity_declarations_are_refused(payload):
     """Refusing the declaration is the only thing that stops expansion.
 
     ElementTree expands internal entities while parsing, so detection has to
-    happen on the raw payload, and it has to survive casing and whitespace
-    variations that the XML grammar allows.
+    happen on the raw payload, whatever casing and whitespace the grammar allows.
     """
     with pytest.raises(UnsafeXmlError):
         parse_untrusted_xml(payload)
@@ -91,10 +90,8 @@ _BOMB = (
 def test_declarations_are_found_whatever_the_document_encoding(label, payload):
     """The scan cannot be byte-level: UTF-16 does not spell out ``<!DOCTYPE``.
 
-    Expat recognises UTF-16 from a byte order mark or from the NUL in every
-    other byte, with the declaration considered only after those. The guard
-    has to apply the same precedence, or the check reads clean text while the
-    parser expands entities out of the real document.
+    Expat takes a byte order mark or the NUL in every other byte before the
+    declaration, so the guard has to apply the same precedence.
     """
     with pytest.raises(UnsafeXmlError):
         parse_untrusted_xml(payload)

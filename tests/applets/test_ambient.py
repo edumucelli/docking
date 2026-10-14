@@ -68,11 +68,7 @@ class TestVolumeCoercion:
 
     @pytest.mark.parametrize("stored", [None, "loud", float("nan"), float("inf")])
     def test_unusable_persisted_volume_does_not_remove_the_applet(self, stored):
-        """The volume is read during construction, so it must not raise.
-
-        A raising constructor makes the model drop the applet, which took the
-        ambient tile off the dock instead of starting at the default volume.
-        """
+        """A raising constructor used to take the ambient tile off the dock."""
         with patch("docking.applets.ambient.applet.Gst"):
             applet = AmbientApplet(
                 48, config=Config(applet_prefs={"ambient": {"volume": stored}})

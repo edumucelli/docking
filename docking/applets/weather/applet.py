@@ -467,14 +467,9 @@ class WeatherApplet(Applet):
     def _settle_replaced_fetch(self) -> None:
         """Finish the bookkeeping for a reply the user already replaced.
 
-        Switching city resets ``_loading`` so the new city is fetched at once,
-        but the worker is still busy with the previous key, so that fetch is
-        only queued in ``_fetch_pending``. The queued fetch never starts from
-        here on its own: ``run_guarded`` releases its key immediately before
-        this callback runs, so no fetch is in flight at this point and the
-        reply we are discarding is the one that would have cleared ``_loading``.
-        Leaving the flag set made every later attempt return early and the
-        applet sat on "Loading..." with stale data forever.
+        The queued replacement fetch never starts on its own, so the discarded
+        reply is the only thing that would clear ``_loading``; leaving it set
+        wedged the applet on "Loading..." with stale data forever.
         """
         self._loading = False
         self._present_or_run_pending_fetch()

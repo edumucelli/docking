@@ -198,9 +198,8 @@ def main() -> None:
     args = parser.parse_args()
 
     aid: str = args.name.lower().replace("-", "").replace("_", "")
-    # The id becomes a package name, an import path, and a class-name prefix in
-    # the generated files, so an id that is not a plain Python identifier would
-    # emit modules that cannot even be imported.
+    # The id becomes a package name, an import path and a class name, so one
+    # that is not a Python identifier would emit unimportable modules.
     if not aid.isidentifier() or keyword.iskeyword(aid):
         print(
             f"ERROR: {args.name!r} is not a usable applet id (derived id: {aid!r}). "

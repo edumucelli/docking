@@ -504,20 +504,17 @@ class TestWeatherAsyncFetch:
         assert result is False
         # The replaced result is never applied...
         assert applet._weather is None
-        # ...but it still ends the fetch it belonged to and repaints, so the
-        # "Loading..." state cannot outlive the request that set it.
+        # ...but it still settles the fetch and repaints, so "Loading..." cannot
+        # outlive the request that set it.
         assert applet._loading is False
         refresh.assert_called_once()
 
     def test_replaced_fetch_settles_and_starts_the_queued_refresh(self):
         """Switching city mid-fetch must not wedge the applet on "Loading...".
 
-        The switch clears the loading flag and asks for a new fetch, but the
-        worker is still busy with the previous key, so that request is only
-        queued. The reply that arrives next belongs to the replaced request:
-        discarding it without settling the flags left the applet with the flag
-        set and nothing in flight, and every later attempt returned early on
-        that flag, so it never fetched again.
+        The new fetch is only queued, so the replaced reply is the one that has
+        to clear the flag; discarding it without settling left it set, and every
+        later attempt returned early on it.
         """
         applet = _make_applet()
         worker = _PendingWorker()

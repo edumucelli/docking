@@ -52,9 +52,8 @@ def test_bare_relative_weekday_and_slash_dates_are_detected() -> None:
 def test_unpadded_dates_are_detected(text: str, expected: str) -> None:
     """The pattern accepts one-digit month and day, so parsing must too.
 
-    ``date.fromisoformat`` requires them zero-padded, so these matched the date
-    pattern, failed to parse, and fell through to the calculator: typing
-    "2026-7-28" returned 1991 (a subtraction) instead of the date.
+    ``date.fromisoformat`` requires zero padding, so these matched the pattern,
+    failed to parse and fell through to the calculator.
     """
     value = parse_temporal_query(text, now=NOW)
 

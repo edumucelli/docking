@@ -279,15 +279,13 @@ class TestWorkspacesBehavior:
 class TestWorkspaceNumbering:
     """Backends disagree on ``WorkspaceSnapshot.number``; the applet must not.
 
-    libwnck, GNOME, Cinnamon, Niri and the Wayland portal count workspaces from
-    0, while Sway, KWin, Hyprland and Wayfire count from 1, so activation,
-    scrolling, the highlight and the label all have to follow the position of
-    the active workspace in the snapshot list.
+    Activation, scrolling, the highlight and the label all follow the position
+    of the active workspace in the snapshot list.
     """
 
     @staticmethod
     def _one_based(*, active_index: int) -> list[WorkspaceSnapshot]:
-        # Ids mirror the numbers, the way Sway ("1"), KWin and Hyprland report.
+        # Ids mirror the numbers, the way Sway, KWin and Hyprland report them.
         return [
             _workspace(number, name=f"ws{number}", active=(index == active_index))
             for index, number in enumerate((1, 2, 3, 4))
@@ -368,15 +366,15 @@ class TestWorkspaceNumbering:
         assert highlighted[-1] == 0
 
     def test_last_workspace_is_highlighted_when_active(self, monkeypatch):
-        # Regression: a 1-based number left the last cell unhighlighted because
-        # the index fell outside the grid.
+        # Regression: a 1-based number fell outside the grid, leaving the last
+        # cell unhighlighted.
         highlighted = self._highlighted(monkeypatch, self._one_based(active_index=3))
 
         assert highlighted[-1] == 3
 
     def test_sway_snapshots_drive_activation_by_position(self):
-        # Sway numbers workspaces from 1; end to end, the applet must still
-        # activate the workspace next to the one the user sees highlighted.
+        # Sway numbers from 1; end to end the applet must still activate the
+        # workspace next to the one the user sees highlighted.
         client = SimpleNamespace(
             query=lambda kind: [
                 {"id": 1, "name": "1", "focused": True},

@@ -25,11 +25,8 @@ from enum import Enum
 _MAX_EXPRESSION_LENGTH = 256
 _MAX_AST_NODES = 64
 _MAX_EXPONENT = 1_000
-# Integers are evaluated exactly, so growth needs its own ceiling: the
-# exponent limit alone still allows a tower such as ((2^1000)^1000)^1000,
-# which is a million-bit number that takes seconds to build on every
-# keystroke. 4096 bits is about 1230 digits -- far beyond any answer a launcher
-# suggestion can show, and far above the largest value the tests expect.
+# Exact integers need their own ceiling: the exponent limit still allows a
+# tower like ((2^1000)^1000)^1000, seconds of work on every keystroke.
 _MAX_RESULT_BITS = 4_096
 
 
@@ -73,14 +70,12 @@ _CONSTANTS = {"e": math.e, "pi": math.pi, "tau": math.tau}
 
 
 def _rounded(value: Number, digits: Number = 0.0) -> Number:
-    # An integer precision arrives as an int now that exact integers are kept,
-    # so it is widened rather than assumed to be a float already.
+    # Precision arrives as an int now that integers are kept, so widen it.
     precision = float(digits)
     if not precision.is_integer():
         raise ValueError("round precision must be an integer")
     result = round(value, int(precision))
-    # round() gives back an int for an int and a float for a float, and the
-    # int has to stay one: float() would re-round a value past 2**53, so
+    # Keep an int result an int: float() re-rounds past 2**53, so
     # round(9007199254740993) came back as ...992.
     return result if isinstance(result, int) else float(result)
 
@@ -107,11 +102,9 @@ _FUNCTIONS: dict[str, tuple[Function, frozenset[int]]] = {
 
 
 def _finite(value: int | float) -> int | float:
-    """Return the value, rejecting a result that grew out of bounds.
+    """Return the value, rejecting an integer that grew past the size limit.
 
-    Integers pass through without a float conversion: forcing them through
-    ``float`` silently rounded any result past 2**53, which the answer was then
-    printed as though it were exact.
+    Integers skip the float conversion, which rounded silently past 2**53.
     """
     if isinstance(value, int):
         if value.bit_length() > _MAX_RESULT_BITS:
@@ -150,12 +143,8 @@ def _evaluate_node(node: ast.AST) -> int | float:
             and isinstance(left, int)
             and isinstance(right, int)
             and right > 0
-            # A lower bound, not an estimate: |left| >= 2**(bits-1), so the
-            # power has at least (bits-1)*right bits. The tighter
-            # `bits * right` would reject 16^1000, whose 4001-bit result is
-            # inside the limit; anything the bound lets through is settled by
-            # _finite on the result. A tower such as ((2^1000)^1000) is still
-            # caught here, before the expensive power is built.
+            # A lower bound (|left| >= 2**(bits-1)), so it never rejects a
+            # result that fits; whatever gets through is settled by _finite.
             and (left.bit_length() - 1) * right > _MAX_RESULT_BITS
         ):
             raise OverflowError("integer result is too large")

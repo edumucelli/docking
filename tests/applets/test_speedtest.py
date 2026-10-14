@@ -292,11 +292,8 @@ class TestLibrespeedPingAndSelection:
         assert jitter > 0
 
     def test_ping_jitter_reports_a_value_for_the_three_sample_run(self, monkeypatch):
-        """Three samples is the count server selection uses.
-
-        Dropping the first sample leaves two, so the smoothing loop ran once and
-        its ``idx > 1`` guard skipped that single interval: every run reported
-        "Jitter: 0.0 ms", in the tooltip and in the copied summary.
+        """Three-sample runs reported "Jitter: 0.0 ms" before the first interval
+        seeded the smoothing.
         """
         times = iter([0.00, 0.10, 0.20, 0.30, 0.40, 0.70])
         server = Server(1, "A", "https://a.test", "dl", "ul", "ping")

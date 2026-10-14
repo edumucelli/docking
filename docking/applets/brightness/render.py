@@ -102,8 +102,8 @@ def create_icon(
     cr.fill()
     cr.restore()
 
-    # Level label at bottom. Rounded for the same reason as the tooltip: the
-    # value applied to the hardware is a rounded percentage.
+    # Level label at bottom, rounded like the tooltip: the hardware gets a
+    # rounded percentage.
     if show_level:
         draw_icon_label(cr=cr, text=f"{round(brightness * 100)}%", size=size)
 

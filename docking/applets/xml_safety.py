@@ -11,17 +11,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Guarded XML parsing for applet payloads that arrive over the network.
+"""Guarded XML parsing for feed payloads that arrive over the network.
 
-``xml.etree.ElementTree`` expands internal entities, so a document type
-declaration turns a few hundred bytes of feed into an arbitrarily large tree.
-Every applet that parses a fetched feed must go through here rather than
-calling ``ET.fromstring`` directly, so the guard cannot be forgotten in one
-parser while it is applied in another.
-
-The check runs on the *decoded* document, not only on the raw bytes: XML can
-declare UTF-16 or UTF-32, where ``<!DOCTYPE`` is not spelled out in single
-bytes and a byte-level scan would walk straight past it.
+ElementTree expands internal entities, so a DTD turns a few hundred bytes of
+feed into an arbitrarily large tree. The check runs on the decoded text as well
+as the raw bytes, since UTF-16 does not spell out ``<!DOCTYPE`` in single bytes.
 """
 
 from __future__ import annotations
@@ -30,8 +24,7 @@ import codecs
 import re
 import xml.etree.ElementTree as ET
 
-# A document type declaration is the only way to declare an entity, and no feed
-# format Docking consumes has a legitimate use for one.
+# No feed format Docking consumes has a legitimate use for a DTD.
 _UNSAFE_XML_TEXT_RE = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 _UNSAFE_XML_BYTES_RE = re.compile(rb"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 
@@ -57,18 +50,14 @@ class UnsafeXmlError(ValueError):
 def _encoding_of(payload: bytes) -> str:
     """Return the encoding a conforming parser will read this payload with.
 
-    A byte order mark wins over the XML declaration, and a document with
-    neither is sniffed from its opening bytes -- the same precedence and the
-    same autodetection the parser itself applies, so the text checked below is
-    the text the parser will see.
+    Byte order mark, then declaration, then sniffing: the same precedence the
+    parser applies, so the checked text is the text the parser will see.
     """
     for bom, encoding in _BOMS:
         if payload.startswith(bom):
             return encoding
-    # Without a byte order mark the parser still recognises UTF-16 by the NUL
-    # in every other byte, so the guard has to recognise it the same way. A
-    # NUL cannot appear in a well-formed UTF-8 document, so this cannot
-    # misread one.
+    # The parser also sniffs UTF-16 from the NUL in every other byte, and a
+    # NUL cannot appear in a well-formed UTF-8 document.
     head = payload[:2]
     if len(head) == 2:
         if head[1] == 0:
@@ -95,13 +84,11 @@ def parse_untrusted_xml(payload: bytes | str) -> ET.Element:
     raw_bytes = payload.encode("utf-8") if isinstance(payload, str) else payload
     if _UNSAFE_XML_BYTES_RE.search(raw_bytes):
         raise UnsafeXmlError("XML declares a DTD or entity")
-    # Reachable through a document that is not single-byte encoded, so the
-    # declaration is also looked for in the text the parser will actually see.
+    # A declaration is not spelled out in bytes under a multi-byte encoding.
     decoded = raw_bytes.decode(_encoding_of(raw_bytes), errors="replace")
     if _UNSAFE_XML_TEXT_RE.search(decoded):
         raise UnsafeXmlError("XML declares a DTD or entity")
-    # Safe here only because both checks above rejected every way a document
-    # can declare an entity; ElementTree itself is not safe against that.
+    # Safe only because the checks above rejected every way to declare an entity.
     return ET.fromstring(raw_bytes)
 
 

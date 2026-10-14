@@ -225,11 +225,8 @@ class TestShortenUrl:
     def test_non_utf8_success_body_is_returned_not_raised(self):
         """A captive portal answers 200 with a page in the local encoding.
 
-        The documented contract is a short URL or a message starting with
-        "Error:". The success path used a strict decode while the HTTP-error
-        path two lines below already tolerated bad bytes, so a portal page
-        raised UnicodeDecodeError out of a bare worker thread: the applet
-        never re-enabled its button and stayed on "Shortening..." forever.
+        A strict decode there raised out of the bare worker thread, leaving the
+        applet's button disabled and the dialog stuck on "Shortening...".
         """
         portal = b"<html><body>Portal required. P\xe1gina bloqueada.</body></html>"
         with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:

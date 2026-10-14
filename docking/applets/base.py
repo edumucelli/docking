@@ -380,11 +380,9 @@ class Applet(ABC):
     def save_prefs(self, prefs: dict[str, Any]) -> None:
         """Save this applet's preferences to config.
 
-        The payload is merged into what is already stored rather than
-        replacing it. An applet persists a payload built from its own state,
-        which knows nothing about keys written by other paths -- the chosen
-        icon source is one -- so replacing the mapping silently discarded
-        those choices on the next save.
+        Merged into what is already stored: the payload an applet builds from
+        its own state knows nothing about keys other paths wrote, so replacing
+        the mapping silently discarded them.
         """
         merged = self.load_prefs()
         merged.update(prefs)

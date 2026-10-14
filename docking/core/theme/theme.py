@@ -323,11 +323,8 @@ class ActiveTint(str, enum.Enum):
 def reject_non_finite_numbers(data: object, *, path: str = "$") -> None:
     """Raise if a loaded theme document holds an infinite or NaN number.
 
-    JSON has no literal for either, but ``1e400`` parses to infinity without
-    complaint, and an infinite layout value survives all the way to whichever
-    caller first rounds or multiplies it -- the X11 blur path raises
-    OverflowError on ``round(roundness * scale)``. Rejecting it while reading
-    sends the file down the same fallback as any other unusable theme.
+    ``1e400`` parses to infinity without complaint and only raises later, in a
+    caller that rounds it, so the file is refused while it is read.
     """
     if isinstance(data, float) and not math.isfinite(data):
         raise ValueError(f"non-finite number at {path}")
@@ -423,13 +420,8 @@ class Theme:
     def load(cls, name: str = "default", icon_size: int = 48) -> Theme:
         """Load theme by name, degrading to the default instead of failing.
 
-        Theme files are user-editable -- docs/THEMES.md tells users to copy the
-        template and edit it -- and the selected name is already persisted in
-        the config file. Letting a malformed value escape therefore made the
-        dock fail to start on *every* later launch, with no way back except
-        hand-editing the config. A broken theme should cost the user their
-        theme, not the application. Field-level tolerance still lives in the
-        individual readers; this only decides what an unusable theme means.
+        The name is persisted and the files are hand-edited, so an unusable one
+        must cost the user their theme, not every later launch.
         """
         try:
             return cls._load_from_path(name=name, icon_size=icon_size)

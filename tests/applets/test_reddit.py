@@ -282,8 +282,7 @@ class TestRedditFeedParsing:
         """The feed is fetched over the network, so a DTD must never be honoured.
 
         ElementTree expands internal entities, which turns a sub-kilobyte
-        document into an arbitrarily large title. The sibling news parser has
-        always refused these; this one used to accept them.
+        document into an arbitrarily large title.
         """
         payload = (
             b'<?xml version="1.0"?>'

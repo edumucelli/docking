@@ -155,9 +155,8 @@ def _order_with_dragged_at(desktop_id: str, index: int) -> list[str]:
 class _ReorderDock:
     """Dock stub backed by the real model, geometry, and DnD handler.
 
-    Only the dock services the drag path never reads are faked, so drag-motion
-    here runs the production index math and the production reorder (including
-    its persistence) end to end.
+    Only services the drag path never reads are faked, so drag motion runs the
+    real index math and the real reorder, persistence included.
     """
 
     def __init__(self) -> None:
@@ -256,10 +255,8 @@ class _ReorderDock:
 class TestInternalReorderDragMotion:
     """A rightward drag must rest the icon in the slot under the cursor.
 
-    ``insertion_index_for_main`` answers with a gap in the full list, dragged
-    item included, while ``reorder_visible`` wants a final index in the list
-    after the pop. Passing the gap through unconverted left the icon one slot
-    ahead of the cursor (and persisted that order) on every rightward drag.
+    ``insertion_index_for_main`` answers with a gap in the full list, which
+    ``reorder_visible`` cannot use unconverted.
     """
 
     @pytest.fixture(autouse=True)
@@ -331,8 +328,7 @@ class TestInternalReorderDragMotion:
             if index != previous:
                 transitions[cursor_x] = index
                 previous = index
-        # Then it moves one slot left each time the cursor passes a centre,
-        # exactly as it did before the rightward translation was added
+        # Then it moves one slot left each time the cursor passes a centre
         assert transitions == {
             int(centres[2]) - 1: 2,
             int(centres[1]) - 1: 1,

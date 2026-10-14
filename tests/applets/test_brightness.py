@@ -321,12 +321,7 @@ class TestBrightnessApplet:
     def test_tooltip_matches_the_percentage_applied_to_the_hardware(
         self, steps, expected
     ):
-        """Truncating the float error showed one percent less than was applied.
-
-        Stepping down ten times from 1.0 leaves 0.7999999999999998, which the
-        backend had already rounded to 80% when it set brightnessctl and
-        xrandr, so the tooltip and the icon label disagreed with the hardware.
-        """
+        """Truncating showed one percent less than the hardware was given."""
         brightness = 1.0
         for _ in range(steps):
             brightness = max(0.1, brightness - STEP)
