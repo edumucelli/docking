@@ -62,8 +62,20 @@ def shorten_url(url: str) -> str:
             headers={"User-Agent": _USER_AGENT},
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            # A captive portal answers 200 with a body that need not be UTF-8.
-            return resp.read().decode(errors="replace").strip()
+            result = resp.read().decode().strip()
+            if result.startswith("Error:"):
+                return result
+            parsed = urllib.parse.urlsplit(result)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or any(
+                    char.isspace() or ord(char) < 32 or ord(char) == 127
+                    for char in result
+                )
+            ):
+                return "Error: invalid response"
+            return result
     except urllib.error.HTTPError as exc:
         log.debug("URL shortener HTTP error for %r: %s", url, exc)
         try:

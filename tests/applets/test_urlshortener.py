@@ -7,6 +7,8 @@ import io
 import urllib.error
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.urlshortener.applet as urlshortener_applet_mod
 from docking.applets.urlshortener.applet import UrlShortenerApplet
 from docking.applets.urlshortener.state import prefs_payload, shorten_url
@@ -223,12 +225,7 @@ class TestShortenUrl:
             result = shorten_url("https://example.com")
         assert "timed out" in result.lower()
 
-    def test_non_utf8_success_body_is_returned_not_raised(self):
-        """A captive portal answers 200 with a page in the local encoding.
-
-        A strict decode there raised out of the bare worker thread, leaving the
-        applet's button disabled and the dialog stuck on "Shortening...".
-        """
+    def test_non_utf8_success_body_returns_an_error(self):
         portal = b"<html><body>Portal required. P\xe1gina bloqueada.</body></html>"
         with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
             mock.return_value.__enter__ = lambda s: s
@@ -237,8 +234,37 @@ class TestShortenUrl:
 
             result = shorten_url("https://example.com/very/long/url")
 
-        assert result.startswith("<html>")
-        assert "�" in result  # the undecodable byte is replaced, not fatal
+        assert result.startswith("Error:")
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            b"<html><body>Sign in to this network</body></html>",
+            b"",
+            b"not a URL",
+            b"ftp://is.gd/abc",
+            b"https:///abc",
+            b"https://is.gd/abc extra text",
+            b"https://is.gd/ab\x00c",
+        ],
+    )
+    def test_non_url_success_response_returns_an_error(self, body):
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = body
+
+            result = shorten_url("https://example.com")
+
+        assert result.startswith("Error:")
+
+    def test_service_error_in_success_response_is_preserved(self):
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = (
+                b"Error: Invalid URL"
+            )
+
+            result = shorten_url("https://example.com")
+
+        assert result == "Error: Invalid URL"
 
     def test_truncated_response_returns_an_error_message(self):
         """Anything at all escaping here wedges the dialog, so nothing may."""
@@ -446,6 +472,28 @@ class TestAppletDialog:
         assert applet._copy_btn is not None
         assert applet._copy_btn.get_visible() is False
         assert applet._last_result == ""
+        save.assert_not_called()
+        applet.stop()
+
+    def test_captive_portal_response_does_not_enter_success_flow(self, monkeypatch):
+        applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
+        applet._show_dialog()
+        applet._shorten_btn.set_sensitive(False)
+        save = MagicMock()
+        applet.save_prefs = save
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = (
+                b"<html><body>Sign in to this network</body></html>"
+            )
+            result = shorten_url("https://example.com")
+
+        applet._on_result("https://example.com", result)
+
+        assert applet._shorten_btn.get_sensitive() is True
+        assert applet._copy_btn.get_visible() is False
+        assert applet._last_result == ""
+        assert applet._last_url == ""
         save.assert_not_called()
         applet.stop()
 

@@ -165,6 +165,21 @@ class TestThemeLoad:
 
         assert theme == Theme.load("default", 128)
 
+    @pytest.mark.parametrize("radius", [1e308, -1e308, "1e308", 1e300])
+    def test_finite_radius_that_overflows_display_scaling_falls_back(
+        self, tmp_path, monkeypatch, radius
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"corner_radius_px": radius}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 48)
+
+        assert theme == Theme.load("default", 48)
+
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
         directory = user_themes_dir()

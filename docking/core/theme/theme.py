@@ -151,6 +151,8 @@ _BUILTIN_THEMES_DIR = (
     Path(__file__).resolve().parent.parent.parent / "assets" / "themes"
 )
 _USER_THEME_TEMPLATE_NAME = "template"
+# GDK exposes display scale as a positive signed 32-bit integer.
+_MAX_DISPLAY_SCALE = (1 << 31) - 1
 log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
@@ -322,7 +324,7 @@ class ActiveTint(str, enum.Enum):
 
 
 def reject_non_finite_theme(theme: Theme) -> None:
-    """Raise if any loaded value is infinite or NaN.
+    """Raise if a loaded value or display-scaled radius is infinite or NaN.
 
     Checked on the built Theme rather than on the parsed document: JSON has no
     literal for either, but the string "Infinity" converts to one, and a finite
@@ -337,6 +339,8 @@ def reject_non_finite_theme(theme: Theme) -> None:
             isinstance(part, float) and not math.isfinite(part) for part in value
         ):
             raise ValueError(f"non-finite value for {field.name}")
+    if not math.isfinite(theme.roundness * _MAX_DISPLAY_SCALE):
+        raise ValueError("corner radius overflows display scaling")
 
 
 def _rgba(values: list[int]) -> RGBA:
