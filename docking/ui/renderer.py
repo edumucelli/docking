@@ -613,9 +613,8 @@ def _draw_indicator_count_dots(
     cr.restore()
 
 
-# Opacity a glow holds at when its pulse period is unusable. This is the value
-# the sine wave starts from, so a theme that disables the pulse still looks
-# like the first frame of the normal animation.
+# Opacity a glow holds at when its pulse period is unusable: the value the sine
+# wave starts from, so a steady glow matches the first animation frame.
 _STEADY_GLOW_OPACITY = 0.2 + 0.75 * (math.sin(0.0) + 1) / 2
 
 
@@ -631,10 +630,8 @@ def compute_urgent_glow_opacity(
     if elapsed_us >= glow_time_us or elapsed_us < 0:
         return 0.0
     if pulse_ms <= 0:
-        # `items.glow.urgent_pulse_ms` comes from a user-editable theme file
-        # and is read without a range check, so a zero reaches the draw path
-        # and divides by zero on every frame -- which aborts the whole draw
-        # handler while the dock is hidden and an item is urgent.
+        # A theme file can set `urgent_pulse_ms` to 0, which would divide by
+        # zero on every frame and abort the whole draw handler.
         return _STEADY_GLOW_OPACITY
     pulse_us = pulse_ms * 1000
     phase = elapsed_us / pulse_us * 2 * math.pi

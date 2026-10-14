@@ -72,8 +72,7 @@ class ColorPickerApplet(Applet):
 
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_hex = prefs.get("show_hex", True)
-        # Restore last picked color, tolerating a hand-edited config value:
-        # an unusable one must not stop the applet from being constructed.
+        # Restore last picked color; an unusable one must not stop construction.
         self._r = coerce_channel(prefs.get("r"), default=_DEFAULT_RGB[0])
         self._g = coerce_channel(prefs.get("g"), default=_DEFAULT_RGB[1])
         self._b = coerce_channel(prefs.get("b"), default=_DEFAULT_RGB[2])

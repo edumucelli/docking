@@ -349,12 +349,10 @@ def test_successful_empty_initial_discovery_publishes_generation():
 
 
 def test_application_in_a_subdirectory_gets_the_spec_desktop_file_id(tmp_path):
-    """The id replaces subdirectory separators with "-".
+    """The id replaces subdirectory separators with "-", as Gio's does.
 
-    That is what Gio.DesktopAppInfo.get_id() returns, and the file scan has to
-    agree with it: keeping the slash gave the same file two ids, so every
-    application living in a subdirectory was listed twice. On a stock Ubuntu
-    install that is five duplicate launchers from /usr/share/applications.
+    Keeping the slash gave the same file two ids, so every nested application
+    was listed twice.
     """
     first = tmp_path / "first"
     _write_desktop(first / "popsquares.desktop", name="Top level")
@@ -383,8 +381,7 @@ def test_nested_id_does_not_shadow_a_top_level_file_of_the_same_name(tmp_path):
 class TestDesktopEnvironmentGate:
     """OnlyShowIn / NotShowIn, evaluated like Gio's ``should_show()``.
 
-    Both keys were ignored, so entries meant for another desktop were listed
-    here -- 47 of them on a stock install.
+    Both keys were ignored, so entries meant for another desktop were listed.
     """
 
     @pytest.mark.parametrize(
@@ -424,9 +421,7 @@ class TestDesktopEnvironmentGate:
     ):
         """The spec resolves both keys against the session list in order.
 
-        With OnlyShowIn=MATE and NotShowIn=GNOME, "MATE:GNOME" is shown and
-        "GNOME:MATE" is hidden; testing the two as sets picked whichever
-        answered first and got the second case wrong.
+        Testing the two as sets picked whichever answered first.
         """
         monkeypatch.setenv("XDG_CURRENT_DESKTOP", current)
 
@@ -440,9 +435,8 @@ class TestDesktopEnvironmentGate:
     def test_unknown_desktop_hides_an_only_show_in_entry(self, monkeypatch):
         """An entry restricted to other desktops stays hidden.
 
-        This matches ``should_show()`` on the Gio-backed path; answering True
-        here made the same entry visible from one source and hidden from the
-        other depending on which discovered it.
+        This matches ``should_show()``, or one source shows the entry while the
+        other hides it.
         """
         monkeypatch.setenv("XDG_CURRENT_DESKTOP", "")
 

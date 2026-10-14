@@ -284,8 +284,8 @@ class SwayWorkspaceService(WorkspaceService):
         return tuple(
             WorkspaceSnapshot(
                 str(row.get("id")),
-                # Consumers index the returned sequence, so publish the
-                # position: sway numbers its workspaces from 1 and may skip.
+                # Consumers index the list, so publish the position: sway
+                # numbers from 1 and may skip.
                 index,
                 str(row.get("name", "")),
                 row.get("focused") is True,

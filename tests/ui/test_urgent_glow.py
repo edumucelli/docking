@@ -66,13 +66,7 @@ class TestUrgentGlowOpacity:
 
     @pytest.mark.parametrize("pulse_ms", [0, -100])
     def test_unusable_pulse_period_holds_a_steady_glow(self, pulse_ms):
-        """A zero period has no phase to advance, so it must not divide.
-
-        ``items.glow.urgent_pulse_ms`` is read straight from a user-editable
-        theme file with no range check, and the zero reached the draw path:
-        the ZeroDivisionError aborted the entire draw handler on every frame
-        while the dock was hidden with an urgent item.
-        """
+        """A zero period has no phase to advance, so it must not divide."""
         opacity = compute_urgent_glow_opacity(
             elapsed_us=1_000_000, glow_time_ms=10000, pulse_ms=pulse_ms
         )

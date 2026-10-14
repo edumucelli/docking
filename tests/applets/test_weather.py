@@ -497,12 +497,55 @@ class TestWeatherAsyncFetch:
         applet._fetch_request_id = 2
         applet._weather = None
         applet._air_quality = None
+        applet._loading = True
         refresh = MagicMock()
         monkeypatch.setattr(applet, "present", refresh)
         result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
         assert result is False
+        # The replaced result is never applied...
         assert applet._weather is None
-        refresh.assert_not_called()
+        # ...but it still settles the fetch and repaints, so "Loading..." cannot
+        # outlive the request that set it.
+        assert applet._loading is False
+        refresh.assert_called_once()
+
+    def test_replaced_fetch_settles_and_starts_the_queued_refresh(self):
+        """Switching city mid-fetch must not wedge the applet on "Loading...".
+
+        The new fetch is only queued, so the replaced reply is the one that has
+        to clear the flag; discarding it without settling left it set, and every
+        later attempt returned early on it.
+        """
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 2
+        applet._loading = True
+        applet._fetch_pending = True
+
+        result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
+
+        assert result is False
+        assert applet._fetch_pending is False
+        assert applet._fetch_request_id == 3
+        assert worker.calls[0]["name"] == "weather-fetch"
+        assert applet._loading is True  # the queued fetch is now in flight
+
+    def test_replaced_fetch_error_also_settles(self):
+        applet = _make_applet()
+        applet._worker = _PendingWorker()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 3
+        applet._loading = True
+
+        result = applet._on_fetch_error(request_id=1, exc=RuntimeError("boom"))
+
+        assert result is False
+        assert applet._loading is False
+        assert applet._fetch_failed is False  # a replaced failure is not ours
 
     def test_on_fetch_result_applies_latest_request(self, monkeypatch):
         applet = _make_applet()

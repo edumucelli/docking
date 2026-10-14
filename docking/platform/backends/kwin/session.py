@@ -170,9 +170,8 @@ class KWinWorkspaceService(WorkspaceService):
                     _, ws_id, name = entry
                     self._workspaces[str(ws_id)] = WorkspaceSnapshot(
                         id=str(ws_id),
-                        # Consumers index the returned sequence, so publish the
-                        # position: desktop positions are 0-based and the dict
-                        # keeps them in that order.
+                        # Consumers index the list, so publish the position:
+                        # KWin positions are 0-based and the dict keeps them so.
                         number=index,
                         name=str(name),
                         active=(str(ws_id) == self._active_id),

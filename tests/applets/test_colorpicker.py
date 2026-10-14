@@ -69,11 +69,7 @@ class TestPrefCoercion:
         ],
     )
     def test_unusable_persisted_colour_does_not_remove_the_applet(self, prefs):
-        """Construction renders the icon, so a bad value used to raise there.
-
-        The model drops an applet whose constructor raises, so the tile
-        disappeared from the dock with only a log line.
-        """
+        """A bad colour used to raise in the constructor and drop the tile."""
         applet = ColorPickerApplet(
             48, config=Config(applet_prefs={"colorpicker": prefs})
         )

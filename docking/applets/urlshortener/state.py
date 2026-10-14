@@ -62,10 +62,27 @@ def shorten_url(url: str) -> str:
             headers={"User-Agent": _USER_AGENT},
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            return resp.read().decode().strip()
+            result = resp.read().decode().strip()
+            if result.startswith("Error:"):
+                return result
+            parsed = urllib.parse.urlsplit(result)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or any(
+                    char.isspace() or ord(char) < 32 or ord(char) == 127
+                    for char in result
+                )
+            ):
+                return "Error: invalid response"
+            return result
     except urllib.error.HTTPError as exc:
         log.debug("URL shortener HTTP error for %r: %s", url, exc)
-        body = exc.read().decode(errors="replace").strip()
+        try:
+            body = exc.read().decode(errors="replace").strip()
+        except Exception as body_exc:
+            log.debug("URL shortener HTTP error body could not be read: %s", body_exc)
+            return f"Error: HTTP {exc.code}"
         return f"Error: {body}" if body else f"Error: HTTP {exc.code}"
     except urllib.error.URLError as exc:
         log.debug("URL shortener network error for %r: %s", url, exc)
@@ -73,6 +90,11 @@ def shorten_url(url: str) -> str:
     except TimeoutError as exc:
         log.debug("URL shortener timeout for %r: %s", url, exc)
         return "Error: request timed out"
+    except Exception as exc:
+        # The contract is total: the caller only schedules its UI update if
+        # this returns, so anything escaping leaves the dialog stuck.
+        log.debug("URL shortener unexpected failure for %r: %s", url, exc)
+        return "Error: request failed"
 
 
 def prefs_payload(*, last_url: str) -> dict[str, Any]:

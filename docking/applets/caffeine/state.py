@@ -58,9 +58,8 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> CaffeineState:
 def coerce_duration(value: object) -> int:
     """Coerce a persisted timer length into a usable number of minutes.
 
-    The value is read during applet construction, so a hand-edited config with
-    a string or a NaN raised there and the dock dropped the applet from the
-    bar, rather than starting with the default duration.
+    Read during construction, so a hand-edited config value that raised here
+    took the applet off the bar instead of starting at the default duration.
     """
     if isinstance(value, bool) or not isinstance(value, int | float | str):
         return DEFAULT_DURATION

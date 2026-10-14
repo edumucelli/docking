@@ -132,8 +132,10 @@ Downstream code should not need to re-interpret raw JSON theme semantics.
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import json
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -149,6 +151,8 @@ _BUILTIN_THEMES_DIR = (
     Path(__file__).resolve().parent.parent.parent / "assets" / "themes"
 )
 _USER_THEME_TEMPLATE_NAME = "template"
+# GDK exposes display scale as a positive signed 32-bit integer.
+_MAX_DISPLAY_SCALE = (1 << 31) - 1
 log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
@@ -319,6 +323,26 @@ class ActiveTint(str, enum.Enum):
     THEME = "theme"
 
 
+def reject_non_finite_theme(theme: Theme) -> None:
+    """Raise if a loaded value or display-scaled radius is infinite or NaN.
+
+    Checked on the built Theme rather than on the parsed document: JSON has no
+    literal for either, but the string "Infinity" converts to one, and a finite
+    value scaled by icon_size can overflow to one. Both would otherwise reach
+    whichever caller rounds or multiplies the value first.
+    """
+    for field in dataclasses.fields(theme):
+        value = getattr(theme, field.name)
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError(f"non-finite value for {field.name}")
+        if isinstance(value, tuple) and any(
+            isinstance(part, float) and not math.isfinite(part) for part in value
+        ):
+            raise ValueError(f"non-finite value for {field.name}")
+    if not math.isfinite(theme.roundness * _MAX_DISPLAY_SCALE):
+        raise ValueError("corner radius overflows display scaling")
+
+
 def _rgba(values: list[int]) -> RGBA:
     """Convert [R, G, B, A] (0-255) to Cairo-compatible (0.0-1.0) tuple."""
     return values[0] / 255, values[1] / 255, values[2] / 255, values[3] / 255
@@ -401,6 +425,26 @@ class Theme:
 
     @classmethod
     def load(cls, name: str = "default", icon_size: int = 48) -> Theme:
+        """Load theme by name, degrading to the default instead of failing.
+
+        The name is persisted and the files are hand-edited, so an unusable one
+        must cost the user their theme, not every later launch.
+        """
+        try:
+            return cls._load_from_path(name=name, icon_size=icon_size)
+        except Exception as exc:
+            log.warning(
+                "Invalid theme %r; falling back to the default theme: %s", name, exc
+            )
+        if name != "default":
+            try:
+                return cls._load_from_path(name="default", icon_size=icon_size)
+            except Exception as exc:
+                log.warning("Default theme is unusable; using built-in values: %s", exc)
+        return cls()
+
+    @classmethod
+    def _load_from_path(cls, name: str = "default", icon_size: int = 48) -> Theme:
         """Load theme by name, applying the scaling unit system.
 
         The JSON theme file stores layout values in a scaling unit:
@@ -647,7 +691,7 @@ class Theme:
         round_bottom = bool(_theme_value(data, "shelf.round_bottom", False))
         distance_from_edge = int(_theme_value(data, "layout.distance_from_edge_px", 0))
 
-        return cls(
+        theme = cls(
             fill_start=fill_start,
             fill_end=fill_end,
             stroke=stroke,
@@ -682,3 +726,5 @@ class Theme:
             active_tint=active_tint,
             active_color=active_color,
         )
+        reject_non_finite_theme(theme)
+        return theme

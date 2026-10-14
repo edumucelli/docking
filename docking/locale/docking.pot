@@ -1777,18 +1777,6 @@ msgstr ""
 msgid "Play"
 msgstr ""
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr ""
-
-#: docking/applets/music/state.py:112
-msgid "Paused"
-msgstr ""
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr ""
-
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
 msgid "Network"

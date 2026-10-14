@@ -386,7 +386,6 @@ class GioTrashBackend:
         _open_trash_uri(self.uri, fallback_commands=self.open_commands)
 
     def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
-        _ = confirm
         before_count = self.count_items()
         if self._confirmation_preference() is False:
             if _empty_host_trash():
@@ -399,6 +398,13 @@ class GioTrashBackend:
                 before_count=before_count,
                 remaining_count=self.count_items(),
                 delegated=True,
+            )
+        # No file manager will prompt, and these files would be gone for good.
+        if not confirm():
+            return TrashEmptyResult(
+                attempted=False,
+                before_count=before_count,
+                remaining_count=before_count,
             )
         if _empty_host_trash():
             return self._empty_result(before_count=before_count)

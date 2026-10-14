@@ -621,8 +621,10 @@ def _uri_is_dir(target: str) -> bool:
         return False
     try:
         return Path(unquote(urlparse(target).path)).is_dir()
-    except ValueError:
-        logger.warning("Invalid file URI in persisted config: %r", target)
+    except (ValueError, OSError) as exc:
+        # is_dir() raises PermissionError for an untraversable parent, and
+        # letting that escape aborts the whole config load over one bad pin.
+        logger.warning("Unusable file URI in persisted config: %r (%s)", target, exc)
         return False
 
 
@@ -1040,7 +1042,7 @@ class Config:
             minimum=MIN_PRESSURE_THRESHOLD,
             maximum=MAX_PRESSURE_THRESHOLD,
         )
-        self.pinned = normalize_pinned_entries(list(self.pinned))
+        self.pinned = normalize_pinned_entries(self.pinned)
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
         self.show_recent_apps = _normalize_bool(
@@ -1092,10 +1094,9 @@ class Config:
     ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
-        # Resolved the same way save() resolves it, so the file and its backup
-        # are read and written in one place. Otherwise a dotfiles symlink had
-        # the backup written beside its target while recovery looked for one
-        # beside the link, and a corrupt config restored a stale copy.
+        original_path = path
+        # Resolve as save() does, or the backup is written beside the target
+        # while recovery looks for one beside the link and restores stale values.
         if path.is_symlink():
             path = Path(os.path.realpath(path))
         if not path.exists():
@@ -1112,9 +1113,15 @@ class Config:
         try:
             config = cls._load_existing_file(path=path)
         except Exception as exc:
-            backup_path = _backup_path_for(path)
+            backup_paths = [_backup_path_for(path)]
+            if original_path != path:
+                # Older versions kept the backup beside the symlink. Prefer
+                # the target's newer backup, but retain recovery after upgrade.
+                backup_paths.append(_backup_path_for(original_path))
             logger.warning("Failed to load config %s: %s", path, exc)
-            if backup_path.exists():
+            for backup_path in backup_paths:
+                if not backup_path.exists():
+                    continue
                 try:
                     config = cls._load_existing_file(path=backup_path)
                 except Exception as backup_exc:
@@ -1147,10 +1154,8 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
-        # Dotfiles setups symlink the config into a repository. Replacing the
-        # path would unlink the link and leave a regular file behind, so the
-        # user's repository silently stopped tracking the config after the
-        # first save; resolve it and write through to the real file.
+        # Dotfiles setups symlink the config into a repository, and replacing
+        # the link would leave the repo silently untracking it, so write through.
         if path.is_symlink():
             path = Path(os.path.realpath(path))
         ensure_parent_dir(path)
@@ -1198,7 +1203,7 @@ class Config:
                 data[new_key] = data[old_key]
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
-        if "pinned" in filtered and isinstance(filtered["pinned"], list):
+        if "pinned" in filtered:
             filtered["pinned"] = normalize_pinned_entries(filtered["pinned"])
         filtered["applet_prefs"] = _normalize_pref_map(filtered.get("applet_prefs"))
         filtered["item_prefs"] = _normalize_pref_map(filtered.get("item_prefs"))
@@ -1225,12 +1230,25 @@ def effective_edge_gap(theme: Theme, config: Config) -> int:
     )
 
 
-def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
+def normalize_pinned_entries(raw_entries: object) -> list[PinnedEntry]:
+    """Rebuild typed pinned entries, dropping invalid ones and duplicates.
+
+    Iterating a hand-edited non-list either aborts the load or explodes into one
+    pin per character, and a duplicate would draw the same app twice and persist.
+    """
+    if not isinstance(raw_entries, list):
+        return []
     entries: list[PinnedEntry] = []
+    seen: set[tuple[str, str]] = set()
     for raw in raw_entries:
         entry = PinnedEntry.from_raw(raw)
-        if entry is not None:
-            entries.append(entry)
+        if entry is None:
+            continue
+        identity = (entry.kind, entry.target)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        entries.append(entry)
     return entries
 
 

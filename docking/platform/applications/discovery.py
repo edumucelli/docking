@@ -84,8 +84,7 @@ class _FileFacts:
 def current_desktop_names() -> tuple[str, ...]:
     """Return the desktop names from ``XDG_CURRENT_DESKTOP``, in session order.
 
-    The order is part of the contract: OnlyShowIn/NotShowIn are resolved on the
-    first name in the list that appears in either of them.
+    Order matters: OnlyShowIn/NotShowIn resolve on the first name in either.
     """
     raw = os.environ.get("XDG_CURRENT_DESKTOP", "")
     return tuple(part.strip().casefold() for part in raw.split(":") if part.strip())
@@ -105,13 +104,8 @@ def visible_on_current_desktop(
 ) -> bool:
     """Apply the Desktop Entry spec's OnlyShowIn/NotShowIn gate.
 
-    Both keys name desktop environments -- "GNOME", "sway" -- and the spec
-    resolves them against ``$XDG_CURRENT_DESKTOP`` in order: the first name in
-    that list which appears in either key decides, so "MATE:GNOME" with
-    OnlyShowIn=MATE and NotShowIn=GNOME is shown rather than hidden. When no
-    name matches, an entry restricted by OnlyShowIn stays hidden, which is also
-    what ``should_show()`` answers for the Gio-backed path -- the two sources
-    have to agree, or the same entry would appear once and not the other way.
+    The first ``$XDG_CURRENT_DESKTOP`` name appearing in either key decides; no
+    match leaves an OnlyShowIn entry hidden, as ``should_show()`` does.
     """
     if not only_show_in and not not_show_in:
         return True
@@ -637,10 +631,8 @@ def _discover_desktop_files(
             if not path.is_file():
                 continue
             # The desktop file id replaces subdirectory separators with "-",
-            # which is also what Gio.DesktopAppInfo.get_id() returns. Keeping
-            # the slash produced a second id for the same file, so an
-            # application living in a subdirectory was listed twice: the Gio
-            # source emitted "sub-foo.desktop" and this scan "sub/foo.desktop".
+            # as Gio's get_id() does; keeping the slash listed each nested
+            # application twice.
             application_id = path.relative_to(directory).as_posix().replace("/", "-")
             if application_id not in winners:
                 winners[application_id] = path

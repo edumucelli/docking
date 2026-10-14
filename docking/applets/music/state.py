@@ -104,16 +104,20 @@ def play_pause_menu_label(state: MusicState) -> str:
 
 
 def _normalize_playback_status(raw: str) -> str:
-    """Normalize playback status values across backends."""
+    """Return the canonical playback token for a backend status string.
+
+    The token stays untranslated: it is a state value that several callers
+    compare against these literals, which translating it broke.
+    """
     value = raw.strip().lower()
     if value == "playing":
-        return _("Playing")
+        return "Playing"
     if value == "paused":
-        return _("Paused")
+        return "Paused"
     if value == "stopped":
-        return _("Stopped")
+        return "Stopped"
     if value == "unknown":
-        return _("Unknown")
+        return "Unknown"
     return raw.strip() or "Unknown"
 
 
@@ -683,8 +687,10 @@ class PlayerctlBackend:
             ],
             timeout=1.8,
         )
+        # Only the trailing newline may go: playerctl emits an empty field as a
+        # bare tab, so stripping leading whitespace drops that separator.
         parts = [
-            *(metadata or "").strip().split("\t"),
+            *(metadata or "").rstrip("\n").split("\t"),
             "",
             "",
             "",

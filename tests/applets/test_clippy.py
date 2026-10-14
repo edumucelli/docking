@@ -34,6 +34,25 @@ class TestTruncate:
 
 
 class TestClipHistory:
+    @pytest.mark.parametrize("cap", [0, "0", 0.0])
+    def test_zero_cap_does_not_retain_clipboard_text(self, cap):
+        applet = ClippyApplet(
+            48, config=Config(applet_prefs={"clippy": {"max_entries": cap}})
+        )
+        clipboard = MagicMock()
+        clipboard.wait_for_text.side_effect = ["private text", ""]
+        applet._clipboard = clipboard
+
+        applet._on_owner_change(clipboard, None)
+        applet._on_owner_change(clipboard, None)
+        applet.on_clicked()
+
+        assert applet._clips == []
+        assert applet._cur_position == 0
+        assert "empty" in applet.item.name.lower()
+        assert applet.get_menu_items() == []
+        clipboard.set_text.assert_not_called()
+
     def test_add_clip(self):
         d = ClippyApplet(48, config=Config())
         d.add_clip("first")
@@ -204,7 +223,7 @@ class TestClipLifecycle:
         ("stored", "expected"),
         [
             (-1, 1),  # used to raise IndexError on every single copy
-            (0, 1),
+            (0, 0),
             ("15", 15),  # used to raise TypeError on every copy
             ("not a number", DEFAULT_MAX_ENTRIES),
             (None, DEFAULT_MAX_ENTRIES),
@@ -215,12 +234,7 @@ class TestClipLifecycle:
         ],
     )
     def test_normalize_max_entries_survives_config_file_values(self, stored, expected):
-        """The cap has no UI, so the config file is its only input.
-
-        Passing it through raw left the applet unable to record a single
-        clipboard change, because the exception fired inside the owner-change
-        signal handler on every copy.
-        """
+        """A raw cap left the applet unable to record a single clipboard change."""
         assert normalize_max_entries(stored) == expected
 
     def test_negative_persisted_cap_still_records_clips(self):

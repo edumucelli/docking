@@ -571,6 +571,89 @@ class TestConfigLoad:
             PinnedEntry(kind=APP_KIND, target="firefox.desktop"),
         ]
 
+    def test_load_drops_duplicate_pins_keeping_first_occurrence(self, tmp_path):
+        """A repeated pin must not become a second copy of the same dock item.
+
+        The model writes its list straight back to disk, so a duplicate that
+        survived loading would be drawn twice and persist across every restart.
+        """
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        {"kind": "app", "target": "first.desktop"},
+                        {"kind": "app", "target": "second.desktop"},
+                        {"kind": "app", "target": "first.desktop"},
+                        "first.desktop",
+                        {"kind": "applet", "target": "applet://clock"},
+                        {"kind": "applet", "target": "applet://clock"},
+                    ]
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        # The legacy string form spells the same entry, and the first one wins.
+        assert config.pinned == [
+            PinnedEntry(kind=APP_KIND, target="first.desktop"),
+            PinnedEntry(kind=APP_KIND, target="second.desktop"),
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+        ]
+
+    def test_load_keeps_same_target_under_different_kinds(self, tmp_path):
+        """Only identical kind+target pairs are duplicates."""
+        path = tmp_path / "dock.json"
+        file_uri = (tmp_path / "notes.txt").as_uri()
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        {"kind": "file", "target": file_uri},
+                        {"kind": "folder", "target": file_uri},
+                    ]
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=FILE_KIND, target=file_uri),
+            PinnedEntry(kind=FOLDER_KIND, target=file_uri),
+        ]
+
+    @pytest.mark.parametrize("bad_pinned", [None, 5, 1.5, True, "firefox.desktop"])
+    def test_load_survives_a_pinned_value_that_is_not_a_list(
+        self, tmp_path, bad_pinned
+    ):
+        """One malformed field must not reset every other setting.
+
+        Iterating the value whatever its JSON type aborted the whole load, and
+        a bare string became one pin per character.
+        """
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "icon_size": 96,
+                    "theme": "glass",
+                    "position": "top",
+                    "anchor_applets": True,
+                    "pinned": bad_pinned,
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.icon_size == 96
+        assert config.theme == "glass"
+        assert config.position == "top"
+        assert config.anchor_applets is True
+        assert config.pinned == []
+
     def test_load_filters_invalid_pref_map_shapes(self, tmp_path):
         path = tmp_path / "dock.json"
         path.write_text(
@@ -600,6 +683,42 @@ class TestConfigLoad:
 
         assert config.icon_size == 72
         assert config._path == path
+
+    @pytest.mark.parametrize(
+        ("target_backup", "expected_size"),
+        [(None, 96), ("{", 96), ('{"icon_size": 72}', 72)],
+    )
+    def test_symlink_recovers_legacy_backup_after_upgrade(
+        self, tmp_path, target_backup, expected_size
+    ):
+        target = tmp_path / "dotfiles" / "dock.json"
+        target.parent.mkdir()
+        target.write_text("{", encoding="utf-8")
+        link = tmp_path / "dock.json"
+        link.symlink_to(target)
+        legacy_backup = link.with_name("dock.json.bak")
+        legacy_backup.write_text(
+            json.dumps(
+                {"icon_size": 96, "theme": "glass", "pinned": ["saved.desktop"]}
+            ),
+            encoding="utf-8",
+        )
+        if target_backup is not None:
+            target.with_name("dock.json.bak").write_text(
+                target_backup, encoding="utf-8"
+            )
+
+        config = Config.load(link)
+
+        assert config.icon_size == expected_size
+        assert config._path == target
+        if expected_size == 96:
+            assert config.theme == "glass"
+            assert config.pinned == [PinnedEntry(kind=APP_KIND, target="saved.desktop")]
+        config.save()
+        assert link.is_symlink()
+        assert json.loads(target.read_text())["icon_size"] == expected_size
+        assert json.loads(legacy_backup.read_text())["icon_size"] == 96
 
     def test_load_creates_backup_when_primary_is_valid_and_backup_missing(
         self, tmp_path
@@ -713,9 +832,8 @@ class TestConfigSave:
     def test_save_writes_through_a_symlinked_config(self, tmp_path):
         """Dotfiles setups symlink the config into a repository.
 
-        The atomic replace unlinked the link and left a regular file in its
-        place, so the user's repository silently stopped tracking the config
-        after the first save -- and kept serving the stale values.
+        The atomic replace unlinked the link, so the repository stopped
+        tracking the config after the first save.
         """
         target = tmp_path / "dotfiles" / "dock.json"
         target.parent.mkdir()
@@ -735,10 +853,8 @@ class TestConfigSave:
     ):
         """Loading has to look for the backup where saving puts it.
 
-        The link was resolved on save but not on load, so saves refreshed a
-        backup beside the target while recovery looked for one beside the link.
-        A load creates that second, stale backup on its first successful read,
-        so a corrupt config restored values from before the last save.
+        Resolving the link on save but not on load made recovery restore a
+        stale copy.
         """
         target = tmp_path / "dotfiles" / "dock.json"
         target.parent.mkdir()
@@ -997,7 +1113,30 @@ class TestUriIsDir:
         # Any file:// URI triggers the code path; Path.is_dir raises
         result = config_mod._uri_is_dir("file:///bad/path")
         assert result is False
-        assert any("Invalid file URI" in w for w in warnings)
+        assert any("file URI in persisted config" in w for w in warnings)
+
+    def test_unreadable_path_is_not_fatal_to_the_whole_config(self, monkeypatch):
+        """A parent directory that cannot be traversed makes is_dir() raise.
+
+        That is an OSError, not a ValueError, so it escaped and aborted the
+        whole load; is_dir() is patched because the suite also runs as root.
+        """
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr(config_mod, "logger", _Capture())
+
+        def _raise_permissionerror(_path):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(config_mod.Path, "is_dir", _raise_permissionerror)
+        result = config_mod._uri_is_dir("file:///locked/secret")
+
+        assert result is False
+        assert any("file URI in persisted config" in w for w in warnings)
 
 
 class TestNormalizeBool:

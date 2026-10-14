@@ -204,11 +204,7 @@ class TestCoerceInt:
 
     @pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
     def test_unrepresentable_number_returns_default(self, value):
-        """The coercion is total: unusable input must not raise.
-
-        This runs in a startup timeout, so an escaping OverflowError printed a
-        traceback on every launch and the greeting could never fire again.
-        """
+        """The coercion is total: an escaping error breaks startup for good."""
         assert _coerce_int(value, default=7) == 7
 
     def test_infinity_in_the_state_file_does_not_break_the_greeting(self, tmp_path):

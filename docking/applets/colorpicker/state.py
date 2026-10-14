@@ -28,9 +28,8 @@ def rgb_to_hex(r: int, g: int, b: int) -> str:
 def coerce_channel(value: object, *, default: float) -> float:
     """Coerce a persisted colour channel into 0.0-1.0.
 
-    The stored value comes from the config file and reaches cairo through
-    ``set_source_rgb`` during construction, where anything that is not a real
-    number raises and the dock drops the applet from the bar entirely.
+    The value reaches cairo's ``set_source_rgb`` during construction, where
+    anything that is not a real number raises.
     """
     if isinstance(value, bool) or not isinstance(value, int | float | str):
         return default
@@ -46,8 +45,7 @@ def coerce_channel(value: object, *, default: float) -> float:
 def coerce_hex(value: object) -> str:
     """Return a usable ``#RRGGBB`` label, or an empty string.
 
-    The value is rendered as the applet's label and inside a menu item, so it
-    has to be text: an int from the config raised out of the menu builder.
+    The value is rendered in a label and a menu item, so it has to be text.
     """
     if not isinstance(value, str):
         return ""

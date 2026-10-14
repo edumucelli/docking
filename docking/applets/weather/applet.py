@@ -439,6 +439,7 @@ class WeatherApplet(Applet):
         aqi: AirQualityData | None,
     ) -> bool:
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         self._loading = False
         self._fetch_failed = weather is None
@@ -454,6 +455,7 @@ class WeatherApplet(Applet):
 
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         log.bind(action="fetch_error").debug("Weather fetch failed: %s", exc)
         self._loading = False
@@ -461,6 +463,16 @@ class WeatherApplet(Applet):
         self._fetch_error = str(exc) or exc.__class__.__name__
         self._present_or_run_pending_fetch()
         return False
+
+    def _settle_replaced_fetch(self) -> None:
+        """Finish the bookkeeping for a reply the user already replaced.
+
+        The queued replacement fetch never starts on its own, so the discarded
+        reply is the only thing that would clear ``_loading``; leaving it set
+        wedged the applet on "Loading..." with stale data forever.
+        """
+        self._loading = False
+        self._present_or_run_pending_fetch()
 
     def _present_or_run_pending_fetch(self) -> None:
         if self._fetch_pending and self._active_city:

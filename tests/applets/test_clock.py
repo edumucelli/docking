@@ -136,13 +136,7 @@ class TestClockState:
     def test_alarm_rings_at_the_requested_wall_clock_across_a_dst_change(
         self, timezone, zone, night_before
     ):
-        """07:00 means 07:00 on the user's clock, whatever the offset does.
-
-        The target reused the daylight-saving flag of "now", and the rollover
-        to the next day added 24 hours rather than advancing the date. Set the
-        night the clocks change, the alarm rang an hour out -- which is the one
-        morning a user is least likely to forgive it.
-        """
+        """07:00 means 07:00 on the user's clock, whatever the offset does."""
         timezone(zone)
         now = time.mktime((*night_before, 0, 0, 0, 0))
 
@@ -181,12 +175,7 @@ class TestClockPrefs:
         ],
     )
     def test_unusable_alarm_target_does_not_remove_the_applet(self, stored):
-        """The target is formatted during construction, so it must be usable.
-
-        normalize_alarm_target accepted anything larger than "now", and the
-        applet vanished from the dock on every start when the persisted value
-        could not be turned into a local time.
-        """
+        """An unusable target took the clock off the dock on every start."""
         config = Config(applet_prefs={"clock": {"alarm_target": stored}})
 
         clock = ClockApplet(48, config=config)

@@ -270,6 +270,47 @@ class TestRedditFeedParsing:
         with pytest.raises(ValueError, match="Invalid Reddit RSS"):
             parse_reddit_feed(b"<not-xml", subreddit="linux")
 
+    @pytest.mark.parametrize(
+        "declaration",
+        [
+            b'<!DOCTYPE feed [<!ENTITY a "lo">]>',
+            b'<!doctype feed [<!ENTITY a "lo">]>',
+            b"<!  DOCTYPE feed>",
+        ],
+    )
+    def test_rejects_entity_declarations_before_they_are_expanded(self, declaration):
+        """The feed is fetched over the network, so a DTD must never be honoured.
+
+        ElementTree expands internal entities, which turns a sub-kilobyte
+        document into an arbitrarily large title.
+        """
+        payload = (
+            b'<?xml version="1.0"?>'
+            + declaration
+            + b'<feed xmlns="http://www.w3.org/2005/Atom"><entry>'
+            b"<title>&a;</title><id>t3_x</id>"
+            b'<link rel="alternate" '
+            b'href="https://www.reddit.com/r/linux/comments/1/"/>'
+            b"</entry></feed>"
+        )
+
+        with pytest.raises(ValueError, match="Invalid Reddit RSS"):
+            parse_reddit_feed(payload, subreddit="linux")
+
+    def test_plain_feed_without_a_doctype_still_parses(self):
+        posts = parse_reddit_feed(
+            _feed(
+                _entry(
+                    post_id="t3_ok",
+                    title="Ordinary post",
+                    url="https://www.reddit.com/r/linux/comments/1/",
+                )
+            ),
+            subreddit="linux",
+        )
+
+        assert [post.title for post in posts] == ["Ordinary post"]
+
     def test_fetch_uses_public_feed_and_descriptive_user_agent(self, monkeypatch):
         seen: dict[str, object] = {}
 

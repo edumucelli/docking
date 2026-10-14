@@ -177,9 +177,7 @@ def _coerce_int(value: Any, *, default: int) -> int:
         if isinstance(value, str):
             return int(value.strip())
     except (TypeError, ValueError, OverflowError):
-        # OverflowError covers a float that is infinite, and an int or string
-        # too large for the platform. This runs inside a GLib timeout on
-        # startup, so letting it escape printed a traceback on every launch and
-        # left the greeting permanently unable to fire.
+        # OverflowError covers an infinite float or an int too large for the
+        # platform; escaping the startup timeout broke the greeting for good.
         return default
     return default

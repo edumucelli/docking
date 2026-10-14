@@ -21,6 +21,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
+from docking.applets.xml_safety import UnsafeXmlError, parse_untrusted_xml
 from docking.core.math import clamp_index
 from docking.i18n import _
 
@@ -223,8 +224,8 @@ def parse_reddit_feed(
     if limit <= 0:
         return ()
     try:
-        root = ET.fromstring(payload)
-    except (ET.ParseError, TypeError) as exc:
+        root = parse_untrusted_xml(payload)
+    except (ET.ParseError, TypeError, UnsafeXmlError) as exc:
         raise ValueError(_("Invalid Reddit RSS response")) from exc
 
     namespace = f"{{{ATOM_NAMESPACE}}}"

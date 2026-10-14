@@ -21,9 +21,8 @@ import cairo
 def _render_grid(cr: cairo.Context, size: int, count: int, active_num: int) -> None:
     """Draw a grid of workspace rectangles with the active one highlighted.
 
-    ``active_num`` is the active workspace's position in the list the caller
-    displays, not the workspace number reported by the backend; anything out of
-    range simply leaves every cell unhighlighted.
+    ``active_num`` is a position in the caller's list, not a backend number, so
+    an out-of-range value simply leaves every cell unhighlighted.
     """
     if count <= 0:
         return

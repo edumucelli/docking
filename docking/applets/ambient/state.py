@@ -84,9 +84,8 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AmbientState:
 def coerce_volume(value: object) -> float:
     """Coerce a persisted volume into 0.0-1.0, falling back to the default.
 
-    The value is read during applet construction, so a hand-edited config with
-    a null, a string, or a NaN raised there and the dock dropped the applet
-    from the bar instead of showing it at the default volume.
+    Read during construction, so a hand-edited config value that raised here
+    took the applet off the bar instead of showing the default volume.
     """
     if isinstance(value, bool) or not isinstance(value, int | float | str):
         return DEFAULT_VOLUME

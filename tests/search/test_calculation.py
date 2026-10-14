@@ -103,9 +103,8 @@ def test_overflow_from_exponent_limit_and_non_finite_results() -> None:
 def test_integer_arithmetic_is_exact_beyond_float_precision() -> None:
     """Integer results must not be rounded through float on the way out.
 
-    Everything used to be coerced with ``float``, so any result past 2**53 was
-    silently rounded and then printed as though it were exact: 2**100 + 1 came
-    back as 2**100, and a 20-digit literal lost its last three digits.
+    Coercing with ``float`` silently rounded anything past 2**53 and printed the
+    result as if it were exact.
     """
     assert recognize_calculation("= 2^100 + 1").answer == str(2**100 + 1)
     assert recognize_calculation("= 9007199254740993").answer == "9007199254740993"
@@ -116,8 +115,7 @@ def test_integer_arithmetic_is_exact_beyond_float_precision() -> None:
     assert recognize_calculation("= 2^64").answer == "18446744073709551616"
     # A power of ten stays exact rather than overflowing a float conversion.
     assert recognize_calculation("= 10^400").answer == "1" + "0" * 400
-    # round() is part of the same guarantee: widening its result back to float
-    # re-rounded it, so this answered ...992.
+    # round() is part of the same guarantee: widening its result re-rounded it.
     assert (
         recognize_calculation("= round(9007199254740993)").answer == "9007199254740993"
     )
@@ -132,10 +130,8 @@ def test_integer_arithmetic_is_exact_beyond_float_precision() -> None:
 def test_power_size_guard_uses_a_lower_bound_not_an_estimate() -> None:
     """The guard must reject only what provably cannot fit.
 
-    ``bit_length * exponent`` overshoots: 16^1000 is an estimate of 5000 bits
-    against a real 4001, so the tighter estimate rejected a result the limit
-    allows. The bound is ``(bits - 1) * exponent``, and the boundary cases are
-    settled on the result.
+    ``bit_length * exponent`` overshoots and would reject 16^1000, so the bound
+    is ``(bits - 1) * exponent`` and the boundary is settled on the result.
     """
     assert (16**1000).bit_length() == 4001
     assert recognize_calculation("= 16^1000").answer == str(16**1000)
@@ -164,8 +160,6 @@ def test_mixed_arithmetic_still_formats_like_a_float() -> None:
 def test_integer_growth_is_bounded(expression: str) -> None:
     """Exact integers need a ceiling the float coercion used to provide.
 
-    Without one, an exponent within the limit still stacked into a million-bit
-    number: ((2^1000)^1000)^1000 took five seconds to build, on a keystroke.
     The check runs before the power rather than on the answer, because the cost
     is in the power itself.
     """
