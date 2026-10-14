@@ -126,3 +126,53 @@ def test_unknown_timezones_and_invalid_dates_are_not_claimed() -> None:
     assert parse_temporal_query("time in Atlantis", now=NOW) is None
     assert parse_temporal_query("time in NYC", now=NOW) is None
     assert parse_temporal_query("2026-02-31", now=NOW) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "2026-3-8 2:30 America/New_York to UTC",
+        "2026-3-8 2:30 America/New_York to America/New_York",
+        "2026-3-29 1:30 Europe/London to UTC",
+    ],
+)
+def test_time_conversion_rejects_nonexistent_local_time(text: str) -> None:
+    assert parse_temporal_query(text, now=NOW) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("2026-3-8 1:30 America/New_York to UTC", "2026-03-08 06:30"),
+        ("2026-3-8 3:30 America/New_York to UTC", "2026-03-08 07:30"),
+        ("2026-11-1 1:30 America/New_York to UTC", "2026-11-01 05:30"),
+    ],
+)
+def test_time_conversion_preserves_real_times_near_dst_changes(text, expected):
+    result = parse_temporal_query(text, now=NOW)
+
+    assert result is not None
+    assert result.copy_text == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "0001-1-1 00:00 UTC+14 to UTC",
+        "9999-12-31 23:59 UTC to UTC+14",
+        "in " + "9" * 5000 + " days",
+    ],
+    ids=["lower-date-boundary", "upper-date-boundary", "oversized-count"],
+)
+def test_out_of_range_time_queries_are_not_claimed(text: str) -> None:
+    assert parse_temporal_query(text, now=NOW) is None
+
+
+@pytest.mark.parametrize("day", [dt.date.min, dt.date.max])
+def test_boundary_dates_can_still_be_queried(day: dt.date) -> None:
+    now = dt.datetime.combine(day, dt.time(12), dt.timezone.utc)
+
+    result = parse_temporal_query("today", now=now)
+
+    assert result is not None
+    assert result.copy_text == day.isoformat()

@@ -123,6 +123,7 @@ class UnitConverterApplet(Applet):
         self._to_combo: Gtk.ComboBoxText | None = None
         self._entry: Gtk.Entry | None = None
         self._cat_combo: Gtk.ComboBoxText | None = None
+        self._updating_units = False
         self._worker = BackgroundWorker(logger=log)
 
         prefs = config.applet_prefs.get("unitconverter", {})
@@ -256,19 +257,23 @@ class UnitConverterApplet(Applet):
         cat = cats[self._cat_idx]
         units = get_units(cat)
 
-        if self._from_combo:
-            self._from_combo.remove_all()
-            for u in units:
-                self._from_combo.append_text(_unit_label(u))
-            idx = clamp_index(self._from_idx, len(units))
-            self._from_combo.set_active(idx)
+        self._updating_units = True
+        try:
+            if self._from_combo:
+                self._from_combo.remove_all()
+                for u in units:
+                    self._from_combo.append_text(_unit_label(u))
+                idx = clamp_index(self._from_idx, len(units))
+                self._from_combo.set_active(idx)
 
-        if self._to_combo:
-            self._to_combo.remove_all()
-            for u in units:
-                self._to_combo.append_text(_unit_label(u))
-            idx = clamp_index(self._to_idx, len(units))
-            self._to_combo.set_active(idx)
+            if self._to_combo:
+                self._to_combo.remove_all()
+                for u in units:
+                    self._to_combo.append_text(_unit_label(u))
+                idx = clamp_index(self._to_idx, len(units))
+                self._to_combo.set_active(idx)
+        finally:
+            self._updating_units = False
 
     def _on_category_changed(self, combo: Gtk.ComboBoxText) -> None:
         idx = combo.get_active()
@@ -297,6 +302,8 @@ class UnitConverterApplet(Applet):
         self._to_combo.set_active(f)
 
     def _on_unit_changed(self, _combo: Gtk.ComboBoxText) -> None:
+        if self._updating_units:
+            return
         if self._from_combo:
             self._from_idx = self._unit_index_from_combo(
                 combo=self._from_combo,

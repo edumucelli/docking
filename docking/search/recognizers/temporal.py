@@ -194,15 +194,17 @@ def _date_value(
 
 
 def _parse_date(text: str, *, today: dt.date) -> TemporalValue | None:
-    keyword_dates = {
-        "date": today,
-        "today": today,
-        "tomorrow": today + dt.timedelta(days=1),
-        "yesterday": today - dt.timedelta(days=1),
+    keyword_offsets = {
+        "date": 0,
+        "today": 0,
+        "tomorrow": 1,
+        "yesterday": -1,
     }
     normalized = text.casefold()
-    if normalized in keyword_dates:
-        return _date_value(keyword_dates[normalized], today=today)
+    if normalized in keyword_offsets:
+        return _date_value(
+            today + dt.timedelta(days=keyword_offsets[normalized]), today=today
+        )
     relative_match = _RELATIVE_DATE_RE.fullmatch(normalized)
     if relative_match is not None:
         future = relative_match.group("future")
@@ -282,7 +284,11 @@ def _converted_time_value(
         dt.time(hour=hour, minute=minute),
         tzinfo=source_zone,
     )
-    converted = source_time.astimezone(target_zone)
+    utc_time = source_time.astimezone(dt.timezone.utc)
+    round_trip = utc_time.astimezone(source_zone)
+    if round_trip.replace(tzinfo=None) != source_time.replace(tzinfo=None):
+        return None
+    converted = utc_time.astimezone(target_zone)
     shown = converted.strftime("%Y-%m-%d %H:%M" if date_text else "%H:%M")
     return TemporalValue(
         kind=TemporalKind.TIME_CONVERSION,
@@ -307,26 +313,29 @@ def parse_temporal_query(
     stripped = text.strip()
     if not stripped:
         return None
-    current = now or dt.datetime.now().astimezone()
-    if current.tzinfo is None:
-        current = current.astimezone()
-    date_value = _parse_date(stripped, today=current.date())
-    if date_value is not None:
-        return date_value
-    if stripped.casefold() in {"time", "now"}:
-        zone = current.tzinfo or dt.timezone.utc
-        zone_name = getattr(zone, "key", None) or current.tzname() or "Local"
-        return _current_time_value(str(zone_name), zone, now=current)
-    current_match = _CURRENT_TIME_RE.fullmatch(stripped) or _CITY_TIME_RE.fullmatch(
-        stripped
-    )
-    if current_match is not None:
-        zone = _resolve_timezone(current_match.group(1))
-        if zone is not None:
-            return _current_time_value(*zone, now=current)
-    conversion_match = _TIME_CONVERSION_RE.fullmatch(stripped)
-    if conversion_match is not None:
-        return _converted_time_value(conversion_match, now=current)
+    try:
+        current = now or dt.datetime.now().astimezone()
+        if current.tzinfo is None:
+            current = current.astimezone()
+        date_value = _parse_date(stripped, today=current.date())
+        if date_value is not None:
+            return date_value
+        if stripped.casefold() in {"time", "now"}:
+            zone = current.tzinfo or dt.timezone.utc
+            zone_name = getattr(zone, "key", None) or current.tzname() or "Local"
+            return _current_time_value(str(zone_name), zone, now=current)
+        current_match = _CURRENT_TIME_RE.fullmatch(stripped) or _CITY_TIME_RE.fullmatch(
+            stripped
+        )
+        if current_match is not None:
+            zone = _resolve_timezone(current_match.group(1))
+            if zone is not None:
+                return _current_time_value(*zone, now=current)
+        conversion_match = _TIME_CONVERSION_RE.fullmatch(stripped)
+        if conversion_match is not None:
+            return _converted_time_value(conversion_match, now=current)
+    except (OverflowError, ValueError):
+        return None
     return None
 
 

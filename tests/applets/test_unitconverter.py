@@ -902,6 +902,52 @@ class TestAppletPopup:
         assert applet._to_idx >= 0
         applet.save_prefs.assert_called_once()
 
+    @pytest.mark.parametrize("category", [Category.TIME, Category.TEMPERATURE])
+    def test_category_change_preserves_new_selection_during_signals(self, category):
+        class SignallingCombo(_FakeComboBoxText):
+            callback = None
+
+            def connect(self, _signal, callback):
+                self.callback = callback
+
+            def remove_all(self):
+                super().remove_all()
+                if self.callback:
+                    self.callback(self)
+
+            def set_active(self, idx):
+                super().set_active(idx)
+                if self.callback:
+                    self.callback(self)
+
+        applet = _make_applet()
+        applet._from_combo = SignallingCombo()
+        applet._to_combo = SignallingCombo()
+        applet._entry = _FakeEntry("1")
+        applet._result_label = _FakeLabel()
+        applet._from_idx = 3
+        applet._to_idx = 7
+        applet._populate_unit_combos()
+        applet._from_combo.connect("changed", applet._on_unit_changed)
+        applet._to_combo.connect("changed", applet._on_unit_changed)
+        applet.save_prefs = MagicMock()
+        category_combo = _FakeComboBoxText()
+        for cat in get_categories():
+            category_combo.append_text(cat.value)
+        category_combo.set_active(get_categories().index(category))
+
+        applet._on_category_changed(category_combo)
+
+        assert applet._from_idx == applet._from_combo.get_active() == 0
+        assert applet._to_idx == applet._to_combo.get_active() == 1
+        applet.save_prefs.assert_called_once_with(
+            prefs={
+                "category_index": get_categories().index(category),
+                "from_index": 0,
+                "to_index": 1,
+            }
+        )
+
     def test_category_change_ignores_negative_active(self):
         applet = _make_applet()
         combo = MagicMock()
