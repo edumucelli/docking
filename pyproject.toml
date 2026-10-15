@@ -103,12 +103,29 @@ ignore = [
 [tool.ty.environment]
 python-version = "3.10"
 
+[tool.ty.src]
+# Generated pywayland bindings: the request/event decorators build their
+# proxies dynamically, so every method returns Unknown by construction.
+exclude = ["docking/platform/backends/wayland/protocols/"]
+
 [tool.ty.rules]
 unresolved-import = "ignore"  # gi/cairo lack type stubs
 unresolved-attribute = "ignore"  # gi.repository dynamic attrs
 # openmeteo-requests has incomplete type stubs
 invalid-argument-type = "warn"
 no-matching-overload = "warn"
+# Rules ty leaves off by default, turned on so the imprecision they describe
+# cannot creep back in. Keep the list to rules this codebase has cleared.
+missing-type-argument = "error"
+unsound-return-statement = "error"
+unsound-assignment = "error"
+dynamic-function-decorator-return = "error"
+possibly-missing-attribute = "error"
+possibly-missing-import = "error"
+possibly-unresolved-reference = "error"
+blanket-ignore-comment = "error"
+unused-ignore-comment = "error"
+redundant-cast = "error"
 
 [tool.vulture]
 paths = ["docking", "tests"]
