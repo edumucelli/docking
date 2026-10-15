@@ -347,6 +347,7 @@ class TestDragBeginMotion:
         # Then
         assert handler._drag_from == 0
         assert handler.drag_index == 0
+        assert handler._dragged_item is handler._model.visible_items.return_value[0]
         icon_set.assert_called_once()
 
     def test_drag_motion_external_updates_insert_gap(self, monkeypatch):
@@ -466,6 +467,7 @@ class TestDragBeginMotion:
             DockItem("a.desktop"),
             DockItem("b.desktop"),
         ]
+        handler._dragged_item = handler._model.visible_items.return_value[0]
         rest_frame = _frame(insert_index=2, count=2)
         handler._geometry_builder = SimpleNamespace(
             build_frame=lambda **_kwargs: rest_frame
@@ -476,8 +478,8 @@ class TestDragBeginMotion:
         handled = handler._on_drag_motion(handler._drawing_area, MagicMock(), 200, 5, 1)
         # Then
         assert handled is True
-        handler._model.reorder_visible.assert_called_once()
-        assert handler.drag_index == 1
+        handler._model.reorder_visible.assert_called_once_with(0, 1)
+        assert handler.drag_index == 0
 
 
 class TestDropAndReceive:
@@ -1076,6 +1078,7 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
+        handler._dragged_item = pinned
         pointer = handler._window.get_display.return_value.get_default_seat.return_value
         pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
         handler._window.get_position.return_value = (100, 200)
@@ -1096,6 +1099,47 @@ class TestDragLeaveEnd:
         handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called()
 
+    def test_drag_end_without_pointer_coordinates_keeps_pinned_item(self, monkeypatch):
+        handler = _make_handler(monkeypatch)
+        item = DockItem("source.desktop", is_pinned=True)
+        handler._drag_from = handler.drag_index = 0
+        handler._dragged_item = item
+        handler._internal_drag_left_dock = True
+        handler._model.visible_items.return_value = [item]
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
+        monkeypatch.setattr(dnd_mod, "get_pointer_position", lambda _display: None)
+
+        handler._on_drag_end(handler._drawing_area, MagicMock())
+
+        handler._model.unpin_item.assert_not_called()
+        dnd_mod.show_poof.assert_not_called()
+
+    @pytest.mark.parametrize("source_still_visible", [True, False])
+    def test_drag_off_never_unpins_the_item_at_a_stale_index(
+        self, monkeypatch, source_still_visible
+    ):
+        handler = _make_handler(monkeypatch)
+        source = DockItem("source.desktop", is_pinned=True)
+        other = DockItem("other.desktop", is_pinned=True)
+        handler._drag_from = handler.drag_index = 0
+        handler._dragged_item = source
+        handler._internal_drag_left_dock = True
+        handler._model.visible_items.return_value = (
+            [other, source] if source_still_visible else [other]
+        )
+        pointer = handler._window.get_display.return_value.get_default_seat.return_value
+        pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
+        handler._window.get_position.return_value = (100, 200)
+        handler._window.get_size.return_value = (400, 60)
+
+        handler._on_drag_end(handler._drawing_area, MagicMock())
+
+        if source_still_visible:
+            handler._model.unpin_item.assert_called_once_with("source.desktop")
+        else:
+            handler._model.unpin_item.assert_not_called()
+
     def test_drag_end_does_not_unpin_reorder_when_global_position_looks_outside(
         self, monkeypatch
     ):
@@ -1104,6 +1148,7 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
+        handler._dragged_item = pinned
         pointer = handler._window.get_display.return_value.get_default_seat.return_value
         pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
         handler._window.get_position.return_value = (100, 200)
@@ -1123,6 +1168,7 @@ class TestDragLeaveEnd:
         handler.drag_index = 0
         pinned = DockItem(desktop_id="firefox.desktop", is_pinned=True, name="Firefox")
         handler._model.visible_items.return_value = [pinned]
+        handler._dragged_item = pinned
         pointer = handler._window.get_display.return_value.get_default_seat.return_value
         pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
         handler._window.get_position.return_value = (100, 200)
@@ -1145,6 +1191,7 @@ class TestDragLeaveEnd:
             name="Docs",
         )
         handler._model.visible_items.return_value = [folder]
+        handler._dragged_item = folder
         pointer = handler._window.get_display.return_value.get_default_seat.return_value
         pointer.get_pointer.return_value.get_position.return_value = (None, 200, 50)
         handler._window.get_position.return_value = (100, 200)

@@ -368,6 +368,8 @@ class AutoHideController:
 
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
+        if not self.enabled:
+            return
         if self._disabled or self._hovered:
             self._show()
         elif (
@@ -385,8 +387,9 @@ class AutoHideController:
         if self.state in (HideState.HIDDEN, HideState.HIDING):
             delay = self._config.unhide_delay_ms
             if delay <= 0:
+                self._cancel_unhide_timer()
                 self._start_showing()
-            else:
+            elif not self._unhide_timer_id:
                 self._unhide_timer_id = GLib.timeout_add(delay, self._start_showing)
 
     def _hide(self) -> None:

@@ -247,17 +247,54 @@ class _ReorderDock:
         """Leave the handler in the state drag-begin leaves for an internal drag."""
         self.dnd._drag_from = index
         self.dnd.drag_index = index
+        self.dnd._dragged_item = self.model.visible_items()[index]
 
     def drag_to(self, cursor_x: float) -> None:
         self.dnd._on_drag_motion(self.drawing_area, MagicMock(), int(cursor_x), 60, 0)
 
 
 class TestInternalReorderDragMotion:
-    """A rightward drag must rest the icon in the slot under the cursor.
+    """Internal drags preserve the grabbed object while the visible order changes.
 
-    ``insertion_index_for_main`` answers with a gap in the full list, which
-    ``reorder_visible`` cannot use unconverted.
+    Insertion gaps must account for the source before the model pops it.
     """
+
+    def test_drag_tracks_the_grabbed_item_when_visible_indices_change(self):
+        dock = _ReorderDock()
+        dock.start_drag(1)
+        dock.model.pinned_items.insert(0, DockItem("new.desktop", is_pinned=True))
+
+        dock.drag_to(dock.slot_centres()[-1] + 100)
+
+        assert dock.order() == [
+            "new.desktop",
+            "a.desktop",
+            "c.desktop",
+            "d.desktop",
+            "b.desktop",
+        ]
+        assert dock.dnd.drag_index == 4
+
+    def test_refused_reorder_keeps_the_actual_drag_index(self):
+        dock = _ReorderDock()
+        dock.start_drag(0)
+        dock.model.reorder_visible = MagicMock()
+
+        dock.drag_to(dock.slot_centres()[-1] + 100)
+
+        assert dock.order() == list(_DRAG_IDS)
+        assert dock.dnd.drag_index == 0
+
+    def test_disappearing_drag_source_does_not_reorder_its_neighbor(self):
+        dock = _ReorderDock()
+        dock.start_drag(1)
+        dock.model.pinned_items.pop(1)
+
+        dock.drag_to(dock.slot_centres()[-1] + 100)
+
+        assert dock.order() == ["a.desktop", "c.desktop", "d.desktop"]
+        assert dock.dnd.drag_index == -1
+        dock.config.save.assert_not_called()
 
     @pytest.fixture(autouse=True)
     def _stub_drag_status(self, monkeypatch):
