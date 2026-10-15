@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import gi
 
@@ -64,7 +64,7 @@ PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
 
 
-def _read_prefs_from_disk() -> dict | None:
+def _read_prefs_from_disk() -> dict[str, Any] | None:
     return read_prefs_from_disk()
 
 

@@ -68,11 +68,12 @@ def _encoding_of(payload: bytes) -> str:
     match = _DECLARED_ENCODING_RE.search(window)
     if match is None:
         return "utf-8"
+    declared = str(match.group(1))
     try:
-        codecs.lookup(match.group(1))
+        codecs.lookup(declared)
     except LookupError:
         return "utf-8"
-    return match.group(1)
+    return declared
 
 
 def parse_untrusted_xml(payload: bytes | str) -> ET.Element:

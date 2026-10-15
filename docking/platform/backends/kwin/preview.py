@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import uuid
+from typing import Any
 
 import cairo
 import gi
@@ -31,7 +32,7 @@ _MAX_BYTES = 64 * 1024 * 1024
 _TIMEOUT_MS = 500
 
 
-def raw_image_size(metadata: dict) -> int | None:
+def raw_image_size(metadata: dict[str, Any]) -> int | None:
     width, height, stride = (metadata.get(key) for key in ("width", "height", "stride"))
     if metadata.get("type") != "raw" or metadata.get("format") not in {4, 5, 6, 17}:
         return None
@@ -49,7 +50,7 @@ def raw_image_size(metadata: dict) -> int | None:
     return size if size <= _MAX_BYTES else None
 
 
-def decode_raw_image(data: bytes, metadata: dict) -> GdkPixbuf.Pixbuf | None:
+def decode_raw_image(data: bytes, metadata: dict[str, Any]) -> GdkPixbuf.Pixbuf | None:
     size = raw_image_size(metadata)
     if size is None or len(data) != size:
         return None
@@ -87,7 +88,7 @@ class _Capture:
         self.loop = GLib.MainLoop()
         self.cancel = Gio.Cancellable()
         self.sources: set[int] = set()
-        self.metadata: dict | None = None
+        self.metadata: dict[str, Any] | None = None
         self.data = bytearray()
         self.success = False
         self.finished = False

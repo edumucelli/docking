@@ -106,7 +106,7 @@ class BrightnessApplet(Applet):
                 fn=lambda: set_brightness(backend=backend, value=1.0),
             )
 
-    def get_menu_items(self) -> list:
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)

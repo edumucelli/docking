@@ -112,7 +112,9 @@ class WindowDodgeMonitor(VisibilityMonitor):
         self._window_signal_ids.clear()
         self._screen = None
 
-    def _connect(self, obj: object, signal: str, handler: Callable) -> None:
+    def _connect(
+        self, obj: object, signal: str, handler: Callable[..., object]
+    ) -> None:
         sid = obj.connect_after(signal, handler)
         self._signal_ids.append((obj, sid))
 

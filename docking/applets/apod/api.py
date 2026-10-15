@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import urllib.request
 from hashlib import sha256
-from typing import NamedTuple
+from typing import Any, NamedTuple, cast
 
 from docking.applets.apod import meta
 from docking.applets.apod.page import APOD_URL, parse_page
@@ -94,7 +94,7 @@ def fetch_today(*, api_key: str = DEFAULT_API_KEY) -> ApodResult | ApodError:
     )
 
 
-def _pick_image_url(*, payload: dict) -> str:
+def _pick_image_url(*, payload: dict[str, Any]) -> str:
     """Prefer the plain-image URL; fall back to a YouTube thumbnail."""
     media_type = str(payload.get("media_type", "image"))
     if media_type == "image":
@@ -105,15 +105,19 @@ def _pick_image_url(*, payload: dict) -> str:
     return ""
 
 
-def _fetch_json(*, api_key: str) -> dict:
-    return http_get_json(
-        f"{API_URL}?api_key={api_key}&thumbs=true",
-        timeout=REQUEST_TIMEOUT_S,
-        user_agent=USER_AGENT,
+def _fetch_json(*, api_key: str) -> dict[str, Any]:
+    # http_get_json returns Any: the shape is only known once validated here.
+    return cast(
+        dict[str, Any],
+        http_get_json(
+            f"{API_URL}?api_key={api_key}&thumbs=true",
+            timeout=REQUEST_TIMEOUT_S,
+            user_agent=USER_AGENT,
+        ),
     )
 
 
-def _fetch_page() -> dict:
+def _fetch_page() -> dict[str, str]:
     return parse_page(
         http_get_text(APOD_URL, timeout=REQUEST_TIMEOUT_S, user_agent=USER_AGENT)
     )
