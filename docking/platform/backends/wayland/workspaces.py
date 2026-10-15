@@ -221,7 +221,8 @@ def load_workspace_protocol() -> object | None:
 def _normalize_token(value: object) -> str:
     if isinstance(value, str):
         return value.strip().lower()
-    name = getattr(value, "name", "")
+    # getattr is untyped; pin it to object so the isinstance below can narrow.
+    name: object = getattr(value, "name", "")
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()

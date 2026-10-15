@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -530,7 +530,8 @@ class CurrencyFxApplet(Applet):
 
     def _currency_combo_text(self, *, combo: Gtk.ComboBoxText, fallback: str) -> str:
         """Return typed or selected currency code from an editable combo."""
-        text = combo.get_child().get_text().strip()
+        child = cast(Gtk.Entry, combo.get_child())
+        text = child.get_text().strip()
         if text:
             return text
         return combo.get_active_text() or fallback

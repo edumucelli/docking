@@ -58,7 +58,7 @@ class CinnamonIdleService(IdleService):
         except GLib.Error:
             return None
         return (
-            milliseconds / 1000.0
+            float(milliseconds) / 1000.0
             if type(milliseconds) is int and milliseconds >= 0
             else None
         )

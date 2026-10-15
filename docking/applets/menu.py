@@ -16,7 +16,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import TypeVar
+from types import ModuleType
+from typing import TypeVar, cast
 
 import gi
 
@@ -26,9 +27,10 @@ from gi.repository import Gtk
 T = TypeVar("T")
 
 
-def disabled_menu_item(label: str, *, gtk=Gtk) -> Gtk.MenuItem:
+def disabled_menu_item(label: str, *, gtk: ModuleType = Gtk) -> Gtk.MenuItem:
     """Build a non-interactive status/header row."""
-    item = gtk.MenuItem(label=label)
+    # gtk is a GI module: its attributes are invisible to the checker.
+    item = cast(Gtk.MenuItem, gtk.MenuItem(label=label))
     item.set_sensitive(False)
     return item
 
@@ -43,7 +45,7 @@ def menu_sections(
     manage: Iterable[Gtk.MenuItem] = (),
     destructive: Iterable[Gtk.MenuItem] = (),
     settings: Iterable[Gtk.MenuItem] = (),
-    gtk=Gtk,
+    gtk: ModuleType = Gtk,
 ) -> list[Gtk.MenuItem]:
     """Return menu items in the standard applet section order.
 
@@ -77,13 +79,13 @@ def radio_menu_items(
     active_value: T,
     on_selected: Callable[[Gtk.RadioMenuItem, T], None],
     is_active: Callable[[T], bool] | None = None,
-    gtk=Gtk,
+    gtk: ModuleType = Gtk,
 ) -> list[Gtk.RadioMenuItem]:
     """Build one radio group from ``(label, value)`` menu choices."""
     items: list[Gtk.RadioMenuItem] = []
     group_head: Gtk.RadioMenuItem | None = None
     for label, value in choices:
-        item = gtk.RadioMenuItem(label=label)
+        item = cast(Gtk.RadioMenuItem, gtk.RadioMenuItem(label=label))
         if group_head is None:
             group_head = item
         else:
@@ -108,11 +110,11 @@ def radio_submenu(
     active_value: T,
     on_selected: Callable[[Gtk.RadioMenuItem, T], None],
     is_active: Callable[[T], bool] | None = None,
-    gtk=Gtk,
+    gtk: ModuleType = Gtk,
 ) -> Gtk.MenuItem:
     """Build a menu item whose submenu is one exclusive radio group."""
-    root = gtk.MenuItem(label=label)
-    menu = gtk.Menu()
+    root = cast(Gtk.MenuItem, gtk.MenuItem(label=label))
+    menu = cast(Gtk.Menu, gtk.Menu())
     for item in radio_menu_items(
         choices=choices,
         active_value=active_value,

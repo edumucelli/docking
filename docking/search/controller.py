@@ -692,7 +692,7 @@ class GlobalSearchController:
             text=result_action.label,
         )
         try:
-            return dialog.run() == Gtk.ResponseType.OK
+            return bool(dialog.run() == Gtk.ResponseType.OK)
         finally:
             dialog.destroy()
 

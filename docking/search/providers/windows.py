@@ -13,6 +13,8 @@ provider is invoked.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from docking.i18n import _
 from docking.platform.backends.base import WindowId, WindowService
 from docking.search.coordinator import SearchRequest
@@ -41,7 +43,7 @@ class WindowSearchProvider:
         self._windows = windows
         self._window_ids: dict[str, WindowId] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Snapshot and yield live windows matching the current query."""
         text = request.query.text.strip()
         self._window_ids = {}

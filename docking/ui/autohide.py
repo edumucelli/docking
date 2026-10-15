@@ -244,7 +244,7 @@ def inverse_ease_in_cubic(value: float) -> float:
         return 0.0
     if value >= 1.0:
         return 1.0
-    return value ** (1.0 / 3.0)
+    return float(value ** (1.0 / 3.0))
 
 
 def inverse_ease_out_cubic(value: float) -> float:
@@ -253,7 +253,7 @@ def inverse_ease_out_cubic(value: float) -> float:
         return 0.0
     if value >= 1.0:
         return 1.0
-    return 1.0 - (1.0 - value) ** (1.0 / 3.0)
+    return float(1.0 - (1.0 - value) ** (1.0 / 3.0))
 
 
 def _source_exists(source_id: int) -> bool:

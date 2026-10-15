@@ -11,6 +11,8 @@ Each URI is both the stable provider identity and cross-provider canonical key.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
 from docking.search.preview import preview_local_descriptor
@@ -34,7 +36,7 @@ class RecentFilesSearchProvider:
         """Retain the immutable recent-file catalog used for matching and open."""
         self._catalog = catalog
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield non-empty ordinary-query matches from the recent snapshot."""
         text = request.query.text.strip()
         if request.query.is_empty or is_special_query(text):

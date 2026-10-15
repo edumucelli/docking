@@ -73,7 +73,7 @@ class RedditApplet(Applet):
         self._active_subreddit_index = prefs.active_subreddit_index
         self._sort = prefs.sort
         self._top_period = prefs.top_period
-        self._posts = list(prefs.posts)
+        self._posts: list[RedditPost] = list(prefs.posts)
         self._active_post_index = prefs.active_post_index
         self._fetched_at = parse_timestamp(prefs.fetched_at)
         self._loading = False

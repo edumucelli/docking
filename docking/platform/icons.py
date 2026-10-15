@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, cast
 from urllib.parse import unquote, urlparse
 
 import gi
@@ -280,7 +280,7 @@ class IconLoader:
                 info = None
             if info is not None:
                 try:
-                    return info.load_icon()
+                    return cast(GdkPixbuf.Pixbuf | None, info.load_icon())
                 except GLib.Error as exc:
                     log.bind(action="load_gicon").debug(
                         "Theme gicon not found (%s): %s",

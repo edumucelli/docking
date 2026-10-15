@@ -13,6 +13,8 @@ cheap until the user opens the preview panel.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.platform.model import DockModel
@@ -44,7 +46,7 @@ class DockSearchProvider:
         self._model = model
         self._target_service = target_service
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield matching pinned applets, files, and folders from the model."""
         text = request.query.text.strip()
         if is_special_query(text):

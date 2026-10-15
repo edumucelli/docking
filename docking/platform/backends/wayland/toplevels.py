@@ -485,7 +485,8 @@ def _normalize_state(value: object) -> str:
         return _STATE_BY_VALUE.get(value, str(value)).strip().lower()
     if isinstance(value, str):
         return value.strip().lower()
-    name = getattr(value, "name", "")
+    # getattr is untyped; pin it to object so the isinstance below can narrow.
+    name: object = getattr(value, "name", "")
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()

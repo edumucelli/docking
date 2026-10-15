@@ -7,6 +7,7 @@ import socket
 import struct
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
+from typing import Any
 
 from gi.repository import GLib
 
@@ -71,12 +72,12 @@ class SwayIpcClient:
 
 
 def windows_from_tree(
-    tree: Mapping, visible_workspaces: set[str]
+    tree: Mapping[str, Any], visible_workspaces: set[str]
 ) -> tuple[WindowSnapshot, ...]:
     """Global frame rectangles; inactive workspaces and stacked siblings stay hidden."""
     windows: list[WindowSnapshot] = []
 
-    def visit(node: Mapping, workspace: str | None, visible: bool) -> None:
+    def visit(node: Mapping[str, Any], workspace: str | None, visible: bool) -> None:
         if node.get("type") == "workspace":
             workspace = str(node.get("id"))
             visible = workspace in visible_workspaces

@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 MAX_TOOLTIP_LEN = 80
 
 
@@ -34,7 +36,7 @@ def prefs_from_note(*, note: str) -> dict[str, str]:
     return {"note": note}
 
 
-def note_from_prefs(prefs: dict | None) -> str:
+def note_from_prefs(prefs: dict[str, Any] | None) -> str:
     """Load note text from preferences, default empty."""
     if not prefs:
         return ""

@@ -9,7 +9,7 @@ runs only when intent routing has confidently selected it.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
@@ -32,7 +32,7 @@ class TemporalSearchProvider:
         self._copy_text = copy_text
         self._values: dict[str, str] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield one recognized and fully evaluated temporal result."""
         value = (
             request.recognized

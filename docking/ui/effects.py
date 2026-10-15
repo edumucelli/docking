@@ -21,7 +21,7 @@ and the stateful ZoomAnimator for smooth enter/leave transitions live here.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from gi.repository import GLib
 
@@ -33,13 +33,15 @@ if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
 
+    from docking.core.items import IconPixmapLike
+
 NEUTRAL_GRAY_RGB: RGB = (0.5, 0.5, 0.5)
 DOMINANT_COLOR_ALPHA_THRESHOLD = 25
 COLOR_CHANNEL_MAX = 255.0
 
 
 def average_icon_color(
-    pixbuf: object,
+    pixbuf: IconPixmapLike | None,
 ) -> RGB:
     """Compute the saturation-weighted average color of an icon pixbuf.
 
@@ -76,7 +78,7 @@ def average_icon_color(
     if pixbuf is None:
         return NEUTRAL_GRAY_RGB
 
-    pixels = pixbuf.get_pixels()
+    pixels = cast(bytes, pixbuf.get_pixels())
     n_channels = pixbuf.get_n_channels()
     width = pixbuf.get_width()
     height = pixbuf.get_height()

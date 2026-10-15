@@ -13,7 +13,7 @@ itself is the stable identity and canonical deduplication key.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -42,7 +42,7 @@ class PathSearchProvider:
         self._copy_text = copy_text
         self._icon_size = icon_size
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Resolve and yield one result when the query is an existing path."""
         text = request.query.text.strip()
         target = _path_target(

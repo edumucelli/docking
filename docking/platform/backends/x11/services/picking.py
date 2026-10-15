@@ -120,7 +120,8 @@ class WnckWindowPickService(WindowPickService):
     @staticmethod
     def _safe_name(*, window: Wnck.Window) -> str:
         try:
-            return window.get_name() or "unknown"
+            name = window.get_name()
+            return name if isinstance(name, str) and name else "unknown"
         except Exception as exc:
             log.debug("Failed to read picked window name: %s", exc)
             return "unknown"

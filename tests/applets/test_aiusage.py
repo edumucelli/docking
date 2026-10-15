@@ -614,6 +614,54 @@ class TestCodexTranscript:
         assert u.cache_read_tokens == 500
         assert u.output_tokens == 200
 
+    def test_null_model_is_not_reported_as_a_model_name(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        lines = [
+            json.dumps({"type": "turn_context", "payload": {"model": None}}),
+            json.dumps(
+                {
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 1000,
+                                "total_tokens": 1000,
+                            }
+                        },
+                    },
+                }
+            ),
+        ]
+        jsonl.write_text("\n".join(lines))
+
+        # A null model means "unknown", never a model literally called "None".
+        assert codex_backend.parse_transcript(path=jsonl) == {}
+
+    def test_non_finite_counter_does_not_abort_the_parse(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {"type": "turn_context", "payload": {"model": "gpt-5.4"}}
+                    ),
+                    # 1e309 parses as inf, and int(inf) raises OverflowError.
+                    (
+                        '{"type": "event_msg", "payload": {"type": "token_count",'
+                        ' "info": {"total_token_usage": {"input_tokens": 1000,'
+                        ' "output_tokens": 200, "total_tokens": 1200,'
+                        ' "reasoning_output_tokens": 1e309}}}}'
+                    ),
+                ]
+            )
+        )
+
+        result = codex_backend.parse_transcript(path=jsonl)
+
+        assert result["gpt-5.4"].input_tokens == 1000
+        assert result["gpt-5.4"].output_tokens == 200
+
     def test_takes_highest_total(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
         lines = [

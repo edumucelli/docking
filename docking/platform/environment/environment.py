@@ -269,7 +269,7 @@ def compositor_active(*, display: object | None = None) -> bool | None:
         screen_num = xlib.XDefaultScreen(xdisplay)
         atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
         owner = xlib.XGetSelectionOwner(xdisplay, atom)
-        return owner != 0
+        return bool(owner != 0)
     except Exception as exc:
         log.warning("failed to check compositor status: %s", exc)
         return None

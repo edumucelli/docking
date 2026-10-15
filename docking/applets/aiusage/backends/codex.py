@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -133,6 +134,22 @@ def find_session(thread_id: str | None = None) -> Path | None:
     return candidates[0] if candidates else None
 
 
+_USAGE_COUNTER_KEYS = ("input_tokens", "output_tokens", "cached_input_tokens")
+
+
+def _token_count(value: object) -> int:
+    """Return a usable token count, or zero.
+
+    A JSON number can be non-finite (``1e309`` parses as ``inf``) and ``int()``
+    raises OverflowError on that, which must not abort the transcript.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return 0
+    if not math.isfinite(value):
+        return 0
+    return int(value)
+
+
 def parse_transcript(path: Path) -> dict[str, ModelUsage]:
     """Read a Codex CLI JSONL session and extract cumulative usage."""
     try:
@@ -154,9 +171,11 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
 
         entry_type = entry.get("type", "")
         if entry_type == "turn_context":
-            m = entry.get("payload", {}).get("model", "")
-            if m:
-                model = m
+            # A null model must stay unavailable rather than becoming the
+            # literal text "None".
+            model_value = entry.get("payload", {}).get("model", "")
+            if isinstance(model_value, str) and model_value:
+                model = model_value
 
         if entry_type == "event_msg":
             payload = entry.get("payload", {})
@@ -166,20 +185,27 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
             if not isinstance(info, dict):
                 continue
             total_usage = info.get("total_token_usage", {})
-            total = int(total_usage.get("total_tokens", 0))
+            if not isinstance(total_usage, dict):
+                continue
+            total = _token_count(total_usage.get("total_tokens"))
             if total > best_total:
                 best_total = total
-                best_usage = total_usage
+                # Only the counters ModelUsage reads: an unrelated field must
+                # not be able to abort the parse.
+                best_usage = {
+                    key: _token_count(total_usage.get(key))
+                    for key in _USAGE_COUNTER_KEYS
+                }
 
     if not model or not best_usage:
         return {}
 
     return {
         model: ModelUsage(
-            input_tokens=int(best_usage.get("input_tokens", 0)),
-            output_tokens=int(best_usage.get("output_tokens", 0)),
+            input_tokens=best_usage.get("input_tokens", 0),
+            output_tokens=best_usage.get("output_tokens", 0),
             cache_write_tokens=0,
-            cache_read_tokens=int(best_usage.get("cached_input_tokens", 0)),
+            cache_read_tokens=best_usage.get("cached_input_tokens", 0),
         )
     }
 

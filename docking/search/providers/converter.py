@@ -15,7 +15,7 @@ formatted values.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
@@ -49,7 +49,7 @@ class ConverterSearchProvider:
         self._currency_rates = currency_rates
         self._answers: dict[str, str] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield a static answer or the current live-currency result state."""
         recognized = request.recognized
         if isinstance(recognized, UnitConversion):

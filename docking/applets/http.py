@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 from urllib.request import Request, urlopen
 
 DEFAULT_USER_AGENT = "DockingApplet/1.0 (+https://github.com/edumucelli/docking)"
@@ -33,13 +33,13 @@ def http_get_bytes(
     request = Request(url, headers={"User-Agent": user_agent})
     with urlopen(request, timeout=timeout) as response:
         if max_bytes is None:
-            return response.read()
+            return cast(bytes, response.read())
         if max_bytes <= 0:
             raise ValueError("max_bytes must be greater than zero")
         payload = response.read(max_bytes + 1)
         if len(payload) > max_bytes:
             raise ValueError(f"Response exceeds {max_bytes} bytes")
-        return payload
+        return cast(bytes, payload)
 
 
 def http_get_text(

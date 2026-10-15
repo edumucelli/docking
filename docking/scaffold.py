@@ -197,7 +197,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    aid: str = args.name.lower().replace("-", "").replace("_", "")
+    aid: str = str(args.name).lower().replace("-", "").replace("_", "")
     # The id becomes a package name, an import path and a class name, so one
     # that is not a Python identifier would emit unimportable modules.
     if not aid.isidentifier() or keyword.iskeyword(aid):
@@ -208,7 +208,7 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    category: str = args.category
+    category: str = str(args.category)
     class_name = _to_class_name(aid)
     state_class = aid.capitalize() + "State"
     display = _to_display(aid)

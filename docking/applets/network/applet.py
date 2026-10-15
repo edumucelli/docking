@@ -116,7 +116,7 @@ class NetworkApplet(Applet):
     def refresh_tooltip(self) -> None:
         self.item.name = self._build_tooltip()
 
-    def get_menu_items(self) -> list:
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Show connection info and common network actions."""
         state = self._state
         status: list[Gtk.MenuItem] = []
@@ -647,7 +647,7 @@ class NetworkApplet(Applet):
                 if isinstance(device, NM.DeviceWifi):
                     ap = device.get_active_access_point()
                     if ap:
-                        return ap.get_strength()
+                        return int(ap.get_strength())
                     return state.signal_strength
         return state.signal_strength
 

@@ -267,4 +267,5 @@ class TrashApplet(Applet):
         dialog.set_position(Gtk.WindowPosition.MOUSE)
         response = dialog.run()
         dialog.destroy()
-        return response == Gtk.ResponseType.OK
+        # dialog.run() is a GI call the checker cannot type; == is always a bool.
+        return bool(response == Gtk.ResponseType.OK)

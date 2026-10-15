@@ -242,7 +242,7 @@ def normalize_version(version: str) -> str:
     if value.startswith(("v", "V")):
         value = value[1:]
     match = re.match(r"^([0-9]+(?:\.[0-9]+)*)", value)
-    return match.group(1) if match else value
+    return str(match.group(1)) if match else value
 
 
 def parse_timestamp(value: str | None) -> datetime | None:

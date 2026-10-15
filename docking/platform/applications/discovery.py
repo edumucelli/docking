@@ -905,16 +905,16 @@ def _location(path: Path | None) -> ApplicationLocation:
     )
 
 
-def _normalise_values(value: Any) -> tuple[str, ...]:
+def _normalise_values(value: object | None) -> tuple[str, ...]:
     if value is None:
         return ()
+    raw_values: Iterable[object]
     if isinstance(value, str):
-        raw_values: Iterable[object] = value.split(";")
+        raw_values = value.split(";")
+    elif isinstance(value, Iterable):
+        raw_values = list(value)
     else:
-        try:
-            raw_values = list(value)
-        except TypeError:
-            raw_values = (value,)
+        raw_values = (value,)
     result: list[str] = []
     seen: set[str] = set()
     for raw_value in raw_values:
