@@ -11,14 +11,18 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""PyWayland registry and GLib event-loop integration for native Wayland."""
+"""PyWayland registry and GLib event-loop integration for native Wayland.
+
+The generated protocol bindings are dynamically typed, so the capture objects
+they hand back are cast to the preview protocols at each call site.
+"""
 
 from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from docking.log import get_logger
 
@@ -574,17 +578,17 @@ class PreviewProtocolAdapter:
     def create_source(self, handle: object) -> _CaptureResource:
         if not self.capture_available or self._source_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
-        return self._source_manager.create_source(handle)
+        return cast(_CaptureResource, self._source_manager.create_source(handle))
 
     def create_session(self, source: object) -> _CaptureResource:
         if not self.capture_available or self._capture_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
-        return self._capture_manager.create_session(source, 0)
+        return cast(_CaptureResource, self._capture_manager.create_session(source, 0))
 
     def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Wayland preview shm is unavailable")
-        return self._shm.create_pool(fd, size)
+        return cast(_ShmPool, self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:
@@ -692,12 +696,15 @@ class HyprlandPreviewProtocolAdapter:
     def create_frame(self, handle: object) -> _CaptureResource:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Hyprland preview capture is unavailable")
-        return self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle)
+        return cast(
+            _CaptureResource,
+            self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle),
+        )
 
     def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Hyprland preview shm is unavailable")
-        return self._shm.create_pool(fd, size)
+        return cast(_ShmPool, self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:
@@ -737,12 +744,14 @@ class PhocPreviewProtocolAdapter:
     def create_frame(self, handle: object, width: int, height: int) -> _CaptureResource:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Phoc preview capture is unavailable")
-        return self._manager.get_thumbnail(handle, width, height)
+        return cast(
+            _CaptureResource, self._manager.get_thumbnail(handle, width, height)
+        )
 
     def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Phoc preview shm is unavailable")
-        return self._shm.create_pool(fd, size)
+        return cast(_ShmPool, self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:

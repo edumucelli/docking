@@ -523,7 +523,7 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
                     and len(rect) == 4
                     and all(type(v) is int for v in rect)
                 ):
-                    self._position = rect[0], rect[1]
+                    self._position = int(rect[0]), int(rect[1])
                     self._position_revision = self._client.snapshot_revision
                     break
         return self._position

@@ -114,7 +114,7 @@ class NewsApplet(Applet):
         prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._sources = list(prefs.sources)
         self._active_source_index = prefs.active_source_index
-        self._articles = list(prefs.articles)
+        self._articles: list[NewsArticle] = list(prefs.articles)
         self._active_article_index = prefs.active_article_index
         self._fetched_at = parse_timestamp(prefs.fetched_at)
         self._loading = False

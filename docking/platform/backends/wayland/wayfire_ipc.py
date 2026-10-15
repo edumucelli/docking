@@ -1261,10 +1261,13 @@ def _load_outputs(client: WayfireIpcClient) -> dict[int, Mapping[str, JsonValue]
         return {}
     result = {}
     for output in outputs if isinstance(outputs, list) else []:
-        if isinstance(output, Mapping):
-            output_id = _optional_int(output.get("id"))
+        # as_json_object also proves the keys are strings, which the declared
+        # return type requires; a bare Mapping check leaves them Unknown.
+        output_object = as_json_object(output)
+        if output_object is not None:
+            output_id = _optional_int(output_object.get("id"))
             if output_id is not None:
-                result[output_id] = output
+                result[output_id] = output_object
     return result
 
 

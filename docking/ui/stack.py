@@ -738,7 +738,9 @@ class StackPopupController:
 
     def _stack_uses_native_placement(self) -> bool:
         surface = window_surface_service(self._dock_window)
-        return surface is not None and surface.popups_use_parent_relative_coordinates
+        return surface is not None and bool(
+            surface.popups_use_parent_relative_coordinates
+        )
 
     def _cancel_stack_constraint(self) -> None:
         if self._folder_stack_constraint_source:

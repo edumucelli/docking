@@ -46,7 +46,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from docking.log import get_logger
 
@@ -450,7 +450,8 @@ def _open_connection(
 def _http_get_text(*, url: str, timeout: float) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+        # urlopen is untyped in the stdlib stubs; an HTTP body is always bytes.
+        return cast(bytes, resp.read()).decode("utf-8", errors="replace")
 
 
 def _http_get_drain(*, url: str, timeout: float) -> None:

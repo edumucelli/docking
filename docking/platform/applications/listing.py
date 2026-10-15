@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import gi
 
@@ -51,7 +51,7 @@ def listing_gicon(
             except Exception:
                 icon = None
             if icon is not None:
-                return icon
+                return cast(Gio.Icon, icon)
     return gicon_from_icon_name(listing.declared_icon)
 
 

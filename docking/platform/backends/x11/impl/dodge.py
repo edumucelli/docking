@@ -292,7 +292,9 @@ class WindowDodgeMonitor(VisibilityMonitor):
     @staticmethod
     def _window_class(window: Wnck.Window) -> str | None:
         try:
-            return window.get_class_group_name() or None
+            # Wnck is untyped here; drop anything that is not a real string.
+            name = window.get_class_group_name()
+            return name if isinstance(name, str) and name else None
         except Exception as exc:
             log.debug("Failed to read window class for dodge overlap: %s", exc)
             return None

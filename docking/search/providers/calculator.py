@@ -14,7 +14,7 @@ expressions inside action payloads.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from docking.i18n import _
 from docking.search.coordinator import SearchRequest
@@ -37,7 +37,7 @@ class CalculatorSearchProvider:
         self._copy_text = copy_text
         self._answers: dict[str, str] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield a calculation answer or a structured explicit-input error."""
         text = request.query.text.strip()
         self._answers = {}

@@ -14,7 +14,7 @@ identity for safe action dispatch.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from docking.i18n import _
 from docking.platform.targets import TargetService
@@ -40,7 +40,7 @@ class WebSearchProvider:
         self._copy_text = copy_text
         self._targets: dict[str, str] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield a direct target or one configured search-engine fallback."""
         text = request.query.text.strip()
         self._targets = {}

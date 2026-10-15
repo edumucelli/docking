@@ -825,6 +825,7 @@ def _gtk_version() -> str:
 
 
 def _os_name() -> str:
+    data: dict[str, str]
     try:
         data = platform.freedesktop_os_release()
     except OSError:

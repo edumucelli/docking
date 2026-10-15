@@ -18,7 +18,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import gi
 
@@ -28,6 +28,9 @@ from gi.repository import Gio, GLib
 
 from docking.i18n import _
 from docking.log import get_logger, with_context
+
+if TYPE_CHECKING:
+    from docking.platform.status_notifier.dbusmenu import DBusMenuClient
 
 log = with_context(get_logger(name="status_notifier"), component="backend")
 
@@ -282,7 +285,7 @@ class StatusNotifierBackend:
             return False
         return self._call_item_method(item=item, method="ContextMenu")
 
-    def menu_client(self, identifier: str):
+    def menu_client(self, identifier: str) -> DBusMenuClient | None:
         item = self._last_items.get(identifier)
         if item is None or not item.menu_path:
             return None

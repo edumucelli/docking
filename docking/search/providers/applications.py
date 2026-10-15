@@ -15,6 +15,7 @@ the current result set.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
 from urllib.parse import unquote, urlparse
 
@@ -70,7 +71,7 @@ class ApplicationSearchProvider:
         self._preview_cache: dict[str, SearchPreview] = {}
         self._applications_by_id: dict[str, ApplicationInfo] = {}
 
-    def search(self, request: SearchRequest):
+    def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Yield ranked installed applications for one current request."""
         request.raise_if_cancelled()
         self._preview_cache.clear()

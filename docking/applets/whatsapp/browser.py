@@ -486,7 +486,8 @@ class WhatsAppBrowser:
         dialog.add_button(_("Allow"), Gtk.ResponseType.OK)
         response = dialog.run()
         dialog.destroy()
-        return response == Gtk.ResponseType.OK
+        # dialog.run() is a GI call the checker cannot type; == is always a bool.
+        return bool(response == Gtk.ResponseType.OK)
 
     def _on_show_notification(self, _view: Any, notification: Any) -> bool:
         return self._notifier.show(notification)

@@ -306,7 +306,9 @@ class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
             )
         else:
             services = replace(services, windows=windows)
-        self._services = services
+        # Declare the exact subclass here: ty otherwise keeps the base class's
+        # WaylandLayerShellRuntimeServices and loses desktop_actions/window_picker.
+        self._services: CinnamonWaylandRuntimeServices = services
 
     @property
     def name(self) -> str:

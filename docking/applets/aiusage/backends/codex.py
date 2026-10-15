@@ -154,7 +154,7 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
 
         entry_type = entry.get("type", "")
         if entry_type == "turn_context":
-            m = entry.get("payload", {}).get("model", "")
+            m = str(entry.get("payload", {}).get("model", ""))
             if m:
                 model = m
 
@@ -166,10 +166,18 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
             if not isinstance(info, dict):
                 continue
             total_usage = info.get("total_token_usage", {})
+            if not isinstance(total_usage, dict):
+                continue
             total = int(total_usage.get("total_tokens", 0))
             if total > best_total:
                 best_total = total
-                best_usage = total_usage
+                # Token counters are JSON numbers; keep only those so the
+                # stored usage matches the declared int values.
+                best_usage = {
+                    key: int(value)
+                    for key, value in total_usage.items()
+                    if isinstance(key, str) and isinstance(value, (int, float))
+                }
 
     if not model or not best_usage:
         return {}

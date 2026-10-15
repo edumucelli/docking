@@ -647,7 +647,7 @@ class NetworkApplet(Applet):
                 if isinstance(device, NM.DeviceWifi):
                     ap = device.get_active_access_point()
                     if ap:
-                        return ap.get_strength()
+                        return int(ap.get_strength())
                     return state.signal_strength
         return state.signal_strength
 

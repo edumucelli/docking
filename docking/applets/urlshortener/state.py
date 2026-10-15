@@ -34,7 +34,7 @@ from __future__ import annotations
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, cast
 
 from docking.log import get_logger
 
@@ -62,7 +62,8 @@ def shorten_url(url: str) -> str:
             headers={"User-Agent": _USER_AGENT},
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            result = resp.read().decode().strip()
+            # urlopen is untyped in the stdlib stubs; an HTTP body is always bytes.
+            result = cast(bytes, resp.read()).decode().strip()
             if result.startswith("Error:"):
                 return result
             parsed = urllib.parse.urlsplit(result)

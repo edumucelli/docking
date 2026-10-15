@@ -98,7 +98,7 @@ def _at_spi_address(cancellable: Gio.Cancellable | None = None) -> str:
         cancellable,
     )
     address = reply.unpack()[0]
-    if not address or not Gio.dbus_is_address(address):
+    if not isinstance(address, str) or not Gio.dbus_is_address(address):
         raise ValueError("Session accessibility service returned an invalid address")
     return address
 

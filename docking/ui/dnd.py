@@ -164,7 +164,7 @@ from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.applications import entries as desktop_entries
 from docking.ui.display import get_pointer_position, window_screen_position
-from docking.ui.geometry import DockGeometryBuilder
+from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.poof import show_poof
 
 gi.require_version("Gtk", "3.0")
@@ -606,7 +606,7 @@ class DnDHandler:
 
     def _drop_target_item_at_point(
         self,
-        frame,
+        frame: DockGeometryFrame,
         *,
         x: float,
         y: float,
@@ -891,7 +891,7 @@ class DnDHandler:
             response = dialog.run()
         finally:
             dialog.destroy()
-        return response == Gtk.ResponseType.OK
+        return bool(response == Gtk.ResponseType.OK)
 
     def _begin_drag_autohide(self) -> None:
         if self._window.autohide.enabled:

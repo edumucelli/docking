@@ -287,7 +287,9 @@ class WindowMatcher:
 
     def _class_group_for(self, *, window: Wnck.Window) -> str | None:
         try:
-            return window.get_class_group_name() or None
+            # Wnck is untyped here; keep only values that are really strings.
+            name = window.get_class_group_name()
+            return name if isinstance(name, str) and name else None
         except _RECOVERABLE_ERRORS as exc:
             self._identity_read_errors.append("wm-class")
             log.bind(action="class_group").warning(
@@ -297,7 +299,8 @@ class WindowMatcher:
 
     def _class_instance_for(self, *, window: Wnck.Window) -> str | None:
         try:
-            return window.get_class_instance_name() or None
+            name = window.get_class_instance_name()
+            return name if isinstance(name, str) and name else None
         except _RECOVERABLE_ERRORS as exc:
             self._identity_read_errors.append("wm-class-instance")
             log.bind(action="class_instance").warning(
@@ -834,7 +837,7 @@ class WindowTracker:
                 f"Failed to read window title: {exc}"
             )
             return "Window"
-        return title or "Window"
+        return title if isinstance(title, str) and title else "Window"
 
     @staticmethod
     def _read_window_string(
@@ -850,7 +853,7 @@ class WindowTracker:
                 f"Failed to read window string property: {exc}"
             )
             return None
-        return value or None
+        return value if isinstance(value, str) and value else None
 
     @staticmethod
     def _read_window_bool(
@@ -926,7 +929,8 @@ class WindowTracker:
         get_name = getattr(workspace, "get_name", None)
         if get_name is not None:
             try:
-                return get_name() or None
+                name = get_name()
+                return name if isinstance(name, str) and name else None
             except _RECOVERABLE_ERRORS as exc:
                 log.bind(action="service_workspace_name", xid=str(xid)).warning(
                     f"Failed to read window workspace name: {exc}"
