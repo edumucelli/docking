@@ -155,6 +155,13 @@ def test_retry_during_refresh_replaces_request_and_rejects_old_result(monkeypatc
     catalog.retry()
 
     assert thread.call_count == 3
+    assert catalog.state is CurrencyRatesState.READY
+    provider = ConverterSearchProvider(
+        copy_text=lambda _text: None, currency_rates=catalog
+    )
+    request = parse_currency_conversion("10 USD to EUR")
+    assert request is not None
+    assert provider._currency_result(request).title != "Loading currency rates..."
     assert catalog._generation > old_generation
     catalog._finish_load(old_generation, (Unit("Old", "USD", 0.1),))
     assert catalog.units == original

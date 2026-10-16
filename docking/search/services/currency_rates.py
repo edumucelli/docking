@@ -115,7 +115,10 @@ class CurrencyRatesCatalog:
         """Invalidate an error or stale load and start a fresh generation."""
         with self._lock:
             self._generation += 1
-            self._state = CurrencyRatesState.IDLE
+            self._state = (
+                CurrencyRatesState.READY if self._units else CurrencyRatesState.IDLE
+            )
+            self._loaded_at = -math.inf
             self._refreshing = False
             self._retry_after = 0.0
         self.ensure_loaded()
