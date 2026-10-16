@@ -73,6 +73,7 @@ def run() -> None:
     from gi.repository import GLib, Gtk
 
     from docking import app
+    from docking.platform.environment import is_x11_backend
 
     state_path = Path(os.environ["LAB_STACK_STATE"])
     original = app.build_dock_window
@@ -116,7 +117,10 @@ def run() -> None:
             if widget not in marked_widgets:
                 widget.connect_after("draw", mark_popup)
                 marked_widgets.add(widget)
-            if isinstance(widget, Gtk.Container):
+            # Native Wayland only needs the popup marker; child marks scroll.
+            if isinstance(widget, Gtk.Container) and is_x11_backend(
+                display=widget.get_display()
+            ):
                 widget.forall(mark_tree)
 
         original_draw = window.renderer.draw
