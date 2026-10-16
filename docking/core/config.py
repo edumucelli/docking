@@ -670,6 +670,15 @@ def _normalize_int(
     return parsed
 
 
+def _normalize_milliseconds(value: object, *, default: int) -> int:
+    """Keep animation timings within the unsigned GLib millisecond range."""
+    parsed = _normalize_int(value, default=default, minimum=0)
+    if parsed > 2**32 - 1:
+        logger.warning("Config timing exceeds the millisecond range; using %r", default)
+        return default
+    return parsed
+
+
 def _normalize_float(
     value: object,
     *,
@@ -930,20 +939,17 @@ class Config:
         )
         self.monitor_connector = _normalize_optional_text(self.monitor_connector)
         self.hide_mode = _normalize_hide_mode(self.hide_mode)
-        self.hide_delay_ms = _normalize_int(
+        self.hide_delay_ms = _normalize_milliseconds(
             self.hide_delay_ms,
             default=DEFAULT_HIDE_DELAY_MS,
-            minimum=0,
         )
-        self.unhide_delay_ms = _normalize_int(
+        self.unhide_delay_ms = _normalize_milliseconds(
             self.unhide_delay_ms,
             default=DEFAULT_UNHIDE_DELAY_MS,
-            minimum=0,
         )
-        self.hide_time_ms = _normalize_int(
+        self.hide_time_ms = _normalize_milliseconds(
             self.hide_time_ms,
             default=DEFAULT_HIDE_TIME_MS,
-            minimum=0,
         )
         self.window_preview_thumbnails_enabled = _normalize_bool(
             self.window_preview_thumbnails_enabled,
