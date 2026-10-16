@@ -159,7 +159,11 @@ def _decode_mountinfo_path(value: str) -> str:
 
 def _mount_points() -> tuple[Path, ...]:
     try:
-        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+        lines = (
+            Path("/proc/self/mountinfo")
+            .read_text(encoding="utf-8", errors="surrogateescape")
+            .splitlines()
+        )
     except OSError as exc:
         log.bind(action="discover_trash_roots").debug(
             "Could not read mountinfo: %s",
