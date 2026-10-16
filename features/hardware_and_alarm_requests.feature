@@ -34,3 +34,9 @@ Feature: Hardware controls and alarm edits retain the user's latest intent
     Then it is scheduled for 10:00 today
     When the alarm clock reaches 10:00 today
     Then the edited alarm rings
+
+  Scenario: A rejected brightness change restores the displayed hardware level
+    Given brightness is 50 percent and the hardware rejects writes
+    When I scroll brightness up five times before the hardware replies
+    And all deferred hardware work finishes
+    Then the brightness tooltip returns to 50 percent

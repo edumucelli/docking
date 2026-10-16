@@ -143,15 +143,24 @@ class BrightnessApplet(Applet):
             return
         self._pending_brightness = None
         self._set_in_progress = True
+
+        def task() -> float | None:
+            if set_brightness(backend=backend, value=value) is False:
+                return get_brightness(backend=backend)
+            return None
+
         self._worker.run(
             name="brightness-set",
-            fn=lambda: set_brightness(backend=backend, value=value),
-            on_result=lambda _result: self._on_brightness_set(),
+            fn=task,
+            on_result=self._on_brightness_set,
             on_error=lambda _error: self._on_brightness_set(),
         )
 
-    def _on_brightness_set(self) -> bool:
+    def _on_brightness_set(self, actual: float | None = None) -> bool:
         self._set_in_progress = False
+        if actual is not None and self._pending_brightness is None:
+            self._brightness = actual
+            self.present()
         self._start_pending_brightness()
         return False
 

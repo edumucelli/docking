@@ -161,3 +161,31 @@ def test_slow_volume_polls_do_not_overlap_or_arrive_out_of_order():
     queue.drain()
     applet._tick()
     assert len(queue.tasks) == 1
+
+
+def test_denied_sysfs_write_restores_the_actual_brightness(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    from docking.applets.brightness import state as brightness_state
+
+    (tmp_path / "brightness").write_text("500")
+    (tmp_path / "max_brightness").write_text("1000")
+    applet = brightness_applet(brightness=0.5)
+    applet._backend = brightness_state.Backend("eDP-1", sysfs=tmp_path)
+    queue = DeferredWorker()
+    applet._worker = queue.worker
+    monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+    write_text = Path.write_text
+
+    def denied(path, *args, **kwargs):
+        if path == tmp_path / "brightness":
+            raise PermissionError("read-only backlight")
+        return write_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", denied)
+    applet.on_scroll(direction_up=True)
+    queue.drain()
+
+    assert (tmp_path / "brightness").read_text() == "500"
+    assert applet._brightness == pytest.approx(0.5)
+    assert applet.item.name == "Brightness: 50%"

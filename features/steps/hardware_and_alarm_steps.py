@@ -56,6 +56,19 @@ def final_brightness(context):
     assert context.brightness.item.name == "Brightness: 60%"
 
 
+@given("brightness is 50 percent and the hardware rejects writes")
+def read_only_brightness(context):
+    deferred_brightness(context)
+    patch = patches(context)
+    patch.setattr(brightness_mod, "set_brightness", lambda **_kwargs: False)
+    patch.setattr(brightness_mod, "get_brightness", lambda **_kwargs: 0.5)
+
+
+@then("the brightness tooltip returns to 50 percent")
+def rejected_brightness(context):
+    assert context.brightness.item.name == "Brightness: 50%"
+
+
 @given("the balanced power profile with deferred hardware writes")
 def deferred_profile(context):
     context.profiles, context.profile_backend = profiles_applet(
