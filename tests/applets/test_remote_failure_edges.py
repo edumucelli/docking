@@ -3,8 +3,11 @@
 import http.client
 import io
 import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
+from gi.repository import GdkPixbuf
 
 from docking.applets.dragshare.state import UploadError, upload_file
 from docking.applets.music import artwork as artwork_mod
@@ -114,3 +117,26 @@ def test_frequent_artwork_misses_keep_their_retry_cooldown(monkeypatch):
         assert resolver.resolve(MusicState(available=True, title=title)) is None
 
     assert len(requests) == 3
+
+
+def test_simultaneous_artwork_results_do_not_double_count_cache_bytes(monkeypatch):
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 4, 4)
+    assert pixbuf is not None
+    resolver = CoverArtResolver(max_entries=1, max_bytes=48)
+    barrier = Barrier(2)
+    requests = []
+
+    def fetch(state):
+        requests.append(state)
+        if len(requests) <= 2:
+            barrier.wait(timeout=3)
+        return pixbuf
+
+    monkeypatch.setattr(resolver, "_resolve_uncached", fetch)
+    state = MusicState(available=True, title="Shared artwork")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(resolver.resolve, (state, state)))
+
+    assert all(result is pixbuf for result in results)
+    assert resolver.resolve(state) is pixbuf
+    assert len(requests) == 2
