@@ -28,6 +28,11 @@ from cinnamon_probe import _eval, _proxy, screenshot
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from input_probe import X11Pointer
 
+if __package__:
+    from .wait_budget import wait_deadline, wait_has_timed_out
+else:
+    from wait_budget import wait_deadline, wait_has_timed_out
+
 
 def child(name):
     GLib.set_prgname(f"lab-{name}")
@@ -68,12 +73,12 @@ class Probe:
             time.sleep(0.01)
 
     def wait(self, predicate):
-        end = time.monotonic() + 6
-        while time.monotonic() < end:
+        deadline = wait_deadline()
+        while time.monotonic() < deadline:
             if predicate():
                 return
             self.settle(0.1)
-        raise AssertionError(f"Condition did not converge; state: {self.state()}")
+        raise wait_has_timed_out(f"Condition did not converge; state: {self.state()}")
 
     def state(self):
         return _eval(
@@ -148,7 +153,7 @@ class Probe:
         self.click(anchor[0] + 24, anchor[1] + 24)
 
     def later(self, action):
-        deadline = time.monotonic() + 6
+        deadline = wait_deadline()
 
         def run():
             ready = _eval(

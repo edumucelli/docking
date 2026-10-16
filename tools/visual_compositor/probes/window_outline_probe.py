@@ -24,6 +24,11 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
+if __package__:
+    from .wait_budget import wait_deadline, wait_has_timed_out
+else:
+    from wait_budget import wait_deadline, wait_has_timed_out
+
 PROBES = Path(__file__).resolve().parent
 RECT = (200, 150, 600, 384)
 STROKE = 4
@@ -78,12 +83,12 @@ class Probe:
         yield seconds
 
     def wait(self, predicate, message):
-        end = time.monotonic() + 10
-        while time.monotonic() < end:
+        deadline = wait_deadline()
+        while time.monotonic() < deadline:
             if predicate():
                 return
             yield 0.05
-        raise AssertionError(message)
+        raise wait_has_timed_out(message)
 
     def shot(self, name):
         yield from self.settle(0.5)
