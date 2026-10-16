@@ -237,6 +237,19 @@ class TestFetchToday:
         assert got["media_type"] == "video"
         assert got["thumbnail_url"] == ""
 
+    def test_a_poster_without_a_video_is_not_media(self):
+        # A poster is the video's still, so it must not let a broken video
+        # entry pass as an image entry.
+        with pytest.raises(ValueError, match="missing its title or media"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media">
+                    <video poster="/content/dam/poster.jpg"></video>
+                  </div>
+                  <h2>Astronomy video</h2>
+                </div>
+            """)
+
     def test_video_poster_is_used_as_the_thumbnail(self):
         got = parse_page("""
             <div class="media-detail-hero">

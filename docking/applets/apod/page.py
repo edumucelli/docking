@@ -70,6 +70,8 @@ class _ApodParser(HTMLParser):
         self.metadata: dict[str, str] = {}
         self.image_url = ""
         self.video_url = ""
+        # A poster is a video's still, so it is only media alongside a video.
+        self.poster_url = ""
         self.page_url = ""
 
     def _absolute(self, value: str | None) -> str:
@@ -105,8 +107,8 @@ class _ApodParser(HTMLParser):
                     # NASA now serves some entries from its own player as an
                     # HTML5 <video> with a <source>, not a YouTube <iframe>.
                     self.video_url = self._absolute(values.get("src"))
-                if tag == "video" and not self.image_url:
-                    self.image_url = self._absolute(values.get("poster"))
+                if tag == "video" and not self.poster_url:
+                    self.poster_url = self._absolute(values.get("poster"))
             if tag == "br" and field:
                 self.text.setdefault(field, []).append("\n")
         if tag not in _VOID_TAGS:
@@ -153,7 +155,7 @@ def parse_page(html: str) -> dict[str, str]:
     explanation = explanation.removeprefix("Explanation:").strip()
     # Site announcements and tomorrow's teaser follow the explanation.
     explanation = explanation.split("APOD's", 1)[0].split("Tomorrow's picture:", 1)[0]
-    thumbnail = parser.image_url
+    thumbnail = parser.image_url or parser.poster_url
     if parser.video_url and not thumbnail:
         video = urlparse(parser.video_url)
         if video.hostname in {
