@@ -67,13 +67,19 @@ def test_unloaded_applet_ignores_late_network_replies(
     assert queue.tasks
     queue.read()
     applet.stop()
-    config.applet_prefs[name] = {"newer-instance": True}
+    key = {"news": "active_source_index", "reddit": "active_subreddit_index"}.get(
+        name, "active_index"
+    )
+    newer_preferences = {key: 1}
+    config.applet_prefs[name] = newer_preferences.copy()
+    config.save()
     present = MagicMock()
     monkeypatch.setattr(applet, "present", present)
 
     queue.publish()
 
-    assert config.applet_prefs[name] == {"newer-instance": True}
+    assert config.applet_prefs[name] == newer_preferences
+    assert Config.load(config._path).applet_prefs[name] == newer_preferences
     present.assert_not_called()
     assert not queue.tasks
 
