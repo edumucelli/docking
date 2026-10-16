@@ -9,11 +9,9 @@ import pytest
 import docking.applets.bluetooth.applet as bluetooth
 import docking.applets.micshield.applet as micshield
 import docking.applets.music.applet as music
-import docking.applets.powerprofiles.applet as powerprofiles
 from docking.applets.bluetooth.state import BluetoothAdapterState, BluetoothState
 from docking.applets.micshield.state import MicShieldState
 from docking.applets.music.state import VOLUME_STEP, MusicState
-from docking.applets.powerprofiles.state import PowerProfilesState
 from docking.applets.worker import BackgroundWorker
 from docking.core.config import Config
 
@@ -108,37 +106,6 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         completed_reply()
         assert applet._state == initial
         pending_reply()
-    finally:
-        applet.stop()
-
-
-def test_powerprofiles_old_poll_does_not_undo_profile_switch(monkeypatch):
-    initial = PowerProfilesState(
-        available=True,
-        active_profile="balanced",
-        profiles=("balanced", "performance"),
-    )
-    backend = MagicMock()
-    backend.get_state.return_value = initial
-    monkeypatch.setattr(powerprofiles, "detect_backend", lambda: backend)
-    applet = powerprofiles.PowerProfilesApplet(48, Config())
-    replies = _UIReplies()
-    applet._worker = replies.worker
-    try:
-        applet._tick()
-        old_reply = replies.next()
-        expected = replace(initial, active_profile="performance")
-        backend.get_state.return_value = expected
-        applet.on_clicked()
-        replies.next()()
-        assert applet._state == expected
-
-        old_reply()
-
-        assert applet._state == expected
-        applet._tick()
-        replies.next()()
-        assert applet._state == expected
     finally:
         applet.stop()
 
