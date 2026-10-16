@@ -111,6 +111,9 @@ def _controller(stub):
             ),
         ),
     )
+    controller.activate_item = MethodType(
+        input_controller_mod.DockInputController.activate_item, controller
+    )
     controller._show_folder_stack_for_item = MethodType(
         input_controller_mod.DockInputController._show_folder_stack_for_item,
         controller,
@@ -1236,6 +1239,7 @@ class TestDockWindowSetupAndGeometry:
             FakeDrawingArea,
             raising=False,
         )
+        monkeypatch.setattr(dock_window_mod.Gtk, "Overlay", MagicMock())
         stub = SimpleNamespace(
             add=MagicMock(),
             _cache=_window_cache(

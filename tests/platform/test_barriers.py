@@ -184,6 +184,9 @@ class TestPressureHandler:
         barrier._xdisplay = ctypes.c_void_p(99)
         barrier._barrier_id = 42
         barrier._position = position
+        # This fixture uses a fake X display. Do not register a real global
+        # GDK filter that outlives the fixture and crashes later GTK tests.
+        barrier._install_gdk_filter = MagicMock()
         callback = MagicMock()
         barrier.set_pressure_handler(callback=callback, threshold=threshold)
         return barrier, callback

@@ -10,6 +10,7 @@ Connection details:
 - Interface: `org.docking.Docking.Items1`
 
 Current capabilities:
+- open keyboard navigation for the running dock
 - count visible dock items
 - list pinned item ids
 - list transient item ids
@@ -30,6 +31,7 @@ Expected interface excerpt:
 ```text
 interface org.docking.Docking.Items1 {
   methods:
+    Focus(out b ok);
     GetCount(out i count);
     ListPinnedIds(out as desktop_ids);
     ListTransientIds(out as desktop_ids);
@@ -43,6 +45,20 @@ interface org.docking.Docking.Items1 {
 ```
 
 #### Method Guide
+
+##### Focus the dock for keyboard navigation
+
+Run `docking --focus`, or call the equivalent method:
+
+```bash
+gdbus call --session \
+  --dest org.docking.Docking \
+  --object-path /org/docking/Docking \
+  --method org.docking.Docking.Items1.Focus
+```
+
+Returns `(true,)` when navigation opens. See the
+[accessibility guide](ACCESSIBILITY.md) for keyboard controls and shortcut setup.
 
 ##### Get visible item count
 

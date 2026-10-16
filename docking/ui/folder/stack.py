@@ -314,6 +314,10 @@ class FolderStackController(StackPopupController):
             icon_limit=icon_limit,
         )
 
+    def content_for_accessibility(self, item: DockItem) -> StackContent:
+        """Share folder entries/actions with the native keyboard menu."""
+        return self._stack_content_for_item(item=item, icon_px=24)
+
     def _stack_content_for_item(
         self,
         *,
