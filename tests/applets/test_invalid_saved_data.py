@@ -1,5 +1,7 @@
 """Malformed persisted data must not prevent applets from loading valid records."""
 
+import datetime as dt
+import json
 import math
 
 import pytest
@@ -10,6 +12,68 @@ from docking.applets.hydration.state import DEFAULT_INTERVAL
 from docking.applets.hydration.state import state_from_prefs as hydration_state
 from docking.applets.sunrise.state import prefs_from_mapping as sunrise_prefs
 from docking.applets.weather.state import prefs_from_mapping as weather_prefs
+from docking.core.config import Config
+
+
+@pytest.mark.parametrize(
+    "name", ["hydration", "weather", "sunrise", "aiusage", "certwatch"]
+)
+def test_applet_recovers_malformed_saved_file_and_retains_valid_data(tmp_path, name):
+    from docking.applets.aiusage.applet import AiUsageApplet
+    from docking.applets.certwatch.applet import CertwatchApplet
+    from docking.applets.hydration.applet import HydrationApplet
+    from docking.applets.sunrise.applet import SunriseApplet
+    from docking.applets.weather.applet import WeatherApplet
+
+    cities = [
+        {"city_display": "Broken", "lat": None, "lng": 0},
+        {"city_display": "Berlin", "lat": 52.52, "lng": 13.41},
+        {"city_display": "Tokyo", "lat": 35.68, "lng": 139.69},
+    ]
+    preferences = {
+        "hydration": {"interval": None},
+        "weather": {"cities": cities, "active_index": 1},
+        "sunrise": {"cities": cities, "active_index": 1},
+        "aiusage": {
+            "days": [
+                {
+                    "date": dt.date.today().isoformat(),
+                    "sessions": None,
+                    "by_model": {"gpt-5": {"in": None, "out": 20}},
+                }
+            ]
+        },
+        "certwatch": {"domains": [{"host": "example.test", "port": float("inf")}]},
+    }
+    classes = {
+        "hydration": HydrationApplet,
+        "weather": WeatherApplet,
+        "sunrise": SunriseApplet,
+        "aiusage": AiUsageApplet,
+        "certwatch": CertwatchApplet,
+    }
+    path = tmp_path / "dock.json"
+    path.write_text(json.dumps({"applet_prefs": {name: preferences[name]}}))
+    applet = classes[name](48, config=Config.load(path))
+    try:
+        assert applet.item.icon is not None
+        assert applet.item.icon.get_width() == 48
+        assert applet.item.name
+        if name == "hydration":
+            assert applet._state.interval_min == 45
+        elif name in {"weather", "sunrise"}:
+            assert len(applet._cities) == 2
+            assert applet._active_city.city_display == "Berlin"
+        elif name == "aiusage":
+            assert applet._state.days[0].sessions == 0
+            usage = dict(applet._state.days[0].by_model)["gpt-5"]
+            assert usage.input_tokens == 0
+            assert usage.output_tokens == 20
+        else:
+            assert applet._domains[0].host == "example.test"
+            assert applet._domains[0].port == 443
+    finally:
+        applet.stop()
 
 
 @pytest.mark.parametrize(
