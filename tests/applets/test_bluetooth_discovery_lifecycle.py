@@ -18,6 +18,7 @@ SECOND = "/org/bluez/hci1"
 class _DiscoveryBackend:
     def __init__(self):
         self.sessions = set()
+        self.powered = {FIRST, SECOND}
         self.start_calls = []
         self.stop_calls = []
 
@@ -29,7 +30,7 @@ class _DiscoveryBackend:
                     path=path,
                     name=path,
                     alias=path,
-                    powered=True,
+                    powered=path in self.powered,
                     discovering=path in self.sessions,
                     address="AA:BB:CC:DD:EE:FF",
                 )
@@ -50,6 +51,14 @@ class _DiscoveryBackend:
     def stop_discovery(self, adapter_path, quiet=False):
         self.stop_calls.append(adapter_path)
         self.sessions.discard(adapter_path)
+        return True
+
+    def set_adapter_power(self, adapter_path, powered):
+        if powered:
+            self.powered.add(adapter_path)
+        else:
+            self.powered.discard(adapter_path)
+            self.sessions.discard(adapter_path)
         return True
 
 
@@ -182,3 +191,27 @@ def test_switching_adapter_releases_previous_discovery(monkeypatch, pending):
     applet.stop()
     replies.drain()
     assert backend.sessions == set()
+
+
+def test_late_power_reply_preserves_new_adapter_discovery(monkeypatch):
+    applet, backend, replies = _applet(monkeypatch)
+    applet._ensure_discovery()
+    replies.drain()
+    applet._set_power_async(target=False)
+    power_reply = replies.next()
+    assert FIRST not in backend.powered
+
+    # The old power result is delayed past the discovery suppression window.
+    applet._suppress_discovery_until = 0
+    radio = Gtk.RadioMenuItem()
+    radio.set_active(True)
+    applet._on_select_adapter(radio, SECOND)
+    replies.drain()
+    assert backend.sessions == {SECOND}
+
+    power_reply()
+    applet.stop()
+    replies.drain()
+
+    assert backend.sessions == set()
+    assert backend.stop_calls == [FIRST, SECOND]

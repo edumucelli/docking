@@ -617,6 +617,7 @@ class BluetoothApplet(Applet):
         adapter = self._active_adapter()
         if adapter is None:
             return
+        adapter_path = adapter.path
         self._power_transition_in_progress = True
         if not target:
             # Prevent immediate keepalive restart while powering off.
@@ -624,17 +625,17 @@ class BluetoothApplet(Applet):
                 time.monotonic() + DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S
             )
 
-        def task() -> tuple[bool, bool, BluetoothState]:
+        def task() -> tuple[str, bool, bool, BluetoothState]:
             if not target:
                 self._stop_local_discovery(quiet=True)
             ok = self._backend.set_adapter_power(
-                adapter_path=adapter.path,
+                adapter_path=adapter_path,
                 powered=target,
             )
             state = self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             )
-            return target, ok, state
+            return adapter_path, target, ok, state
 
         self._worker.run(
             name="bluetooth-power",
@@ -644,6 +645,7 @@ class BluetoothApplet(Applet):
 
     def _on_power_result(
         self,
+        adapter_path: str,
         target: bool,
         success: bool,
         state: BluetoothState,
@@ -654,7 +656,7 @@ class BluetoothApplet(Applet):
         if success:
             self._action_error = ""
             if not target:
-                self._local_discovery_paths.discard(self._active_adapter_path)
+                self._local_discovery_paths.discard(adapter_path)
         elif not target:
             adapter = self._active_adapter()
             if adapter is not None and adapter.discovering:

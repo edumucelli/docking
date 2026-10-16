@@ -914,7 +914,10 @@ class TestBluetoothApplet:
         applet.present = lambda: None  # type: ignore[assignment]
 
         applet._on_power_result(
-            False, False, _state(adapters=(_adapter(discovering=True),))
+            "/org/bluez/hci0",
+            False,
+            False,
+            _state(adapters=(_adapter(discovering=True),)),
         )
 
         assert "blocked" in applet._action_error.lower()
@@ -1275,9 +1278,9 @@ class TestBluetoothApplet:
         applet, _backend = _make_applet(monkeypatch, _state())
         applet.present = lambda: None  # type: ignore[assignment]
         applet._local_discovery_paths = {"/org/bluez/hci0"}
-        applet._on_power_result(False, True, _state())
+        applet._on_power_result("/org/bluez/hci0", False, True, _state())
         assert applet._local_discovery_paths == set()
-        applet._on_power_result(True, False, _state())
+        applet._on_power_result("/org/bluez/hci0", True, False, _state())
         assert applet._action_error == "Power on failed."
 
         class _Widget:
