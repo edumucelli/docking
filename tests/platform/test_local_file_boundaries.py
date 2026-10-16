@@ -34,7 +34,14 @@ LOCAL_CONSUMERS = [
 @pytest.mark.parametrize("consume", LOCAL_CONSUMERS)
 @pytest.mark.parametrize(
     "target",
-    ["file://server.example/tmp/test.desktop", "file://[broken", "file://localhost"],
+    [
+        "file://server.example/tmp/test.desktop",
+        "file://[broken",
+        "file://localhost",
+        "file:report.desktop",
+        "file:../report.desktop",
+        "file:%2Ftmp%2Freport.desktop",
+    ],
 )
 def test_nonlocal_or_malformed_file_uri_is_not_a_local_path(consume, target):
     assert consume(target) is None
@@ -55,6 +62,19 @@ def test_remote_file_preview_does_not_read_the_same_local_path(tmp_path, preview
 
     assert result.kind == "uri"
     assert "local-only audit sentinel" not in result.body
+
+
+@pytest.mark.parametrize("preview", [preview_local_target, preview_local_descriptor])
+def test_relative_file_uri_does_not_resolve_against_working_directory(
+    tmp_path, monkeypatch, preview
+):
+    (tmp_path / "report.txt").write_text("working-directory audit sentinel")
+    monkeypatch.chdir(tmp_path)
+
+    result = preview(target="file:report.txt", title="Invalid file URI")
+
+    assert result.kind == "uri"
+    assert "working-directory audit sentinel" not in result.body
 
 
 def test_broken_symlink_cannot_abort_thumbnail_lookup(tmp_path):
@@ -113,10 +133,13 @@ def test_thumbnail_reader_opens_non_utf8_filename(tmp_path):
 @pytest.mark.parametrize(
     "consume", [local_path_from_uri_or_path, local_path_from_target, file_path_from_uri]
 )
-@pytest.mark.parametrize("authority", ["", "localhost", "LOCALHOST"])
+@pytest.mark.parametrize("authority", ["", "localhost", "LOCALHOST", None])
 def test_local_file_uri_keeps_escaped_path(tmp_path, consume, authority):
     path = tmp_path / "a b.desktop"
     path.write_text("[Desktop Entry]\nType=Application\nName=Audit\nExec=true\n")
-    target = f"file://{authority}{path.as_uri().removeprefix('file://')}"
+    uri_path = path.as_uri().removeprefix("file://")
+    target = (
+        f"file:{uri_path}" if authority is None else f"file://{authority}{uri_path}"
+    )
 
     assert consume(target) == path
