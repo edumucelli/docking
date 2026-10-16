@@ -21,6 +21,7 @@ from enum import Enum
 from docking.applets.unitconverter.state import (
     Unit,
     fetch_currency_rates,
+    scale_ratio,
     set_currency_units,
 )
 from docking.log import get_logger
@@ -136,7 +137,7 @@ class CurrencyRatesCatalog:
         target = factors.get(target_code.upper())
         if source is None or target is None:
             return None
-        converted = value * source / target
+        converted = scale_ratio(value, source, target)
         return converted if math.isfinite(converted) else None
 
     def _load(self, generation: int) -> None:
