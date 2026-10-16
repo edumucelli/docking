@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -94,7 +95,13 @@ class Backend(NamedTuple):
 def _run(cmd: list[str], action: str) -> str | None:
     """Run command, return stdout or None on failure."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=2,
+            env={**os.environ, "LC_ALL": "C"},
+        )
         if result.returncode == 0:
             return result.stdout
     except (OSError, subprocess.TimeoutExpired) as exc:
