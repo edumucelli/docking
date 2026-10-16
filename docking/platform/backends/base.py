@@ -342,6 +342,9 @@ class WindowService(Service):
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
+    def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
+        """Register an optional compositor fallback for missing GTK exit events."""
+
     # TODO: Define a small SurfaceHost/SurfaceWindow ABC for the window
     # methods/properties surface services need, instead of accepting an untyped
     # object. Today the object passed here is DockWindow. DockWindow should
