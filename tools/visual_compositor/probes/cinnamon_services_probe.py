@@ -29,9 +29,9 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from input_probe import X11Pointer
 
 if __package__:
-    from .wait_budget import wait_deadline, wait_timeout
+    from .wait_budget import wait_deadline, wait_has_timed_out
 else:
-    from wait_budget import wait_deadline, wait_timeout
+    from wait_budget import wait_deadline, wait_has_timed_out
 
 
 def child(name):
@@ -78,7 +78,7 @@ class Probe:
             if predicate():
                 return
             self.settle(0.1)
-        raise wait_timeout(f"Condition did not converge; state: {self.state()}")
+        raise wait_has_timed_out(f"Condition did not converge; state: {self.state()}")
 
     def state(self):
         return _eval(

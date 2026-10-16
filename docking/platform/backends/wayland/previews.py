@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import mmap
 import os
+import time
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -138,6 +139,17 @@ class _PhocCaptureRequest:
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
+    started_at: float = field(default_factory=time.monotonic)
+
+
+# phoc may drop a thumbnail request without ever sending `failed`, and an
+# unanswered request would otherwise keep its key pending for the session.
+_PHOC_REQUEST_TTL_S = 5.0
+
+
+def _phoc_request_expired(request: _PhocCaptureRequest) -> bool:
+    """Return whether a phoc request has gone unanswered for too long."""
+    return time.monotonic() - request.started_at > _PHOC_REQUEST_TTL_S
 
 
 class WaylandPreviewHandleTracker:
@@ -600,7 +612,11 @@ class PhocPreviewService(PreviewService):
         cached = self._cache.get(key)
         if cached is not None:
             return cached
-        if key not in self._pending:
+        pending = self._pending.get(key)
+        if pending is not None and _phoc_request_expired(pending):
+            self._finish_request(pending)
+            pending = None
+        if pending is None:
             self._start_capture(window_id=window_id, width=width, height=height)
         return None
 

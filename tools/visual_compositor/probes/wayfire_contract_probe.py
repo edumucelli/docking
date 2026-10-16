@@ -22,9 +22,9 @@ if sys.argv[1] == "--fixture":
 from gi.repository import GdkPixbuf, Gtk
 
 if __package__:
-    from .wait_budget import wait_deadline, wait_timeout
+    from .wait_budget import wait_deadline, wait_has_timed_out
 else:
-    from wait_budget import wait_deadline, wait_timeout
+    from wait_budget import wait_deadline, wait_has_timed_out
 
 if sys.argv[1] == "--fixture":
     window = Gtk.Window(title="Wayfire multi-output regression")
@@ -111,7 +111,7 @@ try:
             while GLib.MainContext.default().iteration(False):
                 pass
             time.sleep(0.02)
-        raise wait_timeout(windows.list_all_windows())
+        raise wait_has_timed_out(windows.list_all_windows())
 
     wait(lambda: bool(windows.list_all_windows()))
     row = next(

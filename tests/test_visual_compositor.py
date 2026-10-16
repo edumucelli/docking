@@ -637,6 +637,6 @@ class TestWaitBudget:
         # Without the elapsed budget in the message, tuning the next flake is
         # a guess rather than a measurement.
         monkeypatch.setenv(wait_budget.WAIT_BUDGET_ENV, "45")
-        error = wait_budget.wait_timeout("thumbnail not delivered")
+        error = wait_budget.wait_has_timed_out("thumbnail not delivered")
         assert "thumbnail not delivered" in str(error)
         assert "45s" in str(error)

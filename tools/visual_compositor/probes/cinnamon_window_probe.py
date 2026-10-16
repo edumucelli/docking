@@ -19,9 +19,9 @@ from cinnamon_probe import _eval, _proxy, screenshot
 from gi.repository import Gdk, Gio, GLib, Gtk
 
 if __package__:
-    from .wait_budget import wait_deadline, wait_timeout
+    from .wait_budget import wait_deadline, wait_has_timed_out
 else:
-    from wait_budget import wait_deadline, wait_timeout
+    from wait_budget import wait_deadline, wait_has_timed_out
 
 STATE_SCRIPT = """
 (() => ({
@@ -75,7 +75,7 @@ class WindowProbe:
             if predicate(state):
                 return state
             time.sleep(0.1)
-        raise wait_timeout(f"window state did not converge: {self.state()}")
+        raise wait_has_timed_out(f"window state did not converge: {self.state()}")
 
     def record(self, phase, predicate):
         self.phases[phase] = self.wait(predicate)

@@ -19,9 +19,9 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 if __package__:
-    from .wait_budget import wait_deadline, wait_timeout
+    from .wait_budget import wait_deadline, wait_has_timed_out
 else:
-    from wait_budget import wait_deadline, wait_timeout
+    from wait_budget import wait_deadline, wait_has_timed_out
 
 
 def dock_marker_points(image, bounds):
@@ -107,7 +107,7 @@ class Probe:
         if self.backend.name == "niri":
             for command in ("outputs", "workspaces", "windows"):
                 subprocess.run(["niri", "msg", "-j", command], check=True)
-        raise wait_timeout(f"{message}: {self.backend.windows.list_all_windows()}")
+        raise wait_has_timed_out(f"{message}: {self.backend.windows.list_all_windows()}")
 
     async def capture(self, phase):
         # Occluded nested surfaces may stop getting frame callbacks, including
