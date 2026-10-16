@@ -69,7 +69,7 @@ def probe_mic_state() -> MicShieldState:
 
     source_names = input_source_names()
     mute_states = _source_mute_states(source_names=source_names)
-    if not any(muted is not None for muted in mute_states):
+    if not mute_states or any(muted is None for muted in mute_states):
         return MicShieldState(available=False, muted=False, active=False)
 
     streams = active_source_outputs()

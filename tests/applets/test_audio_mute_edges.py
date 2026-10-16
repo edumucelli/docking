@@ -81,13 +81,17 @@ def test_unmute_also_restores_a_paused_recording(pactl, monkeypatch):
     assert mic.active_source_outputs() == ()
 
 
-def test_partial_mute_query_cannot_report_all_microphones_muted(pactl, monkeypatch):
+@pytest.mark.parametrize("known_mute", [True, False])
+def test_partial_mute_query_disables_toggle(pactl, monkeypatch, known_mute):
     monkeypatch.setenv("LC_ALL", "C")
     state = json.loads(pactl.read_text())
+    state["sources"]["microphone"] = known_mute
     state["sources"]["unread_microphone"] = None
     pactl.write_text(json.dumps(state))
 
     actual = mic.probe_mic_state()
 
-    assert actual.available
+    assert not actual.available
     assert not actual.muted
+    assert not mic.toggle_mic_mute()
+    assert json.loads(pactl.read_text())["sources"] == state["sources"]
