@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 from uuid import uuid4
 
+import cairo
 import gi
 
 gi.require_version("Gio", "2.0")
@@ -513,6 +514,17 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._current_workspace_only = current_workspace_only
         if self._request is not None:
             self.position_or_anchor(self._request)
+
+    def update_input_region(self, rect: Rect) -> None:
+        get_window = getattr(self._window, "get_window", None)
+        gdk_window = get_window() if callable(get_window) else None
+        input_shape = getattr(gdk_window, "input_shape_combine_region", None)
+        if not callable(input_shape):
+            return
+        region = cairo.Region(
+            cairo.RectangleInt(rect.x, rect.y, rect.width, rect.height)
+        )
+        input_shape(region, 0, 0)
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         return self._client.workarea(monitor, exclude_title=self._title)
