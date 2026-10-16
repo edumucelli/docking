@@ -10,13 +10,17 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
+import cairo
 import gi
 
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
+
+if TYPE_CHECKING:
+    from gi.repository import Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
@@ -439,6 +443,22 @@ class CinnamonShellClient:
             "guards[key] = {actor, window:w, visible, unmanaged}; }}"
             f"w.{'unstick' if current_workspace_only else 'stick'}();"
             f"w.{'make_above' if request.keep_above else 'unmake_above'}();"
+            # A later GTK configure can move the dock into its own strut after
+            # the startup retries have finished. Keep the compositor position
+            # attached to the requested anchor throughout the dock's lifetime.
+            "const positions = global._dockingDockPositions ||= {};"
+            "let pinned = positions[key]; if (!pinned) {"
+            "pinned = {window:w, rect:null, moving:false}; positions[key] = pinned;"
+            "pinned.signal = w.connect('position-changed', () => {"
+            "if (pinned.moving || !pinned.rect) return;"
+            "const r = w.get_frame_rect(), p = pinned.rect;"
+            "if (r.x === p[0] && r.y === p[1]) return;"
+            "pinned.moving = true;"
+            "try { w.move_frame(true, p[0], p[1]); }"
+            "finally { pinned.moving = false; }});"
+            "pinned.unmanaged = w.connect('unmanaged', () => {"
+            "delete positions[key]; }); }"
+            f"pinned.rect = [{int(request.x)}, {int(request.y)}];"
             # A shell/user move may occupy the reserved strip; an application
             # move is constrained into its own newly reduced workarea by Muffin.
             "w.move_resize_frame(true, "
@@ -461,6 +481,9 @@ class CinnamonShellClient:
             f"const key = {json.dumps(title)}, owned = guards?.[key];"
             "if (owned) {owned.actor.disconnect(owned.visible);"
             "owned.window.disconnect(owned.unmanaged); delete guards[key];}"
+            "const positions = global._dockingDockPositions, pinned = positions?.[key];"
+            "if (pinned) { pinned.window.disconnect(pinned.signal);"
+            "pinned.window.disconnect(pinned.unmanaged); delete positions[key];}"
             "return true;})()"
         )
 
@@ -494,6 +517,18 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._current_workspace_only = current_workspace_only
         if self._request is not None:
             self.position_or_anchor(self._request)
+
+    def update_input_region(self, rect: Rect) -> None:
+        window = cast("Gtk.Window | None", self._window)
+        if window is None:
+            return
+        gdk_window = window.get_window()
+        if gdk_window is None:
+            return
+        region = cairo.Region(
+            cairo.RectangleInt(rect.x, rect.y, rect.width, rect.height)
+        )
+        gdk_window.input_shape_combine_region(region, 0, 0)
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         return self._client.workarea(monitor, exclude_title=self._title)
