@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import NamedTuple, cast
-from urllib.parse import unquote, urlparse
 
 import gi
 
@@ -13,6 +12,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
+from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PREFIX
@@ -79,18 +79,12 @@ def _theme_icon_candidates(icon_name: str) -> list[str]:
 
 def _normalize_file_target_for_icon(target: str) -> str | None:
     """Normalize a local path or file URI without importing target services."""
-    if not target:
-        return None
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        path = Path(unquote(parsed.path))
-    elif parsed.scheme == "":
-        path = Path(target).expanduser()
-    else:
+    path = local_path_from_uri_or_path(target)
+    if path is None:
         return None
     try:
         return path.resolve().as_uri()
-    except ValueError:
+    except (OSError, RuntimeError, ValueError):
         return None
 
 
@@ -214,8 +208,8 @@ class IconLoader:
         if not is_dir and content_type.lower().startswith("image/"):
             uri = _normalize_file_target_for_icon(target)
             if uri is not None:
-                path = Path(unquote(urlparse(uri).path))
-                if path.exists():
+                path = local_path_from_uri_or_path(uri)
+                if path is not None and path.exists():
                     try:
                         pixbuf = self._load_cached_file_icon(
                             path=path,
