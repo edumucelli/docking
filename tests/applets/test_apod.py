@@ -188,6 +188,111 @@ class TestFetchToday:
         )
         assert got["page_url"] == APOD_URL
 
+    def test_self_hosted_video_reads_source_and_credit(self):
+        # NASA serves some entries from its own player: an HTML5 <video> with a
+        # <source>, not a YouTube <iframe>. The no-JS fallback links to the
+        # player, which must not be mistaken for the entry's page.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media margin-bottom-6">
+                <div class="hds-video-container embed-container">
+                  <video title="Astronomy video" class="video-js">
+                    <source src="/content/dam/science/apod/2026/october/launch.mp4"
+                            type="video/mp4">
+                    <p class="vjs-no-js">Please enable JavaScript
+                      <a href="https://videojs.com/html5-video-support/"></a></p>
+                  </video>
+                </div>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A launch.</p>
+              <table>
+                <tr><th>Date</th><td>October 16, 2026</td></tr>
+                <tr><th>Video Credit</th><td>Eric Holland</td></tr>
+              </table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["url"].endswith("/2026/october/launch.mp4")
+        # NASA serves the still beside the video, so the applet shows it
+        # instead of falling back to the placeholder.
+        assert got["thumbnail_url"].endswith("/2026/october/launch.jpg")
+        assert got["page_url"] == APOD_URL
+        assert got["copyright"] == "Eric Holland"
+        assert got["date"] == "2026-10-16"
+
+    def test_video_without_a_usable_still_keeps_no_thumbnail(self):
+        # Not every host serves a sibling still, and a non-mp4 player must not
+        # have one invented for it.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <iframe src="https://player.example.org/embed/abc"></iframe>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A stream.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
+
+    def test_a_poster_without_a_video_is_not_media(self):
+        # A poster is the video's still, so it must not let a broken video
+        # entry pass as an image entry.
+        with pytest.raises(ValueError, match="missing its title or media"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media">
+                    <video poster="/content/dam/poster.jpg"></video>
+                  </div>
+                  <h2>Astronomy video</h2>
+                </div>
+            """)
+
+    def test_a_third_party_mp4_has_no_inferred_still(self):
+        # The sibling-still convention belongs to NASA's asset host; inventing
+        # one for someone else's player would only produce a 404.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <video><source src="https://cdn.example.org/clip.mp4"></video>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A clip.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
+
+    def test_video_poster_is_used_as_the_thumbnail(self):
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <video poster="/content/dam/poster.jpg">
+                  <source src="/content/dam/movie.mp4" type="video/mp4">
+                </video>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A movie.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"].endswith("/content/dam/poster.jpg")
+
+    def test_media_without_a_source_is_not_the_apod_index(self):
+        # A <video> that names no source must not resolve to the APOD index,
+        # which would be recorded as playable media.
+        with pytest.raises(ValueError, match="missing its title or media"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media"><video></video></div>
+                  <h2>Astronomy video</h2>
+                </div>
+            """)
+
     @pytest.mark.parametrize("label", ["Date", "Date:", " Date : "])
     def test_reads_the_publish_date_from_either_label_form(self, label):
         got = parse_page(
