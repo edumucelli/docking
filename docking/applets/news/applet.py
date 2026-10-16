@@ -191,6 +191,8 @@ class NewsApplet(Applet):
             )
 
     def stop(self) -> None:
+        self._fetch_request_id += 1
+        self._loading = False
         for attr in ("_refresh_timer_id", "_startup_fetch_timer_id"):
             timer_id = getattr(self, attr, 0)
             if timer_id:
