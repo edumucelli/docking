@@ -89,6 +89,28 @@ def test_native_tree_names_roles_and_order(dock):
     assert accessible.ref_accessible_child(0).get_name() == "Beta"
 
 
+def test_proxy_input_windows_pass_through_but_navigation_accepts_clicks(dock):
+    for button in dock.manager.buttons.values():
+        assert button.get_event_window().get_pass_through()
+    dock.items.reverse()
+    dock.manager.sync()
+    drain()
+    for button in dock.manager.buttons.values():
+        assert button.get_event_window().get_pass_through()
+    dock.manager.focus()
+    drain()
+    for button in dock.manager.navigation_buttons.values():
+        assert not button.get_event_window().get_pass_through()
+
+
+def test_unchanged_geometry_does_not_queue_another_layout(dock, monkeypatch):
+    dock.manager._on_draw(dock.window.drawing_area, None)
+    move = MagicMock(wraps=dock.manager.layer.move)
+    monkeypatch.setattr(dock.manager.layer, "move", move)
+    dock.manager._on_draw(dock.window.drawing_area, None)
+    move.assert_not_called()
+
+
 def test_names_and_descriptions_update_without_replacing_objects(dock):
     item = dock.items[0]
     accessible = dock.manager.buttons[id(item)].get_accessible()

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-16 13:31+0200\n"
+"POT-Creation-Date: 2026-10-16 17:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4760,26 +4760,26 @@ msgstr ""
 msgid "Scroll down"
 msgstr ""
 
-#: docking/ui/accessibility.py:183 docking/ui/diagnostics.py:160
+#: docking/ui/accessibility.py:190 docking/ui/diagnostics.py:160
 #: docking/ui/dock_window.py:379
 msgid "Docking"
 msgstr ""
 
-#: docking/ui/accessibility.py:184
+#: docking/ui/accessibility.py:191
 msgid "Applications and applets"
 msgstr ""
 
-#: docking/ui/accessibility.py:366
+#: docking/ui/accessibility.py:378
 msgid "Dock navigation"
 msgstr ""
 
-#: docking/ui/accessibility.py:377
+#: docking/ui/accessibility.py:389
 msgid ""
 "Arrow keys to navigate; Enter to activate; Shift+F10 for options; Escape to "
 "close."
 msgstr ""
 
-#: docking/ui/accessibility.py:390
+#: docking/ui/accessibility.py:402
 msgid "Dock options"
 msgstr ""
 

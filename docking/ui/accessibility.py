@@ -144,6 +144,13 @@ class DockItemButton(Gtk.Button):
         self.get_style_context().add_class("dock-accessible-item")
         self.connect("clicked", lambda _button: manager.request_action(item))
 
+    def do_realize(self) -> None:
+        Gtk.Button.do_realize(self)
+        # Overlay pass-through applies to its own window, not descendant input
+        # windows. Keep proxy buttons from intercepting hover, drag or clicks.
+        if not self.paint:
+            self.get_event_window().set_pass_through(True)
+
     def do_draw(self, cr: cairo.Context) -> bool:
         if self.paint:
             return Gtk.Button.do_draw(self, cr)
@@ -293,7 +300,12 @@ class DockAccessibilityManager:
             visible = rect is not None and self.window.autohide.hide_offset < 1.0
             button.set_visible(visible)
             if rect is not None:
-                self.layer.move(button, rect.x, rect.y)
+                position = (
+                    self.layer.child_get_property(button, "x"),
+                    self.layer.child_get_property(button, "y"),
+                )
+                if position != (rect.x, rect.y):
+                    self.layer.move(button, rect.x, rect.y)
                 size = (max(1, rect.w), max(1, rect.h))
                 if button.get_size_request() != size:
                     button.set_size_request(*size)
