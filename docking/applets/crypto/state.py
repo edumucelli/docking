@@ -204,7 +204,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CryptoPrefs:
         assets = CryptoPrefs().assets
     try:
         active_index = int(prefs.get("active_index", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         active_index = 0
     return CryptoPrefs(
         assets=assets,
