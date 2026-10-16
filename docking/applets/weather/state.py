@@ -96,6 +96,10 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
             idx = int(prefs.get("active_index", 0))
         except (TypeError, ValueError, OverflowError):
             idx = 0
+        if 0 <= idx < len(candidates):
+            selected = _city_from_pref(candidates[idx])
+            if selected is not None:
+                idx = cities.index(selected)
         idx = clamp_index(idx, len(cities))
         return WeatherPrefs(
             cities=cities,

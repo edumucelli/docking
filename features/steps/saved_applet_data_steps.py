@@ -22,11 +22,12 @@ def saved_applet_data(context, applet):
     cities = [
         {"city_display": "Broken", "lat": None, "lng": 0},
         {"city_display": "Berlin", "lat": 52.52, "lng": 13.41},
+        {"city_display": "Tokyo", "lat": 35.68, "lng": 139.69},
     ]
     preferences = {
         "hydration": {"interval": None},
-        "weather": {"cities": cities, "active_index": None},
-        "sunrise": {"cities": cities, "active_index": None},
+        "weather": {"cities": cities, "active_index": 1},
+        "sunrise": {"cities": cities, "active_index": 1},
         "aiusage": {
             "days": [
                 {
@@ -68,7 +69,7 @@ def recovered_applet(context):
     if context.saved_applet_name == "hydration":
         assert applet._state.interval_min == 45
     elif context.saved_applet_name in {"weather", "sunrise"}:
-        assert len(applet._cities) == 1
+        assert len(applet._cities) == 2
         assert applet._active_city.city_display == "Berlin"
     elif context.saved_applet_name == "aiusage":
         assert applet._state.days[0].sessions == 0

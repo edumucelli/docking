@@ -136,6 +136,10 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SunrisePrefs:
         active_index = int(prefs.get("active_index", 0))
     except (TypeError, ValueError, OverflowError):
         active_index = 0
+    if isinstance(raw_cities, list | tuple) and 0 <= active_index < len(raw_cities):
+        selected = _city_from_pref(raw_cities[active_index])
+        if selected is not None:
+            active_index = cities.index(selected)
     active_index = clamp_index(active_index, len(cities))
     return SunrisePrefs(
         cities=cities,

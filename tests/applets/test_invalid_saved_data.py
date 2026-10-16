@@ -102,3 +102,21 @@ def test_invalid_usage_session_count_is_zero(value):
 def test_invalid_certificate_port_uses_https_default(value):
     prefs = cert_prefs({"domains": [{"host": "example.test", "port": value}]})
     assert prefs.domains[0].port == 443
+
+
+@pytest.mark.parametrize("name", ["weather", "sunrise"])
+@pytest.mark.parametrize("invalid", [None, {"city_display": "Invalid", "lat": None}])
+def test_filtering_bad_cities_keeps_the_saved_selection(name, invalid):
+    from importlib import import_module
+
+    loader = import_module(f"docking.applets.{name}.state").prefs_from_mapping
+    data = {
+        "cities": [
+            invalid,
+            {"city_display": "Berlin", "lat": 52.52, "lng": 13.41},
+            {"city_display": "Tokyo", "lat": 35.68, "lng": 139.69},
+        ],
+        "active_index": 1,
+    }
+    prefs = loader(data)
+    assert prefs.cities[prefs.active_index].city_display == "Berlin"
