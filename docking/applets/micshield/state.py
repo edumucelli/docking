@@ -23,6 +23,7 @@ view: real input-source mute state and current source-output capture streams.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -68,7 +69,7 @@ def probe_mic_state() -> MicShieldState:
 
     source_names = input_source_names()
     mute_states = _source_mute_states(source_names=source_names)
-    if not mute_states:
+    if not any(muted is not None for muted in mute_states):
         return MicShieldState(available=False, muted=False, active=False)
 
     streams = active_source_outputs()
@@ -94,7 +95,7 @@ def toggle_mic_mute() -> bool:
 
 
 def set_mic_muted(*, muted: bool) -> bool:
-    """Set microphone sources and active capture streams to one mute state."""
+    """Set microphone sources and connected capture streams to one mute state."""
     if shutil.which(PACTL_BIN) is None:
         return False
     source_names = input_source_names()
@@ -115,7 +116,7 @@ def set_mic_muted(*, muted: bool) -> bool:
             is not None
             or changed
         )
-    for stream in active_source_outputs():
+    for stream in _source_outputs(include_corked=True):
         changed = (
             _run(
                 cmd=[
@@ -143,11 +144,15 @@ def input_source_names() -> tuple[str, ...]:
 
 def active_source_outputs() -> tuple[MicStream, ...]:
     """Return active source-output streams."""
+    return _source_outputs(include_corked=False)
+
+
+def _source_outputs(*, include_corked: bool) -> tuple[MicStream, ...]:
     out = _run(
         cmd=[PACTL_BIN, "list", "source-outputs"],
         action="list_source_outputs",
     )
-    return parse_source_outputs(output=out or "")
+    return parse_source_outputs(output=out or "", include_corked=include_corked)
 
 
 def parse_source_mute(*, output: str) -> bool | None:
@@ -174,17 +179,19 @@ def parse_input_sources(*, output: str) -> tuple[str, ...]:
     return tuple(names)
 
 
-def parse_source_outputs(*, output: str) -> tuple[MicStream, ...]:
+def parse_source_outputs(
+    *, output: str, include_corked: bool = False
+) -> tuple[MicStream, ...]:
     """Parse active capture streams from ``pactl list source-outputs``.
 
-    Corked streams are ignored because they are connected but not actively
-    capturing.  Missing ``Corked`` is treated as active for older pactl output.
+    Corked streams are included when applying mute changes to connected clients.
+    Missing ``Corked`` is treated as active for older pactl output.
     """
     streams: list[MicStream] = []
     for stream_id, lines in _source_output_blocks(output=output):
         props = _parse_properties(lines=lines)
         corked = _parse_corked(lines=lines)
-        if corked is True:
+        if corked is True and not include_corked:
             continue
         command = (
             props.get("application.name")
@@ -234,17 +241,16 @@ def stream_label(stream: MicStream) -> str:
     )
 
 
-def _source_mute_states(*, source_names: tuple[str, ...]) -> tuple[bool, ...]:
+def _source_mute_states(*, source_names: tuple[str, ...]) -> tuple[bool | None, ...]:
     names = source_names or ("@DEFAULT_SOURCE@",)
-    states: list[bool] = []
+    states: list[bool | None] = []
     for source_name in names:
         mute_out = _run(
             cmd=[PACTL_BIN, "get-source-mute", source_name],
             action="get_source_mute",
         )
         muted = parse_source_mute(output=mute_out or "")
-        if muted is not None:
-            states.append(muted)
+        states.append(muted)
     return tuple(states)
 
 
@@ -257,6 +263,7 @@ def _run(*, cmd: list[str], action: str) -> str | None:
             text=True,
             timeout=2,
             check=False,
+            env={**os.environ, "LC_ALL": "C"},
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
