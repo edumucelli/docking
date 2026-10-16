@@ -250,6 +250,22 @@ class TestFetchToday:
                 </div>
             """)
 
+    def test_a_third_party_mp4_has_no_inferred_still(self):
+        # The sibling-still convention belongs to NASA's asset host; inventing
+        # one for someone else's player would only produce a 404.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <video><source src="https://cdn.example.org/clip.mp4"></video>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A clip.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
+
     def test_video_poster_is_used_as_the_thumbnail(self):
         got = parse_page("""
             <div class="media-detail-hero">

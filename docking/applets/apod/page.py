@@ -50,6 +50,15 @@ def _row_label(text: str) -> str:
 
 _CREDIT_LABELS = ("Credit & Copyright", "Credit", "Image Credit", "Video Credit")
 
+# Only NASA's own asset host serves a still beside a video. Matching on the
+# suffix alone would also accept a host like "notscience.nasa.gov".
+_NASA_ASSET_HOSTS = ("science.nasa.gov",)
+
+
+def _is_nasa_asset_host(hostname: str | None) -> bool:
+    host = (hostname or "").lower()
+    return any(host == name or host.endswith(f".{name}") for name in _NASA_ASSET_HOSTS)
+
 
 def _credit(metadata: dict[str, str]) -> str:
     """Return the credit row, which NASA labels by media type."""
@@ -171,7 +180,9 @@ def parse_page(html: str) -> dict[str, str]:
             )
             if video_id and all(c.isalnum() or c in "_-" for c in video_id):
                 thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
-        elif parser.video_url.lower().endswith(".mp4"):
+        elif parser.video_url.lower().endswith(".mp4") and _is_nasa_asset_host(
+            video.hostname
+        ):
             # A self-hosted video has no poster attribute, but NASA serves the
             # matching still at the same path with a .jpg extension.
             thumbnail = parser.video_url[:-4] + ".jpg"
