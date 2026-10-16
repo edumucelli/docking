@@ -6,6 +6,7 @@ import shlex
 import subprocess
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from shlex import join as shell_join
 from typing import Any
 
 import gi
@@ -255,11 +256,11 @@ class ApplicationLauncher:
         if application.terminal:
             if application.location is ApplicationLocation.SANDBOX and is_flatpak():
                 terminal_argv = commands.build_terminal_argv(
-                    command=shlex.join(argv),
+                    command=shell_join(argv),
                     resolver=commands.resolve_terminal_executable,
                 )
             else:
-                terminal_argv = commands.build_terminal_argv(command=shlex.join(argv))
+                terminal_argv = commands.build_terminal_argv(command=shell_join(argv))
             if terminal_argv is None:
                 return False
             argv = terminal_argv
