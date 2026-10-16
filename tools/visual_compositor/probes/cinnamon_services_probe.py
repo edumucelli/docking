@@ -560,7 +560,8 @@ def main():
                 Gtk.main_quit()
             return False
 
-        GLib.timeout_add(1500, run)
+        # Nested event pumping must allow GTK's lower-priority redraw sources.
+        GLib.timeout_add(1500, run, priority=GLib.PRIORITY_LOW)
         return False
 
     app._start_runtime = start
