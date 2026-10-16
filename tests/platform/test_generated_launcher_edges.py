@@ -8,6 +8,7 @@ from gi.repository import Gio
 from docking.platform.applications import entries
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.registry import ApplicationRegistry
 
 
@@ -68,6 +69,7 @@ def test_generated_launcher_executes_selected_file(
     application = registry.get(generated.desktop_id)
     assert application is not None
     assert application.executable_path == executable.resolve()
+    assert dock_icon_name(application) == generated.icon_name
     assert (
         entries.normalized_exec_basename(application.exec_line)
         == executable.name.lower()
