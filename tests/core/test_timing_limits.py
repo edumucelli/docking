@@ -1,6 +1,7 @@
 """Saved timing values must remain usable by real scheduling APIs."""
 
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -9,6 +10,41 @@ import pytest
 from docking.core.config import Config
 from docking.core.updates import UpdateState, should_check_for_updates
 from docking.ui.autohide import AutoHideController, HideState
+
+
+def _wait_for_state(controller, state):
+    from gi.repository import GLib
+
+    deadline = time.monotonic() + 2
+    while controller.state is not state and time.monotonic() < deadline:
+        while GLib.MainContext.default().pending():
+            GLib.MainContext.default().iteration(False)
+        time.sleep(0.005)
+    assert controller.state is state
+
+
+@pytest.mark.parametrize("field", ["hide_delay_ms", "unhide_delay_ms", "hide_time_ms"])
+def test_recovered_saved_timing_completes_hide_and_reveal(tmp_path, field):
+    from gi.repository import Gtk
+
+    path = tmp_path / "dock.json"
+    path.write_text(json.dumps({"hide_mode": "autohide", field: 10**400}))
+    window = Gtk.Window()
+    window.show_all()
+    controller = AutoHideController(
+        SimpleNamespace(queue_redraw=window.queue_draw), Config.load(path)
+    )
+    try:
+        controller.on_mouse_enter()
+        controller.on_mouse_leave()
+        _wait_for_state(controller, HideState.HIDDEN)
+        assert controller.hide_offset == 1
+        controller.on_mouse_enter()
+        _wait_for_state(controller, HideState.VISIBLE)
+        assert controller.hide_offset == 0
+    finally:
+        controller.reset()
+        window.destroy()
 
 
 @pytest.mark.parametrize("field", ["hide_delay_ms", "unhide_delay_ms", "hide_time_ms"])
