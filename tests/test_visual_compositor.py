@@ -11,6 +11,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from tools.visual_compositor import behaviour, compare, scenarios
+from tools.visual_compositor.probes import wait_budget
 
 
 @pytest.mark.parametrize("dock", ["correct", "over-panel", "absent"])
@@ -613,3 +614,29 @@ def test_container_receives_actions_and_output_changes(tmp_path):
     assert records["output-removal"]["display_scene"] == "dual"
     assert records["hover-zoom"]["action"] == "zoom"
     assert records["hover-zoom"]["requires"] == "interactive"
+
+
+class TestWaitBudget:
+    """The convergence budget is what a slow runner tunes, so pin its contract."""
+
+    def test_default_applies_when_unset(self, monkeypatch):
+        monkeypatch.delenv(wait_budget.WAIT_BUDGET_ENV, raising=False)
+        assert wait_budget.wait_budget_seconds() == wait_budget.DEFAULT_WAIT_BUDGET_S
+
+    def test_override_is_honoured(self, monkeypatch):
+        monkeypatch.setenv(wait_budget.WAIT_BUDGET_ENV, "45")
+        assert wait_budget.wait_budget_seconds() == 45.0
+
+    @pytest.mark.parametrize("raw", ["", "soon", "-3", "0", "nan", "inf"])
+    def test_unusable_override_falls_back_to_the_default(self, monkeypatch, raw):
+        # A typo must not widen a wait to infinity or collapse it to zero.
+        monkeypatch.setenv(wait_budget.WAIT_BUDGET_ENV, raw)
+        assert wait_budget.wait_budget_seconds() == wait_budget.DEFAULT_WAIT_BUDGET_S
+
+    def test_timeout_reports_how_long_it_waited(self, monkeypatch):
+        # Without the elapsed budget in the message, tuning the next flake is
+        # a guess rather than a measurement.
+        monkeypatch.setenv(wait_budget.WAIT_BUDGET_ENV, "45")
+        error = wait_budget.wait_timeout("thumbnail not delivered")
+        assert "thumbnail not delivered" in str(error)
+        assert "45s" in str(error)

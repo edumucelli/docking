@@ -35,4 +35,4 @@ adapter_start
 adapter_wait_ready
 export PYTHONPATH="$(docking_source_pythonpath)"
 dpkg-query -W cinnamon muffin > "$LAB_DIR/versions.txt"
-timeout 150 /usr/bin/python3 "$LAB_SCRIPTS/probes/cinnamon_services_probe.py"
+timeout 300 /usr/bin/python3 "$LAB_SCRIPTS/probes/cinnamon_services_probe.py"

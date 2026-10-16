@@ -21,6 +21,11 @@ if sys.argv[1] == "--fixture":
     GLib.set_prgname("lab-wayfire-contract")
 from gi.repository import GdkPixbuf, Gtk
 
+if __package__:
+    from .wait_budget import wait_deadline, wait_timeout
+else:
+    from wait_budget import wait_deadline, wait_timeout
+
 if sys.argv[1] == "--fixture":
     window = Gtk.Window(title="Wayfire multi-output regression")
     window.set_decorated(False)
@@ -98,15 +103,15 @@ child = subprocess.Popen([sys.executable, __file__, "--fixture"])
 try:
 
     def wait(predicate):
-        end = time.monotonic() + 8
-        while time.monotonic() < end:
+        deadline = wait_deadline()
+        while time.monotonic() < deadline:
             windows._refresh()
             if predicate():
                 return
             while GLib.MainContext.default().iteration(False):
                 pass
             time.sleep(0.02)
-        raise AssertionError(windows.list_all_windows())
+        raise wait_timeout(windows.list_all_windows())
 
     wait(lambda: bool(windows.list_all_windows()))
     row = next(

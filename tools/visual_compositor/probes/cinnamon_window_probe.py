@@ -18,6 +18,11 @@ gi.require_version("Gdk", "3.0")
 from cinnamon_probe import _eval, _proxy, screenshot
 from gi.repository import Gdk, Gio, GLib, Gtk
 
+if __package__:
+    from .wait_budget import wait_deadline, wait_timeout
+else:
+    from wait_budget import wait_deadline, wait_timeout
+
 STATE_SCRIPT = """
 (() => ({
     active_workspace: global.workspace_manager.get_active_workspace_index(),
@@ -64,13 +69,13 @@ class WindowProbe:
         return _eval(self.shell, STATE_SCRIPT)
 
     def wait(self, predicate):
-        deadline = time.monotonic() + 8
+        deadline = wait_deadline()
         while time.monotonic() < deadline:
             state = self.state()
             if predicate(state):
                 return state
             time.sleep(0.1)
-        raise AssertionError(f"window state did not converge: {self.state()}")
+        raise wait_timeout(f"window state did not converge: {self.state()}")
 
     def record(self, phase, predicate):
         self.phases[phase] = self.wait(predicate)

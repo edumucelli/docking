@@ -18,6 +18,11 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
+if __package__:
+    from .wait_budget import wait_deadline, wait_timeout
+else:
+    from wait_budget import wait_deadline, wait_timeout
+
 
 def dock_marker_points(image, bounds):
     """Find the large blue launcher, excluding its small titlebar copy."""
@@ -94,15 +99,15 @@ class Probe:
         yield seconds
 
     async def wait(self, predicate, message):
-        end = time.monotonic() + 8
-        while time.monotonic() < end:
+        deadline = wait_deadline()
+        while time.monotonic() < deadline:
             if predicate():
                 return
             await self.settle(0.05)
         if self.backend.name == "niri":
             for command in ("outputs", "workspaces", "windows"):
                 subprocess.run(["niri", "msg", "-j", command], check=True)
-        raise AssertionError(f"{message}: {self.backend.windows.list_all_windows()}")
+        raise wait_timeout(f"{message}: {self.backend.windows.list_all_windows()}")
 
     async def capture(self, phase):
         # Occluded nested surfaces may stop getting frame callbacks, including
