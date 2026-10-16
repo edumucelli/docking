@@ -474,8 +474,10 @@ def test_failed_capture_drops_every_cached_size_of_that_window(
 
     rig.capture(_WINDOW, 120, 90)
     rig.fail(3)
-
+    assert not any(key[0] == _WINDOW for key in rig.service._cache)
     assert rig.capture(other, 200, 150) is not None
+    retry_time = rig.service._clock() + 1.1
+    rig.service._clock = lambda: retry_time
     assert rig.capture(_WINDOW, 200, 150) is None
     assert rig.capture(_WINDOW, 400, 300) is None
     assert len(rig.captures) == 6
@@ -493,3 +495,24 @@ def test_stop_clears_every_cached_and_pending_size(monkeypatch, kind) -> None:
 
     assert rig.service._cache == {}
     assert rig.service._pending == {}
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
+def test_failed_preview_has_a_per_window_retry_cooldown(monkeypatch, kind):
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    now = [10.0]
+    rig.service._clock = lambda: now[0]
+    rig.capture(_WINDOW, 200, 150)
+    rig.fail(0)
+
+    for index in range(9):
+        now[0] += 0.1
+        rig.capture(_WINDOW, 200 + index, 150)
+    assert len(rig.captures) == 1
+
+    other = WindowId(DisplayServer.WAYLAND, 2)
+    rig.capture(other, 200, 150)
+    assert len(rig.captures) == 2
+    now[0] = 11.1
+    rig.capture(_WINDOW, 200, 150)
+    assert len(rig.captures) == 3
