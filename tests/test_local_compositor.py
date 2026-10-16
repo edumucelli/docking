@@ -1,12 +1,45 @@
 """Local harness compatibility across old and new compositor runtimes."""
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize(
+    "script,args",
+    [("native_services.sh", ["phoc", "foreign"]), ("wayfire_services.sh", [])],
+)
+def test_service_runner_creates_evidence_in_fresh_checkout(tmp_path, script, args):
+    scripts = tmp_path / "checkout/tools/visual_compositor"
+    scripts.mkdir(parents=True)
+    destination = scripts / script
+    shutil.copy2(ROOT / "tools/visual_compositor" / script, destination)
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    docker = commands / "docker"
+    docker.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$DOCKER_CALL_LOG"\n')
+    docker.chmod(0o755)
+    calls = tmp_path / "docker-calls.txt"
+
+    result = subprocess.run(
+        ["bash", str(destination), *args],
+        env={
+            **os.environ,
+            "PATH": f"{commands}:{os.environ['PATH']}",
+            "DOCKER_CALL_LOG": str(calls),
+        },
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (scripts / "evidence").is_dir()
+    assert len(calls.read_text().splitlines()) == 3
 
 
 @pytest.mark.parametrize("no_xwayland", [False, True])

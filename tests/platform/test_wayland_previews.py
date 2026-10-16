@@ -398,6 +398,26 @@ _WINDOW = WindowId(DisplayServer.WAYLAND, 1)
 
 
 @pytest.mark.parametrize("kind", _NATIVE_KINDS)
+def test_cached_preview_is_refreshed_after_window_contents_change(monkeypatch, kind):
+    now = [0.0]
+    rig = _SizedPreviewRig(kind, monkeypatch)
+    rig.service._clock = lambda: now[0]
+    assert rig.capture(_WINDOW, 100, 60) is None
+    rig.complete(0)
+    original = rig.capture(_WINDOW, 100, 60)
+    assert original is not None
+    assert len(rig.captures) == 1
+
+    now[0] = 2.0
+    assert rig.capture(_WINDOW, 100, 60) is original
+    assert len(rig.captures) == 2
+    rig.complete(1)
+    updated = rig.capture(_WINDOW, 100, 60)
+    assert updated is not original
+    assert len(rig.captures) == 2
+
+
+@pytest.mark.parametrize("kind", _NATIVE_KINDS)
 @pytest.mark.parametrize("size", [(400, 300), (120, 90)])
 def test_cached_preview_is_not_reused_for_a_different_size(
     monkeypatch, kind, size
