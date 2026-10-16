@@ -130,7 +130,7 @@ def _get_brightness_xrandr(backend: Backend) -> float | None:
     return None
 
 
-def set_brightness(backend: Backend, value: float) -> None:
+def set_brightness(backend: Backend, value: float) -> bool:
     """Set brightness (0.1-1.0), preferring X11 on X11 and backlight on Wayland."""
     clamped = max(0.1, min(1.0, value))
     xrandr_cmd = [
@@ -142,32 +142,37 @@ def set_brightness(backend: Backend, value: float) -> None:
     ]
     if is_wayland_session():
         if backend.brightnessctl:
-            _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
-            return
+            return (
+                _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
+                is not None
+            )
         if backend.sysfs:
-            _set_brightness_sysfs(path=backend.sysfs, value=clamped)
-            return
-        _run(cmd=xrandr_cmd)
-        return
+            return _set_brightness_sysfs(path=backend.sysfs, value=clamped)
+        return _run(cmd=xrandr_cmd) is not None
     if _run(cmd=xrandr_cmd) is not None:
-        return
+        return True
     if backend.brightnessctl:
-        _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
-        return
+        return (
+            _run(cmd=[backend.brightnessctl, "set", f"{round(clamped * 100)}%"])
+            is not None
+        )
     if backend.sysfs:
-        _set_brightness_sysfs(path=backend.sysfs, value=clamped)
+        return _set_brightness_sysfs(path=backend.sysfs, value=clamped)
+    return False
 
 
-def _set_brightness_sysfs(path: Path, value: float) -> None:
+def _set_brightness_sysfs(path: Path, value: float) -> bool:
     """Write brightness to /sys/class/backlight as an integer level."""
     try:
         maximum = int((path / "max_brightness").read_text().strip())
         if maximum <= 0:
-            return
+            return False
         current = max(1, round(maximum * value))
         (path / "brightness").write_text(f"{current}\n")
+        return True
     except (OSError, ValueError) as exc:
         log.warning("Failed to write sysfs backlight: %s", exc)
+    return False
 
 
 def brightness_icon_name(brightness: float) -> str:

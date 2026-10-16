@@ -318,6 +318,34 @@ def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
 
 
 class TestBrightnessApplet:
+    @pytest.mark.parametrize("action", ["scroll", "reset"])
+    def test_denied_backlight_write_restores_measured_level(
+        self, monkeypatch, tmp_path, action
+    ):
+        from pathlib import Path
+
+        (tmp_path / "brightness").write_text("500")
+        (tmp_path / "max_brightness").write_text("1000")
+        applet = _make_applet(brightness=0.5)
+        applet._backend = Backend(output="", sysfs=tmp_path)
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+        write_text = Path.write_text
+
+        def denied(path, *args, **kwargs):
+            if path == tmp_path / "brightness":
+                raise PermissionError("read-only backlight")
+            return write_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", denied)
+        if action == "scroll":
+            applet.on_scroll(direction_up=True)
+        else:
+            applet.on_clicked()
+
+        assert (tmp_path / "brightness").read_text() == "500"
+        assert applet._brightness == pytest.approx(0.5)
+        assert applet.item.name == "Brightness: 50%"
+
     def _fake_gtk(self, monkeypatch):
         class _FakeCheckMenuItem:
             def __init__(self, label: str = "") -> None:
