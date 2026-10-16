@@ -91,3 +91,105 @@ def test_local_runner_rejects_unknown_mode_before_starting_a_compositor():
     )
     assert result.returncode == 2
     assert "Unknown local mode" in result.stderr
+
+
+@pytest.mark.parametrize("compositor", ["cinnamon", "sway"])
+def test_stack_capture_uses_the_compositor_screenshot_backend(
+    monkeypatch, tmp_path, compositor
+):
+    import importlib
+    from unittest.mock import MagicMock
+
+    monkeypatch.syspath_prepend(str(ROOT / "tools/visual_compositor/probes"))
+    module = importlib.import_module("stack_action")
+    run = MagicMock()
+    monkeypatch.setattr(module.subprocess, "run", run)
+    monkeypatch.setenv("COMPOSITOR", compositor)
+    monkeypatch.setenv("WAYLAND_DISPLAY", "child-wayland")
+    monkeypatch.setenv("LAB_PARENT_DISPLAY", "parent-wayland")
+    target = tmp_path / "stack.png"
+
+    module.capture_screen(target, 2)
+
+    command = run.call_args.args[0]
+    if compositor == "cinnamon":
+        assert Path(command[1]).name == "cinnamon_probe.py"
+        assert command[2:] == ["screenshot", str(target)]
+    else:
+        assert command == ["grim", "-s", "2", str(target)]
+    assert run.call_args.kwargs["env"]["WAYLAND_DISPLAY"] == "parent-wayland"
+
+
+@pytest.mark.parametrize("has_workarea", [True, False])
+def test_autohide_stimulus_uses_the_usable_edge(tmp_path, has_workarea):
+    import json
+    import shutil
+
+    if shutil.which("jq") is None:
+        pytest.skip("jq is provided by the compositor lab images")
+
+    output = {"x": 0, "y": 0, "width": 1280, "height": 720}
+    if has_workarea:
+        output["workarea"] = {**output, "height": 680}
+    calls = tmp_path / "pointer-calls"
+    completed = subprocess.run(
+        [
+            "bash",
+            "-c",
+            "\n".join(
+                [
+                    "set -eu",
+                    'source "$1"',
+                    'adapter_geometry() { printf "%s" "$OUTPUT_GEOMETRY"; }',
+                    'lab_pointer() { printf "%s %s\\n" "$1" "$2" >> "$POINTER_CALLS"; }',
+                    "sleep() { :; }",
+                    "capture_phase() { :; }",
+                    "run_lab_action autohide bottom",
+                ]
+            ),
+            "test",
+            str(ROOT / "tools/visual_compositor/actions.sh"),
+        ],
+        env={
+            **os.environ,
+            "OUTPUT_GEOMETRY": json.dumps({"outputs": [output]}),
+            "POINTER_CALLS": str(calls),
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    points = [tuple(map(int, line.split())) for line in calls.read_text().splitlines()]
+    edge = 679 if has_workarea else 719
+    center = 340 if has_workarea else 360
+    assert points == [
+        (640, center),
+        (640, edge),
+        (640, center),
+        (640, edge),
+        (640, center),
+        (640, edge),
+    ]
+
+
+def test_cinnamon_capture_waits_for_a_complete_png(monkeypatch, tmp_path):
+    import importlib
+    import io
+    from types import SimpleNamespace
+
+    pytest.importorskip("gi")
+    from PIL import Image
+
+    monkeypatch.syspath_prepend(str(ROOT / "tools/visual_compositor/probes"))
+    module = importlib.import_module("cinnamon_probe")
+    encoded = io.BytesIO()
+    Image.new("RGB", (20, 20), "red").save(encoded, format="PNG")
+    data = encoded.getvalue()
+    path = tmp_path / "capture.png"
+    proxy = SimpleNamespace(call_sync=lambda *_args: path.write_bytes(data[:20]))
+    monkeypatch.setattr(module, "_proxy", lambda: proxy)
+    monkeypatch.setattr(module, "_eval", lambda *_args: None)
+    monkeypatch.setattr(module.time, "sleep", lambda _delay: path.write_bytes(data))
+
+    assert module.screenshot(str(path)) == 0
+    assert path.read_bytes() == data
