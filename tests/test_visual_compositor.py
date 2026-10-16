@@ -640,3 +640,9 @@ class TestWaitBudget:
         error = wait_budget.wait_has_timed_out("thumbnail not delivered")
         assert "thumbnail not delivered" in str(error)
         assert "45s" in str(error)
+
+    def test_fractional_budget_is_not_reported_as_zero(self, monkeypatch):
+        # The message is the measurement the next tuning decision rests on, so
+        # a subsecond budget must not be rounded away to "0s".
+        monkeypatch.setenv(wait_budget.WAIT_BUDGET_ENV, "0.1")
+        assert "0.1s" in str(wait_budget.wait_has_timed_out("slow to converge"))

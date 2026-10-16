@@ -35,4 +35,13 @@ adapter_start
 adapter_wait_ready
 export PYTHONPATH="$(docking_source_pythonpath)"
 dpkg-query -W cinnamon muffin > "$LAB_DIR/versions.txt"
-timeout 300 /usr/bin/python3 "$LAB_SCRIPTS/probes/cinnamon_services_probe.py"
+# The probe waits sequentially many times, so the wrapper must outlast their
+# aggregate budget: otherwise a raised LAB_WAIT_BUDGET_S kills the run before a
+# wait can report why it gave up. Budget comes from wait_budget.py, not a copy.
+outer_timeout=$(/usr/bin/python3 -c "
+import sys
+sys.path.insert(0, '$LAB_SCRIPTS/probes')
+from wait_budget import wait_budget_seconds
+print(int(14 * wait_budget_seconds()) + 60)
+")
+timeout "$outer_timeout" /usr/bin/python3 "$LAB_SCRIPTS/probes/cinnamon_services_probe.py"

@@ -40,4 +40,4 @@ def wait_deadline() -> float:
 
 def wait_has_timed_out(message: object) -> AssertionError:
     """Build the error raised when a wait exhausts its budget."""
-    return AssertionError(f"{message} [waited {wait_budget_seconds():.0f}s]")
+    return AssertionError(f"{message} [waited {wait_budget_seconds():g}s]")

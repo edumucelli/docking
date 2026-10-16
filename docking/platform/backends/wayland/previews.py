@@ -139,7 +139,7 @@ class _PhocCaptureRequest:
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
-    started_at: float = field(default_factory=time.monotonic)
+    progress_at: float = field(default_factory=time.monotonic)
 
 
 # phoc may drop a thumbnail request without ever sending `failed`, and an
@@ -148,8 +148,8 @@ _PHOC_REQUEST_TTL_S = 5.0
 
 
 def _phoc_request_expired(request: _PhocCaptureRequest) -> bool:
-    """Return whether a phoc request has gone unanswered for too long."""
-    return time.monotonic() - request.started_at > _PHOC_REQUEST_TTL_S
+    """Return whether phoc has gone silent on a request for too long."""
+    return time.monotonic() - request.progress_at > _PHOC_REQUEST_TTL_S
 
 
 class WaylandPreviewHandleTracker:
@@ -643,6 +643,10 @@ class PhocPreviewService(PreviewService):
         frame.dispatcher["failed"] = lambda _frame: self._finish_failed(request)
         self._protocol.flush()
 
+    def _touch(self, request: _PhocCaptureRequest) -> None:
+        """Record that phoc answered, so a copy in flight is not expired."""
+        request.progress_at = time.monotonic()
+
     def _on_buffer(
         self,
         request: _PhocCaptureRequest,
@@ -653,6 +657,7 @@ class PhocPreviewService(PreviewService):
     ) -> None:
         if self._pending.get(_request_key(request)) is not request:
             return
+        self._touch(request)
         format_ = int(format_)
         if format_ not in _PREFERRED_SHM_FORMATS:
             self._finish_failed(request)
@@ -680,6 +685,7 @@ class PhocPreviewService(PreviewService):
             self._finish_failed(request)
 
     def _on_flags(self, request: _PhocCaptureRequest, flags: int) -> None:
+        self._touch(request)
         request.y_inverted = bool(int(flags) & 1)
 
     def _on_ready(self, request: _PhocCaptureRequest) -> None:

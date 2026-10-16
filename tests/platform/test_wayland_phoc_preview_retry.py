@@ -63,16 +63,31 @@ def test_unanswered_request_is_retried_after_prolonged_silence():
     assert len(protocol.frames) == 1
 
     # Still waiting on the first request: polling must not pile on more.
-    service._pending[KEY].started_at -= 0.1
+    service._pending[KEY].progress_at -= 0.1
     assert _capture(service) is None
     assert len(protocol.frames) == 1
 
     # phoc never answered and nothing timed it out, so the key would stay
     # pending for the session. A later poll has to try again.
-    service._pending[KEY].started_at -= _SILENCE_S
+    service._pending[KEY].progress_at -= _SILENCE_S
     assert _capture(service) is None
 
     assert len(protocol.frames) == 2, (
         "a request phoc never answered must be retried, not waited on forever"
     )
     assert protocol.frames[0].destroyed == 1
+
+
+def test_progress_from_the_compositor_defers_expiry():
+    protocol, service = _service()
+
+    assert _capture(service) is None
+    request = service._pending[KEY]
+
+    # phoc went quiet for a long time, but then answered. A request that is
+    # still making progress may be mid-copy, so it must not be expired.
+    request.progress_at -= _SILENCE_S
+    service._on_flags(request, 0)
+
+    assert _capture(service) is None
+    assert len(protocol.frames) == 1, "a capture in progress must not be destroyed"
