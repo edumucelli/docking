@@ -23,7 +23,7 @@ from enum import Enum
 from functools import lru_cache
 from typing import Any, NamedTuple
 
-from docking.applets.cities import CityEntry, load_cities
+from docking.applets.cities import CityEntry, load_cities, parse_coordinates
 from docking.core.math import clamp_index
 from docking.i18n import _
 
@@ -42,6 +42,16 @@ class CityPref(NamedTuple):
     city_display: str
     lat: float
     lng: float
+
+
+def _city_from_pref(raw: object) -> CityPref | None:
+    if not isinstance(raw, Mapping):
+        return None
+    display = raw.get("city_display")
+    coordinates = parse_coordinates(raw)
+    if not isinstance(display, str) or not display or coordinates is None:
+        return None
+    return CityPref(display, *coordinates)
 
 
 class SolarPhase(str, Enum):
@@ -113,26 +123,23 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SunrisePrefs:
     raw_cities = prefs.get("cities")
     if isinstance(raw_cities, list | tuple):
         cities = tuple(
-            CityPref(
-                city_display=str(city.get("city_display", "")),
-                lat=float(city.get("lat", 0.0)),
-                lng=float(city.get("lng", 0.0)),
-            )
-            for city in raw_cities
-            if isinstance(city, Mapping)
+            city
+            for candidate in raw_cities
+            if (city := _city_from_pref(candidate)) is not None
         )
     else:
-        city_display = str(prefs.get("city_display", ""))
-        if city_display:
-            cities = (
-                CityPref(
-                    city_display=city_display,
-                    lat=float(prefs.get("lat", 0.0)),
-                    lng=float(prefs.get("lng", 0.0)),
-                ),
-            )
+        city = _city_from_pref(prefs)
+        if city is not None:
+            cities = (city,)
 
-    active_index = int(prefs.get("active_index", 0))
+    try:
+        active_index = int(prefs.get("active_index", 0))
+    except (TypeError, ValueError, OverflowError):
+        active_index = 0
+    if isinstance(raw_cities, list | tuple) and 0 <= active_index < len(raw_cities):
+        selected = _city_from_pref(raw_cities[active_index])
+        if selected is not None:
+            active_index = cities.index(selected)
     active_index = clamp_index(active_index, len(cities))
     return SunrisePrefs(
         cities=cities,
