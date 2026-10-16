@@ -29,6 +29,7 @@ IdleScheduler = Callable[..., int]
 Listener = Callable[[], None]
 log = get_logger("search.currency")
 _DEFAULT_CURRENCY_TTL_SECONDS = 60 * 60
+_CURRENCY_RETRY_SECONDS = 60
 
 
 class CurrencyRatesState(str, Enum):
@@ -57,6 +58,7 @@ class CurrencyRatesCatalog:
         self._units: tuple[Unit, ...] = ()
         self._loaded_at = 0.0
         self._refreshing = False
+        self._retry_after = 0.0
         self._listeners: list[Listener] = []
         self._generation = 0
         self._lock = threading.Lock()
@@ -84,7 +86,12 @@ class CurrencyRatesCatalog:
     def ensure_loaded(self) -> None:
         """Start loading only when no current or fresh snapshot satisfies use."""
         with self._lock:
-            if self._state is CurrencyRatesState.LOADING or self._refreshing:
+            if self._refreshing or self._state in (
+                CurrencyRatesState.LOADING,
+                CurrencyRatesState.ERROR,
+            ):
+                return
+            if self._clock() < self._retry_after:
                 return
             if (
                 self._state is CurrencyRatesState.READY
@@ -107,7 +114,10 @@ class CurrencyRatesCatalog:
     def retry(self) -> None:
         """Invalidate an error or stale load and start a fresh generation."""
         with self._lock:
+            self._generation += 1
             self._state = CurrencyRatesState.IDLE
+            self._refreshing = False
+            self._retry_after = 0.0
         self.ensure_loaded()
         self._notify()
 
@@ -159,11 +169,13 @@ class CurrencyRatesCatalog:
                 self._units = tuple(units)
                 self._state = CurrencyRatesState.READY
                 self._loaded_at = self._clock()
+                self._retry_after = 0.0
                 self._refreshing = False
                 set_currency_units(self._units)
             elif self._units:
                 self._state = CurrencyRatesState.READY
                 self._refreshing = False
+                self._retry_after = self._clock() + _CURRENCY_RETRY_SECONDS
             else:
                 self._state = CurrencyRatesState.ERROR
                 self._refreshing = False

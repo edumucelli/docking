@@ -3,15 +3,33 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.hydration.applet as hydration_mod
 from docking.applets.hydration.applet import HydrationApplet
 from docking.applets.hydration.state import (
     DEFAULT_INTERVAL,
+    INTERVAL_PRESETS,
+    HydrationState,
     mouth_curvature,
+    tick,
     tooltip_text,
     water_color,
 )
 from docking.core.config import Config
+
+
+@pytest.mark.parametrize("minutes", INTERVAL_PRESETS)
+def test_reminder_fires_on_final_second_of_interval(minutes):
+    state = HydrationState(interval_min=minutes)
+    for _ in range(minutes * 60 - 1):
+        result = tick(state)
+        assert not result.became_empty
+        state = result.state
+    result = tick(state)
+    assert result.became_empty
+    assert result.state.fill == 0
+    assert not tick(result.state).became_empty
 
 
 class TestWaterColor:
