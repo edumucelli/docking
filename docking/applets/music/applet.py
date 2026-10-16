@@ -305,7 +305,16 @@ class MusicApplet(ApplicationServicesApplet):
 
     def _run_scroll_sync(self) -> bool:
         self._scroll_sync_id = 0
-        self._tick()
+        generation = self._poll_generation
+        self._worker.run(
+            name="music-scroll-sync",
+            fn=self._poll_worker,
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if generation == self._poll_generation
+                else False
+            ),
+        )
         return False
 
     def _build_tooltip_widget(self) -> Gtk.Box:

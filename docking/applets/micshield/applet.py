@@ -188,6 +188,7 @@ class MicShieldApplet(Applet):
         )
 
     def _refresh_after_action(self) -> bool:
+        self._applied_poll_generation = self._poll_generation + 1
         self._refresh_now()
         return False
 

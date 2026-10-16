@@ -110,6 +110,71 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         applet.stop()
 
 
+@pytest.mark.parametrize("action", ["set", "toggle"])
+def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, action):
+    initial = MicShieldState(available=True, muted=False, active=False)
+    probe = MagicMock(return_value=initial)
+    monkeypatch.setattr(micshield, "probe_mic_state", probe)
+    monkeypatch.setattr(micshield, "set_mic_muted", lambda **_kwargs: True)
+    monkeypatch.setattr(micshield, "toggle_mic_mute", lambda: True)
+    applet = micshield.MicShieldApplet(48, Config())
+    replies = _UIReplies()
+    applet._worker = replies.worker
+    try:
+        probe.return_value = replace(initial, active=True)
+        applet._tick()
+        old_reply = replies.next()
+        expected = replace(initial, muted=True)
+        probe.return_value = expected
+        if action == "set":
+            applet._set_muted(True)
+        else:
+            applet.on_clicked()
+        replies.next()()  # Action completed; its fresh probe is still queued.
+
+        old_reply()
+
+        assert applet._state == initial
+        replies.next()()
+        assert applet._state == expected
+    finally:
+        applet.stop()
+
+
+def test_music_scroll_sync_can_refresh_while_old_poll_is_pending(monkeypatch):
+    initial = MusicState(available=True, title="First song", volume_percent=50)
+    backend = MagicMock()
+    backend.poll.return_value = initial
+    resolver = MagicMock()
+    resolver.resolve.return_value = None
+    monkeypatch.setattr(music, "HybridBackend", lambda: backend)
+    monkeypatch.setattr(music, "CoverArtResolver", lambda: resolver)
+    applet = music.MusicApplet(
+        48,
+        Config(),
+        application_registry=MagicMock(),
+        application_launcher=MagicMock(),
+    )
+    replies = _UIReplies()
+    applet._worker = replies.worker
+    try:
+        applet._tick()
+        old_reply = replies.next()
+        applet.on_scroll(direction_up=True)
+        expected = replace(initial, title="Second song", volume_percent=51)
+        backend.poll.return_value = expected
+        music.GLib.source_remove(applet._scroll_sync_id)
+
+        applet._run_scroll_sync()
+        # Synchronization must not wait for the next periodic poll.
+        replies.next()()
+        old_reply()
+
+        assert applet._state == expected
+    finally:
+        applet.stop()
+
+
 def test_bluetooth_old_poll_does_not_undo_power_off(monkeypatch):
     adapter = BluetoothAdapterState(
         path="/org/bluez/hci0",
