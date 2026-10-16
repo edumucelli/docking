@@ -48,6 +48,18 @@ def _row_label(text: str) -> str:
     return " ".join(text.split()).rstrip(" :")
 
 
+_CREDIT_LABELS = ("Credit & Copyright", "Credit", "Image Credit", "Video Credit")
+
+
+def _credit(metadata: dict[str, str]) -> str:
+    """Return the credit row, which NASA labels by media type."""
+    for label in _CREDIT_LABELS:
+        value = metadata.get(label, "")
+        if value:
+            return value
+    return ""
+
+
 class _ApodParser(HTMLParser):
     """Scope extraction to the hero, ignoring navigation and NASA branding."""
 
@@ -59,6 +71,14 @@ class _ApodParser(HTMLParser):
         self.image_url = ""
         self.video_url = ""
         self.page_url = ""
+
+    def _absolute(self, value: str | None) -> str:
+        """Resolve a page-relative URL, treating a missing attribute as absent."""
+        return urljoin(APOD_URL, value) if value else ""
+
+    def _in_video_player(self) -> bool:
+        """Inside <video>, an anchor is the player's no-JS fallback, not the page."""
+        return any(frame[0] == "video" for frame in self.stack)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -77,12 +97,16 @@ class _ApodParser(HTMLParser):
                 field = tag
                 self.text[field] = []
             if media:
-                if tag == "a" and not self.page_url:
-                    self.page_url = urljoin(APOD_URL, values.get("href") or "")
+                if tag == "a" and not self.page_url and not self._in_video_player():
+                    self.page_url = self._absolute(values.get("href"))
                 elif tag == "img" and not self.image_url:
-                    self.image_url = urljoin(APOD_URL, values.get("src") or "")
-                elif tag == "iframe":
-                    self.video_url = urljoin(APOD_URL, values.get("src") or "")
+                    self.image_url = self._absolute(values.get("src"))
+                elif tag in {"iframe", "video", "source"} and not self.video_url:
+                    # NASA now serves some entries from its own player as an
+                    # HTML5 <video> with a <source>, not a YouTube <iframe>.
+                    self.video_url = self._absolute(values.get("src"))
+                if tag == "video" and not self.image_url:
+                    self.image_url = self._absolute(values.get("poster"))
             if tag == "br" and field:
                 self.text.setdefault(field, []).append("\n")
         if tag not in _VOID_TAGS:
@@ -153,7 +177,5 @@ def parse_page(html: str) -> dict[str, str]:
         "url": parser.video_url or parser.image_url,
         "thumbnail_url": thumbnail,
         "page_url": parser.page_url or APOD_URL,
-        "copyright": parser.metadata.get(
-            "Credit & Copyright", parser.metadata.get("Credit", "")
-        ),
+        "copyright": _credit(parser.metadata),
     }
