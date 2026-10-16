@@ -9,6 +9,44 @@ from docking.applets.unitconverter.state import Category, Unit, convert
 from docking.search.services.currency_rates import CurrencyRatesCatalog
 
 
+@pytest.mark.parametrize(
+    "category,source,target,value,expected",
+    [
+        (Category.LENGTH, "km", "km", "1e308", 1e308),
+        (Category.LENGTH, "mm", "mm", "5e-324", 5e-324),
+        (Category.TEMPERATURE, "F", "C", "1e308", 5.555555555555556e307),
+        (Category.TEMPERATURE, "C", "F", "8e307", 1.44e308),
+        (Category.TEMPERATURE, "F", "F", "1e-308", 1e-308),
+    ],
+)
+def test_converter_input_displays_a_finite_result(
+    tmp_path, category, source, target, value, expected
+):
+    from gi.repository import Gtk
+
+    from docking.applets.unitconverter.applet import UnitConverterApplet
+    from docking.applets.unitconverter.state import get_categories, get_units
+    from docking.core.config import Config
+
+    applet = UnitConverterApplet(48, config=Config.load(tmp_path / "dock.json"))
+    applet._cat_idx = get_categories().index(category)
+    units = get_units(category)
+    applet._from_idx = next(i for i, unit in enumerate(units) if unit.symbol == source)
+    applet._to_idx = next(i for i, unit in enumerate(units) if unit.symbol == target)
+    applet._entry, applet._result_label = Gtk.Entry(), Gtk.Label()
+    try:
+        applet._entry.set_text(value)
+        applet._on_input_changed(applet._entry)
+        text = applet._result_label.get_text().rsplit(" ", 1)[0]
+        actual = float(text.replace(",", ""))
+        assert math.isfinite(actual)
+        assert math.isclose(actual, expected, rel_tol=5e-10, abs_tol=0), text
+    finally:
+        applet._entry.destroy()
+        applet._result_label.destroy()
+        applet.stop()
+
+
 @pytest.mark.parametrize("value", [1e308, -1e308, 5e-324, -5e-324])
 @pytest.mark.parametrize("source,target", [(1000.0, 1000.0), (0.001, 0.001)])
 def test_identity_conversion_preserves_every_finite_value(value, source, target):
