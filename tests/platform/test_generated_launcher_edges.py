@@ -22,6 +22,7 @@ def isolated_launchers(tmp_path, monkeypatch):
     "filename",
     [
         "plain",
+        "a" * 255,
         "space tool",
         "percent%f",
         'quote"tool',

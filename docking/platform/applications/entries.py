@@ -361,7 +361,8 @@ def create_desktop_entry_for_executable(
 def generated_desktop_id_for_path(path: Path) -> str:
     """Return the stable generated desktop ID for a source executable path."""
     resolved = path.expanduser().resolve()
-    slug = _slugify_desktop_name(_display_name_from_path(resolved))
+    # Leave room for the digest, suffix and atomic-write temporary filename.
+    slug = _slugify_desktop_name(_display_name_from_path(resolved))[:128]
     digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
     return f"{GENERATED_DESKTOP_PREFIX}{slug}-{digest}{DESKTOP_SUFFIX}"
 
@@ -419,11 +420,11 @@ def _icon_name_for_generated_entry(path: Path) -> str:
     )
     for suffix in (".svg", ".png", ".xpm"):
         candidate = path.with_name(f"{stem}{suffix}")
-        if candidate.is_file():
-            try:
+        try:
+            if candidate.is_file():
                 return str(candidate.resolve(strict=True))
-            except (OSError, RuntimeError):
-                continue
+        except (OSError, RuntimeError):
+            continue
     if path.name.lower().endswith(".appimage"):
         return "application-x-appimage"
     return FALLBACK_ICON
