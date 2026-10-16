@@ -471,8 +471,9 @@ def _escape_desktop_value(value: str) -> str:
 def _quote_exec_arg(value: str) -> str:
     value = value.replace("%", "%%")
     escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`")
-    escaped = escaped.replace("$", "\\$").replace("\n", "\\n")
-    return f'"{escaped}"'
+    escaped = escaped.replace("$", "\\$")
+    # Exec arguments also need the desktop value layer of backslash escaping.
+    return f'"{_escape_desktop_value(escaped)}"'
 
 
 def _write_desktop_file_atomically(*, path: Path, content: str) -> None:
