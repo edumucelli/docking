@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.brightness.applet as brightness_mod
-from docking.applets.powerprofiles.state import PowerProfilesState
+from docking.applets.powerprofiles.state import PowerProfilesState, profile_label
 from docking.applets.volume.state import VolumeState
 from tests.applets.deferred_worker import DeferredWorker
 from tests.applets.test_brightness import _make_applet as brightness_applet
@@ -30,6 +30,7 @@ def test_rapid_brightness_scroll_applies_the_last_requested_value(monkeypatch):
 
     assert written[-1] == pytest.approx(0.6)
     assert applet._brightness == pytest.approx(written[-1])
+    assert applet.item.name == "Brightness: 60%"
 
 
 def test_brightness_reset_is_ordered_after_pending_scroll(monkeypatch):
@@ -67,6 +68,7 @@ def test_old_volume_poll_does_not_undo_user_input(action):
         applet.on_clicked()
     queue.publish()
     assert (applet._volume, applet._muted) == (updated.volume, updated.muted)
+    assert applet.item.name == ("Volume: 50%" if action == "scroll" else "Muted")
 
 
 def test_profile_menu_keeps_the_last_choice_during_pending_write(monkeypatch):
@@ -85,6 +87,7 @@ def test_profile_menu_keeps_the_last_choice_during_pending_write(monkeypatch):
     queue.drain()
     assert backend.set_calls == ["performance", "power-saver"]
     assert applet._state.active_profile == "power-saver"
+    assert profile_label("power-saver") in applet.item.name
 
 
 def test_profile_menu_can_cancel_pending_change_by_reselecting_original(monkeypatch):
@@ -183,7 +186,8 @@ def test_denied_sysfs_write_restores_the_actual_brightness(monkeypatch, tmp_path
         return write_text(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "write_text", denied)
-    applet.on_scroll(direction_up=True)
+    for _ in range(5):
+        applet.on_scroll(direction_up=True)
     queue.drain()
 
     assert (tmp_path / "brightness").read_text() == "500"

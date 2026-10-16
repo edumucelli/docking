@@ -228,6 +228,8 @@ class TestAlarmApplet:
         )
         applet._toggle_alarm(index=0, enabled=True)
         assert not tick(applet._state, now=now).started_ringing
+        applet._tick()
+        assert not applet.item.is_urgent
         alarm = next_alarm(applet._state, now=now)
         assert alarm.when == dt.datetime(2026, 5, 19, 7, 0, tzinfo=_TZ)
 
@@ -246,6 +248,10 @@ class TestAlarmApplet:
         due = dt.datetime(2026, 5, 18, 10, 0, tzinfo=_TZ)
         assert next_alarm(applet._state, now=now).when == due
         assert tick(applet._state, now=due).started_ringing
+        monkeypatch.setattr(applet, "_now", lambda: due)
+        applet._tick()
+        assert applet.item.is_urgent
+        assert applet._state.ringing_index == 0
 
     @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
     @pytest.mark.parametrize("index", [None, 0])
