@@ -235,6 +235,7 @@ if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.platform.backends.base import VisibilityMonitor
     from docking.platform.model import DockModel
+    from docking.ui.accessibility import DockAccessibilityManager
     from docking.ui.renderer import DockRenderer
 
 
@@ -367,6 +368,8 @@ class DockWindow(Gtk.Window):
         self.zoom_animator = ZoomAnimator(self.drawing_area)
         self._build_components()
 
+        self.accessibility: DockAccessibilityManager | None = None
+
     def _setup_window(self) -> None:
         """Configure GTK window as an X11 dock.
 
@@ -420,7 +423,9 @@ class DockWindow(Gtk.Window):
             | Gdk.EventMask.SCROLL_MASK
             | Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
-        self.add(self.drawing_area)
+        self.accessibility_overlay = Gtk.Overlay()
+        self.accessibility_overlay.add(self.drawing_area)
+        self.add(self.accessibility_overlay)
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         """Release model subscriptions owned by the dock shell."""

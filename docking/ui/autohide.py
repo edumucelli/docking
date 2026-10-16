@@ -287,6 +287,7 @@ class AutoHideController:
         self.zoom_progress: float = 0.0  # 0.0 = no zoom, 1.0 = full zoom
         self._hovered: bool = False
         self._disabled: bool = False
+        self._keyboard_active: bool = False
 
         self._hide_timer_id: int = 0
         self._unhide_timer_id: int = 0
@@ -360,6 +361,17 @@ class AutoHideController:
         self._window_should_hide = should_hide
         self._update_hidden()
 
+    def set_keyboard_active(self, active: bool) -> None:
+        """Hold the dock visible independently of pointer, menu, and drag state."""
+        self._keyboard_active = active
+        if active:
+            self._cancel_hide_timer()
+            self._cancel_unhide_timer()
+            self._hide_after_show = False
+            if self.state in (HideState.HIDDEN, HideState.HIDING):
+                self._start_showing()
+        self._update_hidden()
+
     def reconcile(self) -> None:
         """Re-run hide/show policy without changing current inputs."""
         if not self.enabled:
@@ -370,7 +382,7 @@ class AutoHideController:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if not self.enabled:
             return
-        if self._disabled or self._hovered:
+        if self._keyboard_active or self._disabled or self._hovered:
             self._show()
         elif (
             self._config.hide_mode == HideMode.AUTOHIDE.value

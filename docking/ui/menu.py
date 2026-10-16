@@ -364,6 +364,61 @@ class MenuHandler:
         menu.show_all()
         menu.popup_at_pointer(event)
 
+    def show_for_accessibility(
+        self,
+        item: DockItem | None,
+        anchor: Gtk.Widget,
+        event: Gdk.Event | None = None,
+    ) -> None:
+        """Open the real item/dock menu at a keyboard-focusable control."""
+        menu = self._new_popup_menu()
+        if item is None:
+            self._build_dock_menu(menu=menu)
+        else:
+            self._build_item_menu(menu=menu, item=item)
+        menu.show_all()
+        menu.popup_at_widget(
+            anchor,
+            Gdk.Gravity.SOUTH_WEST,
+            Gdk.Gravity.NORTH_WEST,
+            event or Gtk.get_current_event(),
+        )
+        menu.select_first(False)
+
+    def show_stack_for_accessibility(
+        self, item: DockItem, anchor: Gtk.Widget, event: Gdk.Event | None = None
+    ) -> bool:
+        """Present drawn folder/applet stack entries as a native GTK menu."""
+        if item.kind == FOLDER_KIND:
+            content = self._folder_stack.content_for_accessibility(item)
+        else:
+            applet = self._model.get_applet(item.desktop_id)
+            content = applet.stack_content(24) if applet is not None else None
+        if content is None:
+            return False
+        menu = self._new_popup_menu()
+        if content.action is not None:
+            action = Gtk.MenuItem(label=content.action.label)
+            action.connect("activate", lambda _item: content.action.activate())
+            menu.append(action)
+        for entry in content.entries:
+            row = Gtk.MenuItem(label=entry.label)
+            row.connect("activate", lambda _item, callback=entry.activate: callback())
+            menu.append(row)
+        if not content.entries:
+            empty = Gtk.MenuItem(label=content.empty_label)
+            empty.set_sensitive(False)
+            menu.append(empty)
+        menu.show_all()
+        menu.popup_at_widget(
+            anchor,
+            Gdk.Gravity.SOUTH_WEST,
+            Gdk.Gravity.NORTH_WEST,
+            event or Gtk.get_current_event(),
+        )
+        menu.select_first(False)
+        return True
+
     def _invalidate_folder_target_cache(self, target: str) -> None:
         self._folder_stack.invalidate_target(target)
 

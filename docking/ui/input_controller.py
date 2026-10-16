@@ -421,86 +421,107 @@ class DockInputController:
             if item is None:
                 return True
 
-            now = GLib.get_monotonic_time()
-            item.last_clicked = now
-
-            if is_applet(desktop_id=item.desktop_id):
-                applet = window.model.get_applet(item.desktop_id)
-                if applet:
-                    anchor = window.popup_anchor_for_item(item, frame)
-                    applet.set_popup_anchor(anchor)
-                    if event.button == MOUSE_LEFT:
-                        stack_anchor = self._stack_anchor_for_item(
-                            item=item,
-                            frame=frame,
-                            fallback_x=event.x,
-                            fallback_y=event.y,
-                        )
-                        if self._interactions.show_applet_stack(
-                            applet=applet,
-                            anchor=stack_anchor,
-                            parent=anchor.parent if anchor is not None else window,
-                        ):
-                            window.tooltip.hide()
-                            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                            return True
-                    applet.on_clicked()
-                    window.tooltip.update(item, frame)
-                    window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                    return True
-
-            if item.kind == FOLDER_KIND:
-                self._show_folder_stack_for_item(
-                    item=item,
-                    frame=frame,
-                    fallback_x=event.x,
-                    fallback_y=event.y,
-                    toggle_if_same_item=(
-                        window.config.stack_unfold != StackUnfold.HOVER.value
-                    ),
-                )
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                return True
-
-            if item.kind == FILE_KIND:
-                item.last_launched = now
-                self._target_service.open_target(item.target)
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                return True
-
-            action = (
-                window.config.middle_click_action
-                if event.button == MOUSE_MIDDLE
-                else window.config.left_click_action
+            return self.activate_item(
+                item,
+                frame=frame,
+                button=event.button,
+                state=event.state,
+                x=event.x,
+                y=event.y,
             )
-            if event.state & Gdk.ModifierType.CONTROL_MASK:
-                action = MiddleClickAction.NEW_WINDOW.value
+        return True
 
-            if not item.is_running and action != MiddleClickAction.NEW_WINDOW.value:
-                window.window_tracker.refresh()
-            if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
-                item.last_launched = now
-                if action == MiddleClickAction.NEW_WINDOW.value:
-                    self._application_launcher.launch_new_window(item.desktop_id)
-                else:
-                    self._application_launcher.launch(item.desktop_id)
-                window.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
-            elif action == LeftClickAction.CYCLE.value:
-                window.window_tracker.cycle(item.desktop_id)
+    def activate_item(
+        self,
+        item: DockItem,
+        *,
+        frame: DockGeometryFrame,
+        button: int = MOUSE_LEFT,
+        state: int = 0,
+        x: float = 0,
+        y: float = 0,
+    ) -> bool:
+        """Run the same item action for pointer and assistive activation."""
+        window = self._window
+        now = GLib.get_monotonic_time()
+        item.last_clicked = now
+
+        if is_applet(desktop_id=item.desktop_id):
+            applet = window.model.get_applet(item.desktop_id)
+            if applet:
+                anchor = window.popup_anchor_for_item(item, frame)
+                applet.set_popup_anchor(anchor)
+                if button == MOUSE_LEFT:
+                    stack_anchor = self._stack_anchor_for_item(
+                        item=item,
+                        frame=frame,
+                        fallback_x=x,
+                        fallback_y=y,
+                    )
+                    if self._interactions.show_applet_stack(
+                        applet=applet,
+                        anchor=stack_anchor,
+                        parent=anchor.parent if anchor is not None else window,
+                    ):
+                        window.tooltip.hide()
+                        window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                        return True
+                applet.on_clicked()
+                window.tooltip.update(item, frame)
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == LeftClickAction.MOST_RECENT.value:
-                window.window_tracker.activate_most_recent(item.desktop_id)
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == MiddleClickAction.MINIMIZE.value:
-                window.window_tracker.minimize_all(item.desktop_id)
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == MiddleClickAction.CLOSE_FOCUSED.value:
-                window.window_tracker.close_focused(item.desktop_id)
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+                return True
+
+        if item.kind == FOLDER_KIND:
+            self._show_folder_stack_for_item(
+                item=item,
+                frame=frame,
+                fallback_x=x,
+                fallback_y=y,
+                toggle_if_same_item=(
+                    window.config.stack_unfold != StackUnfold.HOVER.value
+                ),
+            )
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+            return True
+
+        if item.kind == FILE_KIND:
+            item.last_launched = now
+            self._target_service.open_target(item.target)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+            return True
+
+        action = (
+            window.config.middle_click_action
+            if button == MOUSE_MIDDLE
+            else window.config.left_click_action
+        )
+        if state & Gdk.ModifierType.CONTROL_MASK:
+            action = MiddleClickAction.NEW_WINDOW.value
+
+        if not item.is_running and action != MiddleClickAction.NEW_WINDOW.value:
+            window.window_tracker.refresh()
+        if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
+            item.last_launched = now
+            if action == MiddleClickAction.NEW_WINDOW.value:
+                self._application_launcher.launch_new_window(item.desktop_id)
             else:
-                window.window_tracker.toggle_focus(item.desktop_id)
-                window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-
+                self._application_launcher.launch(item.desktop_id)
+            window.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
+        elif action == LeftClickAction.CYCLE.value:
+            window.window_tracker.cycle(item.desktop_id)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+        elif action == LeftClickAction.MOST_RECENT.value:
+            window.window_tracker.activate_most_recent(item.desktop_id)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+        elif action == MiddleClickAction.MINIMIZE.value:
+            window.window_tracker.minimize_all(item.desktop_id)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+        elif action == MiddleClickAction.CLOSE_FOCUSED.value:
+            window.window_tracker.close_focused(item.desktop_id)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
+        else:
+            window.window_tracker.toggle_focus(item.desktop_id)
+            window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
         return True
 
     def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:

@@ -191,6 +191,9 @@ def _controller(stub) -> SimpleNamespace:
         input_controller_mod.DockInputController._stack_anchor_for_item,
         controller,
     )
+    controller.activate_item = MethodType(
+        input_controller_mod.DockInputController.activate_item, controller
+    )
     return controller
 
 
