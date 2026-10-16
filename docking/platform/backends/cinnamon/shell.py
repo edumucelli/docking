@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 import cairo
@@ -18,6 +18,9 @@ import gi
 
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
+
+if TYPE_CHECKING:
+    from gi.repository import Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
@@ -516,15 +519,16 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
             self.position_or_anchor(self._request)
 
     def update_input_region(self, rect: Rect) -> None:
-        get_window = getattr(self._window, "get_window", None)
-        gdk_window = get_window() if callable(get_window) else None
-        input_shape = getattr(gdk_window, "input_shape_combine_region", None)
-        if not callable(input_shape):
+        window = cast("Gtk.Window | None", self._window)
+        if window is None:
+            return
+        gdk_window = window.get_window()
+        if gdk_window is None:
             return
         region = cairo.Region(
             cairo.RectangleInt(rect.x, rect.y, rect.width, rect.height)
         )
-        input_shape(region, 0, 0)
+        gdk_window.input_shape_combine_region(region, 0, 0)
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         return self._client.workarea(monitor, exclude_title=self._title)
