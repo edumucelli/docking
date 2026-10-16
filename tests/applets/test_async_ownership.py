@@ -177,3 +177,33 @@ def test_switching_back_to_quote_source_keeps_its_latest_request(
     applet.on_clicked()
 
     assert applet._current == QuoteEntry(text="3")
+
+
+def test_repeated_drops_do_not_replace_the_upload_in_progress(
+    tmp_path, monkeypatch, posted_results
+):
+    monkeypatch.setattr(
+        share_mod,
+        "upload_file",
+        lambda path: UploadResult(
+            url="https://example.test/" + path.name, file_name=path.name
+        ),
+    )
+    paths = [tmp_path / name for name in ("first.txt", "second.txt", "third.txt")]
+    for path in paths:
+        path.write_text("payload")
+    applet = share_mod.DragshareApplet(48, Config())
+    try:
+        applet.on_drop_uris([paths[0].as_uri()])
+        original_thread = applet._upload_thread
+        reply = posted_results.get(timeout=2)
+
+        applet.on_drop_uris([paths[1].as_uri()])
+        applet.on_drop_uris([paths[2].as_uri()])
+
+        assert applet._upload_thread is original_thread
+        assert applet._file_name == "first.txt"
+        _deliver(reply)
+        assert applet._last_url == "https://example.test/first.txt"
+    finally:
+        applet.stop()

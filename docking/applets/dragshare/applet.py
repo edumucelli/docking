@@ -102,7 +102,7 @@ class DragshareApplet(Applet):
         return True
 
     def on_drop_uris(self, uris: list[str]) -> bool:
-        if self._status is DragshareStatus.UPLOADING:
+        if self._upload_thread is not None:
             self._set_error(_("Upload already in progress"))
             return True
 
