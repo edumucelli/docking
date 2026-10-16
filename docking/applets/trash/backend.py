@@ -159,7 +159,7 @@ def _decode_mountinfo_path(value: str) -> str:
 
 def _mount_points() -> tuple[Path, ...]:
     try:
-        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+        lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")
     except OSError as exc:
         log.bind(action="discover_trash_roots").debug(
             "Could not read mountinfo: %s",
@@ -169,10 +169,10 @@ def _mount_points() -> tuple[Path, ...]:
 
     mount_points: list[Path] = []
     for line in lines:
-        fields = line.split()
+        fields = line.split(b" ")
         if len(fields) < 5:
             continue
-        mount_point = Path(_decode_mountinfo_path(fields[4]))
+        mount_point = Path(_decode_mountinfo_path(os.fsdecode(fields[4])))
         if mount_point not in mount_points:
             mount_points.append(mount_point)
     return tuple(mount_points)

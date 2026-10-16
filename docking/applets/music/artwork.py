@@ -30,6 +30,7 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
+from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 
 from .state import MusicState
@@ -117,7 +118,11 @@ class CoverArtResolver:
             if pixbuf is not None:
                 return pixbuf
 
-        local_cover = self._find_local_cover_path(track_url=state.track_url)
+        try:
+            local_cover = self._find_local_cover_path(track_url=state.track_url)
+        except (OSError, RuntimeError) as exc:
+            log.debug("Could not inspect local album artwork: %s", exc)
+            local_cover = None
         if local_cover is not None:
             pixbuf = self._load_from_path(path=local_cover)
             if pixbuf is not None:
@@ -181,13 +186,19 @@ class CoverArtResolver:
             return None
         try:
             data = json.loads(payload.decode("utf-8"))
-            results = data.get("results", [])
-            if not results:
+            if not isinstance(data, dict):
                 return None
-            art_url = str(results[0].get("artworkUrl100", "")).strip()
-            if not art_url:
+            results = data.get("results")
+            if (
+                not isinstance(results, list)
+                or not results
+                or not isinstance(results[0], dict)
+            ):
                 return None
-            return art_url.replace("100x100bb", "600x600bb")
+            art_url: object = results[0].get("artworkUrl100")
+            if not isinstance(art_url, str) or not art_url.strip():
+                return None
+            return art_url.strip().replace("100x100bb", "600x600bb")
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             log.debug("Failed to decode iTunes artwork lookup response: %s", exc)
             return None
@@ -200,7 +211,11 @@ class CoverArtResolver:
             return None
 
     def _load_from_uri(self, uri: str) -> GdkPixbuf.Pixbuf | None:
-        parsed = urllib.parse.urlparse(uri)
+        try:
+            parsed = urllib.parse.urlparse(uri)
+        except ValueError as exc:
+            log.debug("Invalid artwork URI %r: %s", uri, exc)
+            return None
         if parsed.scheme in ("", "file"):
             path = self._path_from_uri_or_path(value=uri)
             if path is None:
@@ -256,15 +271,7 @@ class CoverArtResolver:
             return None
 
     def _path_from_uri_or_path(self, value: str) -> Path | None:
-        raw = value.strip()
-        if not raw:
-            return None
-        parsed = urllib.parse.urlparse(raw)
-        if parsed.scheme == "file":
-            return Path(urllib.parse.unquote(parsed.path))
-        if parsed.scheme == "":
-            return Path(raw)
-        return None
+        return local_path_from_uri_or_path(value) if value.strip() else None
 
     def _insert_cache(self, key: str, pixbuf: GdkPixbuf.Pixbuf) -> None:
         size = self._pixbuf_size_bytes(pixbuf=pixbuf)

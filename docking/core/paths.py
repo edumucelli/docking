@@ -15,7 +15,31 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from urllib.parse import unquote_to_bytes, urlparse
+
+
+def local_path_from_uri_or_path(target: str) -> Path | None:
+    """Decode a local file URI or expand a plain path safely."""
+    if not target:
+        return None
+    try:
+        parsed = urlparse(target)
+        if parsed.scheme == "file":
+            if not parsed.path.startswith("/") or parsed.netloc.casefold() not in {
+                "",
+                "localhost",
+            }:
+                return None
+            path = Path(os.fsdecode(unquote_to_bytes(parsed.path)))
+        elif not parsed.scheme:
+            path = Path(target).expanduser()
+        else:
+            return None
+    except (RuntimeError, ValueError):
+        return None
+    return None if "\0" in str(path) else path
 
 
 def ensure_dir(path: Path | str) -> Path:
