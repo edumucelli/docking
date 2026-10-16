@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from docking.applets.trash import backend as trash_backend
 from docking.core.config import Config
 from docking.core.items import FOLDER_KIND
@@ -21,17 +23,20 @@ def test_legacy_pinned_folder_keeps_non_utf8_filename(tmp_path):
     assert config.pinned[0].target == folder.as_uri()
 
 
-def test_mount_discovery_keeps_non_utf8_mount_point(tmp_path, monkeypatch):
-    mount = tmp_path / os.fsdecode(b"volume-\xff")
+@pytest.mark.parametrize(
+    "name", [os.fsdecode(b"volume-\xff"), "volume-\u00a0disk", "volume-\u2028disk"]
+)
+def test_mount_discovery_keeps_filesystem_mount_name(tmp_path, monkeypatch, name):
+    mount = tmp_path / name
     mount.mkdir()
     mountinfo = tmp_path / "mountinfo"
     mountinfo.write_bytes(b"1 0 0:1 / " + os.fsencode(mount) + b" rw - tmpfs none rw\n")
-    read_text = Path.read_text
+    open_file = Path.open
 
     def read_mountinfo(path, *args, **kwargs):
         target = mountinfo if path == Path("/proc/self/mountinfo") else path
-        return read_text(target, *args, **kwargs)
+        return open_file(target, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "read_text", read_mountinfo)
+    monkeypatch.setattr(Path, "open", read_mountinfo)
 
     assert trash_backend._mount_points() == (mount,)
