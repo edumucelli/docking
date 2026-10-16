@@ -129,7 +129,7 @@ from docking.ui.display import clamp_popup, popup_workarea
 from docking.ui.display import scrolled_popup_size as preview_size
 
 if TYPE_CHECKING:
-    from docking.platform.backends.base import PreviewService
+    from docking.platform.backends.base import PreviewImage, PreviewService
     from docking.ui.autohide import AutoHideController
     from docking.ui.window_outline import WindowOutline
 
@@ -142,6 +142,7 @@ THUMB_SPACING = 8
 LABEL_CHARS_DIVISOR = 8
 LABEL_MIN_CHARS = 12
 PREVIEW_HIDE_DELAY_MS = 300
+PREVIEW_REFRESH_INTERVAL_MS = 100
 ICON_FALLBACK_SIZE = 64
 PREVIEW_GAP_PX = 40
 
@@ -218,6 +219,10 @@ class PreviewPopup(Gtk.Window):
         self._autohide: AutoHideController | None = None
         self._pointer_inside_dock: Callable[[], bool] | None = None
         self._hide_timer_id: int = 0
+        self._preview_refresh_timer_id: int = 0
+        self._thumbnail_images: dict[
+            WindowId, tuple[Gtk.Image, int, int, PreviewImage | None]
+        ] = {}
         self._current_desktop_id: str = ""
         self._thumbnail_outline_enabled: Callable[[], bool] = lambda: False
         self._thumbnail_width: Callable[[], int] = lambda: THUMB_W
@@ -239,6 +244,8 @@ class PreviewPopup(Gtk.Window):
 
         self.connect("enter-notify-event", self._on_enter)
         self.connect("leave-notify-event", self._on_leave)
+        self.connect("hide", lambda _widget: self._stop_preview_updates())
+        self.connect("destroy", self._on_destroy)
 
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
@@ -289,6 +296,7 @@ class PreviewPopup(Gtk.Window):
 
         self._current_desktop_id = desktop_id
         self._cancel_hide_timer()
+        self._stop_preview_updates()
 
         # Replace and resize off-screen, including when switching apps while
         # this long-lived popup is already visible.
@@ -369,6 +377,10 @@ class PreviewPopup(Gtk.Window):
         self.resize(popup_width, popup_height)
         self.move(popup_pos.x, popup_pos.y)
         self.show_all()
+        if self._preview_service.asynchronous is True:
+            self._preview_refresh_timer_id = GLib.timeout_add(
+                PREVIEW_REFRESH_INTERVAL_MS, self._refresh_preview_images
+            )
         log.debug(
             "preview shown: windows=%s edge=%s bounds=%s target=%sx%s at=%s",
             len(windows),
@@ -408,6 +420,7 @@ class PreviewPopup(Gtk.Window):
                 fallback_icon_name, Gtk.IconSize.DIALOG
             )
         image.set_size_request(thumb_w, thumb_h)
+        self._thumbnail_images[window.id] = (image, thumb_w, thumb_h, preview)
         vbox.pack_start(image, False, False, 0)
 
         # Window title
@@ -561,10 +574,36 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview: hiding")
         self._hide_timer_id = 0
         self._current_desktop_id = ""
+        self._stop_preview_updates()
         self._hide_outline()
         self.hide()
         self._release_dock_autohide_if_needed()
         return False
+
+    def _refresh_preview_images(self) -> bool:
+        if not self.get_visible() or not self._thumbnail_images:
+            self._preview_refresh_timer_id = 0
+            return False
+        for window_id, (image, width, height, previous) in tuple(
+            self._thumbnail_images.items()
+        ):
+            preview = self._preview_service.capture(
+                window_id, width=width, height=height
+            )
+            if preview is not None and preview is not previous:
+                image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
+                self._thumbnail_images[window_id] = (image, width, height, preview)
+        return True
+
+    def _stop_preview_updates(self) -> None:
+        if self._preview_refresh_timer_id:
+            GLib.source_remove(self._preview_refresh_timer_id)
+            self._preview_refresh_timer_id = 0
+        self._thumbnail_images.clear()
+
+    def _on_destroy(self, _widget: Gtk.Widget) -> None:
+        self._cancel_hide_timer()
+        self._stop_preview_updates()
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:
