@@ -11,7 +11,7 @@ from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def isolated_launchers(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setattr(entries, "_refresh_desktop_database", lambda _directory: None)
@@ -35,7 +35,7 @@ def isolated_launchers(tmp_path, monkeypatch):
     ],
 )
 def test_generated_launcher_executes_selected_file(
-    tmp_path, monkeypatch, isolated_launchers, filename, launch_method
+    tmp_path, monkeypatch, filename, launch_method
 ):
     executable = tmp_path / filename
     executable.write_text('#!/bin/sh\nprintf launched > "$DOCKING_AUDIT_MARKER"\n')
@@ -80,9 +80,7 @@ def test_generated_launcher_executes_selected_file(
         entries.create_desktop_entry_for_executable,
     ],
 )
-def test_symlink_loop_drop_is_rejected_without_raising(
-    tmp_path, isolated_launchers, operation
-):
+def test_symlink_loop_drop_is_rejected_without_raising(tmp_path, operation):
     path = tmp_path / "loop.AppImage"
     path.symlink_to(path.name)
 
