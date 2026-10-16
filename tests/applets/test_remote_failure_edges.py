@@ -44,7 +44,7 @@ def test_control_character_in_artwork_url_is_rejected_without_crashing():
 
 
 def test_deeply_nested_artwork_json_is_a_miss(monkeypatch):
-    payload = b"[" * 2000 + b"0" + b"]" * 2000
+    payload = b'{"results": [], "extra":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
     resolver = CoverArtResolver()
     monkeypatch.setattr(resolver, "_download_bytes", lambda **_kwargs: payload)
 
