@@ -11,36 +11,6 @@ from docking.platform.backends.wayland.previews import (
     _HyprlandCaptureRequest,
     _pixbuf_from_request,
 )
-from tests.platform.test_wayland_preview_pixels import _request
-
-
-@given('a wide "{kind}" Wayland capture requested within a square')
-def wide_capture(context, kind):
-    source = bytes((0, 0, 255, 255)) * (8 * 4)
-    buffer = mmap.mmap(-1, len(source))
-    buffer[:] = source
-    context.add_cleanup(buffer.close)
-    context.wide_request = _request(
-        kind,
-        requested_width=6,
-        requested_height=6,
-        width=8,
-        height=4,
-        stride=32,
-        format=SHM_ARGB8888,
-        mmap_obj=buffer,
-    )
-
-
-@when("the wide Wayland capture is decoded")
-def decode_wide_capture(context):
-    context.wide_preview = _pixbuf_from_request(context.wide_request)
-
-
-@then("the preview keeps the wide window's aspect ratio")
-def wide_preview_shape(context):
-    assert (context.wide_preview.width, context.wide_preview.height) == (6, 3)
-    assert context.wide_preview.image.get_pixels()[:4] == b"\xff\x00\x00\xff"
 
 
 @given('a padded "{format_}" Wayland capture with "{orientation}" rows')

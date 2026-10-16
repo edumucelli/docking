@@ -399,21 +399,36 @@ _WINDOW = WindowId(DisplayServer.WAYLAND, 1)
 
 @pytest.mark.parametrize("kind", _NATIVE_KINDS)
 def test_cached_preview_is_refreshed_after_window_contents_change(monkeypatch, kind):
+    from gi.repository import GdkPixbuf
+
+    from docking.platform.backends.wayland import previews as preview_mod
+
     now = [0.0]
     rig = _SizedPreviewRig(kind, monkeypatch)
     rig.service._clock = lambda: now[0]
+    color = [0xFF0000FF]
+
+    def image_from_window(_request):
+        image = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 100, 60)
+        image.fill(color[0])
+        return PreviewImage(image=image, width=100, height=60)
+
+    monkeypatch.setattr(preview_mod, "_pixbuf_from_request", image_from_window)
     assert rig.capture(_WINDOW, 100, 60) is None
     rig.complete(0)
     original = rig.capture(_WINDOW, 100, 60)
     assert original is not None
+    assert original.image.get_pixels()[:4] == b"\xff\x00\x00\xff"
     assert len(rig.captures) == 1
 
     now[0] = 2.0
+    color[0] = 0x00FF00FF
     assert rig.capture(_WINDOW, 100, 60) is original
     assert len(rig.captures) == 2
     rig.complete(1)
     updated = rig.capture(_WINDOW, 100, 60)
     assert updated is not original
+    assert updated.image.get_pixels()[:4] == b"\x00\xff\x00\xff"
     assert len(rig.captures) == 2
 
 
