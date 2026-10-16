@@ -528,8 +528,13 @@ class SearchWindow:
                 body=result.description or result.state or result.source,
             )
         )
-        self.preview_title.set_label(preview.title)
-        self.preview_body.set_label(preview.body)
+        # Filesystem names can contain surrogate-escaped bytes; GTK needs UTF-8.
+        self.preview_title.set_label(
+            preview.title.encode("utf-8", errors="replace").decode("utf-8")
+        )
+        self.preview_body.set_label(
+            preview.body.encode("utf-8", errors="replace").decode("utf-8")
+        )
         preview_body_style = self.preview_body.get_style_context()
         preview_body_style.remove_class("monospace")
         if preview.kind == "source":

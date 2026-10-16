@@ -45,7 +45,10 @@ def custom_icon_path(config: Config, item: DockItem) -> Path | None:
     raw_path = prefs.get(CUSTOM_ICON_PATH_KEY)
     if not isinstance(raw_path, str) or not raw_path:
         return None
-    path = Path(raw_path).expanduser()
+    try:
+        path = Path(raw_path).expanduser()
+    except RuntimeError:
+        return None
     if not path.is_absolute():
         return None
     return path
