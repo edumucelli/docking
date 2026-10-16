@@ -6,6 +6,7 @@ import shlex
 import subprocess
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from shlex import join as shell_join
 from typing import Any
 
 import gi
@@ -252,8 +253,25 @@ class ApplicationLauncher:
         if not argv:
             return False
 
+        if application.terminal:
+            if application.location is ApplicationLocation.SANDBOX and is_flatpak():
+                terminal_argv = commands.build_terminal_argv(
+                    command=shell_join(argv),
+                    resolver=commands.resolve_terminal_executable,
+                )
+            else:
+                terminal_argv = commands.build_terminal_argv(command=shell_join(argv))
+            if terminal_argv is None:
+                return False
+            argv = terminal_argv
+
+        working_directory = application.working_directory or None
         if application.location is ApplicationLocation.HOST:
-            host_argv = flatpak.host_command(argv)
+            host_argv = (
+                flatpak.host_command(argv, working_directory=working_directory)
+                if working_directory
+                else flatpak.host_command(argv)
+            )
             if host_argv is None:
                 log.bind(
                     desktop_id=application.desktop_id,
@@ -264,6 +282,7 @@ class ApplicationLauncher:
                 )
                 return False
             argv = host_argv
+            working_directory = None
 
         try:
             process = self._popen(
@@ -273,6 +292,7 @@ class ApplicationLauncher:
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                cwd=working_directory,
             )
         except OSError as exc:
             log.bind(
