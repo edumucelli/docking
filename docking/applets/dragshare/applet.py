@@ -134,27 +134,30 @@ class DragshareApplet(Applet):
         self._error = ""
         self.present()
 
-        thread = threading.Thread(
-            target=self._upload_in_background,
-            args=(path,),
-            daemon=True,
-        )
+        def worker() -> None:
+            self._upload_in_background(path, thread)
+
+        thread = threading.Thread(target=worker, daemon=True)
         self._upload_thread = thread
         thread.start()
 
-    def _upload_in_background(self, path: Path) -> None:
+    def _upload_in_background(self, path: Path, thread: threading.Thread) -> None:
         try:
             result = upload_file(path)
         except UploadError as exc:
-            GLib.idle_add(self._finish_upload_error, str(exc))
+            GLib.idle_add(self._finish_upload_error, str(exc), thread)
             return
         except Exception as exc:
             log.warning("Unexpected drag share upload failure: %s", exc)
-            GLib.idle_add(self._finish_upload_error, _("Upload failed"))
+            GLib.idle_add(self._finish_upload_error, _("Upload failed"), thread)
             return
-        GLib.idle_add(self._finish_upload_success, result)
+        GLib.idle_add(self._finish_upload_success, result, thread)
 
-    def _finish_upload_success(self, result: UploadResult) -> bool:
+    def _finish_upload_success(
+        self, result: UploadResult, thread: threading.Thread
+    ) -> bool:
+        if thread is not self._upload_thread:
+            return False
         self._status = DragshareStatus.DONE
         self._last_url = result.url
         self._file_name = result.file_name
@@ -165,7 +168,9 @@ class DragshareApplet(Applet):
         self.present()
         return False
 
-    def _finish_upload_error(self, message: str) -> bool:
+    def _finish_upload_error(self, message: str, thread: threading.Thread) -> bool:
+        if thread is not self._upload_thread:
+            return False
         self._set_error(message)
         self._upload_thread = None
         return False
