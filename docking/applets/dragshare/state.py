@@ -58,8 +58,13 @@ class UploadResult:
 
 def file_path_from_uri(uri: str) -> Path | None:
     """Return a local file path for file:// URI or plain path input."""
-    parsed = urllib.parse.urlparse(uri)
+    try:
+        parsed = urllib.parse.urlparse(uri)
+    except ValueError:
+        return None
     if parsed.scheme == "file":
+        if parsed.netloc.casefold() not in {"", "localhost"} or not parsed.path:
+            return None
         return Path(urllib.parse.unquote(parsed.path))
     if parsed.scheme:
         return None
