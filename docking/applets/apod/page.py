@@ -169,6 +169,10 @@ def parse_page(html: str) -> dict[str, str]:
             )
             if video_id and all(c.isalnum() or c in "_-" for c in video_id):
                 thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+        elif parser.video_url.lower().endswith(".mp4"):
+            # A self-hosted video has no poster attribute, but NASA serves the
+            # matching still at the same path with a .jpg extension.
+            thumbnail = parser.video_url[:-4] + ".jpg"
     return {
         "date": published.isoformat(),
         "title": title,

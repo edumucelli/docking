@@ -214,9 +214,28 @@ class TestFetchToday:
         """)
         assert got["media_type"] == "video"
         assert got["url"].endswith("/2026/october/launch.mp4")
+        # NASA serves the still beside the video, so the applet shows it
+        # instead of falling back to the placeholder.
+        assert got["thumbnail_url"].endswith("/2026/october/launch.jpg")
         assert got["page_url"] == APOD_URL
         assert got["copyright"] == "Eric Holland"
         assert got["date"] == "2026-10-16"
+
+    def test_video_without_a_usable_still_keeps_no_thumbnail(self):
+        # Not every host serves a sibling still, and a non-mp4 player must not
+        # have one invented for it.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <iframe src="https://player.example.org/embed/abc"></iframe>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A stream.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
 
     def test_video_poster_is_used_as_the_thumbnail(self):
         got = parse_page("""
