@@ -72,6 +72,7 @@ class CalendarApplet(Applet):
     def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._last_day: int = -1
+        self._last_weekday: str = ""
         self._tooltip_text: str = _("Calendar")
         self._popup: Gtk.Window | None = None
         super().__init__(icon_size=icon_size, config=config)
@@ -81,6 +82,7 @@ class CalendarApplet(Applet):
         snapshot = snapshot_from()
         self._tooltip_text = snapshot.tooltip
         self._last_day = snapshot.day
+        self._last_weekday = snapshot.weekday
         return render_icon(size=size, snapshot=snapshot)
 
     def refresh_tooltip(self) -> None:
@@ -108,7 +110,7 @@ class CalendarApplet(Applet):
     def _tick(self) -> bool:
         snapshot = snapshot_from()
         self._tooltip_text = snapshot.tooltip
-        if snapshot.day != self._last_day:
+        if (snapshot.day, snapshot.weekday) != (self._last_day, self._last_weekday):
             self.present()
         else:
             self.refresh_tooltip()
