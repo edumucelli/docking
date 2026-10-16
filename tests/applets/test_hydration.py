@@ -32,6 +32,31 @@ def test_reminder_fires_on_final_second_of_interval(minutes):
     assert not tick(result.state).became_empty
 
 
+@pytest.mark.parametrize("minutes", INTERVAL_PRESETS)
+def test_applet_marks_the_completed_interval_urgent_and_click_refills(minutes):
+    applet = HydrationApplet(
+        48, config=Config(applet_prefs={"hydration": {"interval": minutes}})
+    )
+    try:
+        state = applet._state
+        for _ in range(minutes * 60 - 1):
+            result = tick(state)
+            assert not result.became_empty
+            state = result.state
+        applet._state = state
+        assert not applet.item.is_urgent
+        assert state.fill > 0
+        applet._tick()
+        assert applet.item.is_urgent
+        assert applet._state.fill == 0
+        assert applet.item.name == "Drink water!"
+        applet.on_clicked()
+        assert not applet.item.is_urgent
+        assert applet._state.fill > 0
+    finally:
+        applet.stop()
+
+
 class TestWaterColor:
     def test_is_blue(self):
         r, _g, b = water_color()
