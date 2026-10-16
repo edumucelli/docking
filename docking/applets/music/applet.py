@@ -125,6 +125,7 @@ class MusicApplet(ApplicationServicesApplet):
         self._album_art: GdkPixbuf.Pixbuf | None = None
         self._timer_id: int = 0
         self._scroll_sync_id: int = 0
+        self._poll_generation = 0
         self._worker = BackgroundWorker()
 
         self._state = self._state_with_registry_icon(self._backend.poll())
@@ -170,6 +171,7 @@ class MusicApplet(ApplicationServicesApplet):
         delta = VOLUME_STEP if direction_up else -VOLUME_STEP
         target = clamp_percent(self._state.volume_percent + delta)
         if self._backend.set_volume(state=self._state, volume_percent=target):
+            self._poll_generation += 1
             # Avoid synchronous re-poll on rapid scroll bursts (can stall UI).
             self._state = replace(self._state, volume_percent=target)
             self.present()
@@ -225,11 +227,16 @@ class MusicApplet(ApplicationServicesApplet):
         self.on_scroll(direction_up=direction_up)
 
     def _tick(self) -> bool:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="music-poll",
             fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return True
 
@@ -246,6 +253,7 @@ class MusicApplet(ApplicationServicesApplet):
         return self._apply_poll_result(state, art)
 
     def _refresh_now(self) -> None:
+        self._poll_generation += 1
         state, art = self._poll_worker()
         self._apply_poll_result(state, art)
 
@@ -297,12 +305,7 @@ class MusicApplet(ApplicationServicesApplet):
 
     def _run_scroll_sync(self) -> bool:
         self._scroll_sync_id = 0
-        self._worker.run_guarded(
-            key="poll",
-            name="music-poll",
-            fn=self._poll_worker,
-            on_result=self._on_poll_result,
-        )
+        self._tick()
         return False
 
     def _build_tooltip_widget(self) -> Gtk.Box:

@@ -78,6 +78,7 @@ class PowerProfilesApplet(Applet):
         self._state: PowerProfilesState = unavailable_state()
         self._poll_id: int = 0
         self._set_in_progress = False
+        self._poll_generation = 0
         self._action_error = ""
         self._worker = BackgroundWorker()
         self._state = self._backend.get_state()
@@ -172,11 +173,16 @@ class PowerProfilesApplet(Applet):
 
     def _tick(self) -> bool:
         """Periodic GLib timer callback; delegates backend call to a thread."""
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="powerprofiles-poll",
             fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            on_result=lambda state: (
+                self._on_poll_result(state)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return True
 
@@ -227,6 +233,7 @@ class PowerProfilesApplet(Applet):
     ) -> bool:
         """GTK-thread handler for async profile-set completion."""
         self._set_in_progress = False
+        self._poll_generation += 1
         self._state = state
         if success:
             self._action_error = ""

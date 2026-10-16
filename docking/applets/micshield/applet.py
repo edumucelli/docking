@@ -62,6 +62,8 @@ class MicShieldApplet(Applet):
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
+        self._poll_generation = 0
+        self._applied_poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -142,10 +144,19 @@ class MicShieldApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
+        self._poll_generation += 1
+        generation = self._poll_generation
+
+        def apply_result(state: MicShieldState) -> bool:
+            if generation < self._applied_poll_generation:
+                return False
+            self._applied_poll_generation = generation
+            return self._on_probe_result(state)
+
         self._worker.run(
             name="micshield-poll",
             fn=probe_mic_state,
-            on_result=self._on_probe_result,
+            on_result=apply_result,
         )
 
     def _tick(self) -> bool:

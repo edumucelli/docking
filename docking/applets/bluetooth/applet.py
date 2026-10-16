@@ -94,6 +94,7 @@ class BluetoothApplet(Applet):
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
+        self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
@@ -445,13 +446,18 @@ class BluetoothApplet(Applet):
         return menu_item
 
     def _tick(self) -> bool:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="bluetooth-poll",
             fn=lambda: self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             ),
-            on_result=self._on_poll_result,
+            on_result=lambda state: (
+                self._on_poll_result(state)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return True
 
@@ -481,13 +487,18 @@ class BluetoothApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="refresh",
             name="bluetooth-refresh",
             fn=lambda: self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             ),
-            on_result=self._on_refresh_result,
+            on_result=lambda state: (
+                self._on_refresh_result(state)
+                if generation == self._poll_generation
+                else False
+            ),
         )
 
     def _sync_selected_adapter(self, persist: bool = True) -> None:
@@ -625,6 +636,7 @@ class BluetoothApplet(Applet):
         state: BluetoothState,
     ) -> bool:
         self._power_transition_in_progress = False
+        self._poll_generation += 1
         self._state = state
         self._sync_selected_adapter()
         if success:
