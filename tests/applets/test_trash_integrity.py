@@ -106,3 +106,24 @@ def test_volume_trash_discovery_rejects_invalid_directories(
             path.chmod(0o777)
 
     assert backend._volume_trash_directories() == ()
+
+
+@pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])
+@pytest.mark.parametrize("target_exists", [False, True])
+def test_unsafe_files_directory_keeps_restore_metadata(
+    tmp_path, trash_environment, factory, target_exists
+):
+    trash = tmp_path / "data" / "Trash"
+    info = trash / "info"
+    info.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    if target_exists:
+        outside.mkdir()
+    (trash / "files").symlink_to(outside, target_is_directory=True)
+    metadata = info / "report.txt.trashinfo"
+    metadata.write_text("[Trash Info]\nPath=/original/report.txt\n")
+
+    result = factory()._delete_contents()
+
+    assert result.failures
+    assert metadata.read_text() == "[Trash Info]\nPath=/original/report.txt\n"

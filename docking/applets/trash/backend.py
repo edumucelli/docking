@@ -541,7 +541,11 @@ class GioTrashBackend:
     ) -> _DeleteStats:
         stats = _DeleteStats()
         try:
-            if directory.is_symlink() or directory.parent.is_symlink():
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
                 raise OSError("Refusing to empty a symbolic link to a trash directory")
             children = list(directory.iterdir())
         except FileNotFoundError:
@@ -758,7 +762,11 @@ class KdeTrashBackend:
     ) -> _DeleteStats:
         stats = _DeleteStats()
         try:
-            if directory.is_symlink() or directory.parent.is_symlink():
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
                 raise OSError("Refusing to empty a symbolic link to a trash directory")
             children = list(directory.iterdir())
         except FileNotFoundError:
