@@ -224,8 +224,9 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CertwatchPrefs:
         if not host:
             continue
         try:
-            port = int(entry.get("port", DEFAULT_HTTPS_PORT))
-        except (TypeError, ValueError):
+            raw_port = entry.get("port", DEFAULT_HTTPS_PORT)
+            port = DEFAULT_HTTPS_PORT if isinstance(raw_port, bool) else int(raw_port)
+        except (TypeError, ValueError, OverflowError):
             port = DEFAULT_HTTPS_PORT
         if port <= 0 or port > 65535:
             port = DEFAULT_HTTPS_PORT
