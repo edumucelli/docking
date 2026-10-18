@@ -176,6 +176,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
+from docking.core.config import DockItemClickEffect
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
     RGB,
@@ -925,6 +926,13 @@ class DockRenderer:
 
         # Hide offset: distance to push content toward the screen edge
         hide_cross = icon_hide * cross_size
+        play_launch_bounce = (
+            getattr(config, "dock_item_click_effects_enabled", True)
+            and getattr(
+                config, "dock_item_click_effect", DockItemClickEffect.BOUNCE.value
+            )
+            == DockItemClickEffect.BOUNCE.value
+        )
 
         now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
@@ -945,7 +953,7 @@ class DockRenderer:
             # Bounce away from screen edge
             bounce = 0.0
             launch_duration_us = theme.launch_bounce_time_ms * 1000
-            if item.last_launched > 0:
+            if play_launch_bounce and item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce += (
                     easing_bounce(t=lt, duration=launch_duration_us, n=2)
@@ -1080,7 +1088,7 @@ class DockRenderer:
 
             bounce = 0.0
             launch_duration_us = theme.launch_bounce_time_ms * 1000
-            if item.last_launched > 0:
+            if play_launch_bounce and item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce += (
                     easing_bounce(t=lt, duration=launch_duration_us, n=2)

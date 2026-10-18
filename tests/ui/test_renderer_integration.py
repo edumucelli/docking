@@ -517,6 +517,62 @@ class TestRendererContentFlow:
         assert x + size <= window_w
         assert y + size <= window_h
 
+    def test_disabling_click_effect_stops_launch_bounce_only(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+            dock_item_click_effects_enabled=True,
+            dock_item_click_effect="bounce",
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_clicked=now_us - 150_000,
+            last_launched=now_us - 150_000,
+            last_urgent=now_us - 300_000,
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        bounces = []
+        original_map = renderer_mod.map_icon_position
+
+        def capture_bounce(**kwargs):
+            bounces.append(kwargs["bounce"])
+            return original_map(**kwargs)
+
+        monkeypatch.setattr(renderer_mod, "map_icon_position", capture_bounce)
+        monkeypatch.setattr(renderer_mod, "draw_shelf_background", lambda **_: None)
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock()
+
+        for enabled in (True, False):
+            config.dock_item_click_effects_enabled = enabled
+            renderer._draw_content(
+                cr=_surface_context(width=420, height=187),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            assert renderer._draw_icon.call_args.kwargs["darken"] > 0
+
+        assert bounces[0] > bounces[1] > 0
+
     def test_draw_content_runs_icons_indicators_and_urgent_glow(self, monkeypatch):
         # Given
         renderer = renderer_mod.DockRenderer()

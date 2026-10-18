@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 import subprocess
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -233,13 +232,8 @@ class ApplicationLauncher:
     ) -> bool:
         if not exec_line:
             return False
-        command = commands.clean_desktop_exec(exec_line)
-        if not command:
-            return False
         try:
-            argv = [
-                argument for argument in shlex.split(command, posix=True) if argument
-            ]
+            argv = commands.desktop_exec_argv(exec_line)
         except ValueError as exc:
             log.bind(
                 desktop_id=application.desktop_id,
