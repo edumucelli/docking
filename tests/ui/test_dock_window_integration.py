@@ -138,6 +138,8 @@ def _make_stub(item: DockItem | None = None):
         pos=Position.BOTTOM,
         left_click_action="toggle",
         middle_click_action="new-window",
+        dock_item_click_effects_enabled=True,
+        dock_item_click_effect="bounce",
         stack_unfold="click",
         icon_size=48,
         additional_distance_from_edge=0,
@@ -423,6 +425,33 @@ class TestButtonReleaseFlow:
         assert item.last_launched == 2020
         stub.hover.start_anim_pump.assert_called_once_with(700)
 
+    @pytest.mark.parametrize("button", [1, 2])
+    def test_launch_without_click_effect_keeps_short_click_feedback(
+        self, monkeypatch, button
+    ):
+        item = DockItem(desktop_id="firefox.desktop", is_running=button == 2)
+        stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effects_enabled = False
+        event = SimpleNamespace(x=12.0, y=6.0, button=button, state=0)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2020
+        )
+        controller = _controller(stub)
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        launcher = controller._application_launcher
+        if button == 1:
+            launcher.launch.assert_called_once_with("firefox.desktop")
+        else:
+            launcher.launch_new_window.assert_called_once_with("firefox.desktop")
+        assert item.last_clicked == 2020
+        assert item.last_launched == 0
+        stub.hover.start_anim_pump.assert_called_once_with(350)
+
     def test_left_click_cycle_dispatches_cycle_action(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)
@@ -560,7 +589,7 @@ class TestButtonReleaseFlow:
         controller._target_service.open_target.assert_called_once_with(
             "file:///tmp/notes.txt"
         )
-        assert item.last_launched == 3030
+        assert item.last_launched == 0
 
     def test_left_click_folder_item_opens_folder_stack(self, monkeypatch):
         item = DockItem(

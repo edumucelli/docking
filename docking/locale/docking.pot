@@ -5579,3 +5579,23 @@ msgstr ""
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr ""
+
+#: docking/ui/settings.py:430
+msgid "Bounce"
+msgstr ""
+
+#: docking/ui/settings.py:852
+msgid "Enable Effects When Clicking Dock Items"
+msgstr ""
+
+#: docking/ui/settings.py:854
+msgid "Play the selected effect when launching an app from the dock."
+msgstr ""
+
+#: docking/ui/settings.py:857
+msgid "Click Effect"
+msgstr ""
+
+#: docking/ui/settings.py:859
+msgid "Choose the effect played when launching an app."
+msgstr ""

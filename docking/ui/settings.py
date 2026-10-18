@@ -73,6 +73,7 @@ from docking.core.config import (
     MIN_TRANSPARENCY,
     MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
     MIN_ZOOM_PERCENT,
+    DockItemClickEffect,
     LeftClickAction,
     MiddleClickAction,
     StackUnfold,
@@ -282,6 +283,8 @@ class SettingsWindowController:
         self._anchor_applets_switch: Any = None
         self._anchor_files_switch: Any = None
         self._zoom_enabled_switch: Any = None
+        self._dock_item_click_effects_enabled_switch: Any = None
+        self._dock_item_click_effect_combo: Any = None
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
@@ -417,6 +420,15 @@ class SettingsWindowController:
             (MiddleClickAction.CLOSE_FOCUSED.value, _("Close Focused Window")),
         ]:
             self._middle_click_combo.append(action_value, action_label)
+
+        self._dock_item_click_effects_enabled_switch = self._new_switch()
+        self._dock_item_click_effect_combo = Gtk.ComboBoxText()
+        self._dock_item_click_effect_combo.set_size_request(
+            HIDE_MODE_COMBO_WIDTH_PX, -1
+        )
+        self._dock_item_click_effect_combo.append(
+            DockItemClickEffect.BOUNCE.value, _("Bounce")
+        )
 
         self._stack_unfold_combo = Gtk.ComboBoxText()
         self._stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
@@ -837,6 +849,16 @@ class SettingsWindowController:
                     ),
                 ),
                 (
+                    _("Enable Effects When Clicking Dock Items"),
+                    self._dock_item_click_effects_enabled_switch,
+                    _("Play the selected effect when launching an app from the dock."),
+                ),
+                (
+                    _("Click Effect"),
+                    self._dock_item_click_effect_combo,
+                    _("Choose the effect played when launching an app."),
+                ),
+                (
                     _("Window List Sort"),
                     self._window_list_sort_combo,
                     _("Choose how open windows are ordered in app context menus."),
@@ -1225,6 +1247,16 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="middle_click_action",
                 widget=self._middle_click_combo,
+            ),
+            self._register_switch_binding(
+                config_attr="dock_item_click_effects_enabled",
+                widget=self._dock_item_click_effects_enabled_switch,
+                on_change=self._actions.queue_draw,
+            ),
+            self._register_choice_binding(
+                config_attr="dock_item_click_effect",
+                widget=self._dock_item_click_effect_combo,
+                on_change=self._actions.queue_draw,
             ),
             self._register_choice_binding(
                 config_attr="stack_unfold",
@@ -1826,6 +1858,10 @@ class SettingsWindowController:
             )
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
+        if self._dock_item_click_effect_combo is not None:
+            self._dock_item_click_effect_combo.set_sensitive(
+                bool(self._config.dock_item_click_effects_enabled)
+            )
         if self._monitor_combo is not None:
             self._monitor_combo.set_sensitive(not bool(self._config.active_display))
         hide_controls_sensitive = self._config.hide_mode not in (
