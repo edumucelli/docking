@@ -112,7 +112,15 @@ class PathSearchProvider:
             return self._target_service.open_target(parts[0])
         if parts[1] == "copy":
             parsed = urlparse(parts[0])
-            value = unquote(parsed.path) if parsed.scheme == "file" else parts[0]
+            try:
+                value = (
+                    unquote(parsed.path, errors="strict")
+                    if parsed.scheme == "file"
+                    else parts[0]
+                )
+            except UnicodeDecodeError:
+                # A URI preserves filename bytes that clipboard text cannot represent.
+                value = parts[0]
             self._copy_text(value)
             return True
         return False
