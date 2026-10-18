@@ -1,6 +1,39 @@
 """Behavior steps using the real GTK preview surface."""
 
-from behave import then, when
+from behave import given, then, when
+from gi.repository import GdkPixbuf
+
+from docking.platform.backends.base import PreviewImage
+from tests.ui.preview_support import settle_gtk
+
+
+@given("a visible preview waiting for an asynchronous window capture")
+def pending_preview(context):
+    service = context.preview.popup._preview_service
+    service.asynchronous = True
+    service.capture.return_value = None
+    context.preview.show(1)
+    context.async_preview_image = context.preview.cards[0].get_child().get_children()[0]
+    assert context.async_preview_image.get_pixbuf() is None
+
+
+@when("the asynchronous window capture returns red pixels")
+def ready_preview(context):
+    image = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 20, 10)
+    image.fill(0xFF0000FF)
+    context.preview.popup._preview_service.capture.return_value = PreviewImage(
+        image, 20, 10
+    )
+    for _ in range(5):
+        settle_gtk()
+
+
+@then("the visible preview image shows the red window")
+def visible_preview_pixels(context):
+    pixbuf = context.async_preview_image.get_pixbuf()
+    assert pixbuf is not None
+    assert pixbuf.get_pixels()[:4] == b"\xff\x00\x00\xff"
+
 
 from docking.core.position import Position
 from docking.platform.backends.base import WindowId

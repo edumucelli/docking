@@ -145,7 +145,8 @@ def should_check_for_updates(
     if checked_at is None:
         return True
     reference = _aware_utc(now)
-    return reference - checked_at >= timedelta(hours=max(1, interval_hours))
+    # Compare whole hours without constructing a possibly overflowing timedelta.
+    return (reference - checked_at) // timedelta(hours=1) >= max(1, interval_hours)
 
 
 def decide_update_popup(

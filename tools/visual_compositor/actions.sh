@@ -9,7 +9,7 @@ run_lab_action() {
             "$LAB_SCRIPTS/probes/stack_action.py"
         return
     fi
-    geometry="$(adapter_geometry | jq '.outputs[0]')"
+    geometry="$(adapter_geometry | jq '.outputs[0] | .workarea // .')"
     x="$(echo "$geometry" | jq '.x')"; y="$(echo "$geometry" | jq '.y')"
     width="$(echo "$geometry" | jq '.width')"; height="$(echo "$geometry" | jq '.height')"
     lab_pointer "$((x+width/2))" "$((y+height/2))"

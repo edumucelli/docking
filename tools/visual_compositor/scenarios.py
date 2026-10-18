@@ -90,6 +90,8 @@ BASE_CONFIG = {
     # Config.load migrates it to window_preview_thumbnails_enabled.
     "previews_enabled": False,
     "active_display": False,
+    "startup_tips_enabled": False,
+    "update_check_enabled": False,
 }
 
 
