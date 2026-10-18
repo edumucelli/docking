@@ -474,6 +474,12 @@ class MiddleClickAction(str, Enum):
     CLOSE_FOCUSED = "close-focused"
 
 
+class DockItemClickEffect(str, Enum):
+    """Visual effect played when a dock click launches an application."""
+
+    BOUNCE = "bounce"
+
+
 class StackUnfold(str, Enum):
     """How reusable stacks should be opened from the dock."""
 
@@ -496,6 +502,8 @@ class WindowListSort(str, Enum):
 
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
+DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED = True
+DEFAULT_DOCK_ITEM_CLICK_EFFECT = DockItemClickEffect.BOUNCE.value
 DEFAULT_STACK_UNFOLD = StackUnfold.HOVER.value
 DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
 DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
@@ -529,6 +537,15 @@ def _normalize_middle_click_action(value: object) -> str:
                 exc,
             )
     return MiddleClickAction.NEW_WINDOW.value
+
+
+def _normalize_dock_item_click_effect(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return DockItemClickEffect(value=value).value
+        except ValueError:
+            logger.warning("Invalid dock item click effect %r; using bounce", value)
+    return DEFAULT_DOCK_ITEM_CLICK_EFFECT
 
 
 def _normalize_stack_unfold(value: object) -> str:
@@ -669,6 +686,15 @@ def _normalize_int(
         parsed = minimum
     if maximum is not None and parsed > maximum:
         parsed = maximum
+    return parsed
+
+
+def _normalize_milliseconds(value: object, *, default: int) -> int:
+    """Keep animation timings within the unsigned GLib millisecond range."""
+    parsed = _normalize_int(value, default=default, minimum=0)
+    if parsed > 2**32 - 1:
+        logger.warning("Config timing exceeds the millisecond range; using %r", default)
+        return default
     return parsed
 
 
@@ -834,6 +860,10 @@ class Config:
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
+    # Whether launching an application from a dock item plays the selected effect
+    dock_item_click_effects_enabled: bool = DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED
+    # Effect to play on an application launch from the dock
+    dock_item_click_effect: str = DEFAULT_DOCK_ITEM_CLICK_EFFECT
     # How reusable stacks open from the dock
     stack_unfold: str = DEFAULT_STACK_UNFOLD
     # Sort order for open windows in the right-click context menu
@@ -932,20 +962,17 @@ class Config:
         )
         self.monitor_connector = _normalize_optional_text(self.monitor_connector)
         self.hide_mode = _normalize_hide_mode(self.hide_mode)
-        self.hide_delay_ms = _normalize_int(
+        self.hide_delay_ms = _normalize_milliseconds(
             self.hide_delay_ms,
             default=DEFAULT_HIDE_DELAY_MS,
-            minimum=0,
         )
-        self.unhide_delay_ms = _normalize_int(
+        self.unhide_delay_ms = _normalize_milliseconds(
             self.unhide_delay_ms,
             default=DEFAULT_UNHIDE_DELAY_MS,
-            minimum=0,
         )
-        self.hide_time_ms = _normalize_int(
+        self.hide_time_ms = _normalize_milliseconds(
             self.hide_time_ms,
             default=DEFAULT_HIDE_TIME_MS,
-            minimum=0,
         )
         self.window_preview_thumbnails_enabled = _normalize_bool(
             self.window_preview_thumbnails_enabled,
@@ -1007,6 +1034,13 @@ class Config:
         )
         self.middle_click_action = _normalize_middle_click_action(
             self.middle_click_action,
+        )
+        self.dock_item_click_effects_enabled = _normalize_bool(
+            self.dock_item_click_effects_enabled,
+            default=DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED,
+        )
+        self.dock_item_click_effect = _normalize_dock_item_click_effect(
+            self.dock_item_click_effect,
         )
         self.stack_unfold = _normalize_stack_unfold(
             self.stack_unfold,
