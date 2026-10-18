@@ -51,6 +51,7 @@ from docking.platform.backends.base import (
 from docking.platform.model import DockModel
 from docking.search.controller import GlobalSearchController
 from docking.ui.about import AboutDialogController
+from docking.ui.accessibility import DockAccessibilityManager
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
@@ -92,6 +93,8 @@ class DockUi:
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
+        if self.window.accessibility is not None:
+            self.window.accessibility.start()
         self.input_controller.start()
         self.search.start()
         self.startup_popups.start()
@@ -99,6 +102,8 @@ class DockUi:
     def stop(self) -> None:
         """Stop the composed dock UI lifecycle."""
         with ExitStack() as cleanup:
+            if self.window.accessibility is not None:
+                cleanup.callback(self.window.accessibility.stop)
             cleanup.callback(self.input_controller.stop)
             cleanup.callback(self.search.stop)
             cleanup.callback(self.settings.close)
@@ -216,6 +221,7 @@ def build_dock_window(
         application_launcher=application_launcher,
         target_service=target_service,
     )
+    window.accessibility = DockAccessibilityManager(window, input_controller, menu)
     startup_popups = StartupPopupCoordinator()
     new_year = NewYearGreetingController(window=window)
     startup_tips = StartupTipsController(

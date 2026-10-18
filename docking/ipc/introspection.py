@@ -35,6 +35,9 @@ UNKNOWN_METHOD_ERROR = "org.freedesktop.DBus.Error.UnknownMethod"
 ITEMS_INTROSPECTION_XML = f"""
 <node>
   <interface name="{ITEMS_INTERFACE}">
+    <method name="Focus">
+      <arg name="ok" type="b" direction="out"/>
+    </method>
     <method name="GetCount">
       <arg name="count" type="i" direction="out"/>
     </method>

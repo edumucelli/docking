@@ -137,6 +137,7 @@ preferences, update intervals, and integration requirements.
 | [Installation](docs/INSTALLATION.md) | Package repositories, downloads, and source dependencies |
 | [Wayland](docs/WAYLAND_SUPPORT.md) | Backend support matrix and compositor setup |
 | [Configuration](docs/CONFIGURATION.md) | First use, preferences, and saved settings |
+| [Accessibility](docs/ACCESSIBILITY.md) | Screen readers, keyboard navigation, and shortcut setup |
 | [Global Search](docs/SEARCH.md) | Providers, examples, and keyboard controls |
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |
 | [Themes](docs/THEMES.md) | Theme gallery and custom JSON themes |

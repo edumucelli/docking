@@ -20,6 +20,7 @@ def _window():
 
 
 def _patch_ui_components(monkeypatch):
+    monkeypatch.setattr(factory_mod, "DockAccessibilityManager", MagicMock())
     components = SimpleNamespace(
         about=MagicMock(),
         settings=MagicMock(),

@@ -613,3 +613,20 @@ class TestHoverAnchorHelper:
             draw_rect=rect,
             position=Position.RIGHT,
         ) == (110, 220)
+
+
+def test_focus_dispatches_to_accessible_navigator():
+    window = _make_window()
+    window.accessibility = MagicMock()
+    window.accessibility.focus.return_value = True
+    service = DockItemsService(model=_make_model(), window=window)
+    result = service._dispatch_call(
+        method_name="Focus", parameters=GLib.Variant("()", ())
+    )
+    assert result.unpack() == (True,)
+    window.accessibility.focus.assert_called_once_with()
+    window.accessibility = None
+    result = service._dispatch_call(
+        method_name="Focus", parameters=GLib.Variant("()", ())
+    )
+    assert result.unpack() == (False,)

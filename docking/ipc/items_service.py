@@ -210,6 +210,12 @@ class DockItemsService:
     def _dispatch_call(
         self, *, method_name: str, parameters: GLib.Variant
     ) -> GLib.Variant | None:
+        if method_name == "Focus":
+            accessibility = self._window.accessibility
+            return GLib.Variant(
+                "(b)", (accessibility.focus() if accessibility is not None else False,)
+            )
+
         if method_name == "GetCount":
             return GLib.Variant("(i)", (len(self._model.visible_items()),))
 

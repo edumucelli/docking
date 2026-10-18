@@ -639,3 +639,29 @@ class TestElapsedAnimationTime:
         assert ctrl._animation_tick() is False
         assert ctrl.state == HideState.VISIBLE
         assert ctrl._anim_timer_id == 0
+
+
+def test_keyboard_reveal_is_immediate_and_independent_of_other_inhibits(monkeypatch):
+    config = SimpleNamespace(
+        hide_mode="autohide", unhide_delay_ms=900, hide_delay_ms=100, hide_time_ms=250
+    )
+    ctrl = AutoHideController(MagicMock(), config)
+    ctrl.state = HideState.HIDDEN
+    ctrl.hide_offset = 1.0
+    ctrl._unhide_timer_id = 12
+    removed = []
+    monkeypatch.setattr(autohide_mod, "_source_exists", lambda **kwargs: True)
+    monkeypatch.setattr(autohide_mod.GLib, "source_remove", removed.append)
+    monkeypatch.setattr(autohide_mod.GLib, "timeout_add", lambda *args: 99)
+    ctrl.set_keyboard_active(True)
+    assert ctrl.state == HideState.SHOWING
+    assert 12 in removed
+    ctrl.set_hovered(False)
+    ctrl.set_disabled(False)
+    assert not ctrl._hide_after_show
+    ctrl.set_disabled(True, reason="menu")
+    ctrl.set_keyboard_active(False)
+    assert ctrl._disabled
+    assert not ctrl._hide_after_show
+    ctrl.set_disabled(False)
+    assert ctrl._hide_after_show
