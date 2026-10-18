@@ -24,13 +24,13 @@ import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 import gi
 
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
+from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 from docking.platform.commands import desktop_exec_argv
 from docking.platform.environment import is_flatpak, xdg_data_home
@@ -257,30 +257,12 @@ def desktop_file_action_exec(path: Path, action_id: str) -> str:
 
 def desktop_id_from_uri_or_path(target: str) -> str | None:
     """Return a desktop ID from a local .desktop path or file URI."""
-    if not target:
-        return None
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        path = Path(unquote(parsed.path))
-    elif parsed.scheme == "":
-        path = Path(target).expanduser()
-    else:
+    path = local_path_from_uri_or_path(target)
+    if path is None:
         return None
     if path.suffix != DESKTOP_SUFFIX:
         return None
     return path.name
-
-
-def local_path_from_uri_or_path(target: str) -> Path | None:
-    """Return a local filesystem path from a file URI or plain local path."""
-    if not target:
-        return None
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        return Path(unquote(parsed.path))
-    if parsed.scheme == "":
-        return Path(target).expanduser()
-    return None
 
 
 def appimage_path_needing_executable_permission(target: str | Path) -> Path | None:
