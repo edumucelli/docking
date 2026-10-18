@@ -153,11 +153,10 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import unquote, urlparse
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
-from docking.core.paths import ensure_parent_dir
+from docking.core.paths import ensure_parent_dir, local_path_from_uri_or_path
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
@@ -636,8 +635,11 @@ class PinnedEntry:
 def _uri_is_dir(target: str) -> bool:
     if not target.startswith("file://"):
         return False
+    path = local_path_from_uri_or_path(target)
+    if path is None:
+        return False
     try:
-        return Path(unquote(urlparse(target).path)).is_dir()
+        return path.is_dir()
     except (ValueError, OSError) as exc:
         # is_dir() raises PermissionError for an untraversable parent, and
         # letting that escape aborts the whole config load over one bad pin.
