@@ -79,7 +79,7 @@ from docking.core.config import (
     StackUnfold,
     WindowListSort,
 )
-from docking.core.position import Position
+from docking.core.position import Position, is_horizontal
 from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
@@ -126,6 +126,7 @@ APPLET_GRID_COLUMN_SPACING_PX = 16
 APPLET_GRID_ROW_SPACING_PX = 8
 APPLET_ROW_CONTENT_SPACING_PX = 6
 ZOOM_PERCENT_SCALE = 100
+ALIGNMENT_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
 WINDOW_PREVIEW_THUMBNAIL_WIDTH_STEP = 10
 TRANSPARENCY_PERCENT_SCALE = 100
@@ -287,6 +288,7 @@ class SettingsWindowController:
         self._dock_item_click_effect_combo: Any = None
         self._theme_combo: Any = None
         self._position_combo: Any = None
+        self._dock_alignment_scale: Any = None
         self._icon_size_spin: Any = None
         self._transparency_scale: Any = None
         self._additional_distance_scale: Any = None
@@ -485,6 +487,16 @@ class SettingsWindowController:
         self._position_combo = Gtk.ComboBoxText()
         for pos in Position:
             self._position_combo.append(pos.value, pos.value.capitalize())
+
+        self._dock_alignment_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, ALIGNMENT_PERCENT_SCALE, 1
+        )
+        self._dock_alignment_scale.set_digits(0)
+        self._dock_alignment_scale.set_draw_value(True)
+        self._dock_alignment_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
+        self._dock_alignment_scale.connect(
+            "format-value", lambda _scale, value: f"{value:.0f}%"
+        )
 
         self._monitor_combo = Gtk.ComboBoxText()
         self._monitor_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
@@ -709,6 +721,11 @@ class SettingsWindowController:
                     _("Position"),
                     self._position_combo,
                     _("Choose which screen edge the dock uses."),
+                ),
+                (
+                    _("Alignment"),
+                    self._dock_alignment_scale,
+                    _("Position the dock along the selected screen edge."),
                 ),
                 (_("Extra Distance from Edge"), additional_distance_box, None),
                 (
@@ -1361,6 +1378,19 @@ class SettingsWindowController:
             self._register_choice_binding(
                 config_attr="position",
                 widget=self._position_combo,
+                on_change=self._after_position_changed,
+            ),
+            self._register_numeric_binding(
+                config_attr="dock_alignment",
+                widget=self._dock_alignment_scale,
+                read_widget=lambda: (
+                    float(self._dock_alignment_scale.get_value())
+                    / ALIGNMENT_PERCENT_SCALE
+                ),
+                write_widget=lambda value: self._dock_alignment_scale.set_value(
+                    cast(float, value) * ALIGNMENT_PERCENT_SCALE
+                ),
+                signal="value-changed",
                 on_change=self._actions.reposition,
             ),
             self._register_int_binding(
@@ -1560,6 +1590,8 @@ class SettingsWindowController:
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
+
+        self._update_alignment_marks()
 
     def _sync_monitor_combo(self) -> None:
         if self._monitor_combo is None:
@@ -1785,6 +1817,24 @@ class SettingsWindowController:
     def _after_additional_distance_changed(self) -> None:
         self._actions.reposition()
         self._actions.queue_draw()
+
+    def _after_position_changed(self) -> None:
+        self._update_alignment_marks()
+        self._actions.reposition()
+
+    def _update_alignment_marks(self) -> None:
+        """Describe the shared alignment value in the selected orientation."""
+        if self._dock_alignment_scale is None:
+            return
+        horizontal = is_horizontal(Position(self._config.position))
+        labels = (
+            (_("Left"), _("Center"), _("Right"))
+            if horizontal
+            else (_("Top"), _("Center"), _("Bottom"))
+        )
+        self._dock_alignment_scale.clear_marks()
+        for value, label in zip((0, 50, 100), labels, strict=True):
+            self._dock_alignment_scale.add_mark(value, Gtk.PositionType.BOTTOM, label)
 
     def _after_pressure_reveal_changed(self) -> None:
         self._actions.refresh_pressure_handler()

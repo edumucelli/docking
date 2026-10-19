@@ -630,6 +630,29 @@ class TestPlacementControllerGeometry:
 
 
 class TestPlacementControllerStruts:
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0, 0.25, 0.5, 0.75, 1])
+    def test_reservation_span_tracks_alignment_with_panel_insets(
+        self, position, alignment
+    ):
+        window = _make_window()
+        window.config.dock_alignment = alignment
+        window.model.visible_items = lambda: [SimpleNamespace(main_size=48)] * 2
+        controller = _make_controller(window)
+        monitor = placement_mod.Rect(1920, 0, 1920, 1080)
+        external = placement_mod.Rect(1960, 28, 1880, 1052)
+        start, end = controller._reservation_span(
+            monitor=monitor, external=external, position=position
+        )
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        available_start = external.x if horizontal else external.y
+        available_extent = external.width if horizontal else external.height
+        assert end - start == 132
+        free_space = available_extent - 132
+        expected = available_start + free_space * alignment
+        assert start == int(expected)
+        assert available_start <= start < end <= available_start + available_extent
+
     def test_set_struts_waits_until_window_is_realized(self):
         window = _make_window(get_realized=lambda: False)
         controller = _make_controller(window)

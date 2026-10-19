@@ -684,7 +684,7 @@ class DockRenderer:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}
         self.prev_widths: dict[str, int] = {}
-        self._slide_layout_context: tuple[Position, int] | None = None
+        self._slide_layout_context: tuple[object, ...] | None = None
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
         self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
@@ -794,6 +794,7 @@ class DockRenderer:
         self._cache.prune_icon_surfaces(items=items)
 
         icon_size = config.icon_size
+        has_custom_alignment = getattr(config, "dock_alignment", 0.5) != 0.5
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
         content_cross_origin = frame.content_cross_origin
@@ -823,6 +824,7 @@ class DockRenderer:
             or hide_offset > 0
             or membership_changed
             or layout_widths_changed
+            or has_custom_alignment
         ):
             if membership_changed:
                 log.debug(
@@ -914,11 +916,19 @@ class DockRenderer:
 
         # --- Draw icons ---
         main_extent = width if is_horizontal(pos=pos) else height
+        layout_context: tuple[object, ...] = (pos, main_extent)
+        if has_custom_alignment:
+            # Geometry already animates zoom. Extra slides would move growing
+            # corner icons outside their clamped shelf and current hit regions.
+            layout_context += (
+                getattr(config, "dock_alignment", 0.5),
+                tuple(item.scale for item in layout),
+            )
         self._update_slide_offsets(
             items=items,
             layout=layout,
             icon_offset=icon_offset,
-            layout_context=(pos, main_extent),
+            layout_context=layout_context,
         )
 
         gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
@@ -1186,8 +1196,9 @@ class DockRenderer:
             cr.translate(width, 0)
             cr.rotate(math.pi / 2)
         elif pos == Position.RIGHT:
-            cr.rotate(-math.pi / 2)
-            cr.translate(-height, 0)
+            # Swap axes without reversing the main axis: top-aligned icons
+            # and their shelf must both remain at the top of a right dock.
+            cr.transform(cairo.Matrix(0, 1, 1, 0, 0, 0))
         # BOTTOM: identity -- no transform needed
 
     def _update_hover_lighten(
@@ -1221,7 +1232,7 @@ class DockRenderer:
         layout: list[LayoutItem],
         icon_offset: float,
         *,
-        layout_context: tuple[Position, int] | None = None,
+        layout_context: tuple[object, ...] | None = None,
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}

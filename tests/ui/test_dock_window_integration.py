@@ -1325,6 +1325,19 @@ class TestDockWindowSetupAndGeometry:
 
 
 class TestDockWindowStrutsAndRegion:
+    def test_alignment_changes_rebuild_cached_input_geometry(self):
+        stub, _ = _make_stub()
+        frame = stub._test_geometry_frame
+        stub.geometry.build_frame = MagicMock(return_value=frame)
+        stub._current_or_build_geometry_frame()
+        stub._current_or_build_geometry_frame()
+        assert stub.geometry.build_frame.call_count == 1
+        stub.config.dock_alignment = 0.0
+        stub._current_or_build_geometry_frame()
+        stub.config.dock_alignment = 0.75
+        stub._current_or_build_geometry_frame()
+        assert stub.geometry.build_frame.call_count == 3
+
     def testupdate_input_region_applies_shape_and_caches_rect(self, monkeypatch):
         # Given
         surface_service = MagicMock()
@@ -1494,6 +1507,7 @@ class TestDockWindowDrawAndHelpers:
                     current_geometry_frame_signature=(
                         1920,
                         122,
+                        0.5,
                         1.0,
                         2.0,
                         -1,
@@ -1563,6 +1577,7 @@ class TestDockWindowDrawAndHelpers:
                     current_geometry_frame_signature=(
                         1920,
                         122,
+                        0.5,
                         1.0,
                         2.0,
                         -1,
@@ -1617,6 +1632,7 @@ class TestDockWindowDrawAndHelpers:
                     current_geometry_frame_signature=(
                         1920,
                         122,
+                        0.5,
                         1.0,
                         2.0,
                         -1,
@@ -1648,6 +1664,7 @@ class TestDockWindowDrawAndHelpers:
                     current_geometry_frame_signature=(
                         1920,
                         122,
+                        0.5,
                         1.0,
                         2.0,
                         -1,

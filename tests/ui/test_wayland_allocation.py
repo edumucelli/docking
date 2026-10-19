@@ -65,12 +65,13 @@ def test_custom_and_collapsed_item_widths_remain_valid(position):
     )
 
 
-def test_non_layer_shell_geometry_is_not_rescaled():
+def test_non_layer_shell_oversized_dock_also_fits_without_changing_preferences():
     dock = ConfiguredLayerDock("left")
     dock.configure(112)
     dock.window.surface_service = ReducedSurfaceService()
-    frame = dock.builder.build_frame()
-    assert all(g.draw_rect.w == 48 for g in frame.item_geometries)
+    dock.frame = dock.builder.build_frame()
+    dock.assert_fits()
+    assert all(g.draw_rect.w < 48 for g in dock.frame.item_geometries)
 
 
 @pytest.mark.parametrize("position", list(Position))

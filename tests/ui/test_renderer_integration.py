@@ -11,6 +11,7 @@ import cairo
 import pytest
 
 import docking.ui.renderer as renderer_mod
+from docking.core.config import Config
 from docking.core.items import APPLET_KIND
 from docking.core.position import Position
 from docking.core.theme import Theme
@@ -180,6 +181,60 @@ class TestRendererDrawEntry:
 
 
 class TestRendererContentFlow:
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 1.0])
+    def test_aligned_shelf_paint_matches_geometry_through_zoom(
+        self, monkeypatch, position, alignment
+    ):
+        renderer = renderer_mod.DockRenderer()
+        renderer._draw_icon = MagicMock()
+        theme = Theme.load("default", 48)
+        config = Config(position=position.value, dock_alignment=alignment)
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        width, height = (420, 187) if horizontal else (187, 420)
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        painted = []
+
+        def capture_shelf(**kwargs):
+            cr = kwargs["cr"]
+            x, y, w, h = (kwargs[key] for key in ("x", "y", "w", "h"))
+            corners = [cr.user_to_device(x, y), cr.user_to_device(x + w, y + h)]
+            painted.append(
+                (
+                    min(p[0] for p in corners),
+                    min(p[1] for p in corners),
+                    abs(corners[1][0] - corners[0][0]),
+                    abs(corners[1][1] - corners[0][1]),
+                )
+            )
+
+        monkeypatch.setattr(renderer_mod, "draw_shelf_background", capture_shelf)
+        for cursor in (-1.0, 210.0, -1.0):
+            frame = build_geometry_frame(
+                items=items,
+                config=config,
+                theme=theme,
+                window_w=width,
+                window_h=height,
+                cursor_main=cursor,
+                autohide_state=None,
+            )
+            renderer._draw_content(
+                cr=_surface_context(width, height),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            assert painted[-1] == pytest.approx(tuple(frame.background_rect))
+            for call, geometry in zip(
+                renderer._draw_icon.call_args_list[-len(items) :],
+                frame.item_geometries,
+                strict=True,
+            ):
+                assert math.floor(call.kwargs["x"]) == geometry.draw_rect.x
+                assert math.floor(call.kwargs["y"]) == geometry.draw_rect.y
+
     def test_fully_collapsed_item_is_not_drawn(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)

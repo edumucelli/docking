@@ -30,6 +30,7 @@ class TestConfigDefaults:
         assert c.zoom_percent == 1.5
         assert c.zoom_range == 3
         assert c.position == "bottom"
+        assert c.dock_alignment == 0.5
         assert c.monitor_index == -1
         assert c.hide_mode == "none"
         assert c.hide_delay_ms == 0
@@ -199,6 +200,35 @@ class TestConfigDefaults:
 
 
 class TestConfigLoad:
+    @pytest.mark.parametrize(
+        ("alignment", "expected_alignment"),
+        [
+            ("0.25", 0.25),
+            (-1, 0.0),
+            (2, 1.0),
+            ("bad", 0.5),
+            (None, 0.5),
+            (float("nan"), 0.5),
+            (float("inf"), 0.5),
+        ],
+    )
+    def test_alignment_normalizes_and_roundtrips(
+        self, tmp_path, alignment, expected_alignment
+    ):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"dock_alignment": alignment}))
+        config = Config.load(path)
+        assert config.dock_alignment == expected_alignment
+        config.save()
+        loaded = Config.load(path)
+        assert loaded.dock_alignment == expected_alignment
+
+    def test_older_config_keeps_centered_alignment(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text('{"position": "left"}')
+        config = Config.load(path)
+        assert config.dock_alignment == 0.5
+
     def test_load_missing_file_creates_default(self, tmp_path, monkeypatch):
         # Given
         path = tmp_path / "dock.json"

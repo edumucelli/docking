@@ -8,9 +8,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from docking.core.config import Config
 from docking.core.layout import content_bounds
 from docking.core.position import Position
-from docking.core.theme import Theme
+from docking.core.theme import Theme, list_theme_names
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
@@ -51,6 +52,156 @@ class TestRect:
         assert rect.contains(39, 59) is True
         assert rect.contains(40, 59) is False
         assert rect.contains(39, 60) is False
+
+
+class TestDockAlignment:
+    @pytest.mark.parametrize("alignment", [0.0, 0.25, 0.5, 0.75, 1.0])
+    @pytest.mark.parametrize("constrained", [False, True])
+    @pytest.mark.parametrize("index", [0, -1])
+    def test_insertion_space_preserves_cursor_mapping(
+        self, alignment, constrained, index
+    ):
+        config = Config(dock_alignment=alignment)
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        local_cursors = []
+        for insertion in (-1, 1):
+            kwargs = {
+                "items": items,
+                "config": config,
+                "theme": Theme.load("default", 48),
+                "window_w": 420,
+                "window_h": 187,
+                "autohide_state": None,
+                "zoom_progress": 0.0,
+                "constrain_main_axis": constrained,
+                "drop_insert_index": insertion,
+            }
+            resting = build_geometry_frame(cursor_main=-1, **kwargs)
+            rect = resting.item_geometries[index].draw_rect
+            hovered = build_geometry_frame(cursor_main=rect.x + rect.w / 2, **kwargs)
+            local_cursors.append(hovered.local_cursor_main)
+        assert local_cursors[0] == pytest.approx(local_cursors[1], abs=1)
+
+    @pytest.mark.parametrize("theme_name", list_theme_names())
+    @pytest.mark.parametrize("alignment", [0.0, 1.0])
+    @pytest.mark.parametrize("main_size", [253, 410, 1810])
+    def test_allocated_surface_and_theme_determine_actual_bounds(
+        self, theme_name, alignment, main_size
+    ):
+        config = Config(dock_alignment=alignment)
+        items = [
+            DockItem(
+                desktop_id=f"app-{i}.desktop", insert_factor=0.25 if i == 1 else 1.0
+            )
+            for i in range(3)
+        ]
+        frame = build_geometry_frame(
+            items=items,
+            config=config,
+            theme=Theme.load(theme_name, 48),
+            window_w=main_size,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+            drop_insert_index=1,
+        )
+        assert frame.background_rect.x >= 0
+        assert frame.background_rect.x + frame.background_rect.w <= main_size
+
+    @staticmethod
+    def frame(
+        config, items, *, cursor=-1.0, drop_index=-1, hidden=False, zoom_progress=1.0
+    ):
+        horizontal = config.position in ("top", "bottom")
+        return build_geometry_frame(
+            items=items,
+            config=config,
+            theme=Theme.load("default", 48),
+            window_w=420 if horizontal else 187,
+            window_h=187 if horizontal else 420,
+            cursor_main=cursor,
+            autohide_state=HideState.HIDDEN if hidden else None,
+            drop_insert_index=drop_index,
+            zoom_progress=zoom_progress,
+        )
+
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 0.25, 0.5, 0.75, 1.0])
+    @pytest.mark.parametrize("drop_index", [-1, 1])
+    def test_alignment_keeps_shelf_and_targets_visible(
+        self, position, alignment, drop_index
+    ):
+        config = Config(
+            position=position.value,
+            dock_alignment=alignment,
+        )
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        frame = self.frame(config, items, drop_index=drop_index)
+        shelf = frame.background_rect
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        start, extent = (shelf.x, shelf.w) if horizontal else (shelf.y, shelf.h)
+        assert 0 <= start <= start + extent <= 420
+        if drop_index == -1:
+            expected = (420 - extent) * alignment
+            assert start == pytest.approx(expected, abs=1)
+        for geometry in frame.item_geometries:
+            rect = geometry.draw_rect
+            assert (
+                frame.item_at_point(rect.x + rect.w / 2, rect.y + rect.h / 2)
+                is geometry.item
+            )
+
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 1.0])
+    @pytest.mark.parametrize("zoom", [1.5, 4.0])
+    @pytest.mark.parametrize("index", [0, -1])
+    def test_corner_zoom_keeps_first_and_last_item_clickable(
+        self, position, alignment, zoom, index
+    ):
+        config = Config(
+            position=position.value, dock_alignment=alignment, zoom_percent=zoom
+        )
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        resting = self.frame(config, items, zoom_progress=0.0)
+        rect = resting.item_geometries[index].draw_rect
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        cursor = rect.x + rect.w / 2 if horizontal else rect.y + rect.h / 2
+        frame = self.frame(config, items, cursor=cursor)
+        shelf = frame.background_rect
+        start, extent = (shelf.x, shelf.w) if horizontal else (shelf.y, shelf.h)
+        assert 0 <= start <= start + extent <= 420
+        zoomed = frame.item_geometries[index].draw_rect
+        x, y = (
+            (cursor, zoomed.y + zoomed.h / 2)
+            if horizontal
+            else (zoomed.x + zoomed.w / 2, cursor)
+        )
+        assert frame.item_at_point(x, y) is items[index]
+        assert frame.item_geometries[index].layout_item.scale > 1.0
+
+    @pytest.mark.parametrize("position", list(Position))
+    def test_hidden_reveal_region_moves_with_alignment(self, position):
+        config = Config(position=position.value, dock_alignment=1.0)
+        items = [DockItem(desktop_id="app.desktop")]
+        frame = self.frame(config, items, hidden=True)
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        start = frame.cursor_rect.x if horizontal else frame.cursor_rect.y
+        assert start > 250
+
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 0.5, 1.0])
+    def test_oversized_dock_fits_on_every_backend(self, position, alignment):
+        config = Config(position=position.value, dock_alignment=alignment)
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(12)]
+        frame = self.frame(config, items, cursor=210.0, drop_index=2)
+        shelf = frame.background_rect
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        start, extent = (shelf.x, shelf.w) if horizontal else (shelf.y, shelf.h)
+        assert 0 <= start <= start + extent <= 420
+        assert all(
+            geometry.draw_rect.w > 0 and geometry.draw_rect.h > 0
+            for geometry in frame.item_geometries
+        )
 
 
 class TestDockCrossMetrics:
