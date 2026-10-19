@@ -234,7 +234,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -246,7 +246,7 @@ from docking.core.layout import (
     compute_layout,
     content_bounds,
 )
-from docking.core.position import Position, is_horizontal
+from docking.core.position import Position, aligned_main_axis_start, is_horizontal
 from docking.ui.autohide import HideState
 
 if TYPE_CHECKING:
@@ -309,6 +309,10 @@ class Rect(NamedTuple):
     y: int
     w: int
     h: int
+
+    def translated(self, dx: int, dy: int) -> Rect:
+        """Return this rectangle shifted in window-local coordinates."""
+        return Rect(self.x + dx, self.y + dy, self.w, self.h)
 
     def contains(self, x: float, y: float) -> bool:
         return self.x <= x < self.x + self.w and self.y <= y < self.y + self.h
@@ -551,6 +555,98 @@ def map_icon_position(
 
 
 def build_geometry_frame(
+    items: list[DockItem],
+    config: Config,
+    theme: Theme,
+    window_w: int,
+    window_h: int,
+    cursor_main: float,
+    autohide_state: HideState | None,
+    zoom_progress: float = 1.0,
+    hide_offset: float = 0.0,
+    drop_insert_index: int = -1,
+    constrain_main_axis: bool = False,
+) -> DockGeometryFrame:
+    """Build shared geometry, limiting corner zoom before it loses the target."""
+
+    def build(progress: float) -> DockGeometryFrame:
+        return _build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=cursor_main,
+            autohide_state=autohide_state,
+            zoom_progress=progress,
+            hide_offset=hide_offset,
+            drop_insert_index=drop_insert_index,
+            constrain_main_axis=constrain_main_axis,
+        )
+
+    frame = build(zoom_progress)
+    if (
+        cursor_main < 0
+        or zoom_progress <= 0
+        or not config.zoom_enabled
+        or autohide_state == HideState.HIDDEN
+        or (
+            getattr(config, "dock_alignment", 0.5) == 0.5
+            and getattr(config, "dock_lateral_offset", 0) == 0
+        )
+    ):
+        return frame
+
+    horizontal = is_horizontal(config.pos)
+    resting = build(0.0)
+    target = next(
+        (
+            geometry.item
+            for geometry in resting.item_geometries
+            if (
+                geometry.hover_rect.x
+                <= cursor_main
+                < geometry.hover_rect.x + geometry.hover_rect.w
+                if horizontal
+                else geometry.hover_rect.y
+                <= cursor_main
+                < geometry.hover_rect.y + geometry.hover_rect.h
+            )
+        ),
+        None,
+    )
+    if target is None:
+        return frame
+
+    def keeps_target(candidate: DockGeometryFrame) -> bool:
+        geometry = candidate.geometry_for_item(target)
+        if geometry is None:
+            return False
+        rect = geometry.draw_rect
+        x, y = (
+            (cursor_main, rect.y + rect.h / 2)
+            if horizontal
+            else (rect.x + rect.w / 2, cursor_main)
+        )
+        return candidate.item_at_point(x, y) is target
+
+    if keeps_target(frame) or not keeps_target(resting):
+        return frame
+    # Extreme zoom can expand inward past the original pointer position.
+    # Keep the largest safe zoom instead of letting a click hit a neighbour.
+    low, high = 0.0, zoom_progress
+    best = resting
+    for _ in range(8):
+        progress = (low + high) / 2
+        candidate = build(progress)
+        if keeps_target(candidate):
+            low, best = progress, candidate
+        else:
+            high = progress
+    return best
+
+
+def _build_geometry_frame(
     *,
     items: list[DockItem],
     config: Config,
@@ -573,20 +669,18 @@ def build_geometry_frame(
     content_cross_origin = float(gap if pos in (Position.TOP, Position.LEFT) else 0)
     drop_gap = config.icon_size + theme.item_padding if drop_insert_index >= 0 else 0.0
 
-    # Fit only compositor-sized surfaces. Keep the configured icon size/theme
-    # unchanged, and use the same fitted layout for paint, hover and clicks.
-    layout_scale = 1.0
-    if constrain_main_axis:
-        resting_layout = compute_layout(
-            items,
-            config,
-            NO_CURSOR_SENTINEL,
-            item_padding=theme.item_padding,
-            horizontal_padding=theme.horizontal_padding,
-        )
-        layout_scale = _main_axis_fit_scale(
-            resting_layout, main_size=main_size, theme=theme, drop_gap=drop_gap
-        )
+    # Fit oversized docks on every backend. Keep configured sizes unchanged;
+    # painting, hover and clicks all use the fitted geometry.
+    resting_layout = compute_layout(
+        items,
+        config,
+        NO_CURSOR_SENTINEL,
+        item_padding=theme.item_padding,
+        horizontal_padding=theme.horizontal_padding,
+    )
+    layout_scale = _main_axis_fit_scale(
+        resting_layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+    )
 
     local_cursor_main = _local_cursor_main(
         items=items,
@@ -606,19 +700,18 @@ def build_geometry_frame(
             zoom_progress=zoom_progress,
         )
     )
-    if constrain_main_axis:
-        fit_scale = _main_axis_fit_scale(
-            layout, main_size=main_size, theme=theme, drop_gap=drop_gap
-        )
-        if fit_scale < 1.0:
-            layout = tuple(
-                LayoutItem(
-                    x=item.x * fit_scale,
-                    width=int(item.width * fit_scale),
-                    scale=item.scale,
-                )
-                for item in layout
+    fit_scale = _main_axis_fit_scale(
+        layout, main_size=main_size, theme=theme, drop_gap=drop_gap
+    )
+    if fit_scale < 1.0:
+        layout = tuple(
+            LayoutItem(
+                x=item.x * fit_scale,
+                width=int(item.width * fit_scale),
+                scale=item.scale,
             )
+            for item in layout
+        )
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
@@ -660,6 +753,34 @@ def build_geometry_frame(
         hide_offset=hide_offset,
         drop_gap=drop_gap,
     )
+
+    # Align the actual painted shelf, including border and insertion space.
+    # Translate all consumers together so hit tests and popup anchors agree.
+    shift = _main_axis_alignment_shift(
+        config=config,
+        main_size=main_size,
+        start=background_rect.x if horizontal else background_rect.y,
+        extent=background_rect.w if horizontal else background_rect.h,
+    )
+    if shift:
+        dx, dy = (shift, 0) if horizontal else (0, shift)
+        static_dock_rect = static_dock_rect.translated(dx, dy)
+        background_rect = background_rect.translated(dx, dy)
+        item_geometries = tuple(
+            replace(
+                geometry,
+                draw_rect=geometry.draw_rect.translated(dx, dy),
+                hover_rect=geometry.hover_rect.translated(dx, dy),
+                hit_rect=geometry.hit_rect.translated(dx, dy),
+                background_rect=geometry.background_rect.translated(dx, dy),
+                anchor_x=geometry.anchor_x + dx,
+                anchor_y=geometry.anchor_y + dy,
+                main_pos=geometry.main_pos + shift,
+            )
+            for geometry in item_geometries
+        )
+        dock_main_offset += shift
+        zoomed_main_offset += shift
 
     if autohide_state == HideState.HIDDEN:
         cursor_rect = compute_input_rect(
@@ -789,9 +910,34 @@ def _local_cursor_main(
     )
     if layout_scale <= 0:
         return NO_CURSOR_SENTINEL
+    shelf_extent = base_w * layout_scale + 4 * max(0.0, theme.stroke_width)
+    cursor_main -= _main_axis_alignment_shift(
+        config=config,
+        main_size=main_size,
+        start=(main_size - shelf_extent) / 2,
+        extent=shelf_extent,
+    )
     if layout_scale == 1.0:
         return cursor_main - (main_size - base_w) / 2
     return (cursor_main - main_size / 2) / layout_scale + base_w / 2
+
+
+def _main_axis_alignment_shift(
+    *, config: Config, main_size: int, start: float, extent: float
+) -> int:
+    """Translate a shelf while preserving the existing centered pixel layout."""
+    alignment = getattr(config, "dock_alignment", 0.5)
+    lateral_offset = getattr(config, "dock_lateral_offset", 0)
+    if alignment == 0.5 and lateral_offset == 0:
+        desired = min(max(0.0, main_size - extent), max(0.0, start))
+    else:
+        desired = aligned_main_axis_start(
+            available=main_size,
+            extent=extent,
+            alignment=alignment,
+            lateral_offset=lateral_offset,
+        )
+    return round(desired - start)
 
 
 def _build_item_geometries(

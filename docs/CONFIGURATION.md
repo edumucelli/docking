@@ -118,6 +118,8 @@ custom theme format.
 | Setting | Default | Values | Description |
 |---|---:|---|---|
 | `position` | `"bottom"` | `bottom`, `top`, `left`, `right` | Screen edge used by the dock. |
+| `dock_alignment` | `0.5` | `0.0` to `1.0` | Position along the edge: left/top at `0`, center at `0.5`, right/bottom at `1`. Preferences displays this as a percentage. |
+| `dock_lateral_offset` | `0` | `-1000` to `1000` logical pixels | Requested offset along the edge. Positive moves right/down; negative moves left/up. |
 | `additional_distance_from_edge` | `0` | `0` to `100` px | Extra gap added to the active theme's own distance from the screen edge. |
 | `current_workspace_only` | `false` | boolean | Shows running windows only from the active workspace when the backend supports it. |
 | `active_display` | `false` | boolean | Moves the dock to the monitor containing the pointer. |
@@ -126,6 +128,14 @@ custom theme format.
 
 Enabling `active_display` makes the saved monitor selection a fallback because
 the dock follows the pointer at runtime.
+
+**Preferences → Appearance → Placement** provides Alignment and Lateral Offset.
+The offset range is an input limit, not a guarantee that the dock can move that
+far. The displayed position is clamped to the actual available surface, which
+can vary with monitors, panels, compositor allocations, dock length, and zoom.
+The saved alignment and offset are retained when clamped or when switching
+screen edges or monitors. Oversized docks fit within the surface; zoom near a
+boundary is limited when necessary to keep the hovered item clickable.
 
 ### Layout
 

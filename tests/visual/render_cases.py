@@ -53,6 +53,7 @@ DOCK_CASES = (
     "dock-bottom-urgent-hidden",
 )
 POSITION_CHANGE_CASES = ("dock-position-change-right-to-top",)
+ALIGNMENT_CASES = ("dock-bottom-left-zoomed", "dock-right-bottom-offset")
 FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
@@ -79,6 +80,7 @@ SEARCH_CASES = (
 VISUAL_CASES = (
     DOCK_CASES
     + POSITION_CHANGE_CASES
+    + ALIGNMENT_CASES
     + FOLDER_STACK_CASES
     + SHORT_STACK_CASES
     + RECENTFILES_STACK_CASES
@@ -294,6 +296,55 @@ def _draw_position_change_case() -> cairo.ImageSurface:
         paint(Position.RIGHT, cross_extent, 800)
         paint(Position.TOP, cross_extent, 800)
         return paint(Position.TOP, 1280, cross_extent)
+
+
+def _draw_alignment_case(case_name: str) -> cairo.ImageSurface:
+    config = _renderer_config()
+    theme = Theme.load("default", ICON_SIZE)
+    items = _renderer_items()
+    horizontal = case_name == "dock-bottom-left-zoomed"
+    config.pos = Position.BOTTOM if horizontal else Position.RIGHT
+    config.dock_alignment = 0.0 if horizontal else 1.0
+    config.dock_lateral_offset = 0 if horizontal else -24
+    width, height = (420, 187) if horizontal else (187, 420)
+    cursor = -1.0
+    if horizontal:
+        resting = build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        first = resting.item_geometries[0].draw_rect
+        cursor = first.x + first.w / 2
+    frame = build_geometry_frame(
+        items=items,
+        config=config,
+        theme=theme,
+        window_w=width,
+        window_h=height,
+        cursor_main=cursor,
+        autohide_state=None,
+    )
+    state = RenderState(
+        hovered_id=items[0].desktop_id if horizontal else "", cursor_main=cursor
+    )
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+    renderer = DockRenderer()
+    with patch("docking.ui.renderer.GLib.get_monotonic_time", return_value=1_000_000):
+        for _ in range(8):
+            renderer.draw(
+                cr=cairo.Context(surface),
+                widget=_FakeWidget(width, height),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=state,
+            )
+    return surface
 
 
 def _folder_stack_handler() -> MenuHandler:
@@ -787,6 +838,8 @@ def render_case(case_name: str) -> cairo.ImageSurface:
     """Render one deterministic visual regression case."""
     if case_name in DOCK_CASES:
         return _draw_renderer_case(case_name=case_name)
+    if case_name in ALIGNMENT_CASES:
+        return _draw_alignment_case(case_name)
     if case_name == "dock-position-change-right-to-top":
         return _draw_position_change_case()
     if case_name in (*FOLDER_STACK_CASES, *SHORT_STACK_CASES, *RECENTFILES_STACK_CASES):

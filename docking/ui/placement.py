@@ -174,7 +174,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.config import effective_edge_gap
 from docking.core.layout import resting_content_extent
-from docking.core.position import Position, is_horizontal
+from docking.core.position import Position, aligned_main_axis_start, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.base import (
@@ -775,7 +775,13 @@ class DockPlacementController:
         )
         reserved_extent = min(available_extent, max(1, math.ceil(content_extent)))
         span_start = math.floor(
-            available_start + (available_extent - reserved_extent) / 2
+            available_start
+            + aligned_main_axis_start(
+                available=available_extent,
+                extent=reserved_extent,
+                alignment=getattr(self._window.config, "dock_alignment", 0.5),
+                lateral_offset=getattr(self._window.config, "dock_lateral_offset", 0),
+            )
         )
         return span_start, span_start + reserved_extent
 
