@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any
@@ -134,6 +135,10 @@ def tick(state: HydrationState) -> TickResult:
 
     total_secs = max(1, state.interval_min * 60)
     next_fill = _clamp_fill(state.fill - 1.0 / total_secs)
+    # Repeated subtraction leaves a tiny positive residue at several presets.
+    # Treat that rounding error as empty on the scheduled final tick.
+    if math.isclose(next_fill, 0.0, abs_tol=1e-12):
+        next_fill = 0.0
     next_tick = state.tick_count + 1
     next_state = replace(state, fill=next_fill, tick_count=next_tick)
 

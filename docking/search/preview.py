@@ -20,8 +20,8 @@ import stat
 import tarfile
 import zipfile
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
+from docking.core.paths import local_path_from_uri_or_path as local_path_from_target
 from docking.i18n import _
 from docking.search.types import SearchPreview
 
@@ -80,16 +80,6 @@ _ARCHIVE_SUFFIXES = (
     ".tar.xz",
     ".txz",
 )
-
-
-def local_path_from_target(target: str) -> Path | None:
-    """Return a local path for plain paths and local ``file`` URIs only."""
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        return Path(unquote(parsed.path))
-    if not parsed.scheme:
-        return Path(target).expanduser()
-    return None
 
 
 def preview_local_target(

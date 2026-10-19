@@ -12,6 +12,7 @@ import pytest
 import docking.applets.calendar.applet as calendar_applet_mod
 from docking.applets.calendar.applet import CalendarApplet
 from docking.applets.calendar.render import _render_calendar_icon
+from docking.applets.calendar.state import CalendarSnapshot
 from docking.core.config import Config
 
 
@@ -39,6 +40,18 @@ class TestRenderCalendarIcon:
 
 
 class TestCalendarApplet:
+    def test_same_day_number_with_new_weekday_repaints_icon(self, monkeypatch):
+        snapshots = [CalendarSnapshot(15, "Thu", "Thu, Jan 15")]
+        monkeypatch.setattr(calendar_applet_mod, "snapshot_from", lambda: snapshots[0])
+        applet = CalendarApplet(48, config=Config())
+        before = bytes(applet.item.icon.get_pixels())
+        snapshots[0] = CalendarSnapshot(15, "Sun", "Sun, Feb 15")
+
+        applet._tick()
+
+        assert bytes(applet.item.icon.get_pixels()) != before
+        assert applet.item.name == "Sun, Feb 15"
+
     def test_creates_with_icon(self):
         applet = CalendarApplet(48, config=Config())
         assert applet.item.icon is not None
@@ -87,7 +100,7 @@ class TestCalendarApplet:
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
-            lambda: SimpleNamespace(day=11, tooltip="Tue, Jan 11"),
+            lambda: SimpleNamespace(day=11, weekday="Tue", tooltip="Tue, Jan 11"),
         )
 
         # When
@@ -106,7 +119,9 @@ class TestCalendarApplet:
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
-            lambda: SimpleNamespace(day=10, tooltip="Mon, Jan 10"),
+            lambda: SimpleNamespace(
+                day=10, weekday=applet._last_weekday, tooltip="Mon, Jan 10"
+            ),
         )
 
         # When

@@ -39,6 +39,26 @@ def _pixels(pixbuf):
 
 
 @pytest.mark.parametrize("kind", ["wayland", "hyprland", "phoc"])
+def test_native_preview_fits_bounds_without_distorting_window(kind):
+    source = bytes((0, 0, 255, 255)) * (8 * 4)
+    with mmap.mmap(-1, len(source)) as buffer:
+        buffer[:] = source
+        request = _request(
+            kind,
+            requested_width=6,
+            requested_height=6,
+            width=8,
+            height=4,
+            stride=32,
+            format=SHM_ARGB8888,
+            mmap_obj=buffer,
+        )
+        preview = _pixbuf_from_request(request)
+    assert (preview.width, preview.height) == (6, 3)
+    assert _pixels(preview.image) == bytes((255, 0, 0, 255)) * (6 * 3)
+
+
+@pytest.mark.parametrize("kind", ["wayland", "hyprland", "phoc"])
 @pytest.mark.parametrize("format_", [SHM_ARGB8888, SHM_XRGB8888])
 @pytest.mark.parametrize("inverted", [False, True])
 @pytest.mark.parametrize("padding", [0, 1, 2, 3, 8])
@@ -91,6 +111,9 @@ def test_scaled_pixels_match_scalar_conversion_for_random_buffers():
         format_ = rng.choice([SHM_ARGB8888, SHM_XRGB8888])
         inverted = rng.choice([False, True])
         target_width, target_height = rng.randrange(1, 50), rng.randrange(1, 50)
+        ratio = min(target_width / width, target_height / height)
+        fitted_width = max(1, round(width * ratio))
+        fitted_height = max(1, round(height * ratio))
         source = rng.randbytes(stride * height)
         rows = [
             source[index : index + stride] for index in range(0, len(source), stride)
@@ -114,7 +137,7 @@ def test_scaled_pixels_match_scalar_conversion_for_random_buffers():
             width,
             height,
             stride,
-        ).scale_simple(target_width, target_height, GdkPixbuf.InterpType.BILINEAR)
+        ).scale_simple(fitted_width, fitted_height, GdkPixbuf.InterpType.BILINEAR)
         with mmap.mmap(-1, len(source)) as buffer:
             buffer[:] = source
             request = _request(
@@ -129,5 +152,5 @@ def test_scaled_pixels_match_scalar_conversion_for_random_buffers():
                 mmap_obj=buffer,
             )
             preview = _pixbuf_from_request(request)
-        assert (preview.width, preview.height) == (target_width, target_height)
+        assert (preview.width, preview.height) == (fitted_width, fitted_height)
         assert _pixels(preview.image) == _pixels(reference)
