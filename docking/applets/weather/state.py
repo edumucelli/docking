@@ -22,7 +22,7 @@ from functools import lru_cache
 from typing import Any, NamedTuple
 
 from docking.applets import temperature as temperature_display
-from docking.applets.cities import CityEntry, load_cities
+from docking.applets.cities import CityEntry, load_cities, parse_coordinates
 from docking.applets.live_state import (
     live_freshness_lines,
     live_state_error,
@@ -62,6 +62,16 @@ class WeatherPrefs:
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS
 
 
+def _city_from_pref(raw: object) -> CityPref | None:
+    if not isinstance(raw, Mapping):
+        return None
+    display = raw.get("city_display")
+    coordinates = parse_coordinates(raw)
+    if not isinstance(display, str) or not display or coordinates is None:
+        return None
+    return CityPref(display, *coordinates)
+
+
 def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
     """Build preferences from persisted values.
 
@@ -76,16 +86,20 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
     # New format: cities list
     if "cities" in prefs:
         raw = prefs["cities"]
+        candidates = raw if isinstance(raw, list | tuple) else ()
         cities = tuple(
-            CityPref(
-                city_display=str(c.get("city_display", "")),
-                lat=float(c.get("lat", 0.0)),
-                lng=float(c.get("lng", 0.0)),
-            )
-            for c in raw
-            if isinstance(c, Mapping)
+            city
+            for candidate in candidates
+            if (city := _city_from_pref(candidate)) is not None
         )
-        idx = int(prefs.get("active_index", 0))
+        try:
+            idx = int(prefs.get("active_index", 0))
+        except (TypeError, ValueError, OverflowError):
+            idx = 0
+        if 0 <= idx < len(candidates):
+            selected = _city_from_pref(candidates[idx])
+            if selected is not None:
+                idx = cities.index(selected)
         idx = clamp_index(idx, len(cities))
         return WeatherPrefs(
             cities=cities,
@@ -95,13 +109,8 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
         )
 
     # Old scalar format migration
-    city_display = str(prefs.get("city_display", ""))
-    if city_display:
-        city = CityPref(
-            city_display=city_display,
-            lat=float(prefs.get("lat", 0.0)),
-            lng=float(prefs.get("lng", 0.0)),
-        )
+    city = _city_from_pref(prefs)
+    if city is not None:
         return WeatherPrefs(
             cities=(city,),
             active_index=0,

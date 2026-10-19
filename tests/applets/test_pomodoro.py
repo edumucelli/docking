@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.pomodoro.applet as pomodoro_mod
 from docking.applets.pomodoro.applet import PomodoroApplet
 from docking.applets.pomodoro.state import (
@@ -11,11 +13,38 @@ from docking.applets.pomodoro.state import (
     LONG_BREAK_EVERY,
     State,
     format_time,
+    state_from_prefs,
     tooltip_text,
 )
 from docking.core.config import Config
 
 # -- Pure functions -----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "key,default",
+    [
+        ("work", DEFAULT_WORK),
+        ("break_", DEFAULT_BREAK),
+        ("long_break", DEFAULT_LONG_BREAK),
+    ],
+)
+@pytest.mark.parametrize(
+    "value", [None, "invalid", [], {}, False, 0, -5, float("inf"), float("nan")]
+)
+def test_invalid_saved_duration_uses_default(key, default, value):
+    state = state_from_prefs({key: value})
+    attribute = {
+        "work": "work_min",
+        "break_": "break_min",
+        "long_break": "long_break_min",
+    }[key]
+    assert getattr(state, attribute) == default
+
+
+def test_valid_custom_pomodoro_durations_remain_supported():
+    state = state_from_prefs({"work": "35", "break_": 7, "long_break": 25})
+    assert (state.work_min, state.break_min, state.long_break_min) == (35, 7, 25)
 
 
 class TestFormatTime:
