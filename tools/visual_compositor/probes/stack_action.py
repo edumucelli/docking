@@ -6,10 +6,30 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 from stack_probe import ICON_COLOR, locate, popup_bounds
+
+
+def capture_screen(path: Path, scale: int) -> None:
+    display = os.environ.get("LAB_PARENT_DISPLAY", os.environ["WAYLAND_DISPLAY"])
+    if os.environ.get("COMPOSITOR") == "cinnamon":
+        command = [
+            sys.executable,
+            str(Path(__file__).with_name("cinnamon_probe.py")),
+            "screenshot",
+            str(path),
+        ]
+    else:
+        command = ["grim", "-s", str(scale), str(path)]
+    subprocess.run(
+        command,
+        env={**os.environ, "WAYLAND_DISPLAY": display},
+        check=True,
+        timeout=15,
+    )
 
 
 def main() -> None:
@@ -27,13 +47,7 @@ def main() -> None:
 
     def capture(phase):
         path = root / f"{name}.{phase}.png"
-        display = os.environ.get("LAB_PARENT_DISPLAY", os.environ["WAYLAND_DISPLAY"])
-        subprocess.run(
-            ["grim", "-s", str(scale), str(path)],
-            env={**os.environ, "WAYLAND_DISPLAY": display},
-            check=True,
-            timeout=15,
-        )
+        capture_screen(path, scale)
         return path
 
     def send(x, y, *, button=0, scroll=0):

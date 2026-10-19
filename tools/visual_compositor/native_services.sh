@@ -5,6 +5,7 @@ if [ "${1:-}" != --session ]; then
     compositor="${1:?compositor required}"
     mode="${2:-visual}"
     repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
+    mkdir -p "$repo_dir/tools/visual_compositor/evidence"
     evidence="$(mktemp -d "$repo_dir/tools/visual_compositor/evidence/native-$compositor.XXXXXX")"
     image="${DOCKING_LAB_IMAGE:-docking-lab:$compositor}"
     lab_uid="$(id -u)"

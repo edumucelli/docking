@@ -12,6 +12,7 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib
 
+from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak, is_flatpak
 from docking.platform.icons import IconLoader, fallback_file_icon_name
@@ -33,24 +34,8 @@ class FileTargetInfo(NamedTuple):
 
 def normalize_file_target(target: str) -> str | None:
     """Normalize a local path or file URI into a canonical file URI."""
-    if not target:
-        return None
-    try:
-        parsed = urlparse(target)
-    except ValueError as exc:
-        log.bind(target=target, action="normalize_file_target").debug(
-            "Failed to parse file target %s: %s",
-            target,
-            exc,
-        )
-        return None
-    if parsed.scheme == "file":
-        if not parsed.path or parsed.netloc.casefold() not in {"", "localhost"}:
-            return None
-        path = Path(unquote(parsed.path))
-    elif parsed.scheme == "":
-        path = Path(target).expanduser()
-    else:
+    path = local_path_from_uri_or_path(target)
+    if path is None:
         return None
     try:
         try:
