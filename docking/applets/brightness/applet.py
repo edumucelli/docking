@@ -28,6 +28,7 @@ from docking.applets.brightness import meta
 from docking.applets.brightness.render import create_icon
 from docking.applets.brightness.state import (
     STEP,
+    Backend,
     detect_output,
     get_brightness,
     set_brightness,
@@ -103,7 +104,8 @@ class BrightnessApplet(Applet):
             backend = self._backend
             self._worker.run(
                 name="brightness-reset",
-                fn=lambda: set_brightness(backend=backend, value=1.0),
+                fn=lambda: self._write_brightness(backend, 1.0),
+                on_result=self._on_poll_result,
             )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -131,8 +133,14 @@ class BrightnessApplet(Applet):
         self._worker.run_guarded(
             key="brightness-set",
             name="brightness-scroll",
-            fn=lambda: set_brightness(backend=backend, value=value),
+            fn=lambda: self._write_brightness(backend, value),
+            on_result=self._on_poll_result,
         )
+
+    def _write_brightness(self, backend: Backend, value: float) -> float | None:
+        if set_brightness(backend=backend, value=value) is False:
+            return get_brightness(backend=backend)
+        return None
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""

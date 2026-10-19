@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -371,20 +372,41 @@ def reset_today(state: AiUsageState) -> AiUsageState:
 # ---------------------------------------------------------------------------
 
 
-def _parse_model_counts(raw: dict[str, Any]) -> list[tuple[str, ModelUsage]]:
+def _nonnegative_count(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        return 0
+    try:
+        return max(0, int(value))
+    except (ValueError, OverflowError):
+        return 0
+
+
+def _nonnegative_cost(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        return 0.0
+    try:
+        cost = float(value)
+    except (ValueError, OverflowError):
+        return 0.0
+    return max(0.0, cost) if math.isfinite(cost) else 0.0
+
+
+def _parse_model_counts(raw: object) -> list[tuple[str, ModelUsage]]:
     result: list[tuple[str, ModelUsage]] = []
+    if not isinstance(raw, dict):
+        return result
     for model, counts in raw.items():
-        if not isinstance(counts, dict):
+        if not isinstance(model, str) or not isinstance(counts, dict):
             continue
         result.append(
             (
                 model,
                 ModelUsage(
-                    input_tokens=int(counts.get("in", 0)),
-                    output_tokens=int(counts.get("out", 0)),
-                    cache_write_tokens=int(counts.get("cw", 0)),
-                    cache_read_tokens=int(counts.get("cr", 0)),
-                    precalculated_cost=float(counts.get("pc", 0)),
+                    input_tokens=_nonnegative_count(counts.get("in", 0)),
+                    output_tokens=_nonnegative_count(counts.get("out", 0)),
+                    cache_write_tokens=_nonnegative_count(counts.get("cw", 0)),
+                    cache_read_tokens=_nonnegative_count(counts.get("cr", 0)),
+                    precalculated_cost=_nonnegative_cost(counts.get("pc", 0)),
                 ),
             )
         )
@@ -424,7 +446,7 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AiUsageState:
         else:
             # Legacy format: only by_model, no by_session.
             by_model = _parse_model_counts(rd.get("by_model", {}))
-            session_count = int(rd.get("sessions", 0))
+            session_count = _nonnegative_count(rd.get("sessions", 0))
 
         days.append(
             DayEntry(

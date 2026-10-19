@@ -128,6 +128,23 @@ def test_direct_launch_strips_field_codes_sets_flags_and_records_provenance():
     )
 
 
+def test_direct_launch_preserves_intentionally_empty_arguments():
+    popen = MagicMock()
+    launcher, _registry, _store = _launcher(
+        _application(exec_line='/opt/example/bin/example "" "   " "100%%" "%u" tail'),
+        popen=popen,
+    )
+
+    assert launcher.launch("example.desktop")
+    assert popen.call_args.args[0] == [
+        "/opt/example/bin/example",
+        "",
+        "   ",
+        "100%",
+        "tail",
+    ]
+
+
 def test_host_launch_routes_through_flatpak_spawn(monkeypatch):
     popen = MagicMock(return_value=SimpleNamespace(pid=123, poll=lambda: None))
     launcher, _registry, _store = _launcher(
