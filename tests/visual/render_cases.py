@@ -53,7 +53,7 @@ DOCK_CASES = (
     "dock-bottom-urgent-hidden",
 )
 POSITION_CHANGE_CASES = ("dock-position-change-right-to-top",)
-ALIGNMENT_CASES = ("dock-bottom-left-zoomed", "dock-right-bottom-offset")
+ALIGNMENT_CASES = ("dock-bottom-left-zoomed", "dock-right-bottom-aligned")
 FOLDER_STACK_CASES = (
     "folder-stack-open-bottom",
     "folder-stack-hover-item-bottom",
@@ -305,7 +305,6 @@ def _draw_alignment_case(case_name: str) -> cairo.ImageSurface:
     horizontal = case_name == "dock-bottom-left-zoomed"
     config.pos = Position.BOTTOM if horizontal else Position.RIGHT
     config.dock_alignment = 0.0 if horizontal else 1.0
-    config.dock_lateral_offset = 0 if horizontal else -24
     width, height = (420, 187) if horizontal else (187, 420)
     cursor = -1.0
     if horizontal:

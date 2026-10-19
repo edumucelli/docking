@@ -264,9 +264,6 @@ DEFAULT_ZOOM_PERCENT = 1.5
 DEFAULT_ZOOM_RANGE = 3
 DEFAULT_POSITION = Position.BOTTOM.value
 DEFAULT_DOCK_ALIGNMENT = 0.5
-DEFAULT_DOCK_LATERAL_OFFSET = 0
-MIN_DOCK_LATERAL_OFFSET = -1000
-MAX_DOCK_LATERAL_OFFSET = 1000
 DEFAULT_MONITOR_INDEX = -1
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
@@ -819,8 +816,6 @@ class Config:
     position: str = DEFAULT_POSITION
     # Relative position along the edge: left/top (0), center (0.5), right/bottom (1)
     dock_alignment: float = DEFAULT_DOCK_ALIGNMENT
-    # Logical pixels along the edge; positive moves right/down
-    dock_lateral_offset: int = DEFAULT_DOCK_LATERAL_OFFSET
     # Target monitor index (-1 means "primary monitor")
     monitor_index: int = DEFAULT_MONITOR_INDEX
     # Stable monitor connector/output name when the backend can expose one.
@@ -965,12 +960,6 @@ class Config:
             default=DEFAULT_DOCK_ALIGNMENT,
             minimum=0.0,
             maximum=1.0,
-        )
-        self.dock_lateral_offset = _normalize_int(
-            self.dock_lateral_offset,
-            default=DEFAULT_DOCK_LATERAL_OFFSET,
-            minimum=MIN_DOCK_LATERAL_OFFSET,
-            maximum=MAX_DOCK_LATERAL_OFFSET,
         )
         self.monitor_index = max(
             DEFAULT_MONITOR_INDEX,

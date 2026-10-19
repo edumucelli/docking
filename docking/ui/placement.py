@@ -780,7 +780,6 @@ class DockPlacementController:
                 available=available_extent,
                 extent=reserved_extent,
                 alignment=getattr(self._window.config, "dock_alignment", 0.5),
-                lateral_offset=getattr(self._window.config, "dock_lateral_offset", 0),
             )
         )
         return span_start, span_start + reserved_extent

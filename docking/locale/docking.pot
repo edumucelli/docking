@@ -5608,16 +5608,6 @@ msgstr ""
 msgid "Position the dock along the selected screen edge."
 msgstr ""
 
-#: docking/ui/settings.py:739
-msgid "Lateral Offset"
-msgstr ""
-
-#: docking/ui/settings.py:742
-msgid ""
-"Move the dock along the edge in logical pixels. Positive values move right "
-"or down; negative values move left or up. The dock stays fully visible."
-msgstr ""
-
 #: docking/ui/settings.py:1853
 msgid "Left"
 msgstr ""

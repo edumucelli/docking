@@ -38,8 +38,8 @@ def is_horizontal(pos: Position) -> bool:
 
 
 def aligned_main_axis_start(
-    *, available: float, extent: float, alignment: float, lateral_offset: float
+    *, available: float, extent: float, alignment: float
 ) -> float:
     """Position an extent along an edge without moving it outside the surface."""
     free_space = max(0.0, available - extent)
-    return min(free_space, max(0.0, free_space * alignment + lateral_offset))
+    return min(free_space, max(0.0, free_space * alignment))

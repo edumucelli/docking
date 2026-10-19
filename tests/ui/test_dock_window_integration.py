@@ -1334,7 +1334,7 @@ class TestDockWindowStrutsAndRegion:
         assert stub.geometry.build_frame.call_count == 1
         stub.config.dock_alignment = 0.0
         stub._current_or_build_geometry_frame()
-        stub.config.dock_lateral_offset = 25
+        stub.config.dock_alignment = 0.75
         stub._current_or_build_geometry_frame()
         assert stub.geometry.build_frame.call_count == 3
 
@@ -1508,7 +1508,6 @@ class TestDockWindowDrawAndHelpers:
                         1920,
                         122,
                         0.5,
-                        0,
                         1.0,
                         2.0,
                         -1,
@@ -1579,7 +1578,6 @@ class TestDockWindowDrawAndHelpers:
                         1920,
                         122,
                         0.5,
-                        0,
                         1.0,
                         2.0,
                         -1,
@@ -1635,7 +1633,6 @@ class TestDockWindowDrawAndHelpers:
                         1920,
                         122,
                         0.5,
-                        0,
                         1.0,
                         2.0,
                         -1,
@@ -1668,7 +1665,6 @@ class TestDockWindowDrawAndHelpers:
                         1920,
                         122,
                         0.5,
-                        0,
                         1.0,
                         2.0,
                         -1,

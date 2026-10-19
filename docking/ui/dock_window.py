@@ -508,7 +508,6 @@ class DockWindow(Gtk.Window):
             window_w,
             window_h,
             getattr(config, "dock_alignment", 0.5),
-            getattr(config, "dock_lateral_offset", 0),
             resolved_x,
             resolved_y,
             drop_insert_index,

@@ -794,10 +794,7 @@ class DockRenderer:
         self._cache.prune_icon_surfaces(items=items)
 
         icon_size = config.icon_size
-        has_custom_alignment = (
-            getattr(config, "dock_alignment", 0.5) != 0.5
-            or getattr(config, "dock_lateral_offset", 0) != 0
-        )
+        has_custom_alignment = getattr(config, "dock_alignment", 0.5) != 0.5
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
         content_cross_origin = frame.content_cross_origin
@@ -925,7 +922,6 @@ class DockRenderer:
             # corner icons outside their clamped shelf and current hit regions.
             layout_context += (
                 getattr(config, "dock_alignment", 0.5),
-                getattr(config, "dock_lateral_offset", 0),
                 tuple(item.scale for item in layout),
             )
         self._update_slide_offsets(

@@ -60,7 +60,6 @@ from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import (
     MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
-    MAX_DOCK_LATERAL_OFFSET,
     MAX_ICON_SIZE,
     MAX_PRESSURE_THRESHOLD,
     MAX_RECENT_APPS_RETENTION_DAYS,
@@ -68,7 +67,6 @@ from docking.core.config import (
     MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
     MAX_ZOOM_PERCENT,
     MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
-    MIN_DOCK_LATERAL_OFFSET,
     MIN_ICON_SIZE,
     MIN_PRESSURE_THRESHOLD,
     MIN_RECENT_APPS_RETENTION_DAYS,
@@ -291,7 +289,6 @@ class SettingsWindowController:
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._dock_alignment_scale: Any = None
-        self._dock_lateral_offset_spin: Any = None
         self._icon_size_spin: Any = None
         self._transparency_scale: Any = None
         self._additional_distance_scale: Any = None
@@ -499,11 +496,6 @@ class SettingsWindowController:
         self._dock_alignment_scale.set_size_request(TRANSPARENCY_SCALE_WIDTH_PX, -1)
         self._dock_alignment_scale.connect(
             "format-value", lambda _scale, value: f"{value:.0f}%"
-        )
-        self._dock_lateral_offset_spin = self._new_numeric_spin_button(
-            minimum=MIN_DOCK_LATERAL_OFFSET,
-            maximum=MAX_DOCK_LATERAL_OFFSET,
-            step=1,
         )
 
         self._monitor_combo = Gtk.ComboBoxText()
@@ -734,15 +726,6 @@ class SettingsWindowController:
                     _("Alignment"),
                     self._dock_alignment_scale,
                     _("Position the dock along the selected screen edge."),
-                ),
-                (
-                    _("Lateral Offset"),
-                    self._dock_lateral_offset_spin,
-                    _(
-                        "Move the dock along the edge in logical pixels. "
-                        "Positive values move right or down; negative values "
-                        "move left or up. The dock stays fully visible."
-                    ),
                 ),
                 (_("Extra Distance from Edge"), additional_distance_box, None),
                 (
@@ -1408,11 +1391,6 @@ class SettingsWindowController:
                     cast(float, value) * ALIGNMENT_PERCENT_SCALE
                 ),
                 signal="value-changed",
-                on_change=self._actions.reposition,
-            ),
-            self._register_int_binding(
-                config_attr="dock_lateral_offset",
-                widget=self._dock_lateral_offset_spin,
                 on_change=self._actions.reposition,
             ),
             self._register_int_binding(

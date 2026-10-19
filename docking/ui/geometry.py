@@ -590,10 +590,7 @@ def build_geometry_frame(
         or zoom_progress <= 0
         or not config.zoom_enabled
         or autohide_state == HideState.HIDDEN
-        or (
-            getattr(config, "dock_alignment", 0.5) == 0.5
-            and getattr(config, "dock_lateral_offset", 0) == 0
-        )
+        or getattr(config, "dock_alignment", 0.5) == 0.5
     ):
         return frame
 
@@ -689,6 +686,8 @@ def _build_geometry_frame(
         main_size=main_size,
         cursor_main=cursor_main,
         layout_scale=layout_scale,
+        drop_gap=drop_gap,
+        constrain_main_axis=constrain_main_axis,
     )
     layout = tuple(
         compute_layout(
@@ -897,6 +896,8 @@ def _local_cursor_main(
     main_size: int,
     cursor_main: float,
     layout_scale: float = 1.0,
+    drop_gap: float = 0.0,
+    constrain_main_axis: bool = False,
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL
@@ -911,12 +912,14 @@ def _local_cursor_main(
     if layout_scale <= 0:
         return NO_CURSOR_SENTINEL
     shelf_extent = base_w * layout_scale + 4 * max(0.0, theme.stroke_width)
+    centered_insertion_shift = drop_gap / 2 if constrain_main_axis else 0.0
     cursor_main -= _main_axis_alignment_shift(
         config=config,
         main_size=main_size,
-        start=(main_size - shelf_extent) / 2,
-        extent=shelf_extent,
+        start=(main_size - shelf_extent) / 2 - centered_insertion_shift,
+        extent=shelf_extent + drop_gap,
     )
+    cursor_main += centered_insertion_shift
     if layout_scale == 1.0:
         return cursor_main - (main_size - base_w) / 2
     return (cursor_main - main_size / 2) / layout_scale + base_w / 2
@@ -927,15 +930,13 @@ def _main_axis_alignment_shift(
 ) -> int:
     """Translate a shelf while preserving the existing centered pixel layout."""
     alignment = getattr(config, "dock_alignment", 0.5)
-    lateral_offset = getattr(config, "dock_lateral_offset", 0)
-    if alignment == 0.5 and lateral_offset == 0:
+    if alignment == 0.5:
         desired = min(max(0.0, main_size - extent), max(0.0, start))
     else:
         desired = aligned_main_axis_start(
             available=main_size,
             extent=extent,
             alignment=alignment,
-            lateral_offset=lateral_offset,
         )
     return round(desired - start)
 
