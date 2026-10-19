@@ -82,10 +82,10 @@ class TestDockCrossMetrics:
             theme=theme,
         )
 
-        assert metrics.surface_extent == 48
+        assert metrics.surface_extent == 57
         assert metrics.resting_extent == 48
         assert metrics.edge_padding == 0.0
-        assert metrics.animation_headroom == 0.0
+        assert metrics.animation_headroom == pytest.approx(48 * 0.18)
         assert resting_dock_cross_extent(icon_size=48, theme=theme) == 48
 
 

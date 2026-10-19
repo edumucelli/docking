@@ -356,9 +356,13 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
-    def test_left_click_stopped_app_uses_application_launcher(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_left_click_stopped_app_uses_application_launcher(
+        self, monkeypatch, effect
+    ):
         item = DockItem(desktop_id="firefox.desktop", is_running=False)
         stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
@@ -402,9 +406,11 @@ class TestButtonReleaseFlow:
         controller._application_launcher.launch_new_window.assert_not_called()
         assert item.last_launched == 0
 
-    def test_middle_click_new_window_launches_running_app(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_middle_click_new_window_launches_running_app(self, monkeypatch, effect):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
         )
@@ -426,12 +432,14 @@ class TestButtonReleaseFlow:
         stub.hover.start_anim_pump.assert_called_once_with(700)
 
     @pytest.mark.parametrize("button", [1, 2])
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
     def test_launch_without_click_effect_keeps_short_click_feedback(
-        self, monkeypatch, button
+        self, monkeypatch, button, effect
     ):
         item = DockItem(desktop_id="firefox.desktop", is_running=button == 2)
         stub, _ = _make_stub(item=item)
         stub.config.dock_item_click_effects_enabled = False
+        stub.config.dock_item_click_effect = effect
         event = SimpleNamespace(x=12.0, y=6.0, button=button, state=0)
         monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
         monkeypatch.setattr(

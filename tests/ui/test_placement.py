@@ -488,7 +488,10 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(0, 1018)
+        # Reserve pulse headroom even when the theme disables bounce, while
+        # keeping the full drawing surface flush with the bottom screen edge.
+        window.resize.assert_called_once_with(1920, 71)
+        window.move.assert_called_once_with(0, 1009)
 
     def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
@@ -526,7 +529,9 @@ class TestPlacementControllerGeometry:
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(1858, 24)
+        # The extra pulse headroom must stay inside the right screen edge.
+        window.resize.assert_called_once_with(71, 1000)
+        window.move.assert_called_once_with(1849, 24)
 
     def test_position_dock_uses_selected_monitor_index(self):
         geom_primary = SimpleNamespace(x=0, y=0, width=1920, height=1080)

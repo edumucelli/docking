@@ -426,9 +426,12 @@ class SettingsWindowController:
         self._dock_item_click_effect_combo.set_size_request(
             HIDE_MODE_COMBO_WIDTH_PX, -1
         )
-        self._dock_item_click_effect_combo.append(
-            DockItemClickEffect.BOUNCE.value, _("Bounce")
-        )
+        for effect_value, effect_label in [
+            (DockItemClickEffect.BOUNCE.value, _("Bounce")),
+            (DockItemClickEffect.PULSE.value, _("Pulse")),
+            (DockItemClickEffect.WOBBLE.value, _("Wobble")),
+        ]:
+            self._dock_item_click_effect_combo.append(effect_value, effect_label)
 
         self._stack_unfold_combo = Gtk.ComboBoxText()
         self._stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)

@@ -11,6 +11,7 @@ import cairo
 import pytest
 
 import docking.ui.renderer as renderer_mod
+from docking.core.config import Config
 from docking.core.items import APPLET_KIND
 from docking.core.position import Position
 from docking.core.theme import Theme
@@ -517,7 +518,10 @@ class TestRendererContentFlow:
         assert x + size <= window_w
         assert y + size <= window_h
 
-    def test_disabling_click_effect_stops_launch_bounce_only(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_disabling_click_effect_keeps_urgent_bounce_and_click_feedback(
+        self, monkeypatch, effect
+    ):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
         config = SimpleNamespace(
@@ -530,7 +534,7 @@ class TestRendererContentFlow:
             show_launcher_badges=False,
             show_launcher_progress=False,
             dock_item_click_effects_enabled=True,
-            dock_item_click_effect="bounce",
+            dock_item_click_effect=effect,
         )
         now_us = 1_000_000
         item = DockItem(
@@ -570,8 +574,179 @@ class TestRendererContentFlow:
                 state=RenderState(),
             )
             assert renderer._draw_icon.call_args.kwargs["darken"] > 0
+            icon_args = renderer._draw_icon.call_args.kwargs
+            assert (icon_args["angle"] != 0.0) == (enabled and effect == "wobble")
+            assert (icon_args["effect_scale"] > 1.0) == (enabled and effect == "pulse")
 
-        assert bounces[0] > bounces[1] > 0
+        assert bounces[1] > 0
+        if effect == "bounce":
+            assert bounces[0] > bounces[1]
+        else:
+            assert bounces[0] == bounces[1]
+
+    @pytest.mark.parametrize("pos", list(Position))
+    @pytest.mark.parametrize("main_extent", [86, 420])
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        "elapsed_us", [0, 50_000, 150_000, 300_000, 450_000, 600_000, 650_000]
+    )
+    def test_click_effects_fit_surface_with_zoom_and_urgent_bounce(
+        self, monkeypatch, pos, main_extent, effect, elapsed_us
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        theme = replace(
+            theme,
+            launch_bounce_height=theme.launch_bounce_height
+            if effect == "bounce"
+            else 0.0,
+            horizontal_padding=0.0,
+            item_padding=0.0,
+        )
+        config = Config(
+            position=pos.value,
+            zoom_enabled=True,
+            zoom_percent=1.5,
+            dock_item_click_effect=effect,
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_launched=now_us - elapsed_us,
+            last_clicked=now_us - elapsed_us,
+            last_urgent=now_us - theme.urgent_bounce_time_ms * 1000 // 2,
+            badge_visible=True,
+            badge_count=2,
+            progress_visible=True,
+            progress=0.5,
+        )
+        cross = compute_dock_cross_metrics(icon_size=48, zoom=1.5, theme=theme)
+        width, height = (
+            (main_extent, cross.surface_extent)
+            if pos in (Position.TOP, Position.BOTTOM)
+            else (cross.surface_extent, main_extent)
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=main_extent / 2,
+            zoom_progress=1.0,
+            autohide_state=None,
+        )
+        corners = []
+        rotate = renderer._rotate_icon
+
+        def capture_rotation(cr, size, angle):
+            rotate(cr, size, angle)
+            corners.extend(
+                cr.user_to_device(x, y)
+                for x, y in ((0, 0), (size, 0), (0, size), (size, size))
+            )
+
+        source = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        monkeypatch.setattr(renderer, "_icon_surface_for_item", lambda **_: source)
+        monkeypatch.setattr(renderer, "_rotate_icon", capture_rotation)
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+        draw_icon = renderer._draw_icon
+        renderer._draw_icon = MagicMock(side_effect=draw_icon)
+        cr = _surface_context(width, height)
+        original_matrix = tuple(cr.get_matrix())
+
+        renderer._draw_content(
+            cr=cr, frame=frame, config=config, theme=theme, state=RenderState()
+        )
+
+        assert len(corners) == 4
+        assert all(-0.001 <= x <= width + 0.001 for x, _ in corners)
+        assert all(-0.001 <= y <= height + 0.001 for _, y in corners)
+        assert tuple(cr.get_matrix()) == original_matrix
+        icon_args = renderer._draw_icon.call_args.kwargs
+        for overlay in (renderer._draw_badge, renderer._draw_progress):
+            overlay_args = overlay.call_args.kwargs
+            assert overlay_args["x"] == icon_args["x"]
+            assert overlay_args["y"] == icon_args["y"]
+            assert overlay_args["size"] == pytest.approx(
+                icon_args["base_size"]
+                * icon_args["li"].scale
+                * icon_args["effect_scale"]
+            )
+
+    @pytest.mark.parametrize("pos", list(Position))
+    @pytest.mark.parametrize("zoom", [1.0, 1.5])
+    @pytest.mark.parametrize("urgent", [False, True])
+    @pytest.mark.parametrize(
+        ("elapsed_ms", "height_ratio"),
+        [(0, 0.0), (150, 1.0), (300, 0.0), (450, 1 / 3), (600, 0.0), (700, 0.0)],
+    )
+    def test_bounce_moves_icon_and_overlays_away_from_edge_then_returns_to_rest(
+        self, monkeypatch, pos, zoom, urgent, elapsed_ms, height_ratio
+    ):
+        renderer = renderer_mod.DockRenderer()
+        config = Config(position=pos.value, zoom_enabled=zoom > 1.0, zoom_percent=zoom)
+        theme = Theme.load("default", config.icon_size)
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_launched=now_us - elapsed_ms * 1000,
+            last_urgent=now_us - 300_000 if urgent else 0,
+            badge_visible=True,
+            badge_count=2,
+            progress_visible=True,
+            progress=0.5,
+        )
+        horizontal = pos in (Position.TOP, Position.BOTTOM)
+        cross = compute_dock_cross_metrics(
+            icon_size=config.icon_size, zoom=zoom, theme=theme
+        )
+        width, height = (
+            (420, cross.surface_extent) if horizontal else (cross.surface_extent, 420)
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=210.0,
+            autohide_state=None,
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+        icons = []
+
+        # Compare the launch effect with the same frame's urgency-only position.
+        for enabled in (False, True):
+            config.dock_item_click_effects_enabled = enabled
+            renderer._draw_content(
+                cr=_surface_context(width, height),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            icon = renderer._draw_icon.call_args.kwargs
+            icons.append(icon)
+            size = icon["base_size"] * icon["li"].scale
+            assert icon["effect_scale"] == 1.0
+            assert icon["angle"] == 0.0
+            for overlay in (renderer._draw_badge, renderer._draw_progress):
+                args = overlay.call_args.kwargs
+                assert (args["x"], args["y"]) == pytest.approx((icon["x"], icon["y"]))
+                assert args["size"] == pytest.approx(size)
+
+        main_axis, cross_axis = ("x", "y") if horizontal else ("y", "x")
+        assert icons[1][main_axis] == icons[0][main_axis]
+        direction = -1 if pos in (Position.BOTTOM, Position.RIGHT) else 1
+        assert icons[1][cross_axis] - icons[0][cross_axis] == pytest.approx(
+            direction * config.icon_size * theme.launch_bounce_height * height_ratio
+        )
 
     def test_draw_content_runs_icons_indicators_and_urgent_glow(self, monkeypatch):
         # Given

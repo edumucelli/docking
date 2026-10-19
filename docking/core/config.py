@@ -478,6 +478,11 @@ class DockItemClickEffect(str, Enum):
     """Visual effect played when a dock click launches an application."""
 
     BOUNCE = "bounce"
+    PULSE = "pulse"
+    WOBBLE = "wobble"
+
+
+PULSE_MAX_SCALE = 1.18
 
 
 class StackUnfold(str, Enum):

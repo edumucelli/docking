@@ -329,7 +329,7 @@ class HoverManager:
     ) -> None:
         """Start a temporary 60fps redraw loop for time-based animations.
 
-        Used for click darken (300ms), launch bounce (600ms), and urgent
+        Used for click darken (300ms), launch effects (600ms), and urgent
         bounce. The pump self-terminates after duration_ms.
         """
         if self._anim_timer_id:
