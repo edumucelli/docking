@@ -54,6 +54,28 @@ class TestRect:
 
 
 class TestDockCrossMetrics:
+    @pytest.mark.parametrize("insert_factor", [0.0, 0.5, 1.0])
+    def test_wide_item_reserves_full_pulse_extent_during_insertion(self, insert_factor):
+        theme = replace(
+            Theme.load("default", 48),
+            bottom_padding=0,
+            launch_bounce_height=0.0,
+            urgent_bounce_height=0.0,
+        )
+        items = [
+            DockItem(
+                desktop_id="wide.desktop", main_size=96, insert_factor=insert_factor
+            )
+        ]
+
+        metrics = compute_dock_cross_metrics(
+            icon_size=48, zoom=1.5, theme=theme, items=items
+        )
+
+        assert metrics.surface_extent == 170
+        assert metrics.animation_headroom == pytest.approx(25.92)
+        assert metrics.resting_extent == 48
+
     def test_default_theme_allocates_zoom_and_both_bounces(self):
         theme = Theme.load("default", 48)
 

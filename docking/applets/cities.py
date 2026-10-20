@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import csv
 import gzip
+import math
+from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple
 
@@ -38,6 +40,25 @@ class CityEntry(NamedTuple):
     display: str  # "Berlin, Germany" for UI
     lat: float
     lng: float
+
+
+def parse_coordinates(raw: object) -> tuple[float, float] | None:
+    """Read finite geographic coordinates from a saved city record."""
+    if not isinstance(raw, Mapping):
+        return None
+    coordinates: list[float] = []
+    for name, limit in (("lat", 90), ("lng", 180)):
+        value = raw.get(name, 0.0)
+        if isinstance(value, bool) or not isinstance(value, str | int | float):
+            return None
+        try:
+            number = float(value)
+        except (ValueError, OverflowError):
+            return None
+        if not math.isfinite(number) or not -limit <= number <= limit:
+            return None
+        coordinates.append(number)
+    return coordinates[0], coordinates[1]
 
 
 def load_cities(path: Path = _CITIES_GZ) -> list[CityEntry]:

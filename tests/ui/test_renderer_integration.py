@@ -586,12 +586,13 @@ class TestRendererContentFlow:
 
     @pytest.mark.parametrize("pos", list(Position))
     @pytest.mark.parametrize("main_extent", [86, 420])
+    @pytest.mark.parametrize("main_size", [0, 96])
     @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
     @pytest.mark.parametrize(
         "elapsed_us", [0, 50_000, 150_000, 300_000, 450_000, 600_000, 650_000]
     )
     def test_click_effects_fit_surface_with_zoom_and_urgent_bounce(
-        self, monkeypatch, pos, main_extent, effect, elapsed_us
+        self, monkeypatch, pos, main_extent, main_size, effect, elapsed_us
     ):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
@@ -612,6 +613,7 @@ class TestRendererContentFlow:
         now_us = 1_000_000
         item = DockItem(
             desktop_id="firefox.desktop",
+            main_size=main_size,
             last_launched=now_us - elapsed_us,
             last_clicked=now_us - elapsed_us,
             last_urgent=now_us - theme.urgent_bounce_time_ms * 1000 // 2,
@@ -620,7 +622,10 @@ class TestRendererContentFlow:
             progress_visible=True,
             progress=0.5,
         )
-        cross = compute_dock_cross_metrics(icon_size=48, zoom=1.5, theme=theme)
+        cross = compute_dock_cross_metrics(
+            icon_size=48, zoom=1.5, theme=theme, items=[item]
+        )
+        main_extent = max(main_extent, math.ceil((main_size or 48) * 1.5 * 1.18))
         width, height = (
             (main_extent, cross.surface_extent)
             if pos in (Position.TOP, Position.BOTTOM)

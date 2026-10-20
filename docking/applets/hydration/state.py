@@ -87,7 +87,18 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> HydrationState:
     """Build applet state from persisted preferences."""
     if not prefs:
         return HydrationState()
-    interval = int(prefs.get("interval", DEFAULT_INTERVAL))
+    raw_interval = prefs.get("interval", DEFAULT_INTERVAL)
+    try:
+        interval = (
+            int(raw_interval)
+            if not isinstance(raw_interval, bool)
+            and isinstance(raw_interval, str | int | float)
+            else DEFAULT_INTERVAL
+        )
+    except (ValueError, OverflowError):
+        interval = DEFAULT_INTERVAL
+    if interval <= 0:
+        interval = DEFAULT_INTERVAL
     show_timer = bool(prefs.get("show_timer", False))
     return HydrationState(interval_min=interval, show_timer=show_timer)
 

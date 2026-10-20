@@ -126,7 +126,7 @@ def prefs_from_mapping(data: Mapping[str, Any] | None) -> LastfmPrefs:
         return LastfmPrefs()
     try:
         max_entries = int(data.get("max_entries", DEFAULT_MAX_ENTRIES))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         max_entries = DEFAULT_MAX_ENTRIES
     max_entries = max(MIN_MAX_ENTRIES, min(MAX_MAX_ENTRIES, max_entries))
     return LastfmPrefs(
