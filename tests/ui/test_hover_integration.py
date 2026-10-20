@@ -285,7 +285,7 @@ class TestHoverTimers:
         assert tick() is True
         assert tick() is True
         assert tick() is False
-        window.drawing_area.queue_draw.assert_called()
+        assert window.drawing_area.queue_draw.call_count == 3
         assert hover._anim_timer_id == 0
 
     def test_start_anim_pump_cancels_previous_timer(self, monkeypatch):
@@ -312,23 +312,33 @@ class TestHoverTimers:
         assert removed == [10]
         assert hover._anim_timer_id == 20
 
-    def test_start_anim_pump_zero_duration_no_timer(self, monkeypatch):
+    @pytest.mark.parametrize(
+        ("duration_ms", "ticks"),
+        [(0, 1), (1, 1), (16, 1), (17, 2), (600, 38), (800, 50), (805, 51)],
+    )
+    def test_start_anim_pump_redraws_through_deadline_and_on_final_tick(
+        self, monkeypatch, duration_ms, ticks
+    ):
         # Given
-        hover, _window, _model, _config, _tooltip, _frame = _make_hover()
+        hover, window, _model, _config, _tooltip, _frame = _make_hover()
         callbacks = []
         monkeypatch.setattr(
             hover_mod.GLib,
             "timeout_add",
-            lambda _ms, cb: callbacks.append(cb) or 1,
+            lambda ms, cb: callbacks.append((ms, cb)) or 1,
         )
 
         # When
-        hover.start_anim_pump(duration_ms=0)
+        hover.start_anim_pump(duration_ms=duration_ms)
 
-        # Then - timer fires once and immediately stops
-        assert callbacks
-        tick = callbacks[0]
-        assert tick() is False
+        interval_ms, tick = callbacks[0]
+        assert interval_ms == 16
+        for frame in range(1, ticks + 1):
+            assert tick() is (frame < ticks)
+            assert window.drawing_area.queue_draw.call_count == frame
+        assert ticks * interval_ms >= duration_ms
+        if duration_ms > 0:
+            assert (ticks - 1) * interval_ms < duration_ms
         assert hover._anim_timer_id == 0
 
     def test_start_anim_pump_queue_draw_called_each_tick(self, monkeypatch):
