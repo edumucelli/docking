@@ -56,7 +56,6 @@ log = get_logger(name="input_controller")
 CLICK_DRAG_THRESHOLD = 10
 REDRAW_FRAME_INTERVAL_MS = 16
 SHORT_ANIMATION_PUMP_MS = 350
-LAUNCH_ANIMATION_PUMP_MS = 700
 MOUSE_LEFT = 1
 MOUSE_MIDDLE = 2
 MOUSE_RIGHT = 3
@@ -490,7 +489,9 @@ class DockInputController:
                 else:
                     self._application_launcher.launch(item.desktop_id)
                 window.hover.start_anim_pump(
-                    LAUNCH_ANIMATION_PUMP_MS if play_effect else SHORT_ANIMATION_PUMP_MS
+                    max(SHORT_ANIMATION_PUMP_MS, window.theme.launch_bounce_time_ms)
+                    if play_effect
+                    else SHORT_ANIMATION_PUMP_MS
                 )
             elif action == LeftClickAction.CYCLE.value:
                 window.window_tracker.cycle(item.desktop_id)
