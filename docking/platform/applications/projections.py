@@ -25,11 +25,11 @@ def dock_icon_name(info: ApplicationInfo) -> str:
         )
         for suffix in (".svg", ".png", ".xpm"):
             candidate = executable.with_name(f"{stem}{suffix}")
-            if candidate.is_file():
-                try:
+            try:
+                if candidate.is_file():
                     return str(candidate.resolve(strict=True))
-                except (OSError, RuntimeError):
-                    continue
+            except (OSError, RuntimeError):
+                continue
         if executable.name.lower().endswith(".appimage"):
             return "application-x-appimage"
     return info.declared_icon or FALLBACK_ICON

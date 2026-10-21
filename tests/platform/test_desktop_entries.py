@@ -199,10 +199,13 @@ class TestGeneratedDesktopEntries:
         generated = desktop_entries.create_desktop_entry_for_executable(binary)
 
         assert generated is not None
-        text = generated.path.read_text(encoding="utf-8")
-        assert 'Exec="' in text
-        assert '\\"tool\\"' in text
-        assert "\\\\ runner" in text
+        key_file = desktop_entries.load_desktop_key_file(generated.path)
+        assert key_file is not None
+        exec_line = desktop_entries.desktop_entry_string(key_file, "Exec")
+        assert (
+            desktop_entries.executable_path_from_exec_line(exec_line)
+            == binary.resolve()
+        )
 
 
 class TestExecParsingFallbacks:

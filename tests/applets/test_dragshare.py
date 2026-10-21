@@ -51,6 +51,17 @@ class _ImmediateThread:
 
 
 class TestState:
+    def test_remote_file_uri_cannot_select_a_local_file(self, tmp_path):
+        path = tmp_path / "local-only.txt"
+        path.write_text("private local fixture")
+        assert first_uploadable_file([f"file://remote.example{path}"]) is None
+        assert first_uploadable_file([f"file://localhost{path}"]) == path
+
+    def test_malformed_uri_does_not_prevent_valid_drop(self, tmp_path):
+        path = tmp_path / "share.txt"
+        path.write_text("selected fixture")
+        assert first_uploadable_file(["file://[invalid", path.as_uri()]) == path
+
     def test_plain_path_keeps_literal_percent_sequences(self, tmp_path):
         path = tmp_path / "report%20draft.txt"
         path.write_text("selected file")
