@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import mimetypes
 import urllib.error
-import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -27,6 +26,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from docking.applets.http import is_valid_http_url
+from docking.core.paths import local_path_from_uri_or_path as file_path_from_uri
 from docking.log import get_logger
 
 UPLOAD_ENDPOINT = "https://tmpfiles.org/api/v1/upload"
@@ -55,16 +55,6 @@ class UploadError(RuntimeError):
 class UploadResult:
     url: str
     file_name: str
-
-
-def file_path_from_uri(uri: str) -> Path | None:
-    """Return a local file path for file:// URI or plain path input."""
-    parsed = urllib.parse.urlparse(uri)
-    if parsed.scheme == "file":
-        return Path(urllib.parse.unquote(parsed.path))
-    if parsed.scheme:
-        return None
-    return Path(uri).expanduser()
 
 
 def first_uploadable_file(uris: list[str]) -> Path | None:

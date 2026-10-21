@@ -261,7 +261,7 @@ def screenshot(dest: str) -> int:
 
     The D-Bus call can return before the PNG has been written
     (docs/HEADLESS_WAYLAND_TESTING.local.md:400-407), so poll for a non-empty
-    file rather than trusting the reply.
+    complete PNG rather than trusting the reply or a partially written file.
     """
     path = Path(dest)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -277,7 +277,9 @@ def screenshot(dest: str) -> int:
         None,
     )
     for _ in range(60):
-        if path.exists() and path.stat().st_size > 0:
+        if path.exists() and path.read_bytes().endswith(
+            b"\x00\x00\x00\x00IEND\xaeB`\x82"
+        ):
             return 0
         time.sleep(0.1)
     print(f"no screenshot produced at {path}", file=sys.stderr)

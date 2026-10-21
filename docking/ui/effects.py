@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, cast
 
 from gi.repository import GLib
 
+from docking.core.config import PULSE_MAX_SCALE, DockItemClickEffect
 from docking.core.theme import RGB
 
 if TYPE_CHECKING:
@@ -179,6 +180,27 @@ def ease_out_cubic(t: float) -> float:
     """Cubic ease-out: fast start, gradual deceleration. Input/output 0-1."""
     t = max(0.0, min(1.0, t))
     return 1.0 - (1.0 - t) ** 3
+
+
+def click_effect_angle(effect: str, t: float, duration: float) -> float:
+    """Return the launch rotation in radians, settling at rest after duration."""
+    if duration <= 0 or t <= 0 or t >= duration:
+        return 0.0
+    p = t / duration
+    if effect == DockItemClickEffect.WOBBLE.value:
+        return math.radians(18) * math.sin(6 * math.pi * p) * (1 - p) ** 2
+    return 0.0
+
+
+def click_effect_scale(effect: str, t: float, duration: float) -> float:
+    """Briefly grow a pulsing launcher and settle back to its resting size."""
+    if (
+        effect != DockItemClickEffect.PULSE.value
+        or duration <= 0
+        or not 0 < t < duration
+    ):
+        return 1.0
+    return 1.0 + (PULSE_MAX_SCALE - 1.0) * math.sin(math.pi * t / duration)
 
 
 _TICK_MS = 16  # ~60fps
