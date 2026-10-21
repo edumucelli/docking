@@ -36,6 +36,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, cast
 
+from docking.applets.http import is_valid_http_url
 from docking.log import get_logger
 
 _API_URL = "https://is.gd/create.php"
@@ -66,15 +67,7 @@ def shorten_url(url: str) -> str:
             result = cast(bytes, resp.read()).decode().strip()
             if result.startswith("Error:"):
                 return result
-            parsed = urllib.parse.urlsplit(result)
-            if (
-                parsed.scheme not in ("http", "https")
-                or not parsed.hostname
-                or any(
-                    char.isspace() or ord(char) < 32 or ord(char) == 127
-                    for char in result
-                )
-            ):
+            if not is_valid_http_url(result):
                 return "Error: invalid response"
             return result
     except urllib.error.HTTPError as exc:

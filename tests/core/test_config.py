@@ -40,6 +40,8 @@ class TestConfigDefaults:
         assert c.startup_tips_enabled is True
         assert c.left_click_action == "toggle"
         assert c.middle_click_action == "new-window"
+        assert c.dock_item_click_effects_enabled is True
+        assert c.dock_item_click_effect == "bounce"
         assert c.stack_unfold == "hover"
         assert c.window_list_sort == "default"
         assert c.show_window_count_numbers is False
@@ -184,6 +186,16 @@ class TestConfigDefaults:
         assert c.global_search_enabled is False
         assert c.global_search_shortcut == "CTRL+ALT+space"
         assert c.global_search_web_engine == "duckduckgo"
+
+    def test_dock_item_click_effect_values_are_normalized(self):
+        disabled = Config(
+            dock_item_click_effects_enabled="off", dock_item_click_effect="bounce"
+        )
+        invalid = Config(dock_item_click_effect="unknown")
+
+        assert disabled.dock_item_click_effects_enabled is False
+        assert disabled.dock_item_click_effect == "bounce"
+        assert invalid.dock_item_click_effect == "bounce"
 
 
 class TestConfigLoad:
@@ -914,6 +926,20 @@ class TestConfigSave:
 
         saved = json.loads(path.read_text())
         assert saved["window_list_sort"] == "alphabetical"
+
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_dock_item_click_effect_settings_roundtrip(self, tmp_path, effect):
+        path = tmp_path / "dock.json"
+        Config(
+            dock_item_click_effects_enabled=False, dock_item_click_effect=effect
+        ).save(path)
+
+        saved = json.loads(path.read_text())
+        loaded = Config.load(path)
+        assert saved["dock_item_click_effects_enabled"] is False
+        assert saved["dock_item_click_effect"] == effect
+        assert loaded.dock_item_click_effects_enabled is False
+        assert loaded.dock_item_click_effect == effect
 
     def test_save_persists_show_window_count_numbers(self, tmp_path):
         path = tmp_path / "dock.json"

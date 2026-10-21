@@ -92,11 +92,24 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> PomodoroState:
     if not prefs:
         return PomodoroState()
     return PomodoroState(
-        work_min=int(prefs.get("work", DEFAULT_WORK)),
-        break_min=int(prefs.get("break_", DEFAULT_BREAK)),
-        long_break_min=int(prefs.get("long_break", DEFAULT_LONG_BREAK)),
+        work_min=_duration_from_pref(prefs.get("work"), default=DEFAULT_WORK),
+        break_min=_duration_from_pref(prefs.get("break_"), default=DEFAULT_BREAK),
+        long_break_min=_duration_from_pref(
+            prefs.get("long_break"), default=DEFAULT_LONG_BREAK
+        ),
         show_timer=bool(prefs.get("show_timer", True)),
     )
+
+
+def _duration_from_pref(value: object, *, default: int) -> int:
+    """Keep invalid saved durations from crashing startup or skipping phases."""
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return default
+    try:
+        minutes = int(value)
+    except (ValueError, OverflowError):
+        return default
+    return minutes if minutes > 0 else default
 
 
 def prefs_from_state(state: PomodoroState) -> dict[str, object]:

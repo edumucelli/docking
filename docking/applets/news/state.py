@@ -520,7 +520,7 @@ def _int_from_value(value: object, fallback: int) -> int:
         return fallback
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return fallback
 
 
