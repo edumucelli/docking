@@ -4,12 +4,73 @@ Docking uses its existing X11 backend on BSD. Use a compositing X11 desktop;
 Xfce is the CI reference desktop. Linux Wayland support is described separately
 in [WAYLAND_SUPPORT.md](WAYLAND_SUPPORT.md).
 
+## Release packages
+
+BSD packages are published as GitHub Release assets, starting with the first
+release containing BSD support. Current build targets are FreeBSD 15.1/amd64
+(Python 3.12) and OpenBSD 7.9/amd64 (Python 3.13). Use a package matching the OS
+release and architecture. The package includes Docking, translations, icons, and
+its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+
+Run the dependency installation and package-manager commands as root. Downloads
+and checksum verification can run as an ordinary user.
+
+On FreeBSD 15.1/amd64:
+
+```sh
+pkg install python312 py312-pygobject py312-pycairo py312-psutil \
+  gtk3 libwnck3 dbus libXScrnSaver
+FILE=docking-latest-freebsd-15.1-amd64.pkg
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+fetch "$BASE/$FILE"
+fetch "$BASE/$FILE.json"
+```
+
+On OpenBSD 7.9/amd64:
+
+```sh
+pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus
+FILE=docking-latest-openbsd-7.9-amd64.tgz
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+ftp -o "$FILE" "$BASE/$FILE"
+ftp -o "$FILE.json" "$BASE/$FILE.json"
+```
+
+Verify the downloaded bytes against the release manifest before installing:
+
+```sh
+python3 - "$FILE" <<'PYTHON'
+import hashlib, json, sys
+from pathlib import Path
+package = Path(sys.argv[1])
+manifest = json.loads(Path(str(package) + ".json").read_text())
+assert hashlib.sha256(package.read_bytes()).hexdigest() == manifest["sha256"], "Checksum mismatch"
+print("Verified Docking", manifest["version"], manifest["os"], manifest["release"])
+PYTHON
+```
+
+Install the verified package as root:
+
+```sh
+# FreeBSD
+pkg add "./$FILE"
+
+# OpenBSD: GitHub artifacts are unsigned; this exception applies to this file.
+pkg_add -D unsigned "./$FILE"
+```
+
+Start `docking` inside the desktop session. For updates, download and verify the
+new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
+OpenBSD. These are direct release downloads; no third-party package repository
+is configured. The release also includes versioned filenames and
+`SHA256SUMS-bsd`.
+
 ## Run from source
 
 On FreeBSD, install the Python bindings matching the default Python version:
 
 ```sh
-pkg install python3 gtk3 libwnck3 libXtst
+pkg install python3 gtk3 libwnck3 libXtst libXScrnSaver
 python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
 pkg install "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
   "py${python_suffix}-psutil" "py${python_suffix}-pip"
@@ -32,8 +93,7 @@ python3 -m pip --python .venv/bin/python install -e .
 
 Run inside the desktop's D-Bus session. For a minimal X session without a session
 bus, use `dbus-run-session -- .venv/bin/docking` (install the `dbus` package).
-The prebuilt Linux release packages require Linux; BSD source installations use
-the host's native GTK, Cairo, X11 and psutil libraries.
+BSD installations use the host's native GTK, Cairo, X11 and psutil libraries.
 
 ## Integration coverage
 
@@ -61,11 +121,14 @@ automatically elevate privileges.
 
 ## Visual and behavioral CI
 
-The **BSD desktops** workflow runs real FreeBSD and OpenBSD VMs plus a Linux
-control. No BSD machine is needed to review its artifacts. Open a workflow run,
+The **CI** workflow calls **BSD desktops** to build and install real FreeBSD
+and OpenBSD packages, then run visual checks alongside a Linux control.
+**BSD desktops** also supports manual and weekly runs. No BSD machine is needed to review its artifacts. Open a workflow run,
 download `bsd-visual-freebsd` or `bsd-visual-openbsd`, extract it, and open
 `index.html` locally. The gallery includes full desktop PNGs, per-case settings,
-runtime logs, `results.json`, and JUnit results for core/platform tests.
+runtime and package-install logs, `results.json`, and JUnit results for
+core/platform and BSD applet tests. The VM checks exercise the installed package
+from outside the checkout, with the checkout available only for test fixtures.
 
 The harness runs the complete Docking process under private Xvfb, Xfwm and D-Bus
 sessions. It checks all four edges, an additional gap, tooltip and menu pixels,

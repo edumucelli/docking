@@ -68,8 +68,9 @@ def stage(destination: Path) -> None:
     launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_text(
         "#!/bin/sh\nset -eu\n"
+        "export PYTHONDONTWRITEBYTECODE=1\n"
         'export PYTHONPATH="/usr/local/lib/docking/python${PYTHONPATH:+:$PYTHONPATH}"\n'
-        f'exec {executable} -m docking.launcher "$@"\n'
+        f'exec {executable} -P -m docking.launcher "$@"\n'
     )
     launcher.chmod(0o755)
     desktop = destination / "usr/local/share/applications/org.docking.Docking.desktop"
@@ -94,6 +95,7 @@ def freebsd_package(stage_dir: Path, work: Path, version: str) -> Path:
         "gtk3",
         "libwnck3",
         "dbus",
+        "libXScrnSaver",
     ):
         name, dep_version, origin = output("pkg", "query", "%n\t%v\t%o", spec).split(
             "\t"
@@ -155,7 +157,8 @@ def openbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
         name = matches[0]
         stem = re.split(r"-(?=\d)", name, maxsplit=1)[0]
         spec = (
-            f"python-{sys.version_info.major}.{sys.version_info.minor}.*"
+            f"python->={sys.version_info.major}.{sys.version_info.minor},"
+            f"<{sys.version_info.major}.{sys.version_info.minor + 1}"
             if stem == "python"
             else f"{stem}-*"
         )
@@ -191,6 +194,8 @@ def openbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
             "COMMENT=A lightweight desktop dock",
             "-D",
             "FULLPKGPATH=x11/docking",
+            "-D",
+            "MAINTAINER=edumucelli@gmail.com",
             *dependencies,
             str(package),
         ],
@@ -206,7 +211,11 @@ def install_and_check(package: Path, system: str, work: Path) -> None:
         else ["pkg_add", "-I", "-D", "unsigned", str(package)]
     )
     subprocess.run(command, check=True)
-    env = dict(os.environ, PYTHONPATH="/usr/local/lib/docking/python")
+    env = dict(
+        os.environ,
+        PYTHONPATH="/usr/local/lib/docking/python",
+        PYTHONDONTWRITEBYTECODE="1",
+    )
     subprocess.run(
         [
             str(Path(sys.executable).resolve()),
@@ -220,9 +229,6 @@ def install_and_check(package: Path, system: str, work: Path) -> None:
         cwd=work,
         env=env,
         check=True,
-    )
-    subprocess.run(
-        ["/usr/local/bin/docking", "--version"], cwd=work, env=env, check=True
     )
 
 

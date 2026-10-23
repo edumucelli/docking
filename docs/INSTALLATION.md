@@ -144,6 +144,13 @@ fi
 For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
 `.rpm` installations can upgrade directly through the repository.
 
+## FreeBSD and OpenBSD
+
+Native FreeBSD `.pkg` and OpenBSD `.tgz` release packages, dependency setup,
+checksum verification, and install commands are in the
+[BSD installation guide](BSD_SUPPORT.md#release-packages). Current targets are
+FreeBSD 15.1/amd64 and OpenBSD 7.9/amd64.
+
 ## Release downloads
 
 The latest prebuilt packages are available on

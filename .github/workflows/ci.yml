@@ -119,10 +119,10 @@ jobs:
         run: python3 tools/check_translation_packaging.py
 
       - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/
+        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd_visual/ packaging/bsd/
 
       - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/
+        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd_visual/ packaging/bsd/
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
@@ -1186,6 +1186,14 @@ jobs:
               bash /checks/deb/runtime-smoke.sh
             '
 
+  bsd-desktops:
+    name: BSD packages and desktops
+    needs: changes
+    if: needs.changes.outputs.run_ci == 'true'
+    uses: ./.github/workflows/bsd.yml
+    permissions:
+      contents: read
+
   release:
     name: Release
     runs-on: ubuntu-22.04
@@ -1214,6 +1222,7 @@ jobs:
       - build-arch-arm64
       - build-nix
       - build-nix-arm64
+      - bsd-desktops
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -1393,6 +1402,18 @@ jobs:
           name: docking-nix-arm64
           path: artifacts/nix-arm64
 
+      - name: Download FreeBSD package
+        uses: actions/download-artifact@v8
+        with:
+          name: docking-bsd-freebsd
+          path: artifacts/bsd-freebsd
+
+      - name: Download OpenBSD package
+        uses: actions/download-artifact@v8
+        with:
+          name: docking-bsd-openbsd
+          path: artifacts/bsd-openbsd
+
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
         run: |
@@ -1563,6 +1584,13 @@ jobs:
 
           echo "Standardized release assets:"
           ls -lh "${release_dir}"
+
+      - name: Stage verified BSD release assets
+        if: steps.release_check.outputs.should_release == 'true'
+        run: |
+          python3 packaging/bsd/release.py --version "${{ steps.version.outputs.version }}" \
+            --directory artifacts/bsd-freebsd --directory artifacts/bsd-openbsd \
+            --output artifacts/release
 
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
