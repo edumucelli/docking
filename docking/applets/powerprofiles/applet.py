@@ -78,6 +78,9 @@ class PowerProfilesApplet(Applet):
         self._state: PowerProfilesState = unavailable_state()
         self._poll_id: int = 0
         self._set_in_progress = False
+        self._setting_profile: str | None = None
+        self._pending_profile: str | None = None
+        self._poll_generation = 0
         self._action_error = ""
         self._worker = BackgroundWorker()
         self._state = self._backend.get_state()
@@ -106,6 +109,8 @@ class PowerProfilesApplet(Applet):
 
     def stop(self) -> None:
         """Stop periodic polling timer."""
+        self._poll_generation += 1
+        self._pending_profile = None
         if self._poll_id:
             GLib.source_remove(self._poll_id)
             self._poll_id = 0
@@ -119,7 +124,11 @@ class PowerProfilesApplet(Applet):
         if len(profiles) < 2:
             return
         try:
-            current_index = profiles.index(self._state.active_profile)
+            current_index = profiles.index(
+                self._pending_profile
+                or self._setting_profile
+                or self._state.active_profile
+            )
         except ValueError as exc:
             log.debug(
                 "Active profile %r not found in ordered profile list: %s",
@@ -172,11 +181,14 @@ class PowerProfilesApplet(Applet):
 
     def _tick(self) -> bool:
         """Periodic GLib timer callback; delegates backend call to a thread."""
+        if self._set_in_progress:
+            return True
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="powerprofiles-poll",
             fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            on_result=lambda state: self._on_poll_result(state, generation=generation),
         )
         return True
 
@@ -184,8 +196,14 @@ class PowerProfilesApplet(Applet):
         """Background thread: fetch backend state, then hand off to GTK loop."""
         return self._backend.get_state()
 
-    def _on_poll_result(self, state: PowerProfilesState) -> bool:
+    def _on_poll_result(
+        self, state: PowerProfilesState, *, generation: int | None = None
+    ) -> bool:
         """GTK-thread state update from periodic polling."""
+        if self._set_in_progress or (
+            generation is not None and generation != self._poll_generation
+        ):
+            return False
         changed = state != self._state
         self._state = state
         if changed:
@@ -196,15 +214,20 @@ class PowerProfilesApplet(Applet):
         """Radio-item callback; dispatch profile change only on active toggle."""
         if not widget.get_active():
             return
-        if profile == self._state.active_profile:
+        if profile == (
+            self._pending_profile or self._setting_profile or self._state.active_profile
+        ):
             return
         self._set_profile_async(profile=profile)
 
     def _set_profile_async(self, *, profile: str) -> None:
         """Run backend profile switch on worker thread."""
+        self._poll_generation += 1
         if self._set_in_progress:
+            self._pending_profile = profile
             return
         self._set_in_progress = True
+        self._setting_profile = profile
 
         def task() -> tuple[bool, PowerProfilesState]:
             return (
@@ -227,16 +250,26 @@ class PowerProfilesApplet(Applet):
     ) -> bool:
         """GTK-thread handler for async profile-set completion."""
         self._set_in_progress = False
+        self._setting_profile = None
         self._state = state
         if success:
             self._action_error = ""
         else:
             self._action_error = f"Failed to set {profile_label(profile)}"
         self.present()
+        self._start_pending_profile()
         return False
 
     def _on_set_error(self, profile: str, _exc: Exception) -> bool:
         self._set_in_progress = False
+        self._setting_profile = None
         self._action_error = f"Failed to set {profile_label(profile)}"
         self.present()
+        self._start_pending_profile()
         return False
+
+    def _start_pending_profile(self) -> None:
+        profile = self._pending_profile
+        self._pending_profile = None
+        if profile is not None and profile != self._state.active_profile:
+            self._set_profile_async(profile=profile)

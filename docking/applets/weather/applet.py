@@ -91,6 +91,7 @@ class WeatherApplet(Applet):
         self._air_quality: AirQualityData | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
+        self._stopped = False
         self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
@@ -227,6 +228,7 @@ class WeatherApplet(Applet):
         )
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
@@ -236,6 +238,10 @@ class WeatherApplet(Applet):
             )
 
     def stop(self) -> None:
+        self._stopped = True
+        self._fetch_pending = False
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -392,7 +398,7 @@ class WeatherApplet(Applet):
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
         active = self._active_city
-        if not active:
+        if self._stopped or not active:
             return
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
@@ -438,6 +444,8 @@ class WeatherApplet(Applet):
         weather: WeatherData | None,
         aqi: AirQualityData | None,
     ) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
             self._settle_replaced_fetch()
             return False
@@ -454,6 +462,8 @@ class WeatherApplet(Applet):
         return False
 
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
             self._settle_replaced_fetch()
             return False

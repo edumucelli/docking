@@ -493,7 +493,7 @@ class TestBrightnessApplet:
 
         seen: list[float | None] = []
         monkeypatch.setattr(
-            applet, "_on_poll_result", lambda val: seen.append(val) or False
+            applet, "_on_poll_result", lambda val, **_kwargs: seen.append(val) or False
         )
         monkeypatch.setattr(
             "docking.applets.brightness.applet.get_brightness", lambda backend: 0.8

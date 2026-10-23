@@ -19,6 +19,7 @@ _DISPLAY_PROBE = """
 import os
 import sys
 import gi
+gi.require_version('Gdk', '3.0')
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, Gtk
 if not Gtk.init_check()[0]:
@@ -30,8 +31,13 @@ try:
         sys.exit(0)
 except (ImportError, ValueError):
     pass
+try:
+    gi.require_version('GdkX11', '3.0')
+    from gi.repository import GdkX11
+except (ImportError, ValueError):
+    sys.exit(2)
 display = Gdk.Display.open(os.environ['DISPLAY'])
-sys.exit(42 if display and type(display).__name__ == 'X11Display' else 2)
+sys.exit(42 if isinstance(display, GdkX11.X11Display) else 3)
 """
 
 
@@ -59,6 +65,17 @@ def prepare_cinnamon_display() -> bool:
             timeout=3,
             check=False,
         )
+        if result.returncode == 3:
+            # GDK can restrict later display opens to the backend selected at
+            # initialization. Verify X11 in a fresh process with that backend
+            # selected explicitly, after ruling out native layer-shell.
+            result = subprocess.run(
+                [sys.executable, "-c", _DISPLAY_PROBE],
+                env={**os.environ, "GDK_BACKEND": "x11"},
+                capture_output=True,
+                timeout=3,
+                check=False,
+            )
     except (OSError, subprocess.TimeoutExpired):
         log.debug("Cinnamon display probe could not verify an XWayland fallback")
         return False

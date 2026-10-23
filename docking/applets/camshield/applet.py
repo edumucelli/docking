@@ -148,12 +148,13 @@ class CamshieldApplet(Applet):
 
     def _ensure_pulse_timer(self) -> None:
         """Run the red-dot pulse only while a camera device is active."""
-        if self._state.active and not self._pulse_timer_id:
+        should_pulse = self._notify is not None and self._state.active
+        if should_pulse and not self._pulse_timer_id:
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
                 self._pulse_tick,
             )
-        elif not self._state.active and self._pulse_timer_id:
+        elif not should_pulse and self._pulse_timer_id:
             GLib.source_remove(self._pulse_timer_id)
             self._pulse_timer_id = 0
             self._pulse_phase = 0.0
