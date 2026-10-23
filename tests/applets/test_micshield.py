@@ -202,7 +202,9 @@ Source Output #9
             lambda _cmd: "/usr/bin/pactl",
         )
         monkeypatch.setattr(micshield_state_mod, "input_source_names", lambda: ())
-        monkeypatch.setattr(micshield_state_mod, "active_source_outputs", lambda: ())
+        monkeypatch.setattr(
+            micshield_state_mod, "_source_outputs", lambda **_kwargs: ()
+        )
         monkeypatch.setattr(
             micshield_state_mod,
             "_run",
@@ -264,6 +266,7 @@ Source Output #9
         assert seen == [
             ["pactl", "set-source-mute", "alsa_input.pci.mic", "1"],
             ["pactl", "set-source-output-mute", "42", "1"],
+            ["pactl", "set-source-output-mute", "43", "1"],
         ]
 
     def test_tooltip_and_stream_label(self):
@@ -293,7 +296,7 @@ Source Output #9
 
         assert micshield_state_mod._source_mute_states(
             source_names=("mic1", "mic2", "mic3")
-        ) == (True, False)
+        ) == (True, None, False)
 
     def test_run_handles_success_failure_and_exceptions(self, monkeypatch):
         monkeypatch.setattr(

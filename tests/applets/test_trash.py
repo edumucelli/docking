@@ -2,6 +2,7 @@
 
 import configparser
 import contextlib
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -58,11 +59,10 @@ class TestHelperFunctions:
     ):
         home = tmp_path / "home"
         mount = tmp_path / "media" / "ARCHIVES"
-        volume_trash = mount / ".Trash-1000"
+        volume_trash = mount / f".Trash-{os.getuid()}"
         volume_trash.mkdir(parents=True)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
-        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
         monkeypatch.setattr(
             "docking.applets.trash.backend._mount_points",
             lambda: (mount,),
@@ -82,11 +82,11 @@ class TestHelperFunctions:
     ):
         home = tmp_path / "home"
         mount = tmp_path / "media" / "SHARED"
-        volume_trash = mount / ".Trash" / "1000"
+        volume_trash = mount / ".Trash" / str(os.getuid())
         volume_trash.mkdir(parents=True)
+        volume_trash.parent.chmod(0o1777)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
-        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
         monkeypatch.setattr(
             "docking.applets.trash.backend._mount_points",
             lambda: (mount,),

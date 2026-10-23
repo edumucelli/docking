@@ -79,6 +79,8 @@ class _FileFacts:
     actions: tuple[_FileAction, ...]
     only_show_in: tuple[str, ...] = ()
     not_show_in: tuple[str, ...] = ()
+    terminal: bool = False
+    working_directory: str = ""
 
 
 def current_desktop_names() -> tuple[str, ...]:
@@ -411,6 +413,8 @@ def file_facts(path: Path | None) -> _FileFacts | None:
             "StartupWMClass",
         ),
         exec_line=desktop_entries.desktop_entry_string(key_file, "Exec"),
+        terminal=desktop_entries.desktop_entry_bool(key_file, "Terminal"),
+        working_directory=desktop_entries.desktop_entry_string(key_file, "Path"),
         generic_name=desktop_entries.desktop_entry_locale_string(
             key_file,
             "GenericName",
@@ -478,6 +482,9 @@ def _application_from_gio_with_diagnostic(
     if not keywords and facts is not None:
         keywords = facts.keywords
 
+    terminal = safe_call(app_info, "get_boolean", "Terminal")
+    working_directory = safe_call(app_info, "get_string", "Path")
+
     application = _make_application(
         desktop_id=desktop_id,
         name=name,
@@ -503,6 +510,14 @@ def _application_from_gio_with_diagnostic(
             and (facts is None or not facts.no_display)
         ),
         has_gio_source=True,
+        terminal=bool(facts and facts.terminal)
+        if terminal is None
+        else terminal is True,
+        working_directory=(
+            facts.working_directory
+            if working_directory is None and facts is not None
+            else source_text(working_directory)
+        ),
         generic_name=generic_name,
         description=description,
         categories_raw=categories_raw,
@@ -768,6 +783,8 @@ def _application_from_file(
             not_show_in=facts.not_show_in,
         ),
         has_gio_source=False,
+        terminal=facts.terminal,
+        working_directory=facts.working_directory,
         generic_name=facts.generic_name,
         description=(
             facts.description if _clean_text(facts.description) else facts.generic_name
@@ -795,6 +812,8 @@ def _make_application(
     categories_raw: str,
     keywords: tuple[str, ...],
     actions: tuple[ApplicationAction, ...],
+    terminal: bool = False,
+    working_directory: str = "",
 ) -> ApplicationInfo:
     return ApplicationInfo(
         desktop_id=desktop_id,
@@ -816,6 +835,8 @@ def _make_application(
         categories_raw=categories_raw,
         keywords=keywords,
         actions=actions,
+        terminal=terminal,
+        working_directory=working_directory,
     )
 
 

@@ -238,7 +238,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
-from docking.core.config import effective_edge_gap
+from docking.core.config import PULSE_MAX_SCALE, effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
@@ -282,15 +282,19 @@ def resting_dock_cross_extent(*, icon_size: int, theme: Theme) -> int:
 
 
 def compute_dock_cross_metrics(
-    *, icon_size: int, zoom: float, theme: Theme
+    *, icon_size: int, zoom: float, theme: Theme, items: Sequence[DockItem] = ()
 ) -> DockCrossMetrics:
     """Return the surface allocation required by every icon animation."""
     edge_padding = dock_edge_padding(theme=theme)
+    # Reserve each item's full slot width even while it is inserting/removing,
+    # so growing a wide item does not resize the surface on every frame.
+    max_item_width = max(icon_size, max((item.main_size for item in items), default=0))
+    max_item_extent = max_item_width * max(1.0, float(zoom))
     launch_headroom = icon_size * max(0.0, float(theme.launch_bounce_height))
+    pulse_headroom = max_item_extent * (PULSE_MAX_SCALE - 1.0)
     urgent_headroom = icon_size * max(0.0, float(theme.urgent_bounce_height))
-    animation_headroom = launch_headroom + urgent_headroom
-    max_icon_extent = icon_size * max(1.0, float(zoom))
-    surface_extent = math.ceil(max_icon_extent + edge_padding + animation_headroom)
+    animation_headroom = max(launch_headroom, pulse_headroom) + urgent_headroom
+    surface_extent = math.ceil(max_item_extent + edge_padding + animation_headroom)
     return DockCrossMetrics(
         surface_extent=max(1, surface_extent),
         resting_extent=resting_dock_cross_extent(
