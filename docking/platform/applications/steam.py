@@ -181,16 +181,33 @@ class SteamDiscovery:
         roots_seen: set[Path] = set()
         manifests_seen: set[Path] = set()
 
-        def watch(path: Path) -> None:
-            while not path.is_dir() and path.parent != path:
+        def watch(path: Path, boundary: Path) -> None:
+            while not path.is_dir():
+                if path == boundary or not path.is_relative_to(boundary):
+                    return
                 path = path.parent
-            watches.add(path)
+            watches.add(path.resolve())
 
         roots = self._roots if self._roots is not None else default_steam_roots()
         for candidate, flatpak in sorted(roots, key=lambda entry: entry[1]):
             try:
+                # Bootstrap only within Steam-specific parents, never HOME or
+                # shared XDG data directories. Gio also reports new launchers.
+                boundary = next(
+                    (
+                        parent
+                        for parent in candidate.parents
+                        if parent.name == ".steam"
+                        or (
+                            flatpak
+                            and parent.name == "app"
+                            and parent.parent.name == ".var"
+                        )
+                    ),
+                    candidate,
+                )
+                watch(candidate, boundary)
                 root = candidate.resolve()
-                watch(root)
                 if root in roots_seen or not (root / "steamapps").is_dir():
                     continue
                 roots_seen.add(root)
@@ -199,7 +216,7 @@ class SteamDiscovery:
                     root / "steamapps/libraryfolders.vdf",
                     root / "config/libraryfolders.vdf",
                 ):
-                    watch(config.parent)
+                    watch(config.parent, root)
                     if not config.is_file():
                         continue
                     try:
@@ -218,10 +235,10 @@ class SteamDiscovery:
                         issues.append(f"{config}: {type(exc).__name__}")
                     break
                 cache = root / "appcache/librarycache"
-                watch(cache)
+                watch(cache, root)
                 for library in dict.fromkeys(libraries):
                     apps = library / "steamapps"
-                    watch(apps)
+                    watch(apps, library)
                     for manifest in sorted(apps.glob("appmanifest_*.acf")):
                         try:
                             manifest = manifest.resolve()
@@ -231,7 +248,7 @@ class SteamDiscovery:
                             game = self._game(manifest, root, flatpak)
                             if game is not None:
                                 games.append(game)
-                                watch(cache / game.app_id)
+                                watch(cache / game.app_id, root)
                         except (OSError, RuntimeError, ValueError) as exc:
                             issues.append(f"{manifest}: {type(exc).__name__}")
             except (OSError, RuntimeError, ValueError) as exc:
@@ -256,9 +273,10 @@ class SteamDiscovery:
         if int(str(state.get("stateflags", "0"))) & 1:
             return None
         common = (manifest.parent / "common").resolve()
-        install = (common / directory).resolve()
-        if install == common or not install.is_relative_to(common):
+        relative = Path(directory)
+        if relative.is_absolute() or ".." in relative.parts or not relative.parts:
             raise ValueError("Invalid installation directory")
+        install = (common / relative).resolve()
         if not install.is_dir() or (install / "toolmanifest.vdf").exists():
             return None
         cache = root / "appcache/librarycache"

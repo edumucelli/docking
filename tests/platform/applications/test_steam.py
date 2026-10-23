@@ -451,3 +451,101 @@ def test_roots_follow_xdg_and_flatpak_layouts(tmp_path, monkeypatch):
         tmp_path / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
         True,
     ) in roots
+
+
+def test_steam_home_failure_preserves_desktop_discovery(tmp_path, monkeypatch):
+    (tmp_path / "editor.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Editor\nExec=true\n"
+    )
+    registry = ApplicationRegistry(
+        application_source=lambda: (),
+        desktop_directories_source=lambda: (tmp_path,),
+        steam_source=SteamDiscovery(),
+    )
+
+    def missing_home():
+        raise RuntimeError("Could not determine home directory")
+
+    monkeypatch.setattr(Path, "home", missing_home)
+    assert registry.refresh()
+    assert registry.diagnostic_snapshot().loaded
+    assert registry.get("editor.desktop").name == "Editor"
+
+
+@pytest.mark.parametrize("data_exists", [False, True])
+def test_missing_steam_does_not_watch_home_or_shared_data(
+    tmp_path, monkeypatch, data_exists
+):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    data = tmp_path / ".local/share"
+    monkeypatch.setenv("XDG_DATA_HOME", str(data))
+    if data_exists:
+        data.mkdir(parents=True)
+    assert SteamDiscovery()().watch_directories == ()
+
+
+@pytest.mark.parametrize("flatpak", [False, True])
+def test_first_steam_install_is_discovered_from_dedicated_parent(
+    tmp_path, monkeypatch, flatpak
+):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / ".local/share"))
+    parent = tmp_path / (".var/app" if flatpak else ".steam")
+    parent.mkdir(parents=True)
+    root = parent / "com.valvesoftware.Steam/data/Steam" if flatpak else parent / "root"
+    registry = ApplicationRegistry(
+        application_source=lambda: (),
+        desktop_directories_source=lambda: (),
+        steam_source=SteamDiscovery(),
+    )
+    callbacks = {}
+    timers = []
+
+    def monitor(path):
+        value = MagicMock()
+        value.connect.side_effect = lambda _signal, callback: callbacks.setdefault(
+            path, callback
+        )
+        return value
+
+    registry._directory_monitor_factory = monitor
+    registry._app_monitor_factory = MagicMock
+    registry._schedule_timeout = lambda _delay, callback: timers.append(callback) or 1
+    registry.start()
+    try:
+        assert set(callbacks) == {parent}
+        _manifest(root)
+        callbacks[parent]()
+        assert len(timers) == 1
+        timers.pop()()
+        assert registry.get("steam-440.desktop") is not None
+        assert root.resolve() in registry.diagnostic_snapshot().steam_directories
+    finally:
+        registry.stop()
+
+
+def test_symlinked_install_directory_matches_resolved_executable(
+    steam_fixture, tmp_path
+):
+    fixture = steam_fixture
+    external = tmp_path / "other-disk/Team Fortress 2"
+    external.parent.mkdir()
+    fixture.install.rename(external)
+    fixture.install.symlink_to(external, target_is_directory=True)
+    fixture.registry.refresh()
+    app = fixture.registry.get("steam-440.desktop")
+    assert app is not None
+    assert fixture.registry.resolve_steam_executable(external / "tf_linux64") is app
+
+
+@pytest.mark.parametrize(
+    "directory", ["/outside", "../outside", "nested/../../outside", "."]
+)
+def test_invalid_install_directory_is_rejected(steam_fixture, directory):
+    fixture = steam_fixture
+    fixture.manifest.write_text(
+        f'"AppState" {{ "appid" "440" "name" "Bad" "installdir" "{directory}" }}'
+    )
+    result = fixture.source()
+    assert result.games == ()
+    assert len(result.issues) == 1

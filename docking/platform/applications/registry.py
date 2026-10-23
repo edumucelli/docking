@@ -415,11 +415,17 @@ class ApplicationRegistry:
             desktop_app_info_from_filename=self._desktop_app_info_from_filename,
             handle_epoch=handle_epoch,
         )
-        steam = (
-            self._steam_source()
-            if self._steam_source is not None
-            else SteamDiscoveryResult()
-        )
+        try:
+            steam = (
+                self._steam_source()
+                if self._steam_source is not None
+                else SteamDiscoveryResult()
+            )
+        except Exception as exc:
+            log.bind(action="discover_steam_games").warning(
+                "Failed to discover Steam games: %s", exc
+            )
+            steam = SteamDiscoveryResult()
         applications = list(result.applications)
         diagnostics = list(result.diagnostics)
         steam_apps: dict[str, ApplicationInfo] = {}
