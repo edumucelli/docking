@@ -138,6 +138,8 @@ def _make_stub(item: DockItem | None = None):
         pos=Position.BOTTOM,
         left_click_action="toggle",
         middle_click_action="new-window",
+        dock_item_click_effects_enabled=True,
+        dock_item_click_effect="bounce",
         stack_unfold="click",
         icon_size=48,
         additional_distance_from_edge=0,
@@ -146,7 +148,10 @@ def _make_stub(item: DockItem | None = None):
     stub.model.visible_items.return_value = [item]
     stub.model.get_applet = MagicMock()
     stub.theme = SimpleNamespace(
-        item_padding=8, horizontal_padding=10, urgent_glow_time_ms=500
+        item_padding=8,
+        horizontal_padding=10,
+        urgent_glow_time_ms=500,
+        launch_bounce_time_ms=600,
     )
     stub.window_tracker = MagicMock()
     stub._interactions = MagicMock()
@@ -354,9 +359,18 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
-    def test_left_click_stopped_app_uses_application_launcher(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        ("launch_ms", "pump_ms"),
+        [(600, 600), (800, 800), (805, 805), (0, 350), (100, 350)],
+    )
+    def test_left_click_stopped_app_uses_application_launcher(
+        self, monkeypatch, effect, launch_ms, pump_ms
+    ):
         item = DockItem(desktop_id="firefox.desktop", is_running=False)
         stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
@@ -376,7 +390,7 @@ class TestButtonReleaseFlow:
         )
         assert item.last_clicked == 1515
         assert item.last_launched == 1515
-        stub.hover.start_anim_pump.assert_called_once_with(700)
+        stub.hover.start_anim_pump.assert_called_once_with(pump_ms)
 
     def test_click_refreshes_running_state_before_launching(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=False)
@@ -400,9 +414,18 @@ class TestButtonReleaseFlow:
         controller._application_launcher.launch_new_window.assert_not_called()
         assert item.last_launched == 0
 
-    def test_middle_click_new_window_launches_running_app(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        ("launch_ms", "pump_ms"),
+        [(600, 600), (800, 800), (805, 805), (0, 350), (100, 350)],
+    )
+    def test_middle_click_new_window_launches_running_app(
+        self, monkeypatch, effect, launch_ms, pump_ms
+    ):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
         )
@@ -421,7 +444,38 @@ class TestButtonReleaseFlow:
             "firefox.desktop"
         )
         assert item.last_launched == 2020
-        stub.hover.start_anim_pump.assert_called_once_with(700)
+        stub.hover.start_anim_pump.assert_called_once_with(pump_ms)
+
+    @pytest.mark.parametrize("button", [1, 2])
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize("launch_ms", [100, 800])
+    def test_launch_without_click_effect_keeps_short_click_feedback(
+        self, monkeypatch, button, effect, launch_ms
+    ):
+        item = DockItem(desktop_id="firefox.desktop", is_running=button == 2)
+        stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effects_enabled = False
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
+        event = SimpleNamespace(x=12.0, y=6.0, button=button, state=0)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2020
+        )
+        controller = _controller(stub)
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        launcher = controller._application_launcher
+        if button == 1:
+            launcher.launch.assert_called_once_with("firefox.desktop")
+        else:
+            launcher.launch_new_window.assert_called_once_with("firefox.desktop")
+        assert item.last_clicked == 2020
+        assert item.last_launched == 0
+        stub.hover.start_anim_pump.assert_called_once_with(350)
 
     def test_left_click_cycle_dispatches_cycle_action(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
@@ -560,7 +614,7 @@ class TestButtonReleaseFlow:
         controller._target_service.open_target.assert_called_once_with(
             "file:///tmp/notes.txt"
         )
-        assert item.last_launched == 3030
+        assert item.last_launched == 0
 
     def test_left_click_folder_item_opens_folder_stack(self, monkeypatch):
         item = DockItem(
@@ -1882,6 +1936,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=7.0, y=9.0)
 
@@ -1928,6 +1983,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=12.0, y=9.0)
 

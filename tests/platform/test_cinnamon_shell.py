@@ -46,6 +46,71 @@ def _proxy(value, success=True):
     )
 
 
+@pytest.mark.parametrize("value", [None, [], [1], [1, "2"], [True, 2], [1, 2, 3]])
+def test_native_pointer_query_rejects_unusable_coordinates(value):
+    assert shell.CinnamonShellClient(proxy=_proxy(value)).pointer_position() is None
+
+
+def test_native_pointer_query_uses_compositor_coordinates_outside_xwayland():
+    assert shell.CinnamonShellClient(proxy=_proxy([-100, 320])).pointer_position() == (
+        -100,
+        320,
+    )
+
+
+@pytest.mark.parametrize(
+    "pointer,inside",
+    [
+        ((105, 206), True),
+        ((114, 215), True),
+        ((115, 215), False),
+        ((104, 210), False),
+        (None, True),
+    ],
+)
+def test_xwayland_exit_observer_checks_the_current_input_region(
+    monkeypatch, pointer, inside
+):
+    client = MagicMock(spec=shell.CinnamonShellClient)
+    client.pointer_position.return_value = pointer
+    service = shell.CinnamonXWaylandSurfaceService(client=client)
+    service._position = (100, 200)
+    service.update_input_region(Rect(5, 6, 10, 10))
+    callbacks = []
+    removed = []
+    monkeypatch.setattr(
+        shell.GLib,
+        "timeout_add",
+        lambda _ms, callback: callbacks.append(callback) or 41,
+    )
+    monkeypatch.setattr(shell.GLib, "source_remove", removed.append)
+    exited = MagicMock(side_effect=lambda: service.set_pointer_leave_handler(None))
+    service.set_pointer_leave_handler(exited)
+
+    assert callbacks[0]() is inside
+    if inside:
+        exited.assert_not_called()
+    else:
+        exited.assert_called_once()
+        assert removed == [41]
+
+
+def test_xwayland_observer_does_not_duplicate_sources_and_stops_cleanly(monkeypatch):
+    client = MagicMock(spec=shell.CinnamonShellClient)
+    service = shell.CinnamonXWaylandSurfaceService(client=client)
+    schedule = MagicMock(return_value=41)
+    remove = MagicMock()
+    monkeypatch.setattr(shell.GLib, "timeout_add", schedule)
+    monkeypatch.setattr(shell.GLib, "source_remove", remove)
+    service.set_pointer_leave_handler(MagicMock())
+    service.set_pointer_leave_handler(MagicMock())
+    schedule.assert_called_once()
+    service.stop()
+    remove.assert_called_once_with(41)
+    assert not service._check_pointer_leave()
+    client.pointer_position.assert_not_called()
+
+
 def test_shell_client_positions_only_the_identified_dock_and_returns_actual_position():
     proxy = _proxy([0, 853])
     client = shell.CinnamonShellClient(proxy=proxy)

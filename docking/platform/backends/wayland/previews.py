@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import mmap
 import os
+import time
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -55,6 +56,13 @@ _PREFERRED_SHM_FORMATS = (SHM_ARGB8888, SHM_XRGB8888)
 
 # Previews are scaled to the requested size, so the size is part of the identity.
 _PreviewKey = tuple[WindowId, int, int]
+_PREVIEW_REFRESH_SECONDS = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class _PreviewCacheEntry:
+    preview: PreviewImage
+    captured_at: float
 
 
 class _CaptureResource(Protocol):
@@ -268,12 +276,16 @@ class WaylandPreviewHandleTracker:
 class WaylandPreviewService(PreviewService):
     """Nonblocking generic Wayland preview service."""
 
+    asynchronous = True
+
     def __init__(
         self, *, protocol: PreviewProtocolAdapter, handles: WaylandPreviewHandleTracker
     ):
         self._protocol = protocol
         self._handles = handles
-        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._cache: dict[_PreviewKey, _PreviewCacheEntry] = {}
+        self._clock = time.monotonic
+        self._retry_after: dict[WindowId, float] = {}
         self._pending: dict[_PreviewKey, _CaptureRequest] = {}
 
     def start(self) -> None:
@@ -285,6 +297,7 @@ class WaylandPreviewService(PreviewService):
             self._cleanup_request(request)
         self._pending.clear()
         self._cache.clear()
+        self._retry_after.clear()
         self._handles.stop()
 
     def capture(
@@ -304,11 +317,17 @@ class WaylandPreviewService(PreviewService):
             return None
         key = (window_id, width, height)
         cached = self._cache.get(key)
-        if cached is not None:
-            return cached
-        if key not in self._pending:
+        stale = (
+            cached is None
+            or self._clock() - cached.captured_at >= _PREVIEW_REFRESH_SECONDS
+        )
+        if (
+            stale
+            and key not in self._pending
+            and self._clock() >= self._retry_after.get(window_id, 0.0)
+        ):
             self._start_capture(window_id=window_id, width=width, height=height)
-        return None
+        return cached.preview if cached is not None else None
 
     def _start_capture(self, *, window_id: WindowId, width: int, height: int) -> None:
         handle = self._handles.handle_for_window_id(window_id)
@@ -319,6 +338,7 @@ class WaylandPreviewService(PreviewService):
             source = self._protocol.create_source(handle)
             session = self._protocol.create_session(source)
         except Exception:
+            self._retry_after[window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
             if source is not None:
                 with suppress(Exception):
                     source.destroy()
@@ -398,7 +418,9 @@ class WaylandPreviewService(PreviewService):
         if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[_request_key(request)] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _PreviewCacheEntry(
+                _pixbuf_from_request(request), self._clock()
+            )
         self._finish_request(request)
 
     def _on_stopped(self, request: _CaptureRequest) -> None:
@@ -408,6 +430,7 @@ class WaylandPreviewService(PreviewService):
         if self._pending.get(_request_key(request)) is not request:
             return
         _drop_window(self._cache, request.window_id)
+        self._retry_after[request.window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
         self._finish_request(request)
 
     def _finish_request(self, request: _CaptureRequest) -> None:
@@ -423,6 +446,8 @@ class WaylandPreviewService(PreviewService):
 class HyprlandPreviewService(PreviewService):
     """PreviewService backed by Hyprland's toplevel export protocol."""
 
+    asynchronous = True
+
     def __init__(
         self,
         *,
@@ -431,7 +456,9 @@ class HyprlandPreviewService(PreviewService):
     ):
         self._protocol = protocol
         self._windows = windows
-        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._cache: dict[_PreviewKey, _PreviewCacheEntry] = {}
+        self._clock = time.monotonic
+        self._retry_after: dict[WindowId, float] = {}
         self._pending: dict[_PreviewKey, _HyprlandCaptureRequest] = {}
 
     def start(self) -> None:
@@ -442,6 +469,7 @@ class HyprlandPreviewService(PreviewService):
             self._cleanup_request(request)
         self._pending.clear()
         self._cache.clear()
+        self._retry_after.clear()
 
     def capture(
         self, window_id: WindowId, *, width: int, height: int
@@ -460,11 +488,17 @@ class HyprlandPreviewService(PreviewService):
             return None
         key = (window_id, width, height)
         cached = self._cache.get(key)
-        if cached is not None:
-            return cached
-        if key not in self._pending:
+        stale = (
+            cached is None
+            or self._clock() - cached.captured_at >= _PREVIEW_REFRESH_SECONDS
+        )
+        if (
+            stale
+            and key not in self._pending
+            and self._clock() >= self._retry_after.get(window_id, 0.0)
+        ):
             self._start_capture(window_id=window_id, width=width, height=height)
-        return None
+        return cached.preview if cached is not None else None
 
     def _start_capture(self, *, window_id: WindowId, width: int, height: int) -> None:
         handle = self._windows.protocol_handle_for_window_id(window_id)
@@ -473,6 +507,7 @@ class HyprlandPreviewService(PreviewService):
         try:
             frame = self._protocol.create_frame(handle)
         except Exception:
+            self._retry_after[window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
             return
         request = _HyprlandCaptureRequest(
             window_id=window_id,
@@ -539,13 +574,16 @@ class HyprlandPreviewService(PreviewService):
         if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[_request_key(request)] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _PreviewCacheEntry(
+                _pixbuf_from_request(request), self._clock()
+            )
         self._finish_request(request)
 
     def _finish_failed(self, request: _HyprlandCaptureRequest) -> None:
         if self._pending.get(_request_key(request)) is not request:
             return
         _drop_window(self._cache, request.window_id)
+        self._retry_after[request.window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
         self._finish_request(request)
 
     def _finish_request(self, request: _HyprlandCaptureRequest) -> None:
@@ -561,6 +599,8 @@ class HyprlandPreviewService(PreviewService):
 class PhocPreviewService(PreviewService):
     """Window thumbnails provided by phoc's optional phosh_private protocol."""
 
+    asynchronous = True
+
     def __init__(
         self,
         *,
@@ -569,7 +609,9 @@ class PhocPreviewService(PreviewService):
     ):
         self._protocol = protocol
         self._windows = windows
-        self._cache: dict[_PreviewKey, PreviewImage] = {}
+        self._cache: dict[_PreviewKey, _PreviewCacheEntry] = {}
+        self._clock = time.monotonic
+        self._retry_after: dict[WindowId, float] = {}
         self._pending: dict[_PreviewKey, _PhocCaptureRequest] = {}
 
     def start(self) -> None:
@@ -580,6 +622,7 @@ class PhocPreviewService(PreviewService):
             self._cleanup_request(request)
         self._pending.clear()
         self._cache.clear()
+        self._retry_after.clear()
 
     def capture(
         self, window_id: WindowId, *, width: int, height: int
@@ -598,11 +641,17 @@ class PhocPreviewService(PreviewService):
             return None
         key = (window_id, width, height)
         cached = self._cache.get(key)
-        if cached is not None:
-            return cached
-        if key not in self._pending:
+        stale = (
+            cached is None
+            or self._clock() - cached.captured_at >= _PREVIEW_REFRESH_SECONDS
+        )
+        if (
+            stale
+            and key not in self._pending
+            and self._clock() >= self._retry_after.get(window_id, 0.0)
+        ):
             self._start_capture(window_id=window_id, width=width, height=height)
-        return None
+        return cached.preview if cached is not None else None
 
     def _start_capture(self, *, window_id: WindowId, width: int, height: int) -> None:
         handle = self._windows.protocol_handle_for_window_id(window_id)
@@ -611,6 +660,7 @@ class PhocPreviewService(PreviewService):
         try:
             frame = self._protocol.create_frame(handle, width, height)
         except Exception:
+            self._retry_after[window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
             return
         request = _PhocCaptureRequest(
             window_id=window_id,
@@ -670,13 +720,16 @@ class PhocPreviewService(PreviewService):
         if self._pending.get(_request_key(request)) is not request:
             return
         with suppress(Exception):
-            self._cache[_request_key(request)] = _pixbuf_from_request(request)
+            self._cache[_request_key(request)] = _PreviewCacheEntry(
+                _pixbuf_from_request(request), self._clock()
+            )
         self._finish_request(request)
 
     def _finish_failed(self, request: _PhocCaptureRequest) -> None:
         if self._pending.get(_request_key(request)) is not request:
             return
         _drop_window(self._cache, request.window_id)
+        self._retry_after[request.window_id] = self._clock() + _PREVIEW_REFRESH_SECONDS
         self._finish_request(request)
 
     def _finish_request(self, request: _PhocCaptureRequest) -> None:
@@ -695,7 +748,9 @@ def _request_key(
     return (request.window_id, request.requested_width, request.requested_height)
 
 
-def _drop_window(cache: dict[_PreviewKey, PreviewImage], window_id: WindowId) -> None:
+def _drop_window(
+    cache: dict[_PreviewKey, _PreviewCacheEntry], window_id: WindowId
+) -> None:
     """Forget every cached size of one window."""
     for key in [key for key in cache if key[0] == window_id]:
         del cache[key]
@@ -782,9 +837,13 @@ def _pixbuf_from_request(
         request.height,
         request.stride,
     )
+    scale = min(
+        request.requested_width / request.width,
+        request.requested_height / request.height,
+    )
     scaled = pixbuf.scale_simple(
-        request.requested_width,
-        request.requested_height,
+        max(1, round(request.width * scale)),
+        max(1, round(request.height * scale)),
         GdkPixbuf.InterpType.BILINEAR,
     )
     image = scaled if scaled is not None else pixbuf

@@ -12,6 +12,8 @@ from enum import Enum
 from functools import cache
 from typing import NamedTuple
 
+from gi.repository import GLib
+
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak
 
@@ -213,6 +215,26 @@ def clean_desktop_exec(command: str) -> str:
     ``%%`` escapes a literal percent and an unrecognised ``%x`` is consumed,
     both as GLib does; leaving them in sent the application a bogus argument.
     """
+    return _remove_desktop_field_codes(command).strip()
+
+
+def desktop_exec_argv(command: str) -> list[str]:
+    """Parse desktop quoting with GLib before expanding field codes."""
+    if not command.strip():
+        return []
+    try:
+        _, parsed = GLib.shell_parse_argv(command)
+    except GLib.Error as exc:
+        raise ValueError(str(exc)) from exc
+    argv: list[str] = []
+    for argument in parsed:
+        expanded = _remove_desktop_field_codes(argument)
+        if expanded or not argument:
+            argv.append(expanded)
+    return argv
+
+
+def _remove_desktop_field_codes(command: str) -> str:
     # A sentinel keeps the escaped percents out of the code-stripping pass.
     literal_percent = "\x00"
     text = command.replace("%%", literal_percent)
@@ -220,4 +242,4 @@ def clean_desktop_exec(command: str) -> str:
     # Anything left is a code this build does not know; a percent not followed
     # by a letter is left alone.
     text = re.sub(r"%[A-Za-z]", "", text)
-    return text.replace(literal_percent, "%").strip()
+    return text.replace(literal_percent, "%")

@@ -63,6 +63,8 @@ def normalize_alarm_target(value: object, *, now_ts: float) -> int | None:
     if isinstance(value, int):
         target = value
     elif isinstance(value, float):
+        if not math.isfinite(value):
+            return None
         target = int(value)
     else:
         return None
