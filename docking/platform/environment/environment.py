@@ -38,6 +38,7 @@ import subprocess
 from pathlib import Path
 
 from docking.log import get_logger
+from docking.platform.libraries import load_library
 
 log = get_logger(name="environment")
 
@@ -256,7 +257,7 @@ def compositor_active(*, display: object | None = None) -> bool | None:
         if display is None or not is_x11_backend(display=display):
             return None
 
-        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xlib = load_library("X11", "libX11.so.6")
         xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
 
         xlib.XDefaultScreen.restype = ctypes.c_int

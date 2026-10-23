@@ -19,6 +19,7 @@ import ctypes
 from typing import ClassVar
 
 from docking.log import get_logger
+from docking.platform.libraries import load_library
 
 log = get_logger("x11_idle")
 
@@ -46,8 +47,8 @@ def _load_libraries() -> bool:
         return _xlib is not None and _xss is not None
     _loaded = True
     try:
-        _xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
-        _xss = ctypes.cdll.LoadLibrary("libXss.so.1")
+        _xlib = load_library("X11", "libX11.so.6")
+        _xss = load_library("Xss", "libXss.so.1")
     except OSError as exc:
         log.debug("XScreenSaver extension unavailable: %s", exc)
         _xlib = None

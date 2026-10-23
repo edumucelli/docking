@@ -1,0 +1,87 @@
+name: BSD desktops
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - "docking/**"
+      - "tests/**"
+      - "tools/bsd_visual/**"
+      - ".github/workflows/bsd.yml"
+  push:
+    branches: [bsd-support]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bsd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-control:
+    name: X11 visual control (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-gi python3-gi-cairo python3-cairo python3-pytest \
+            gir1.2-gtk-3.0 gir1.2-wnck-3.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu
+      - name: Check visual assertions
+        run: python3 -m pytest -q tests/test_bsd_visual.py
+      - name: Exercise the complete dock
+        run: python3 -m tools.bsd_visual.run --output artifacts/bsd-visual/linux
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bsd-visual-linux
+          path: artifacts/bsd-visual/linux/
+          retention-days: 14
+
+  bsd:
+    name: X11 desktop (${{ matrix.os }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    steps:
+      - uses: actions/checkout@v7
+      - name: FreeBSD desktop checks
+        if: matrix.os == 'freebsd'
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.0"
+          sync: rsync
+          copyback: true
+          prepare: |
+            pkg install -y python311 py311-gobject3 py311-cairo py311-pytest \
+              gtk3 libwnck3 libXtst xfce4-wm xorg-vfbserver dbus dejavu
+          run: |
+            python3.11 -m pytest -q tests/test_bsd_visual.py tests/platform/test_libraries.py
+            python3.11 -m tools.bsd_visual.run --output artifacts/bsd-visual/freebsd
+      - name: OpenBSD desktop checks
+        if: matrix.os == 'openbsd'
+        uses: vmactions/openbsd-vm@v1
+        with:
+          release: "7.9"
+          sync: rsync
+          copyback: true
+          prepare: |
+            pkg_add python3 py3-gobject3 py3-cairo py3-test gtk+3 libwnck3 xfwm4 dbus dejavu-fonts
+          run: |
+            export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
+            python3 -m pytest -q tests/test_bsd_visual.py tests/platform/test_libraries.py
+            python3 -m tools.bsd_visual.run --output artifacts/bsd-visual/openbsd
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bsd-visual-${{ matrix.os }}
+          path: artifacts/bsd-visual/${{ matrix.os }}/
+          retention-days: 14

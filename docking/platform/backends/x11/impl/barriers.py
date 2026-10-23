@@ -104,6 +104,7 @@ from typing import TYPE_CHECKING
 
 from docking.core.position import Position
 from docking.log import get_logger
+from docking.platform.libraries import load_library
 
 if TYPE_CHECKING:
     from gi.repository import GdkX11
@@ -189,9 +190,9 @@ def _xi_set_event_mask(byte_index: int) -> int:
 def _load_libs() -> tuple[ctypes.CDLL, ctypes.CDLL, ctypes.CDLL] | None:
     """Load Xlib, XFixes, and XInput2 shared libraries."""
     try:
-        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
-        xfixes = ctypes.cdll.LoadLibrary("libXfixes.so.3")
-        xi = ctypes.cdll.LoadLibrary("libXi.so.6")
+        xlib = load_library("X11", "libX11.so.6")
+        xfixes = load_library("Xfixes", "libXfixes.so.3")
+        xi = load_library("Xi", "libXi.so.6")
         return xlib, xfixes, xi
     except OSError as e:
         log.debug("barrier libs unavailable: %s", e)
@@ -202,7 +203,7 @@ def _load_gdk_lib() -> ctypes.CDLL | None:
     """Load libgdk-3 so we can register an X event filter (PyGI does not expose it)."""
     for name in ("libgdk-3.so.0", "libgdk-3.so"):
         try:
-            return ctypes.cdll.LoadLibrary(name)
+            return load_library("gdk-3", name)
         except OSError:
             continue
     log.debug("libgdk-3 unavailable; pressure-reveal disabled")
