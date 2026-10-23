@@ -72,15 +72,16 @@ class UrlShortenerApplet(Applet):
     name = _("URL Shortener")
     icon_name = "chain"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._dialog: Gtk.Dialog | None = None
         self._url_entry: Gtk.Entry | None = None
         self._result_label: Gtk.Label | None = None
         self._shorten_btn: Gtk.Button | None = None
         self._copy_btn: Gtk.Button | None = None
         self._last_result: str = ""
+        self._request_id = 0
 
-        prefs = config.applet_prefs.get("urlshortener", {}) if config else {}
+        prefs = config.applet_prefs.get("urlshortener", {})
         self._last_url = str(prefs.get("last_url", ""))
 
         super().__init__(icon_size=icon_size, config=config)
@@ -107,6 +108,7 @@ class UrlShortenerApplet(Applet):
     # -- Dialog ---------------------------------------------------------------
 
     def _show_dialog(self) -> None:
+        self._request_id += 1
         self._dialog = Gtk.Dialog(
             title=_("URL Shortener"),
             destroy_with_parent=True,
@@ -151,17 +153,21 @@ class UrlShortenerApplet(Applet):
         if not url:
             return
 
+        self._request_id += 1
+        request_id = self._request_id
         self._shorten_btn.set_sensitive(False)
         if self._result_label:
             self._result_label.set_text(_("Shortening..."))
 
         def _worker() -> None:
             result = shorten_url(url=url)
-            GLib.idle_add(self._on_result, url, result)
+            GLib.idle_add(self._on_result, url, result, request_id)
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _on_result(self, url: str, result: str) -> bool:
+    def _on_result(self, url: str, result: str, request_id: int) -> bool:
+        if request_id != self._request_id or self._dialog is None:
+            return False
         if self._shorten_btn:
             self._shorten_btn.set_sensitive(True)
         is_error = result.startswith("Error")

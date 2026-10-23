@@ -52,7 +52,7 @@ class UsbWatchApplet(Applet):
     icon_name = "drive-removable-media-usb"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._monitor = Gio.VolumeMonitor.get()
         self._devices: list[MountedUsbDevice] = mounted_usb_devices(self._monitor)
         self._handler_ids: list[int] = []

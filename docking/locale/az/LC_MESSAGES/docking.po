@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-10 22:37+0200\n"
+"POT-Creation-Date: 2026-10-08 01:14+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,55 +20,55 @@ msgstr ""
 msgid "AI Usage"
 msgstr "SI istifadesi"
 
-#: docking/applets/aiusage/applet.py:139
+#: docking/applets/aiusage/applet.py:137
 msgid "Auto"
 msgstr "Avto"
 
-#: docking/applets/aiusage/applet.py:140
+#: docking/applets/aiusage/applet.py:138
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:141
+#: docking/applets/aiusage/applet.py:139
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:142
+#: docking/applets/aiusage/applet.py:140
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:151
+#: docking/applets/aiusage/applet.py:149
 msgid "Show Cost"
 msgstr "Qiymeti goster"
 
-#: docking/applets/aiusage/applet.py:152
+#: docking/applets/aiusage/applet.py:150
 msgid "Show Tokens"
 msgstr "Tokenleri goster"
 
-#: docking/applets/aiusage/applet.py:159
-#: docking/applets/deskpresence/applet.py:121
+#: docking/applets/aiusage/applet.py:157
+#: docking/applets/deskpresence/applet.py:119
 msgid "Reset Today"
 msgstr "Bu gunu sifirla"
 
-#: docking/applets/aiusage/applet.py:220 docking/applets/aiusage/applet.py:235
+#: docking/applets/aiusage/applet.py:218 docking/applets/aiusage/applet.py:233
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr "{name}: bu gun istifade yoxdur"
 
-#: docking/applets/aiusage/applet.py:252
+#: docking/applets/aiusage/applet.py:250
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:296
+#: docking/applets/aiusage/applet.py:294
 #, python-brace-format
 msgid "This week: {value}"
 msgstr "Bu hefte: {value}"
 
-#: docking/applets/aiusage/state.py:499
+#: docking/applets/aiusage/state.py:515
 msgid "no usage today"
 msgstr "bu gün istifadə yoxdur"
 
-#: docking/applets/aiusage/state.py:503
+#: docking/applets/aiusage/state.py:519
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr "Bu gün: {cost}"
@@ -77,7 +77,8 @@ msgstr "Bu gün: {cost}"
 msgid "Alarm"
 msgstr "Siqnal"
 
-#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:208
+#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:209
+#: docking/applets/plantcare/applet.py:376
 msgid "Snooze"
 msgstr "Mürgülə"
 
@@ -90,6 +91,7 @@ msgid "Add Alarm..."
 msgstr "Siqnal əlavə edin..."
 
 #: docking/applets/alarm/applet.py:132
+#, python-brace-format
 msgid "Edit {label}..."
 msgstr "Redaktə edin {label}..."
 
@@ -101,42 +103,45 @@ msgstr "Siqnalı redaktə edin"
 msgid "Add Alarm"
 msgstr "Siqnal əlavə edin"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/certwatch/state.py:246
-#: docking/applets/clock/applet.py:218 docking/applets/quicknote/applet.py:87
+#: docking/applets/alarm/applet.py:164 docking/applets/certwatch/state.py:246
+#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr "OK"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
-#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
-#: docking/applets/runcommand/applet.py:122
-#: docking/applets/runcommand/applet.py:340
-#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:263
-#: docking/applets/weather/applet.py:273 docking/ui/diagnostics.py:342
-#: docking/ui/menu.py:439
+#: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:231
+#: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:512
+#: docking/applets/plantcare/applet.py:474
+#: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:430
+#: docking/applets/runcommand/applet.py:147
+#: docking/applets/runcommand/applet.py:368
+#: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:264
+#: docking/applets/weather/applet.py:272 docking/applets/whatsapp/applet.py:175
+#: docking/ui/diagnostics.py:391 docking/ui/menu.py:449
 msgid "Cancel"
 msgstr "Cancel"
 
-#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/applet.py:170
+#: docking/applets/alarm/applet.py:166 docking/applets/certwatch/applet.py:168
+#: docking/applets/plantcare/applet.py:477
 msgid "Remove"
 msgstr "Remove"
 
-#: docking/applets/alarm/applet.py:189
+#: docking/applets/alarm/applet.py:190 docking/ui/settings.py:904
 msgid "Enabled"
 msgstr "Aktivdir"
 
-#: docking/applets/alarm/applet.py:202
+#: docking/applets/alarm/applet.py:203
 msgid "Label"
 msgstr "Etiket"
 
-#: docking/applets/alarm/applet.py:204 docking/applets/clock/applet.py:255
+#: docking/applets/alarm/applet.py:205 docking/applets/clock/applet.py:268
 msgid "Hour"
 msgstr "Hour"
 
-#: docking/applets/alarm/applet.py:206 docking/applets/clock/applet.py:257
+#: docking/applets/alarm/applet.py:207 docking/applets/clock/applet.py:270
 msgid "Minute"
 msgstr "Minute"
 
-#: docking/applets/alarm/applet.py:211
+#: docking/applets/alarm/applet.py:212
 msgid "Repeat"
 msgstr "təkrarlayın"
 
@@ -173,6 +178,7 @@ msgid "Ring"
 msgstr "Üzük"
 
 #: docking/applets/alarm/state.py:227
+#, python-brace-format
 msgid "{hours}h"
 msgstr "{hours}saat"
 
@@ -183,6 +189,7 @@ msgid "{minutes}m"
 msgstr "{minutes}m"
 
 #: docking/applets/alarm/state.py:236
+#, python-brace-format
 msgid "Alarm ringing: {label}"
 msgstr "Siqnalın çalınması: {label}"
 
@@ -191,6 +198,7 @@ msgid "Alarm: no enabled alarms"
 msgstr "Siqnal: aktiv siqnal yoxdur"
 
 #: docking/applets/alarm/state.py:240
+#, python-brace-format
 msgid "Next alarm: {label} at {time}"
 msgstr "Növbəti həyəcan: {label} saat {time}"
 
@@ -199,6 +207,7 @@ msgid "No enabled alarms"
 msgstr "Aktivləşdirilmiş həyəcan siqnalları yoxdur"
 
 #: docking/applets/alarm/state.py:253
+#, python-brace-format
 msgid "{label}: {time} ({duration})"
 msgstr "{label}: {time} ({duration})"
 
@@ -232,10 +241,12 @@ msgid "daily"
 msgstr "gündəlik"
 
 #: docking/applets/alarm/state.py:304
+#, python-brace-format
 msgid "{days}d {hours}h"
 msgstr "{days}g {hours}saat"
 
 #: docking/applets/alarm/state.py:306 docking/applets/sunrise/state.py:417
+#, python-brace-format
 msgid "{hours}h {minutes}m"
 msgstr "{hours}saat {minutes}dəq"
 
@@ -284,7 +295,7 @@ msgstr "Çəhrayı Səs-küy"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "Oxunur: {sound} ({pct}%)"
 
-#: docking/applets/apod/applet.py:68 docking/applets/apod/state.py:114
+#: docking/applets/apod/applet.py:70 docking/applets/apod/state.py:114
 #: docking/applets/apod/state.py:132
 msgid "Astronomy Picture of the Day"
 msgstr "Astronomy Picture of the Day"
@@ -299,42 +310,45 @@ msgid "Untitled"
 msgstr "Untitled"
 
 #: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
-#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
-#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:101
+#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:145
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:116
 msgid "Checks"
 msgstr "Yoxlamalar"
 
-#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:139
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:203
-#: docking/applets/hackernews/applet.py:189
-#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
-#: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
-#: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:567
+#: docking/applets/hackernews/applet.py:192
+#: docking/applets/lastfm/applet.py:173 docking/applets/news/applet.py:273
+#: docking/applets/reddit/applet.py:195 docking/applets/speedtest/applet.py:114
+#: docking/applets/thermals/applet.py:145 docking/applets/tooltip.py:46
+#: docking/applets/weather/applet.py:181 docking/applets/weather/applet.py:566
 #, python-brace-format
 msgid "Error: {msg}"
 msgstr "Error: {msg}"
 
-#: docking/applets/apod/applet.py:134
-msgid "Open on apod.nasa.gov"
-msgstr "Open on apod.nasa.gov"
+#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:101
+msgid "Open in Browser"
+msgstr "Brauzerdə aç"
 
 #: docking/applets/apod/applet.py:139
 msgid "Copy Explanation"
 msgstr "Copy Explanation"
 
-#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:216
 #: docking/applets/camshield/applet.py:127
 #: docking/applets/capslock/applet.py:97
-#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
+#: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
-#: docking/applets/hackernews/applet.py:206
-#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
-#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
-#: docking/applets/systemtray/applet.py:142
-#: docking/applets/thermals/applet.py:157
-#: docking/applets/todayinhistory/applet.py:112
-#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:190
+#: docking/applets/hackernews/applet.py:209
+#: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:301
+#: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:104
+#: docking/applets/reddit/applet.py:215
+#: docking/applets/systemtray/applet.py:175
+#: docking/applets/thermals/applet.py:155
+#: docking/applets/todayinhistory/applet.py:107
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:188
 msgid "Refresh Now"
 msgstr "İndi Yenilə"
 
@@ -343,11 +357,12 @@ msgstr "İndi Yenilə"
 msgid "(c) {who}"
 msgstr "(c) {who}"
 
-#: docking/applets/applications/applet.py:50
+#: docking/applets/applications/applet.py:56
+#: docking/search/providers/applications.py:216
 msgid "Applications"
 msgstr "Tətbiqlər"
 
-#: docking/applets/applications/applet.py:91
+#: docking/applets/applications/applet.py:107
 msgid "Search applications..."
 msgstr "Tetbiqleri axtar..."
 
@@ -355,23 +370,23 @@ msgstr "Tetbiqleri axtar..."
 msgid "Battery"
 msgstr "Batareya"
 
-#: docking/applets/battery/applet.py:109
+#: docking/applets/battery/applet.py:108
 msgid "No overlay"
 msgstr "Üst-üstə düşmə yoxdur"
 
-#: docking/applets/battery/applet.py:110
+#: docking/applets/battery/applet.py:109
 msgid "Percentage"
 msgstr "Faiz"
 
-#: docking/applets/battery/applet.py:111
+#: docking/applets/battery/applet.py:110
 msgid "Power (W)"
 msgstr "Güc (W)"
 
-#: docking/applets/battery/applet.py:121
+#: docking/applets/battery/applet.py:120
 msgid "Power Settings"
 msgstr "Power Settings"
 
-#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:644
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:780
 msgid "Mouse"
 msgstr "Mouse"
 
@@ -486,108 +501,109 @@ msgstr "{hours}h {minutes:02d}m"
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:181
+#: docking/applets/bluetooth/applet.py:180
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth mövcud deyil"
 
-#: docking/applets/bluetooth/applet.py:185
+#: docking/applets/bluetooth/applet.py:184
 msgid "No Bluetooth adapter"
 msgstr "Bluetooth adapteri yoxdur"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr "Açıq"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
 #: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr "Bağlı"
 
-#: docking/applets/bluetooth/applet.py:196
+#: docking/applets/bluetooth/applet.py:195
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Qoşulub {connected}"
 
-#: docking/applets/bluetooth/applet.py:207
+#: docking/applets/bluetooth/applet.py:206
 msgid "Continuous Discovery"
 msgstr "Davamlı Axtarış"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:255
+#: docking/applets/bluetooth/applet.py:254
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:269
+#: docking/applets/bluetooth/applet.py:268
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:277
+#: docking/applets/bluetooth/applet.py:276
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:283
+#: docking/applets/bluetooth/applet.py:282
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:289
+#: docking/applets/bluetooth/applet.py:288
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:296
+#: docking/applets/bluetooth/applet.py:295
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:301
+#: docking/applets/bluetooth/applet.py:300
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:325
+#: docking/applets/bluetooth/applet.py:324
 msgid "Adapter"
 msgstr "Adapter"
 
-#: docking/applets/bluetooth/applet.py:343
+#: docking/applets/bluetooth/applet.py:342
 msgid "Connected Devices"
 msgstr "Qoşulmuş Cihazlar"
 
-#: docking/applets/bluetooth/applet.py:344
+#: docking/applets/bluetooth/applet.py:343
 msgid "Paired Devices"
 msgstr "Cütlənmiş Cihazlar"
 
-#: docking/applets/bluetooth/applet.py:345
+#: docking/applets/bluetooth/applet.py:344
 msgid "Discovered Devices"
 msgstr "Aşkar Edilmiş Cihazlar"
 
-#: docking/applets/bluetooth/applet.py:370
+#: docking/applets/bluetooth/applet.py:369
+#: docking/applets/whatsapp/applet.py:176
 msgid "Disconnect"
 msgstr "Ayır"
 
-#: docking/applets/bluetooth/applet.py:379
+#: docking/applets/bluetooth/applet.py:378
 msgid "Connect"
 msgstr "Qoşul"
 
-#: docking/applets/bluetooth/applet.py:389
+#: docking/applets/bluetooth/applet.py:388
 msgid "Pair"
 msgstr "Cütlə"
 
-#: docking/applets/bluetooth/applet.py:403
+#: docking/applets/bluetooth/applet.py:402
 msgid "Remove Pairing"
 msgstr "Cütləməni Sil"
 
-#: docking/applets/bluetooth/applet.py:415
+#: docking/applets/bluetooth/applet.py:414
 msgid "Trusted"
 msgstr "Etibarlı"
 
-#: docking/applets/bluetooth/applet.py:430
+#: docking/applets/bluetooth/applet.py:429
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Batareya: {percent}%"
@@ -627,35 +643,35 @@ msgstr "Cütlənib: {n}"
 msgid "Discovering: {state}"
 msgstr "Axtarılır: {state}"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "Yes"
 msgstr "Bəli"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "No"
 msgstr "Xeyr"
 
-#: docking/applets/bookmarks/applet.py:55
+#: docking/applets/bookmarks/applet.py:53
 msgid "Bookmarks"
 msgstr "Elfecinler"
 
-#: docking/applets/bookmarks/applet.py:87
+#: docking/applets/bookmarks/applet.py:85
 msgid "Add Bookmark..."
 msgstr "Elfecin elave et..."
 
-#: docking/applets/bookmarks/applet.py:90
+#: docking/applets/bookmarks/applet.py:88
 msgid "Remove All"
 msgstr "Hamisi sil"
 
-#: docking/applets/bookmarks/applet.py:111
+#: docking/applets/bookmarks/applet.py:104
 msgid "Add Bookmark"
 msgstr "Elfecin elave et"
 
-#: docking/applets/bookmarks/applet.py:124
+#: docking/applets/bookmarks/applet.py:118
 msgid "Bookmark name"
 msgstr "Elfecin adi"
 
-#: docking/applets/bookmarks/applet.py:129
+#: docking/applets/bookmarks/applet.py:123
 msgid "https://..."
 msgstr "https://..."
 
@@ -663,13 +679,13 @@ msgstr "https://..."
 msgid "Brightness"
 msgstr "Parlaqlıq"
 
-#: docking/applets/brightness/applet.py:85
+#: docking/applets/brightness/applet.py:84
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "Parlaqlıq: {pct}%"
 
-#: docking/applets/brightness/applet.py:109
-#: docking/applets/volume/applet.py:126
+#: docking/applets/brightness/applet.py:108
+#: docking/applets/volume/applet.py:125
 msgid "Show Level"
 msgstr "Səviyyəni Göstər"
 
@@ -704,23 +720,28 @@ msgid "Caffeine: keeping awake"
 msgstr "Kofein: oyaq qalmaq"
 
 #: docking/applets/caffeine/state.py:120
+#, python-brace-format
 msgid "Caffeine: {time} remaining"
 msgstr "Kofein: {time} qalır"
 
-#: docking/applets/caffeine/state.py:130
+#: docking/applets/caffeine/state.py:130 docking/search/controller.py:251
+#: docking/search/controller.py:269 docking/search/providers/windows.py:95
 msgid "Active"
 msgstr "Aktiv"
 
 #: docking/applets/caffeine/state.py:131
+#, python-brace-format
 msgid "Active - {time} left"
 msgstr "Aktiv - {time} qalıb"
 
 #: docking/applets/calculator/applet.py:78
 #: docking/applets/calculator/applet.py:96
+#: docking/search/providers/calculator.py:66
+#: docking/search/providers/calculator.py:85
 msgid "Calculator"
 msgstr "Kalkulyator"
 
-#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+#: docking/applets/calendar/applet.py:69 docking/applets/calendar/applet.py:75
 msgid "Calendar"
 msgstr "Təqvim"
 
@@ -760,8 +781,8 @@ msgstr "Camera lock helper unavailable"
 msgid "{command} (PID {pid}) using {devices}"
 msgstr "{command} (PID {pid}) using {devices}"
 
-#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
-#: docking/applets/usbwatch/state.py:98
+#: docking/applets/camshield/state.py:91 docking/applets/devices/state.py:132
+#: docking/applets/micshield/state.py:223 docking/applets/usbwatch/state.py:99
 #, python-brace-format
 msgid "{count} more"
 msgstr "{count} more"
@@ -773,8 +794,9 @@ msgstr "{command} (PID {pid}) - {devices}"
 
 #: docking/applets/camshield/state.py:192
 #: docking/applets/deskpresence/state.py:185
-#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
-#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:396
+#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:116
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:258
+#: docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr "Naməlum"
 
@@ -812,22 +834,22 @@ msgstr "{name}: {state}"
 msgid "Cert Watch"
 msgstr "Cert Watch"
 
-#: docking/applets/certwatch/applet.py:130
+#: docking/applets/certwatch/applet.py:128
 #: docking/applets/certwatch/state.py:264
 #: docking/applets/certwatch/state.py:312
 #, python-brace-format
 msgid "{host}: loading..."
 msgstr "{host}: loading..."
 
-#: docking/applets/certwatch/applet.py:152
+#: docking/applets/certwatch/applet.py:150
 msgid "Add Domain..."
 msgstr "Add Domain..."
 
-#: docking/applets/certwatch/applet.py:306
+#: docking/applets/certwatch/applet.py:304
 msgid "Add Domain"
 msgstr "Add Domain"
 
-#: docking/applets/certwatch/applet.py:319
+#: docking/applets/certwatch/applet.py:318
 msgid "example.com or example.com:8443"
 msgstr "example.com or example.com:8443"
 
@@ -840,11 +862,12 @@ msgid "Expired"
 msgstr "Expired"
 
 #: docking/applets/certwatch/state.py:250
+#: docking/search/providers/calculator.py:67
 msgid "Error"
 msgstr "Error"
 
 #: docking/applets/certwatch/state.py:251
-#: docking/applets/speedtest/applet.py:74
+#: docking/applets/speedtest/applet.py:72
 msgid "..."
 msgstr "..."
 
@@ -881,7 +904,7 @@ msgstr "{host}: əlçatmaz"
 msgid "Clippy"
 msgstr "Bufer"
 
-#: docking/applets/clippy/applet.py:108
+#: docking/applets/clippy/applet.py:107
 msgid "Clear"
 msgstr "Təmizlə"
 
@@ -889,53 +912,53 @@ msgstr "Təmizlə"
 msgid "Clippy (empty)"
 msgstr "Bufer (boş)"
 
-#: docking/applets/clock/applet.py:53
+#: docking/applets/clock/applet.py:54
 msgid "Clock"
 msgstr "Saat"
 
-#: docking/applets/clock/applet.py:100
+#: docking/applets/clock/applet.py:109
 msgid "Digital Clock"
 msgstr "Rəqəmsal Saat"
 
-#: docking/applets/clock/applet.py:104
+#: docking/applets/clock/applet.py:113
 msgid "24-Hour Clock"
 msgstr "24-Saatlıq Saat"
 
-#: docking/applets/clock/applet.py:108
+#: docking/applets/clock/applet.py:117
 msgid "Show Date"
 msgstr "Tarixi Göstər"
 
-#: docking/applets/clock/applet.py:113
+#: docking/applets/clock/applet.py:122
 msgid "Show Seconds"
 msgstr "Show Seconds"
 
-#: docking/applets/clock/applet.py:117
+#: docking/applets/clock/applet.py:126
 msgid "Set Alarm..."
 msgstr "Set Alarm..."
 
-#: docking/applets/clock/applet.py:123
+#: docking/applets/clock/applet.py:132
 msgid "Clear Alarm"
 msgstr "Clear Alarm"
 
-#: docking/applets/clock/applet.py:128
+#: docking/applets/clock/applet.py:137
 msgid "Acknowledge Alarm"
 msgstr "Acknowledge Alarm"
 
-#: docking/applets/clock/applet.py:215
+#: docking/applets/clock/applet.py:227
 msgid "Set Alarm"
 msgstr "Set Alarm"
 
 #: docking/applets/colorpicker/applet.py:59
-#: docking/applets/colorpicker/applet.py:94
+#: docking/applets/colorpicker/applet.py:93
 msgid "Color Picker"
 msgstr "Rəng Seçici"
 
-#: docking/applets/colorpicker/applet.py:108
+#: docking/applets/colorpicker/applet.py:107
 #, python-brace-format
 msgid "Copy {hex}"
 msgstr "Kopyala {hex}"
 
-#: docking/applets/colorpicker/applet.py:112
+#: docking/applets/colorpicker/applet.py:111
 msgid "Show Hex"
 msgstr "Hex Göstər"
 
@@ -981,6 +1004,7 @@ msgid "No price data"
 msgstr "Qiymət məlumatı yoxdur"
 
 #: docking/applets/crypto/applet.py:381
+#, python-brace-format
 msgid "{asset}: {price} ({change})"
 msgstr "{asset}: {price} ({change})"
 
@@ -988,40 +1012,43 @@ msgstr "{asset}: {price} ({change})"
 msgid "Add Crypto Asset"
 msgstr "Kripto Aktiv əlavə edin"
 
-#: docking/applets/crypto/applet.py:418
+#: docking/applets/crypto/applet.py:419
 msgid "bitcoin or cryptopunks"
 msgstr "bitcoin və ya kriptopunklar"
 
-#: docking/applets/crypto/applet.py:420
+#: docking/applets/crypto/applet.py:421
 msgid "BTC"
 msgstr "BTC"
 
-#: docking/applets/crypto/applet.py:422
+#: docking/applets/crypto/applet.py:423
 msgid "Bitcoin"
 msgstr "Bitcoin"
 
-#: docking/applets/crypto/applet.py:425
+#: docking/applets/crypto/applet.py:426
 msgid "Type"
 msgstr "Növ"
 
-#: docking/applets/crypto/applet.py:426
+#: docking/applets/crypto/applet.py:427
 msgid "CoinGecko ID"
 msgstr "CoinGecko ID"
 
-#: docking/applets/crypto/applet.py:427
+#: docking/applets/crypto/applet.py:428
 msgid "Symbol"
 msgstr "Simvol"
 
-#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+#: docking/applets/crypto/applet.py:429 docking/applets/plantcare/applet.py:493
+#: docking/ui/folder/_browser.py:35
 msgid "Name"
 msgstr "Ad"
 
 #: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
 #: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
+#: docking/search/controller.py:271
 msgid "Unavailable"
 msgstr "Əlçatmaz"
 
 #: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+#, python-brace-format
 msgid "Interval: {interval}"
 msgstr "Interval: {interval}"
 
@@ -1078,13 +1105,13 @@ msgstr "{pair}: {rate} ({change})"
 msgid "Add FX Pair"
 msgstr "FX cütü əlavə et"
 
-#: docking/applets/currencyfx/applet.py:505
+#: docking/applets/currencyfx/applet.py:506
 msgid "Base"
 msgstr "Baza"
 
-#: docking/applets/currencyfx/applet.py:507 docking/applets/quote/applet.py:56
-#: docking/applets/quote/applet.py:96 docking/applets/quote/applet.py:221
-#: docking/applets/quote/applet.py:227
+#: docking/applets/currencyfx/applet.py:508 docking/applets/quote/applet.py:56
+#: docking/applets/quote/applet.py:95 docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:226
 msgid "Quote"
 msgstr "Sitat"
 
@@ -1098,35 +1125,35 @@ msgstr "1 {base} = {rate} {quote}"
 msgid "Desk Presence"
 msgstr "Desk Presence"
 
-#: docking/applets/deskpresence/applet.py:102
+#: docking/applets/deskpresence/applet.py:100
 #, python-brace-format
 msgid "{status}"
 msgstr "{status}"
 
-#: docking/applets/deskpresence/applet.py:110
+#: docking/applets/deskpresence/applet.py:108
 msgid "Idle Threshold"
 msgstr "Idle Threshold"
 
-#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/applet.py:211
 #: docking/applets/deskpresence/state.py:183
 msgid "At desk"
 msgstr "At desk"
 
-#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/applet.py:212
 #: docking/applets/deskpresence/state.py:184
 msgid "Away"
 msgstr "Away"
 
-#: docking/applets/deskpresence/applet.py:215
+#: docking/applets/deskpresence/applet.py:213
 msgid "Status unknown"
 msgstr "Status unknown"
 
-#: docking/applets/deskpresence/applet.py:222
+#: docking/applets/deskpresence/applet.py:220
 #, python-brace-format
 msgid "{m} min"
 msgstr "{m} min"
 
-#: docking/applets/deskpresence/applet.py:223
+#: docking/applets/deskpresence/applet.py:221
 #, python-brace-format
 msgid "{s} sec"
 msgstr "{s} sec"
@@ -1183,15 +1210,38 @@ msgid "Week total at desk: {d}"
 msgstr "Week total at desk: {d}"
 
 #: docking/applets/desktop/applet.py:41
-#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:162
 msgid "Desktop"
 msgstr "Masaüstü"
+
+#: docking/applets/devices/applet.py:66 docking/applets/devices/state.py:127
+#: docking/applets/devices/state.py:134
+msgid "Devices"
+msgstr "Cihazlar"
+
+#: docking/applets/devices/applet.py:118
+msgid "Refresh Devices"
+msgstr "Cihazları yenilə"
+
+#: docking/applets/devices/state.py:128
+msgid "No mounted devices"
+msgstr "Quraşdırılmış cihaz yoxdur"
+
+#: docking/applets/devices/state.py:135 docking/applets/usbwatch/state.py:102
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr "{count} qoşulu cihaz"
+
+#: docking/applets/devices/state.py:158 docking/applets/devices/state.py:173
+msgid "Mounted Device"
+msgstr "Quraşdırılmış cihaz"
 
 #: docking/applets/docker/applet.py:54
 msgid "Docker"
 msgstr "Doker"
 
 #: docking/applets/docker/applet.py:109
+#, python-brace-format
 msgid "Docker unavailable: {error}"
 msgstr "Docker əlçatan deyil: {error}"
 
@@ -1204,6 +1254,7 @@ msgid "No running containers"
 msgstr "İşləyən konteyner yoxdur"
 
 #: docking/applets/docker/applet.py:119
+#, python-brace-format
 msgid "{count} running containers"
 msgstr "{count} işləyən konteynerlər"
 
@@ -1224,6 +1275,7 @@ msgid "Restart"
 msgstr "Yenidən Başlat"
 
 #: docking/applets/docker/applet.py:204
+#, python-brace-format
 msgid "{name} ({image})"
 msgstr "{name} ({image})"
 
@@ -1236,6 +1288,7 @@ msgid "Docker is unavailable"
 msgstr "Docker əlçatan deyil"
 
 #: docking/applets/docker/state.py:80
+#, python-brace-format
 msgid "Docker: {error}"
 msgstr "Docker: {error}"
 
@@ -1300,29 +1353,29 @@ msgstr "Drop a local file to upload"
 msgid "Copy Last URL"
 msgstr "Copy Last URL"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 msgid "1 hour"
 msgstr "1 saat"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 #, python-brace-format
 msgid "{count} hours"
 msgstr "{count} saat"
 
-#: docking/applets/freshness.py:33 docking/ui/tooltip.py:213
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:214
 msgid "1 minute"
 msgstr "1 dəqiqə"
 
-#: docking/applets/freshness.py:35 docking/ui/tooltip.py:215
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:216
 #, python-brace-format
 msgid "{count} minutes"
 msgstr "{count} dəqiqə"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:206
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:207
 msgid "1 second"
 msgstr "1 saniyə"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:209
 #, python-brace-format
 msgid "{count} seconds"
 msgstr "{count} saniyə"
@@ -1333,7 +1386,7 @@ msgid "{verb} every {interval}"
 msgstr "hər {interval} {verb}"
 
 #: docking/applets/freshness.py:43 docking/applets/freshness.py:50
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:359
 msgid "Updates"
 msgstr "Yeniləmələr"
 
@@ -1343,67 +1396,96 @@ msgid "{verb} on demand"
 msgstr "tələbə görə {verb}"
 
 #: docking/applets/freshness.py:62
+#, python-brace-format
 msgid "Updated: {age}"
 msgstr "Yenilənib: {age}"
 
-#: docking/applets/hackernews/applet.py:69
-#: docking/applets/hackernews/state.py:157
+#: docking/applets/hackernews/applet.py:71
 msgid "Hacker News"
 msgstr "Hacker News"
 
-#: docking/applets/hackernews/applet.py:161
-#: docking/applets/hackernews/state.py:163
-#: docking/applets/hackernews/state.py:196
+#: docking/applets/hackernews/applet.py:164
+#: docking/applets/hackernews/state.py:198
+#: docking/applets/hackernews/state.py:231 docking/applets/news/applet.py:238
+#: docking/applets/news/state.py:331 docking/applets/news/state.py:351
+#: docking/applets/reddit/applet.py:168 docking/applets/reddit/state.py:348
+#: docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr "Yeniləmələr"
 
-#: docking/applets/hackernews/applet.py:173
-#: docking/applets/hackernews/state.py:178
+#: docking/applets/hackernews/applet.py:176
+#: docking/applets/hackernews/state.py:213
 #, python-brace-format
 msgid "{score} points, {comments} comments"
 msgstr "{score} xal, {comments} şərh"
 
-#: docking/applets/hackernews/applet.py:194
+#: docking/applets/hackernews/applet.py:197
 msgid "Open Story"
 msgstr "Xəbəri aç"
 
-#: docking/applets/hackernews/applet.py:198
+#: docking/applets/hackernews/applet.py:201
 msgid "Open Comments"
 msgstr "Şərhləri aç"
 
-#: docking/applets/hackernews/applet.py:202
+#: docking/applets/hackernews/applet.py:205 docking/applets/news/applet.py:288
+#: docking/applets/reddit/applet.py:206
 msgid "Next Headline"
 msgstr "Növbəti başlıq"
 
-#: docking/applets/hackernews/applet.py:328
+#: docking/applets/hackernews/applet.py:214
+msgid "Page"
+msgstr "Səhifə"
+
+#: docking/applets/hackernews/applet.py:358
 msgid "No Hacker News stories"
 msgstr "Hacker News xəbəri yoxdur"
 
-#: docking/applets/hackernews/state.py:114
+#: docking/applets/hackernews/state.py:71
+msgid "Top Stories"
+msgstr "Əsas xəbərlər"
+
+#: docking/applets/hackernews/state.py:72
+msgid "Show HN"
+msgstr "Show HN"
+
+#: docking/applets/hackernews/state.py:73
+msgid "Jobs"
+msgstr "Vakansiyalar"
+
+#: docking/applets/hackernews/state.py:144 docking/applets/news/state.py:285
+#: docking/applets/reddit/state.py:308
 msgid "now"
 msgstr "indi"
 
-#: docking/applets/hackernews/state.py:117
+#: docking/applets/hackernews/state.py:147 docking/applets/news/state.py:288
+#: docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr "{minutes} dəq əvvəl"
 
-#: docking/applets/hackernews/state.py:120
+#: docking/applets/hackernews/state.py:150 docking/applets/news/state.py:291
+#: docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr "{hours} saat əvvəl"
 
-#: docking/applets/hackernews/state.py:122
+#: docking/applets/hackernews/state.py:152 docking/applets/news/state.py:292
+#: docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr "{days} gün əvvəl"
 
-#: docking/applets/hackernews/state.py:171
+#: docking/applets/hackernews/state.py:180 docking/applets/news/applet.py:806
+#, python-brace-format
+msgid "{source} - {feed}"
+msgstr "{source} - {feed}"
+
+#: docking/applets/hackernews/state.py:206
 #, python-brace-format
 msgid "{source} {rank}"
 msgstr "{source} {rank}"
 
-#: docking/applets/hackernews/state.py:187
+#: docking/applets/hackernews/state.py:222
 msgid "Loading next stories..."
 msgstr "Növbəti xəbərlər yüklənir..."
 
@@ -1441,36 +1523,38 @@ msgstr "Keyboard Settings"
 msgid "Show Current Layout"
 msgstr "Show Current Layout"
 
-#: docking/applets/lastfm/applet.py:80
+#: docking/applets/lastfm/applet.py:81
 msgid "Last.fm"
 msgstr "Last.fm"
 
-#: docking/applets/lastfm/applet.py:157
+#: docking/applets/lastfm/applet.py:156
 msgid "Set username..."
 msgstr "İstifadəçi adını təyin edin..."
 
-#: docking/applets/lastfm/applet.py:159
+#: docking/applets/lastfm/applet.py:158
 msgid "Set API key and username..."
 msgstr "API açarı və istifadəçi adını təyin edin..."
 
-#: docking/applets/lastfm/applet.py:165
+#: docking/applets/lastfm/applet.py:164
 #, python-brace-format
 msgid "Recent tracks for {user} ({count})"
 msgstr "{user} ({count}) üçün son treklər"
 
-#: docking/applets/lastfm/applet.py:182
+#: docking/applets/lastfm/applet.py:181
 msgid "Configure..."
 msgstr "Konfiqurasiya edin..."
 
-#: docking/applets/lastfm/applet.py:188
+#: docking/applets/lastfm/applet.py:187
+#, python-brace-format
 msgid "Open {service} Profile"
 msgstr "{service} Profilini açın"
 
-#: docking/applets/lastfm/applet.py:377
+#: docking/applets/lastfm/applet.py:376
 msgid "Scrobbler Settings"
 msgstr "Scrobbler Parametrləri"
 
-#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:341
+#: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr "Saxla"
 
@@ -1522,6 +1606,7 @@ msgid "Stale data"
 msgstr "Köhnəlmiş məlumat"
 
 #: docking/applets/live_state.py:138
+#, python-brace-format
 msgid "Stale: last updated {age}"
 msgstr "Köhnəlmiş: son güncəlləmə {age}"
 
@@ -1576,20 +1661,21 @@ msgstr "{command} (PID {pid})"
 msgid "Moon"
 msgstr "Ay"
 
-#: docking/applets/moon/applet.py:105
+#: docking/applets/moon/applet.py:104
 msgid "Moon (loading...)"
 msgstr "Ay (yüklənir...)"
 
-#: docking/applets/moon/applet.py:112
+#: docking/applets/moon/applet.py:111
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "İşıqlanma: {pct}%"
 
-#: docking/applets/moon/applet.py:133
+#: docking/applets/moon/applet.py:132
 msgid "Show Phase Name"
 msgstr "Faza Adını Göstər"
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
+#: docking/applets/reddit/state.py:159
 msgid "New"
 msgstr "Yeni"
 
@@ -1651,48 +1737,48 @@ msgstr "1-ci Rüb"
 msgid "3rd Quarter"
 msgstr "3-cü Rüb"
 
-#: docking/applets/music/applet.py:58 docking/applets/music/state.py:142
-#: docking/applets/music/state.py:156
+#: docking/applets/music/applet.py:105 docking/applets/music/state.py:163
+#: docking/applets/music/state.py:177
 msgid "Music"
 msgstr "Musiqi"
 
-#: docking/applets/music/applet.py:118 docking/applets/music/state.py:143
+#: docking/applets/music/applet.py:180 docking/applets/music/state.py:164
 msgid "No active player"
 msgstr "Aktiv pleyer yoxdur"
 
-#: docking/applets/music/applet.py:120
+#: docking/applets/music/applet.py:182
 msgid "Previous"
 msgstr "Əvvəlki"
 
-#: docking/applets/music/applet.py:128
+#: docking/applets/music/applet.py:190
 msgid "Next"
 msgstr "Növbəti"
 
-#: docking/applets/music/applet.py:132
+#: docking/applets/music/applet.py:194
 msgid "Volume Up"
 msgstr "Səsi Artır"
 
-#: docking/applets/music/applet.py:138
+#: docking/applets/music/applet.py:200
 msgid "Volume Down"
 msgstr "Səsi Azalt"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Pause"
 msgstr "Pauza"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Play"
 msgstr "Oxut"
 
-#: docking/applets/music/state.py:89
+#: docking/applets/music/state.py:110
 msgid "Playing"
 msgstr "Oxunur"
 
-#: docking/applets/music/state.py:91
+#: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Fasilə"
 
-#: docking/applets/music/state.py:93
+#: docking/applets/music/state.py:114
 msgid "Stopped"
 msgstr "Dayandırılıb"
 
@@ -1701,86 +1787,760 @@ msgstr "Dayandırılıb"
 msgid "Network"
 msgstr "Şəbəkə"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:126
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:136
+#: docking/applets/network/applet.py:135
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:141 docking/applets/network/state.py:247
+#: docking/applets/network/applet.py:140 docking/applets/network/state.py:247
 msgid "Not connected"
 msgstr "Qoşulmayıb"
 
-#: docking/applets/network/applet.py:145
+#: docking/applets/network/applet.py:144
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:156
+#: docking/applets/network/applet.py:155
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:162
+#: docking/applets/network/applet.py:161
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:172
+#: docking/applets/network/applet.py:171
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:179
+#: docking/applets/network/applet.py:178
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:183
+#: docking/applets/network/applet.py:182
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:194
+#: docking/applets/network/applet.py:193
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:211
+#: docking/applets/network/applet.py:210
 msgid "Show Download"
 msgstr "Yükləməni göstər"
 
-#: docking/applets/network/applet.py:212
+#: docking/applets/network/applet.py:211
 msgid "Show Upload"
 msgstr "Göndərməni göstər"
 
-#: docking/applets/network/applet.py:213
+#: docking/applets/network/applet.py:212
 msgid "Hide Speeds"
 msgstr "Sürətləri gizlət"
 
-#: docking/applets/network/applet.py:262
+#: docking/applets/network/applet.py:261
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:266
+#: docking/applets/network/applet.py:265
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:268
+#: docking/applets/network/applet.py:267
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:277
+#: docking/applets/network/applet.py:276
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:289
+#: docking/applets/network/applet.py:288
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:292
+#: docking/applets/network/applet.py:291
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
+
+#: docking/applets/news/applet.py:110
+msgid "News"
+msgstr "Xəbərlər"
+
+#: docking/applets/news/applet.py:229
+msgid "No news source selected"
+msgstr "Xəbər mənbəyi seçilməyib"
+
+#: docking/applets/news/applet.py:250
+msgid "Open Headline"
+msgstr "Başlığı aç"
+
+#: docking/applets/news/applet.py:258
+msgid "Open Publication"
+msgstr "Nəşri aç"
+
+#: docking/applets/news/applet.py:278 docking/applets/reddit/applet.py:200
+msgid "Previous Headline"
+msgstr "Əvvəlki başlıq"
+
+#: docking/applets/news/applet.py:308 docking/applets/quote/applet.py:108
+msgid "Source"
+msgstr "Mənbə"
+
+#: docking/applets/news/applet.py:319
+msgid "Remove Current News Source"
+msgstr "Cari xəbər mənbəyini sil"
+
+#: docking/applets/news/applet.py:323
+msgid "Add News Source..."
+msgstr "Xəbər mənbəyi əlavə et..."
+
+#: docking/applets/news/applet.py:426
+msgid "No news articles returned"
+msgstr "Heç bir xəbər məqaləsi qaytarılmadı"
+
+#: docking/applets/news/applet.py:506
+msgid "Choose News Source"
+msgstr "Xəbər mənbəyini seç"
+
+#: docking/applets/news/applet.py:511
+msgid "Update List"
+msgstr "Siyahını yenilə"
+
+#: docking/applets/news/applet.py:513 docking/applets/reddit/applet.py:429
+msgid "Add"
+msgstr "Əlavə et"
+
+#: docking/applets/news/applet.py:526
+msgid "Choose a country, then select a publication or edition."
+msgstr "Ölkə seçin, sonra nəşr və ya buraxılış seçin."
+
+#: docking/applets/news/applet.py:548
+msgid "Loading news sources..."
+msgstr "Xəbər mənbələri yüklənir..."
+
+#: docking/applets/news/applet.py:556
+msgid "Country"
+msgstr "Ölkə"
+
+#: docking/applets/news/applet.py:560
+msgid "Search countries"
+msgstr "Ölkələri axtar"
+
+#: docking/applets/news/applet.py:578
+msgid "Publication or Edition"
+msgstr "Nəşr və ya buraxılış"
+
+#: docking/applets/news/applet.py:582
+msgid "Search publications"
+msgstr "Nəşrləri axtar"
+
+#: docking/applets/news/applet.py:622
+msgid "Updating news sources..."
+msgstr "Xəbər mənbələri yenilənir..."
+
+#: docking/applets/news/applet.py:637
+#, python-brace-format
+msgid "Could not load news sources: {error}"
+msgstr "Xəbər mənbələri yüklənə bilmədi: {error}"
+
+#: docking/applets/news/applet.py:640
+#, python-brace-format
+msgid "Could not update news sources; using cached list: {error}"
+msgstr "Xəbər mənbələri yenilənə bilmədi; keşlənmiş siyahı istifadə olunur: "
+"{error}"
+
+#: docking/applets/news/applet.py:654
+#, python-brace-format
+msgid "{count} sources - updated {time}"
+msgstr "{count} mənbə - {time} yenilənib"
+
+#: docking/applets/news/countries.py:13
+msgid "Afghanistan"
+msgstr "Əfqanıstan"
+
+#: docking/applets/news/countries.py:14
+msgid "Albania"
+msgstr "Albaniya"
+
+#: docking/applets/news/countries.py:15
+msgid "Andorra"
+msgstr "Andorra"
+
+#: docking/applets/news/countries.py:16
+msgid "Argentina"
+msgstr "Argentina"
+
+#: docking/applets/news/countries.py:17
+msgid "Armenia"
+msgstr "Ermənistan"
+
+#: docking/applets/news/countries.py:18
+msgid "Australia"
+msgstr "Avstraliya"
+
+#: docking/applets/news/countries.py:19
+msgid "Austria"
+msgstr "Avstriya"
+
+#: docking/applets/news/countries.py:20
+msgid "Azerbaijan"
+msgstr "Azərbaycan"
+
+#: docking/applets/news/countries.py:21
+msgid "Burundi"
+msgstr "Burundi"
+
+#: docking/applets/news/countries.py:22
+msgid "Belgium"
+msgstr "Belçika"
+
+#: docking/applets/news/countries.py:23
+msgid "Benin"
+msgstr "Benin"
+
+#: docking/applets/news/countries.py:24
+msgid "Bangladesh"
+msgstr "Banqladeş"
+
+#: docking/applets/news/countries.py:25
+msgid "Bulgaria"
+msgstr "Bolqarıstan"
+
+#: docking/applets/news/countries.py:26
+msgid "Bahamas"
+msgstr "Baham adaları"
+
+#: docking/applets/news/countries.py:27
+msgid "Bosnia and Herzegovina"
+msgstr "Bosniya və Herseqovina"
+
+#: docking/applets/news/countries.py:28
+msgid "Belarus"
+msgstr "Belarus"
+
+#: docking/applets/news/countries.py:29
+msgid "Belize"
+msgstr "Beliz"
+
+#: docking/applets/news/countries.py:30
+msgid "Bermuda"
+msgstr "Bermud adaları"
+
+#: docking/applets/news/countries.py:31
+msgid "Bolivia"
+msgstr "Boliviya"
+
+#: docking/applets/news/countries.py:32
+msgid "Brazil"
+msgstr "Braziliya"
+
+#: docking/applets/news/countries.py:33
+msgid "Barbados"
+msgstr "Barbados"
+
+#: docking/applets/news/countries.py:34
+msgid "Canada"
+msgstr "Kanada"
+
+#: docking/applets/news/countries.py:35
+msgid "Switzerland"
+msgstr "İsveçrə"
+
+#: docking/applets/news/countries.py:36
+msgid "Chile"
+msgstr "Çili"
+
+#: docking/applets/news/countries.py:37
+msgid "China"
+msgstr "Çin"
+
+#: docking/applets/news/countries.py:38
+msgid "Cameroon"
+msgstr "Kamerun"
+
+#: docking/applets/news/countries.py:39
+msgid "Democratic Republic of the Congo"
+msgstr "Konqo Demokratik Respublikası"
+
+#: docking/applets/news/countries.py:40
+msgid "Colombia"
+msgstr "Kolumbiya"
+
+#: docking/applets/news/countries.py:41
+msgid "Costa Rica"
+msgstr "Kosta Rika"
+
+#: docking/applets/news/countries.py:42
+msgid "Cuba"
+msgstr "Kuba"
+
+#: docking/applets/news/countries.py:43
+msgid "Cayman Islands"
+msgstr "Kayman adaları"
+
+#: docking/applets/news/countries.py:44
+msgid "Cyprus"
+msgstr "Kipr"
+
+#: docking/applets/news/countries.py:45
+msgid "Czechia"
+msgstr "Çexiya"
+
+#: docking/applets/news/countries.py:46
+msgid "Germany"
+msgstr "Almaniya"
+
+#: docking/applets/news/countries.py:47
+msgid "Djibouti"
+msgstr "Cibuti"
+
+#: docking/applets/news/countries.py:48
+msgid "Dominica"
+msgstr "Dominika"
+
+#: docking/applets/news/countries.py:49
+msgid "Denmark"
+msgstr "Danimarka"
+
+#: docking/applets/news/countries.py:50
+msgid "Dominican Republic"
+msgstr "Dominikan Respublikası"
+
+#: docking/applets/news/countries.py:51
+msgid "Algeria"
+msgstr "Əlcəzair"
+
+#: docking/applets/news/countries.py:52
+msgid "Ecuador"
+msgstr "Ekvador"
+
+#: docking/applets/news/countries.py:53
+msgid "Egypt"
+msgstr "Misir"
+
+#: docking/applets/news/countries.py:54
+msgid "Eritrea"
+msgstr "Eritreya"
+
+#: docking/applets/news/countries.py:55
+msgid "Spain"
+msgstr "İspaniya"
+
+#: docking/applets/news/countries.py:56
+msgid "Estonia"
+msgstr "Estoniya"
+
+#: docking/applets/news/countries.py:57
+msgid "Ethiopia"
+msgstr "Efiopiya"
+
+#: docking/applets/news/countries.py:58
+msgid "Finland"
+msgstr "Finlandiya"
+
+#: docking/applets/news/countries.py:59
+msgid "France"
+msgstr "Fransa"
+
+#: docking/applets/news/countries.py:60
+msgid "Gabon"
+msgstr "Qabon"
+
+#: docking/applets/news/countries.py:61
+msgid "United Kingdom"
+msgstr "Birləşmiş Krallıq"
+
+#: docking/applets/news/countries.py:62
+msgid "Ghana"
+msgstr "Qana"
+
+#: docking/applets/news/countries.py:63
+msgid "Gibraltar"
+msgstr "Cəbəllütariq"
+
+#: docking/applets/news/countries.py:64
+msgid "Guinea"
+msgstr "Qvineya"
+
+#: docking/applets/news/countries.py:65
+msgid "Greece"
+msgstr "Yunanıstan"
+
+#: docking/applets/news/countries.py:66
+msgid "Guatemala"
+msgstr "Qvatemala"
+
+#: docking/applets/news/countries.py:67
+msgid "French Guiana"
+msgstr "Fransız Gvianası"
+
+#: docking/applets/news/countries.py:68
+msgid "Guyana"
+msgstr "Qayana"
+
+#: docking/applets/news/countries.py:69
+msgid "Hong Kong"
+msgstr "Honkonq"
+
+#: docking/applets/news/countries.py:70
+msgid "Croatia"
+msgstr "Xorvatiya"
+
+#: docking/applets/news/countries.py:71
+msgid "Haiti"
+msgstr "Haiti"
+
+#: docking/applets/news/countries.py:72
+msgid "Hungary"
+msgstr "Macarıstan"
+
+#: docking/applets/news/countries.py:73
+msgid "Indonesia"
+msgstr "İndoneziya"
+
+#: docking/applets/news/countries.py:74
+msgid "Isle of Man"
+msgstr "Men adası"
+
+#: docking/applets/news/countries.py:75
+msgid "India"
+msgstr "Hindistan"
+
+#: docking/applets/news/countries.py:76
+msgid "Ireland"
+msgstr "İrlandiya"
+
+#: docking/applets/news/countries.py:77
+msgid "Iran"
+msgstr "İran"
+
+#: docking/applets/news/countries.py:78
+msgid "Iceland"
+msgstr "İslandiya"
+
+#: docking/applets/news/countries.py:79
+msgid "Israel"
+msgstr "İsrail"
+
+#: docking/applets/news/countries.py:80
+msgid "Italy"
+msgstr "İtaliya"
+
+#: docking/applets/news/countries.py:81
+msgid "Jamaica"
+msgstr "Yamayka"
+
+#: docking/applets/news/countries.py:82
+msgid "Japan"
+msgstr "Yaponiya"
+
+#: docking/applets/news/countries.py:83
+msgid "Kazakhstan"
+msgstr "Qazaxıstan"
+
+#: docking/applets/news/countries.py:84
+msgid "Kenya"
+msgstr "Keniya"
+
+#: docking/applets/news/countries.py:85
+msgid "Kyrgyzstan"
+msgstr "Qırğızıstan"
+
+#: docking/applets/news/countries.py:86
+msgid "Cambodia"
+msgstr "Kamboca"
+
+#: docking/applets/news/countries.py:87
+msgid "Liberia"
+msgstr "Liberiya"
+
+#: docking/applets/news/countries.py:88
+msgid "Sri Lanka"
+msgstr "Şri-Lanka"
+
+#: docking/applets/news/countries.py:89
+msgid "Lithuania"
+msgstr "Litva"
+
+#: docking/applets/news/countries.py:90
+msgid "Luxembourg"
+msgstr "Lüksemburq"
+
+#: docking/applets/news/countries.py:91
+msgid "Latvia"
+msgstr "Latviya"
+
+#: docking/applets/news/countries.py:92
+msgid "Morocco"
+msgstr "Mərakeş"
+
+#: docking/applets/news/countries.py:93
+msgid "Monaco"
+msgstr "Monako"
+
+#: docking/applets/news/countries.py:94
+msgid "Moldova"
+msgstr "Moldova"
+
+#: docking/applets/news/countries.py:95
+msgid "Madagascar"
+msgstr "Madaqaskar"
+
+#: docking/applets/news/countries.py:96
+msgid "Maldives"
+msgstr "Maldiv adaları"
+
+#: docking/applets/news/countries.py:97
+msgid "Mexico"
+msgstr "Meksika"
+
+#: docking/applets/news/countries.py:98
+msgid "North Macedonia"
+msgstr "Şimali Makedoniya"
+
+#: docking/applets/news/countries.py:99
+msgid "Mali"
+msgstr "Mali"
+
+#: docking/applets/news/countries.py:100
+msgid "Malta"
+msgstr "Malta"
+
+#: docking/applets/news/countries.py:101
+msgid "Montenegro"
+msgstr "Monteneqro"
+
+#: docking/applets/news/countries.py:102
+msgid "Martinique"
+msgstr "Martinika"
+
+#: docking/applets/news/countries.py:103
+msgid "Malawi"
+msgstr "Malavi"
+
+#: docking/applets/news/countries.py:104
+msgid "Malaysia"
+msgstr "Malayziya"
+
+#: docking/applets/news/countries.py:105
+msgid "Namibia"
+msgstr "Namibiya"
+
+#: docking/applets/news/countries.py:106
+msgid "Niger"
+msgstr "Niger"
+
+#: docking/applets/news/countries.py:107
+msgid "Nigeria"
+msgstr "Nigeriya"
+
+#: docking/applets/news/countries.py:108
+msgid "Nicaragua"
+msgstr "Nikaraqua"
+
+#: docking/applets/news/countries.py:109
+msgid "Netherlands"
+msgstr "Niderland"
+
+#: docking/applets/news/countries.py:110
+msgid "Norway"
+msgstr "Norveç"
+
+#: docking/applets/news/countries.py:111
+msgid "Nepal"
+msgstr "Nepal"
+
+#: docking/applets/news/countries.py:112
+msgid "New Zealand"
+msgstr "Yeni Zelandiya"
+
+#: docking/applets/news/countries.py:113
+msgid "Pakistan"
+msgstr "Pakistan"
+
+#: docking/applets/news/countries.py:114
+msgid "Panama"
+msgstr "Panama"
+
+#: docking/applets/news/countries.py:115
+msgid "Peru"
+msgstr "Peru"
+
+#: docking/applets/news/countries.py:116
+msgid "Philippines"
+msgstr "Filippin"
+
+#: docking/applets/news/countries.py:117
+msgid "Poland"
+msgstr "Polşa"
+
+#: docking/applets/news/countries.py:118
+msgid "Puerto Rico"
+msgstr "Puerto Riko"
+
+#: docking/applets/news/countries.py:119
+msgid "Portugal"
+msgstr "Portuqaliya"
+
+#: docking/applets/news/countries.py:120
+msgid "Palestine"
+msgstr "Fələstin"
+
+#: docking/applets/news/countries.py:121
+msgid "French Polynesia"
+msgstr "Fransız Polineziyası"
+
+#: docking/applets/news/countries.py:122
+msgid "Romania"
+msgstr "Rumıniya"
+
+#: docking/applets/news/countries.py:123
+msgid "Russia"
+msgstr "Rusiya"
+
+#: docking/applets/news/countries.py:124
+msgid "Senegal"
+msgstr "Seneqal"
+
+#: docking/applets/news/countries.py:125
+msgid "Singapore"
+msgstr "Sinqapur"
+
+#: docking/applets/news/countries.py:126
+msgid "Solomon Islands"
+msgstr "Solomon adaları"
+
+#: docking/applets/news/countries.py:127
+msgid "Sierra Leone"
+msgstr "Syerra-Leone"
+
+#: docking/applets/news/countries.py:128
+msgid "San Marino"
+msgstr "San-Marino"
+
+#: docking/applets/news/countries.py:129
+msgid "Somalia"
+msgstr "Somali"
+
+#: docking/applets/news/countries.py:130
+msgid "Serbia"
+msgstr "Serbiya"
+
+#: docking/applets/news/countries.py:131
+msgid "Suriname"
+msgstr "Surinam"
+
+#: docking/applets/news/countries.py:132
+msgid "Slovakia"
+msgstr "Slovakiya"
+
+#: docking/applets/news/countries.py:133
+msgid "Slovenia"
+msgstr "Sloveniya"
+
+#: docking/applets/news/countries.py:134
+msgid "Sweden"
+msgstr "İsveç"
+
+#: docking/applets/news/countries.py:135
+msgid "Togo"
+msgstr "Toqo"
+
+#: docking/applets/news/countries.py:136
+msgid "Thailand"
+msgstr "Tailand"
+
+#: docking/applets/news/countries.py:137
+msgid "Tunisia"
+msgstr "Tunis"
+
+#: docking/applets/news/countries.py:138
+msgid "Türkiye"
+msgstr "Türkiyə"
+
+#: docking/applets/news/countries.py:139
+msgid "Uganda"
+msgstr "Uqanda"
+
+#: docking/applets/news/countries.py:140
+msgid "Ukraine"
+msgstr "Ukrayna"
+
+#: docking/applets/news/countries.py:141
+msgid "Uruguay"
+msgstr "Uruqvay"
+
+#: docking/applets/news/countries.py:142
+msgid "United States"
+msgstr "Amerika Birləşmiş Ştatları"
+
+#: docking/applets/news/countries.py:143
+msgid "Uzbekistan"
+msgstr "Özbəkistan"
+
+#: docking/applets/news/countries.py:144
+msgid "Venezuela"
+msgstr "Venesuela"
+
+#: docking/applets/news/countries.py:145
+msgid "U.S. Virgin Islands"
+msgstr "ABŞ Virgin adaları"
+
+#: docking/applets/news/countries.py:146
+msgid "Vietnam"
+msgstr "Vyetnam"
+
+#: docking/applets/news/countries.py:147
+msgid "Kosovo"
+msgstr "Kosovo"
+
+#: docking/applets/news/countries.py:148
+msgid "Yemen"
+msgstr "Yəmən"
+
+#: docking/applets/news/countries.py:149
+msgid "South Africa"
+msgstr "Cənubi Afrika"
+
+#: docking/applets/news/countries.py:150
+msgid "Zambia"
+msgstr "Zambiya"
+
+#: docking/applets/news/countries.py:151
+msgid "Zimbabwe"
+msgstr "Zimbabve"
+
+#: docking/applets/news/countries.py:159
+msgid "Global"
+msgstr "Qlobal"
+
+#: docking/applets/news/state.py:187
+#, python-brace-format
+msgid "{publication} - {category}"
+msgstr "{publication} - {category}"
+
+#: docking/applets/news/state.py:213
+msgid "Unsafe RSS response"
+msgstr "Təhlükəli RSS cavabı"
+
+#: docking/applets/news/state.py:217
+msgid "Invalid RSS response"
+msgstr "Yanlış RSS cavabı"
+
+#: docking/applets/news/state.py:310
+msgid "Click to choose a country and news source"
+msgstr "Ölkə və xəbər mənbəyi seçmək üçün klikləyin"
+
+#: docking/applets/news/state.py:339
+#, python-brace-format
+msgid "By {author}"
+msgstr "{author} tərəfindən"
 
 #: docking/applets/notifications/applet.py:78
 #: docking/applets/notifications/state.py:62
@@ -1858,6 +2618,230 @@ msgstr "Heyecanli!"
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
+#: docking/applets/plantcare/applet.py:62
+#: docking/applets/plantcare/applet.py:241
+#: docking/applets/plantcare/state.py:438
+msgid "Plant Care"
+msgstr "Bitki qayğısı"
+
+#: docking/applets/plantcare/applet.py:124
+#: docking/applets/plantcare/applet.py:306
+#: docking/applets/plantcare/applet.py:389
+msgid "Add Plant..."
+msgstr "Bitki əlavə et..."
+
+#: docking/applets/plantcare/applet.py:126
+msgid "Manage Plants..."
+msgstr "Bitkiləri idarə et..."
+
+#: docking/applets/plantcare/applet.py:148
+#, python-brace-format
+msgid "{action} {plant}"
+msgstr "{action} {plant}"
+
+#: docking/applets/plantcare/applet.py:155
+#: docking/applets/plantcare/applet.py:374
+msgid "Done"
+msgstr "Hazırdır"
+
+#: docking/applets/plantcare/applet.py:160
+msgid "Snooze 1 Day"
+msgstr "1 gün təxirə sal"
+
+#: docking/applets/plantcare/applet.py:175
+#, python-brace-format
+msgid "{count} more due task"
+msgid_plural "{count} more due tasks"
+msgstr[0] "vaxtı çatmış daha {count} tapşırıq"
+msgstr[1] "vaxtı çatmış daha {count} tapşırıq"
+
+#: docking/applets/plantcare/applet.py:244
+#: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
+#: docking/ui/menu.py:584 docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr "Bağla"
+
+#: docking/applets/plantcare/applet.py:284
+msgid "Care"
+msgstr "Qayğı"
+
+#: docking/applets/plantcare/applet.py:288
+msgid "Plants"
+msgstr "Bitkilər"
+
+#: docking/applets/plantcare/applet.py:301
+msgid "Add a plant to start tracking care."
+msgstr "Qayğıya nəzarət etməyə başlamaq üçün bitki əlavə edin."
+
+#: docking/applets/plantcare/applet.py:312
+msgid "No care schedules are enabled."
+msgstr "Heç bir qayğı cədvəli aktiv deyil."
+
+#: docking/applets/plantcare/applet.py:326
+msgid "Due"
+msgstr "Vaxtı çatıb"
+
+#: docking/applets/plantcare/applet.py:335
+msgid "Upcoming"
+msgstr "Yaxınlaşan"
+
+#: docking/applets/plantcare/applet.py:360
+#, python-brace-format
+msgid "{plant} - {care}"
+msgstr "{plant} - {care}"
+
+#: docking/applets/plantcare/applet.py:395
+msgid "No plants configured."
+msgstr "Heç bir bitki konfiqurasiya edilməyib."
+
+#: docking/applets/plantcare/applet.py:421
+msgid "Edit"
+msgstr "Redaktə et"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Edit Plant"
+msgstr "Bitkini redaktə et"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Add Plant"
+msgstr "Bitki əlavə et"
+
+#: docking/applets/plantcare/applet.py:495
+msgid "Species"
+msgstr "Növ"
+
+#: docking/applets/plantcare/applet.py:497
+msgid "Care Schedule"
+msgstr "Qayğı cədvəli"
+
+#: docking/applets/plantcare/applet.py:498
+msgid "Days"
+msgstr "Günlər"
+
+#: docking/applets/plantcare/state.py:108
+msgid "Watering"
+msgstr "Suvarma"
+
+#: docking/applets/plantcare/state.py:109
+msgid "Fertilizing"
+msgstr "Gübrələmə"
+
+#: docking/applets/plantcare/state.py:110
+msgid "Misting"
+msgstr "Çiləmə"
+
+#: docking/applets/plantcare/state.py:111
+msgid "Rotating"
+msgstr "Fırlatma"
+
+#: docking/applets/plantcare/state.py:112
+msgid "Pruning"
+msgstr "Budama"
+
+#: docking/applets/plantcare/state.py:113
+msgid "Repotting"
+msgstr "Köçürmə"
+
+#: docking/applets/plantcare/state.py:114
+msgid "Pest check"
+msgstr "Zərərverici yoxlaması"
+
+#: docking/applets/plantcare/state.py:122
+msgid "Water"
+msgstr "Sula"
+
+#: docking/applets/plantcare/state.py:123
+msgid "Fertilize"
+msgstr "Gübrələ"
+
+#: docking/applets/plantcare/state.py:124
+msgid "Mist"
+msgstr "Çilə"
+
+#: docking/applets/plantcare/state.py:125
+msgid "Rotate"
+msgstr "Fırlat"
+
+#: docking/applets/plantcare/state.py:126
+msgid "Prune"
+msgstr "Buda"
+
+#: docking/applets/plantcare/state.py:127
+msgid "Repot"
+msgstr "Köçür"
+
+#: docking/applets/plantcare/state.py:128
+msgid "Check for pests"
+msgstr "Zərərvericiləri yoxla"
+
+#: docking/applets/plantcare/state.py:186
+#: docking/applets/plantcare/state.py:544
+msgid "Plant"
+msgstr "Bitki"
+
+#: docking/applets/plantcare/state.py:416
+#, python-brace-format
+msgid "overdue by {count} day"
+msgid_plural "overdue by {count} days"
+msgstr[0] "{count} gün gecikib"
+msgstr[1] "{count} gün gecikib"
+
+#: docking/applets/plantcare/state.py:421
+msgid "due today"
+msgstr "bu gün vaxtı çatıb"
+
+#: docking/applets/plantcare/state.py:424
+#, python-brace-format
+msgid "in {count} day"
+msgid_plural "in {count} days"
+msgstr[0] "{count} gün sonra"
+msgstr[1] "{count} gün sonra"
+
+#: docking/applets/plantcare/state.py:428
+#, python-brace-format
+msgid "{plant}: {care} {duration}"
+msgstr "{plant}: {care} {duration}"
+
+#: docking/applets/plantcare/state.py:440
+#: docking/applets/plantcare/state.py:475
+msgid "No plants configured"
+msgstr "Bitki konfiqurasiya edilməyib"
+
+#: docking/applets/plantcare/state.py:443
+#: docking/applets/plantcare/state.py:477
+msgid "No care schedules enabled"
+msgstr "Qayğı cədvəli aktiv deyil"
+
+#: docking/applets/plantcare/state.py:449
+#: docking/applets/plantcare/state.py:480
+#: docking/applets/plantcare/state.py:495
+#, python-brace-format
+msgid "{count} task due"
+msgid_plural "{count} tasks due"
+msgstr[0] "{count} tapşırığın vaxtı çatıb"
+msgstr[1] "{count} tapşırığın vaxtı çatıb"
+
+#: docking/applets/plantcare/state.py:455
+msgid "All plants are on schedule"
+msgstr "Bütün bitkilər cədvələ uyğundur"
+
+#: docking/applets/plantcare/state.py:463
+#, python-brace-format
+msgid "{count} more task"
+msgid_plural "{count} more tasks"
+msgstr[0] "daha {count} tapşırıq"
+msgstr[1] "daha {count} tapşırıq"
+
+#: docking/applets/plantcare/state.py:492
+#, python-brace-format
+msgid "{plant} - no schedules"
+msgstr "{plant} - cədvəl yoxdur"
+
+#: docking/applets/plantcare/state.py:499
+#, python-brace-format
+msgid "{plant} - {due}"
+msgstr "{plant} - {due}"
+
 #: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr "Pomodoro"
@@ -1932,74 +2916,175 @@ msgstr "Qeydi redakte et"
 msgid "Clear Note"
 msgstr "Qeydi temizle"
 
-#: docking/applets/quote/applet.py:99
+#: docking/applets/quote/applet.py:98
 msgid "Next Quote"
 msgstr "Növbəti Sitat"
 
-#: docking/applets/quote/applet.py:102
+#: docking/applets/quote/applet.py:101
 msgid "Copy Quote"
 msgstr "Sitatı Kopyala"
 
-#: docking/applets/quote/applet.py:109
-msgid "Source"
-msgstr "Mənbə"
-
-#: docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:219
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: yüklənir..."
 
-#: docking/applets/recentfiles/applet.py:48
+#: docking/applets/recentfiles/applet.py:50
+#: docking/search/providers/recent.py:61
 msgid "Recent Files"
 msgstr "Son fayllar"
 
-#: docking/applets/recentfiles/applet.py:95
+#: docking/applets/recentfiles/applet.py:121
 msgid "Clear Recent Files"
 msgstr "Son fayllari temizle"
 
-#: docking/applets/runcommand/applet.py:63
-#: docking/applets/runcommand/applet.py:88
-#: docking/applets/runcommand/applet.py:118
-#: docking/applets/runcommand/applet.py:262
+#: docking/applets/reddit/applet.py:67
+msgid "Reddit"
+msgstr "Reddit"
+
+#: docking/applets/reddit/applet.py:179 docking/applets/reddit/state.py:356
+#, python-brace-format
+msgid "Posted by u/{author}"
+msgstr "u/{author} tərəfindən göndərilib"
+
+#: docking/applets/reddit/applet.py:183
+msgid "Open Post"
+msgstr "Postu aç"
+
+#: docking/applets/reddit/applet.py:220
+msgid "Subreddit"
+msgstr "Subreddit"
+
+#: docking/applets/reddit/applet.py:230
+msgid "Sort"
+msgstr "Sıralama"
+
+#: docking/applets/reddit/applet.py:240
+msgid "Top Period"
+msgstr "Ən yaxşı dövr"
+
+#: docking/applets/reddit/applet.py:252
+msgid "Add Subreddit..."
+msgstr "Subreddit əlavə et..."
+
+#: docking/applets/reddit/applet.py:258
+#, python-brace-format
+msgid "Remove r/{subreddit}"
+msgstr "r/{subreddit} sil"
+
+#: docking/applets/reddit/applet.py:374
+msgid "No Reddit posts returned"
+msgstr "Heç bir Reddit postu qaytarılmadı"
+
+#: docking/applets/reddit/applet.py:423
+msgid "Add Subreddit"
+msgstr "Subreddit əlavə et"
+
+#: docking/applets/reddit/applet.py:439
+msgid "Subreddit name or URL"
+msgstr "Subreddit adı və ya URL"
+
+#: docking/applets/reddit/applet.py:457
+msgid "Enter a valid subreddit name."
+msgstr "Etibarlı subreddit adı daxil edin."
+
+#: docking/applets/reddit/state.py:158
+msgid "Hot"
+msgstr "Populyar"
+
+#: docking/applets/reddit/state.py:160
+msgid "Top"
+msgstr "Ən yaxşı"
+
+#: docking/applets/reddit/state.py:161
+msgid "Rising"
+msgstr "Yüksələn"
+
+#: docking/applets/reddit/state.py:169
+#: docking/search/recognizers/temporal.py:155
+msgid "Today"
+msgstr "Bu gün"
+
+#: docking/applets/reddit/state.py:170
+msgid "This Week"
+msgstr "Bu həftə"
+
+#: docking/applets/reddit/state.py:171
+msgid "This Month"
+msgstr "Bu ay"
+
+#: docking/applets/reddit/state.py:172
+msgid "This Year"
+msgstr "Bu il"
+
+#: docking/applets/reddit/state.py:173
+msgid "All Time"
+msgstr "Bütün vaxt"
+
+#: docking/applets/reddit/state.py:187
+msgid "Invalid subreddit name"
+msgstr "Yanlış subreddit adı"
+
+#: docking/applets/reddit/state.py:203
+#, python-brace-format
+msgid "{sort}, {period}"
+msgstr "{sort}, {period}"
+
+#: docking/applets/reddit/state.py:207
+#, python-brace-format
+msgid "r/{subreddit} - {listing}"
+msgstr "r/{subreddit} - {listing}"
+
+#: docking/applets/reddit/state.py:225
+msgid "Invalid Reddit RSS response"
+msgstr "Yanlış Reddit RSS cavabı"
+
+#: docking/applets/runcommand/applet.py:75
+#: docking/applets/runcommand/applet.py:113
+#: docking/applets/runcommand/applet.py:143
+#: docking/applets/runcommand/applet.py:287
 msgid "Run Application"
 msgstr "Tətbiqi işə salın"
 
-#: docking/applets/runcommand/applet.py:121
+#: docking/applets/runcommand/applet.py:146
 msgid "Help"
 msgstr "Kömək edin"
 
-#: docking/applets/runcommand/applet.py:123
+#: docking/applets/runcommand/applet.py:148
 msgid "Run"
 msgstr "Qaç"
 
-#: docking/applets/runcommand/applet.py:168
+#: docking/applets/runcommand/applet.py:193
 msgid "Run in terminal"
 msgstr "Terminalda işə salın"
 
-#: docking/applets/runcommand/applet.py:170
+#: docking/applets/runcommand/applet.py:195
 msgid "Run with file..."
 msgstr "Faylla işləyin..."
 
-#: docking/applets/runcommand/applet.py:175
+#: docking/applets/runcommand/applet.py:200
 msgid "Show list of known applications"
 msgstr "Məlum proqramların siyahısını göstərin"
 
-#: docking/applets/runcommand/applet.py:181
-#: docking/applets/runcommand/applet.py:286
+#: docking/applets/runcommand/applet.py:206
+#: docking/applets/runcommand/applet.py:311
 msgid "Select an application to view its description."
 msgstr "Təsvirinə baxmaq üçün proqram seçin."
 
-#: docking/applets/runcommand/applet.py:265
+#: docking/applets/runcommand/applet.py:290
 msgid "Type a command or select an application to launch it."
 msgstr "Əmr yazın və ya onu işə salmaq üçün proqram seçin."
 
-#: docking/applets/runcommand/applet.py:336
+#: docking/applets/runcommand/applet.py:364
 msgid "Run with file"
 msgstr "Faylla işləyin"
 
-#: docking/applets/runcommand/applet.py:341
-#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:441
-#: docking/ui/menu.py:526
+#: docking/applets/runcommand/applet.py:369
+#: docking/applets/systemtray/applet.py:289
+#: docking/search/providers/applications.py:158
+#: docking/search/providers/dock.py:78 docking/search/providers/recent.py:68
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:595
+#: docking/ui/menu.py:451 docking/ui/menu.py:536
 msgid "Open"
 msgstr "Ac"
 
@@ -2012,35 +3097,40 @@ msgstr "Ekran Görüntüsü"
 msgid "Full Screen in {delay}s"
 msgstr "Tam Ekran {delay}san-də"
 
+#: docking/applets/search/applet.py:25 docking/applets/search/applet.py:38
+msgid "Search"
+msgstr "Axtar"
+
 #: docking/applets/separator/applet.py:51
 msgid "Separator"
 msgstr "Ayırıcı"
 
-#: docking/applets/separator/applet.py:132
+#: docking/applets/separator/applet.py:129
 msgid "Increase Gap"
 msgstr "Boşluğu Artır"
 
-#: docking/applets/separator/applet.py:134
+#: docking/applets/separator/applet.py:131
 msgid "Decrease Gap"
 msgstr "Boşluğu Azalt"
 
-#: docking/applets/separator/applet.py:137
+#: docking/applets/separator/applet.py:134
 msgid "Style"
 msgstr "Stil"
 
-#: docking/applets/separator/applet.py:139
+#: docking/applets/separator/applet.py:136
 msgid "Line"
 msgstr "Xett"
 
-#: docking/applets/separator/applet.py:140
+#: docking/applets/separator/applet.py:137
+#: docking/search/ui/shortcut_capture.py:91
 msgid "Space"
 msgstr "Bosluk"
 
-#: docking/applets/separator/applet.py:147
+#: docking/applets/separator/applet.py:144
 msgid "Invert Color"
 msgstr "Rengi cevir"
 
-#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:163
 msgid "Session"
 msgstr "Sessiya"
 
@@ -2066,30 +3156,30 @@ msgstr "Söndür"
 msgid "Speedtest"
 msgstr "Speedtest"
 
-#: docking/applets/speedtest/applet.py:93 docking/applets/speedtest/state.py:86
+#: docking/applets/speedtest/applet.py:91 docking/applets/speedtest/state.py:86
 msgid "Runs"
 msgstr "İcralar"
 
-#: docking/applets/speedtest/applet.py:96
-#: docking/applets/speedtest/applet.py:114
+#: docking/applets/speedtest/applet.py:94
+#: docking/applets/speedtest/applet.py:112
 #: docking/applets/speedtest/state.py:90
 msgid "Running..."
 msgstr "Running..."
 
-#: docking/applets/speedtest/applet.py:96
+#: docking/applets/speedtest/applet.py:94
 msgid "Run Test"
 msgstr "Run Test"
 
-#: docking/applets/speedtest/applet.py:103
+#: docking/applets/speedtest/applet.py:101
 msgid "Copy Last Result"
 msgstr "Copy Last Result"
 
-#: docking/applets/speedtest/applet.py:119
+#: docking/applets/speedtest/applet.py:117
 #, python-brace-format
 msgid "Down {d:.1f} / Up {u:.1f} Mbps"
 msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
 
-#: docking/applets/speedtest/applet.py:176
+#: docking/applets/speedtest/applet.py:174
 #, python-brace-format
 msgid ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
@@ -2155,28 +3245,28 @@ msgstr "Novbeti gerilme {time} sonra"
 msgid "Sunrise"
 msgstr "Günəşin doğuşu"
 
-#: docking/applets/sunrise/applet.py:116
+#: docking/applets/sunrise/applet.py:114
 msgid "Times shown in system timezone"
 msgstr "Saatlar sistem saat qurşağında göstərilir"
 
-#: docking/applets/sunrise/applet.py:121
+#: docking/applets/sunrise/applet.py:119
 msgid "Change City..."
 msgstr "Şəhəri dəyişdir..."
 
-#: docking/applets/sunrise/applet.py:126
+#: docking/applets/sunrise/applet.py:124
 msgid "Label Mode"
 msgstr "Etiket rejimi"
 
-#: docking/applets/sunrise/applet.py:148 docking/applets/weather/applet.py:218
+#: docking/applets/sunrise/applet.py:146 docking/applets/weather/applet.py:216
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "{city} sil"
 
-#: docking/applets/sunrise/applet.py:185 docking/applets/weather/applet.py:270
+#: docking/applets/sunrise/applet.py:183 docking/applets/weather/applet.py:268
 msgid "Search for the city"
 msgstr "Şəhər axtar"
 
-#: docking/applets/sunrise/applet.py:198 docking/applets/weather/applet.py:283
+#: docking/applets/sunrise/applet.py:197 docking/applets/weather/applet.py:282
 msgid "Type city name..."
 msgstr "Şəhər adını yazın..."
 
@@ -2227,7 +3317,7 @@ msgid "Civil"
 msgstr "mülki"
 
 #: docking/applets/sunrise/state.py:390
-#: docking/applets/todayinhistory/applet.py:109
+#: docking/applets/todayinhistory/applet.py:104
 msgid "Next Event"
 msgstr "Novbeti hadise"
 
@@ -2244,6 +3334,7 @@ msgid "No city selected"
 msgstr "Şəhər seçilməyib"
 
 #: docking/applets/sunrise/state.py:401
+#, python-brace-format
 msgid "{city}: {phase}"
 msgstr "{city}: {phase}"
 
@@ -2289,20 +3380,22 @@ msgstr "Astronomik alacakaranlıq"
 msgid "System Monitor"
 msgstr "CPU Monitoru"
 
-#: docking/applets/systemmonitor/applet.py:102
+#: docking/applets/systemmonitor/applet.py:100
 msgid "Show Disk Usage"
 msgstr "Show Disk Usage"
 
-#: docking/applets/systemmonitor/applet.py:107
-#: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:201
+#: docking/applets/systemmonitor/applet.py:105
+#: docking/applets/thermals/applet.py:160 docking/applets/weather/applet.py:199
 msgid "Temperature Unit"
 msgstr "Temperatur vahidi"
 
 #: docking/applets/systemmonitor/gpu.py:145
+#, python-brace-format
 msgid "GPU: {pct}%"
 msgstr "GPU: {pct}%"
 
 #: docking/applets/systemmonitor/gpu.py:147
+#, python-brace-format
 msgid "GPU: {name}"
 msgstr "GPU: {name}"
 
@@ -2331,37 +3424,37 @@ msgstr "{text} | Temp: {temp}"
 msgid "Disk: {usage}"
 msgstr "Disk: {usage}"
 
-#: docking/applets/systemtray/applet.py:52
+#: docking/applets/systemtray/applet.py:60
 msgid "System Tray"
 msgstr "Sistem Tablosu"
 
-#: docking/applets/systemtray/applet.py:81
+#: docking/applets/systemtray/applet.py:106
 #, python-brace-format
 msgid "System Tray: {n} legacy item(s)"
 msgstr "Sistem Tablosu: {n} köhnə element(lər)"
 
-#: docking/applets/systemtray/applet.py:127
+#: docking/applets/systemtray/applet.py:160
 msgid "Activate"
 msgstr "Aktivləşdirin"
 
-#: docking/applets/systemtray/applet.py:132
+#: docking/applets/systemtray/applet.py:165
 msgid "Context Menu"
 msgstr "Kontekst menyusu"
 
-#: docking/applets/systemtray/applet.py:190
+#: docking/applets/systemtray/applet.py:225
 msgid "D-Bus unavailable"
 msgstr "D-Avtobus mövcud deyil"
 
-#: docking/applets/systemtray/applet.py:199
+#: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
 msgstr "Köhnə X11 qabı {n} element(lər) ilə aktivdir."
 
-#: docking/applets/systemtray/applet.py:203
+#: docking/applets/systemtray/applet.py:238
 msgid "Legacy X11 tray is active and waiting for tray apps."
 msgstr "Legacy X11 tray aktivdir və tray tətbiqlərini gözləyir."
 
-#: docking/applets/systemtray/applet.py:211
+#: docking/applets/systemtray/applet.py:246
 #, python-brace-format
 msgid ""
 "No StatusNotifier apps are registered. Legacy tray icons are currently owned "
@@ -2372,7 +3465,7 @@ msgstr ""
 "{owner}-a məxsusdur. Docking-in onları yerləşdirməsini istəyirsinizsə, "
 "applet menyusundan Take Over Legacy Tray-dən istifadə edin."
 
-#: docking/applets/systemtray/applet.py:217
+#: docking/applets/systemtray/applet.py:252
 msgid ""
 "No tray applications are registered. Use Start Legacy Tray from the applet "
 "menu for older X11 tray apps."
@@ -2380,53 +3473,53 @@ msgstr ""
 "Heç bir tray tətbiqi qeydə alınmayıb. Köhnə X11 tray tətbiqləri üçün kiçik "
 "proqram menyusundan Start Legacy Tray-dən istifadə edin."
 
-#: docking/applets/systemtray/applet.py:261
+#: docking/applets/systemtray/applet.py:296
 msgid "Menu"
 msgstr "Menyu"
 
-#: docking/applets/systemtray/applet.py:308
+#: docking/applets/systemtray/applet.py:381
 msgid "Release Legacy Tray"
 msgstr "Legacy Tray buraxın"
 
-#: docking/applets/systemtray/applet.py:312
+#: docking/applets/systemtray/applet.py:385
 #, python-brace-format
 msgid "Legacy X11 tray active: {n} item(s)"
 msgstr "Köhnə X11 qabı aktivdir: {n} element(lər)"
 
-#: docking/applets/systemtray/applet.py:321
+#: docking/applets/systemtray/applet.py:394
 msgid "Take Over Legacy Tray"
 msgstr "Köhnə Tablası Təhvil alın"
 
-#: docking/applets/systemtray/applet.py:325
+#: docking/applets/systemtray/applet.py:398
 #, python-brace-format
 msgid "Legacy X11 tray owned by {owner}"
 msgstr "{owner} məxsus köhnə X11 qabı"
 
-#: docking/applets/systemtray/applet.py:333
+#: docking/applets/systemtray/applet.py:406
 msgid "Start Legacy Tray"
 msgstr "Legacy Tray-i işə salın"
 
-#: docking/applets/systemtray/applet.py:349
+#: docking/applets/systemtray/applet.py:422
 msgid "Unknown X11 tray error"
 msgstr "Naməlum X11 qabı xətası"
 
-#: docking/applets/systemtray/applet.py:355
+#: docking/applets/systemtray/applet.py:428
 msgid "Could not start the legacy tray"
 msgstr "Köhnə lövhəni işə salmaq mümkün olmadı"
 
-#: docking/applets/systemtray/applet.py:362
+#: docking/applets/systemtray/applet.py:435
 msgid "another tray"
 msgstr "başqa nimçə"
 
-#: docking/applets/systemtray/applet.py:368
+#: docking/applets/systemtray/applet.py:441
 msgid "Take over the legacy tray?"
 msgstr "Köhnə qabı götürmək istəyirsiniz?"
 
-#: docking/applets/systemtray/applet.py:370
+#: docking/applets/systemtray/applet.py:443
 msgid "Take Over"
 msgstr "Üzərinə götür"
 
-#: docking/applets/systemtray/applet.py:373
+#: docking/applets/systemtray/applet.py:446
 #, python-brace-format
 msgid ""
 "Docking will replace {owner} as the X11 system tray host. Existing legacy "
@@ -2435,54 +3528,51 @@ msgstr ""
 "Doklama {owner} X11 sistem tepsisinin hostu kimi əvəzlənəcək. Mövcud köhnə "
 "tray tətbiqləri Docking-ə qoşulmazdan əvvəl yenidən işə salınmalı ola bilər."
 
-#: docking/applets/systemtray/applet.py:436
+#: docking/applets/systemtray/applet.py:509
 msgid "Menu Item"
 msgstr "Menyu elementi"
 
-#: docking/applets/systemtray/applet.py:481
+#: docking/applets/systemtray/applet.py:559
 msgid "System Tray unavailable"
 msgstr "Sistem Tablosu mövcud deyil"
 
-#: docking/applets/systemtray/applet.py:483
+#: docking/applets/systemtray/applet.py:561
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr "Sistem tepsisinin hostu: {n} element(lər)"
 
-#: docking/applets/systemtray/applet.py:484
-#: docking/applets/systemtray/state.py:158
+#: docking/applets/systemtray/applet.py:562
+#: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
 msgstr "Sistem Tablosu: {n} element(lər)"
 
-#: docking/applets/systemtray/state.py:148
+#: docking/applets/systemtray/state.py:12
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Sistem qabı: {error}"
 
-#: docking/applets/systemtray/state.py:149
+#: docking/applets/systemtray/state.py:13
 msgid "System Tray: D-Bus unavailable"
 msgstr "Sistem qabı: D-Bus mövcud deyil"
 
-#: docking/applets/systemtray/state.py:152
+#: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
 msgstr "Sistem Tablası: {owner}-a məxsus köhnə tray"
 
-#: docking/applets/systemtray/state.py:156
+#: docking/applets/systemtray/state.py:20
 msgid "System Tray: waiting for tray apps"
 msgstr "Sistem Tablosu: tepsi tətbiqlərini gözləyir"
 
-#: docking/applets/systemtray/state.py:157
+#: docking/applets/systemtray/state.py:21
 msgid "System Tray: no tray apps"
 msgstr "Sistem Tablosu: tepsi tətbiqləri yoxdur"
 
-#: docking/applets/systemtray/state.py:162
+#: docking/applets/systemtray/state.py:26
+#, python-brace-format
 msgid "and {n} more"
 msgstr "və {n} daha çox"
-
-#: docking/applets/systemtray/state.py:243
-msgid "session bus unavailable"
-msgstr "sessiya avtobusu mövcud deyil"
 
 #: docking/applets/temperature.py:44
 msgid "Fahrenheit"
@@ -2498,28 +3588,28 @@ msgstr "Celsius"
 msgid "Thermals"
 msgstr "Temperaturlar"
 
-#: docking/applets/thermals/applet.py:109 docking/applets/thermals/state.py:128
+#: docking/applets/thermals/applet.py:107 docking/applets/thermals/state.py:128
 #: docking/applets/thermals/state.py:441
 msgid "lm-sensors not installed"
 msgstr "lm-sensors quraşdırılmayıb"
 
-#: docking/applets/thermals/applet.py:118 docking/applets/thermals/state.py:460
+#: docking/applets/thermals/applet.py:116 docking/applets/thermals/state.py:460
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr "İsti: {label} {temp}"
 
-#: docking/applets/thermals/applet.py:132 docking/applets/thermals/state.py:472
+#: docking/applets/thermals/applet.py:130 docking/applets/thermals/state.py:472
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr "Fan: {label} {rpm}"
 
-#: docking/applets/thermals/applet.py:152 docking/applets/thermals/state.py:427
+#: docking/applets/thermals/applet.py:150 docking/applets/thermals/state.py:427
 #: docking/applets/thermals/state.py:439 docking/applets/thermals/state.py:451
 #: docking/applets/thermals/state.py:487
 msgid "Samples"
 msgstr "Nümunələr"
 
-#: docking/applets/thermals/applet.py:270
+#: docking/applets/thermals/applet.py:268
 msgid "Thermal readings unavailable"
 msgstr "Temperatur oxunuşu əlçatmaz"
 
@@ -2539,17 +3629,17 @@ msgstr "İsti: əlçatmaz"
 msgid "Fan: unavailable"
 msgstr "Fan: əlçatmaz"
 
-#: docking/applets/todayinhistory/applet.py:60
-#: docking/applets/todayinhistory/applet.py:130
-#: docking/applets/todayinhistory/applet.py:142
+#: docking/applets/todayinhistory/applet.py:55
+#: docking/applets/todayinhistory/applet.py:126
+#: docking/applets/todayinhistory/applet.py:138
 msgid "Today in History"
 msgstr "Tarixde bu gun"
 
-#: docking/applets/todayinhistory/applet.py:105
+#: docking/applets/todayinhistory/applet.py:100
 msgid "Open Article"
 msgstr "Meqaleni ac"
 
-#: docking/applets/todayinhistory/applet.py:125
+#: docking/applets/todayinhistory/applet.py:121
 msgid "Today in History: loading..."
 msgstr "Tarixde bu gun: yuklenir..."
 
@@ -2570,7 +3660,7 @@ msgstr "Zibil Qutusu"
 msgid "Open Trash"
 msgstr "Zibil Qutusunu Aç"
 
-#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:264
+#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:265
 msgid "Empty Trash"
 msgstr "Zibil Qutusunu Boşalt"
 
@@ -2585,11 +3675,11 @@ msgstr ""
 msgid "Could not empty Trash."
 msgstr "Zibil qutusunu boşaltmaq mümkün olmadı."
 
-#: docking/applets/trash/applet.py:258
+#: docking/applets/trash/applet.py:259
 msgid "Empty all items from Trash?"
 msgstr "Səbətdəki bütün elementləri silmək?"
 
-#: docking/applets/trash/applet.py:261
+#: docking/applets/trash/applet.py:262
 msgid "All items in the Trash will be permanently deleted."
 msgstr "Səbətdəki bütün elementlər həmişəlik silinəcək."
 
@@ -2678,6 +3768,7 @@ msgstr "Qisaldilir..."
 
 #: docking/applets/urlshortener/applet.py:190
 #: docking/applets/urlshortener/applet.py:209
+#: docking/search/providers/temporal.py:65
 msgid "Copy"
 msgstr "Kopyala"
 
@@ -2685,12 +3776,12 @@ msgstr "Kopyala"
 msgid "Copied!"
 msgstr "Kopyalandi!"
 
-#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
-#: docking/applets/usbwatch/state.py:100
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/state.py:101
 msgid "USB Watch"
 msgstr "USB Watch"
 
-#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:95
 msgid "No mounted USB devices"
 msgstr "Qoşulu USB cihazı yoxdur"
 
@@ -2699,12 +3790,7 @@ msgstr "Qoşulu USB cihazı yoxdur"
 msgid "Safely Remove {name}"
 msgstr "{name}-i təhlükəsiz çıxar"
 
-#: docking/applets/usbwatch/state.py:101
-#, python-brace-format
-msgid "{count} mounted device(s)"
-msgstr "{count} qoşulu cihaz"
-
-#: docking/applets/usbwatch/state.py:108
+#: docking/applets/usbwatch/state.py:109
 msgid "Removable Drive"
 msgstr "Çıxarıla bilən disk"
 
@@ -2712,16 +3798,16 @@ msgstr "Çıxarıla bilən disk"
 msgid "Volume"
 msgstr "Səs"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 msgid "Muted"
 msgstr "Səssiz"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "Səs: {pct}%"
 
-#: docking/applets/volume/applet.py:133
+#: docking/applets/volume/applet.py:132
 msgid "Volume Settings"
 msgstr "Volume Settings"
 
@@ -2729,29 +3815,30 @@ msgstr "Volume Settings"
 msgid "Weather"
 msgstr "Hava"
 
-#: docking/applets/weather/applet.py:194
+#: docking/applets/weather/applet.py:192
 msgid "Show Temperature"
 msgstr "Temperaturu Göstər"
 
-#: docking/applets/weather/applet.py:452
+#: docking/applets/weather/applet.py:451
 msgid "No weather data"
 msgstr "Hava məlumatı yoxdur"
 
-#: docking/applets/weather/applet.py:515 docking/applets/weather/state.py:216
+#: docking/applets/weather/applet.py:514 docking/applets/weather/state.py:216
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr "{temp}, {desc}"
 
-#: docking/applets/weather/applet.py:528 docking/applets/weather/state.py:202
+#: docking/applets/weather/applet.py:527 docking/applets/weather/state.py:202
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Hava: {label}"
 
-#: docking/applets/weather/applet.py:534 docking/applets/weather/state.py:205
+#: docking/applets/weather/applet.py:533 docking/applets/weather/state.py:205
+#, python-brace-format
 msgid "UV Index: {value}"
 msgstr "UV İndeksi: {value}"
 
-#: docking/applets/weather/applet.py:548
+#: docking/applets/weather/applet.py:547
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr "{date}: {temp_range}"
@@ -2761,11 +3848,162 @@ msgstr "{date}: {temp_range}"
 msgid "{city}: {temp}"
 msgstr "{city}: {temp}"
 
-#: docking/applets/windowkiller/applet.py:78
+#: docking/applets/whatsapp/applet.py:40
+#: docking/applets/whatsapp/browser.py:268
+#: docking/applets/whatsapp/browser.py:278
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Hide WhatsApp"
+msgstr "WhatsApp-ı gizlət"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Open WhatsApp"
+msgstr "WhatsApp-ı aç"
+
+#: docking/applets/whatsapp/applet.py:95
+msgid "Reload"
+msgstr "Yenilə"
+
+#: docking/applets/whatsapp/applet.py:104
+msgid "Disconnect WhatsApp"
+msgstr "WhatsApp-ı ayır"
+
+#: docking/applets/whatsapp/applet.py:167
+msgid "Disconnect WhatsApp?"
+msgstr "WhatsApp ayrılsın?"
+
+#: docking/applets/whatsapp/applet.py:171
+msgid ""
+"This clears the WhatsApp Web session stored by Docking. You will need to "
+"scan the QR code again."
+msgstr "Bu, Docking tərəfindən saxlanan WhatsApp Web sessiyasını təmizləyir. "
+"QR kodu yenidən skan etməli olacaqsınız."
+
+#: docking/applets/whatsapp/applet.py:192
+msgid "Could not disconnect WhatsApp"
+msgstr "WhatsApp-ı ayırmaq mümkün olmadı"
+
+#: docking/applets/whatsapp/applet.py:194
+msgid "Unknown WebKit error"
+msgstr "Naməlum WebKit xətası"
+
+#: docking/applets/whatsapp/browser.py:154
+msgid "WebKitGTK is unavailable"
+msgstr "WebKitGTK mövcud deyil"
+
+#: docking/applets/whatsapp/browser.py:279
+msgid "Docking applet"
+msgstr "Docking appleti"
+
+#: docking/applets/whatsapp/browser.py:285
+msgid "Reload WhatsApp Web"
+msgstr "WhatsApp Web-i yenilə"
+
+#: docking/applets/whatsapp/browser.py:389
+msgid "browser process stopped"
+msgstr "brauzer prosesi dayandı"
+
+#: docking/applets/whatsapp/browser.py:473
+msgid "camera and microphone"
+msgstr "kamera və mikrofon"
+
+#: docking/applets/whatsapp/browser.py:475
+msgid "camera"
+msgstr "kamera"
+
+#: docking/applets/whatsapp/browser.py:477
+msgid "microphone"
+msgstr "mikrofon"
+
+#: docking/applets/whatsapp/browser.py:483
+#, python-brace-format
+msgid "Allow WhatsApp to use your {device}?"
+msgstr "WhatsApp-a {device} istifadə etməyə icazə verilsin?"
+
+#: docking/applets/whatsapp/browser.py:485
+msgid "Deny"
+msgstr "İcazə vermə"
+
+#: docking/applets/whatsapp/browser.py:486
+msgid "Allow"
+msgstr "İcazə ver"
+
+#: docking/applets/whatsapp/browser.py:544
+msgid "WhatsApp requires WebKitGTK"
+msgstr "WhatsApp WebKitGTK tələb edir"
+
+#: docking/applets/whatsapp/browser.py:548
+msgid ""
+"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr "WebKitGTK 4.1 və ya 4.0 introspeksiya paketini quraşdırın, sonra "
+"Docking-i yenidən başladın."
+
+#: docking/applets/whatsapp/browser.py:590
+msgid "unknown browser error"
+msgstr "naməlum brauzer xətası"
+
+#: docking/applets/whatsapp/state.py:152
+msgid "WhatsApp: WebKitGTK is not installed"
+msgstr "WhatsApp: WebKitGTK quraşdırılmayıb"
+
+#: docking/applets/whatsapp/state.py:154
+msgid "WhatsApp: loading..."
+msgstr "WhatsApp: yüklənir..."
+
+#: docking/applets/whatsapp/state.py:156
+msgid "WhatsApp: scan the QR code to connect"
+msgstr "WhatsApp: qoşulmaq üçün QR kodu skan edin"
+
+#: docking/applets/whatsapp/state.py:158
+msgid "WhatsApp: synchronizing..."
+msgstr "WhatsApp: sinxronlaşdırılır..."
+
+#: docking/applets/whatsapp/state.py:160
+msgid "WhatsApp: offline"
+msgstr "WhatsApp: oflayn"
+
+#: docking/applets/whatsapp/state.py:163
+#, python-brace-format
+msgid "WhatsApp: {error}"
+msgstr "WhatsApp: {error}"
+
+#: docking/applets/whatsapp/state.py:164
+msgid "WhatsApp: could not load WhatsApp Web"
+msgstr "WhatsApp: WhatsApp Web yüklənə bilmədi"
+
+#: docking/applets/whatsapp/state.py:168
+msgid "WhatsApp: 1 new notification"
+msgstr "WhatsApp: 1 yeni bildiriş"
+
+#: docking/applets/whatsapp/state.py:169
+#, python-brace-format
+msgid "WhatsApp: {count} new notifications"
+msgstr "WhatsApp: {count} yeni bildiriş"
+
+#: docking/applets/whatsapp/state.py:173
+msgid "WhatsApp: 1 unread message"
+msgstr "WhatsApp: 1 oxunmamış mesaj"
+
+#: docking/applets/whatsapp/state.py:175
+#, python-brace-format
+msgid "WhatsApp: {count} unread messages"
+msgstr "WhatsApp: {count} oxunmamış mesaj"
+
+#: docking/applets/whatsapp/state.py:178
+msgid "WhatsApp: no unread messages"
+msgstr "WhatsApp: oxunmamış mesaj yoxdur"
+
+#: docking/applets/whatsapp/state.py:179
+msgid "WhatsApp: click to open"
+msgstr "WhatsApp: açmaq üçün klikləyin"
+
+#: docking/applets/windowkiller/applet.py:80
 msgid "Window Killer"
 msgstr "Pencere oldurucusu"
 
-#: docking/applets/windowkiller/applet.py:94
+#: docking/applets/windowkiller/applet.py:96
 msgid "Click, then select a window to kill"
 msgstr "Basin, sonra baglanacaq pencereni secin"
 
@@ -2913,10 +4151,36 @@ msgstr ""
 "yığının təmsil etdiyi qovluq kimi davranmasına imkan verir."
 
 #: docking/core/tips.py:148
+msgid "Keep mounted devices within reach"
+msgstr "Quraşdırılmış cihazları əlçatan saxlayın"
+
+#: docking/core/tips.py:150
+msgid ""
+"Add the Devices applet to browse every mounted device in a live stack. "
+"Mounts appear and disappear automatically, and Preferences -> Behavior "
+"controls whether stacks open on hover or click."
+msgstr "Hər quraşdırılmış cihaza canlı yığımda baxmaq üçün Cihazlar appletini "
+"əlavə edin. Quraşdırmalar avtomatik görünür və yox olur, yığımların üzərinə "
+"gəlməklə, yoxsa kliklə açılmasını isə Preferences -> Behavior idarə edir."
+
+#: docking/core/tips.py:158
+msgid "Follow news sources by country"
+msgstr "Xəbər mənbələrini ölkəyə görə izləyin"
+
+#: docking/core/tips.py:160
+msgid ""
+"Add the News applet, choose a country, and select a publication or edition. "
+"Scroll through its latest headlines, or add more sources and switch between "
+"them from the applet menu."
+msgstr "Xəbərlər appletini əlavə edin, ölkə seçin və nəşr və ya buraxılış "
+"seçin. Onun ən son başlıqlarına baxın və ya daha çox mənbə əlavə edib applet "
+"menyusundan onlar arasında keçin."
+
+#: docking/core/tips.py:167
 msgid "Customize pinned icons"
 msgstr "Saxlanmış nişanları fərdiləşdirin"
 
-#: docking/core/tips.py:150
+#: docking/core/tips.py:169
 msgid ""
 "Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
 "Custom icons are stored in Docking's config, so the original desktop file or "
@@ -2926,11 +4190,11 @@ msgstr ""
 "seçin. Fərdi nişanlar Docking-in konfiqurasiyasında saxlanılır, beləliklə, "
 "orijinal masaüstü faylı və ya diskdəki fayl toxunulmaz qalır."
 
-#: docking/core/tips.py:157
+#: docking/core/tips.py:176
 msgid "Use the Applications applet search"
 msgstr "Proqramlar applet axtarışından istifadə edin"
 
-#: docking/core/tips.py:159
+#: docking/core/tips.py:178
 msgid ""
 "Add the Applications applet, open it, and type to filter installed apps. It "
 "gives you a compact launcher menu without leaving the dock."
@@ -2939,11 +4203,35 @@ msgstr ""
 "filtrləmək üçün yazın. Dokdan çıxmadan sizə yığcam başlatma menyusu təqdim "
 "edir."
 
-#: docking/core/tips.py:166
+#: docking/core/tips.py:185
+msgid "Drag apps straight to the dock"
+msgstr "Tətbiqləri birbaşa dok-a dartın"
+
+#: docking/core/tips.py:187
+msgid ""
+"Open the Applications applet and drag any application from its menu onto the "
+"shelf. Drop it where you want its launcher to stay in the dock."
+msgstr "Tətbiqlər appletini açın və menyusundan istənilən tətbiqi rəfə "
+"dartın. Başlatıcısının dok-da qalmasını istədiyiniz yerə buraxın."
+
+#: docking/core/tips.py:194
+msgid "Keep WhatsApp in the dock"
+msgstr "WhatsApp-ı dok-da saxlayın"
+
+#: docking/core/tips.py:196
+msgid ""
+"Add the WhatsApp applet for a persistent WhatsApp Web window, desktop "
+"notifications, and an unread-message badge. Closing the window hides it "
+"without signing out."
+msgstr "Daimi WhatsApp Web pəncərəsi, masaüstü bildirişləri və oxunmamış "
+"mesaj nişanı üçün WhatsApp appletini əlavə edin. Pəncərəni bağlamaq, "
+"hesabdan çıxmadan onu gizlədir."
+
+#: docking/core/tips.py:203
 msgid "Use Run Application like Alt+F2"
 msgstr "Alt+F2 kimi Run proqramından istifadə edin"
 
-#: docking/core/tips.py:168
+#: docking/core/tips.py:205
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
@@ -2953,11 +4241,11 @@ msgstr ""
 "Application əlavə edin. Yazdığınız zaman uyğun proqramlar göstərilir ki, siz "
 "adla işə sala və ya müstəqil əmr işlədə biləsiniz."
 
-#: docking/core/tips.py:175
+#: docking/core/tips.py:212
 msgid "Use window previews"
 msgstr "Pəncərə önizləmələrindən istifadə edin"
 
-#: docking/core/tips.py:177
+#: docking/core/tips.py:214
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
@@ -2966,11 +4254,11 @@ msgstr ""
 "üzərinə sürüşdürün. Bir proqramın bir neçə pəncərəsi açıq olduqda ön "
 "baxışlar kömək edir."
 
-#: docking/core/tips.py:183
+#: docking/core/tips.py:220
 msgid "Choose your click behavior"
 msgstr "Klik davranışınızı seçin"
 
-#: docking/core/tips.py:185
+#: docking/core/tips.py:222
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
@@ -2980,11 +4268,11 @@ msgstr ""
 "çevirməyə və ya fokuslamağa imkan verir. Çalışan proqramlar arasında necə "
 "keçid etdiyinizə uyğun davranışı seçin."
 
-#: docking/core/tips.py:192
+#: docking/core/tips.py:229
 msgid "Ctrl-click opens a new window"
 msgstr "Ctrl-klik yeni pəncərə açır"
 
-#: docking/core/tips.py:194
+#: docking/core/tips.py:231
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
@@ -2993,11 +4281,23 @@ msgstr ""
 "düyməsini basıb saxlayın. Bu, proqram artıq işlək vəziyyətdə olsa belə "
 "işləyir və normal klik ona diqqət yetirir."
 
-#: docking/core/tips.py:201
+#: docking/core/tips.py:238
+msgid "Use Clock as a calendar"
+msgstr "Saatı təqvim kimi istifadə edin"
+
+#: docking/core/tips.py:240
+msgid ""
+"Left-click the Clock applet to open the same calendar popup as the Calendar "
+"applet. Use Clock when you want the time and calendar in one dock item."
+msgstr "Təqvim appleti ilə eyni təqvim pəncərəsini açmaq üçün Saat appletinə "
+"sol klikləyin. Vaxt və təqvimi bir dok elementində istədiyiniz zaman Saatdan "
+"istifadə edin."
+
+#: docking/core/tips.py:247
 msgid "Use app right-click menus"
 msgstr "Proqramın sağ klik menyularından istifadə edin"
 
-#: docking/core/tips.py:203
+#: docking/core/tips.py:249
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
@@ -3007,11 +4307,11 @@ msgstr ""
 "əməliyyatlar üçün proqramları sağ klikləyin. Bir çox proqramlar orada şəxsi "
 "pəncərə açmaq və ya yeni mesaj yazmaq kimi faydalı qısa yolları ifşa edir."
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:257
 msgid "Use Recent Files"
 msgstr "Son Fayllardan istifadə edin"
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:259
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
@@ -3020,11 +4320,11 @@ msgstr ""
 "appletini əlavə edin. Qovluğu deyil, faylı xatırladığınız zaman bu daha "
 "sürətli yoldur."
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:266
 msgid "Use System Tray when needed"
 msgstr "Lazım olduqda Sistem Tablası istifadə edin"
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:268
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
@@ -3034,11 +4334,11 @@ msgstr ""
 "nimçə sahibliyini idarə etmək üçün onun menyusundan istifadə edin. Bu, hələ "
 "də klassik bildiriş sahəsinə əsaslanan köhnə tətbiqlərə kömək edir."
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:275
 msgid "Use Diagnostics for support"
 msgstr "Dəstək üçün Diaqnostikadan istifadə edin"
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:277
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "
@@ -3049,378 +4349,840 @@ msgstr ""
 "kompozitor, monitor və ətraf mühitə xas problemləri başa düşməyi çox "
 "asanlaşdırır."
 
-#: docking/ui/about.py:68
+#: docking/platform/status_notifier/backend.py:239
+msgid "session bus unavailable"
+msgstr "sessiya avtobusu mövcud deyil"
+
+#: docking/search/controller.py:213
+#, python-brace-format
+msgid "Active: {shortcut} (X11)"
+msgstr "Aktiv: {shortcut} (X11)"
+
+#: docking/search/controller.py:218
+msgid "Shortcut already in use"
+msgstr "Qısayol artıq istifadə olunur"
+
+#: docking/search/controller.py:219 docking/search/controller.py:244
+msgid "Registration failed"
+msgstr "Qeydiyyat uğursuz oldu"
+
+#: docking/search/controller.py:222 docking/search/controller.py:245
+msgid "Not active"
+msgstr "Aktiv deyil"
+
+#: docking/search/controller.py:229
+msgid "Connecting..."
+msgstr "Qoşulur..."
+
+#: docking/search/controller.py:235
+#, python-brace-format
+msgid "Assigned: {shortcut}"
+msgstr "Təyin edilib: {shortcut}"
+
+#: docking/search/controller.py:236
+msgid "Assigned by desktop"
+msgstr "Masaüstü tərəfindən təyin edilib"
+
+#: docking/search/controller.py:238
+msgid "Unavailable on this desktop"
+msgstr "Bu masaüstündə mövcud deyil"
+
+#: docking/search/controller.py:240
+msgid "Permission denied"
+msgstr "İcazə verilmədi"
+
+#: docking/search/controller.py:242
+msgid "Setup cancelled"
+msgstr "Quraşdırma ləğv edildi"
+
+#: docking/search/controller.py:254
+msgid "Conflict"
+msgstr "Ziddiyyət"
+
+#: docking/search/controller.py:255 docking/search/controller.py:277
+msgid "Failed"
+msgstr "Uğursuz"
+
+#: docking/search/controller.py:258 docking/search/controller.py:278
+msgid "Inactive"
+msgstr "Qeyri-aktiv"
+
+#: docking/search/controller.py:264
+msgid "Connecting"
+msgstr "Qoşulur"
+
+#: docking/search/controller.py:273
+msgid "Denied"
+msgstr "Rədd edildi"
+
+#: docking/search/controller.py:275
+msgid "Cancelled"
+msgstr "Ləğv edildi"
+
+#: docking/search/controller.py:734
+msgid "Live Window"
+msgstr "Canlı pəncərə"
+
+#: docking/search/preview.py:112
+msgid "Empty folder"
+msgstr "Boş qovluq"
+
+#: docking/search/preview.py:141
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Image is too large to preview."
+msgstr "{path}\nŞəkil önizləmə üçün çox böyükdür."
+
+#: docking/search/preview.py:148
+#, python-brace-format
+msgid ""
+"{path}\n"
+"File is too large to preview."
+msgstr "{path}\nFayl önizləmə üçün çox böyükdür."
+
+#: docking/search/preview.py:235
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Archive is too large to preview."
+msgstr "{path}\nArxiv önizləmə üçün çox böyükdür."
+
+#: docking/search/preview.py:256
+msgid "Empty archive"
+msgstr "Boş arxiv"
+
+#: docking/search/providers/applications.py:149
+msgid "Focus"
+msgstr "Fokus"
+
+#: docking/search/providers/applications.py:166
+msgid "Open New Window"
+msgstr "Yeni pəncərə aç"
+
+#: docking/search/providers/applications.py:183
+#: docking/search/providers/dock.py:94 docking/ui/menu.py:523
+#: docking/ui/menu.py:545 docking/ui/menu.py:568 docking/ui/menu.py:619
+msgid "Remove from Dock"
+msgstr "Dokdan Sil"
+
+#: docking/search/providers/applications.py:183 docking/ui/menu.py:575
+msgid "Keep in Dock"
+msgstr "Dokda Saxla"
+
+#: docking/search/providers/applications.py:192 docking/ui/menu.py:584
+msgid "Close All"
+msgstr "Hamısını Bağla"
+
+#: docking/search/providers/applications.py:200
+msgid "Running"
+msgstr "İşləyir"
+
+#: docking/search/providers/applications.py:201
+#: docking/search/providers/dock.py:106
+msgid "Pinned"
+msgstr "Bərkidilib"
+
+#: docking/search/providers/applications.py:202
+#: docking/search/providers/recent.py:62
+msgid "Recent"
+msgstr "Son"
+
+#: docking/search/providers/applications.py:251
+#, python-brace-format
+msgid "Desktop ID: {desktop_id}"
+msgstr "Masaüstü ID: {desktop_id}"
+
+#: docking/search/providers/applications.py:253
+#, python-brace-format
+msgid "State: {state}"
+msgstr "Vəziyyət: {state}"
+
+#: docking/search/providers/applications.py:257
+#, python-brace-format
+msgid "Categories: {categories}"
+msgstr "Kateqoriyalar: {categories}"
+
+#: docking/search/providers/applications.py:260
+#: docking/search/providers/windows.py:94
+msgid "Windows"
+msgstr "Pəncərələr"
+
+#: docking/search/providers/applications.py:263 docking/search/ui/window.py:234
+#: docking/ui/settings.py:1010
+msgid "Actions"
+msgstr "Əməliyyatlar"
+
+#: docking/search/providers/applications.py:266 docking/ui/menu.py:807
+#: docking/ui/settings.py:882
+msgid "Recent Documents"
+msgstr "Son Sənədlər"
+
+#: docking/search/providers/applications.py:293
+#, python-brace-format
+msgid "Activate “{title}”"
+msgstr "“{title}” pəncərəsini aktivləşdir"
+
+#: docking/search/providers/applications.py:294
+#: docking/search/providers/windows.py:90
+#: docking/search/providers/windows.py:102 docking/ui/menu.py:826
+msgid "Window"
+msgstr "Pəncərə"
+
+#: docking/search/providers/applications.py:303
+#, python-brace-format
+msgid "Open Recent: {name}"
+msgstr "Sonuncunu aç: {name}"
+
+#: docking/search/providers/calculator.py:54
+msgid "Division by zero"
+msgstr "Sıfıra bölmə"
+
+#: docking/search/providers/calculator.py:55
+msgid "Invalid value or mathematical domain"
+msgstr "Yanlış dəyər və ya riyazi oblast"
+
+#: docking/search/providers/calculator.py:56
+msgid "Result is too large"
+msgstr "Nəticə çox böyükdür"
+
+#: docking/search/providers/calculator.py:57
+msgid "Expression is too complex"
+msgstr "İfadə çox mürəkkəbdir"
+
+#: docking/search/providers/calculator.py:58
+msgid "Unsupported or incomplete expression"
+msgstr "Dəstəklənməyən və ya natamam ifadə"
+
+#: docking/search/providers/calculator.py:62
+msgid "Invalid expression"
+msgstr "Yanlış ifadə"
+
+#: docking/search/providers/calculator.py:91
+#: docking/search/providers/converter.py:101
+#: docking/search/providers/converter.py:165
+msgid "Copy Result"
+msgstr "Nəticəni kopyala"
+
+#: docking/search/providers/converter.py:87
+#: docking/search/providers/converter.py:151
+#, python-brace-format
+msgid "{value:g} {source} to {target}"
+msgstr "{value:g} {source} to {target}"
+
+#: docking/search/providers/converter.py:94
+#: docking/search/providers/converter.py:158
+#: docking/search/providers/converter.py:202
+msgid "Converter"
+msgstr "Çevirici"
+
+#: docking/search/providers/converter.py:123
+msgid "Loading currency rates..."
+msgstr "Valyuta məzənnələri yüklənir..."
+
+#: docking/search/providers/converter.py:130
+msgid "Currency rates unavailable"
+msgstr "Valyuta məzənnələri mövcud deyil"
+
+#: docking/search/providers/converter.py:142
+msgid "Currency pair unavailable"
+msgstr "Valyuta cütlüyü mövcud deyil"
+
+#: docking/search/providers/converter.py:159
+#: docking/search/providers/converter.py:203
+msgid "Currency"
+msgstr "Valyuta"
+
+#: docking/search/providers/converter.py:190
+msgid "Retry"
+msgstr "Yenidən cəhd et"
+
+#: docking/search/providers/dock.py:80 docking/search/providers/path.py:75
+#: docking/ui/folder/stack.py:396
+msgid "Open Folder"
+msgstr "Qovlugu ac"
+
+#: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
+msgid "Open File"
+msgstr "Faylı aç"
+
+#: docking/search/providers/dock.py:105
+msgid "Dock"
+msgstr "Dok"
+
+#: docking/search/providers/dock.py:118
+msgid "Dock applet"
+msgstr "Dok appleti"
+
+#: docking/search/providers/path.py:68
+msgid "Path"
+msgstr "Yol"
+
+#: docking/search/providers/path.py:69
+msgid "Folder"
+msgstr "Qovluq"
+
+#: docking/search/providers/path.py:69
+msgid "File"
+msgstr "Fayl"
+
+#: docking/search/providers/path.py:81
+msgid "Copy Path"
+msgstr "Yolu kopyala"
+
+#: docking/search/providers/temporal.py:58
+msgid "Date & Time"
+msgstr "Tarix və vaxt"
+
+#: docking/search/providers/web.py:82
+msgid "Compose email"
+msgstr "E-poçt yaz"
+
+#: docking/search/providers/web.py:82
+msgid "Open URL"
+msgstr "URL-i aç"
+
+#: docking/search/providers/web.py:86 docking/search/providers/web.py:125
+msgid "Web"
+msgstr "Veb"
+
+#: docking/search/providers/web.py:87
+msgid "Email"
+msgstr "E-poçt"
+
+#: docking/search/providers/web.py:87
+msgid "URL"
+msgstr "URL"
+
+#: docking/search/providers/web.py:93
+msgid "Compose"
+msgstr "Yaz"
+
+#: docking/search/providers/web.py:99 docking/search/providers/web.py:138
+msgid "Copy Address"
+msgstr "Ünvanı kopyala"
+
+#: docking/search/providers/web.py:118
+#, python-brace-format
+msgid "Search {engine} for “{query}”"
+msgstr "{engine} ilə “{query}” axtar"
+
+#: docking/search/providers/web.py:132
+msgid "Search the Web"
+msgstr "Vebdə axtar"
+
+#: docking/search/providers/windows.py:72
+msgid "Activate Window"
+msgstr "Pəncərəni aktivləşdir"
+
+#: docking/search/providers/windows.py:81
+msgid "Close Window"
+msgstr "Pəncərəni bağla"
+
+#: docking/search/recognizers/temporal.py:157
+msgid "Tomorrow"
+msgstr "Sabah"
+
+#: docking/search/recognizers/temporal.py:159
+msgid "Yesterday"
+msgstr "Dünən"
+
+#: docking/search/recognizers/temporal.py:161
+#, python-brace-format
+msgid "In {count} days"
+msgstr "{count} gün ərzində"
+
+#: docking/search/recognizers/temporal.py:162
+#, python-brace-format
+msgid "{count} days ago"
+msgstr "{count} gün əvvəl"
+
+#: docking/search/recognizers/temporal.py:176
+msgid "Date"
+msgstr "Tarix"
+
+#: docking/search/recognizers/temporal.py:235
+#: docking/search/recognizers/temporal.py:283
+msgid "Time Zone"
+msgstr "Saat qurşağı"
+
+#: docking/search/recognizers/temporal.py:277
+#, python-brace-format
+msgid "{time} {source} to {target}"
+msgstr "{time} {source} to {target}"
+
+#: docking/search/ui/shortcut_capture.py:84
+msgid "Not set"
+msgstr "Təyin edilməyib"
+
+#: docking/search/ui/shortcut_capture.py:86
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: docking/search/ui/shortcut_capture.py:87
+msgid "Alt"
+msgstr "Alt"
+
+#: docking/search/ui/shortcut_capture.py:88
+msgid "Shift"
+msgstr "Shift"
+
+#: docking/search/ui/shortcut_capture.py:89
+msgid "Super"
+msgstr "Super"
+
+#: docking/search/ui/shortcut_capture.py:90
+msgid "Num"
+msgstr "Num"
+
+#: docking/search/ui/shortcut_capture.py:92
+msgid "Enter"
+msgstr "Enter"
+
+#: docking/search/ui/shortcut_capture.py:93
+msgid "Escape"
+msgstr "Escape"
+
+#: docking/search/ui/shortcut_capture.py:94
+msgid "Tab"
+msgstr "Tab"
+
+#: docking/search/ui/shortcut_capture.py:95
+msgid "Backspace"
+msgstr "Backspace"
+
+#: docking/search/ui/shortcut_capture.py:135
+msgid "Search shortcut"
+msgstr "Axtarış qısayolu"
+
+#: docking/search/ui/shortcut_capture.py:158
+msgid "Press shortcut..."
+msgstr "Qısayolu basın..."
+
+#: docking/search/ui/window.py:181 docking/search/ui/window.py:193
+msgid "Docking Search"
+msgstr "Docking Axtarışı"
+
+#: docking/search/ui/window.py:238
+msgid "Filter actions..."
+msgstr "Fəaliyyətləri filtrlə..."
+
+#: docking/search/ui/window.py:300
+msgid "Actions  Ctrl+J"
+msgstr "Fəaliyyətlər  Ctrl+J"
+
+#: docking/search/ui/window.py:303
+msgid "Preview  Ctrl+P"
+msgstr "Önizləmə  Ctrl+P"
+
+#: docking/search/ui/window.py:377
+msgid "No matching results"
+msgstr "Uyğun nəticə yoxdur"
+
+#: docking/search/ui/window.py:557
+msgid "Unable to decode image preview"
+msgstr "Şəkil önizləməsi dekod edilə bilmədi"
+
+#: docking/search/ui/window.py:566
+#, python-brace-format
+msgid "{width} × {height} · {format} · {size}"
+msgstr "{width} × {height} · {format} · {size}"
+
+#: docking/search/ui/window.py:573
+#, python-brace-format
+msgid "{width} × {height} · {format}"
+msgstr "{width} × {height} · {format}"
+
+#: docking/search/ui/window.py:608
+#, python-brace-format
+msgid "{count} results"
+msgstr "{count} nəticə"
+
+#: docking/search/ui/window.py:610
+msgid "Type to search"
+msgstr "Axtarmaq üçün yazın"
+
+#: docking/search/ui/window.py:612
+msgid "No results"
+msgstr "Nəticə yoxdur"
+
+#: docking/search/ui/window.py:614
+msgid "Searching..."
+msgstr "Axtarılır..."
+
+#: docking/search/ui/window.py:616
+msgid "Some sources failed"
+msgstr "Bəzi mənbələr uğursuz oldu"
+
+#: docking/ui/about.py:65
 msgid "Website"
 msgstr "Veb-sayt"
 
-#: docking/ui/diagnostics.py:71 docking/ui/menu.py:693
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:709
 msgid "Diagnostics"
 msgstr "Diaqnostika"
 
-#: docking/ui/diagnostics.py:93
+#: docking/ui/diagnostics.py:108
 msgid "Overview"
 msgstr "Ümumi baxış"
 
-#: docking/ui/diagnostics.py:97
+#: docking/ui/diagnostics.py:112
 msgid "Features"
 msgstr "Xüsusiyyətlər"
 
-#: docking/ui/diagnostics.py:105 docking/ui/diagnostics.py:223
+#: docking/ui/diagnostics.py:120 docking/ui/diagnostics.py:266
 msgid "Environment"
 msgstr "Ətraf mühit"
 
-#: docking/ui/diagnostics.py:109
+#: docking/ui/diagnostics.py:124
 msgid "Report"
 msgstr "Hesabat"
 
-#: docking/ui/diagnostics.py:116
+#: docking/ui/diagnostics.py:131
 msgid "Refresh"
 msgstr "Yeniləyin"
 
-#: docking/ui/diagnostics.py:118
+#: docking/ui/diagnostics.py:133
 msgid "Copy Report"
 msgstr "Hesabatı kopyalayın"
 
-#: docking/ui/diagnostics.py:120
+#: docking/ui/diagnostics.py:135
 msgid "Save Report..."
 msgstr "Hesabatı Saxla..."
 
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
-#: docking/ui/startup_tips.py:216
-msgid "Close"
-msgstr "Bağla"
-
-#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
+#: docking/ui/diagnostics.py:160 docking/ui/dock_window.py:375
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/diagnostics.py:146
+#: docking/ui/diagnostics.py:161
 msgid "OS"
 msgstr "ƏS"
 
-#: docking/ui/diagnostics.py:149
+#: docking/ui/diagnostics.py:164
 msgid "Selected Backend"
 msgstr "Seçilmiş Backend"
 
-#: docking/ui/diagnostics.py:150
+#: docking/ui/diagnostics.py:165
 msgid "Display Server"
 msgstr "Göstərici Server"
 
-#: docking/ui/diagnostics.py:151
+#: docking/ui/diagnostics.py:166
 msgid "GTK Backend"
 msgstr "GTK Backend"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "Forced Backend"
 msgstr "Məcburi arxa uç"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "None"
 msgstr "Heç biri"
 
-#: docking/ui/diagnostics.py:153
+#: docking/ui/diagnostics.py:168
 msgid "XWayland"
 msgstr "XWayland"
 
-#: docking/ui/diagnostics.py:154
+#: docking/ui/diagnostics.py:169
 msgid "X11 Compositor"
 msgstr "X11 Compositor"
 
-#: docking/ui/diagnostics.py:161
+#: docking/ui/diagnostics.py:176
 msgid "Warnings"
 msgstr "Xəbərdarlıqlar"
 
-#: docking/ui/diagnostics.py:165
+#: docking/ui/diagnostics.py:180
 msgid "No compatibility warnings detected."
 msgstr "Uyğunluq xəbərdarlığı aşkar edilmədi."
 
-#: docking/ui/diagnostics.py:191
+#: docking/ui/diagnostics.py:190
+msgid ""
+"Features describe backend-reported support; actual behavior has not been "
+"verified."
+msgstr "Funksiyalar backend tərəfindən bildirilən dəstəyi təsvir edir; "
+"faktiki davranış yoxlanılmayıb."
+
+#: docking/ui/diagnostics.py:216
 msgid "Runtime"
 msgstr "İcra müddəti"
 
-#: docking/ui/diagnostics.py:195
+#: docking/ui/diagnostics.py:220
 msgid "Python"
 msgstr "Python"
 
-#: docking/ui/diagnostics.py:196
+#: docking/ui/diagnostics.py:221
 msgid "GTK"
 msgstr "GTK"
 
-#: docking/ui/diagnostics.py:197
+#: docking/ui/diagnostics.py:222
+msgid "Architecture"
+msgstr "Arxitektura"
+
+#: docking/ui/diagnostics.py:223
+msgid "Kernel"
+msgstr "Nüvə"
+
+#: docking/ui/diagnostics.py:224
 msgid "Backend Class"
 msgstr "Backend Sinfi"
 
-#: docking/ui/diagnostics.py:198
+#: docking/ui/diagnostics.py:225
 msgid "Wayland Session"
 msgstr "Wayland sessiyası"
 
-#: docking/ui/diagnostics.py:199
+#: docking/ui/diagnostics.py:226
 msgid "X11 GTK Backend"
 msgstr "X11 GTK arxa ucu"
 
-#: docking/ui/diagnostics.py:205
+#: docking/ui/diagnostics.py:234
+msgid "Dock Settings"
+msgstr "Dok parametrləri"
+
+#: docking/ui/diagnostics.py:241
 msgid "Monitors"
 msgstr "Monitorlar"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "primary"
 msgstr "ilkin"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "secondary"
 msgstr "ikinci dərəcəli"
 
-#: docking/ui/diagnostics.py:219
+#: docking/ui/diagnostics.py:257
+msgid "GDK-reported workarea"
+msgstr "GDK bildirilən iş sahəsi"
+
+#: docking/ui/diagnostics.py:262
 msgid "Monitor details unavailable."
 msgstr "Monitor detalları əlçatan deyil."
 
-#: docking/ui/diagnostics.py:338
+#: docking/ui/diagnostics.py:387
 msgid "Save Diagnostics Report"
 msgstr "Diaqnostika Hesabatını yadda saxlayın"
 
-#: docking/ui/diagnostics.py:358
+#: docking/ui/diagnostics.py:407
 msgid "Failed to save diagnostics report."
 msgstr "Diaqnostika hesabatını saxlamaq alınmadı."
 
-#: docking/ui/folder/_browser.py:40
+#: docking/ui/folder/_browser.py:36
 msgid "Kind"
 msgstr "Nov"
 
-#: docking/ui/folder/_browser.py:41
+#: docking/ui/folder/_browser.py:37
 msgid "Size"
 msgstr "Olcu"
 
-#: docking/ui/folder/_browser.py:42
+#: docking/ui/folder/_browser.py:38
 msgid "Created"
 msgstr "Yaradildi"
 
-#: docking/ui/folder/_browser.py:43
+#: docking/ui/folder/_browser.py:39
 msgid "Modified"
 msgstr "Deyisdirildi"
 
-#: docking/ui/folder/stack.py:678
+#: docking/ui/folder/stack.py:322
 msgid "Folder not found"
 msgstr "Qovluq tapilmadi"
 
-#: docking/ui/folder/stack.py:692
+#: docking/ui/folder/stack.py:348 docking/ui/folder/stack.py:374
 msgid "Folder is empty"
 msgstr "Qovluq boshdur"
 
-#: docking/ui/folder/stack.py:1149
+#: docking/ui/folder/stack.py:391
 #, python-format
 msgid "Open in %s"
 msgstr "%s-da ac"
 
-#: docking/ui/folder/stack.py:1151
+#: docking/ui/folder/stack.py:393
 #, python-format
 msgid "%d More in %s"
 msgstr "%d More in %s"
 
-#: docking/ui/folder/stack.py:1154
-msgid "Open Folder"
-msgstr "Qovlugu ac"
-
-#: docking/ui/folder/stack.py:1156
+#: docking/ui/folder/stack.py:398
 #, python-format
 msgid "%d More in Folder"
 msgstr "Qovluqda daha %d"
 
-#: docking/ui/menu.py:386
+#: docking/ui/menu.py:396
 msgid "Docking Icon"
 msgstr "Docking ikonu"
 
-#: docking/ui/menu.py:387
+#: docking/ui/menu.py:397
 msgid "System Icon"
 msgstr "Sistem ikonu"
 
-#: docking/ui/menu.py:395 docking/ui/menu.py:404
+#: docking/ui/menu.py:405 docking/ui/menu.py:414
 msgid "Icon"
 msgstr "İkon"
 
-#: docking/ui/menu.py:407
+#: docking/ui/menu.py:417
 msgid "Default Icon"
 msgstr "Defolt İkon"
 
-#: docking/ui/menu.py:411
+#: docking/ui/menu.py:421
 msgid "Choose From File..."
 msgstr "Fayldan Seç..."
 
-#: docking/ui/menu.py:415
+#: docking/ui/menu.py:425
 msgid "Reset Custom Icon"
 msgstr "Fərdi İkonu Sıfırlayın"
 
-#: docking/ui/menu.py:434
+#: docking/ui/menu.py:444
 msgid "Choose Icon"
 msgstr "İkonu seçin"
 
-#: docking/ui/menu.py:457
+#: docking/ui/menu.py:467
 msgid "Images"
 msgstr "Şəkillər"
 
-#: docking/ui/menu.py:470
+#: docking/ui/menu.py:480
 msgid "Could not use selected icon"
 msgstr "Seçilmiş ikonadan istifadə etmək mümkün olmadı"
 
-#: docking/ui/menu.py:513 docking/ui/menu.py:535 docking/ui/menu.py:558
-#: docking/ui/menu.py:609
-msgid "Remove from Dock"
-msgstr "Dokdan Sil"
-
-#: docking/ui/menu.py:565
-msgid "Keep in Dock"
-msgstr "Dokda Saxla"
-
-#: docking/ui/menu.py:574
-msgid "Close All"
-msgstr "Hamısını Bağla"
-
-#: docking/ui/menu.py:591
+#: docking/ui/menu.py:601
 msgid "Sort By"
 msgstr "Sirala"
 
-#: docking/ui/menu.py:599
+#: docking/ui/menu.py:609
 msgid "Show Hidden Files"
 msgstr "Gizli fayllari goster"
 
-#: docking/ui/menu.py:639
+#: docking/ui/menu.py:638
+msgid "Search..."
+msgstr "Axtar..."
+
+#: docking/ui/menu.py:654
 msgid "Add Applet"
 msgstr "Appletlər"
 
-#: docking/ui/menu.py:677
+#: docking/ui/menu.py:693
 msgid "No Applets Available"
 msgstr "Enerji Profilləri mövcud deyil"
 
-#: docking/ui/menu.py:684
+#: docking/ui/menu.py:700
 msgid "Add Separator"
 msgstr "Ayırıcı Əlavə Et"
 
-#: docking/ui/menu.py:698 docking/ui/settings.py:268
+#: docking/ui/menu.py:714 docking/ui/settings.py:332
 msgid "Preferences"
 msgstr "Tercihler"
 
-#: docking/ui/menu.py:703
+#: docking/ui/menu.py:719
 msgid "About"
 msgstr "Haqqında"
 
-#: docking/ui/menu.py:708
+#: docking/ui/menu.py:724
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:715
+#: docking/ui/menu.py:731
 msgid "Quit"
 msgstr "Çıx"
 
-#: docking/ui/menu.py:781
+#: docking/ui/menu.py:797
 msgid "Clear Recent Documents"
 msgstr "Son Sənədləri Sil"
-
-#: docking/ui/menu.py:791 docking/ui/settings.py:746
-msgid "Recent Documents"
-msgstr "Son Sənədlər"
-
-#: docking/ui/menu.py:810
-msgid "Window"
-msgstr "Pəncərə"
 
 #: docking/ui/new_year.py:207
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr "Happy new year {year} !!!"
 
-#: docking/ui/placement.py:269
+#: docking/ui/placement.py:281
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "Ekran {display}: {width}x{height}"
 
-#: docking/ui/settings.py:292
+#: docking/ui/settings.py:356
 msgid "Appearance"
 msgstr "Gorunus"
 
-#: docking/ui/settings.py:293 docking/ui/settings.py:671
+#: docking/ui/settings.py:357 docking/ui/settings.py:807
 msgid "Behavior"
 msgstr "Davranis"
 
-#: docking/ui/settings.py:294
+#: docking/ui/settings.py:358
 msgid "Applets"
 msgstr "Appletlər"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:382
 msgid "Don't Hide"
 msgstr "Gizletme"
 
-#: docking/ui/settings.py:319
+#: docking/ui/settings.py:383
 msgid "Always on Top"
 msgstr "Həmişə üstdə"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:384
 msgid "Auto-hide"
 msgstr "Avtogizlə"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:385
 msgid "Intelligent"
 msgstr "Agilli"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:386
 msgid "Dodge Active"
 msgstr "Dodge Aktivdir"
 
-#: docking/ui/settings.py:323
+#: docking/ui/settings.py:387
 msgid "Dodge Windows"
 msgstr "Dodge Windows"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:388
 msgid "Dodge Maximized"
 msgstr "Maksimallasdirmadan qacinma"
 
-#: docking/ui/settings.py:335
+#: docking/ui/settings.py:399
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:400
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:337
+#: docking/ui/settings.py:401
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:344
+#: docking/ui/settings.py:408
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:345
+#: docking/ui/settings.py:409
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:410
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:353
+#: docking/ui/settings.py:417
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:418
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:361
+#: docking/ui/settings.py:425
 msgid "Default"
 msgstr "Defolt"
 
-#: docking/ui/settings.py:362
+#: docking/ui/settings.py:426
 msgid "Alphabetical"
 msgstr "Əlifba sırası ilə"
 
-#: docking/ui/settings.py:380
+#: docking/ui/settings.py:447
 msgid "Daily"
 msgstr "Gündəlik"
 
-#: docking/ui/settings.py:381
+#: docking/ui/settings.py:448
 msgid "Weekly"
 msgstr "Həftəlik"
 
-#: docking/ui/settings.py:402
+#: docking/ui/settings.py:469
 msgid ""
 "When Follow Cursor is enabled, the dock follows the pointer across monitors. "
 "The selected monitor is kept as the fallback."
@@ -3428,11 +5190,11 @@ msgstr ""
 "Kursoru izləmək aktiv olduqda, dok monitorlar arasında göstəricini izləyir. "
 "Seçilmiş monitor ehtiyat kimi saxlanılır."
 
-#: docking/ui/settings.py:448
+#: docking/ui/settings.py:515
 msgid "Added on top of the theme's own distance from the edge."
 msgstr "Mövzunun kənarından öz məsafəsinin üstünə əlavə edildi."
 
-#: docking/ui/settings.py:488
+#: docking/ui/settings.py:555
 msgid ""
 "Pixels of cursor pressure against the edge required to reveal a hidden dock. "
 "Higher values mean the dock will not reveal as easily."
@@ -3440,205 +5202,229 @@ msgstr ""
 "Gizli dokun aşkarlanması üçün kursorun kənara təzyiq pikselləri tələb "
 "olunur. Daha yüksək dəyərlər dokun asanlıqla aşkar edilməyəcəyi deməkdir."
 
-#: docking/ui/settings.py:510
+#: docking/ui/settings.py:625
 msgid "Look"
 msgstr "Gorunus"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Theme"
 msgstr "Tema"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Choose the dock color palette."
 msgstr "Dok rəng palitrasını seçin."
 
-#: docking/ui/settings.py:514
+#: docking/ui/settings.py:629
 msgid "Icon Size"
 msgstr "Nişan Ölçüsü"
 
-#: docking/ui/settings.py:516
+#: docking/ui/settings.py:631
 msgid "Set the base size of dock icons before zoom is applied."
 msgstr ""
 "Böyütmə tətbiq edilməzdən əvvəl dok nişanlarının əsas ölçüsünü təyin edin."
 
-#: docking/ui/settings.py:519
+#: docking/ui/settings.py:634
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:521
+#: docking/ui/settings.py:636
 msgid "Adjust how transparent the dock background is."
 msgstr "Dok fonunun nə qədər şəffaf olduğunu tənzimləyin."
 
-#: docking/ui/settings.py:524
+#: docking/ui/settings.py:639
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:526
+#: docking/ui/settings.py:641
 msgid "Enlarge icons when the pointer hovers over the dock."
 msgstr "Göstərici dok üzərində hərəkət etdikdə nişanları böyüdün."
 
-#: docking/ui/settings.py:529
+#: docking/ui/settings.py:644
 msgid "Zoom Percent"
 msgstr "Boyutme faizi"
 
-#: docking/ui/settings.py:531
+#: docking/ui/settings.py:646
 msgid "Set how much hovered icons grow when zoom is enabled."
 msgstr ""
 "Böyütmə aktivləşdirildikdə üzərinə qoyulmuş nişanların nə qədər artacağını "
 "təyin edin."
 
-#: docking/ui/settings.py:534
+#: docking/ui/settings.py:649
 msgid "Show Tooltips"
 msgstr "Ipuclari goster"
 
-#: docking/ui/settings.py:536
+#: docking/ui/settings.py:651
 msgid "Show item names and details when hovering over dock items."
 msgstr ""
 "Dok elementlərinin üzərinə sürüşərkən element adlarını və təfərrüatlarını "
 "göstərin."
 
-#: docking/ui/settings.py:539
+#: docking/ui/settings.py:654
 msgid "Window Previews"
 msgstr "Pəncərə Önbaxışları"
 
-#: docking/ui/settings.py:541
+#: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
 "Çalışan proqramlar üzərində fare ilə hərəkət edərkən pəncərənin kiçik "
 "şəkillərini göstərin."
 
-#: docking/ui/settings.py:544
+#: docking/ui/settings.py:659
+msgid "Outline Thumbnail on Hover"
+msgstr "Üzərinə gəldikdə miniatürün konturunu göstər"
+
+#: docking/ui/settings.py:661
+msgid "Highlight the thumbnail under the pointer in the preview."
+msgstr "Önizləmədə kursorun altındakı miniatürü vurğula."
+
+#: docking/ui/settings.py:664
 msgid "Show Window Counts"
 msgstr "Pəncərə saylarını göstərin"
 
-#: docking/ui/settings.py:547
+#: docking/ui/settings.py:667
 msgid "Show a number on running app indicators when multiple windows are open."
 msgstr ""
 "Birdən çox pəncərə açıq olduqda işləyən proqram göstəricilərində nömrə "
 "göstərin."
 
-#: docking/ui/settings.py:555
+#: docking/ui/settings.py:672
+msgid "Application Badges"
+msgstr "Tətbiq nişanları"
+
+#: docking/ui/settings.py:675
+msgid "Show numeric counts reported by applications on their dock icons."
+msgstr "Tətbiqlərin dok ikonlarında bildirdiyi rəqəmsal sayları göstər."
+
+#: docking/ui/settings.py:680
+msgid "Application Progress"
+msgstr "Tətbiq gedişatı"
+
+#: docking/ui/settings.py:683
+msgid "Show task progress reported by applications on their dock icons."
+msgstr "Tətbiqlərin dok ikonlarında bildirdiyi tapşırıq gedişatını göstər."
+
+#: docking/ui/settings.py:691
 msgid "Placement"
 msgstr "Yerlesdirme"
 
-#: docking/ui/settings.py:558
+#: docking/ui/settings.py:694
 msgid "Position"
 msgstr "Mövqe"
 
-#: docking/ui/settings.py:560
+#: docking/ui/settings.py:696
 msgid "Choose which screen edge the dock uses."
 msgstr "Dokun hansı ekran kənarından istifadə etdiyini seçin."
 
-#: docking/ui/settings.py:562
+#: docking/ui/settings.py:698
 msgid "Extra Distance from Edge"
 msgstr "Kenardan Əlavə Məsafə"
 
-#: docking/ui/settings.py:564
+#: docking/ui/settings.py:700
 msgid "Current Workspace Only"
 msgstr "Yalnız Cari İş Sahəsi"
 
-#: docking/ui/settings.py:567
+#: docking/ui/settings.py:703
 msgid "Show running windows only from the active workspace when supported."
 msgstr "Dəstəkləndikdə yalnız aktiv iş yerindən işləyən pəncərələri göstərin."
 
-#: docking/ui/settings.py:575 docking/ui/settings.py:585
+#: docking/ui/settings.py:711 docking/ui/settings.py:721
 msgid "Monitor"
 msgstr "Monitor"
 
-#: docking/ui/settings.py:578
+#: docking/ui/settings.py:714
 msgid "Follow Cursor"
 msgstr "Kursoru İzlə"
 
-#: docking/ui/settings.py:581
+#: docking/ui/settings.py:717
 msgid "Move the dock to the monitor where the pointer is currently located."
 msgstr "Doku göstəricinin hazırda yerləşdiyi monitora köçürün."
 
-#: docking/ui/settings.py:590
+#: docking/ui/settings.py:726
 msgid "Layout"
 msgstr "Duzen"
 
-#: docking/ui/settings.py:593
+#: docking/ui/settings.py:729
 msgid "Lock Positions"
 msgstr "Movqeleri kilidle"
 
-#: docking/ui/settings.py:596
+#: docking/ui/settings.py:732
 msgid "Prevent dock items from being reordered or removed by drag and drop."
 msgstr ""
 "Sürük və buraxma yolu ilə dok elementlərinin yenidən sıralanmasının və ya "
 "silinməsinin qarşısını alın."
 
-#: docking/ui/settings.py:601
+#: docking/ui/settings.py:737
 msgid "Anchor Applets to End"
 msgstr "Appletləri Sona Bərkid"
 
-#: docking/ui/settings.py:603
+#: docking/ui/settings.py:739
 msgid "Keep applets grouped at the end of the dock."
 msgstr "Apletləri dokun sonunda qruplaşdırın."
 
-#: docking/ui/settings.py:606
+#: docking/ui/settings.py:742
 msgid "Anchor Files to End"
 msgstr "Fayllari sona bagla"
 
-#: docking/ui/settings.py:608
+#: docking/ui/settings.py:744
 msgid "Keep pinned files and folders grouped at the end of the dock."
 msgstr "Bağlanmış faylları və qovluqları dokun sonunda qruplaşdırın."
 
-#: docking/ui/settings.py:647
+#: docking/ui/settings.py:783
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:650
+#: docking/ui/settings.py:786
 msgid ""
 "Choose what happens when clicking a running app with the left mouse button."
 msgstr ""
 "Sol siçan düyməsi ilə işləyən proqrama kliklədikdə nə baş verəcəyini seçin."
 
-#: docking/ui/settings.py:655
+#: docking/ui/settings.py:791
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:658
+#: docking/ui/settings.py:794
 msgid "Choose what happens when clicking an app with the middle mouse button."
 msgstr "Siçanın orta düyməsi ilə proqrama kliklədikdə nə baş verəcəyini seçin."
 
-#: docking/ui/settings.py:663
+#: docking/ui/settings.py:799
 msgid "Window List Sort"
 msgstr "Pəncərə Siyahısı Çeşidləmə"
 
-#: docking/ui/settings.py:665
+#: docking/ui/settings.py:801
 msgid "Choose how open windows are ordered in app context menus."
 msgstr ""
 "Proqramın kontekst menyularında açıq pəncərələrin necə sıralandığını seçin."
 
-#: docking/ui/settings.py:673
+#: docking/ui/settings.py:809
 msgid "Hide Mode"
 msgstr "Gizletme rejimi"
 
-#: docking/ui/settings.py:675
+#: docking/ui/settings.py:811
 msgid "Hide Delay"
 msgstr "Gizletme gecikdirmesi"
 
-#: docking/ui/settings.py:678
+#: docking/ui/settings.py:814
 msgid "Set how long the dock waits before hiding after the pointer leaves."
 msgstr ""
 "Göstərici getdikdən sonra dokun gizlənmədən əvvəl nə qədər gözlədiyini təyin "
 "edin."
 
-#: docking/ui/settings.py:683
+#: docking/ui/settings.py:819
 msgid "Unhide Delay"
 msgstr "Gosterme gecikdirmesi"
 
-#: docking/ui/settings.py:686
+#: docking/ui/settings.py:822
 msgid "Set how long the dock waits before showing after the pointer returns."
 msgstr ""
 "Göstərici qayıtdıqdan sonra dokun göstərmədən əvvəl nə qədər gözlədiyini "
 "təyin edin."
 
-#: docking/ui/settings.py:691
+#: docking/ui/settings.py:827
 msgid "Pressure Reveal"
 msgstr "Təzyiq aşkarlanması"
 
-#: docking/ui/settings.py:694
+#: docking/ui/settings.py:830
 msgid ""
 "Require the pointer to push against the screen edge before revealing a "
 "hidden dock."
@@ -3646,15 +5432,15 @@ msgstr ""
 "Gizli dok aşkar etməzdən əvvəl göstəricidən ekranın kənarına basmasını tələb "
 "edin."
 
-#: docking/ui/settings.py:698
+#: docking/ui/settings.py:834
 msgid "Pressure Threshold"
 msgstr "Təzyiq həddi"
 
-#: docking/ui/settings.py:700
+#: docking/ui/settings.py:836
 msgid "Show Startup Tips"
 msgstr "Başlanğıc məsləhətlərini göstərin"
 
-#: docking/ui/settings.py:703
+#: docking/ui/settings.py:839
 msgid ""
 "Show one Docking usage tip after startup, unless a higher-priority startup "
 "notification is visible."
@@ -3662,144 +5448,176 @@ msgstr ""
 "Daha yüksək prioritetli başlanğıc bildirişi görünməzsə, işə saldıqdan sonra "
 "bir Docking istifadə ipucunu göstərin."
 
-#: docking/ui/settings.py:711
-msgid "Folder Stacks"
-msgstr "Folder Stacks"
+#: docking/ui/settings.py:847
+msgid "Stacks"
+msgstr "Yığımlar"
 
-#: docking/ui/settings.py:714
+#: docking/ui/settings.py:850
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:716
-msgid "Choose whether folder stacks open on click or while hovering."
-msgstr "Qovluq yığınlarının kliklə və ya sürüşərkən açılacağını seçin."
+#: docking/ui/settings.py:852
+msgid "Choose whether stacks open on click or while hovering."
+msgstr "Yığımların kliklə, yoxsa üzərinə gəlməklə açılacağını seçin."
 
-#: docking/ui/settings.py:722
+#: docking/ui/settings.py:858
 msgid "Recent Apps"
 msgstr "Son Proqramlar"
 
-#: docking/ui/settings.py:725
+#: docking/ui/settings.py:861
 msgid "Show Recently Used Apps"
 msgstr "Son istifadə olunan proqramları göstərin"
 
-#: docking/ui/settings.py:728
+#: docking/ui/settings.py:864
 msgid "Show recently closed apps between pinned launchers and running apps."
 msgstr ""
 "Bu yaxınlarda bağlanmış proqramları bərkidilmiş işəsalanlar və işləyən "
 "proqramlar arasında göstərin."
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:869
 msgid "Number of Recent Apps"
 msgstr "Son Proqramların Sayı"
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:871
 msgid "Maximum recently used app icons to display."
 msgstr "Göstərmək üçün ən son istifadə olunan tətbiq nişanları."
 
-#: docking/ui/settings.py:738
+#: docking/ui/settings.py:874
 msgid "Keep Recent Apps For"
 msgstr "Ən son tətbiqləri saxla"
 
-#: docking/ui/settings.py:740
+#: docking/ui/settings.py:876
 msgid "Remove recent apps after this many days of inactivity."
 msgstr "Bu çox günlük hərəkətsizlikdən sonra ən son tətbiqləri silin."
 
-#: docking/ui/settings.py:749
+#: docking/ui/settings.py:885
 msgid "Show Recent Documents"
 msgstr "Son sənədləri göstərin"
 
-#: docking/ui/settings.py:752
+#: docking/ui/settings.py:888
 msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
 msgstr ""
 "Proqram ikonasına sağ kliklədikdə \\\"Son Sənədlər\\\" alt menyusunu "
 "göstərin."
 
-#: docking/ui/settings.py:757
+#: docking/ui/settings.py:893
 msgid "Max Documents Per App"
 msgstr "Proqram Başına Maks Sənədlər"
 
-#: docking/ui/settings.py:759
+#: docking/ui/settings.py:895
 msgid "Maximum recent document entries shown per app."
 msgstr "Tətbiqdə göstərilən maksimum son sənəd girişləri."
 
-#: docking/ui/settings.py:831
+#: docking/ui/settings.py:901
+msgid "Global Search"
+msgstr "Qlobal axtarış"
+
+#: docking/ui/settings.py:906
+msgid "Enable Docking's process-wide search palette."
+msgstr "Docking-in proses üzrə axtarış panelini aktivləşdirin."
+
+#: docking/ui/settings.py:909
+msgid "Preferred Shortcut"
+msgstr "Üstünlük verilən qısayol"
+
+#: docking/ui/settings.py:912
+msgid ""
+"Click the button, then press the desired key sequence. The desktop may "
+"reserve some shortcuts."
+msgstr "Düyməni klikləyin, sonra istədiyiniz düymə ardıcıllığını basın. "
+"Masaüstü bəzi qısayolları özü üçün saxlaya bilər."
+
+#: docking/ui/settings.py:917
+msgid "Search Engine"
+msgstr "Axtarış sistemi"
+
+#: docking/ui/settings.py:919
+msgid "Choose the engine used by web fallback."
+msgstr "Veb ehtiyat axtarışı üçün istifadə olunan sistemi seçin."
+
+#: docking/ui/settings.py:991
 msgid "Check Now"
 msgstr "İndi yoxla"
 
-#: docking/ui/settings.py:833
+#: docking/ui/settings.py:993
 msgid "View Releases"
 msgstr "Versiyaları gör"
 
-#: docking/ui/settings.py:845
+#: docking/ui/settings.py:1005
 msgid "Update Checks"
 msgstr "Yeniləmə yoxlamaları"
 
-#: docking/ui/settings.py:847
+#: docking/ui/settings.py:1007
 msgid "Check Automatically"
 msgstr "Avtomatik yoxla"
 
-#: docking/ui/settings.py:848
+#: docking/ui/settings.py:1008
 msgid "Frequency"
 msgstr "Tezlik"
 
-#: docking/ui/settings.py:849
+#: docking/ui/settings.py:1009
 msgid "Status"
 msgstr "Vəziyyət"
 
-#: docking/ui/settings.py:850
-msgid "Actions"
-msgstr "Əməliyyatlar"
-
-#: docking/ui/settings.py:1293
+#: docking/ui/settings.py:1489
 msgid "Primary Display"
 msgstr "Əsas Ekran"
 
-#: docking/ui/settings.py:1434
+#: docking/ui/settings.py:1500
+#, python-brace-format
+msgid "Shortcut Status: {status}"
+msgstr "Qısayol statusu: {status}"
+
+#: docking/ui/settings.py:1639
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr "Son görülən versiya: {version}"
 
-#: docking/ui/settings.py:1438
+#: docking/ui/settings.py:1643
 msgid "No update found yet"
 msgstr "Hələ yeniləmə tapılmadı"
 
-#: docking/ui/settings.py:1440
+#: docking/ui/settings.py:1645
 msgid "Not checked yet"
 msgstr "Hələ yoxlanılmayıb"
 
-#: docking/ui/settings.py:1521
+#: docking/ui/settings.py:1728
 msgid "The dock is always visible and reserves screen space."
 msgstr "The dock is always visible and reserves screen space."
 
-#: docking/ui/settings.py:1523
+#: docking/ui/settings.py:1730
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 "Həmişə görünür və ekran sahəsi tutmadan bütün pəncərələrin üstündə üzür."
 
-#: docking/ui/settings.py:1526
+#: docking/ui/settings.py:1733
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Hides when the mouse cursor leaves the dock."
 
-#: docking/ui/settings.py:1528
+#: docking/ui/settings.py:1735
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:1530
+#: docking/ui/settings.py:1737
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Hides when the focused window overlaps the dock area."
 
-#: docking/ui/settings.py:1532
+#: docking/ui/settings.py:1739
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr "Hides when any window on the current workspace overlaps the dock area."
 
-#: docking/ui/settings.py:1535
+#: docking/ui/settings.py:1742
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#: docking/ui/stack.py:125
+msgid "No items"
+msgstr "Element yoxdur"
 
 #: docking/ui/startup_tips.py:187
 msgid "Tip of the day"
@@ -3813,40 +5631,42 @@ msgstr "Başlanğıc haqqında məsləhətləri göstərin"
 msgid "Next Tip"
 msgstr "Növbəti İpucu"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
 msgid "1 day"
 msgstr "1 gün"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
+#, python-brace-format
 msgid "{count} days"
 msgstr "{count} gün"
 
-#: docking/ui/tooltip.py:239
+#: docking/ui/tooltip.py:240
 msgid "just now"
 msgstr "indi"
 
-#: docking/ui/tooltip.py:240
+#: docking/ui/tooltip.py:241
+#, python-brace-format
 msgid "{age} ago"
 msgstr "{age} əvvəl"
 
-#: docking/ui/update_popup.py:233
+#: docking/ui/update_popup.py:231
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr "Docking {version} mövcuddur"
 
-#: docking/ui/update_popup.py:239
+#: docking/ui/update_popup.py:237
 #, python-brace-format
 msgid "You are using {version}."
 msgstr "Siz {version}-ni istifadə edirsiniz."
 
-#: docking/ui/update_popup.py:248
+#: docking/ui/update_popup.py:246
 msgid "View Release"
 msgstr "Versiyanı gör"
 
-#: docking/ui/update_popup.py:249
+#: docking/ui/update_popup.py:247
 msgid "Later"
 msgstr "Sonra"
 
-#: docking/ui/update_popup.py:250
+#: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "İgnor et"

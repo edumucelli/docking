@@ -21,10 +21,11 @@ and the stateful ZoomAnimator for smooth enter/leave transitions live here.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from gi.repository import GLib
 
+from docking.core.config import PULSE_MAX_SCALE, DockItemClickEffect
 from docking.core.theme import RGB
 
 if TYPE_CHECKING:
@@ -33,13 +34,15 @@ if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
 
+    from docking.core.items import IconPixmapLike
+
 NEUTRAL_GRAY_RGB: RGB = (0.5, 0.5, 0.5)
 DOMINANT_COLOR_ALPHA_THRESHOLD = 25
 COLOR_CHANNEL_MAX = 255.0
 
 
 def average_icon_color(
-    pixbuf: object,
+    pixbuf: IconPixmapLike | None,
 ) -> RGB:
     """Compute the saturation-weighted average color of an icon pixbuf.
 
@@ -76,7 +79,7 @@ def average_icon_color(
     if pixbuf is None:
         return NEUTRAL_GRAY_RGB
 
-    pixels = pixbuf.get_pixels()
+    pixels = cast(bytes, pixbuf.get_pixels())
     n_channels = pixbuf.get_n_channels()
     width = pixbuf.get_width()
     height = pixbuf.get_height()
@@ -179,6 +182,27 @@ def ease_out_cubic(t: float) -> float:
     return 1.0 - (1.0 - t) ** 3
 
 
+def click_effect_angle(effect: str, t: float, duration: float) -> float:
+    """Return the launch rotation in radians, settling at rest after duration."""
+    if duration <= 0 or t <= 0 or t >= duration:
+        return 0.0
+    p = t / duration
+    if effect == DockItemClickEffect.WOBBLE.value:
+        return math.radians(18) * math.sin(6 * math.pi * p) * (1 - p) ** 2
+    return 0.0
+
+
+def click_effect_scale(effect: str, t: float, duration: float) -> float:
+    """Briefly grow a pulsing launcher and settle back to its resting size."""
+    if (
+        effect != DockItemClickEffect.PULSE.value
+        or duration <= 0
+        or not 0 < t < duration
+    ):
+        return 1.0
+    return 1.0 + (PULSE_MAX_SCALE - 1.0) * math.sin(math.pi * t / duration)
+
+
 _TICK_MS = 16  # ~60fps
 
 
@@ -203,29 +227,40 @@ class ZoomAnimator:
         self._raw: float = 0.0  # linear 0-1, eased via property
         self._target: float = 0.0
         self._timer_id: int = 0
+        self._last_tick_us: int = 0
 
     @property
     def progress(self) -> float:
         return ease_out_cubic(self._raw)
 
     def on_enter(self) -> None:
-        self._target = 1.0
-        self._ensure_timer()
+        self._set_target(1.0)
 
     def on_leave(self) -> None:
-        self._target = 0.0
+        self._set_target(0.0)
+
+    def _set_target(self, target: float) -> None:
+        if self._target != target:
+            # Reverse from the last displayed size without charging time
+            # spent moving in the old direction to the new transition.
+            self._last_tick_us = GLib.get_monotonic_time()
+        self._target = target
         self._ensure_timer()
 
     def _ensure_timer(self) -> None:
         if not self._timer_id:
+            self._last_tick_us = GLib.get_monotonic_time()
             self._timer_id = GLib.timeout_add(_TICK_MS, self._tick)
 
     def _tick(self) -> bool:
+        now_us = GLib.get_monotonic_time()
+        elapsed_ms = (now_us - self._last_tick_us) / 1000
+        self._last_tick_us = now_us
         if self._target > self._raw:
-            step = _TICK_MS / self._enter_ms
+            step = elapsed_ms / self._enter_ms if self._enter_ms > 0 else 1.0
             self._raw = min(1.0, self._raw + step)
         else:
-            step = _TICK_MS / self._leave_ms
+            step = elapsed_ms / self._leave_ms if self._leave_ms > 0 else 1.0
             self._raw = max(0.0, self._raw - step)
         self._drawing_area.queue_draw()
         if self._raw == self._target:

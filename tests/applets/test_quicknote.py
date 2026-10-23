@@ -6,6 +6,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:
@@ -21,6 +23,7 @@ from docking.applets.quicknote.state import (
     prefs_from_note,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class TestState:
@@ -94,13 +97,23 @@ class TestRender:
 
 
 class TestApplet:
+    @pytest.mark.parametrize("note", [None, 42, [], {}])
+    def test_malformed_saved_note_keeps_applet_usable(self, note):
+        applet = quicknote_applet_mod.QuickNoteApplet(
+            48, config=Config(applet_prefs={"quicknote": {"note": note}})
+        )
+
+        assert applet._note == ""
+        assert applet.item.name == "Empty note"
+        assert applet.item.icon is not None
+
     """GTK lifecycle tests."""
 
     def test_creates_with_empty_note(self):
         """Given no config, applet starts with empty note."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         assert applet._note == ""
         assert applet.item.name == "Empty note"
 
@@ -128,7 +141,7 @@ class TestApplet:
         """Given an applet, create_icon returns pixbuf."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
 
@@ -136,14 +149,14 @@ class TestApplet:
         """Given an applet, menu has edit and clear items."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         items = applet.get_menu_items()
         assert [item.get_label() for item in items] == ["Edit Note", "", "Clear Note"]
 
     def test_on_clicked_opens_edit_dialog(self, monkeypatch):
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         show = MagicMock()
         monkeypatch.setattr(applet, "_show_edit_dialog", show)
 
@@ -166,7 +179,7 @@ class TestApplet:
 
         monkeypatch.setattr(quicknote_applet_mod.Gtk, "MenuItem", _FakeMenuItem)
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         show = MagicMock()
         clear = MagicMock()
         monkeypatch.setattr(applet, "_show_edit_dialog", show)

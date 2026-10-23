@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import gettext
 import locale
+from functools import lru_cache
 from pathlib import Path
 
 from docking.log import get_logger
@@ -37,6 +38,12 @@ DOMAIN = "docking"
 # Installed packages also keep .mo files here via package_data.
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
 log = get_logger("i18n")
+
+
+@lru_cache(maxsize=1)
+def _get_translation() -> gettext.NullTranslations:
+    """Resolve one catalog until explicit initialization changes the locale."""
+    return gettext.translation(DOMAIN, localedir=str(_LOCALE_DIR), fallback=True)
 
 
 def init() -> None:
@@ -51,8 +58,15 @@ def init() -> None:
         log.warning("Unsupported locale, falling back to C locale: %s", exc)
     gettext.bindtextdomain(DOMAIN, str(_LOCALE_DIR))
     gettext.textdomain(DOMAIN)
+    _get_translation.cache_clear()
+    _get_translation()
 
 
-# Module-level aliases used by all translatable modules.
-_ = gettext.gettext
-ngettext = gettext.ngettext
+def _(message: str) -> str:
+    """Translate through the catalog resolved at initialization, without I/O."""
+    return _get_translation().gettext(message)
+
+
+def ngettext(singular: str, plural: str, n: int) -> str:
+    """Apply the retained catalog's plural rule without rediscovering it."""
+    return _get_translation().ngettext(singular, plural, n)

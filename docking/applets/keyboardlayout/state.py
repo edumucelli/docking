@@ -408,7 +408,7 @@ class GnomeBackend(LayoutBackend):
 def _ibus_layout_code(engine: str) -> str:
     """Extract layout code from IBus engine (e.g. 'xkb:br::por' → 'br')."""
     match = _IBUS_XKB_RE.match(engine)
-    return match.group(1) if match else engine
+    return str(match.group(1)) if match else engine
 
 
 class IBusBackend(LayoutBackend):
@@ -454,7 +454,7 @@ class IBusBackend(LayoutBackend):
 def _fcitx5_layout_code(im_name: str) -> str:
     """Extract layout code from Fcitx5 IM (e.g. 'keyboard-br' → 'br')."""
     match = _FCITX5_KB_RE.match(im_name)
-    return match.group(1) if match else im_name
+    return str(match.group(1)) if match else im_name
 
 
 class Fcitx5Backend(LayoutBackend):

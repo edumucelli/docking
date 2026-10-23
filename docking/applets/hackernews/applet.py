@@ -21,10 +21,9 @@ from typing import TYPE_CHECKING
 
 import gi
 
-gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.freshness import cadence_label
@@ -36,10 +35,12 @@ from docking.applets.hackernews.state import (
     MAX_STORIES,
     REFRESH_INTERVAL_S,
     STARTUP_FETCH_DELAY_S,
+    HackerNewsFeed,
     HackerNewsPage,
     HackerNewsStory,
     append_unique_stories,
     build_tooltip,
+    feed_label,
     fetch_hn_story_page,
     normalize_active_index,
     prefs_from_mapping,
@@ -50,10 +51,11 @@ from docking.applets.live_state import (
     live_state_label,
     resolve_live_status,
 )
-from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.ui.tooltip import parse_timestamp
 
 if TYPE_CHECKING:
@@ -63,16 +65,15 @@ log = with_context(get_logger(name="hackernews"), applet_id=meta.id)
 
 
 class HackerNewsApplet(Applet):
-    """Show Hacker News top headlines."""
+    """Browse top, Show HN, and jobs headlines."""
 
     id = meta.id
     name = _("Hacker News")
     icon_name = "internet-news-reader"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
+        self._feed = prefs.feed
         self._stories: list[HackerNewsStory] = list(prefs.stories)
         self._active_index = prefs.active_index
         self._next_story_offset = prefs.next_offset
@@ -116,6 +117,7 @@ class HackerNewsApplet(Applet):
             story=self._current_story,
             index=self._active_index,
             count=len(self._stories),
+            feed=self._feed,
             loading=self._loading,
             page_loading=self._page_loading,
             error=self._error,
@@ -157,6 +159,7 @@ class HackerNewsApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = [
             disabled_menu_item(HN_SOURCE_LABEL, gtk=Gtk),
+            disabled_menu_item(feed_label(self._feed), gtk=Gtk),
             disabled_menu_item(
                 cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Refreshes")),
                 gtk=Gtk,
@@ -206,11 +209,22 @@ class HackerNewsApplet(Applet):
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._fetch_async())
 
+        display = [
+            radio_submenu(
+                label=_("Page"),
+                choices=tuple((feed_label(feed), feed) for feed in HackerNewsFeed),
+                active_value=self._feed,
+                on_selected=lambda _widget, feed: self._set_feed(feed=feed),
+                gtk=Gtk,
+            )
+        ]
+
         return menu_sections(
             status=status,
             primary=primary,
             navigation=[next_item],
             refresh=[refresh],
+            display=display,
             gtk=Gtk,
         )
 
@@ -264,12 +278,27 @@ class HackerNewsApplet(Applet):
         self._save_prefs()
         self.present()
 
+    def _set_feed(self, *, feed: HackerNewsFeed) -> None:
+        if feed is self._feed:
+            return
+        self._feed = feed
+        self._stories = []
+        self._active_index = 0
+        self._next_story_offset = 0
+        self._has_more_stories = True
+        self._fetched_at = None
+        self._error = ""
+        self._save_prefs()
+        self.present()
+        self._fetch_async()
+
     def _fetch_async(self) -> None:
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
             self._startup_fetch_timer_id = 0
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
+        feed = self._feed
         self._loading = True
         self._page_loading = False
         self._error = ""
@@ -278,6 +307,7 @@ class HackerNewsApplet(Applet):
         self._worker.run(
             name="hackernews-fetch",
             fn=lambda: fetch_hn_story_page(
+                feed=feed,
                 limit=self._refresh_fetch_limit(),
                 offset=0,
             ),
@@ -362,6 +392,7 @@ class HackerNewsApplet(Applet):
             return
 
         offset = self._next_story_offset
+        feed = self._feed
         self._page_loading = True
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
@@ -370,6 +401,7 @@ class HackerNewsApplet(Applet):
         self._worker.run(
             name="hackernews-page-fetch",
             fn=lambda: fetch_hn_story_page(
+                feed=feed,
                 limit=DEFAULT_FETCH_LIMIT,
                 offset=offset,
             ),
@@ -436,14 +468,12 @@ class HackerNewsApplet(Applet):
         self._open_url(story.hn_url)
 
     def _open_url(self, url: str) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(url, None)
-        except GLib.Error as exc:
-            log.bind(action="open_url").warning("Failed to open URL: %s", exc)
+        targets.open_target(url)
 
     def _save_prefs(self) -> None:
         self.save_prefs(
             prefs=prefs_payload(
+                feed=self._feed,
                 stories=tuple(self._stories),
                 active_index=self._active_index,
                 next_offset=self._next_story_offset,

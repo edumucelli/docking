@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 from unittest.mock import patch
 
 import pytest
@@ -85,6 +86,99 @@ class TestThemeLoad:
         assert t.stroke_width == 2.0
         # Defaults for unspecified
         assert t.indicator_radius == 2.5
+
+    def test_malformed_user_theme_falls_back_instead_of_breaking_startup(
+        self, tmp_path, monkeypatch
+    ):
+        """A broken theme must not make the dock unbootable.
+
+        Themes are hand-edited and the chosen name is already in the config, so
+        an unusable value used to fail every later launch with no way back.
+        """
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"fill_start_color": [222, 222, 222]}}),
+            encoding="utf-8",
+        )
+
+        theme = Theme.load("broken", 96)
+
+        fallback = Theme.load("default", 96)
+        assert theme.fill_start == fallback.fill_start
+        assert theme.shelf_height == fallback.shelf_height
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"shelf": {"stroke_width_px": "thick"}},
+            {"shelf": {"corner_radius_px": 1e400}},
+            {"items": {"glow": {"urgent_size_ratio": -1e400}}},
+            # A string that converts to infinity: JSON has no literal for it,
+            # but float("Infinity") has the same effect.
+            {"shelf": {"corner_radius_px": "Infinity"}},
+            {"shelf": {"stroke_width_px": "-inf"}},
+            {"shelf": {"fill_start_color": "red"}},
+        ],
+    )
+    def test_other_malformed_theme_values_also_fall_back(
+        self, tmp_path, monkeypatch, payload
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        theme = Theme.load("broken", 48)
+
+        # Compare the fields the payload aims at: an infinite value loaded
+        # without raising, so an unrelated assertion passed anyway.
+        fallback = Theme.load("default", 48)
+        assert theme.shelf_height == fallback.shelf_height
+        assert theme.roundness == fallback.roundness
+        assert theme.urgent_glow_size == fallback.urgent_glow_size
+        assert math.isfinite(theme.roundness)
+        assert math.isfinite(theme.urgent_glow_size)
+
+    @pytest.mark.parametrize(
+        ("section", "key"),
+        [
+            ("layout", "horizontal_padding"),
+            ("layout", "top_padding"),
+            ("layout", "bottom_padding"),
+            ("layout", "item_padding"),
+            ("shelf", "stroke_width_px"),
+        ],
+    )
+    def test_finite_values_that_overflow_during_layout_fall_back(
+        self, tmp_path, monkeypatch, section, key
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({section: {key: 1e308}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 128)
+
+        assert theme == Theme.load("default", 128)
+
+    @pytest.mark.parametrize("radius", [1e308, -1e308, "1e308", 1e300])
+    def test_finite_radius_that_overflows_display_scaling_falls_back(
+        self, tmp_path, monkeypatch, radius
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"corner_radius_px": radius}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 48)
+
+        assert theme == Theme.load("default", 48)
 
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))

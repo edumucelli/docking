@@ -53,6 +53,7 @@ def draw_circle_badge(
     outline_width: float = 0.0,
 ) -> None:
     """Draw a filled circular badge, with optional outline."""
+    cr.new_sub_path()
     cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(*background_rgba)
     if outline_rgba is not None and outline_width > 0:

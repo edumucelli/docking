@@ -55,15 +55,13 @@ class SpeedtestApplet(Applet):
     name = _("Speedtest")
     icon_name = "network-wired"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._running: bool = False
         self._error: str | None = None
         self._run_request_id: int = 0
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._result: SpeedtestResult | None = prefs.last_result
 
         super().__init__(icon_size=icon_size, config=config)

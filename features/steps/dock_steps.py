@@ -5,6 +5,138 @@ from __future__ import annotations
 from behave import given, then, when
 
 
+@given("an applet insertion animation has started")
+def step_applet_insertion_started(context) -> None:
+    context.harness.begin_item_insertion()
+
+
+@when("item animation frames are delayed by {milliseconds:d} milliseconds")
+def step_delay_item_animation_frames(context, milliseconds: int) -> None:
+    context.harness.run_delayed_insertion_frames(frame_delay_ms=milliseconds)
+
+
+@then("the insertion completes progressively within two delayed frames")
+def step_insertion_completes_progressively(context) -> None:
+    assert context.harness.insertion_is_bounded_and_progressive is True
+
+
+@when("I remove the applet with the same frame delay")
+def step_remove_applet_with_frame_delay(context) -> None:
+    context.harness.run_delayed_removal_frames()
+
+
+@then("the removal completes without stale painted geometry")
+def step_removal_has_no_stale_geometry(context) -> None:
+    assert context.harness.removal_is_bounded_without_ghost is True
+
+
+@given('the dock is at the "{position}" edge with a {gap:d} pixel floating gap')
+def step_dock_geometry_at_edge(context, position: str, gap: int) -> None:
+    context.harness.configure_geometry(position=position, gap=gap)
+
+
+@when("I render the resting dock geometry")
+def step_render_resting_geometry(context) -> None:
+    context.harness.render_resting_geometry()
+
+
+@when("launch and urgency bounces peak at maximum zoom")
+def step_render_peak_bounce(context) -> None:
+    context.harness.render_peak_bounce()
+
+
+@then("the painted icon matches its input target")
+def step_painted_icon_matches_target(context) -> None:
+    assert context.harness.painted_geometry_matches_target is True
+
+
+@then("the floating gap does not target the icon")
+def step_floating_gap_is_clear(context) -> None:
+    assert context.harness.floating_gap_is_clear is True
+
+
+@then("the painted shelf is {gap:d} pixels from the screen edge")
+def step_painted_shelf_gap(context, gap: int) -> None:
+    assert context.harness.painted_shelf_gap == gap
+
+
+@then("the painted icon stays inside the dock surface")
+def step_bounced_icon_within_surface(context) -> None:
+    assert context.harness.bounced_icon_within_surface is True
+
+
+@given('the dock has rendered at the "{position}" edge')
+def step_dock_rendered_at_edge(context, position: str) -> None:
+    context.old_dock_position = position
+
+
+@when('I move the dock to the "{position}" edge')
+def step_move_dock_to_edge(context, position: str) -> None:
+    context.harness.render_position_change(
+        old_position=context.old_dock_position,
+        new_position=position,
+    )
+
+
+@then("the icons immediately align with the new shelf")
+def step_icons_align_after_position_change(context) -> None:
+    assert context.harness.position_change_aligned is True
+
+
+@then("the left screen edge remains inside the dock input")
+def step_left_edge_inside_dock_input(context) -> None:
+    assert context.harness.left_edge_input_owned is True
+
+
+@given("the pointer is held at the left screen edge")
+def step_pointer_held_at_left_edge(context) -> None:
+    context.harness.hold_pointer_at_left_edge()
+
+
+@when("X11 reports a shape crossing outside the left edge")
+def step_x11_shape_crossing_outside_left_edge(context) -> None:
+    context.harness.report_left_edge_shape_leave()
+
+
+@then("the dock remains hovered")
+def step_dock_remains_hovered(context) -> None:
+    assert context.harness.left_edge_hover_retained is True
+
+
+@given('an external {thickness:d} pixel panel at the "{position}" edge')
+def step_external_panel(context, thickness: int, position: str) -> None:
+    context.harness.configure_external_panel(
+        position=position,
+        thickness=thickness,
+    )
+
+
+@when("the always-visible dock is placed at the same edge")
+@given("the always-visible dock is placed at the same edge")
+def step_place_with_external_panel(context) -> None:
+    context.harness.place_dock_with_external_panel()
+
+
+@then("the dock sits inside the external panel boundary")
+def step_dock_avoids_external_panel(context) -> None:
+    assert context.harness.dock_avoids_external_panel is True
+
+
+@then("the reservation includes the external panel and dock")
+def step_combined_reservation(context) -> None:
+    assert context.harness.reservation_composes_with_external_panel is True
+
+
+@when("the external panel grows to {thickness:d} pixels")
+def step_resize_external_panel(context, thickness: int) -> None:
+    context.harness.resize_external_panel(thickness=thickness)
+
+
+@then("the dock placement and reservation follow the new boundary")
+def step_panel_resize_refreshes_geometry(context) -> None:
+    assert context.harness.external_panel_resize_followed is True
+
+
 @given("the dock is in autohide mode")
 def step_dock_is_in_autohide_mode(context) -> None:
     context.harness.set_hide_mode("autohide")
@@ -113,6 +245,53 @@ def step_hover_running_item_long_enough(context, desktop_id: str) -> None:
 @then('the preview for "{desktop_id}" is visible')
 def step_preview_for_item_is_visible(context, desktop_id: str) -> None:
     assert context.harness.preview_visible is True
+    assert context.harness.preview_desktop_id == desktop_id
+
+
+@given("preview interaction has autohide {state}")
+def step_preview_autohide(context, state: str) -> None:
+    assert state in ("enabled", "disabled")
+    context.harness.configure_preview_autohide(enabled=state == "enabled")
+
+
+@given('there are previewable windows for "{desktop_id}"')
+def step_previewable_windows(context, desktop_id: str) -> None:
+    context.harness.enable_preview_windows(desktop_id)
+
+
+@when("I activate the previewed window")
+def step_activate_preview(context) -> None:
+    context.harness.activate_preview_window()
+
+
+@when("I enter the preview popup")
+def step_enter_preview(context) -> None:
+    context.harness.cross_preview(entering=True)
+
+
+@when("I leave the preview popup")
+def step_leave_preview(context) -> None:
+    context.harness.cross_preview(entering=False)
+
+
+@when('I return to the "{desktop_id}" preview icon')
+def step_return_to_preview_icon(context, desktop_id: str) -> None:
+    context.harness.return_to_preview_icon(desktop_id)
+
+
+@then("the preview popup is hidden")
+def step_preview_hidden(context) -> None:
+    assert context.harness.preview_visible is False
+
+
+@then("a preview show is pending")
+def step_preview_show_pending(context) -> None:
+    assert context.harness.preview_show_pending is True
+
+
+@then("the preview has opened {count:d} times")
+def step_preview_show_count(context, count: int) -> None:
+    assert context.harness.preview_show_count == count
 
 
 @when("I leave the dock while the preview is visible")

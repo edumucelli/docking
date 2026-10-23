@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import logging
 import stat
+from pathlib import Path
 
-from docking.platform import desktop_entries
+from docking.platform.applications import entries as desktop_entries
 
 
 def _make_executable(path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+class TestExecutablePath:
+    def test_extracts_canonical_absolute_exec_path(self, tmp_path):
+        executable = tmp_path / "app" / "bin" / "tool"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"\x7fELF")
+
+        result = desktop_entries.executable_path_from_exec_line(
+            f'"{executable}" --flag %U'
+        )
+
+        assert result == executable.resolve()
+
+    def test_rejects_path_resolved_and_missing_commands(self, tmp_path):
+        assert desktop_entries.executable_path_from_exec_line("tool --flag") is None
+        assert (
+            desktop_entries.executable_path_from_exec_line(str(tmp_path / "missing"))
+            is None
+        )
 
 
 class TestWineDesktopAliases:
@@ -29,59 +51,6 @@ class TestWineDesktopAliases:
 
     def test_wine_executable_aliases_ignores_non_wine_exec(self):
         assert desktop_entries.wine_executable_aliases("mono /tmp/tool.exe") == []
-
-    def test_desktop_info_replaces_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=env WINEPREFIX="/home/user/.wine" wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=Wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
-        assert desktop_entries.desktop_match_aliases(info) == [
-            "tool.exe",
-            "wine-program",
-            "tool",
-        ]
-
-    def test_desktop_info_replaces_lowercase_generic_wine_startup_class(self, tmp_path):
-        desktop_file = tmp_path / "wine-program.desktop"
-        desktop_file.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Name=Wine Program",
-                    'Exec=wine "C:\\\\App\\\\Tool.exe"',
-                    "StartupWMClass=wine",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id="wine-program.desktop",
-            path=desktop_file,
-        )
-
-        assert info is not None
-        assert info.wm_class == "tool.exe"
 
 
 class TestGeneratedDesktopEntries:
@@ -124,14 +93,40 @@ class TestGeneratedDesktopEntries:
         assert "X-Docking-Generated=true\n" in text
         assert f"X-Docking-Source-Path={binary.resolve()}\n" in text
 
-        info = desktop_entries.desktop_info_from_file(
-            desktop_id=generated.desktop_id,
-            path=generated.path,
+    def test_generated_file_can_preserve_runtime_wm_class(self, tmp_path, monkeypatch):
+        binary = tmp_path / "tool"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
         )
-        assert info is not None
-        assert info.name == "my tool"
-        assert info.icon_name == "application-x-executable"
-        assert info.exec_line == f'"{binary.resolve()}"'
+
+        generated = desktop_entries.create_desktop_entry_for_executable(
+            binary,
+            startup_wm_class="SharedTool",
+        )
+
+        assert generated is not None
+        text = generated.path.read_text(encoding="utf-8")
+        assert "StartupWMClass=SharedTool\n" in text
+
+    def test_generated_file_uses_icon_next_to_executable(self, tmp_path, monkeypatch):
+        binary = tmp_path / "tool"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        icon = tmp_path / "tool.svg"
+        icon.write_text("<svg/>", encoding="utf-8")
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+
+        generated = desktop_entries.create_desktop_entry_for_executable(binary)
+
+        assert generated is not None
+        text = generated.path.read_text(encoding="utf-8")
+        assert f"Icon={icon.resolve()}\n" in text
 
     def test_repeated_generation_is_idempotent(self, tmp_path, monkeypatch):
         binary = tmp_path / "tool"
@@ -204,7 +199,257 @@ class TestGeneratedDesktopEntries:
         generated = desktop_entries.create_desktop_entry_for_executable(binary)
 
         assert generated is not None
-        text = generated.path.read_text(encoding="utf-8")
-        assert 'Exec="' in text
-        assert '\\"tool\\"' in text
-        assert "\\\\ runner" in text
+        key_file = desktop_entries.load_desktop_key_file(generated.path)
+        assert key_file is not None
+        exec_line = desktop_entries.desktop_entry_string(key_file, "Exec")
+        assert (
+            desktop_entries.executable_path_from_exec_line(exec_line)
+            == binary.resolve()
+        )
+
+
+class TestExecParsingFallbacks:
+    """Exec lines in the wild are often malformed; parsing must not raise."""
+
+    def test_unterminated_quote_yields_no_basename(self):
+        assert desktop_entries.normalized_exec_basename('"/usr/bin/app --flag') == ""
+
+    def test_whitespace_only_exec_yields_nothing(self):
+        assert desktop_entries.normalized_exec_basename("   ") == ""
+        assert desktop_entries.executable_path_from_exec_line("   ") is None
+
+    def test_unterminated_quote_yields_no_path(self):
+        assert desktop_entries.executable_path_from_exec_line('"/usr/bin/app') is None
+
+
+class TestWineAliasRecovery:
+    def test_unterminated_quote_falls_back_to_token_scan(self):
+        aliases = desktop_entries.wine_executable_aliases(
+            'wine "C:\\Games\\App\\Tool.exe'
+        )
+
+        assert aliases == ["tool.exe", "tool"]
+
+    def test_match_aliases_includes_wine_aliases(self):
+        aliases = desktop_entries.match_aliases(
+            "wine-program.desktop", "Wine", 'wine "/home/u/Games/Tool.exe"'
+        )
+
+        assert {"wine-program", "tool.exe", "tool"} <= set(aliases)
+
+    def test_match_aliases_without_wine_uses_the_exec_basename(self):
+        aliases = desktop_entries.match_aliases("editor.desktop", "", "/usr/bin/editor")
+
+        assert "editor" in aliases
+
+
+class TestDesktopDirs:
+    def test_user_dirs_precede_system_and_host_dirs(self, tmp_path, monkeypatch):
+        data_home = tmp_path / "data"
+        (data_home / "applications").mkdir(parents=True)
+        share = tmp_path / "share"
+        (share / "applications").mkdir(parents=True)
+        host = tmp_path / "host"
+        (host / "applications").mkdir(parents=True)
+
+        monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
+        monkeypatch.setenv("XDG_DATA_DIRS", f"{share}:/does/not/exist")
+        monkeypatch.setattr(desktop_entries, "HOST_XDG_DATA_DIRS", (str(host),))
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: False)
+
+        assert desktop_entries.desktop_dirs() == [
+            data_home / "applications",
+            share / "applications",
+            host / "applications",
+        ]
+
+    def test_absent_directories_are_skipped(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "absent"))
+        monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "also-absent"))
+        monkeypatch.setattr(desktop_entries, "HOST_XDG_DATA_DIRS", ())
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: False)
+
+        assert desktop_entries.desktop_dirs() == []
+
+    def test_flatpak_prepends_the_host_user_directory(self, tmp_path, monkeypatch):
+        home = tmp_path / "home"
+        host_user_apps = home / ".local" / "share" / "applications"
+        host_user_apps.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
+        monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "none"))
+        monkeypatch.setattr(desktop_entries, "HOST_XDG_DATA_DIRS", ())
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: True)
+
+        assert desktop_entries.desktop_dirs() == [host_user_apps]
+
+
+class TestHostDesktopFile:
+    def test_run_host_prefix_counts_as_host_outside_flatpak(self):
+        path = Path("/run/host/usr/share/applications/app.desktop")
+
+        assert desktop_entries.is_host_desktop_file(path) is True
+        assert desktop_entries.is_host_desktop_file(None) is False
+
+    def test_plain_paths_are_not_host_outside_flatpak(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: False)
+
+        assert desktop_entries.is_host_desktop_file(tmp_path / "app.desktop") is False
+
+    def test_flatpak_treats_user_and_snap_dirs_as_host(self, tmp_path, monkeypatch):
+        home = tmp_path / "home"
+        (home / ".local" / "share" / "applications").mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: True)
+
+        assert (
+            desktop_entries.is_host_desktop_file(
+                home / ".local" / "share" / "applications" / "app.desktop"
+            )
+            is True
+        )
+        assert (
+            desktop_entries.is_host_desktop_file(
+                Path("/var/lib/snapd/desktop/applications/app.desktop")
+            )
+            is True
+        )
+        assert (
+            desktop_entries.is_host_desktop_file(tmp_path / "elsewhere" / "a.desktop")
+            is False
+        )
+
+
+class TestDesktopFileActionExec:
+    def test_reads_the_named_action_exec_line(self, tmp_path):
+        path = tmp_path / "app.desktop"
+        path.write_text(
+            "[Desktop Entry]\nType=Application\nName=App\nExec=app\n\n"
+            "[Desktop Action open-special]\nName=Open\nExec=app --special %U\n",
+            encoding="utf-8",
+        )
+
+        assert (
+            desktop_entries.desktop_file_action_exec(path, "open-special")
+            == "app --special %U"
+        )
+
+    def test_missing_action_or_unparsable_file_returns_empty(self, tmp_path):
+        path = tmp_path / "app.desktop"
+        path.write_text(
+            "[Desktop Entry]\nType=Application\nName=App\nExec=app\n",
+            encoding="utf-8",
+        )
+
+        assert desktop_entries.desktop_file_action_exec(path, "missing") == ""
+        assert (
+            desktop_entries.desktop_file_action_exec(tmp_path / "nope.desktop", "x")
+            == ""
+        )
+
+
+class TestLocalPathResolution:
+    def test_empty_and_remote_targets_have_no_local_path(self):
+        assert desktop_entries.local_path_from_uri_or_path("") is None
+        assert (
+            desktop_entries.local_path_from_uri_or_path("https://example.com/a.png")
+            is None
+        )
+
+    def test_file_uris_are_unquoted(self):
+        assert desktop_entries.local_path_from_uri_or_path("file:///tmp/x%20y") == Path(
+            "/tmp/x y"
+        )
+
+
+class TestMakeUserExecutable:
+    def test_missing_file_reports_failure_without_raising(self, tmp_path, caplog):
+        with caplog.at_level(logging.WARNING, logger="docking.desktop_entries"):
+            result = desktop_entries.make_user_executable(tmp_path / "missing")
+
+        assert result is False
+        assert "Failed to make file executable" in caplog.text
+
+
+class TestGeneratedEntryWriteFailure:
+    def test_failed_rename_warns_and_cleans_up_its_temp_file(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        binary = tmp_path / "tool"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+
+        apps = tmp_path / "data" / "applications"
+        apps.mkdir(parents=True)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+        # Occupying the destination with a directory makes the atomic rename
+        # fail, which is the realistic way this write can go wrong.
+        desktop_id = desktop_entries.generated_desktop_id_for_path(binary)
+        (apps / desktop_id).mkdir()
+
+        with caplog.at_level(logging.WARNING, logger="docking.desktop_entries"):
+            generated = desktop_entries.create_desktop_entry_for_executable(binary)
+
+        assert generated is None
+        assert "Failed to write generated desktop entry" in caplog.text
+        assert not [entry for entry in apps.iterdir() if entry.name.endswith(".tmp")]
+
+
+class TestDesktopDatabaseRefresh:
+    def test_refresh_shells_out_to_update_desktop_database(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            desktop_entries.subprocess,
+            "Popen",
+            lambda argv, **kwargs: calls.append((argv, kwargs)),
+        )
+
+        desktop_entries._refresh_desktop_database(tmp_path)
+
+        assert calls[0][0] == ["update-desktop-database", str(tmp_path)]
+        assert calls[0][1]["start_new_session"] is True
+
+    def test_refresh_is_silent_when_the_tool_is_absent(self, tmp_path, monkeypatch):
+        def raise_missing(*_args, **_kwargs):
+            raise OSError("not found")
+
+        monkeypatch.setattr(desktop_entries.subprocess, "Popen", raise_missing)
+
+        desktop_entries._refresh_desktop_database(tmp_path)
+
+
+class TestGeneratedEntryNaming:
+    def test_non_appimage_suffix_is_dropped_from_the_display_name(
+        self, tmp_path, monkeypatch
+    ):
+        binary = tmp_path / "tool.bin"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+
+        generated = desktop_entries.create_desktop_entry_for_executable(binary)
+
+        assert generated is not None
+        assert generated.name == "tool"
+
+    def test_name_that_slugs_to_nothing_still_produces_a_launcher(
+        self, tmp_path, monkeypatch
+    ):
+        binary = tmp_path / "___"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        _make_executable(binary)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        monkeypatch.setattr(
+            desktop_entries, "_refresh_desktop_database", lambda _d: None
+        )
+
+        generated = desktop_entries.create_desktop_entry_for_executable(binary)
+
+        assert generated is not None
+        assert generated.desktop_id.startswith("docking-generated-launcher-")

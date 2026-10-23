@@ -86,6 +86,10 @@ from docking.log import get_logger
 if TYPE_CHECKING:
     from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import TargetService
     from docking.ui.stack import StackContent
 
 log = get_logger("applets.base")
@@ -349,7 +353,7 @@ class Applet(ABC):
     icon_name: str
     icon_source_options: tuple[IconSource, ...] = (IconSource.DOCKING,)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._config = config
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
@@ -371,15 +375,19 @@ class Applet(ABC):
 
     def load_prefs(self) -> dict[str, Any]:
         """Load this applet's preferences from config."""
-        if self._config:
-            return dict(self._config.applet_prefs.get(self.id, {}))
-        return {}
+        return dict(self._config.applet_prefs.get(self.id, {}))
 
     def save_prefs(self, prefs: dict[str, Any]) -> None:
-        """Save this applet's preferences to config."""
-        if self._config:
-            self._config.applet_prefs[self.id] = prefs
-            self._config.save()
+        """Save this applet's preferences to config.
+
+        Merged into what is already stored: the payload an applet builds from
+        its own state knows nothing about keys other paths wrote, so replacing
+        the mapping silently discarded them.
+        """
+        merged = self.load_prefs()
+        merged.update(prefs)
+        self._config.applet_prefs[self.id] = merged
+        self._config.save()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Render the active icon source at the given size."""
@@ -519,3 +527,35 @@ class Applet(ABC):
         self.refresh_tooltip()
         if self._notify:
             self._notify()
+
+
+class ApplicationServicesApplet(Applet):
+    """Applet base that guarantees application services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        super().__init__(icon_size=icon_size, config=config)
+
+
+class TargetServicesApplet(Applet):
+    """Applet base that guarantees icon and target services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+    ) -> None:
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        super().__init__(icon_size=icon_size, config=config)

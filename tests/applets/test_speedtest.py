@@ -80,7 +80,7 @@ def _make_applet(
     icon_size: int = 48, *, config: Config | None = None
 ) -> SpeedtestApplet:
     with patch("docking.applets.speedtest.applet.BackgroundWorker", _ImmediateWorker):
-        return SpeedtestApplet(icon_size, config=config)
+        return SpeedtestApplet(icon_size, config=config or Config())
 
 
 class TestFormatSpeed:
@@ -290,6 +290,21 @@ class TestLibrespeedPingAndSelection:
         assert drained == ["https://a.test/ping"] * 4
         assert avg == pytest.approx((150 + 300 + 350) / 3)
         assert jitter > 0
+
+    def test_ping_jitter_reports_a_value_for_the_three_sample_run(self, monkeypatch):
+        """Three-sample runs reported "Jitter: 0.0 ms" before the first interval
+        seeded the smoothing.
+        """
+        times = iter([0.00, 0.10, 0.20, 0.30, 0.40, 0.70])
+        server = Server(1, "A", "https://a.test", "dl", "ul", "ping")
+        monkeypatch.setattr(librespeed.time, "monotonic", lambda: next(times))
+        monkeypatch.setattr(librespeed, "_http_get_drain", lambda *, url, timeout: None)
+
+        avg, jitter = ping_jitter(server=server, count=3, timeout=1.0)
+
+        # Samples are 100ms, 100ms and 300ms; the first is discarded.
+        assert avg == pytest.approx(200.0)
+        assert jitter == pytest.approx(200.0)
 
     def test_ping_jitter_raises_when_all_samples_fail(self, monkeypatch):
         server = Server(1, "A", "https://a.test", "dl", "ul", "ping")

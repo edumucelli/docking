@@ -36,9 +36,17 @@ git -C "${ROOT_DIR}" archive \
 
 cp "${ROOT_DIR}/packaging/rpm/docking.spec" "${TOPDIR}/SPECS/docking.spec"
 
+# CI supplies native PyWayland fallbacks for every supported distribution Python
+# version, which the Ubuntu build host cannot provide on its own.
+EXTRA_DEFINES=()
+if [ -n "${DOCKING_EXTRA_PYWAYLAND:-}" ]; then
+  EXTRA_DEFINES+=(--define "extra_pywayland ${DOCKING_EXTRA_PYWAYLAND}")
+fi
+
 rpmbuild -bb --nodeps "${TOPDIR}/SPECS/docking.spec" \
   --define "_topdir ${TOPDIR}" \
-  --define "pkg_version ${VERSION}"
+  --define "pkg_version ${VERSION}" \
+  "${EXTRA_DEFINES[@]}"
 
 find "${TOPDIR}/RPMS" -name '*.rpm' -type f -exec cp -f {} "${ARTIFACTS_DIR}/" \;
 ls -lh "${ARTIFACTS_DIR}"/*.rpm

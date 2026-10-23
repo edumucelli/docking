@@ -35,10 +35,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from types import SimpleNamespace
+from weakref import WeakKeyDictionary
 
 import cairo
 
-from docking.core.position import Position
+from docking.core.position import Position, is_horizontal
 from docking.platform.backends.base import (
     MonitorSnapshot,
     PlacementRequest,
@@ -71,6 +72,12 @@ def layer_shell_is_supported(layer_shell: object) -> bool:
         return False
 
 
+# Same layer as the dock, so a fullscreen window covers the outline as it covers
+# the dock. OVERLAY drew above fullscreen on sway but changed nothing else
+# (pixels, click-through, stacking against the preview popup were identical).
+OVERLAY_LAYER = "TOP"
+
+
 class WaylandLayerShellSurfaceService(SurfaceService):
     """Layer-shell implementation for the main dock surface."""
 
@@ -87,6 +94,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._surface_x: int | None = None
         self._surface_y: int | None = None
         self._monitor: MonitorSnapshot | None = None
+        self._overlay_monitors: WeakKeyDictionary[object, object] = WeakKeyDictionary()
 
     def start(self) -> None:
         """No service-level runtime loop is needed."""
@@ -97,6 +105,10 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._surface_x = None
         self._surface_y = None
         self._monitor = None
+
+    @property
+    def compositor_sizes_main_axis(self) -> bool:
+        return True
 
     @property
     def popups_use_parent_relative_coordinates(self) -> bool:
@@ -116,6 +128,9 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         _call_if_available(window, "set_app_paintable", True)
         _call_if_available(window, "set_accept_focus", False)
         _call_if_available(window, "set_focus_on_map", False)
+        # GtkLayerShell applies compositor configure sizes via geometry hints;
+        # a non-resizable GtkWindow overrides those with its natural size.
+        _call_if_available(window, "set_resizable", True)
 
         layer_shell = self._layer_shell
         layer_shell.init_for_window(window)
@@ -132,7 +147,15 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             window,
             _enum_member(layer_shell, "KeyboardMode", "NONE"),
         )
-        self._set_anchors(Position.BOTTOM)
+        # Anchors are set by position_or_anchor, not here, and the ordering is
+        # load-bearing. gtk-layer-shell decides which axis of the committed size
+        # to leave to the compositor -- sending 0 for it -- from the anchors in
+        # effect when it first configures the surface. Anchoring here, before the
+        # position is known, fixes that choice to the wrong axis for a left or
+        # right dock, which then commits width 0: legal only on an axis anchored
+        # at both ends, and a protocol error otherwise. Placement always runs
+        # before the surface is mapped, so the real anchors reach the first
+        # commit.
 
     def on_realize(self, window: object) -> None:
         """Remember the realized GTK window and signal layer-surface readiness."""
@@ -161,20 +184,17 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._set_monitor_for_window(window, request.monitor)
         self._set_anchors(position)
         self._set_margins(position=position, gap=0)
-        _call_if_available(
-            self._layer_shell,
-            "set_size",
-            window,
-            request.size.width,
-            request.size.height,
-        )
+        # Opposite anchors stretch the main axis to the compositor's usable
+        # space. A monitor-sized GTK minimum overrides panel-reduced configure
+        # sizes. Keep only the cross-axis minimum for zoom/bounce headroom.
+        horizontal = is_horizontal(position)
         _call_if_available(
             window,
             "set_size_request",
-            request.size.width,
-            request.size.height,
+            -1 if horizontal else request.size.width,
+            request.size.height if horizontal else -1,
         )
-        _call_if_available(window, "resize", request.size.width, request.size.height)
+        _call_if_available(window, "resize", 1, 1)
 
     def set_reservation(self, request: ReservationRequest) -> None:
         """Reserve edge space using layer-shell exclusive zones."""
@@ -214,6 +234,74 @@ class WaylandLayerShellSurfaceService(SurfaceService):
 
     def set_blur_region(self, rect: Rect | None) -> None:
         """Blur hints are not part of the generic layer-shell path."""
+
+    @property
+    def overlay_uses_toplevel(self) -> bool:
+        return True
+
+    def prepare_overlay_window(self, window: object) -> None:
+        """Turn a toplevel into an input-less, unmanaged layer-shell overlay."""
+        layer_shell = self._layer_shell
+        layer_shell.init_for_window(window)
+        _call_if_available(layer_shell, "set_namespace", window, "docking-outline")
+        _call_if_available(
+            layer_shell,
+            "set_layer",
+            window,
+            _enum_member(layer_shell, "Layer", OVERLAY_LAYER),
+        )
+        _call_if_available(
+            layer_shell,
+            "set_keyboard_mode",
+            window,
+            _enum_member(layer_shell, "KeyboardMode", "NONE"),
+        )
+        # Anchored to one corner, margins measure from that corner, so a margin
+        # pair is an absolute offset within the monitor. A negative exclusive
+        # zone keeps panels and the dock from displacing the overlay.
+        edges = _edges(layer_shell)
+        for edge_name in ("TOP", "LEFT", "BOTTOM", "RIGHT"):
+            _call_if_available(
+                layer_shell,
+                "set_anchor",
+                window,
+                getattr(edges, edge_name),
+                edge_name in ("TOP", "LEFT"),
+            )
+        _call_if_available(layer_shell, "set_exclusive_zone", window, -1)
+
+    def place_overlay(self, window: object, rect: Rect) -> None:
+        """Offset the overlay from its monitor's origin; the centre picks the monitor.
+
+        A window spanning two monitors is clipped to the one holding its centre.
+        """
+        display = _call_if_available(window, "get_display")
+        gdk_monitor = _call_if_available(
+            display,
+            "get_monitor_at_point",
+            rect.x + rect.width // 2,
+            rect.y + rect.height // 2,
+        )
+        if gdk_monitor is None:
+            return
+        if self._overlay_monitors.get(window) is not gdk_monitor:
+            _call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
+            self._overlay_monitors[window] = gdk_monitor
+        bounds = gdk_monitor.get_geometry()
+        edges = _edges(self._layer_shell)
+        for edge_name, margin in (
+            ("LEFT", rect.x - bounds.x),
+            ("TOP", rect.y - bounds.y),
+        ):
+            _call_if_available(
+                self._layer_shell,
+                "set_margin",
+                window,
+                getattr(edges, edge_name),
+                margin,
+            )
+        _call_if_available(window, "set_size_request", rect.width, rect.height)
+        _call_if_available(window, "resize", rect.width, rect.height)
 
     def _set_monitor(self, monitor: MonitorSnapshot) -> None:
         window = self._window

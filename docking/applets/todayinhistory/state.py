@@ -102,7 +102,9 @@ def _extract_article(page: object) -> tuple[str, str]:
             raw_variant = content_urls.get(variant)
             if not isinstance(raw_variant, dict):
                 continue
-            variant_map = {str(key): value for key, value in raw_variant.items()}
+            variant_map: dict[str, object] = {
+                str(key): value for key, value in raw_variant.items()
+            }
             raw_page = variant_map.get("page")
             if isinstance(raw_page, str):
                 url = raw_page.strip()

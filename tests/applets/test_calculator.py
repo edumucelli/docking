@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.calculator.applet as calculator_applet_mod
 from docking.applets.calculator.applet import CalculatorApplet
 from docking.applets.calculator.state import evaluate, prefs_payload
@@ -12,7 +14,7 @@ from docking.core.config import Config
 
 
 def _make_applet(config: Config | None = None) -> CalculatorApplet:
-    return CalculatorApplet(48, config=config)
+    return CalculatorApplet(48, config=config or Config())
 
 
 class _FakePopupWindow:
@@ -145,6 +147,28 @@ class _FakeBuildBox:
 
 
 class TestEvaluate:
+    @pytest.mark.parametrize(
+        ("expression", "expected"),
+        [
+            ("9007199254740993", "9007199254740993"),
+            ("9007199254740993 + 1", "9007199254740994"),
+            ("9007199254740993 - 9007199254740992", "1"),
+            ("12345678901234567890 * 3", "37037036703703703670"),
+            ("-9007199254740993", "-9007199254740993"),
+            pytest.param("1" + "0" * 400, "1" + "0" * 400, id="large-integer"),
+        ],
+    )
+    def test_integer_results_keep_all_digits(self, expression, expected):
+        assert evaluate(expression) == expected
+
+    @pytest.mark.parametrize(
+        "expression",
+        ["+".join(["1"] * 1500), "-" * 3000 + "1"],
+        ids=["long-sum", "deep-unary"],
+    )
+    def test_deep_expression_returns_an_error(self, expression):
+        assert evaluate(expression).startswith("Error")
+
     def test_addition(self):
         assert evaluate("2+2") == "4"
 
@@ -196,6 +220,24 @@ class TestEvaluate:
     def test_large_number(self):
         assert evaluate("999999*999999") == "999998000001"
 
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            "1e400",  # parses straight to infinity
+            "1e308 * 10",  # finite operands, infinite product
+        ],
+    )
+    def test_overflow_reports_an_error_instead_of_escaping(self, expression):
+        """evaluate() promises a result or an error message, never a raise."""
+        result = evaluate(expression)
+
+        assert result == "Error: result too large"
+
+    @pytest.mark.parametrize("expression", ["True", "False", "true"])
+    def test_boolean_literals_are_not_numbers(self, expression):
+        """bool is a subclass of int, so it slipped through the numeric check."""
+        assert "Error" in evaluate(expression)
+
 
 class TestPrefsPayload:
     def test_round_trip(self):
@@ -218,7 +260,7 @@ class TestAppletCreation:
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CalculatorApplet(size)
+            applet = CalculatorApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 

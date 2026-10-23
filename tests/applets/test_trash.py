@@ -2,6 +2,7 @@
 
 import configparser
 import contextlib
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -27,6 +28,7 @@ from docking.applets.trash.backend import (
     _visible_trash_info_directory,
     select_trash_backend,
 )
+from docking.core.config import Config
 from docking.platform.environment import Desktop
 
 
@@ -57,11 +59,10 @@ class TestHelperFunctions:
     ):
         home = tmp_path / "home"
         mount = tmp_path / "media" / "ARCHIVES"
-        volume_trash = mount / ".Trash-1000"
+        volume_trash = mount / f".Trash-{os.getuid()}"
         volume_trash.mkdir(parents=True)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
-        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
         monkeypatch.setattr(
             "docking.applets.trash.backend._mount_points",
             lambda: (mount,),
@@ -81,11 +82,11 @@ class TestHelperFunctions:
     ):
         home = tmp_path / "home"
         mount = tmp_path / "media" / "SHARED"
-        volume_trash = mount / ".Trash" / "1000"
+        volume_trash = mount / ".Trash" / str(os.getuid())
         volume_trash.mkdir(parents=True)
+        volume_trash.parent.chmod(0o1777)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
-        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
         monkeypatch.setattr(
             "docking.applets.trash.backend._mount_points",
             lambda: (mount,),
@@ -122,12 +123,10 @@ class TestHelperFunctions:
         assert result == Path("/tmp/test-xdg/config") / "kiorc"
 
     def test_open_trash_uri_handles_glib_error(self):
-        from gi.repository import GLib
-
         with (
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("no handler"),
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
             ),
             patch("docking.applets.trash.backend.shutil.which", return_value=False),
         ):
@@ -412,13 +411,11 @@ class TestGioTrashBackend:
     def test_open_launches_default_trash_uri(self):
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
 
     def test_open_prefers_sanitized_host_gio_in_flatpak(self):
         with (
@@ -428,9 +425,7 @@ class TestGioTrashBackend:
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.subprocess.Popen") as popen,
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
@@ -452,7 +447,7 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_not_called()
+        open_target.assert_not_called()
 
     def test_open_falls_back_to_gio_when_host_open_unavailable(self):
         with (
@@ -466,8 +461,8 @@ class TestGioTrashBackend:
                 side_effect=OSError("spawn failed"),
             ) as popen,
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-            ) as launch,
+                "docking.applets.trash.backend.targets.open_target",
+            ) as open_target,
         ):
             GioTrashBackend().open()
 
@@ -489,17 +484,15 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
 
     def test_mate_open_falls_back_to_caja_when_gio_rejects_trash_uri(self):
-        from gi.repository import GLib
-
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("operation not supported"),
-            ) as launch,
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
+            ) as open_target,
             patch(
                 "docking.applets.trash.backend.shutil.which",
                 side_effect=lambda command: (
@@ -510,14 +503,12 @@ class TestGioTrashBackend:
         ):
             MateTrashBackend().open()
 
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
         popen.assert_called_once_with(("caja", "trash:///"))
 
     def test_open_falls_back_to_visible_trash_files_directory_when_uri_handlers_fail(
         self, tmp_path
     ):
-        from gi.repository import GLib
-
         files_dir = tmp_path / "Trash" / "files"
         files_dir.mkdir(parents=True)
         with (
@@ -527,8 +518,8 @@ class TestGioTrashBackend:
                 return_value=files_dir,
             ),
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-                side_effect=GLib.Error("operation not supported"),
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
             ),
             patch(
                 "docking.applets.trash.backend.shutil.which",
@@ -564,7 +555,7 @@ class TestGioTrashBackend:
             patch("docking.applets.trash.backend.Gio.bus_get_sync") as bus_get,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         bus_get.assert_not_called()
         delete_mock.assert_called_once()
@@ -577,6 +568,58 @@ class TestGioTrashBackend:
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            backend.empty(lambda: True)
+
+        delete_mock.assert_called_once()
+
+    def test_direct_delete_asks_first_when_no_file_manager_answers(self):
+        """Deleting here is irreversible, so the callback is mandatory.
+
+        Handing the request to Nautilus/Caja fails whenever no file manager is
+        running, which is the normal case on i3, sway, and XFCE.
+        """
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        asked: list[str] = []
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            result = backend.empty(lambda: asked.append("asked") or False)
+
+        assert asked == ["asked"]
+        delete_mock.assert_not_called()
+        assert result.attempted is False
+        assert result.remaining_count == result.before_count
+
+    def test_declined_confirmation_survives_a_dead_file_manager(self):
+        """Cancel must leave the trash exactly as it was found."""
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+            patch("docking.applets.trash.backend._empty_host_trash") as host_mock,
+        ):
+            result = backend.empty(lambda: False)
+
+        delete_mock.assert_not_called()
+        host_mock.assert_not_called()
+        assert result.attempted is False
+
+    def test_desktop_preference_false_skips_the_prompt_entirely(self):
+        """A desktop that turned the warning off must not be asked again."""
+        backend = MateTrashBackend()
+        with (
+            patch.object(backend, "_confirmation_preference", return_value=False),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             backend.empty(lambda: False)
@@ -600,7 +643,7 @@ class TestGioTrashBackend:
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             run_mock.return_value.returncode = 0
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         run_mock.assert_called_once_with(
             [
@@ -644,7 +687,7 @@ class TestGioTrashBackend:
             run_mock.return_value.returncode = 1
             run_mock.return_value.stderr = "nope"
             run_mock.return_value.stdout = ""
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete_mock.assert_called_once()
 
@@ -839,7 +882,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is True
@@ -861,7 +904,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is None
@@ -976,7 +1019,7 @@ class TestKdeTrashBackend:
 
         backend = KdeTrashBackend()
         with patch.object(backend, "_delete_contents") as delete:
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete.assert_called_once()
 
@@ -1062,12 +1105,10 @@ class TestKdeTrashBackend:
             "docking.applets.trash.backend.subprocess.Popen",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("failed")),
         )
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+        with patch("docking.applets.trash.backend.targets.open_target") as open_target:
             KdeTrashBackend().open()
 
-        launch.assert_called_once_with("trash:/", None)
+        open_target.assert_called_once_with("trash:/")
 
     def test_kde_delete_directory_contents_oserror(self, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/root/restricted")
@@ -1148,7 +1189,7 @@ class TestKdeTrashBackend:
             trash.enumerate_children.return_value = MagicMock()
             trash.enumerate_children.return_value.next_file.return_value = None
             new_for_uri.return_value = trash
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
     def test_kde_monitor_files_not_flatpak(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
@@ -1254,7 +1295,7 @@ def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
         "select_trash_backend",
         lambda **_: backend,
     )
-    return TrashApplet(48)
+    return TrashApplet(48, config=Config())
 
 
 class TestTrashAppletIcon:

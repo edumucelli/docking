@@ -60,7 +60,7 @@ class KeyboardLayoutApplet(Applet):
     name = _("Keyboard Layout")
     icon_name = "input-keyboard"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = detect_backend()
         self._layout = LayoutState(active="", available=[])
         self._timer_id: int = 0

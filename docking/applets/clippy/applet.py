@@ -32,6 +32,7 @@ from docking.applets.clippy.state import (
     _truncate,
     add_clip,
     cycle_position,
+    normalize_max_entries,
     tooltip_text,
 )
 from docking.applets.menu import menu_sections
@@ -48,7 +49,7 @@ class ClippyApplet(Applet):
     name = _("Clippy")
     icon_name = "edit-paste"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._clips: list[str] = []
         self._cur_position: int = 0
         self._handler_id: int = 0
@@ -56,9 +57,8 @@ class ClippyApplet(Applet):
 
         # Load prefs
         self._max_entries = 15
-        if config:
-            prefs = config.applet_prefs.get("clippy", {})
-            self._max_entries = prefs.get("max_entries", 15)
+        prefs = config.applet_prefs.get("clippy", {})
+        self._max_entries = normalize_max_entries(prefs.get("max_entries", 15))
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()

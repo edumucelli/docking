@@ -6,7 +6,7 @@ Focuses on logic that can be tested without a full GTK display.
 from __future__ import annotations
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 # Ensure GTK mocking happens before the diagnostics module loads
 try:
@@ -18,6 +18,8 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.backends.diagnostics import WindowTrackingDiagnostic
 from docking.platform.diagnostics import DiagnosticCheck, DiagnosticFeature
 from docking.ui.diagnostics import DiagnosticsDialogController
 
@@ -262,6 +264,7 @@ def _make_snapshot(**overrides):
 def _fake_window_and_backend():
     parent = MagicMock()
     backend = MagicMock()
+    backend.windows.diagnostic_snapshot.return_value = WindowTrackingDiagnostic()
     parent.get_display.return_value = MagicMock()
     return parent, backend
 
@@ -308,7 +311,9 @@ class TestDiagnosticsControllerInit:
     def test_init_sets_parent_and_backend(self):
         parent = MagicMock()
         backend = MagicMock()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         assert controller._parent is parent
         assert controller._backend is backend
         assert controller._window is None
@@ -321,11 +326,55 @@ class TestDiagnosticsControllerInit:
 
 
 class TestDiagnosticsShow:
+    def test_refresh_and_report_use_current_settings_without_backend_actions(
+        self, monkeypatch
+    ):
+        import docking.ui.diagnostics as mod
+        from docking.core.config import Config, effective_edge_gap
+        from docking.core.theme import Theme
+        from docking.platform.diagnostics import collect_diagnostics
+
+        parent, backend = _fake_window_and_backend()
+        parent.get_display.return_value = None
+        config = Config(position="bottom", additional_distance_from_edge=3)
+        parent.theme = Theme(distance_from_edge=5)
+        controller = DiagnosticsDialogController(
+            parent=parent,
+            backend=backend,
+            application_registry=ApplicationRegistry(),
+            config=config,
+            edge_gap_provider=lambda: effective_edge_gap(parent.theme, config),
+        )
+        backend.name = "test-backend"
+        backend.reset_mock()
+        collector = MagicMock(wraps=collect_diagnostics)
+        monkeypatch.setattr(mod, "collect_diagnostics", collector)
+        controller._build_window = MagicMock(return_value=MagicMock())
+
+        assert "- effective_edge_gap: 8 px" in controller._current_report()
+        controller.show()
+        config.position = "right"
+        config.additional_distance_from_edge = 9
+        parent.theme = Theme(distance_from_edge=7)
+        controller.show()
+
+        report = controller._current_report()
+        assert "- position: right" in report
+        assert "- effective_edge_gap: 16 px" in report
+        assert collector.call_count == 3
+        assert backend.mock_calls == [
+            call.windows.diagnostic_snapshot(),
+            call.windows.diagnostic_snapshot(),
+            call.windows.diagnostic_snapshot(),
+        ]
+
     def test_show_destroys_previous_window(self, monkeypatch):
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
 
         snapshot = _make_snapshot()
         monkeypatch.setattr(mod, "collect_diagnostics", lambda **kw: snapshot)
@@ -349,7 +398,9 @@ class TestDiagnosticsShow:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
 
         snapshot = _make_snapshot()
         monkeypatch.setattr(mod, "collect_diagnostics", lambda **kw: snapshot)
@@ -371,7 +422,9 @@ class TestDiagnosticsShow:
 class TestDiagnosticsOnDestroy:
     def test_on_destroy_clears_window(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         fake_window = MagicMock()
         controller._window = fake_window
         controller._on_destroy(fake_window)
@@ -379,7 +432,9 @@ class TestDiagnosticsOnDestroy:
 
     def test_on_destroy_different_window_ignored(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         original = MagicMock()
         controller._window = original
         controller._on_destroy(MagicMock())
@@ -396,7 +451,9 @@ class TestDiagnosticsCurrentReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         fake_snapshot = MagicMock()
         controller._snapshot = fake_snapshot
         monkeypatch.setattr(
@@ -409,7 +466,9 @@ class TestDiagnosticsCurrentReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         fake_snapshot = MagicMock()
         monkeypatch.setattr(mod, "collect_diagnostics", lambda **kw: fake_snapshot)
         monkeypatch.setattr(mod, "format_diagnostics_report", lambda s: "report text")
@@ -426,7 +485,9 @@ class TestDiagnosticsCurrentReport:
 class TestDiagnosticsFeatureRow:
     def test_feature_row_available(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         feature = DiagnosticFeature(
             id="compositing",
             label="Compositing",
@@ -438,7 +499,9 @@ class TestDiagnosticsFeatureRow:
 
     def test_feature_row_unavailable(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         feature = DiagnosticFeature(
             id="compositing",
             label="Compositing",
@@ -457,7 +520,9 @@ class TestDiagnosticsFeatureRow:
 class TestDiagnosticsCheckRow:
     def test_check_row_with_fix_hint(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         check = DiagnosticCheck(
             id="theme",
             label="Theme",
@@ -470,7 +535,9 @@ class TestDiagnosticsCheckRow:
 
     def test_check_row_without_fix_hint(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         check = DiagnosticCheck(
             id="deps",
             label="Dependencies",
@@ -492,7 +559,9 @@ class TestDiagnosticsCopyReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._snapshot = _make_snapshot()
         monkeypatch.setattr(mod, "format_diagnostics_report", lambda s: "my report")
 
@@ -515,7 +584,9 @@ class TestDiagnosticsCopyReport:
 class TestDiagnosticsSaveReport:
     def test_on_save_report_no_window_returns(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._window = None
         # Should not raise
         controller._on_save_report()
@@ -524,7 +595,9 @@ class TestDiagnosticsSaveReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._snapshot = _make_snapshot()
         controller._window = MagicMock()
         monkeypatch.setattr(
@@ -547,7 +620,9 @@ class TestDiagnosticsSaveReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._window = MagicMock()
         monkeypatch.setattr(mod, "format_diagnostics_report", lambda s: "x")
 
@@ -562,7 +637,9 @@ class TestDiagnosticsSaveReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._window = MagicMock()
 
         fake_chooser = MagicMock()
@@ -577,7 +654,9 @@ class TestDiagnosticsSaveReport:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._snapshot = _make_snapshot()
         controller._window = MagicMock()
         monkeypatch.setattr(mod, "format_diagnostics_report", lambda s: "x")
@@ -606,7 +685,9 @@ class TestDiagnosticsSaveReport:
 class TestDiagnosticsShowError:
     def test_show_error_no_window_returns(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._window = None
         # Should not raise
         controller._show_error("test error")
@@ -615,7 +696,9 @@ class TestDiagnosticsShowError:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         controller._window = MagicMock()
 
         fake_dialog = MagicMock()
@@ -635,19 +718,25 @@ class TestDiagnosticsShowError:
 class TestDiagnosticsHelpers:
     def test_new_section_header_creates_markup_label(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         label = controller._new_section_header("Test Section")
         assert label is not None
 
     def test_new_kv_grid(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         grid = controller._new_kv_grid()
         assert grid is not None
 
     def test_append_kv_row(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         grid = controller._new_kv_grid()
         controller._append_kv_row(grid, 0, "Key", "Value")
         # Should not raise
@@ -662,7 +751,9 @@ class TestDiagnosticsTabBuilders:
     def test_build_overview_tab_without_warnings(self, monkeypatch):
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         snapshot = _make_snapshot(checks=())
 
         tab = controller._build_overview_tab(snapshot)
@@ -671,7 +762,9 @@ class TestDiagnosticsTabBuilders:
     def test_build_overview_tab_with_warnings(self, monkeypatch):
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
 
         snapshot = _make_snapshot(
             checks=(
@@ -690,7 +783,9 @@ class TestDiagnosticsTabBuilders:
 
     def test_build_features_tab(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
 
         snapshot = _make_snapshot(
             features=(
@@ -714,7 +809,9 @@ class TestDiagnosticsTabBuilders:
 
     def test_build_checks_tab(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
 
         snapshot = _make_snapshot(
             checks=(
@@ -740,15 +837,56 @@ class TestDiagnosticsTabBuilders:
 
     def test_build_environment_tab(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         snapshot = _make_snapshot()
 
         tab = controller._build_environment_tab(snapshot)
         assert tab is not None
 
+    def test_build_environment_tab_displays_new_report_fields(self):
+        from docking.platform.diagnostics import MonitorDiagnostic
+
+        parent, backend = _fake_window_and_backend()
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
+        controller._append_kv_row = MagicMock()
+        snapshot = _make_snapshot(
+            architecture="aarch64",
+            kernel_version="6.12-test",
+            settings={"hide_mode": "none", "effective_edge_gap": "12 px"},
+            monitors=(
+                MonitorDiagnostic(
+                    index=0,
+                    geometry="0,0 1920x1080",
+                    scale=1,
+                    primary=True,
+                    connector="DP-2",
+                    workarea="0,40 1920x1040",
+                ),
+            ),
+        )
+
+        controller._build_environment_tab(snapshot)
+
+        rows = [
+            (call.args[2], call.args[3])
+            for call in controller._append_kv_row.call_args_list
+        ]
+        assert ("Architecture", "aarch64") in rows
+        assert ("Kernel", "6.12-test") in rows
+        assert ("hide_mode", "none") in rows
+        assert ("effective_edge_gap", "12 px") in rows
+        assert any("DP-2" in label for label, _ in rows)
+        assert ("#0 GDK-reported workarea", "0,40 1920x1040") in rows
+
     def test_build_environment_tab_no_monitors(self):
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         snapshot = _make_snapshot(monitors=())
 
         tab = controller._build_environment_tab(snapshot)
@@ -758,7 +896,9 @@ class TestDiagnosticsTabBuilders:
         import docking.ui.diagnostics as mod
 
         parent, backend = _fake_window_and_backend()
-        controller = DiagnosticsDialogController(parent=parent, backend=backend)
+        controller = DiagnosticsDialogController(
+            parent=parent, backend=backend, application_registry=ApplicationRegistry()
+        )
         snapshot = _make_snapshot()
         monkeypatch.setattr(mod, "format_diagnostics_report", lambda s: "report text")
 

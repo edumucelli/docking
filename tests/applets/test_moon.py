@@ -15,6 +15,7 @@ from docking.applets.moon.offline import (
 )
 from docking.applets.moon.render import create_icon
 from docking.applets.moon.state import MoonData, _parse_moon_html, phase_name
+from docking.core.config import Config
 
 _SAMPLE_HTML = """
 <html><head><title>The Moon's Phase</title></head>
@@ -225,27 +226,27 @@ class TestRenderIcon:
 
 class TestMoonApplet:
     def test_creates_with_icon(self):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_tooltip_loading(self):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         assert "loading" in applet.item.name.lower()
 
     def test_tooltip_after_data(self):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         applet._moon = _SAMPLE_MOON
         applet.refresh_tooltip()
         assert "96%" in applet.item.name
 
     def test_menu_has_entries(self):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Show Phase Name" in labels
         assert "Refresh Now" in labels
 
     def test_icon_renders_with_data(self):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         applet._moon = _SAMPLE_MOON
         assert applet.create_icon(size=48) is not None
 
@@ -272,7 +273,7 @@ class TestMoonApplet:
         applet.present.assert_called_once()
 
     def test_start_stop_tick_clicked_and_fetch_async(self, monkeypatch):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         calls: list[str] = []
         removed: list[int] = []
         applet._fetch_async = lambda: calls.append("fetch")  # type: ignore[assignment]
@@ -299,7 +300,7 @@ class TestMoonApplet:
         assert removed == [55]
 
     def test_fetch_async_and_on_result_branches(self, monkeypatch):
-        applet = MoonApplet(48)
+        applet = MoonApplet(48, config=Config())
         calls: list[tuple[str, object]] = []
         monkeypatch.setattr(moon_applet_mod, "fetch_moon", lambda: _SAMPLE_MOON)
 

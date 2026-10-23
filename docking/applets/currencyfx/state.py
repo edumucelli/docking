@@ -205,7 +205,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CurrencyFxPrefs:
 
     try:
         active_index = int(prefs.get("active_index", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         active_index = 0
     active_index = clamp_index(active_index, len(pairs))
 

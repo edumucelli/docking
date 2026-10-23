@@ -37,8 +37,9 @@ def next_workspace_index(*, current: int, count: int, delta: int) -> int:
     return (current + delta) % count
 
 
-def workspace_label(*, name: str | None, number: int) -> str:
-    base = f"Workspace {number + 1}"
+def workspace_label(*, name: str | None, index: int) -> str:
+    """Label a workspace by its position, which users see numbered from 1."""
+    base = f"Workspace {index + 1}"
     if name:
         clean = name.strip()
         if clean and clean != base and not _GENERIC_WS_NAME_RE.match(clean):

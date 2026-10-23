@@ -31,6 +31,10 @@ DEFAULT_PREFS: dict[str, Any] = {
     "alarm_target": None,
 }
 
+# An alarm is always for the next occurrence of a time of day, so a target
+# past this is a corrupted or hand-mangled value, not one the user asked for.
+MAX_ALARM_HORIZON_S = 366 * 24 * 60 * 60
+
 
 def minute_rotation(minute: int) -> float:
     """Rotation angle (radians) for the minute hand."""
@@ -59,30 +63,54 @@ def normalize_alarm_target(value: object, *, now_ts: float) -> int | None:
     if isinstance(value, int):
         target = value
     elif isinstance(value, float):
+        if not math.isfinite(value):
+            return None
         target = int(value)
     else:
         return None
-    return target if target > int(now_ts) else None
+    now = int(now_ts)
+    if target <= now or target > now + MAX_ALARM_HORIZON_S:
+        return None
+    # time.localtime raises for a value the platform cannot represent, and the
+    # applet formats the target during construction.
+    try:
+        time.localtime(target)
+    except (OSError, OverflowError, ValueError):
+        return None
+    return target
+
+
+def _wall_clock_target(
+    now_local: time.struct_time, *, day_offset: int, hour: int, minute: int
+) -> float:
+    """Timestamp of HH:MM, ``day_offset`` calendar days after ``now_local``.
+
+    mktime normalises an out-of-range day, and the -1 dst flag makes it resolve
+    the target's own daylight-saving state rather than now's.
+    """
+    return time.mktime(
+        (
+            now_local.tm_year,
+            now_local.tm_mon,
+            now_local.tm_mday + day_offset,
+            hour,
+            minute,
+            0,
+            0,
+            0,
+            -1,
+        )
+    )
 
 
 def compute_alarm_target(*, now_ts: float, hour: int, minute: int) -> int:
     """Return the next timestamp for the requested wall-clock time."""
     now_local = time.localtime(now_ts)
-    target = time.mktime(
-        (
-            now_local.tm_year,
-            now_local.tm_mon,
-            now_local.tm_mday,
-            hour,
-            minute,
-            0,
-            now_local.tm_wday,
-            now_local.tm_yday,
-            now_local.tm_isdst,
-        )
-    )
+    target = _wall_clock_target(now_local, day_offset=0, hour=hour, minute=minute)
     if target <= now_ts:
-        target += 24 * 60 * 60
+        # Advance the calendar day: the next day is not 86400 seconds away
+        # across a daylight-saving change.
+        target = _wall_clock_target(now_local, day_offset=1, hour=hour, minute=minute)
     return int(target)
 
 
@@ -137,7 +165,8 @@ def build_tooltip(
         alarm_text = time.strftime("%H:%M", alarm_now)
     else:
         alarm_text = time.strftime("%-I:%M %p", alarm_now)
-    return f"{current}\n{_('Alarm: {time}').format(time=alarm_text)}"
+    alarm_label = _("Alarm: {time}").format(time=alarm_text)
+    return f"{current}\n{alarm_label}"
 
 
 def save_payload(

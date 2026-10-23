@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,6 +22,16 @@ if gi is not None:  # pragma: no branch - tiny startup guard
     ):
         with suppress(ValueError):
             gi.require_version(namespace, version)
+
+
+@pytest.fixture
+def monotonic_clock(monkeypatch):
+    """Advance animation time explicitly, without sleeping or dispatching timers."""
+    from gi.repository import GLib
+
+    clock = SimpleNamespace(now_us=0)
+    monkeypatch.setattr(GLib, "get_monotonic_time", lambda: clock.now_us)
+    return clock
 
 
 @pytest.fixture(autouse=True)

@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import mimetypes
 import urllib.error
-import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -26,6 +25,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
+from docking.applets.http import is_valid_http_url
+from docking.core.paths import local_path_from_uri_or_path as file_path_from_uri
 from docking.log import get_logger
 
 UPLOAD_ENDPOINT = "https://tmpfiles.org/api/v1/upload"
@@ -54,16 +55,6 @@ class UploadError(RuntimeError):
 class UploadResult:
     url: str
     file_name: str
-
-
-def file_path_from_uri(uri: str) -> Path | None:
-    """Return a local file path for file:// URI or plain path input."""
-    parsed = urllib.parse.urlparse(uri)
-    if parsed.scheme == "file":
-        return Path(urllib.parse.unquote(parsed.path))
-    if parsed.scheme:
-        return None
-    return Path(urllib.parse.unquote(uri)).expanduser()
 
 
 def first_uploadable_file(uris: list[str]) -> Path | None:
@@ -135,7 +126,12 @@ def _multipart_body(*, path: Path, boundary: str) -> bytes:
 
 
 def _quote_header_value(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+    )
 
 
 def _url_from_response(payload: str) -> str:
@@ -151,6 +147,6 @@ def _url_from_response(payload: str) -> str:
     if not isinstance(data, dict):
         raise UploadError("Upload service returned an invalid response")
     url = data.get("url")
-    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+    if not isinstance(url, str) or not is_valid_http_url(url):
         raise UploadError("Upload service returned an invalid URL")
     return url

@@ -121,23 +121,28 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
+from docking.core.config import DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform.backends.base import WindowId, WindowService, WindowSnapshot
-from docking.ui.display import clamp_popup
+from docking.platform.backends.base import Size, WindowId, WindowService, WindowSnapshot
+from docking.ui.display import clamp_popup, popup_workarea
+from docking.ui.display import scrolled_popup_size as preview_size
 
 if TYPE_CHECKING:
-    from docking.platform.backends.base import PreviewService
+    from docking.platform.backends.base import PreviewImage, PreviewService
     from docking.ui.autohide import AutoHideController
+    from docking.ui.window_outline import WindowOutline
 
 log = get_logger(name="preview")
 
-THUMB_W = 200
+THUMB_W = DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
 THUMB_H = 150
 POPUP_PADDING = 8
 THUMB_SPACING = 8
-LABEL_MAX_CHARS = 25
+LABEL_CHARS_DIVISOR = 8
+LABEL_MIN_CHARS = 12
 PREVIEW_HIDE_DELAY_MS = 300
+PREVIEW_REFRESH_INTERVAL_MS = 100
 ICON_FALLBACK_SIZE = 64
 PREVIEW_GAP_PX = 40
 
@@ -153,6 +158,9 @@ _CSS = b"""
     border: 2px solid transparent;
     padding: 2px;
 }
+.preview-popup viewport {
+    background-color: transparent;
+}
 .preview-thumb:hover {
     border-color: rgba(100, 180, 255, 0.8);
     background-color: rgba(100, 180, 255, 0.15);
@@ -166,6 +174,17 @@ _CSS = b"""
     margin-top: -4px;
 }
 """
+
+
+def thumbnail_size(width: int) -> tuple[int, int]:
+    """Return (width, height) for a thumbnail, keeping the 4:3 default ratio."""
+    height = (2 * width * THUMB_H + THUMB_W) // (2 * THUMB_W)
+    return width, height
+
+
+def label_max_chars(width: int) -> int:
+    """Title length that fits under a thumbnail of ``width`` pixels."""
+    return max(LABEL_MIN_CHARS, width // LABEL_CHARS_DIVISOR)
 
 
 def _install_css() -> None:
@@ -200,7 +219,15 @@ class PreviewPopup(Gtk.Window):
         self._autohide: AutoHideController | None = None
         self._pointer_inside_dock: Callable[[], bool] | None = None
         self._hide_timer_id: int = 0
+        self._preview_refresh_timer_id: int = 0
+        self._thumbnail_images: dict[
+            WindowId, tuple[Gtk.Image, int, int, PreviewImage | None]
+        ] = {}
         self._current_desktop_id: str = ""
+        self._thumbnail_outline_enabled: Callable[[], bool] = lambda: False
+        self._thumbnail_width: Callable[[], int] = lambda: THUMB_W
+        self._outline: WindowOutline | None = None
+        self._outline_enabled: Callable[[], bool] = lambda: False
 
         self.set_decorated(False)
         self.set_skip_taskbar_hint(True)
@@ -217,9 +244,26 @@ class PreviewPopup(Gtk.Window):
 
         self.connect("enter-notify-event", self._on_enter)
         self.connect("leave-notify-event", self._on_leave)
+        self.connect("hide", lambda _widget: self._stop_preview_updates())
+        self.connect("destroy", self._on_destroy)
 
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
+
+    def set_thumbnail_outline_enabled(self, enabled: Callable[[], bool]) -> None:
+        """Set the live probe for the hovered-thumbnail border (polled per hover)."""
+        self._thumbnail_outline_enabled = enabled
+
+    def set_thumbnail_width_probe(self, probe: Callable[[], int]) -> None:
+        """Set the live thumbnail width probe (polled each time the popup is built)."""
+        self._thumbnail_width = probe
+
+    def set_window_outline(
+        self, outline: WindowOutline | None, enabled: Callable[[], bool]
+    ) -> None:
+        """Attach the hover outline overlay; ``enabled`` is polled per hover."""
+        self._outline = outline
+        self._outline_enabled = enabled
 
     def set_pointer_inside_dock_probe(self, probe: Callable[[], bool]) -> None:
         self._pointer_inside_dock = probe
@@ -245,16 +289,22 @@ class PreviewPopup(Gtk.Window):
         """
         windows = list(self._tracker.list_preview_windows(desktop_id))
         if not windows:
-            self.hide()
+            self._cancel_hide_timer()
+            self._do_hide()
             return
         icon_name = self._tracker.icon_name_for_desktop(desktop_id)
 
         self._current_desktop_id = desktop_id
         self._cancel_hide_timer()
+        self._stop_preview_updates()
 
+        # Replace and resize off-screen, including when switching apps while
+        # this long-lived popup is already visible.
+        self._hide_outline()
+        self.hide()
         child = self.get_child()
         if child:
-            self.remove(child)
+            child.destroy()
 
         # Horizontal layout for horizontal docks, vertical for vertical
         horizontal = is_horizontal(pos=position)
@@ -262,10 +312,6 @@ class PreviewPopup(Gtk.Window):
             Gtk.Orientation.HORIZONTAL if horizontal else Gtk.Orientation.VERTICAL
         )
         box = Gtk.Box(orientation=orientation, spacing=THUMB_SPACING)
-        box.set_margin_start(POPUP_PADDING)
-        box.set_margin_end(POPUP_PADDING)
-        box.set_margin_top(POPUP_PADDING)
-        box.set_margin_bottom(POPUP_PADDING)
 
         for window in windows:
             thumb_widget = self._make_thumbnail_for_window(
@@ -273,12 +319,43 @@ class PreviewPopup(Gtk.Window):
             )
             box.pack_start(thumb_widget, False, False, 0)
 
-        self.add(box)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_shadow_type(Gtk.ShadowType.NONE)
+        scroller.set_overlay_scrolling(False)
+        # Normally only the dock's main axis overflows. Allow the other axis
+        # too so cards remain reachable on unusually small workareas.
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        if horizontal:
+            scroller.connect("scroll-event", self._on_horizontal_scroll)
+        scroller.set_min_content_width(1)
+        scroller.set_min_content_height(1)
+        scroller.set_margin_start(POPUP_PADDING)
+        scroller.set_margin_end(POPUP_PADDING)
+        scroller.set_margin_top(POPUP_PADDING)
+        scroller.set_margin_bottom(POPUP_PADDING)
+        scroller.add(box)
+        self.add(scroller)
+        scroller.show_all()
 
-        box.show_all()
+        bounds = popup_workarea(
+            self,
+            anchor_x + (icon_w / 2 if horizontal else 0),
+            anchor_y + (0 if horizontal else icon_w / 2),
+        )
         preferred = box.get_preferred_size()[1]
-        popup_width = max(preferred.width + 2 * POPUP_PADDING, 1)
-        popup_height = max(preferred.height + 2 * POPUP_PADDING, 1)
+        size = preview_size(
+            content=Size(preferred.width, preferred.height),
+            available=Size(
+                max(1, bounds.width - 2 * POPUP_PADDING),
+                max(1, bounds.height - 2 * POPUP_PADDING),
+            ),
+            scrollbar=Size(
+                scroller.get_vscrollbar().get_preferred_width()[1],
+                scroller.get_hscrollbar().get_preferred_height()[1],
+            ),
+        )
+        popup_width = size.width + 2 * POPUP_PADDING
+        popup_height = size.height + 2 * POPUP_PADDING
 
         if position == Position.BOTTOM:
             popup_x = int(anchor_x + icon_w / 2 - popup_width / 2)
@@ -293,11 +370,26 @@ class PreviewPopup(Gtk.Window):
             popup_x = int(anchor_x - popup_width - PREVIEW_GAP_PX)
             popup_y = int(anchor_y + icon_w / 2 - popup_height / 2)
 
-        # Clamp to screen (respects parent-relative vs screen-absolute coords)
-        popup_pos = clamp_popup(self, popup_x, popup_y, popup_width, popup_height)
+        popup_pos = clamp_popup(
+            self, popup_x, popup_y, popup_width, popup_height, bounds=bounds
+        )
 
+        self.resize(popup_width, popup_height)
         self.move(popup_pos.x, popup_pos.y)
         self.show_all()
+        if self._preview_service.asynchronous is True:
+            self._preview_refresh_timer_id = GLib.timeout_add(
+                PREVIEW_REFRESH_INTERVAL_MS, self._refresh_preview_images
+            )
+        log.debug(
+            "preview shown: windows=%s edge=%s bounds=%s target=%sx%s at=%s",
+            len(windows),
+            position.value,
+            bounds,
+            popup_width,
+            popup_height,
+            popup_pos,
+        )
 
     def _make_thumbnail_for_window(
         self, window: WindowSnapshot, fallback_icon_name: str
@@ -306,15 +398,20 @@ class PreviewPopup(Gtk.Window):
         event_box = Gtk.EventBox()
         event_box.get_style_context().add_class("preview-thumb")
         event_box.set_events(
-            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK
+            Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.ENTER_NOTIFY_MASK
+            | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
         event_box.connect("button-press-event", self._on_thumb_click, window.id)
+        event_box.connect("enter-notify-event", self._on_thumb_enter, window)
+        event_box.connect("leave-notify-event", self._on_thumb_leave)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         # Thumbnail image
+        thumb_w, thumb_h = thumbnail_size(self._thumbnail_width())
         preview = self._preview_service.capture(
-            window.id, width=THUMB_W, height=THUMB_H
+            window.id, width=thumb_w, height=thumb_h
         )
         if preview is not None:
             image = Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
@@ -322,13 +419,15 @@ class PreviewPopup(Gtk.Window):
             image = Gtk.Image.new_from_icon_name(
                 fallback_icon_name, Gtk.IconSize.DIALOG
             )
-        image.set_size_request(THUMB_W, THUMB_H)
+        image.set_size_request(thumb_w, thumb_h)
+        self._thumbnail_images[window.id] = (image, thumb_w, thumb_h, preview)
         vbox.pack_start(image, False, False, 0)
 
         # Window title
         title = window.title
-        if len(title) > LABEL_MAX_CHARS:
-            title = title[: LABEL_MAX_CHARS - 1] + "\u2026"
+        max_chars = label_max_chars(thumb_w)
+        if len(title) > max_chars:
+            title = title[: max_chars - 1] + "\u2026"
         label = Gtk.Label(label=title)
         label.get_style_context().add_class("preview-label")
         label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
@@ -350,8 +449,74 @@ class PreviewPopup(Gtk.Window):
     ) -> bool:
         """Activate the clicked window."""
         self._tracker.activate(window_id)
-        self.hide()
-        self._release_dock_autohide_if_needed()
+        self._cancel_hide_timer()
+        self._do_hide()
+        return True
+
+    def _on_thumb_enter(
+        self, widget: Gtk.EventBox, _event: Gdk.EventCrossing, window: WindowSnapshot
+    ) -> bool:
+        """Highlight the hovered thumbnail and outline its real window, if enabled."""
+        # EventBox never sets PRELIGHT itself, so ``.preview-thumb:hover`` needs this.
+        if self._thumbnail_outline_enabled():
+            widget.set_state_flags(Gtk.StateFlags.PRELIGHT, False)
+        if (
+            self._outline is not None
+            and self._outline_enabled()
+            and window.geometry is not None
+            and not window.minimized
+            and window.visible is not False
+            and window.on_current_workspace is not False
+        ):
+            self._outline.show_around(window.geometry)
+            # The overlay is click-through but would still paint over the popup.
+            popup_window = self.get_window()
+            if popup_window is not None:
+                popup_window.raise_()
+        return False
+
+    def _on_thumb_leave(self, widget: Gtk.EventBox, event: Gdk.EventCrossing) -> bool:
+        if event.detail != Gdk.NotifyType.INFERIOR:
+            widget.unset_state_flags(Gtk.StateFlags.PRELIGHT)
+            self._hide_outline()
+        return False
+
+    def _hide_outline(self) -> None:
+        if self._outline is not None:
+            self._outline.hide()
+
+    @staticmethod
+    def _on_horizontal_scroll(
+        scroller: Gtk.ScrolledWindow, event: Gdk.EventScroll
+    ) -> bool:
+        """Let an ordinary wheel navigate a horizontal-only preview row.
+
+        GTK already handles horizontal gestures, Shift+wheel and vertical
+        scrolling. Translate only unmodified vertical input when no vertical
+        scrollbar is needed, preserving two-axis navigation on tiny monitors.
+        """
+        horizontal = scroller.get_hadjustment()
+        vertical = scroller.get_vadjustment()
+        if (
+            event.state & Gdk.ModifierType.SHIFT_MASK
+            or horizontal.get_upper() <= horizontal.get_page_size()
+            or vertical.get_upper() > vertical.get_page_size()
+        ):
+            return False
+        if event.direction == Gdk.ScrollDirection.UP:
+            delta = -1.0
+        elif event.direction == Gdk.ScrollDirection.DOWN:
+            delta = 1.0
+        elif event.direction == Gdk.ScrollDirection.SMOOTH:
+            ok, dx, dy = event.get_scroll_deltas()
+            if not ok or dx != 0 or dy == 0:
+                return False
+            delta = dy
+        else:
+            return False
+        horizontal.set_value(
+            horizontal.get_value() + delta * horizontal.get_step_increment()
+        )
         return True
 
     def _on_enter(self, _widget: Gtk.Widget, event: Gdk.EventCrossing) -> bool:
@@ -395,6 +560,10 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview schedule_hide (from dock_window)")
         self._schedule_hide()
 
+    def cancel_hide(self) -> None:
+        """Keep the current preview open when returning to its dock icon."""
+        self._cancel_hide_timer()
+
     def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
@@ -405,9 +574,36 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview: hiding")
         self._hide_timer_id = 0
         self._current_desktop_id = ""
+        self._stop_preview_updates()
+        self._hide_outline()
         self.hide()
         self._release_dock_autohide_if_needed()
         return False
+
+    def _refresh_preview_images(self) -> bool:
+        if not self.get_visible() or not self._thumbnail_images:
+            self._preview_refresh_timer_id = 0
+            return False
+        for window_id, (image, width, height, previous) in tuple(
+            self._thumbnail_images.items()
+        ):
+            preview = self._preview_service.capture(
+                window_id, width=width, height=height
+            )
+            if preview is not None and preview is not previous:
+                image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
+                self._thumbnail_images[window_id] = (image, width, height, preview)
+        return True
+
+    def _stop_preview_updates(self) -> None:
+        if self._preview_refresh_timer_id:
+            GLib.source_remove(self._preview_refresh_timer_id)
+            self._preview_refresh_timer_id = 0
+        self._thumbnail_images.clear()
+
+    def _on_destroy(self, _widget: Gtk.Widget) -> None:
+        self._cancel_hide_timer()
+        self._stop_preview_updates()
 
     def _cancel_hide_timer(self) -> None:
         if self._hide_timer_id:

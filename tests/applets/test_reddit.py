@@ -112,10 +112,15 @@ def _make_applet(config: Config | None = None) -> RedditApplet:
         "docking.applets.reddit.applet.BackgroundWorker",
         _ImmediateWorker,
     ):
-        return RedditApplet(48, config=config)
+        return RedditApplet(48, config=config or Config())
 
 
 class TestRedditSources:
+    @pytest.mark.parametrize("value", ["https://[", "https://[invalid]/r/linux"])
+    def test_malformed_subreddit_urls_are_rejected(self, value):
+        assert normalize_subreddit(value) is None
+        assert normalize_subreddits([value, "linux"]) == ("linux",)
+
     def test_normalize_subreddit_names_and_urls(self):
         assert normalize_subreddit(" Linux ") == "linux"
         assert normalize_subreddit("r/Python") == "python"
@@ -196,6 +201,14 @@ class TestRedditSources:
 
 
 class TestRedditFeedParsing:
+    def test_malformed_url_does_not_discard_valid_posts(self):
+        posts = parse_reddit_feed(
+            _feed(_entry(post_id="broken", url="https://[") + _entry()),
+            subreddit="linux",
+        )
+
+        assert [post.id for post in posts] == ["t3_abc123"]
+
     def test_parses_atom_entry(self):
         posts = parse_reddit_feed(
             _feed(_entry()),
@@ -256,6 +269,47 @@ class TestRedditFeedParsing:
         assert parse_reddit_feed(_feed(entries), subreddit="linux", limit=0) == ()
         with pytest.raises(ValueError, match="Invalid Reddit RSS"):
             parse_reddit_feed(b"<not-xml", subreddit="linux")
+
+    @pytest.mark.parametrize(
+        "declaration",
+        [
+            b'<!DOCTYPE feed [<!ENTITY a "lo">]>',
+            b'<!doctype feed [<!ENTITY a "lo">]>',
+            b"<!  DOCTYPE feed>",
+        ],
+    )
+    def test_rejects_entity_declarations_before_they_are_expanded(self, declaration):
+        """The feed is fetched over the network, so a DTD must never be honoured.
+
+        ElementTree expands internal entities, which turns a sub-kilobyte
+        document into an arbitrarily large title.
+        """
+        payload = (
+            b'<?xml version="1.0"?>'
+            + declaration
+            + b'<feed xmlns="http://www.w3.org/2005/Atom"><entry>'
+            b"<title>&a;</title><id>t3_x</id>"
+            b'<link rel="alternate" '
+            b'href="https://www.reddit.com/r/linux/comments/1/"/>'
+            b"</entry></feed>"
+        )
+
+        with pytest.raises(ValueError, match="Invalid Reddit RSS"):
+            parse_reddit_feed(payload, subreddit="linux")
+
+    def test_plain_feed_without_a_doctype_still_parses(self):
+        posts = parse_reddit_feed(
+            _feed(
+                _entry(
+                    post_id="t3_ok",
+                    title="Ordinary post",
+                    url="https://www.reddit.com/r/linux/comments/1/",
+                )
+            ),
+            subreddit="linux",
+        )
+
+        assert [post.title for post in posts] == ["Ordinary post"]
 
     def test_fetch_uses_public_feed_and_descriptive_user_agent(self, monkeypatch):
         seen: dict[str, object] = {}
@@ -352,6 +406,10 @@ class TestRedditPreferences:
 
 
 class TestRedditFormatting:
+    @pytest.mark.parametrize("published", [10**30, 253402300800])
+    def test_out_of_range_cached_timestamp_has_no_age(self, published):
+        assert post_age(post=_post(published=published)) == ""
+
     def test_rank_index_and_age_edges(self):
         assert post_rank(index=0, count=0) == ""
         assert post_rank(index=1, count=3) == "2/3"
@@ -474,16 +532,12 @@ class TestRedditApplet:
     def test_click_opens_current_reddit_page(self, monkeypatch):
         applet = _make_applet()
         applet._posts = [_post()]
-        launch = MagicMock()
-        monkeypatch.setattr(
-            reddit_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            launch,
-        )
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(reddit_applet_mod.targets, "open_target", open_target)
 
         applet.on_clicked()
 
-        launch.assert_called_once_with(_post().url, None)
+        open_target.assert_called_once_with(_post().url)
 
     def test_menu_contains_navigation_source_and_management(self):
         applet = _make_applet()

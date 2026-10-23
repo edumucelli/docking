@@ -5,7 +5,33 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.ui.geometry import Rect
 from docking.ui.input_controller import DockInputController
+
+
+def test_motion_outside_dock_keeps_stack_open_for_pointer_transit():
+    frame = SimpleNamespace(
+        cursor_rect=Rect(0, 0, 100, 54),
+        item_at_point=MagicMock(return_value=None),
+    )
+    window = SimpleNamespace(
+        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+        update_input_region=MagicMock(),
+        _schedule_redraw=MagicMock(),
+        dock_hovered=False,
+    )
+    interactions = MagicMock()
+    controller = DockInputController(
+        window=window,
+        interactions=interactions,
+        dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
+    )
+
+    controller._on_motion(MagicMock(), SimpleNamespace(x=50, y=80))
+
+    interactions.close_stack_unless_target.assert_not_called()
 
 
 class _SignalObject:
@@ -45,6 +71,8 @@ def test_start_connects_signals_model_listener_and_prewarms_once():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller.start()
@@ -75,6 +103,8 @@ def test_stop_disconnects_signals_and_model_listener_once():
         window=window,
         interactions=MagicMock(),
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller.start()
@@ -104,6 +134,8 @@ def test_applet_change_refreshes_its_open_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_applet_changed("applet://devices")
@@ -120,6 +152,8 @@ def test_unrelated_applet_change_does_not_refresh_open_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_applet_changed("applet://clock")
@@ -139,6 +173,7 @@ def test_model_change_closes_stack_for_removed_applet():
             on_model_changed=MagicMock(),
         ),
         config=SimpleNamespace(pos="bottom"),
+        placement=SimpleNamespace(set_struts=MagicMock()),
         _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         _schedule_redraw=MagicMock(),
@@ -149,6 +184,8 @@ def test_model_change_closes_stack_for_removed_applet():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_model_changed()
@@ -168,6 +205,7 @@ def test_model_change_does_not_refresh_existing_applet_stack():
             on_model_changed=MagicMock(),
         ),
         config=SimpleNamespace(pos="bottom"),
+        placement=SimpleNamespace(set_struts=MagicMock()),
         _invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         _schedule_redraw=MagicMock(),
@@ -178,6 +216,8 @@ def test_model_change_does_not_refresh_existing_applet_stack():
         window=window,
         interactions=interactions,
         dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
     )
 
     controller._on_model_changed()

@@ -4,13 +4,18 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.applets.caffeine.applet import CaffeineApplet
 from docking.applets.caffeine.inhibit import CompositeInhibitor
 from docking.applets.caffeine.state import (
     DEFAULT_DURATION,
     INDEFINITE,
+    MAX_DURATION_MIN,
+    MIN_DURATION_MIN,
     CaffeineState,
     activate,
+    coerce_duration,
     deactivate,
     duration_label,
     format_remaining,
@@ -23,6 +28,7 @@ from docking.applets.caffeine.state import (
     toggle,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class FakeInhibitor:
@@ -173,6 +179,32 @@ class TestPrefs:
             duration_min=DEFAULT_DURATION
         )
 
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            (30, 30),
+            ("45", 45),
+            ("half-hour", DEFAULT_DURATION),
+            (None, DEFAULT_DURATION),
+            (float("nan"), DEFAULT_DURATION),
+            (float("inf"), DEFAULT_DURATION),
+            (-5, MIN_DURATION_MIN),
+            (10**9, MAX_DURATION_MIN),
+            (True, DEFAULT_DURATION),
+        ],
+    )
+    def test_coerce_duration(self, stored, expected):
+        assert coerce_duration(stored) == expected
+
+    @pytest.mark.parametrize("stored", ["half-hour", None, float("nan"), float("inf")])
+    def test_unusable_persisted_duration_does_not_remove_the_applet(self, stored):
+        """A raising constructor used to take the caffeine tile off the dock."""
+        applet = CaffeineApplet(
+            48, config=Config(applet_prefs={"caffeine": {"duration_min": stored}})
+        )
+
+        assert applet._data.duration_min == DEFAULT_DURATION
+
 
 # -- CompositeInhibitor -------------------------------------------------------
 
@@ -205,24 +237,24 @@ class TestCompositeInhibitor:
 
 class TestApplet:
     def test_creates_with_icon(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CaffeineApplet(size, inhibitor=FakeInhibitor())
+            applet = CaffeineApplet(size, inhibitor=FakeInhibitor(), config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_starts_off(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         assert applet._data.active is False
         assert applet.item.name == "Caffeine: off"
 
     def test_click_toggles_and_acquires(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
 
         applet.on_clicked()
 
@@ -232,7 +264,7 @@ class TestApplet:
 
     def test_second_click_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
 
         applet.on_clicked()
         applet.on_clicked()
@@ -243,7 +275,7 @@ class TestApplet:
 
     def test_timed_tick_to_zero_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
         applet._data = CaffeineState(active=True, duration_min=1, remaining=1)
         inhibitor.acquire()
 
@@ -255,7 +287,7 @@ class TestApplet:
 
     def test_stop_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor)
+        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
         applet.on_clicked()
 
         applet.stop()
@@ -263,7 +295,7 @@ class TestApplet:
         assert inhibitor.active is False
 
     def test_menu_lists_duration_choices(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
@@ -271,7 +303,7 @@ class TestApplet:
         assert "30 min" in labels
 
     def test_menu_shows_status_header(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor())
+        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Off" in labels
 

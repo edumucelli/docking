@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from docking.core.position import Position
 from docking.platform.backends.base import (
@@ -20,6 +20,9 @@ from docking.platform.backends.x11.services.surface import X11SurfaceService
 class FakeX11Window:
     def get_scale_factor(self) -> int:
         return 2
+
+    def get_xid(self) -> int:
+        return 1234
 
 
 def _monitor_snapshot(scale: int = 1) -> MonitorSnapshot:
@@ -63,6 +66,66 @@ def test_on_realize_initializes_pointer_barrier_for_x11_display(monkeypatch):
     service.on_realize(window)
 
     barrier.initialize.assert_called_once_with(gdk_display=display)
+
+
+def test_on_realize_initializes_external_workarea_tracker(monkeypatch):
+    class FakeX11Display:
+        pass
+
+    monkeypatch.setattr(surface_mod.GdkX11, "X11Display", FakeX11Display, raising=False)
+    monkeypatch.setattr(surface_mod.GdkX11, "X11Window", FakeX11Window, raising=False)
+    display = FakeX11Display()
+    x11_window = FakeX11Window()
+    window = MagicMock()
+    window.get_display.return_value = display
+    window.get_window.return_value = x11_window
+    tracker = MagicMock()
+    service = X11SurfaceService(
+        barrier=MagicMock(),
+        workarea_tracker=tracker,
+    )
+
+    service.on_realize(window)
+
+    tracker.initialize.assert_called_once_with(
+        gdk_display=display,
+        own_xid=1234,
+    )
+
+
+def test_external_workarea_and_change_handler_delegate_to_tracker():
+    tracker = MagicMock()
+    expected = Rect(10, 48, 300, 152)
+    tracker.workarea_for.return_value = expected
+    service = X11SurfaceService(workarea_tracker=tracker)
+    callback = MagicMock()
+
+    service.set_external_workarea_changed_handler(callback)
+    result = service.external_workarea(_monitor_snapshot())
+
+    tracker.set_change_handler.assert_called_once_with(callback)
+    tracker.workarea_for.assert_called_once_with(_monitor_snapshot())
+    assert result == expected
+
+
+def test_external_workarea_refresh_delegates_to_tracker():
+    tracker = MagicMock()
+    service = X11SurfaceService(workarea_tracker=tracker)
+
+    service.refresh_external_workarea()
+
+    tracker.refresh.assert_called_once_with()
+
+
+def test_stop_releases_barrier_and_external_workarea_tracker():
+    barrier = MagicMock()
+    tracker = MagicMock()
+    service = X11SurfaceService(barrier=barrier, workarea_tracker=tracker)
+
+    service.stop()
+
+    tracker.stop.assert_called_once_with()
+    barrier.shutdown.assert_called_once_with()
 
 
 def test_set_workspace_scope_toggles_x11_stickiness():
@@ -114,6 +177,9 @@ def test_set_reservation_writes_struts_for_x11_window(monkeypatch):
             monitor=_monitor_snapshot(),
             position=Position.BOTTOM,
             thickness=56,
+            edge_offset=28,
+            span_start=110,
+            span_end=210,
         )
     )
 
@@ -126,6 +192,9 @@ def test_set_reservation_writes_struts_for_x11_window(monkeypatch):
     assert kwargs["monitor_geom"].height == 200
     assert kwargs["screen"] is screen
     assert kwargs["position"] == Position.BOTTOM
+    assert kwargs["edge_offset"] == 28
+    assert kwargs["span_start"] == 110
+    assert kwargs["span_end"] == 210
 
 
 def test_clear_reservation_clears_x11_struts(monkeypatch):
@@ -230,3 +299,39 @@ def test_set_blur_region_none_clears_hint(monkeypatch):
     service.set_blur_region(None)
 
     clear.assert_called_once_with(gdk_window=x11_window)
+
+
+def test_default_overlay_placement_moves_the_window_to_absolute_coordinates():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 1
+    service = X11SurfaceService()
+
+    service.prepare_overlay_window(window)
+    service.place_overlay(window, Rect(30, 40, 500, 400))
+
+    assert service.overlay_uses_toplevel is False
+    assert window.mock_calls == [
+        call.get_scale_factor(),
+        call.move(30, 40),
+        call.resize(500, 400),
+    ]
+
+
+def test_default_overlay_placement_converts_device_pixels_to_logical_units():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 2
+
+    X11SurfaceService().place_overlay(window, Rect(60, 80, 600, 400))
+
+    window.move.assert_called_once_with(30, 40)
+    window.resize.assert_called_once_with(300, 200)
+
+
+def test_default_overlay_placement_rounds_odd_values_outward_at_scale_two():
+    window = MagicMock()
+    window.get_scale_factor.return_value = 2
+
+    X11SurfaceService().place_overlay(window, Rect(61, 81, 600, 400))
+
+    window.move.assert_called_once_with(30, 40)
+    window.resize.assert_called_once_with(301, 201)

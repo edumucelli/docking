@@ -17,6 +17,7 @@ from docking.applets.camshield.state import (
     holder_label,
     probe_camera_state,
 )
+from docking.core.config import Config
 
 
 def _proc_holder(
@@ -225,7 +226,7 @@ class TestApplet:
         )
         monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
 
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
 
         assert applet.item.desktop_id == "applet://camshield"
         assert "Camera active" in applet.item.name
@@ -234,7 +235,7 @@ class TestApplet:
     def test_menu_contains_refresh(self, monkeypatch):
         state = CamshieldState(available=True, active=False, devices=("video0",))
         monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
 
         labels = [item.get_label() for item in applet.get_menu_items()]
 
@@ -249,7 +250,7 @@ class TestApplet:
             "_helper_available",
             lambda _self: False,
         )
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
 
         items = applet.get_menu_items()
         labels = [item.get_label() for item in items]
@@ -277,7 +278,7 @@ class TestApplet:
             "source_remove",
             lambda timer_id: removed.append(timer_id),
         )
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
 
         applet.start(lambda: None)
         assert applet._timer_id == 11
@@ -301,7 +302,7 @@ class TestApplet:
             holders=(CameraHolder(pid=7, command="camera-app", devices=("video0",)),),
         )
         monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
         notifications = 0
 
         def notify():
@@ -332,7 +333,7 @@ class TestApplet:
             "source_remove",
             lambda timer_id: removed.append(timer_id),
         )
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
         applet._pulse_timer_id = 42
         applet._pulse_phase = 0.5
 
@@ -350,7 +351,7 @@ class TestApplet:
             "which",
             lambda command: "/usr/bin/pkexec" if command == "pkexec" else None,
         )
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
 
         assert applet._helper_available() is False
 
@@ -358,7 +359,7 @@ class TestApplet:
         assert applet._helper_available() is True
 
     def test_run_helper_action_and_command_paths(self, monkeypatch):
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
         applet._run_helper_command = MagicMock()
 
         class _Thread:
@@ -382,7 +383,7 @@ class TestApplet:
         applet._run_helper_action("lock")
 
     def test_run_helper_command_refreshes_and_logs_failures(self, monkeypatch):
-        applet = CamshieldApplet(icon_size=48)
+        applet = CamshieldApplet(icon_size=48, config=Config())
         idle: list[object] = []
         monkeypatch.setattr(
             camshield_applet_mod.GLib, "idle_add", lambda cb: idle.append(cb)

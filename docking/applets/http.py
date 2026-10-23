@@ -16,10 +16,28 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 DEFAULT_USER_AGENT = "DockingApplet/1.0 (+https://github.com/edumucelli/docking)"
+
+
+def is_valid_http_url(value: str) -> bool:
+    """Require an HTTP(S) host and valid port without raw whitespace or controls."""
+    if any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value):
+        return False
+    try:
+        value.encode("utf-8")
+        parsed = urlsplit(value)
+        port = parsed.port
+        return (
+            parsed.scheme in {"http", "https"}
+            and bool(parsed.hostname)
+            and (port is None or 0 <= port <= 65535)
+        )
+    except ValueError:
+        return False
 
 
 def http_get_bytes(
@@ -27,11 +45,19 @@ def http_get_bytes(
     *,
     timeout: float = 8.0,
     user_agent: str = DEFAULT_USER_AGENT,
+    max_bytes: int | None = None,
 ) -> bytes:
     """Fetch a URL and return the raw response body."""
     request = Request(url, headers={"User-Agent": user_agent})
     with urlopen(request, timeout=timeout) as response:
-        return response.read()
+        if max_bytes is None:
+            return cast(bytes, response.read())
+        if max_bytes <= 0:
+            raise ValueError("max_bytes must be greater than zero")
+        payload = response.read(max_bytes + 1)
+        if len(payload) > max_bytes:
+            raise ValueError(f"Response exceeds {max_bytes} bytes")
+        return cast(bytes, payload)
 
 
 def http_get_text(

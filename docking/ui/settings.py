@@ -62,13 +62,18 @@ from docking.core.config import (
     MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
     MAX_ICON_SIZE,
     MAX_PRESSURE_THRESHOLD,
+    MAX_RECENT_APPS_RETENTION_DAYS,
     MAX_TRANSPARENCY,
+    MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
     MAX_ZOOM_PERCENT,
     MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
     MIN_ICON_SIZE,
     MIN_PRESSURE_THRESHOLD,
+    MIN_RECENT_APPS_RETENTION_DAYS,
     MIN_TRANSPARENCY,
+    MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
     MIN_ZOOM_PERCENT,
+    DockItemClickEffect,
     LeftClickAction,
     MiddleClickAction,
     StackUnfold,
@@ -79,10 +84,16 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    GLOBAL_SEARCH_WEB_ENGINES,
+)
+from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.model import DockModel
+    from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
     from docking.ui.placement import MonitorChoice
     from docking.ui.runtime import DockRuntime
@@ -116,6 +127,7 @@ APPLET_GRID_ROW_SPACING_PX = 8
 APPLET_ROW_CONTENT_SPACING_PX = 6
 ZOOM_PERCENT_SCALE = 100
 ZOOM_PERCENT_STEP = 5
+WINDOW_PREVIEW_THUMBNAIL_WIDTH_STEP = 10
 TRANSPARENCY_PERCENT_SCALE = 100
 TRANSPARENCY_PERCENT_STEP = 5
 HIDE_DELAY_MAX_MS = 5000
@@ -152,9 +164,13 @@ class SettingsActions:
         *,
         runtime: DockRuntime,
         dnd: DnDHandler,
+        model: DockModel,
+        search: GlobalSearchController,
     ) -> None:
         self._runtime = runtime
         self._dnd = dnd
+        self._model = model
+        self._search = search
 
     def on_hide_mode_changed(self) -> None:
         self._runtime.on_hide_mode_changed()
@@ -180,6 +196,9 @@ class SettingsActions:
     def queue_draw(self) -> None:
         self._runtime.queue_draw()
 
+    def refresh_launcher_overlay_visibility(self) -> None:
+        self._model.refresh_launcher_overlay_visibility()
+
     def set_current_workspace_only(self, enabled: bool) -> None:
         self._runtime.set_current_workspace_only(enabled)
 
@@ -195,6 +214,27 @@ class SettingsActions:
     def open_releases_page(self) -> None:
         self._runtime.open_releases_page()
 
+    def refresh_search_settings(self) -> None:
+        self._search.refresh_settings()
+
+    def suspend_search_shortcuts(self) -> None:
+        self._search.suspend_shortcuts()
+
+    def resume_search_shortcuts(self) -> None:
+        self._search.resume_shortcuts()
+
+    def search_shortcut_status(self) -> str:
+        return self._search.shortcut_status_text()
+
+    def search_shortcut_status_summary(self) -> str:
+        return self._search.shortcut_status_summary()
+
+    def add_search_shortcut_status_listener(
+        self,
+        listener: Callable[[], None],
+    ) -> Callable[[], None]:
+        return self._search.add_shortcut_status_listener(listener)
+
 
 class SettingsWindowController:
     """Owns the dock preferences window lifecycle and widget synchronization."""
@@ -206,13 +246,20 @@ class SettingsWindowController:
         actions: SettingsActions,
         model: DockModel,
         config: Config,
+        window_outline_supported: bool = False,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._window_outline_supported = window_outline_supported
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
+        self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
+            self._actions.add_search_shortcut_status_listener(
+                self._update_search_shortcut_status
+            )
+        )
 
         self._hide_mode_combo: Any = None
         self._hide_mode_info: Any = None
@@ -221,7 +268,12 @@ class SettingsWindowController:
         self._stack_unfold_combo: Any = None
         self._window_list_sort_combo: Any = None
         self._window_count_numbers_switch: Any = None
-        self._previews_switch: Any = None
+        self._launcher_badges_switch: Any = None
+        self._launcher_progress_switch: Any = None
+        self._window_preview_thumbnails_enabled_switch: Any = None
+        self._window_preview_highlight_thumbnails_on_hover_switch: Any = None
+        self._preview_outline_switch: Any = None
+        self._window_preview_thumbnail_width_spin: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
         self._workspace_only_switch: Any = None
@@ -231,6 +283,8 @@ class SettingsWindowController:
         self._anchor_applets_switch: Any = None
         self._anchor_files_switch: Any = None
         self._zoom_enabled_switch: Any = None
+        self._dock_item_click_effects_enabled_switch: Any = None
+        self._dock_item_click_effect_combo: Any = None
         self._theme_combo: Any = None
         self._position_combo: Any = None
         self._icon_size_spin: Any = None
@@ -249,9 +303,14 @@ class SettingsWindowController:
         self._update_status_label: Any = None
         self._recent_apps_switch: Any = None
         self._recent_apps_max_spin: Any = None
-        self._recent_apps_retention_combo: Any = None
+        self._recent_apps_retention_spin: Any = None
         self._recent_docs_switch: Any = None
         self._recent_docs_max_spin: Any = None
+        self._global_search_switch: Any = None
+        self._global_search_shortcut_box: Any = None
+        self._global_search_shortcut_entry: Any = None
+        self._global_search_web_engine_combo: Any = None
+        self._global_search_status_label: Any = None
         self._applets_box: Any = None
         self._applet_checks: dict[str, Gtk.CheckButton] = {}
         self._bindings: list[_ScalarBinding] = []
@@ -264,6 +323,19 @@ class SettingsWindowController:
         self._rebuild_applet_tab()
         self._window.show_all()
         self._window.present()
+
+    def close(self) -> None:
+        """Release the status subscription and destroy the preferences window."""
+        unsubscribe = self._unsubscribe_search_shortcut_status
+        self._unsubscribe_search_shortcut_status = None
+        window = self._window
+        self._window = None
+        try:
+            if unsubscribe is not None:
+                unsubscribe()
+        finally:
+            if window is not None:
+                window.destroy()
 
     def _build_window(self) -> Gtk.Window:
         window = Gtk.Window(
@@ -349,6 +421,18 @@ class SettingsWindowController:
         ]:
             self._middle_click_combo.append(action_value, action_label)
 
+        self._dock_item_click_effects_enabled_switch = self._new_switch()
+        self._dock_item_click_effect_combo = Gtk.ComboBoxText()
+        self._dock_item_click_effect_combo.set_size_request(
+            HIDE_MODE_COMBO_WIDTH_PX, -1
+        )
+        for effect_value, effect_label in [
+            (DockItemClickEffect.BOUNCE.value, _("Bounce")),
+            (DockItemClickEffect.PULSE.value, _("Pulse")),
+            (DockItemClickEffect.WOBBLE.value, _("Wobble")),
+        ]:
+            self._dock_item_click_effect_combo.append(effect_value, effect_label)
+
         self._stack_unfold_combo = Gtk.ComboBoxText()
         self._stack_unfold_combo.set_size_request(HIDE_MODE_COMBO_WIDTH_PX, -1)
         for mode_value, mode_label in [
@@ -365,9 +449,18 @@ class SettingsWindowController:
         ]:
             self._window_list_sort_combo.append(sort_value, sort_label)
 
-        self._previews_switch = self._new_switch()
+        self._window_preview_thumbnails_enabled_switch = self._new_switch()
+        self._window_preview_highlight_thumbnails_on_hover_switch = self._new_switch()
+        self._preview_outline_switch = self._new_switch()
+        self._window_preview_thumbnail_width_spin = self._new_numeric_spin_button(
+            minimum=MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
+            maximum=MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
+            step=WINDOW_PREVIEW_THUMBNAIL_WIDTH_STEP,
+        )
         self._tooltips_switch = self._new_switch()
         self._window_count_numbers_switch = self._new_switch()
+        self._launcher_badges_switch = self._new_switch()
+        self._launcher_progress_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
         self._workspace_only_switch = self._new_switch()
         self._active_display_switch = self._new_switch()
@@ -497,14 +590,62 @@ class SettingsWindowController:
         self._recent_apps_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=15, step=1
         )
-        self._recent_apps_retention_combo = Gtk.ComboBoxText()
-        for days in (3, 7, 14, 30):
-            self._recent_apps_retention_combo.append(str(days), str(days))
+        self._recent_apps_retention_spin = self._new_numeric_spin_button(
+            minimum=MIN_RECENT_APPS_RETENTION_DAYS,
+            maximum=MAX_RECENT_APPS_RETENTION_DAYS,
+            step=1,
+        )
         self._recent_docs_switch = self._new_switch()
         self._recent_docs_max_spin = self._new_numeric_spin_button(
             minimum=1, maximum=25, step=1
         )
-
+        self._global_search_switch = self._new_switch()
+        self._global_search_shortcut_entry = ShortcutCaptureButton()
+        self._global_search_shortcut_entry.connect(
+            "capture-started",
+            lambda *_: self._actions.suspend_search_shortcuts(),
+        )
+        self._global_search_shortcut_entry.connect(
+            "capture-ended",
+            lambda *_: self._actions.resume_search_shortcuts(),
+        )
+        self._global_search_status_label = Gtk.Label()
+        self._global_search_status_label.set_xalign(0.0)
+        self._global_search_status_label.set_line_wrap(False)
+        self._global_search_status_label.set_max_width_chars(28)
+        self._global_search_status_label.set_margin_top(4)
+        self._global_search_status_label.get_style_context().add_class("dim-label")
+        self._global_search_shortcut_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=4,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_shortcut_entry,
+            False,
+            False,
+            0,
+        )
+        self._global_search_shortcut_box.pack_start(
+            self._global_search_status_label,
+            False,
+            False,
+            0,
+        )
+        self._global_search_web_engine_combo = Gtk.ComboBoxText()
+        web_engine_labels = {
+            "duckduckgo": "DuckDuckGo",
+            "google": "Google",
+            "brave": "Brave Search",
+            "bing": "Bing",
+        }
+        for engine_id in GLOBAL_SEARCH_WEB_ENGINES:
+            self._global_search_web_engine_combo.append(
+                engine_id,
+                web_engine_labels.get(engine_id, engine_id.title()),
+            )
+        self._global_search_web_engine_combo.set_active_id(
+            DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
+        )
         self._register_bindings()
 
         self._append_section(
@@ -538,16 +679,27 @@ class SettingsWindowController:
                     _("Show item names and details when hovering over dock items."),
                 ),
                 (
-                    _("Window Previews"),
-                    self._previews_switch,
-                    _("Show window thumbnails when hovering over running apps."),
-                ),
-                (
                     _("Show Window Counts"),
                     self._window_count_numbers_switch,
                     _(
                         "Show a number on running app indicators when multiple "
                         "windows are open."
+                    ),
+                ),
+                (
+                    _("Application Badges"),
+                    self._launcher_badges_switch,
+                    _(
+                        "Show numeric counts reported by applications on their "
+                        "dock icons."
+                    ),
+                ),
+                (
+                    _("Application Progress"),
+                    self._launcher_progress_switch,
+                    _(
+                        "Show task progress reported by applications on their "
+                        "dock icons."
                     ),
                 ),
             ],
@@ -568,6 +720,44 @@ class SettingsWindowController:
                     _(
                         "Show running windows only from the active workspace "
                         "when supported."
+                    ),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Preview"),
+            rows=[
+                (
+                    _("Display Window Preview Thumbnails"),
+                    self._window_preview_thumbnails_enabled_switch,
+                    _("Show window thumbnails when hovering over running apps."),
+                ),
+                (
+                    _("Outline Thumbnail on Hover"),
+                    self._window_preview_highlight_thumbnails_on_hover_switch,
+                    _("Highlight the thumbnail under the pointer in the preview."),
+                ),
+                (
+                    _("Outline Window on Preview Hover"),
+                    self._preview_outline_switch,
+                    _(
+                        "Outline the real window on the desktop while hovering "
+                        "its thumbnail."
+                    )
+                    if self._window_outline_supported
+                    else _(
+                        "Outline the real window on the desktop while hovering "
+                        "its thumbnail. Not available in this session; "
+                        "requires X11 or Sway."
+                    ),
+                ),
+                (
+                    _("Thumbnail Width"),
+                    self._window_preview_thumbnail_width_spin,
+                    _(
+                        "Set the width in pixels of window thumbnails. "
+                        "Wider thumbnails also show more of the window title."
                     ),
                 ),
             ],
@@ -662,6 +852,16 @@ class SettingsWindowController:
                     ),
                 ),
                 (
+                    _("Enable Effects When Clicking Dock Items"),
+                    self._dock_item_click_effects_enabled_switch,
+                    _("Play the selected effect when launching an app from the dock."),
+                ),
+                (
+                    _("Click Effect"),
+                    self._dock_item_click_effect_combo,
+                    _("Choose the effect played when launching an app."),
+                ),
+                (
                     _("Window List Sort"),
                     self._window_list_sort_combo,
                     _("Choose how open windows are ordered in app context menus."),
@@ -738,7 +938,7 @@ class SettingsWindowController:
                 ),
                 (
                     _("Keep Recent Apps For"),
-                    self._recent_apps_retention_combo,
+                    self._recent_apps_retention_spin,
                     _("Remove recent apps after this many days of inactivity."),
                 ),
             ],
@@ -759,6 +959,30 @@ class SettingsWindowController:
                     _("Max Documents Per App"),
                     self._recent_docs_max_spin,
                     _("Maximum recent document entries shown per app."),
+                ),
+            ],
+        )
+        self._append_section(
+            outer=outer,
+            title=_("Global Search"),
+            rows=[
+                (
+                    _("Enabled"),
+                    self._global_search_switch,
+                    _("Enable Docking's process-wide search palette."),
+                ),
+                (
+                    _("Preferred Shortcut"),
+                    self._global_search_shortcut_box,
+                    _(
+                        "Click the button, then press the desired key sequence. "
+                        "The desktop may reserve some shortcuts."
+                    ),
+                ),
+                (
+                    _("Search Engine"),
+                    self._global_search_web_engine_combo,
+                    _("Choose the engine used by web fallback."),
                 ),
             ],
         )
@@ -1027,6 +1251,16 @@ class SettingsWindowController:
                 config_attr="middle_click_action",
                 widget=self._middle_click_combo,
             ),
+            self._register_switch_binding(
+                config_attr="dock_item_click_effects_enabled",
+                widget=self._dock_item_click_effects_enabled_switch,
+                on_change=self._actions.queue_draw,
+            ),
+            self._register_choice_binding(
+                config_attr="dock_item_click_effect",
+                widget=self._dock_item_click_effect_combo,
+                on_change=self._actions.queue_draw,
+            ),
             self._register_choice_binding(
                 config_attr="stack_unfold",
                 widget=self._stack_unfold_combo,
@@ -1041,8 +1275,30 @@ class SettingsWindowController:
                 on_change=self._actions.queue_draw,
             ),
             self._register_switch_binding(
-                config_attr="previews_enabled",
-                widget=self._previews_switch,
+                config_attr="show_launcher_badges",
+                widget=self._launcher_badges_switch,
+                on_change=self._actions.refresh_launcher_overlay_visibility,
+            ),
+            self._register_switch_binding(
+                config_attr="show_launcher_progress",
+                widget=self._launcher_progress_switch,
+                on_change=self._actions.refresh_launcher_overlay_visibility,
+            ),
+            self._register_switch_binding(
+                config_attr="window_preview_thumbnails_enabled",
+                widget=self._window_preview_thumbnails_enabled_switch,
+            ),
+            self._register_int_binding(
+                config_attr="window_preview_thumbnail_width",
+                widget=self._window_preview_thumbnail_width_spin,
+            ),
+            self._register_switch_binding(
+                config_attr="window_preview_highlight_thumbnails_on_hover",
+                widget=self._window_preview_highlight_thumbnails_on_hover_switch,
+            ),
+            self._register_switch_binding(
+                config_attr="window_preview_outline_window_on_hover",
+                widget=self._preview_outline_switch,
             ),
             self._register_switch_binding(
                 config_attr="tooltips_enabled",
@@ -1177,19 +1433,12 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_apps_max",
                 widget=self._recent_apps_max_spin,
-                on_change=self._actions.queue_draw,
+                on_change=self._after_recent_apps_policy_changed,
             ),
-            self._register_numeric_binding(
+            self._register_int_binding(
                 config_attr="recent_apps_retention_days",
-                widget=self._recent_apps_retention_combo,
-                read_widget=lambda: int(
-                    self._recent_apps_retention_combo.get_active_id() or 14
-                ),
-                write_widget=lambda value: (
-                    self._recent_apps_retention_combo.set_active_id(str(value))
-                ),
-                signal="changed",
-                on_change=self._actions.queue_draw,
+                widget=self._recent_apps_retention_spin,
+                on_change=self._after_recent_apps_policy_changed,
             ),
             # Recent Documents
             self._register_switch_binding(
@@ -1199,6 +1448,26 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="recent_docs_max",
                 widget=self._recent_docs_max_spin,
+            ),
+            self._register_switch_binding(
+                config_attr="global_search_enabled",
+                widget=self._global_search_switch,
+                on_change=self._actions.refresh_search_settings,
+            ),
+            self._register_numeric_binding(
+                config_attr="global_search_shortcut",
+                widget=self._global_search_shortcut_entry,
+                read_widget=self._global_search_shortcut_entry.get_shortcut,
+                write_widget=lambda value: (
+                    self._global_search_shortcut_entry.set_shortcut(str(value))
+                ),
+                signal="shortcut-changed",
+                on_change=self._actions.refresh_search_settings,
+            ),
+            self._register_choice_binding(
+                config_attr="global_search_web_engine",
+                widget=self._global_search_web_engine_combo,
+                on_change=self._actions.refresh_search_settings,
             ),
         ]
 
@@ -1290,6 +1559,7 @@ class SettingsWindowController:
                 check.set_active(desktop_id in active_ids)
             self._sync_monitor_combo()
             self._update_updates_status()
+            self._update_search_shortcut_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
@@ -1306,6 +1576,15 @@ class SettingsWindowController:
         for choice in choices:
             self._monitor_combo.append(str(choice.index), choice.label)
         self._monitor_combo.set_active_id(str(self._actions.current_monitor_choice()))
+
+    def _update_search_shortcut_status(self) -> None:
+        if self._global_search_status_label is None:
+            return
+        shortcut_summary = self._actions.search_shortcut_status_summary()
+        shortcut_status = _("Shortcut Status: {status}").format(status=shortcut_summary)
+        shortcut_description = self._actions.search_shortcut_status()
+        self._global_search_status_label.set_label(shortcut_status)
+        self._global_search_status_label.set_tooltip_text(shortcut_description)
 
     def _monitor_choices(self) -> list[Any]:
         try:
@@ -1516,11 +1795,13 @@ class SettingsWindowController:
 
     def _after_show_recent_apps_changed(self) -> None:
         """Rebuild the recent apps section when the toggle changes."""
-        if not self._config.show_recent_apps:
-            self._config.recent_apps.clear()
-            self._config.save()
+        self._model.rebuild_recent_apps()
         self._actions.queue_draw()
         self._update_dependent_sensitivity()
+
+    def _after_recent_apps_policy_changed(self) -> None:
+        """Redraw after a policy update that applies on the next reconciliation."""
+        self._actions.queue_draw()
 
     def _after_hide_mode_changed(self) -> None:
         self._actions.on_hide_mode_changed()
@@ -1565,8 +1846,25 @@ class SettingsWindowController:
         self._actions.reposition()
 
     def _update_dependent_sensitivity(self) -> None:
+        if self._window_preview_highlight_thumbnails_on_hover_switch is not None:
+            self._window_preview_highlight_thumbnails_on_hover_switch.set_sensitive(
+                bool(self._config.window_preview_thumbnails_enabled)
+            )
+        if self._window_preview_thumbnail_width_spin is not None:
+            self._window_preview_thumbnail_width_spin.set_sensitive(
+                bool(self._config.window_preview_thumbnails_enabled)
+            )
+        if self._preview_outline_switch is not None:
+            self._preview_outline_switch.set_sensitive(
+                self._window_outline_supported
+                and bool(self._config.window_preview_thumbnails_enabled)
+            )
         if self._zoom_percent_spin is not None:
             self._zoom_percent_spin.set_sensitive(bool(self._config.zoom_enabled))
+        if self._dock_item_click_effect_combo is not None:
+            self._dock_item_click_effect_combo.set_sensitive(
+                bool(self._config.dock_item_click_effects_enabled)
+            )
         if self._monitor_combo is not None:
             self._monitor_combo.set_sensitive(not bool(self._config.active_display))
         hide_controls_sensitive = self._config.hide_mode not in (
@@ -1584,11 +1882,16 @@ class SettingsWindowController:
         recent_sensitive = bool(self._config.show_recent_apps)
         if self._recent_apps_max_spin is not None:
             self._recent_apps_max_spin.set_sensitive(recent_sensitive)
-        if self._recent_apps_retention_combo is not None:
-            self._recent_apps_retention_combo.set_sensitive(recent_sensitive)
+        if self._recent_apps_retention_spin is not None:
+            self._recent_apps_retention_spin.set_sensitive(recent_sensitive)
         docs_sensitive = bool(self._config.show_recent_docs_in_menu)
         if self._recent_docs_max_spin is not None:
             self._recent_docs_max_spin.set_sensitive(docs_sensitive)
+        search_sensitive = bool(self._config.global_search_enabled)
+        if self._global_search_shortcut_entry is not None:
+            self._global_search_shortcut_entry.set_sensitive(search_sensitive)
+        if self._global_search_web_engine_combo is not None:
+            self._global_search_web_engine_combo.set_sensitive(search_sensitive)
 
     def _on_applet_toggled(
         self,

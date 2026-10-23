@@ -9,9 +9,8 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.freshness import cadence_label
@@ -49,6 +48,7 @@ from docking.applets.reddit.state import (
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.ui.tooltip import parse_timestamp
 
 if TYPE_CHECKING:
@@ -67,15 +67,13 @@ class RedditApplet(Applet):
     name = _("Reddit")
     icon_name = "internet-news-reader"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._subreddits = list(prefs.subreddits)
         self._active_subreddit_index = prefs.active_subreddit_index
         self._sort = prefs.sort
         self._top_period = prefs.top_period
-        self._posts = list(prefs.posts)
+        self._posts: list[RedditPost] = list(prefs.posts)
         self._active_post_index = prefs.active_post_index
         self._fetched_at = parse_timestamp(prefs.fetched_at)
         self._loading = False
@@ -139,6 +137,8 @@ class RedditApplet(Applet):
         )
 
     def stop(self) -> None:
+        self._fetch_request_id += 1
+        self._loading = False
         for attr in ("_refresh_timer_id", "_startup_fetch_timer_id"):
             timer_id = getattr(self, attr, 0)
             if timer_id:
@@ -418,10 +418,7 @@ class RedditApplet(Applet):
         post = self._current_post
         if post is None:
             return
-        try:
-            Gio.AppInfo.launch_default_for_uri(post.url, None)
-        except GLib.Error as exc:
-            log.bind(action="open_url").warning("Failed to open URL: %s", exc)
+        targets.open_target(post.url)
 
     def _show_add_subreddit_dialog(self) -> None:
         dialog = Gtk.Dialog(
