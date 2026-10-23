@@ -3,6 +3,11 @@ Feature: Preview popup layout
   Window previews remain reachable and correctly sized on every dock edge.
   These scenarios allocate real GTK widgets, including asynchronous layout.
 
+  Scenario: A completed native capture updates an already visible popup
+    Given a visible preview waiting for an asynchronous window capture
+    When the asynchronous window capture returns red pixels
+    Then the visible preview image shows the red window
+
   Scenario Outline: Preview groups fit the available monitor
     When I open <count> window previews at the <edge> edge
     Then the entire preview popup fits its monitor workarea

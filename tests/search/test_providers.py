@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock, call
+
+import pytest
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND
 from docking.platform.applications.recent_documents import RecentDocument
@@ -24,7 +27,7 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.targets import FileTargetInfo
+from docking.platform.targets import FileTargetInfo, normalize_file_target
 from docking.search.coordinator import SearchCancellation, SearchRequest
 from docking.search.providers import (
     ApplicationSearchProvider,
@@ -659,16 +662,20 @@ def test_recent_file_provider_searches_and_opens() -> None:
     assert _results(provider, "") == ()
 
 
-def test_direct_path_provider_uses_existing_path(tmp_path) -> None:
-    path = tmp_path / "notes.txt"
+@pytest.mark.parametrize(
+    "filename,copy_uri",
+    [
+        ("notes.txt", False),
+        ("résumé.txt", False),
+        (os.fsdecode(b"notes-\xff.txt"), True),
+    ],
+)
+def test_direct_path_provider_uses_existing_path(tmp_path, filename, copy_uri) -> None:
+    path = tmp_path / filename
     path.write_text("notes")
     target = path.resolve().as_uri()
     target_service = SimpleNamespace(
-        normalize_file_target=lambda value: (
-            Path(value).expanduser().resolve().as_uri()
-            if not value.startswith("file://")
-            else value
-        ),
+        normalize_file_target=normalize_file_target,
         resolve_file=lambda **_kwargs: FileTargetInfo(
             target=target,
             name="notes.txt",
@@ -685,10 +692,10 @@ def test_direct_path_provider_uses_existing_path(tmp_path) -> None:
         icon_size=48,
     )
 
-    result = _results(provider, str(path))[0]
+    result = _results(provider, target if copy_uri else str(path))[0]
     assert result.score == 1_100
     assert provider.invoke(
         result_identity=result.identity,
         action_identity=result.actions[1].identity,
     )
-    assert copied == [str(path.resolve())]
+    assert copied == [target if copy_uri else str(path.resolve())]

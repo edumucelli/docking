@@ -9,14 +9,18 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
+import cairo
 import gi
 
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
+
+if TYPE_CHECKING:
+    from gi.repository import Gtk
 
 from docking.core.position import Position
 from docking.log import get_logger
@@ -220,6 +224,18 @@ class CinnamonShellClient:
             "w.activate(global.get_current_time()); return 'ok';})()"
         )
         return self._action_result(result)
+
+    def pointer_position(self) -> tuple[int, int] | None:
+        """Query the compositor pointer, including positions outside XWayland."""
+        result = self._eval("global.get_pointer().slice(0, 2)")
+        if (
+            isinstance(result, list)
+            and len(result) == 2
+            and all(type(value) is int for value in result)
+        ):
+            coordinates = cast(list[int], result)
+            return coordinates[0], coordinates[1]
+        return None
 
     def show_desktop(self, show: bool | None) -> ActionResult:
         operation = (
@@ -439,6 +455,22 @@ class CinnamonShellClient:
             "guards[key] = {actor, window:w, visible, unmanaged}; }}"
             f"w.{'unstick' if current_workspace_only else 'stick'}();"
             f"w.{'make_above' if request.keep_above else 'unmake_above'}();"
+            # A later GTK configure can move the dock into its own strut after
+            # the startup retries have finished. Keep the compositor position
+            # attached to the requested anchor throughout the dock's lifetime.
+            "const positions = global._dockingDockPositions ||= {};"
+            "let pinned = positions[key]; if (!pinned) {"
+            "pinned = {window:w, rect:null, moving:false}; positions[key] = pinned;"
+            "pinned.signal = w.connect('position-changed', () => {"
+            "if (pinned.moving || !pinned.rect) return;"
+            "const r = w.get_frame_rect(), p = pinned.rect;"
+            "if (r.x === p[0] && r.y === p[1]) return;"
+            "pinned.moving = true;"
+            "try { w.move_frame(true, p[0], p[1]); }"
+            "finally { pinned.moving = false; }});"
+            "pinned.unmanaged = w.connect('unmanaged', () => {"
+            "delete positions[key]; }); }"
+            f"pinned.rect = [{int(request.x)}, {int(request.y)}];"
             # A shell/user move may occupy the reserved strip; an application
             # move is constrained into its own newly reduced workarea by Muffin.
             "w.move_resize_frame(true, "
@@ -461,6 +493,9 @@ class CinnamonShellClient:
             f"const key = {json.dumps(title)}, owned = guards?.[key];"
             "if (owned) {owned.actor.disconnect(owned.visible);"
             "owned.window.disconnect(owned.unmanaged); delete guards[key];}"
+            "const positions = global._dockingDockPositions, pinned = positions?.[key];"
+            "if (pinned) { pinned.window.disconnect(pinned.signal);"
+            "pinned.window.disconnect(pinned.unmanaged); delete positions[key];}"
             "return true;})()"
         )
 
@@ -494,6 +529,18 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._current_workspace_only = current_workspace_only
         if self._request is not None:
             self.position_or_anchor(self._request)
+
+    def update_input_region(self, rect: Rect) -> None:
+        window = cast("Gtk.Window | None", self._window)
+        if window is None:
+            return
+        gdk_window = window.get_window()
+        if gdk_window is None:
+            return
+        region = cairo.Region(
+            cairo.RectangleInt(rect.x, rect.y, rect.width, rect.height)
+        )
+        gdk_window.input_shape_combine_region(region, 0, 0)
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         return self._client.workarea(monitor, exclude_title=self._title)
@@ -587,6 +634,43 @@ class CinnamonXWaylandSurfaceService(CinnamonShellSurfaceService):
     Keep its native workarea and chrome reservation integration while GTK's
     X11 transport supplies the DOCK role that older Muffin lacks on Wayland.
     """
+
+    def __init__(self, *, client: CinnamonShellClient) -> None:
+        super().__init__(client=client)
+        self._input_rect: Rect | None = None
+        self._pointer_leave_handler: Callable[[], None] | None = None
+        self._pointer_source = 0
+
+    def update_input_region(self, rect: Rect) -> None:
+        self._input_rect = rect
+        super().update_input_region(rect)
+
+    def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
+        self._pointer_leave_handler = callback
+        if callback is None and self._pointer_source:
+            GLib.source_remove(self._pointer_source)
+            self._pointer_source = 0
+        elif callback is not None and not self._pointer_source:
+            self._pointer_source = GLib.timeout_add(100, self._check_pointer_leave)
+
+    def _check_pointer_leave(self) -> bool:
+        rect = self._input_rect
+        position = self._position
+        callback = self._pointer_leave_handler
+        if callback is None:
+            self._pointer_source = 0
+            return False
+        if rect is not None and position is not None:
+            pointer = self._client.pointer_position()
+            if pointer is not None:
+                x, y = pointer[0] - position[0], pointer[1] - position[1]
+                if not (rect.x <= x < rect.right and rect.y <= y < rect.bottom):
+                    callback()
+        return self._pointer_leave_handler is not None
+
+    def stop(self) -> None:
+        self.set_pointer_leave_handler(None)
+        super().stop()
 
     @property
     def popups_use_parent_relative_coordinates(self) -> bool:

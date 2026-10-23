@@ -24,14 +24,15 @@ import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 import gi
 
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
+from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
+from docking.platform.commands import desktop_exec_argv
 from docking.platform.environment import is_flatpak, xdg_data_home
 
 from .constants import DESKTOP_SUFFIX, FALLBACK_ICON
@@ -50,6 +51,7 @@ HOST_FILESYSTEM_ROOT = Path("/run/host")
 GENERATED_DESKTOP_PREFIX = "docking-generated-"
 GENERATED_SOURCE_KEY = "X-Docking-Source-Path"
 GENERATED_MARKER_KEY = "X-Docking-Generated"
+_GENERATED_EXEC_PREFIX = ("/bin/sh", "-c", 'exec "$@"', "docking-generated")
 
 log = with_context(get_logger(name="desktop_entries"))
 
@@ -64,33 +66,51 @@ class GeneratedDesktopEntry:
     icon_name: str
 
 
-def normalized_exec_basename(exec_line: str) -> str:
-    """Return the lowercase executable basename from a desktop Exec line."""
-    if not exec_line:
-        return ""
+def _executable_token(exec_line: str) -> str:
     try:
-        argv = shlex.split(exec_line)
+        argv = desktop_exec_argv(exec_line)
     except ValueError:
         return ""
-    if not argv:
+    if tuple(argv[:4]) == _GENERATED_EXEC_PREFIX and len(argv) >= 5:
+        return argv[4]
+    return argv[0] if argv else ""
+
+
+def normalized_exec_basename(exec_line: str) -> str:
+    """Return the lowercase executable basename from a desktop Exec line."""
+    executable = _executable_token(exec_line)
+    return Path(executable).name.lower() if executable else ""
+
+
+def script_launcher_basename(exec_line: str) -> str:
+    """Identify a script launcher, including a simple pkexec command wrapper.
+
+    This is matching evidence only: callers must preserve the original Exec
+    line for launching and executable-path comparisons.
+    """
+    try:
+        argv = desktop_exec_argv(exec_line)
+    except ValueError:
         return ""
-    return Path(argv[0]).name.lower()
+    if not argv or Path(argv[0]).name != "pkexec":
+        return normalized_exec_basename(exec_line)
+    command = argv[1:]
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command or command[0].startswith("-"):
+        return ""
+    return Path(command[0]).name.lower()
 
 
 def executable_path_from_exec_line(exec_line: str) -> Path | None:
     """Return a canonical direct executable path from a desktop Exec line."""
-    if not exec_line:
+    executable = _executable_token(exec_line)
+    if not executable:
         return None
     try:
-        argv = shlex.split(exec_line)
-    except ValueError:
-        return None
-    if not argv:
-        return None
-    path = Path(argv[0]).expanduser()
-    if not path.is_absolute():
-        return None
-    try:
+        path = Path(executable).expanduser()
+        if not path.is_absolute():
+            return None
         resolved = path.resolve(strict=True)
     except (OSError, RuntimeError):
         return None
@@ -257,30 +277,12 @@ def desktop_file_action_exec(path: Path, action_id: str) -> str:
 
 def desktop_id_from_uri_or_path(target: str) -> str | None:
     """Return a desktop ID from a local .desktop path or file URI."""
-    if not target:
-        return None
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        path = Path(unquote(parsed.path))
-    elif parsed.scheme == "":
-        path = Path(target).expanduser()
-    else:
+    path = local_path_from_uri_or_path(target)
+    if path is None:
         return None
     if path.suffix != DESKTOP_SUFFIX:
         return None
     return path.name
-
-
-def local_path_from_uri_or_path(target: str) -> Path | None:
-    """Return a local filesystem path from a file URI or plain local path."""
-    if not target:
-        return None
-    parsed = urlparse(target)
-    if parsed.scheme == "file":
-        return Path(unquote(parsed.path))
-    if parsed.scheme == "":
-        return Path(target).expanduser()
-    return None
 
 
 def appimage_path_needing_executable_permission(target: str | Path) -> Path | None:
@@ -293,7 +295,7 @@ def appimage_path_needing_executable_permission(target: str | Path) -> Path | No
             return None
     try:
         resolved = path.resolve(strict=True)
-    except OSError:
+    except (OSError, RuntimeError):
         return None
     if not resolved.is_file():
         return None
@@ -361,7 +363,8 @@ def create_desktop_entry_for_executable(
 def generated_desktop_id_for_path(path: Path) -> str:
     """Return the stable generated desktop ID for a source executable path."""
     resolved = path.expanduser().resolve()
-    slug = _slugify_desktop_name(_display_name_from_path(resolved))
+    # Leave room for the digest, suffix and atomic-write temporary filename.
+    slug = _slugify_desktop_name(_display_name_from_path(resolved))[:128]
     digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
     return f"{GENERATED_DESKTOP_PREFIX}{slug}-{digest}{DESKTOP_SUFFIX}"
 
@@ -375,7 +378,7 @@ def _local_executable_path(target: str | Path) -> Path | None:
             return None
     try:
         resolved = path.resolve(strict=True)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         log.bind(action="resolve_executable_drop", target=str(target)).debug(
             "Dropped executable path is not resolvable: %s",
             exc,
@@ -419,11 +422,11 @@ def _icon_name_for_generated_entry(path: Path) -> str:
     )
     for suffix in (".svg", ".png", ".xpm"):
         candidate = path.with_name(f"{stem}{suffix}")
-        if candidate.is_file():
-            try:
+        try:
+            if candidate.is_file():
                 return str(candidate.resolve(strict=True))
-            except (OSError, RuntimeError):
-                continue
+        except (OSError, RuntimeError):
+            continue
     if path.name.lower().endswith(".appimage"):
         return "application-x-appimage"
     return FALLBACK_ICON
@@ -436,11 +439,15 @@ def _generated_desktop_entry_content(
     icon_name: str,
     startup_wm_class: str = "",
 ) -> str:
+    exec_argv = (str(exec_path),)
+    # Gio rejects escaped percents in the executable token; pass the path as data.
+    if "%" in str(exec_path):
+        exec_argv = (*_GENERATED_EXEC_PREFIX, str(exec_path))
     lines = [
         "[Desktop Entry]",
         "Type=Application",
         f"Name={_escape_desktop_value(name)}",
-        f"Exec={_quote_exec_arg(str(exec_path))}",
+        f"Exec={' '.join(_quote_exec_arg(argument) for argument in exec_argv)}",
     ]
     if startup_wm_class.strip():
         lines.append(
@@ -464,9 +471,11 @@ def _escape_desktop_value(value: str) -> str:
 
 
 def _quote_exec_arg(value: str) -> str:
+    value = value.replace("%", "%%")
     escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`")
     escaped = escaped.replace("$", "\\$")
-    return f'"{escaped}"'
+    # Exec arguments also need the desktop value layer of backslash escaping.
+    return f'"{_escape_desktop_value(escaped)}"'
 
 
 def _write_desktop_file_atomically(*, path: Path, content: str) -> None:
@@ -527,6 +536,7 @@ __all__ = [
     "make_user_executable",
     "match_aliases",
     "normalized_exec_basename",
+    "script_launcher_basename",
     "user_applications_dir",
     "wine_executable_aliases",
 ]

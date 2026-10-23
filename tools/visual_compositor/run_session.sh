@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-COMPOSITOR="${1:?compositor name required}"
+export COMPOSITOR="${1:?compositor name required}"
 MODE="${2:-source}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

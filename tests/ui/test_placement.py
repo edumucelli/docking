@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.ui.placement as placement_mod
+from docking.core.items import DockItem
 from docking.core.position import Position
 
 
@@ -452,7 +453,10 @@ class TestPlacementControllerGeometry:
         window.move.assert_called_once()
         controller.update_barrier.assert_called_once()
 
-    def test_position_dock_bottom_keeps_window_on_screen_edge_with_theme_gap(self):
+    @pytest.mark.parametrize(("main_size", "surface_extent"), [(0, 71), (96, 128)])
+    def test_position_dock_bottom_keeps_window_on_screen_edge_with_theme_gap(
+        self, main_size, surface_extent
+    ):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1056)
         monitor = _fake_monitor(geometry=geom, workarea=work)
@@ -483,14 +487,23 @@ class TestPlacementControllerGeometry:
                 distance_from_edge=6,
             ),
         )
+        window.model.visible_items = lambda: [
+            DockItem(desktop_id="wide.desktop", main_size=main_size)
+        ]
         controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(0, 1018)
+        # Reserve pulse headroom even when the theme disables bounce, while
+        # keeping the full drawing surface flush with the bottom screen edge.
+        window.resize.assert_called_once_with(1920, surface_extent)
+        window.move.assert_called_once_with(0, 1080 - surface_extent)
 
-    def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(self):
+    @pytest.mark.parametrize(("main_size", "surface_extent"), [(0, 71), (96, 128)])
+    def test_position_dock_right_keeps_window_on_screen_edge_with_theme_gap(
+        self, main_size, surface_extent
+    ):
         geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         work = SimpleNamespace(x=0, y=24, width=1920, height=1000)
         monitor = _fake_monitor(geometry=geom, workarea=work)
@@ -521,12 +534,17 @@ class TestPlacementControllerGeometry:
                 distance_from_edge=6,
             ),
         )
+        window.model.visible_items = lambda: [
+            DockItem(desktop_id="wide.desktop", main_size=main_size)
+        ]
         controller = _make_controller(window)
         controller.update_barrier = MagicMock()
 
         controller.position_dock()
 
-        window.move.assert_called_once_with(1858, 24)
+        # The extra pulse headroom must stay inside the right screen edge.
+        window.resize.assert_called_once_with(surface_extent, 1000)
+        window.move.assert_called_once_with(1920 - surface_extent, 24)
 
     def test_position_dock_uses_selected_monitor_index(self):
         geom_primary = SimpleNamespace(x=0, y=0, width=1920, height=1080)
