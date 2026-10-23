@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
@@ -224,6 +224,18 @@ class CinnamonShellClient:
             "w.activate(global.get_current_time()); return 'ok';})()"
         )
         return self._action_result(result)
+
+    def pointer_position(self) -> tuple[int, int] | None:
+        """Query the compositor pointer, including positions outside XWayland."""
+        result = self._eval("global.get_pointer().slice(0, 2)")
+        if (
+            isinstance(result, list)
+            and len(result) == 2
+            and all(type(value) is int for value in result)
+        ):
+            coordinates = cast(list[int], result)
+            return coordinates[0], coordinates[1]
+        return None
 
     def show_desktop(self, show: bool | None) -> ActionResult:
         operation = (
@@ -622,6 +634,43 @@ class CinnamonXWaylandSurfaceService(CinnamonShellSurfaceService):
     Keep its native workarea and chrome reservation integration while GTK's
     X11 transport supplies the DOCK role that older Muffin lacks on Wayland.
     """
+
+    def __init__(self, *, client: CinnamonShellClient) -> None:
+        super().__init__(client=client)
+        self._input_rect: Rect | None = None
+        self._pointer_leave_handler: Callable[[], None] | None = None
+        self._pointer_source = 0
+
+    def update_input_region(self, rect: Rect) -> None:
+        self._input_rect = rect
+        super().update_input_region(rect)
+
+    def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
+        self._pointer_leave_handler = callback
+        if callback is None and self._pointer_source:
+            GLib.source_remove(self._pointer_source)
+            self._pointer_source = 0
+        elif callback is not None and not self._pointer_source:
+            self._pointer_source = GLib.timeout_add(100, self._check_pointer_leave)
+
+    def _check_pointer_leave(self) -> bool:
+        rect = self._input_rect
+        position = self._position
+        callback = self._pointer_leave_handler
+        if callback is None:
+            self._pointer_source = 0
+            return False
+        if rect is not None and position is not None:
+            pointer = self._client.pointer_position()
+            if pointer is not None:
+                x, y = pointer[0] - position[0], pointer[1] - position[1]
+                if not (rect.x <= x < rect.right and rect.y <= y < rect.bottom):
+                    callback()
+        return self._pointer_leave_handler is not None
+
+    def stop(self) -> None:
+        self.set_pointer_leave_handler(None)
+        super().stop()
 
     @property
     def popups_use_parent_relative_coordinates(self) -> bool:

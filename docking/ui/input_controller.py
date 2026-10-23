@@ -258,8 +258,8 @@ class DockInputController:
         window.update_input_region(frame=frame)
         window._schedule_redraw()
         hovered_item = frame.item_at_point(event.x, event.y)
-        self._interactions.close_stack_unless_target(hovered_item)
         if frame.cursor_rect.contains(event.x, event.y):
+            self._interactions.close_stack_unless_target(hovered_item)
             window.interaction.on_effective_enter()
             cursor_main = (
                 window.cursor_x

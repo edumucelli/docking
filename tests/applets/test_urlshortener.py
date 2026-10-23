@@ -451,6 +451,7 @@ class TestAppletDialog:
                 applet._on_result,
                 "https://example.com",
                 "https://is.gd/abc",
+                applet._request_id,
             )
             for call in idle_add.call_args_list
         )
@@ -465,7 +466,7 @@ class TestAppletDialog:
         save = MagicMock()
         applet.save_prefs = save
 
-        applet._on_result("https://example.com", "Error: bad url")
+        applet._on_result("https://example.com", "Error: bad url", applet._request_id)
 
         assert applet._result_label is not None
         assert applet._result_label.get_text() == "Error: bad url"
@@ -488,7 +489,7 @@ class TestAppletDialog:
             )
             result = shorten_url("https://example.com")
 
-        applet._on_result("https://example.com", result)
+        applet._on_result("https://example.com", result, applet._request_id)
 
         assert applet._shorten_btn.get_sensitive() is True
         assert applet._copy_btn.get_visible() is False
@@ -506,7 +507,12 @@ class TestAppletDialog:
         _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
 
-        assert applet._on_result("https://example.com", "https://is.gd/ok") is False
+        assert (
+            applet._on_result(
+                "https://example.com", "https://is.gd/ok", applet._request_id
+            )
+            is False
+        )
 
         assert applet._result_label is not None
         assert applet._result_label.get_text() == "https://is.gd/ok"

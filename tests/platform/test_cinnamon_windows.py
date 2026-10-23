@@ -296,7 +296,7 @@ global.imports = {gi: {
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=5,
+                timeout=30,  # Include cold Node startup on loaded CI runners.
             )
             return SimpleNamespace(unpack=lambda: (True, result.stdout))
 

@@ -241,11 +241,13 @@ class AlarmApplet(Applet):
 
     def _upsert_preset(self, *, index: int | None, preset: AlarmPreset) -> None:
         now = self._now()
-        if not preset.last_triggered and (preset.hour, preset.minute) <= (
+        if (preset.hour, preset.minute) <= (
             now.hour,
             now.minute,
         ):
             preset = replace(preset, last_triggered=now.date().isoformat())
+        else:
+            preset = replace(preset, last_triggered="")
         if index is None:
             self._state = add_preset(state=self._state, preset=preset)
         else:
@@ -266,6 +268,18 @@ class AlarmApplet(Applet):
         self.present()
 
     def _toggle_alarm(self, *, index: int, enabled: bool) -> None:
+        if enabled and 0 <= index < len(self._state.presets):
+            preset = self._state.presets[index]
+            if not preset.enabled:
+                now = self._now()
+                consumed = (
+                    now.date().isoformat()
+                    if (preset.hour, preset.minute) <= (now.hour, now.minute)
+                    else ""
+                )
+                self._state = replace_preset(
+                    self._state, index, replace(preset, last_triggered=consumed)
+                )
         self._state = set_enabled(state=self._state, index=index, enabled=enabled)
         self.item.is_urgent = self._state.ringing_index is not None
         self._save()
