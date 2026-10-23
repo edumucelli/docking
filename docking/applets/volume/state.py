@@ -15,16 +15,13 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
-from collections.abc import Callable
 from typing import NamedTuple
 
 from docking.applets.volume import meta
 from docking.log import get_logger, with_context
-from docking.platform import environment
 
 log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
@@ -84,79 +81,6 @@ def _volume_icon_name(volume: int, muted: bool) -> str:
     return "audio-volume-high"
 
 
-class Backend(NamedTuple):
-    """Audio backend with commands for reading/setting volume."""
-
-    command: str
-    get_state: Callable[[], VolumeState | None]
-    set_volume: Callable[[int], None]
-    toggle_mute: Callable[[], None]
-
-
-def _run(cmd: list[str], action: str) -> str | None:
-    """Run command, return stdout or None on failure."""
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=2,
-            env={**os.environ, "LC_ALL": "C"},
-        )
-        if result.returncode == 0:
-            return result.stdout
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
-    return None
-
-
-def _pactl_get_state() -> VolumeState | None:
-    vol_out = _run(
-        cmd=["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
-        action="get_state",
-    )
-    mute_out = _run(
-        cmd=["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
-        action="get_state",
-    )
-    if vol_out is None or mute_out is None:
-        return None
-    vol = _parse_pactl_volume(output=vol_out)
-    muted = _parse_pactl_mute(output=mute_out)
-    if vol is None or muted is None:
-        return None
-    return VolumeState(volume=vol, muted=muted)
-
-
-def _pactl_set_volume(volume: int) -> None:
-    _run(
-        cmd=["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{volume}%"],
-        action="set_volume",
-    )
-
-
-def _pactl_toggle_mute() -> None:
-    _run(
-        cmd=["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
-        action="toggle_mute",
-    )
-
-
-def _amixer_get_state() -> VolumeState | None:
-    out = _run(cmd=["amixer", "get", "Master"], action="get_state")
-    if out is None:
-        return None
-    return _parse_amixer(output=out)
-
-
-def _amixer_set_volume(volume: int) -> None:
-    _run(cmd=["amixer", "set", "Master", f"{volume}%"], action="set_volume")
-
-
-def _amixer_toggle_mute() -> None:
-    _run(cmd=["amixer", "set", "Master", "toggle"], action="toggle_mute")
-
-
 def volume_settings_command() -> list[str] | None:
     """Return the first available desktop volume-settings command."""
     for cmd in _VOLUME_SETTINGS_COMMANDS:
@@ -178,31 +102,3 @@ def open_volume_settings() -> bool:
         )
         return False
     return True
-
-
-_BACKENDS: tuple[Backend, ...] = (
-    Backend(
-        command="pactl",
-        get_state=_pactl_get_state,
-        set_volume=_pactl_set_volume,
-        toggle_mute=_pactl_toggle_mute,
-    ),
-    Backend(
-        command="amixer",
-        get_state=_amixer_get_state,
-        set_volume=_amixer_set_volume,
-        toggle_mute=_amixer_toggle_mute,
-    ),
-)
-
-
-def _detect_backend() -> Backend | None:
-    """Return the first available audio backend, or None."""
-    for backend in _BACKENDS:
-        if shutil.which(backend.command):
-            return backend
-    if environment.is_bsd():
-        from docking.applets.volume.bsd import backend as native_backend
-
-        return native_backend()
-    return None

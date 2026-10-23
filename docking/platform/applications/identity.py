@@ -12,7 +12,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, TypeGuard
 
-from docking.platform import bsd, environment
+from docking.platform import environment
+from docking.platform.applications import bsd
 
 from .flatpak import valid_flatpak_app_id
 

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import configparser
 import errno
+import importlib
 import os
 import shutil
 import stat
@@ -24,7 +25,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import gi
 
@@ -34,7 +35,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
-from docking.platform import bsd, environment, targets
+from docking.platform import environment, targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -160,7 +161,7 @@ def _decode_mountinfo_path(value: str) -> str:
 
 def _mount_points() -> tuple[Path, ...]:
     if environment.is_bsd():
-        return bsd.mount_points()
+        return _bsd_mount_points()
     try:
         lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")
     except OSError as exc:
@@ -837,3 +838,19 @@ def select_trash_backend(*, desktop: Desktop | None = None) -> TrashBackend:
     if is_gnome_session(desktop=resolved):
         return GnomeTrashBackend()
     return GioTrashBackend()
+
+
+def _psutil() -> Any:
+    return importlib.import_module("psutil")
+
+
+def _bsd_mount_points() -> tuple[Path, ...]:
+    try:
+        return tuple(
+            dict.fromkeys(
+                Path(str(p.mountpoint)) for p in _psutil().disk_partitions(all=True)
+            )
+        )
+    except Exception as exc:
+        log.debug("Mount table unavailable: %s", exc)
+        return ()

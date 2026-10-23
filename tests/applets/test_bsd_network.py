@@ -1,13 +1,14 @@
 """BSD network sampling, interface changes, and applet platform availability."""
 
+import socket
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import docking.applets.network.applet as network_applet
 from docking.applets.bluetooth import meta as bluetooth_meta
+from docking.applets.network import bsd
 from docking.applets.network.applet import NetworkApplet
 from docking.core.config import Config
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 
 def test_native_interface_change_resets_traffic_baseline(monkeypatch):
@@ -49,13 +50,6 @@ def test_shared_applet_starts_without_networkmanager_and_keeps_preferences(monke
         "network_interfaces",
         lambda: [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)],
     )
-    new_client = MagicMock(side_effect=AssertionError("BSD must not load NM"))
-    monkeypatch.setattr(
-        network_applet,
-        "NM",
-        SimpleNamespace(Client=SimpleNamespace(new=new_client)),
-        raising=False,
-    )
     applet = NetworkApplet(48, Config())
     applet.save_prefs = MagicMock()
     try:
@@ -68,7 +62,25 @@ def test_shared_applet_starts_without_networkmanager_and_keeps_preferences(monke
         applet.save_prefs.assert_called_with(
             prefs={"interface": "vio0", "speed_overlay": "upload"}
         )
-        new_client.assert_not_called()
+        assert applet._backend.connection_manager is None
     finally:
         applet.stop()
     assert applet._timer_id == 0
+
+
+def test_network_uses_native_counters_and_ignores_loopback(monkeypatch):
+    counters = SimpleNamespace(bytes_recv=1000, bytes_sent=2000)
+    util = SimpleNamespace(
+        net_io_counters=lambda **kwargs: {"lo0": counters, "vio0": counters},
+        net_if_addrs=lambda: {
+            "vio0": [SimpleNamespace(family=socket.AF_INET, address="192.0.2.5")]
+        },
+        net_if_stats=lambda: {
+            "lo0": SimpleNamespace(isup=True),
+            "vio0": SimpleNamespace(isup=True),
+        },
+    )
+    monkeypatch.setattr(bsd, "_psutil", lambda: util)
+    assert bsd.network_interfaces() == [
+        bsd.NetworkInterface("vio0", "192.0.2.5", True, 1000, 2000)
+    ]

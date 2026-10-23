@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from docking.applets.systemmonitor import bsd
 from docking.applets.systemmonitor.gpu import GpuStats, gpu_summary
 from docking.applets.temperature import (
     TemperatureUnit,
@@ -30,7 +31,7 @@ from docking.applets.temperature import (
 from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03

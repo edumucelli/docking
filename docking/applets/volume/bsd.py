@@ -6,7 +6,10 @@ import re
 import shutil
 import sys
 
-from docking.applets.volume.state import Backend, VolumeState, _run
+from docking.applets.volume.backend import VolumeBackend
+from docking.applets.volume.command import _run
+from docking.applets.volume.pulseaudio import BACKEND as PULSEAUDIO
+from docking.applets.volume.state import VolumeState
 
 
 def _number(text: str | None) -> float | None:
@@ -21,7 +24,9 @@ def _number(text: str | None) -> float | None:
         return None
 
 
-def backend() -> Backend | None:
+def create_backend() -> VolumeBackend | None:
+    if shutil.which("pactl"):
+        return PULSEAUDIO
     openbsd = sys.platform.startswith("openbsd")
     tool = "sndioctl" if openbsd else "mixer"
     if shutil.which(tool) is None:
@@ -48,4 +53,4 @@ def backend() -> Backend | None:
     def toggle_mute() -> None:
         _run([tool, f"{mute_key}={'!' if openbsd else 'toggle'}"], "toggle_mute")
 
-    return Backend(tool, get_state, set_volume, toggle_mute)
+    return VolumeBackend(tool, get_state, set_volume, toggle_mute)

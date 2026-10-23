@@ -11,14 +11,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""GTK lifecycle glue for Network applet."""
+"""Shared rendering, menus, traffic calculation, and lifecycle for Network."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Callable
 from dataclasses import replace
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -30,84 +29,45 @@ from gi.repository import GLib, Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.network import meta
-from docking.applets.network.bsd import NativeNetworkBackend
+from docking.applets.network.backend import ConnectionManager, create_backend
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
-    AvailableNetwork,
     NetworkState,
     TrafficCounters,
     build_tooltip,
     compute_speeds,
     connection_info_command,
-    decode_ssid,
-    dedupe_networks,
     edit_connections_command,
     format_speed,
     open_connection_info,
     open_edit_connections,
     open_hidden_wifi_settings,
     open_new_wifi_settings,
-    parse_proc_net_dev,
 )
 from docking.i18n import _
-from docking.log import get_logger, with_context
-from docking.platform import environment
-
-if TYPE_CHECKING or not environment.is_bsd():
-    gi.require_version("NM", "1.0")
-    from gi.repository import NM
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-
-def _skip_device_types() -> frozenset[object]:
-    """Return device types that should never represent the active network."""
-    return frozenset(
-        getattr(NM.DeviceType, name)
-        for name in ("TUN", "BRIDGE", "LOOPBACK", "DUMMY", "VETH")
-        if hasattr(NM.DeviceType, name)
-    )
-
-
-log = with_context(get_logger(name="network"), applet_id=meta.id)
-_PROC_NET_DEV = Path("/proc/net/dev")
-
 POLL_INTERVAL_S = 2
-WIFI_SCAN_REQUEST_INTERVAL_S = 15.0
 
 
 class NetworkApplet(Applet):
-    """Shows network connection state, wifi signal, and traffic speeds."""
+    """Show connection status and traffic through the selected backend."""
 
     id = meta.id
     name = _("Network")
     icon_name = "network-wireless-symbolic"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._timer_id: int = 0
-        self._nm_client: NM.Client | None = None
-        self._nm_handler_id: int = 0
-        self._nm_state_handler_id: int = 0
-
-        # Visible state. Frozen so equality gates re-renders.
+        self._timer_id = 0
         self._state = NetworkState()
-        # "download", "upload", or "none"
-        self._speed_overlay = "download"
-
-        # Traffic tracking
         self._prev_counters: TrafficCounters | None = None
-        self._prev_time: float = 0.0
-        self._last_wifi_scan_request_time: float = 0.0
-
+        self._prev_time = 0.0
+        self._prev_iface = ""
         prefs = config.applet_prefs.get(meta.id, {})
         self._speed_overlay = prefs.get("speed_overlay", "download")
-        self._native_backend = (
-            NativeNetworkBackend(str(prefs.get("interface", "")))
-            if environment.is_bsd()
-            else None
-        )
-
+        self._backend = create_backend(str(prefs.get("interface", "")))
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -173,22 +133,18 @@ class NetworkApplet(Applet):
             settings.append(edit_item)
 
         manage: list[Gtk.MenuItem] = []
-        if self._native_backend is not None:
-            manage.extend(
-                radio_menu_items(
-                    choices=tuple(
-                        (f"{i.name} {i.address}".strip(), i.name)
-                        for i in self._native_backend.interfaces
-                    ),
-                    active_value=state.iface,
-                    on_selected=lambda _widget, value: self._set_interface(value),
-                    gtk=Gtk,
-                )
+        manage.extend(
+            radio_menu_items(
+                choices=self._backend.interface_choices(),
+                active_value=state.iface,
+                on_selected=lambda _widget, value: self._set_interface(value),
+                gtk=Gtk,
             )
-        if self._nm_client is not None:
-            if self._has_wifi_device():
-                manage.append(self._build_available_networks_submenu())
-
+        )
+        manager = self._backend.connection_manager
+        if manager is not None:
+            if manager.has_wifi_device():
+                manage.append(self._build_available_networks_submenu(manager))
                 hidden_item = Gtk.MenuItem(
                     label=_("Connect to Hidden Wi-Fi Network...")
                 )
@@ -196,34 +152,31 @@ class NetworkApplet(Applet):
                     "activate", lambda _widget: open_hidden_wifi_settings()
                 )
                 manage.append(hidden_item)
-
                 new_item = Gtk.MenuItem(label=_("Create New Wi-Fi Network..."))
                 new_item.connect("activate", lambda _widget: open_new_wifi_settings())
                 manage.append(new_item)
 
             networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
-            networking_item.set_active(self._nm_client.networking_get_enabled())
+            networking_item.set_active(manager.networking_enabled)
             networking_item.connect(
                 "toggled",
-                lambda widget: self._set_networking_enabled(
+                lambda widget: manager.set_networking_enabled(
                     enabled=widget.get_active()
                 ),
             )
             manage.append(networking_item)
-
-            if self._has_wifi_device():
+            if manager.has_wifi_device():
                 wifi_item = Gtk.CheckMenuItem(label=_("Enable Wi-Fi"))
-                wifi_item.set_active(self._nm_client.wireless_get_enabled())
-                wifi_item.set_sensitive(self._nm_client.wireless_hardware_get_enabled())
+                wifi_item.set_active(manager.wireless_enabled)
+                wifi_item.set_sensitive(manager.wireless_hardware_enabled)
                 wifi_item.connect(
                     "toggled",
-                    lambda widget: self._set_wireless_enabled(
+                    lambda widget: manager.set_wireless_enabled(
                         enabled=widget.get_active()
                     ),
                 )
                 manage.append(wifi_item)
-
-            vpn_item = self._build_vpn_connections_submenu()
+            vpn_item = self._build_vpn_connections_submenu(manager)
             if vpn_item is not None:
                 manage.append(vpn_item)
 
@@ -246,63 +199,38 @@ class NetworkApplet(Applet):
             gtk=Gtk,
         )
 
+    def _save_preferences(self) -> None:
+        self.save_prefs(
+            prefs={
+                "interface": self._backend.interface,
+                "speed_overlay": self._speed_overlay,
+            }
+        )
+
     def _set_speed_overlay(self, mode: str) -> None:
         self._speed_overlay = mode
-        prefs = {"speed_overlay": mode}
-        if self._native_backend is not None:
-            prefs["interface"] = self._native_backend.interface
-        self.save_prefs(prefs=prefs)
+        self._save_preferences()
         self.present()
 
     def _set_interface(self, interface: str) -> None:
-        if self._native_backend is None:
-            return
-        self._native_backend.interface = interface
-        self.save_prefs(
-            prefs={"interface": interface, "speed_overlay": self._speed_overlay}
-        )
+        self._backend.interface = interface
+        self._save_preferences()
         self._refresh_state()
 
-    def _set_networking_enabled(self, *, enabled: bool) -> None:
-        if self._nm_client is None:
-            return
-        try:
-            self._nm_client.networking_set_enabled(enabled)
-        except GLib.Error as exc:
-            log.bind(action="set_networking_enabled").warning(
-                "Failed to set networking enabled=%s: %s",
-                enabled,
-                exc,
-            )
-            return
-        self._refresh_state()
-
-    def _set_wireless_enabled(self, *, enabled: bool) -> None:
-        if self._nm_client is None:
-            return
-        try:
-            self._nm_client.wireless_set_enabled(enabled)
-        except GLib.Error as exc:
-            log.bind(action="set_wireless_enabled").warning(
-                "Failed to set Wi-Fi enabled=%s: %s",
-                enabled,
-                exc,
-            )
-            return
-        self._refresh_state()
-
-    def _build_available_networks_submenu(self) -> Gtk.MenuItem:
+    def _build_available_networks_submenu(
+        self, manager: ConnectionManager
+    ) -> Gtk.MenuItem:
         item = Gtk.MenuItem(label=_("Available Networks"))
         submenu = Gtk.Menu()
 
-        for network in self._available_networks():
+        for network in manager.available_networks():
             label = _("{ssid} ({pct}%)").format(ssid=network.ssid, pct=network.strength)
             if network.is_active:
                 label = _("Connected: {label}").format(label=label)
             child = Gtk.MenuItem(label=label)
             child.connect(
                 "activate",
-                lambda _widget, n=network: self._connect_available_network(network=n),
+                lambda _widget, n=network: manager.connect_network(network=n),
             )
             submenu.append(child)
 
@@ -314,389 +242,75 @@ class NetworkApplet(Applet):
         item.set_submenu(submenu)
         return item
 
-    def _build_vpn_connections_submenu(self) -> Gtk.MenuItem | None:
-        vpn_connections = self._vpn_connections()
-        if not vpn_connections:
+    def _build_vpn_connections_submenu(
+        self, manager: ConnectionManager
+    ) -> Gtk.MenuItem | None:
+        connections = manager.vpn_connections()
+        if not connections:
             return None
-
         item = Gtk.MenuItem(label=_("VPN Connections"))
         submenu = Gtk.Menu()
-        for connection, is_active, active_connection in vpn_connections:
-            label = connection.get_id() or connection.get_uuid() or _("Unnamed VPN")
-            child = Gtk.MenuItem(label=label)
+        for connection in connections:
+            child = Gtk.MenuItem(label=connection.label or _("Unnamed VPN"))
             child.connect(
                 "activate",
-                lambda _widget, c=connection, active=is_active, ac=active_connection: (
-                    self._toggle_vpn_connection(
-                        connection=c,
-                        is_active=active,
-                        active_connection=ac,
-                    )
-                ),
+                lambda _widget, uuid=connection.uuid: manager.toggle_vpn(uuid),
             )
             submenu.append(child)
         item.set_submenu(submenu)
         return item
 
-    def _available_networks(self) -> list[AvailableNetwork]:
-        if self._nm_client is None:
-            return []
-
-        networks: list[AvailableNetwork] = []
-        for device in self._nm_client.get_devices():
-            if device.get_device_type() != NM.DeviceType.WIFI:
-                continue
-            self._request_wifi_scan(device=device)
-            active_ap = device.get_active_access_point()
-            active_path = active_ap.get_path() if active_ap is not None else ""
-            for ap in device.get_access_points():
-                ssid = decode_ssid(ap.get_ssid())
-                if not ssid:
-                    continue
-                networks.append(
-                    AvailableNetwork(
-                        ssid=ssid,
-                        strength=ap.get_strength(),
-                        access_point_path=ap.get_path(),
-                        is_active=ap.get_path() == active_path,
-                    )
-                )
-        return dedupe_networks(networks=networks)
-
-    def _request_wifi_scan(self, *, device: NM.Device) -> None:
-        now = time.monotonic()
-        if now - self._last_wifi_scan_request_time < WIFI_SCAN_REQUEST_INTERVAL_S:
-            return
-        try:
-            requested = device.request_scan(None)
-        except GLib.Error as exc:
-            log.bind(action="request_wifi_scan").debug(
-                "Failed to request Wi-Fi scan on %s: %s",
-                device.get_iface(),
-                exc,
-            )
-            return
-        if requested:
-            self._last_wifi_scan_request_time = now
-
-    def _connect_available_network(self, *, network: AvailableNetwork) -> None:
-        if self._nm_client is None:
-            return
-        match = self._find_wifi_access_point(network=network)
-        if match is None:
-            return
-        device, access_point = match
-        connection = self._find_saved_wifi_connection(ssid=network.ssid)
-        try:
-            if connection is not None:
-                self._nm_client.activate_connection_async(
-                    connection,
-                    device,
-                    access_point.get_path(),
-                    None,
-                    self._on_activate_connection_finished,
-                    None,
-                )
-            else:
-                self._nm_client.add_and_activate_connection_async(
-                    None,
-                    device,
-                    access_point.get_path(),
-                    None,
-                    self._on_add_and_activate_connection_finished,
-                    None,
-                )
-        except GLib.Error as exc:
-            log.bind(action="connect_available_network", ssid=network.ssid).warning(
-                "Failed to connect to Wi-Fi network %s: %s",
-                network.ssid,
-                exc,
-            )
-
-    def _toggle_vpn_connection(
-        self, *, connection, is_active: bool, active_connection
-    ) -> None:
-        if self._nm_client is None:
-            return
-        try:
-            if is_active and active_connection is not None:
-                self._nm_client.deactivate_connection_async(
-                    active_connection,
-                    None,
-                    self._on_deactivate_connection_finished,
-                    None,
-                )
-                return
-            self._nm_client.activate_connection_async(
-                connection,
-                None,
-                None,
-                None,
-                self._on_activate_connection_finished,
-                None,
-            )
-        except GLib.Error as exc:
-            log.bind(action="toggle_vpn_connection").warning(
-                "Failed to toggle VPN connection %s: %s",
-                connection.get_id() or connection.get_uuid() or "<unknown>",
-                exc,
-            )
-
-    def _find_wifi_access_point(
-        self, *, network: AvailableNetwork
-    ) -> tuple[NM.Device, NM.AccessPoint] | None:
-        if self._nm_client is None:
-            return None
-        for device in self._nm_client.get_devices():
-            if device.get_device_type() != NM.DeviceType.WIFI:
-                continue
-            for ap in device.get_access_points():
-                if ap.get_path() == network.access_point_path:
-                    return device, ap
-        return None
-
-    def _find_saved_wifi_connection(self, *, ssid: str) -> object | None:
-        if self._nm_client is None:
-            return None
-        for connection in self._nm_client.get_connections():
-            setting = connection.get_setting_wireless()
-            if setting is None:
-                continue
-            if decode_ssid(setting.get_ssid()) == ssid:
-                return connection
-        return None
-
-    def _vpn_connections(self) -> list[tuple[object, bool, object | None]]:
-        if self._nm_client is None:
-            return []
-
-        active_by_uuid = {
-            active.get_uuid(): active
-            for active in self._nm_client.get_active_connections()
-            if active.get_vpn()
-        }
-        result = []
-        for connection in self._nm_client.get_connections():
-            if connection.get_setting_vpn() is None:
-                continue
-            uuid = connection.get_uuid()
-            active_connection = active_by_uuid.get(uuid)
-            result.append(
-                (
-                    connection,
-                    active_connection is not None,
-                    active_connection,
-                )
-            )
-        result.sort(key=lambda item: (not item[1], (item[0].get_id() or "").casefold()))
-        return result
-
-    def _on_activate_connection_finished(self, client, result, _user_data) -> None:
-        try:
-            client.activate_connection_finish(result)
-        except GLib.Error as exc:
-            log.bind(action="activate_connection_finish").warning(
-                "Failed to activate saved Wi-Fi connection: %s",
-                exc,
-            )
-
-    def _on_add_and_activate_connection_finished(
-        self, client, result, _user_data
-    ) -> None:
-        try:
-            client.add_and_activate_connection_finish(result)
-        except GLib.Error as exc:
-            log.bind(action="add_and_activate_connection_finish").warning(
-                "Failed to add and activate Wi-Fi connection: %s",
-                exc,
-            )
-
-    def _on_deactivate_connection_finished(self, client, result, _user_data) -> None:
-        try:
-            client.deactivate_connection_finish(result)
-        except GLib.Error as exc:
-            log.bind(action="deactivate_connection_finish").warning(
-                "Failed to deactivate VPN connection: %s",
-                exc,
-            )
-
     def start(self, notify: Callable[[], None]) -> None:
-        """Connect to NetworkManager and start traffic polling."""
         super().start(notify=notify)
-        if self._native_backend is not None:
-            self._refresh_state()
-            self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
-            return
-        try:
-            self._nm_client = NM.Client.new(None)
-            self._nm_handler_id = self._nm_client.connect(
-                "notify::active-connections",
-                self._on_nm_changed,
-            )
-            self._nm_state_handler_id = self._nm_client.connect(
-                "notify::state",
-                self._on_nm_changed,
-            )
-            self._refresh_state()
-        except GLib.Error:
-            log.bind(action="connect_nm").warning(
-                "Could not connect to NetworkManager",
-            )
+        self._backend.start(self._refresh_state)
+        self._refresh_state()
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
-        """Disconnect NM signals and stop timer."""
-        if self._nm_client:
-            if self._nm_handler_id:
-                self._nm_client.disconnect(self._nm_handler_id)
-                self._nm_handler_id = 0
-            if self._nm_state_handler_id:
-                self._nm_client.disconnect(self._nm_state_handler_id)
-                self._nm_state_handler_id = 0
-        self._nm_client = None
+        self._backend.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
         super().stop()
 
-    def _on_nm_changed(self, *_args: object) -> None:
-        """NM active-connections changed: refresh and re-render on change."""
-        self._refresh_state()
-
     def _refresh_state(self) -> None:
-        """Recompute the full visible state and present only on change."""
-        new_state = (
-            self._native_backend.state()
-            if self._native_backend is not None
-            else self._compute_nm_state()
-        )
-        new_state = self._apply_traffic(state=new_state)
-        if new_state != self._state:
-            self._state = new_state
+        state = self._backend.state()
+        if state.iface == self._state.iface:
+            state = replace(
+                state, rx_speed=self._state.rx_speed, tx_speed=self._state.tx_speed
+            )
+        state = self._apply_traffic(state=state)
+        if state != self._state:
+            self._state = state
             self.present()
 
-    def _compute_nm_state(self) -> NetworkState:
-        """Return a NetworkState reflecting current NetworkManager status."""
-        if not self._nm_client:
-            return NetworkState()
-
-        # Collect candidates, prioritize wifi > ethernet > other
-        best_device: NM.Device | None = None
-        best_priority = -1
-
-        for conn in self._nm_client.get_active_connections():
-            if conn.get_state() != NM.ActiveConnectionState.ACTIVATED:
-                continue
-            devices = conn.get_devices()
-            if not devices:
-                continue
-            for device in devices:
-                priority = self._device_priority(device=device)
-                if priority < 0:
-                    continue
-                if priority > best_priority:
-                    best_priority = priority
-                    best_device = device
-
-        if not best_device:
-            return NetworkState()
-
-        iface = best_device.get_iface() or ""
-        ip_address = ""
-        ip4_config = best_device.get_ip4_config()
-        if ip4_config:
-            addrs = ip4_config.get_addresses()
-            if addrs:
-                ip_address = addrs[0].get_address() or ""
-
-        is_wifi = False
-        ssid = ""
-        signal_strength = 0
-        if isinstance(best_device, NM.DeviceWifi):
-            is_wifi = True
-            ap = best_device.get_active_access_point()
-            if ap:
-                ssid_bytes = ap.get_ssid()
-                if ssid_bytes:
-                    ssid = ssid_bytes.get_data().decode("utf-8", errors="replace")
-                signal_strength = ap.get_strength()
-
-        return NetworkState(
-            is_connected=True,
-            is_wifi=is_wifi,
-            ssid=ssid,
-            signal_strength=signal_strength,
-            iface=iface,
-            ip_address=ip_address,
-            # Traffic speeds get filled in by _apply_traffic; keep previous values
-            # so equality comparison doesn't flap between NM refresh and tick.
-            rx_speed=self._state.rx_speed,
-            tx_speed=self._state.tx_speed,
-        )
-
     def _tick(self) -> bool:
-        """Poll traffic counters and wifi signal, re-render only on change."""
         self._refresh_state()
         return True
 
     def _apply_traffic(self, *, state: NetworkState) -> NetworkState:
-        """Apply native counters to the shared speed calculation."""
         if not state.iface:
             self._prev_counters = None
+            self._prev_iface = ""
             return replace(state, rx_speed=0.0, tx_speed=0.0)
-        if self._native_backend is not None:
-            counters = self._native_backend.counters()
-            if state.iface != self._state.iface:
-                self._prev_counters = None
-        else:
-            try:
-                with _PROC_NET_DEV.open() as f:
-                    counters = parse_proc_net_dev(text=f.read())
-            except OSError as exc:
-                log.debug("Failed to read %s: %s", _PROC_NET_DEV, exc)
-                return state
-
+        counters = self._backend.counters()
+        if counters is None:
+            return state
         now = time.monotonic()
         current = counters.get(state.iface)
-        rx_speed = state.rx_speed
-        tx_speed = state.tx_speed
-        if current and self._prev_counters:
-            elapsed = now - self._prev_time
+        rx_speed, tx_speed = 0.0, 0.0
+        if (
+            current is not None
+            and self._prev_counters is not None
+            and self._prev_iface == state.iface
+        ):
             rx_speed, tx_speed = compute_speeds(
-                prev=self._prev_counters,
-                curr=current,
-                elapsed_s=elapsed,
+                self._prev_counters, current, now - self._prev_time
             )
-        if current:
-            self._prev_counters = current
+        self._prev_counters = current
+        self._prev_iface = state.iface
         self._prev_time = now
-        # NM may have stale signal strength; refresh while we have the client.
-        signal = self._refresh_wifi_signal(state=state)
-        return NetworkState(
-            is_connected=state.is_connected,
-            is_wifi=state.is_wifi,
-            ssid=state.ssid,
-            signal_strength=signal,
-            iface=state.iface,
-            ip_address=state.ip_address,
-            rx_speed=rx_speed,
-            tx_speed=tx_speed,
-        )
-
-    def _refresh_wifi_signal(self, *, state: NetworkState) -> int:
-        """Return the current wifi signal strength, or ``state.signal_strength``."""
-        if not self._nm_client or not state.is_wifi:
-            return state.signal_strength
-        for conn in self._nm_client.get_active_connections():
-            if conn.get_state() != NM.ActiveConnectionState.ACTIVATED:
-                continue
-            for device in conn.get_devices() or ():
-                if isinstance(device, NM.DeviceWifi):
-                    ap = device.get_active_access_point()
-                    if ap:
-                        return int(ap.get_strength())
-                    return state.signal_strength
-        return state.signal_strength
+        return replace(state, rx_speed=rx_speed, tx_speed=tx_speed)
 
     def _build_tooltip(self) -> str:
         return build_tooltip(
@@ -708,26 +322,3 @@ class NetworkApplet(Applet):
             rx_speed=self._state.rx_speed,
             tx_speed=self._state.tx_speed,
         )
-
-    def _has_wifi_device(self) -> bool:
-        if self._nm_client is None:
-            return False
-        for device in self._nm_client.get_devices():
-            if device.get_device_type() == NM.DeviceType.WIFI:
-                return True
-        return False
-
-    @staticmethod
-    def _device_priority(device: NM.Device) -> int:
-        """Rank devices so the applet prefers real uplinks over virtual links."""
-        dev_type = device.get_device_type()
-
-        # Skip virtual/internal links that should not represent the current network.
-        if dev_type in _skip_device_types():
-            return -1
-
-        if dev_type == NM.DeviceType.WIFI:
-            return 2
-        if dev_type == NM.DeviceType.ETHERNET:
-            return 1
-        return 0

@@ -21,10 +21,10 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-from docking.applets.session import meta
+from docking.applets.session import bsd, meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd, environment
+from docking.platform import environment
 from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="session"), applet_id=meta.id)

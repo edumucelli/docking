@@ -37,9 +37,10 @@ from docking.applets.pet.state import (
     tick,
     tooltip_text,
 )
+from docking.applets.systemmonitor import bsd
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 if TYPE_CHECKING:
     from docking.core.config import Config

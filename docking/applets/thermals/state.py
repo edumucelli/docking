@@ -32,11 +32,12 @@ from docking.applets.live_state import (
     refresh_recovery_label,
     resolve_live_status,
 )
+from docking.applets.thermals import bsd
 from docking.applets.tooltip import structured_tooltip
 from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 SENSORS_BIN = "sensors"
 SENSORS_TIMEOUT_S = 0.6

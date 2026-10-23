@@ -593,7 +593,16 @@ def run_checks(observer: Observer, env: dict[str, str], record):
         observer.pointer.move(WIDTH // 2, HEIGHT // 2)
         pinned = [
             f"applet://{name}"
-            for name in ("calculator", "systemmonitor", "network", "battery", "clock")
+            for name in (
+                "calculator",
+                "systemmonitor",
+                "network",
+                "battery",
+                "clock",
+                "volume",
+                "pet",
+                "thermals",
+            )
         ]
         with dock_case(observer, env, "applets", {"pinned": pinned}) as child:
             ready(observer, child, count=len(pinned))
@@ -699,8 +708,12 @@ def observe(args):
                         "-q",
                         "tests/core",
                         "tests/platform",
-                        "tests/applets/test_bsd_volume.py",
-                        "tests/applets/test_bsd_network.py",
+                        *(
+                            str(path.relative_to(ROOT))
+                            for path in sorted(
+                                (ROOT / "tests/applets").glob("test_bsd_*.py")
+                            )
+                        ),
                         "tests/test_bsd_visual.py",
                         f"--junitxml={output / 'unit-tests.xml'}",
                     ],

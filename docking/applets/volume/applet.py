@@ -31,12 +31,11 @@ from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
+from .backend import create_backend
 from .render import create_volume_icon
 from .state import (
-    _BACKENDS,
     STEP,
     VolumeState,
-    _detect_backend,
     _volume_icon_name,
     open_volume_settings,
     volume_settings_command,
@@ -56,11 +55,10 @@ class VolumeApplet(Applet):
     icon_name = "audio-volume-medium"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = _detect_backend()
+        self._backend = create_backend()
         if not self._backend:
             log.bind(action="detect_backend").warning(
-                "No audio backend found (%s)",
-                ", ".join(b.command for b in _BACKENDS),
+                "No audio backend found",
             )
         self._volume = 0
         self._muted = False

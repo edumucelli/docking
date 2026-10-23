@@ -27,7 +27,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections, radio_submenu
-from docking.applets.systemmonitor import meta
+from docking.applets.systemmonitor import bsd, meta
 from docking.applets.systemmonitor.gpu import GpuReader, GpuStats
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
@@ -47,7 +47,7 @@ from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 if TYPE_CHECKING:
     from docking.core.config import Config

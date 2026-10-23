@@ -22,8 +22,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from docking.applets.thermals import bsd
 from docking.log import get_logger
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 CPU_TEMP_COMMAND_TIMEOUT_S = 0.25
 _THERMAL_ROOT = Path("/sys/class/thermal")

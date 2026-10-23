@@ -21,9 +21,10 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
+from docking.applets.battery import bsd
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd, environment
+from docking.platform import environment
 
 BAT_BASE = Path("/sys/class/power_supply")
 log = with_context(get_logger("battery.state"))
