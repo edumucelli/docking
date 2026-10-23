@@ -39,7 +39,7 @@ from docking.applets.pet.state import (
 )
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd
+from docking.platform import bsd, environment
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -88,7 +88,7 @@ class PetApplet(Applet):
     def _tick(self) -> bool:
         """Poll /proc/stat, update mood, redraw if needed."""
         try:
-            if bsd.is_bsd():
+            if environment.is_bsd():
                 sample = bsd.cpu_sample()
                 if sample is None:
                     return True

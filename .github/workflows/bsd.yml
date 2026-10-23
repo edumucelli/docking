@@ -40,7 +40,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             python3-gi python3-gi-cairo python3-cairo python3-pytest python3-venv python3-pip \
-            gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu
+            gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu librsvg2-common
       - name: Check visual assertions
         run: python3 -m pytest -q tests/test_bsd_visual.py
       - name: Install runtime dependencies

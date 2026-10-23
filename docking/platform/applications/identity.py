@@ -12,7 +12,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, TypeGuard
 
-from docking.platform import bsd
+from docking.platform import bsd, environment
 
 from .flatpak import valid_flatpak_app_id
 
@@ -165,7 +165,7 @@ class ProcessIdentityService:
             sandbox_app_id=_process_sandbox_app_id(self._proc_root / str(pid)),
             script_basename=(
                 bsd.process_script(pid)
-                if bsd.is_bsd() and self._proc_root == Path("/proc")
+                if environment.is_bsd() and self._proc_root == Path("/proc")
                 else _process_python_script(self._proc_root / str(pid))
             ),
         )
@@ -175,7 +175,7 @@ def _process_executable_path(
     pid: int, *, proc_root: Path = Path("/proc")
 ) -> Path | None:
     """Resolve a process executable through its host's native interface."""
-    if bsd.is_bsd() and proc_root == Path("/proc"):
+    if environment.is_bsd() and proc_root == Path("/proc"):
         return bsd.process_executable(pid)
     try:
         path = (proc_root / str(pid) / "exe").resolve(strict=True)

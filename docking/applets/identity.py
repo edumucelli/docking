@@ -42,7 +42,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from docking.platform import bsd
+from docking.platform import environment
 
 AppletId = str
 """Type alias for applet identifiers (e.g. ``"clock"``, ``"separator"``)."""
@@ -82,7 +82,7 @@ class AppletMeta:
 
     @property
     def available_on_host(self) -> bool:
-        return self.bsd_supported or not bsd.is_bsd()
+        return self.bsd_supported or not environment.is_bsd()
 
 
 def parse_applet_id(desktop_id: str) -> str | None:

@@ -24,7 +24,7 @@ from typing import NamedTuple
 from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd
+from docking.platform import bsd, environment
 from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="session"), applet_id=meta.id)
@@ -103,7 +103,7 @@ def lock_screen() -> bool:
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
     resolved_cmd = list(cmd)
-    if bsd.is_bsd():
+    if environment.is_bsd():
         resolved_cmd = bsd.session_command(cmd) or []
         if not resolved_cmd:
             log.bind(action=action).warning("Session action unavailable: %s", action)
@@ -163,7 +163,7 @@ def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
             )
     flatpak_spawn = flatpak.spawn_path()
     candidates = _LOCK_SCREEN_COMMAND_CANDIDATES
-    if bsd.is_bsd():
+    if environment.is_bsd():
         candidates += (
             ("xfce4-screensaver-command", "--lock"),
             ("xscreensaver-command", "-lock"),

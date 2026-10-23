@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("NM", "1.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import NM, GLib, Gtk
+from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.network import meta
+from docking.applets.network.bsd import NativeNetworkBackend
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
     AvailableNetwork,
@@ -51,6 +51,11 @@ from docking.applets.network.state import (
 )
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import environment
+
+if TYPE_CHECKING or not environment.is_bsd():
+    gi.require_version("NM", "1.0")
+    from gi.repository import NM
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -97,6 +102,11 @@ class NetworkApplet(Applet):
 
         prefs = config.applet_prefs.get(meta.id, {})
         self._speed_overlay = prefs.get("speed_overlay", "download")
+        self._native_backend = (
+            NativeNetworkBackend(str(prefs.get("interface", "")))
+            if environment.is_bsd()
+            else None
+        )
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -163,6 +173,18 @@ class NetworkApplet(Applet):
             settings.append(edit_item)
 
         manage: list[Gtk.MenuItem] = []
+        if self._native_backend is not None:
+            manage.extend(
+                radio_menu_items(
+                    choices=tuple(
+                        (f"{i.name} {i.address}".strip(), i.name)
+                        for i in self._native_backend.interfaces
+                    ),
+                    active_value=state.iface,
+                    on_selected=lambda _widget, value: self._set_interface(value),
+                    gtk=Gtk,
+                )
+            )
         if self._nm_client is not None:
             if self._has_wifi_device():
                 manage.append(self._build_available_networks_submenu())
@@ -226,8 +248,20 @@ class NetworkApplet(Applet):
 
     def _set_speed_overlay(self, mode: str) -> None:
         self._speed_overlay = mode
-        self.save_prefs(prefs={"speed_overlay": mode})
+        prefs = {"speed_overlay": mode}
+        if self._native_backend is not None:
+            prefs["interface"] = self._native_backend.interface
+        self.save_prefs(prefs=prefs)
         self.present()
+
+    def _set_interface(self, interface: str) -> None:
+        if self._native_backend is None:
+            return
+        self._native_backend.interface = interface
+        self.save_prefs(
+            prefs={"interface": interface, "speed_overlay": self._speed_overlay}
+        )
+        self._refresh_state()
 
     def _set_networking_enabled(self, *, enabled: bool) -> None:
         if self._nm_client is None:
@@ -489,6 +523,10 @@ class NetworkApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Connect to NetworkManager and start traffic polling."""
         super().start(notify=notify)
+        if self._native_backend is not None:
+            self._refresh_state()
+            self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
+            return
         try:
             self._nm_client = NM.Client.new(None)
             self._nm_handler_id = self._nm_client.connect(
@@ -527,7 +565,11 @@ class NetworkApplet(Applet):
 
     def _refresh_state(self) -> None:
         """Recompute the full visible state and present only on change."""
-        new_state = self._compute_nm_state()
+        new_state = (
+            self._native_backend.state()
+            if self._native_backend is not None
+            else self._compute_nm_state()
+        )
         new_state = self._apply_traffic(state=new_state)
         if new_state != self._state:
             self._state = new_state
@@ -598,16 +640,21 @@ class NetworkApplet(Applet):
         return True
 
     def _apply_traffic(self, *, state: NetworkState) -> NetworkState:
-        """Return ``state`` with rx/tx speeds updated from /proc/net/dev."""
+        """Apply native counters to the shared speed calculation."""
         if not state.iface:
             self._prev_counters = None
             return replace(state, rx_speed=0.0, tx_speed=0.0)
-        try:
-            with _PROC_NET_DEV.open() as f:
-                counters = parse_proc_net_dev(text=f.read())
-        except OSError as exc:
-            log.debug("Failed to read %s: %s", _PROC_NET_DEV, exc)
-            return state
+        if self._native_backend is not None:
+            counters = self._native_backend.counters()
+            if state.iface != self._state.iface:
+                self._prev_counters = None
+        else:
+            try:
+                with _PROC_NET_DEV.open() as f:
+                    counters = parse_proc_net_dev(text=f.read())
+            except OSError as exc:
+                log.debug("Failed to read %s: %s", _PROC_NET_DEV, exc)
+                return state
 
         now = time.monotonic()
         current = counters.get(state.iface)

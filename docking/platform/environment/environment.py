@@ -35,6 +35,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from docking.log import get_logger
@@ -155,6 +156,11 @@ def detect_desktop() -> Desktop:
 
     log.warning("could not detect desktop environment")
     return Desktop.UNKNOWN
+
+
+def is_bsd() -> bool:
+    """Return True on the supported FreeBSD and OpenBSD operating systems."""
+    return sys.platform.startswith(("freebsd", "openbsd"))
 
 
 def is_wayland_session() -> bool:

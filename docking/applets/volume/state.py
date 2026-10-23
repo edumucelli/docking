@@ -24,7 +24,7 @@ from typing import NamedTuple
 
 from docking.applets.volume import meta
 from docking.log import get_logger, with_context
-from docking.platform import bsd
+from docking.platform import environment
 
 log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
@@ -201,7 +201,7 @@ def _detect_backend() -> Backend | None:
     for backend in _BACKENDS:
         if shutil.which(backend.command):
             return backend
-    if bsd.is_bsd():
+    if environment.is_bsd():
         from docking.applets.volume.bsd import backend as native_backend
 
         return native_backend()

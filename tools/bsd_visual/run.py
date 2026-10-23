@@ -200,6 +200,14 @@ class Observer:
         self.windows()
         return self.screen.get_window_manager_name()
 
+    def close(self):
+        self.pointer.close()
+        # The handle must finalize its screen before destroying its window
+        # table. Release our borrowed-screen wrapper first: retaining it past
+        # handle destruction leaves the screen with freed window pointers.
+        self.screen = None
+        self.handle = None
+
     def capture(self, name: str) -> Frame:
         root = self.Gdk.get_default_root_window()
         image = self.Gdk.pixbuf_get_from_window(root, 0, 0, WIDTH, HEIGHT)
@@ -706,7 +714,6 @@ def observe(args):
 
             record("unit-tests", unit_tests)
         run_checks(observer, dict(os.environ), record)
-        observer.pointer.close()
     except Exception:
         results.append(
             {
@@ -715,6 +722,9 @@ def observe(args):
                 "detail": traceback.format_exc(),
             }
         )
+    finally:
+        if observer is not None:
+            observer.close()
     report(output, metadata, results)
     return int(not results or any(r["status"] != "pass" for r in results))
 

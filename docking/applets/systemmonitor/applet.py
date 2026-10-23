@@ -47,7 +47,7 @@ from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import bsd
+from docking.platform import bsd, environment
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -182,7 +182,7 @@ class SystemMonitorApplet(Applet):
         if not self._sampling_active:
             return False
         try:
-            if bsd.is_bsd():
+            if environment.is_bsd():
                 sample = bsd.cpu_sample()
                 if sample is None:
                     return True
@@ -204,7 +204,7 @@ class SystemMonitorApplet(Applet):
         self._prev_sample = curr
 
         try:
-            if bsd.is_bsd():
+            if environment.is_bsd():
                 memory = bsd.memory_fraction()
                 if memory is not None:
                     self._mem = memory

@@ -22,10 +22,6 @@ from docking.log import get_logger
 log = get_logger("bsd")
 
 
-def is_bsd() -> bool:
-    return sys.platform.startswith(("freebsd", "openbsd"))
-
-
 def _psutil() -> Any:
     return importlib.import_module("psutil")
 

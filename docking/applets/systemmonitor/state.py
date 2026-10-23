@@ -30,7 +30,7 @@ from docking.applets.temperature import (
 from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform import bsd
+from docking.platform import bsd, environment
 
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03
@@ -121,7 +121,7 @@ _PROC_MOUNTS = Path("/proc/mounts")
 
 def disk_usage() -> list[tuple[str, float]]:
     """Return (mountpoint, usage_fraction) for real disk partitions."""
-    if bsd.is_bsd():
+    if environment.is_bsd():
         return bsd.disk_usage()
     import os
 

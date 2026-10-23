@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from docking.applets.identity import AppletMeta
-from docking.platform import bsd
 
 if TYPE_CHECKING:
     from docking.applets.base import Applet
@@ -88,8 +87,7 @@ def load_applet_class(applet_id: str) -> type[Applet] | None:
     if meta is None:
         log.warning("No catalog entry for applet %r", applet_id)
         return None
-    implementation = "bsd_applet" if meta.id == "network" and bsd.is_bsd() else "applet"
-    module_name = f"docking.applets.{meta.id}.{implementation}"
+    module_name = f"docking.applets.{meta.id}.applet"
     try:
         module = import_module(module_name)
     except Exception:

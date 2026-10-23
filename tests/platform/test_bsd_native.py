@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from docking.platform import bsd
+from docking.platform import bsd, environment
 
-pytestmark = pytest.mark.skipif(not bsd.is_bsd(), reason="requires a native BSD kernel")
+pytestmark = pytest.mark.skipif(
+    not environment.is_bsd(), reason="requires a native BSD kernel"
+)
 
 
 def test_actual_kernel_cpu_memory_and_mounts():

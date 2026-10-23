@@ -34,7 +34,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
-from docking.platform import bsd, targets
+from docking.platform import bsd, environment, targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -159,7 +159,7 @@ def _decode_mountinfo_path(value: str) -> str:
 
 
 def _mount_points() -> tuple[Path, ...]:
-    if bsd.is_bsd():
+    if environment.is_bsd():
         return bsd.mount_points()
     try:
         lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")

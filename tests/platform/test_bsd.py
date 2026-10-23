@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from docking.platform import bsd
+from docking.platform import bsd, environment
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
@@ -54,7 +54,7 @@ def test_openbsd_does_not_guess_process_executable_from_its_own_path(monkeypatch
 def test_identity_uses_native_process_readers_without_proc(monkeypatch, tmp_path):
     executable = tmp_path / "program"
     executable.touch()
-    monkeypatch.setattr(bsd, "is_bsd", lambda: True)
+    monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setattr(bsd, "process_executable", lambda pid: executable)
     monkeypatch.setattr(bsd, "process_script", lambda pid: "program.py")
     result = ProcessIdentityService(LaunchProvenanceStore()).identity_for_pid(42)
