@@ -4,6 +4,7 @@ import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from gi import repository as gi_repository
 
 import docking.applets.brightness.state as brightness_state
@@ -15,6 +16,7 @@ from docking.applets.brightness.state import (
     detect_output,
     get_brightness,
 )
+from docking.core.config import Config
 
 
 class _ImmediateWorker:
@@ -49,6 +51,34 @@ class TestBrightnessIconName:
 
 
 class TestDetectOutput:
+    def test_native_backlight_is_available_without_xrandr(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+        monkeypatch.setattr(brightness_state, "_BACKLIGHT_DIR", tmp_path)
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(brightness_state.shutil, "which", lambda _cmd: None)
+        backlight = tmp_path / "panel"
+        backlight.mkdir()
+        (backlight / "brightness").write_text("60\n")
+        (backlight / "max_brightness").write_text("100\n")
+
+        backend = detect_output()
+
+        assert backend is not None
+        assert get_brightness(backend) == 0.6
+
+    def test_selects_primary_output_even_when_it_is_not_first(self, monkeypatch):
+        output = (
+            "Monitors: 2\n"
+            " 0: +HDMI-1 1920/480x1080/270+0+0  HDMI-1\n"
+            " 1: +*DP-1 1920/480x1080/270+1920+0  DP-1\n"
+        )
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        monkeypatch.setattr(brightness_state, "_find_sysfs_backlight", lambda: None)
+        monkeypatch.setattr(brightness_state.shutil, "which", lambda _cmd: None)
+
+        assert detect_output().output == "DP-1"
+
     def test_parses_xrandr_listmonitors(self, monkeypatch):
         output = "Monitors: 1\n 0: +*HDMI-1 1920/480x1080/270+0+0  HDMI-1\n"
         monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
@@ -87,6 +117,15 @@ class TestDetectOutput:
 
 
 class TestGetBrightness:
+    def test_output_name_must_match_exactly(self, monkeypatch):
+        output = (
+            "eDP-1 connected primary 1920x1080\n\tBrightness: 0.25\n"
+            "DP-1 connected 1920x1080\n\tBrightness: 0.75\n"
+        )
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: False)
+        monkeypatch.setattr(brightness_state, "_run", lambda cmd: output)
+        assert get_brightness(Backend(output="DP-1")) == 0.75
+
     def test_prefers_sysfs_when_available_on_wayland(self, monkeypatch, tmp_path):
         monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
         (tmp_path / "brightness").write_text("150\n")
@@ -275,10 +314,38 @@ def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
             return_value=brightness,
         ),
     ):
-        return BrightnessApplet(48)
+        return BrightnessApplet(48, config=Config())
 
 
 class TestBrightnessApplet:
+    @pytest.mark.parametrize("action", ["scroll", "reset"])
+    def test_denied_backlight_write_restores_measured_level(
+        self, monkeypatch, tmp_path, action
+    ):
+        from pathlib import Path
+
+        (tmp_path / "brightness").write_text("500")
+        (tmp_path / "max_brightness").write_text("1000")
+        applet = _make_applet(brightness=0.5)
+        applet._backend = Backend(output="", sysfs=tmp_path)
+        monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+        write_text = Path.write_text
+
+        def denied(path, *args, **kwargs):
+            if path == tmp_path / "brightness":
+                raise PermissionError("read-only backlight")
+            return write_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", denied)
+        if action == "scroll":
+            applet.on_scroll(direction_up=True)
+        else:
+            applet.on_clicked()
+
+        assert (tmp_path / "brightness").read_text() == "500"
+        assert applet._brightness == pytest.approx(0.5)
+        assert applet.item.name == "Brightness: 50%"
+
     def _fake_gtk(self, monkeypatch):
         class _FakeCheckMenuItem:
             def __init__(self, label: str = "") -> None:
@@ -311,6 +378,22 @@ class TestBrightnessApplet:
     def test_tooltip_shows_percentage(self):
         applet = _make_applet(brightness=0.75)
         assert "75%" in applet.item.name
+
+    @pytest.mark.parametrize(
+        ("steps", "expected"),
+        [(10, "80%"), (9, "82%"), (1, "98%")],
+    )
+    def test_tooltip_matches_the_percentage_applied_to_the_hardware(
+        self, steps, expected
+    ):
+        """Truncating showed one percent less than the hardware was given."""
+        brightness = 1.0
+        for _ in range(steps):
+            brightness = max(0.1, brightness - STEP)
+
+        applet = _make_applet(brightness=brightness)
+
+        assert expected in applet.item.name
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
@@ -352,7 +435,7 @@ class TestBrightnessApplet:
         with patch(
             "docking.applets.brightness.applet.detect_output", return_value=None
         ):
-            applet = BrightnessApplet(48)
+            applet = BrightnessApplet(48, config=Config())
         applet.on_scroll(direction_up=True)
         applet.on_clicked()
 
@@ -410,7 +493,7 @@ class TestBrightnessApplet:
 
         seen: list[float | None] = []
         monkeypatch.setattr(
-            applet, "_on_poll_result", lambda val: seen.append(val) or False
+            applet, "_on_poll_result", lambda val, **_kwargs: seen.append(val) or False
         )
         monkeypatch.setattr(
             "docking.applets.brightness.applet.get_brightness", lambda backend: 0.8

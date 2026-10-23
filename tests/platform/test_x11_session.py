@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from docking.platform.backends.x11 import session
 from docking.platform.backends.x11.services.windows import X11WindowService
+from tests.platform.application_fakes import identity_services
 
 
 def test_x11_session_backend_groups_x11_services(monkeypatch):
@@ -38,7 +39,7 @@ def test_x11_session_backend_groups_x11_services(monkeypatch):
     )
 
     backend = session.X11SessionBackend(
-        model=MagicMock(), launcher=MagicMock(), config=config
+        model=MagicMock(), config=config, **identity_services()
     )
 
     assert backend.name == "x11"
@@ -61,6 +62,7 @@ def test_x11_session_backend_groups_x11_services(monkeypatch):
     assert backend.window_picker is window_picker
     assert backend.capabilities.tracks_windows is True
     assert backend.capabilities.supports_window_menu is True
+    assert backend.capabilities.supports_window_outline is True
     assert backend.capabilities.supports_screen_reservation is True
     assert backend.capabilities.supports_overlap_active is True
     session.X11PreviewService.assert_called_once_with(window_tracker=windows)
@@ -100,7 +102,7 @@ def test_x11_session_backend_lifecycle_starts_and_stops_services(monkeypatch):
         session, "WnckDesktopActionService", MagicMock(return_value=desktop_actions)
     )
     backend = session.X11SessionBackend(
-        model=MagicMock(), launcher=MagicMock(), config=MagicMock()
+        model=MagicMock(), config=MagicMock(), **identity_services()
     )
 
     backend.start()
@@ -129,8 +131,8 @@ def test_x11_session_backend_always_exposes_window_service():
     model.visible_items.return_value = []
     backend = session.X11SessionBackend(
         model=model,
-        launcher=MagicMock(),
         config=MagicMock(),
+        **identity_services(),
     )
 
     assert isinstance(backend.windows, X11WindowService)

@@ -101,7 +101,7 @@ def round_pixbuf_corners(pixbuf: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf:
     cr.clip()
     Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
     cr.paint()
-    return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height) or pixbuf
 
 
 def _rounded_rect(

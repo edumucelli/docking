@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -42,18 +43,40 @@ class DisplayMode(str, Enum):
 # Pricing tables
 # ---------------------------------------------------------------------------
 
-# Claude: input, output, cache_write (1.25x), cache_read (0.1x).
-# Ordered most-specific first so versioned matches win.
+# Standard short-context API rates in USD per million tokens. Claude
+# cache_write represents the five-minute write rate; the transcript format does
+# not identify one-hour writes. Cache reads are normally billed at 10% of the
+# base input rate; Claude Fable 5.1 is the exception at 2.5%. Ordered
+# most-specific first so versioned matches win.
+#
+# Sources verified 2026-09-10:
+# https://platform.claude.com/docs/en/about-claude/pricing
+# https://platform.claude.com/docs/en/models/fable-5-1/overview
+# https://developers.openai.com/api/docs/models
 _OPUS46 = {"input": 5.0, "output": 25.0, "cache_write": 6.25, "cache_read": 0.50}
 _OPUS4 = {"input": 15.0, "output": 75.0, "cache_write": 18.75, "cache_read": 1.50}
+_FABLE5 = {"input": 10.0, "output": 50.0, "cache_write": 12.50, "cache_read": 1.0}
+_FABLE51 = {
+    "input": 10.0,
+    "output": 50.0,
+    "cache_write": 12.50,
+    "cache_read": 0.25,
+}
 
 CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
+    ("fable-5-1", _FABLE51),
+    ("mythos-5-1", _FABLE51),
+    ("fable-5", _FABLE5),
+    ("mythos-5", _FABLE5),
+    ("opus-5", _OPUS46),
     ("opus-4-8", _OPUS46),
     ("opus-4-7", _OPUS46),
     ("opus-4-6", _OPUS46),
     ("opus-4-5", _OPUS46),
     ("opus-4-1", _OPUS4),
     ("opus-4", _OPUS4),
+    # Anthropic made Sonnet 5's introductory rate the standard rate.
+    ("sonnet-5", {"input": 2, "output": 10, "cache_write": 2.50, "cache_read": 0.20}),
     ("sonnet-4-6", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet-4-5", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
@@ -61,11 +84,28 @@ CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
     ("haiku", {"input": 0.80, "output": 4, "cache_write": 1.0, "cache_read": 0.08}),
 )
 
-# Codex/OpenAI: input, cached (subtracted from input), output.
+# Codex/OpenAI: input, cached input (subtracted from input), output.
+# Standard short-context rates: https://developers.openai.com/api/docs/pricing
+# Models without a cached-input price use their regular input rate as a
+# defensive fallback; their usage records should not contain cached tokens.
 CODEX_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
-    ("gpt-5-pro", {"input": 5.00, "cached": 1.25, "output": 20.00}),
-    ("gpt-5-codex", {"input": 2.50, "cached": 0.62, "output": 10.00}),
-    ("gpt-5", {"input": 2.50, "cached": 0.62, "output": 10.00}),
+    ("gpt-6-astra", {"input": 10.00, "cached": 1.00, "output": 50.00}),
+    ("gpt-6.1-sol", {"input": 2.00, "cached": 0.10, "output": 10.00}),
+    ("gpt-6-sol", {"input": 2.00, "cached": 0.20, "output": 10.00}),
+    ("gpt-6-luna", {"input": 0.10, "cached": 0.01, "output": 0.50}),
+    ("gpt-5.6-sol", {"input": 4.00, "cached": 0.40, "output": 20.00}),
+    ("gpt-5.6-terra", {"input": 2.00, "cached": 0.20, "output": 12.00}),
+    ("gpt-5.6-luna", {"input": 0.20, "cached": 0.02, "output": 1.20}),
+    ("gpt-5.5-pro", {"input": 30.00, "cached": 30.00, "output": 180.00}),
+    ("gpt-5.5", {"input": 5.00, "cached": 0.50, "output": 30.00}),
+    ("gpt-5.4-pro", {"input": 30.00, "cached": 30.00, "output": 180.00}),
+    ("gpt-5.4-mini", {"input": 0.75, "cached": 0.075, "output": 4.50}),
+    ("gpt-5.4-nano", {"input": 0.20, "cached": 0.02, "output": 1.25}),
+    ("gpt-5.4", {"input": 2.50, "cached": 0.25, "output": 15.00}),
+    ("gpt-5.3-codex", {"input": 1.75, "cached": 0.175, "output": 14.00}),
+    ("gpt-5.2", {"input": 1.75, "cached": 0.175, "output": 14.00}),
+    ("gpt-5-codex", {"input": 1.25, "cached": 0.125, "output": 10.00}),
+    ("gpt-5", {"input": 1.25, "cached": 0.125, "output": 10.00}),
     ("gpt-4.1", {"input": 2.00, "cached": 0.50, "output": 8.00}),
     ("gpt-4o", {"input": 2.50, "cached": 1.25, "output": 10.00}),
 )
@@ -332,20 +372,41 @@ def reset_today(state: AiUsageState) -> AiUsageState:
 # ---------------------------------------------------------------------------
 
 
-def _parse_model_counts(raw: dict[str, Any]) -> list[tuple[str, ModelUsage]]:
+def _nonnegative_count(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        return 0
+    try:
+        return max(0, int(value))
+    except (ValueError, OverflowError):
+        return 0
+
+
+def _nonnegative_cost(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
+        return 0.0
+    try:
+        cost = float(value)
+    except (ValueError, OverflowError):
+        return 0.0
+    return max(0.0, cost) if math.isfinite(cost) else 0.0
+
+
+def _parse_model_counts(raw: object) -> list[tuple[str, ModelUsage]]:
     result: list[tuple[str, ModelUsage]] = []
+    if not isinstance(raw, dict):
+        return result
     for model, counts in raw.items():
-        if not isinstance(counts, dict):
+        if not isinstance(model, str) or not isinstance(counts, dict):
             continue
         result.append(
             (
                 model,
                 ModelUsage(
-                    input_tokens=int(counts.get("in", 0)),
-                    output_tokens=int(counts.get("out", 0)),
-                    cache_write_tokens=int(counts.get("cw", 0)),
-                    cache_read_tokens=int(counts.get("cr", 0)),
-                    precalculated_cost=float(counts.get("pc", 0)),
+                    input_tokens=_nonnegative_count(counts.get("in", 0)),
+                    output_tokens=_nonnegative_count(counts.get("out", 0)),
+                    cache_write_tokens=_nonnegative_count(counts.get("cw", 0)),
+                    cache_read_tokens=_nonnegative_count(counts.get("cr", 0)),
+                    precalculated_cost=_nonnegative_cost(counts.get("pc", 0)),
                 ),
             )
         )
@@ -385,7 +446,7 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AiUsageState:
         else:
             # Legacy format: only by_model, no by_session.
             by_model = _parse_model_counts(rd.get("by_model", {}))
-            session_count = int(rd.get("sessions", 0))
+            session_count = _nonnegative_count(rd.get("sessions", 0))
 
         days.append(
             DayEntry(

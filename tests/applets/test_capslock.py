@@ -15,6 +15,7 @@ from docking.applets.capslock.state import (
     query_lock_state,
     tooltip_text,
 )
+from docking.core.config import Config
 
 XSET_OUTPUT = """Keyboard Control:
   auto repeat:  on    key click percent:  0    LED mask:  00000002
@@ -109,7 +110,7 @@ class TestApplet:
         state = LockKeyState(available=True, caps_lock=True, num_lock=True)
         monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
 
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
 
         assert applet.item.desktop_id == "applet://capslock"
         assert "Caps Lock: On" in applet.item.name
@@ -119,7 +120,7 @@ class TestApplet:
     def test_menu_contains_refresh(self, monkeypatch):
         state = LockKeyState(available=True, caps_lock=False, num_lock=True)
         monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
 
         labels = [item.get_label() for item in applet.get_menu_items()]
 
@@ -139,7 +140,7 @@ class TestApplet:
             "query_lock_state",
             lambda: next(states),
         )
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Keyboard lock state unavailable" in labels
 
@@ -161,7 +162,7 @@ class TestApplet:
             "source_remove",
             lambda timer_id: removed.append(timer_id),
         )
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
 
         applet.start(lambda: None)
         applet.stop()
@@ -179,7 +180,7 @@ class TestApplet:
         monkeypatch.setattr(
             capslock_applet_mod, "query_lock_state", lambda: next(states)
         )
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
         calls = 0
 
         def present():
@@ -194,7 +195,7 @@ class TestApplet:
     def test_tick_does_not_present_when_state_is_same(self, monkeypatch):
         state = LockKeyState(available=True, caps_lock=False, num_lock=False)
         monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
-        applet = CapslockApplet(icon_size=48)
+        applet = CapslockApplet(icon_size=48, config=Config())
         applet.present = lambda: (_ for _ in ()).throw(AssertionError("no present"))
 
         assert applet._tick() is True

@@ -78,7 +78,7 @@ class NotificationsApplet(Applet):
     name = _("Notifications")
     icon_name = "preferences-system-notifications"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend: NotificationsBackend = detect_backend()
         self._state: NotificationsState = self._backend.get_state()
         self._timer_id: int = 0
@@ -284,9 +284,11 @@ class NotificationsApplet(Applet):
                 [
                     "sh",
                     "-c",
-                    "command -v dbus-monitor >/dev/null || exit 127; "
-                    f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                    f"exec dbus-monitor --session {monitor_rule}",
+                    (
+                        "command -v dbus-monitor >/dev/null || exit 127; "
+                        f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                        f"exec dbus-monitor --session {monitor_rule}"
+                    ),
                 ]
             )
 

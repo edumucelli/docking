@@ -7,6 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -14,7 +16,7 @@ if str(ROOT) not in sys.path:
 from gi.repository import GLib
 
 from docking.core.position import Position
-from docking.ipc.introspection import ITEMS_INTERFACE, OBJECT_PATH
+from docking.ipc.introspection import ITEMS_INTERFACE, OBJECT_PATH, UNKNOWN_METHOD_ERROR
 from docking.ipc.items_service import DockItemsService
 from docking.ui.geometry import anchor_from_draw_rect
 
@@ -292,6 +294,295 @@ class TestDockItemsServiceSignals:
         assert connection.emitted == [
             (None, OBJECT_PATH, ITEMS_INTERFACE, "Changed", None)
         ]
+
+
+class TestDockItemsServiceEdgeCases:
+    def test_start_already_started_returns_early(self, monkeypatch):
+        model = _make_model()
+        window = _make_window()
+        connection = _FakeConnection()
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_get_sync",
+            lambda *_args: connection,
+        )
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_own_name_on_connection",
+            lambda *_args: 23,
+        )
+        monkeypatch.setattr(
+            "docking.ipc.items_service.GLib.timeout_add",
+            lambda *_args: 77,
+        )
+
+        service = DockItemsService(model=model, window=window)
+        service.start()
+        # Second start should be a no-op
+        service.start()
+        # Should still have only one registration
+        assert len(connection.register_calls) == 1
+
+    def test_start_bus_connection_failure_logs_warning(self, monkeypatch):
+        model = _make_model()
+        window = _make_window()
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_get_sync",
+            lambda *_args: (_ for _ in ()).throw(RuntimeError("no bus")),
+        )
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr("docking.ipc.items_service.log", _Capture())
+
+        service = DockItemsService(model=model, window=window)
+        service.start()
+
+        assert any("Could not connect to session bus" in w for w in warnings)
+
+    def test_start_registration_failure_unowns_and_logs(self, monkeypatch):
+        model = _make_model()
+        window = _make_window()
+        connection = _FakeConnection()
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_get_sync",
+            lambda *_args: connection,
+        )
+        owner_id = 0
+
+        def _bus_own_name(*_args):
+            nonlocal owner_id
+            owner_id = 23
+            return owner_id
+
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_own_name_on_connection",
+            _bus_own_name,
+        )
+        # Make register_object fail
+        connection.register_object = lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("registration failed")
+        )
+        unowned: list[int] = []
+
+        def _bus_unown_name(oid):
+            unowned.append(oid)
+
+        monkeypatch.setattr(
+            "docking.ipc.items_service.Gio.bus_unown_name",
+            _bus_unown_name,
+        )
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr("docking.ipc.items_service.log", _Capture())
+
+        service = DockItemsService(model=model, window=window)
+        service.start()
+
+        assert unowned == [23]
+        assert any("Could not register D-Bus service" in w for w in warnings)
+
+    def test_attach_listener_already_subscribed_is_noop(self):
+        model = _make_model()
+        window = _make_window()
+        service = DockItemsService(model=model, window=window)
+        service._subscribed_to_model = True
+
+        service._attach_model_change_listener()
+
+        model.add_change_listener.assert_not_called()
+
+    def test_detach_listener_not_subscribed_is_noop(self):
+        model = _make_model()
+        window = _make_window()
+        service = DockItemsService(model=model, window=window)
+        service._subscribed_to_model = False
+
+        service._detach_model_change_listener()
+
+        model.remove_change_listener.assert_not_called()
+
+    def test_schedule_changed_signal_no_connection(self):
+        model = _make_model()
+        window = _make_window()
+        service = DockItemsService(model=model, window=window)
+        service._connection = None
+        service._registration_id = 1
+        service._changed_source_id = 0
+
+        # Should not raise
+        service._schedule_changed_signal()
+        assert service._changed_source_id == 0
+
+    def test_emit_changed_signal_no_connection(self):
+        model = _make_model()
+        window = _make_window()
+        service = DockItemsService(model=model, window=window)
+        service._connection = None
+        service._registration_id = 1
+        service._changed_source_id = 5
+
+        result = service._emit_changed_signal()
+
+        assert result is False
+
+    def test_emit_changed_signal_exception_logs_warning(self, monkeypatch):
+        model = _make_model()
+        window = _make_window()
+        connection = _FakeConnection()
+        connection.emit_signal = lambda *args: (_ for _ in ()).throw(
+            RuntimeError("emit failed")
+        )
+        service = DockItemsService(model=model, window=window)
+        service._connection = connection
+        service._registration_id = 1
+        warnings: list[str] = []
+
+        class _Capture:
+            def warning(self, msg, *args):
+                warnings.append(msg % args)
+
+        monkeypatch.setattr("docking.ipc.items_service.log", _Capture())
+
+        result = service._emit_changed_signal()
+
+        assert result is False
+        assert any("Failed to emit D-Bus Changed signal" in w for w in warnings)
+
+    def test_handle_method_call_unknown_interface(self):
+        service = DockItemsService(model=_make_model(), window=_make_window())
+        invocation = _FakeInvocation()
+
+        service._handle_method_call(
+            None,
+            "",
+            OBJECT_PATH,
+            "org.unknown.Interface",
+            "SomeMethod",
+            GLib.Variant("()", ()),
+            invocation,
+        )
+
+        assert invocation.error == (
+            UNKNOWN_METHOD_ERROR,
+            "Unknown interface: org.unknown.Interface",
+        )
+
+    def test_handle_method_call_dispatch_exception(self, monkeypatch):
+        service = DockItemsService(model=_make_model(), window=_make_window())
+        invocation = _FakeInvocation()
+        # Force an exception in dispatch
+        monkeypatch.setattr(
+            service,
+            "_dispatch_call",
+            lambda **kwargs: (_ for _ in ()).throw(ValueError("boom")),
+        )
+
+        service._handle_method_call(
+            None,
+            "",
+            OBJECT_PATH,
+            ITEMS_INTERFACE,
+            "SomeMethod",
+            GLib.Variant("()", ()),
+            invocation,
+        )
+
+        assert invocation.error == (
+            "org.docking.Docking.Error.Failed",
+            "boom",
+        )
+
+    def test_handle_method_call_returns_value_on_success(self):
+        service = DockItemsService(model=_make_model(), window=_make_window())
+        invocation = _FakeInvocation()
+
+        service._handle_method_call(
+            None,
+            "",
+            OBJECT_PATH,
+            ITEMS_INTERFACE,
+            "GetCount",
+            GLib.Variant("()", ()),
+            invocation,
+        )
+
+        assert invocation.error is None
+        assert invocation.value is not None
+
+    def test_dispatch_call_wrong_argument_count_raises_valueerror(self):
+        service = DockItemsService(model=_make_model(), window=_make_window())
+
+        # Pin expects (s) but we pass (ii)
+        with pytest.raises(ValueError, match="expects one string argument"):
+            service._dispatch_call(
+                method_name="Pin",
+                parameters=GLib.Variant("(ii)", (1, 2)),
+            )
+
+    def test_dispatch_call_non_string_argument_raises_valueerror(self):
+        service = DockItemsService(model=_make_model(), window=_make_window())
+
+        with pytest.raises(ValueError, match="expects one string argument"):
+            service._dispatch_call(
+                method_name="Pin",
+                parameters=GLib.Variant("(i)", (42,)),
+            )
+
+    def test_get_hover_anchor_none_returns_failure_tuple(self):
+        model = _make_model()
+        window = _make_window()
+        window.get_hover_anchor = MagicMock(return_value=None)
+        service = DockItemsService(model=model, window=window)
+
+        result = service._dispatch_call(
+            method_name="GetHoverAnchor",
+            parameters=GLib.Variant("(s)", ("missing.desktop",)),
+        )
+
+        assert result.unpack() == (False, -1, -1, "")
+
+    def test_pin_item_already_pinned_returns_false(self):
+        model = _make_model()
+        service = DockItemsService(model=model, window=_make_window())
+
+        result = service._dispatch_call(
+            method_name="Pin",
+            parameters=GLib.Variant("(s)", ("firefox.desktop",)),
+        )
+
+        assert result.unpack() == (False,)
+        model.pin_item.assert_not_called()
+
+    def test_unpin_transient_item_returns_false(self):
+        model = _make_model()
+        service = DockItemsService(model=model, window=_make_window())
+
+        result = service._dispatch_call(
+            method_name="Unpin",
+            parameters=GLib.Variant("(s)", ("missing.desktop",)),
+        )
+
+        assert result.unpack() == (False,)
+        model.unpin_item.assert_not_called()
+
+    def test_remove_is_alias_for_unpin(self):
+        model = _make_model()
+        service = DockItemsService(model=model, window=_make_window())
+
+        # Remove on pinned item succeeds (delegates to unpin)
+        result = service._dispatch_call(
+            method_name="Remove",
+            parameters=GLib.Variant("(s)", ("firefox.desktop",)),
+        )
+
+        assert result.unpack() == (True,)
+        model.unpin_item.assert_called_once_with("firefox.desktop")
 
 
 class TestHoverAnchorHelper:

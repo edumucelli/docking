@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 
 class Bookmark(NamedTuple):
@@ -33,7 +33,7 @@ def truncate_label(text: str) -> str:
     return text[: MAX_LABEL_LEN - 1] + "\u2026"
 
 
-def bookmarks_from_prefs(prefs: dict | None) -> list[Bookmark]:
+def bookmarks_from_prefs(prefs: dict[str, Any] | None) -> list[Bookmark]:
     """Deserialize bookmarks list from an applet prefs dict."""
     if not prefs:
         return []
@@ -47,7 +47,7 @@ def bookmarks_from_prefs(prefs: dict | None) -> list[Bookmark]:
     return results
 
 
-def prefs_from_bookmarks(bookmarks: list[Bookmark]) -> dict:
+def prefs_from_bookmarks(bookmarks: list[Bookmark]) -> dict[str, Any]:
     """Serialize bookmarks list into an applet prefs dict."""
     return {
         "bookmarks": [{"name": b.name, "url": b.url} for b in bookmarks],

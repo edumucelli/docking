@@ -76,7 +76,7 @@ class CertwatchApplet(Applet):
     name = _("Cert Watch")
     icon_name = "application-certificate"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._retry_timer_id: int = 0
@@ -86,9 +86,7 @@ class CertwatchApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._domains: list[DomainPref] = list(prefs.domains)
         self._certs: dict[tuple[str, int], CertInfo] = {}
 
@@ -304,7 +302,8 @@ class CertwatchApplet(Applet):
     def _show_add_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Add Domain"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(

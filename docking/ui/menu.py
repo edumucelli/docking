@@ -149,8 +149,10 @@ concerns in practice.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+import datetime as dt
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import gi
 
@@ -160,7 +162,6 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
-import docking.platform.launcher as launcher_mod
 from docking.applets import get_applet_catalog
 from docking.applets.base import (
     ICON_SOURCE_DOCKING,
@@ -177,28 +178,34 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import WindowListSort
+from docking.core.icons import IconSource, icon_source_from_value
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import icon_overrides
+from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.backends.base import DisplayServer
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
-from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
+from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import DockRuntime
 from docking.ui.settings import SettingsWindowController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import (
         PreviewService,
         WindowId,
         WindowService,
         WindowSnapshot,
     )
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
+    from docking.platform.targets import TargetService
+    from docking.search.presenter import SearchPresenter
 
 
 APPLET_MENU_ICON_PX = 16
@@ -212,6 +219,8 @@ WINDOW_MENU_CLOSE_MARGIN_END_PX = 12
 FOLDER_MENU_REFRESH_DEBOUNCE_MS = 120
 log = get_logger("menu")
 
+T = TypeVar("T")
+
 SUPPORT_URL = "https://github.com/edumucelli/docking/issues"
 
 
@@ -223,9 +232,9 @@ def _make_menu_header(label: str) -> Gtk.MenuItem:
 
 def _build_radio_submenu(
     label: str,
-    items: Sequence[tuple[str, Any]],
-    current: Any,
-    on_changed: Any,
+    items: Sequence[tuple[str, T]],
+    current: T,
+    on_changed: Callable[[Gtk.RadioMenuItem, T], None],
 ) -> Gtk.MenuItem:
     """Build a MenuItem with a radio-group submenu.
 
@@ -299,10 +308,13 @@ class MenuHandler:
         config: Config,
         window_tracker: WindowService,
         preview_service: PreviewService,
-        geometry_builder: DockGeometryBuilder,
+        folder_stack: FolderStackController,
         diagnostics: DiagnosticsDialogController,
-        launcher: Launcher | None = None,
-        dock_window: Gtk.Window | None = None,
+        dock_window: Gtk.Window,
+        search: SearchPresenter,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        target_service: TargetService,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -312,38 +324,34 @@ class MenuHandler:
         self._config = config
         self._tracker = window_tracker
         self._preview_service = preview_service
-        self._launcher = launcher
-        self._geometry_builder = geometry_builder
         self._dock_window = dock_window
-        self._folder_stack = FolderStackController(
-            config=config,
-            runtime=runtime,
-            launcher=launcher,
-            dock_window=dock_window,
-        )
+        self._search = search
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        self._target_service = target_service
+        self._folder_stack = folder_stack
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}
         self._folder_menu_signal_connected: set[int] = set()
 
-    def schedule_folder_stack_prewarm(self, item: DockItem) -> None:
-        """Queue a folder stack warm-up during idle time."""
-        self._folder_stack.schedule_prewarm(item)
-
-    def schedule_visible_folder_stack_prewarm(self, items: Sequence[DockItem]) -> None:
-        """Warm visible folder stacks so hover-open can render from cache."""
-        self._folder_stack.schedule_visible_prewarm(items)
-
-    def show(self, event: Gdk.EventButton, cursor_main: float) -> None:
+    def show(
+        self,
+        event: Gdk.EventButton,
+        cursor_main: float,
+        *,
+        frame: DockGeometryFrame,
+        force_background: bool = False,
+    ) -> None:
         """Build and show the right-click context menu.
 
         Hit-tests the cursor to determine whether to show an item-specific
         menu (desktop actions, pin/unpin, close) or a dock background menu
-        (autohide, theme, position, applets, quit).
+        (autohide, theme, position, applets, quit). When *force_background*
+        is true, the background menu is shown even if the pointer is over an
+        item; this makes the global dock menu reachable from any shelf point.
         """
-        frame = self._geometry_builder.build_frame(cursor_x=event.x, cursor_y=event.y)
-        item = frame.item_at_point(event.x, event.y)
-        self._folder_stack.close()
+        item = None if force_background else frame.item_at_point(event.x, event.y)
 
         if item:
             menu = self._new_popup_menu()
@@ -355,34 +363,6 @@ class MenuHandler:
 
         menu.show_all()
         menu.popup_at_pointer(event)
-
-    def show_folder_stack(
-        self,
-        *,
-        item: DockItem,
-        anchor_x: int,
-        anchor_y: int,
-        icon_w: int,
-        position: Any,
-        toggle_if_same_item: bool = True,
-    ) -> None:
-        """Show a folder stack popup, or optionally toggle it closed."""
-        self._folder_stack.show(
-            item=item,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            icon_w=icon_w,
-            position=position,
-            toggle_if_same_item=toggle_if_same_item,
-        )
-
-    def close_folder_stack(self) -> None:
-        """Close the left-click folder stack if it is currently visible."""
-        self._folder_stack.close()
-
-    def open_folder_stack_item_id(self) -> str | None:
-        """Return the folder item id that currently owns the visible stack."""
-        return self._folder_stack.open_item_id()
 
     def _invalidate_folder_target_cache(self, target: str) -> None:
         self._folder_stack.invalidate_target(target)
@@ -398,18 +378,112 @@ class MenuHandler:
         self._cleanup_folder_menu_tree(menu)
         self._runtime.menu_popup_closed()
 
+    @staticmethod
+    def _applet_icon_source_options(applet: Applet) -> tuple[IconSource, ...]:
+        declared = getattr(applet, "icon_source_options", None)
+        if isinstance(declared, tuple | list):
+            options = tuple(
+                source
+                for source in (icon_source_from_value(value) for value in declared)
+                if source is not None
+            )
+            if options:
+                return tuple(dict.fromkeys(options))
+        return (IconSource.DOCKING,)
+
     def _build_applet_icon_source_menu(self, applet: Applet) -> Gtk.MenuItem:
+        labels = {
+            ICON_SOURCE_DOCKING: _("Docking Icon"),
+            ICON_SOURCE_SYSTEM: _("System Icon"),
+        }
+        items = tuple(
+            (labels[source.value], source.value)
+            for source in self._applet_icon_source_options(applet=applet)
+            if source.value in labels
+        )
         return _build_radio_submenu(
             label=_("Icon"),
-            items=(
-                (_("Docking Icon"), ICON_SOURCE_DOCKING),
-                (_("System Icon"), ICON_SOURCE_SYSTEM),
-            ),
+            items=items,
             current=applet.icon_source(),
             on_changed=lambda widget, source: self._on_applet_icon_source_changed(
                 widget, applet, source
             ),
         )
+
+    def _build_icon_menu(self, item: DockItem) -> Gtk.MenuItem:
+        menu_item = Gtk.MenuItem(label=_("Icon"))
+        submenu = Gtk.Menu()
+
+        default_item = Gtk.MenuItem(label=_("Default Icon"))
+        default_item.connect("activate", lambda _: self._model.reset_custom_icon(item))
+        submenu.append(default_item)
+
+        choose_item = Gtk.MenuItem(label=_("Choose From File..."))
+        choose_item.connect("activate", lambda _: self._on_choose_custom_icon(item))
+        submenu.append(choose_item)
+
+        reset_item = Gtk.MenuItem(label=_("Reset Custom Icon"))
+        reset_item.set_sensitive(
+            icon_overrides.custom_icon_path(config=self._config, item=item) is not None
+        )
+        reset_item.connect("activate", lambda _: self._model.reset_custom_icon(item))
+        submenu.append(reset_item)
+
+        menu_item.set_submenu(submenu)
+        return menu_item
+
+    def _on_choose_custom_icon(self, item: DockItem) -> None:
+        path = self._choose_icon_file()
+        if path is None:
+            return
+        if not self._model.set_custom_icon(item=item, path=path):
+            self._show_icon_error(path=path)
+
+    def _choose_icon_file(self) -> Path | None:
+        dialog = Gtk.FileChooserDialog(
+            title=_("Choose Icon"),
+            transient_for=self._dock_window,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        dialog.add_buttons(
+            _("Cancel"),
+            Gtk.ResponseType.CANCEL,
+            _("Open"),
+            Gtk.ResponseType.OK,
+        )
+        self._add_icon_file_filters(dialog=dialog)
+        try:
+            response = dialog.run()
+            if response != Gtk.ResponseType.OK:
+                return None
+            filename = dialog.get_filename()
+            return Path(filename).expanduser() if filename else None
+        finally:
+            dialog.destroy()
+
+    @staticmethod
+    def _add_icon_file_filters(dialog: Gtk.FileChooserDialog) -> None:
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_("Images"))
+        for mime_type in ("image/png", "image/svg+xml", "image/x-xpixmap"):
+            image_filter.add_mime_type(mime_type)
+        for pattern in ("*.png", "*.svg", "*.xpm"):
+            image_filter.add_pattern(pattern)
+        dialog.add_filter(image_filter)
+
+    def _show_icon_error(self, *, path: Path) -> None:
+        dialog = Gtk.MessageDialog(
+            transient_for=self._dock_window,
+            modal=True,
+            message_type=Gtk.MessageType.ERROR,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text=_("Could not use selected icon"),
+        )
+        dialog.format_secondary_text(str(path))
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
 
     def _on_applet_icon_source_changed(
         self,
@@ -436,7 +510,7 @@ class MenuHandler:
             has_icon_source = False
             if applet:
                 applet_items = applet.get_menu_items()
-                has_icon_source = applet.supports_system_icon is True
+                has_icon_source = len(self._applet_icon_source_options(applet)) > 1
                 for mi in applet_items:
                     menu.append(mi)
                 if applet_items and has_icon_source:
@@ -461,9 +535,11 @@ class MenuHandler:
         if item.kind == FILE_KIND:
             open_item = Gtk.MenuItem(label=_("Open"))
             open_item.connect(
-                "activate", lambda _: launcher_mod.open_target(item.target)
+                "activate", lambda _: self._target_service.open_target(item.target)
             )
             menu.append(open_item)
+            if item.is_pinned:
+                menu.append(self._build_icon_menu(item))
             if not locked:
                 menu.append(Gtk.SeparatorMenuItem())
                 remove = Gtk.MenuItem(label=_("Remove from Dock"))
@@ -476,8 +552,15 @@ class MenuHandler:
         # Desktop actions (e.g. "New Window", "New Incognito Window")
         self._append_desktop_actions(menu=menu, desktop_id=item.desktop_id)
 
+        # Recent Documents (per-app jumplist)
+        if self._config.show_recent_docs_in_menu:
+            self._append_recent_docs(menu=menu, desktop_id=item.desktop_id)
+
         # Open windows - click to activate
         self._append_open_windows(menu=menu, desktop_id=item.desktop_id)
+
+        if item.is_pinned:
+            menu.append(self._build_icon_menu(item))
 
         # Pin/Unpin (hidden when icons are locked)
         if not locked:
@@ -528,6 +611,9 @@ class MenuHandler:
         hidden.connect("toggled", self._on_folder_hidden_toggled, item)
         menu.append(hidden)
 
+        if item.is_pinned:
+            menu.append(self._build_icon_menu(item))
+
         if not self._config.lock_icons:
             menu.append(Gtk.SeparatorMenuItem())
             remove = Gtk.MenuItem(label=_("Remove from Dock"))
@@ -549,6 +635,11 @@ class MenuHandler:
 
         Sections: add actions plus preferences/about/quit.
         """
+        search_item = Gtk.MenuItem(label=_("Search..."))
+        search_item.connect("activate", lambda _: self._search.show())
+        menu.append(search_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
         # Add Applet submenu
         try:
             catalog = get_applet_catalog()
@@ -577,8 +668,9 @@ class MenuHandler:
             key for key in APPLET_CATEGORY_ORDER if grouped.get(key)
         ]
         if non_empty_categories:
-            for i, category in enumerate(non_empty_categories):
-                add_applet_menu.append(_make_menu_header(label=_(category.value)))
+            for category in non_empty_categories:
+                category_item = Gtk.MenuItem(label=_(category.value))
+                category_menu = Gtk.Menu()
                 for did, entry in sorted(
                     grouped[category], key=lambda item: item[1].name.lower()
                 ):
@@ -594,9 +686,9 @@ class MenuHandler:
                         icon_px=APPLET_MENU_ICON_PX,
                     )
                     item.connect("activate", self._on_add_applet_activate, str(did))
-                    add_applet_menu.append(item)
-                if i < len(non_empty_categories) - 1:
-                    add_applet_menu.append(Gtk.SeparatorMenuItem())
+                    category_menu.append(item)
+                category_item.set_submenu(category_menu)
+                add_applet_menu.append(category_item)
         else:
             empty = Gtk.MenuItem(label=_("No Applets Available"))
             empty.set_sensitive(False)
@@ -631,33 +723,90 @@ class MenuHandler:
         # Support
         support_item = Gtk.MenuItem(label=_("Get Support"))
         support_item.connect(
-            "activate", lambda _: launcher_mod.open_target(SUPPORT_URL)
+            "activate", lambda _: self._target_service.open_target(SUPPORT_URL)
         )
         menu.append(support_item)
 
         # Quit
         quit_item = Gtk.MenuItem(label=_("Quit"))
-        quit_item.connect("activate", lambda _: self._runtime._window.destroy())
+        quit_item.connect("activate", lambda _: self._runtime.quit())
         menu.append(quit_item)
 
     def _append_desktop_actions(self, menu: Gtk.Menu, desktop_id: str) -> None:
         """Append desktop actions (quicklists) from .desktop file, if any."""
-        if not self._launcher:
-            return
-
-        actions = launcher_mod.get_actions(desktop_id=desktop_id)
+        actions = self._application_launcher.quicklist_actions(desktop_id)
         if not actions:
             return
-        for action_id, label in actions:
-            mi = Gtk.MenuItem(label=label)
+        for action in actions:
+            mi = Gtk.MenuItem(label=action.name)
             # Capture by value via default arg
             mi.connect(
                 "activate",
-                lambda _, did=desktop_id, aid=action_id: launcher_mod.launch_action(
-                    desktop_id=did, action_id=aid
+                lambda _, did=desktop_id, aid=action.action_id: (
+                    self._application_launcher.launch_action(did, aid)
                 ),
             )
             menu.append(mi)
+        menu.append(Gtk.SeparatorMenuItem())
+
+    def _append_recent_docs(self, menu: Gtk.Menu, desktop_id: str) -> None:
+        """Append a "Recent Documents" submenu for apps with recent file history."""
+        application = self._application_registry.get(desktop_id)
+        if application is None:
+            return
+        docs = recent_documents_for(
+            application,
+            limit=self._config.recent_docs_max,
+        )
+        if not docs:
+            return
+
+        submenu = Gtk.Menu()
+        for doc in docs:
+            row = Gtk.MenuItem()
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            try:
+                recent_item = Gtk.RecentManager.get_default().lookup_item(doc.uri)
+                if recent_item is not None:
+                    gicon = recent_item.get_gicon()
+                    if gicon is not None:
+                        icon = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU)
+                        box.pack_start(icon, False, False, 0)
+            except Exception:
+                pass
+            name = Gtk.Label(label=doc.name, xalign=0)
+            name.set_ellipsize(Pango.EllipsizeMode.END)
+            name.set_max_width_chars(30)
+            box.pack_start(name, True, True, 0)
+            closed_dt = dt.datetime.fromtimestamp(doc.modified, tz=dt.timezone.utc)
+            from docking.ui.tooltip import relative_time_label
+
+            rel = relative_time_label(closed_dt)
+            ts = Gtk.Label(label=rel, xalign=1)
+            ts.set_sensitive(False)
+            box.pack_start(ts, False, False, 0)
+            row.add(box)
+            uri = doc.uri
+            row.connect(
+                "activate",
+                lambda _, u=uri: self._target_service.open_target(u),
+            )
+            submenu.append(row)
+
+        submenu.append(Gtk.SeparatorMenuItem())
+        clear = Gtk.MenuItem(label=_("Clear Recent Documents"))
+        recents = Gtk.RecentManager.get_default()
+        clear.connect(
+            "activate",
+            lambda _, rm=recents, uris=[d.uri for d in docs]: (
+                [rm.remove_item(u) for u in uris]
+            ),
+        )
+        submenu.append(clear)
+
+        item = Gtk.MenuItem(label=_("Recent Documents"))
+        item.set_submenu(submenu)
+        menu.append(item)
         menu.append(Gtk.SeparatorMenuItem())
 
     def _append_open_windows(self, menu: Gtk.Menu, desktop_id: str) -> None:
@@ -688,7 +837,7 @@ class MenuHandler:
             height=WINDOW_MENU_THUMB_H,
         )
         image = (
-            Gtk.Image.new_from_pixbuf(thumbnail.image)
+            Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
             if thumbnail is not None
             else Gtk.Image()
         )
@@ -807,8 +956,8 @@ class MenuHandler:
             if not child.get("has_children", False):
                 row.connect(
                     "activate",
-                    lambda _, child_target=child["target"]: launcher_mod.open_target(
-                        child_target
+                    lambda _, child_target=child["target"]: (
+                        self._target_service.open_target(child_target)
                     ),
                 )
                 menu.append(row)
@@ -824,8 +973,8 @@ class MenuHandler:
         else:
             row.connect(
                 "activate",
-                lambda _, child_target=child["target"]: launcher_mod.open_target(
-                    child_target
+                lambda _, child_target=child["target"]: (
+                    self._target_service.open_target(child_target)
                 ),
             )
         menu.append(row)
@@ -853,7 +1002,7 @@ class MenuHandler:
         if menu_id in self._folder_menu_monitors:
             return
 
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         try:
@@ -909,14 +1058,14 @@ class MenuHandler:
     def _clear_menu_children(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
             menu.remove(child)
 
     def _cleanup_folder_menu_tree(self, menu: Gtk.Menu) -> None:
         for child in list(menu.get_children()):
             submenu = child.get_submenu() if isinstance(child, Gtk.MenuItem) else None
-            if submenu is not None:
+            if isinstance(submenu, Gtk.Menu):
                 self._cleanup_folder_menu_tree(submenu)
         self._cleanup_folder_menu(menu)
 

@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -23,25 +23,30 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gtk
 
-from docking.applets.apps import all_desktop_app_infos
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.applets.popup import prepare_dialog_content
 from docking.applets.runcommand import meta
 from docking.applets.runcommand.render import create_icon
 from docking.applets.runcommand.state import (
-    ApplicationLike,
     app_command_text,
     app_description,
     app_display_name,
-    append_file_argument,
     launch_application,
-    launch_command,
     match_application,
     normalize_history,
     prefs_payload,
     updated_history,
 )
+from docking.core.icons import IconSource
 from docking.i18n import _
+from docking.platform import commands
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.listing import (
+    listing_gicon,
+    visible_listings,
+)
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -55,16 +60,31 @@ APP_LIST_HEIGHT_PX = 140
 COMMAND_WIDTH_CHARS = 48
 
 
-class RunCommandApplet(Applet):
+class _ApplicationRow(Gtk.ListBoxRow):
+    """List row that retains the application represented by its child widgets."""
+
+    def __init__(self, app: ApplicationListing) -> None:
+        super().__init__()
+        self.app = app
+
+
+class RunCommandApplet(ApplicationServicesApplet):
     """Alt+F2-style command/application launcher."""
 
     id = meta.id
     name = _("Run Application")
     icon_name = "system-run"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get(meta.id, {}) if config else {}
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        prefs = config.applet_prefs.get(meta.id, {})
         self._history = normalize_history(prefs.get("history"))
         self._dialog: Gtk.Dialog | None = None
         self._entry_combo: Gtk.ComboBoxText | None = None
@@ -73,11 +93,17 @@ class RunCommandApplet(Applet):
         self._run_button: Gtk.Widget | None = None
         self._left_icon: Gtk.Image | None = None
         self._description_label: Gtk.Label | None = None
-        self._apps: list[ApplicationLike] = []
-        self._app_rows: list[Any] = []
-        self._selected_app: ApplicationLike | None = None
+        self._apps: list[ApplicationListing] = []
+        self._app_list: Gtk.ListBox | None = None
+        self._app_rows: list[_ApplicationRow] = []
+        self._selected_app: ApplicationListing | None = None
         self._selected_entry_text = ""
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self.present()
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -115,7 +141,7 @@ class RunCommandApplet(Applet):
     def _create_dialog(self) -> Gtk.Dialog:
         dialog = Gtk.Dialog(
             title=_("Run Application"),
-            flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Help"), Gtk.ResponseType.HELP)
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
@@ -157,7 +183,7 @@ class RunCommandApplet(Applet):
         self._entry_combo = Gtk.ComboBoxText.new_with_entry()
         self._entry_combo.set_entry_text_column(0)
         self._entry_combo.set_hexpand(True)
-        self._entry = self._entry_combo.get_child()
+        self._entry = cast(Gtk.Entry, self._entry_combo.get_child())
         self._entry.set_width_chars(COMMAND_WIDTH_CHARS)
         self._entry.set_activates_default(True)
         self._entry.connect("changed", self._on_entry_changed)
@@ -197,26 +223,25 @@ class RunCommandApplet(Applet):
         return scroll
 
     def _refresh_app_list(self) -> None:
-        if not hasattr(self, "_app_list"):
-            return
         app_list = self._app_list
+        if app_list is None:
+            return
         for child in list(app_list.get_children()):
             app_list.remove(child)
 
-        self._apps = list(all_desktop_app_infos())
+        self._apps = list(visible_listings(self._application_registry))
         self._app_rows = []
         for app in self._apps:
-            row = Gtk.ListBoxRow()
-            row.app_entry = app  # type: ignore[attr-defined]
+            row = _ApplicationRow(app)
             row.add(self._build_app_row(app))
             app_list.add(row)
             self._app_rows.append(row)
         self._apply_app_filter(self._entry.get_text() if self._entry else "")
 
-    def _build_app_row(self, app: ApplicationLike) -> Gtk.Box:
+    def _build_app_row(self, app: ApplicationListing) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         icon = Gtk.Image()
-        gicon = app.get_icon()
+        gicon = listing_gicon(self._application_registry, app)
         if gicon is not None:
             icon.set_from_gicon(gicon, Gtk.IconSize.MENU)
         icon.set_pixel_size(16)
@@ -255,7 +280,8 @@ class RunCommandApplet(Applet):
         parent = self._dialog
         help_dialog = Gtk.MessageDialog(
             transient_for=parent,
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
             message_type=Gtk.MessageType.INFO,
             buttons=Gtk.ButtonsType.OK,
             text=_("Run Application"),
@@ -289,22 +315,20 @@ class RunCommandApplet(Applet):
     def _apply_app_filter(self, text: str) -> None:
         query = text.strip().casefold()
         for row in self._app_rows:
-            app = getattr(row, "app_entry", None)
-            visible = app is not None and _app_matches_filter(app=app, query=query)
+            visible = _app_matches_filter(app=row.app, query=query)
             if visible:
                 row.show()
             else:
                 row.hide()
 
-    def _on_app_row_selected(self, _listbox: Gtk.ListBox, row: Any) -> None:
-        if row is None:
+    def _on_app_row_selected(
+        self, _listbox: Gtk.ListBox, row: Gtk.ListBoxRow | None
+    ) -> None:
+        if not isinstance(row, _ApplicationRow):
             return
-        app = getattr(row, "app_entry", None)
-        if app is None:
-            return
-        self._select_application(app)
+        self._select_application(row.app)
 
-    def _select_application(self, app: ApplicationLike) -> None:
+    def _select_application(self, app: ApplicationListing) -> None:
         self._selected_app = app
         self._selected_entry_text = app_command_text(app)
         if self._entry is not None:
@@ -315,10 +339,12 @@ class RunCommandApplet(Applet):
             self._description_label.set_text(app_description(app))
         self._sync_run_state()
 
-    def _update_left_icon(self, app: ApplicationLike | None) -> None:
+    def _update_left_icon(self, app: ApplicationListing | None) -> None:
         if self._left_icon is None:
             return
-        gicon = app.get_icon() if app is not None else None
+        gicon = (
+            listing_gicon(self._application_registry, app) if app is not None else None
+        )
         if gicon is not None:
             self._left_icon.set_from_gicon(gicon, Gtk.IconSize.DIALOG)
         else:
@@ -331,9 +357,12 @@ class RunCommandApplet(Applet):
         self._run_button.set_sensitive(bool(self._entry.get_text().strip()))
 
     def _on_run_with_file(self, _button: Gtk.Button) -> None:
+        parent = self._dialog
+        if parent is None:
+            return
         dialog = Gtk.FileChooserDialog(
             title=_("Run with file"),
-            parent=self._dialog,
+            parent=parent,
             action=Gtk.FileChooserAction.OPEN,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
@@ -344,7 +373,7 @@ class RunCommandApplet(Applet):
             if filename:
                 command = self._entry.get_text()
                 self._entry.set_text(
-                    append_file_argument(command=command, path=filename),
+                    commands.append_file_argument(command=command, path=filename),
                 )
                 self._entry.set_position(-1)
         dialog.destroy()
@@ -365,14 +394,17 @@ class RunCommandApplet(Applet):
             self._terminal_check and self._terminal_check.get_active()
         )
         if run_in_terminal:
-            launched = launch_command(
+            launched = commands.launch_command(
                 command=app_command_text(app) if app is not None else command,
                 run_in_terminal=True,
             )
         elif app is not None:
-            launched = launch_application(app)
+            launched = launch_application(
+                app=app,
+                launcher=self._application_launcher,
+            )
         else:
-            launched = launch_command(
+            launched = commands.launch_command(
                 command=command,
                 run_in_terminal=False,
             )
@@ -384,7 +416,7 @@ class RunCommandApplet(Applet):
                 self._dialog.hide()
 
 
-def _app_matches_filter(*, app: ApplicationLike, query: str) -> bool:
+def _app_matches_filter(*, app: ApplicationListing, query: str) -> bool:
     if not query:
         return True
     name = app_display_name(app).casefold()

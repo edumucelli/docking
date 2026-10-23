@@ -68,3 +68,14 @@ def test_application_desktop_entries_do_not_disable_autostart():
     for desktop_entry in desktop_entries:
         content = desktop_entry.read_text(encoding="utf-8")
         assert "X-GNOME-Autostart-enabled" not in content
+
+
+def test_sandbox_packages_allow_mounted_device_discovery():
+    flatpak = (ROOT / "packaging/flatpak/cc.docking.Docking.json").read_text(
+        encoding="utf-8"
+    )
+    snap = (ROOT / "packaging/snap/snapcraft.yaml").read_text(encoding="utf-8")
+
+    assert '"--talk-name=org.gtk.vfs.*"' in flatpak
+    assert '"--filesystem=xdg-run/gvfsd"' in flatpak
+    assert "      - mount-observe\n" in snap

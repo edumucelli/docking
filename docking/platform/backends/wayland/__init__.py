@@ -33,7 +33,6 @@ from docking.platform.backends.wayland.services import (
 )
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 from docking.platform.backends.wayland.toplevels import (
-    WaylandAppIdMatcher,
     WaylandForeignToplevelWindowService,
     load_foreign_toplevel_protocol,
 )
@@ -45,7 +44,6 @@ from docking.platform.backends.wayland.workspaces import (
 __all__ = [
     "CosmicSessionBackend",
     "ForeignToplevelProtocolAdapter",
-    "WaylandAppIdMatcher",
     "WaylandForeignToplevelWindowService",
     "WaylandLayerShellSessionBackend",
     "WaylandLayerShellSurfaceService",

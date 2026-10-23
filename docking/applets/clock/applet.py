@@ -26,6 +26,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.calendar.applet import show_calendar_popup
 from docking.applets.clock import meta
 from docking.applets.clock.render import render_icon
 from docking.applets.clock.state import (
@@ -53,10 +54,11 @@ class ClockApplet(Applet):
     name = _("Clock")
     icon_name = "clock"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer = _ClockTimer()
+        self._calendar_popup: Gtk.Window | None = None
 
-        prefs = config.applet_prefs.get("clock", {}) if config else None
+        prefs = config.applet_prefs.get("clock", {})
         self._raw_alarm_target = self._prefs_alarm_target(prefs)
         (
             self._show_digital,
@@ -65,7 +67,7 @@ class ClockApplet(Applet):
             self._show_seconds,
             self._alarm_target,
         ) = load_prefs(prefs=prefs, now_ts=time.time())
-        self._last_minute = time.localtime().tm_min
+        self._last_minute = time.localtime()[:5]
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -94,6 +96,13 @@ class ClockApplet(Applet):
     def on_clicked(self) -> None:
         if self.item.is_urgent:
             self._acknowledge_alarm()
+        if self._calendar_popup and self._calendar_popup.get_visible():
+            self._calendar_popup.hide()
+            return
+        self._calendar_popup = show_calendar_popup(
+            popup=self._calendar_popup,
+            anchor=self.popup_anchor,
+        )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Clock display, seconds, and one-shot alarm controls."""
@@ -153,7 +162,7 @@ class ClockApplet(Applet):
 
     def _on_toggle_seconds(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_seconds = widget.get_active()
-        self._last_minute = time.localtime().tm_min
+        self._last_minute = time.localtime()[:5]
         self._save_prefs()
         self.present()
 
@@ -174,6 +183,9 @@ class ClockApplet(Applet):
 
     def stop(self) -> None:
         self._timer.stop()
+        if self._calendar_popup:
+            self._calendar_popup.destroy()
+            self._calendar_popup = None
         super().stop()
 
     def _on_tick(self) -> None:
@@ -187,8 +199,8 @@ class ClockApplet(Applet):
 
         if self._show_seconds:
             should_present = True
-        elif now.tm_min != self._last_minute:
-            self._last_minute = now.tm_min
+        elif now[:5] != self._last_minute:
+            self._last_minute = now[:5]
             should_present = True
 
         if should_present:
@@ -213,7 +225,8 @@ class ClockApplet(Applet):
     def _show_alarm_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Set Alarm"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog, ok_label=_("OK"), cancel_label=_("Cancel"))
         content = prepare_dialog_content(

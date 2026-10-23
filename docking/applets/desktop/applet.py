@@ -25,6 +25,7 @@ from gi.repository import GdkPixbuf
 from docking.applets.base import Applet
 from docking.applets.desktop import meta
 from docking.applets.desktop.render import create_icon
+from docking.core.icons import IconSource
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -39,9 +40,9 @@ class DesktopApplet(Applet):
     id = meta.id
     name = _("Desktop")
     icon_name = "user-desktop"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._desktop_actions: DesktopActionService | None = None
         super().__init__(icon_size=icon_size, config=config)
         self.present()

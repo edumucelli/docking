@@ -79,7 +79,7 @@ class CryptoApplet(Applet):
     name = _("Crypto")
     icon_name = "emblem-money-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._pulse_timer_id: int = 0
@@ -91,7 +91,7 @@ class CryptoApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        raw_prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        raw_prefs = config.applet_prefs.get(meta.id, {})
         prefs = prefs_from_mapping(raw_prefs)
         self._assets = list(prefs.assets)
         self._active_index = prefs.active_index
@@ -216,6 +216,8 @@ class CryptoApplet(Applet):
         self._ensure_pulse_timer()
 
     def stop(self) -> None:
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -399,7 +401,8 @@ class CryptoApplet(Applet):
     def _show_asset_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Add Crypto Asset"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(

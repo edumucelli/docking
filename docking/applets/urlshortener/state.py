@@ -34,8 +34,9 @@ from __future__ import annotations
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, cast
 
+from docking.applets.http import is_valid_http_url
 from docking.log import get_logger
 
 _API_URL = "https://is.gd/create.php"
@@ -62,10 +63,20 @@ def shorten_url(url: str) -> str:
             headers={"User-Agent": _USER_AGENT},
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            return resp.read().decode().strip()
+            # urlopen is untyped in the stdlib stubs; an HTTP body is always bytes.
+            result = cast(bytes, resp.read()).decode().strip()
+            if result.startswith("Error:"):
+                return result
+            if not is_valid_http_url(result):
+                return "Error: invalid response"
+            return result
     except urllib.error.HTTPError as exc:
         log.debug("URL shortener HTTP error for %r: %s", url, exc)
-        body = exc.read().decode(errors="replace").strip()
+        try:
+            body = exc.read().decode(errors="replace").strip()
+        except Exception as body_exc:
+            log.debug("URL shortener HTTP error body could not be read: %s", body_exc)
+            return f"Error: HTTP {exc.code}"
         return f"Error: {body}" if body else f"Error: HTTP {exc.code}"
     except urllib.error.URLError as exc:
         log.debug("URL shortener network error for %r: %s", url, exc)
@@ -73,6 +84,11 @@ def shorten_url(url: str) -> str:
     except TimeoutError as exc:
         log.debug("URL shortener timeout for %r: %s", url, exc)
         return "Error: request timed out"
+    except Exception as exc:
+        # The contract is total: the caller only schedules its UI update if
+        # this returns, so anything escaping leaves the dialog stuck.
+        log.debug("URL shortener unexpected failure for %r: %s", url, exc)
+        return "Error: request failed"
 
 
 def prefs_payload(*, last_url: str) -> dict[str, Any]:

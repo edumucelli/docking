@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 from unittest.mock import patch
 
 import pytest
@@ -85,6 +86,99 @@ class TestThemeLoad:
         assert t.stroke_width == 2.0
         # Defaults for unspecified
         assert t.indicator_radius == 2.5
+
+    def test_malformed_user_theme_falls_back_instead_of_breaking_startup(
+        self, tmp_path, monkeypatch
+    ):
+        """A broken theme must not make the dock unbootable.
+
+        Themes are hand-edited and the chosen name is already in the config, so
+        an unusable value used to fail every later launch with no way back.
+        """
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"fill_start_color": [222, 222, 222]}}),
+            encoding="utf-8",
+        )
+
+        theme = Theme.load("broken", 96)
+
+        fallback = Theme.load("default", 96)
+        assert theme.fill_start == fallback.fill_start
+        assert theme.shelf_height == fallback.shelf_height
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"shelf": {"stroke_width_px": "thick"}},
+            {"shelf": {"corner_radius_px": 1e400}},
+            {"items": {"glow": {"urgent_size_ratio": -1e400}}},
+            # A string that converts to infinity: JSON has no literal for it,
+            # but float("Infinity") has the same effect.
+            {"shelf": {"corner_radius_px": "Infinity"}},
+            {"shelf": {"stroke_width_px": "-inf"}},
+            {"shelf": {"fill_start_color": "red"}},
+        ],
+    )
+    def test_other_malformed_theme_values_also_fall_back(
+        self, tmp_path, monkeypatch, payload
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        theme = Theme.load("broken", 48)
+
+        # Compare the fields the payload aims at: an infinite value loaded
+        # without raising, so an unrelated assertion passed anyway.
+        fallback = Theme.load("default", 48)
+        assert theme.shelf_height == fallback.shelf_height
+        assert theme.roundness == fallback.roundness
+        assert theme.urgent_glow_size == fallback.urgent_glow_size
+        assert math.isfinite(theme.roundness)
+        assert math.isfinite(theme.urgent_glow_size)
+
+    @pytest.mark.parametrize(
+        ("section", "key"),
+        [
+            ("layout", "horizontal_padding"),
+            ("layout", "top_padding"),
+            ("layout", "bottom_padding"),
+            ("layout", "item_padding"),
+            ("shelf", "stroke_width_px"),
+        ],
+    )
+    def test_finite_values_that_overflow_during_layout_fall_back(
+        self, tmp_path, monkeypatch, section, key
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({section: {key: 1e308}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 128)
+
+        assert theme == Theme.load("default", 128)
+
+    @pytest.mark.parametrize("radius", [1e308, -1e308, "1e308", 1e300])
+    def test_finite_radius_that_overflows_display_scaling_falls_back(
+        self, tmp_path, monkeypatch, radius
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps({"shelf": {"corner_radius_px": radius}}), encoding="utf-8"
+        )
+
+        theme = Theme.load("broken", 48)
+
+        assert theme == Theme.load("default", 48)
 
     def test_loads_user_theme_from_config_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
@@ -1022,6 +1116,141 @@ class TestMigrationEdgeCases:
         import json
 
         assert json.loads(path.read_text()) == {"key": "value"}
+
+    def test_theme_path_set_empty_parts_returns_empty_tuple(self):
+        from docking.core.theme.migration import _theme_path_set
+
+        result = _theme_path_set({}, "", "value")
+        assert result == ()
+
+    def test_theme_path_set_replaces_non_dict_section(self, monkeypatch):
+        from docking.core.theme.migration import _theme_path_set
+
+        data = {"items": "string_not_dict"}
+        result = _theme_path_set(data, "items.glow.color", "#fff")
+        assert "not an object" in " ".join(result)
+
+    def test_create_migration_backup_cleanup_failure(self, tmp_path, monkeypatch):
+        from docking.core.theme import migration as m
+
+        path = tmp_path / "theme.json"
+        path.write_text("{}", encoding="utf-8")
+
+        # Make the backup write fail, then make unlink also fail
+        def _fail_unlink(_self, **kw):
+            raise OSError("unlink failed")
+
+        monkeypatch.setattr(m.Path, "unlink", _fail_unlink)
+        # Make open in write-binary mode fail
+        original_open = m.Path.open
+
+        def _failing_open(self, mode, **kw):
+            if mode == "wb":
+                raise OSError("write failed")
+            return original_open(self, mode, **kw)
+
+        monkeypatch.setattr(m.Path, "open", _failing_open)
+        monkeypatch.setattr(m.os, "fsync", lambda _fd: None)
+
+        with pytest.raises(OSError):
+            m._create_theme_migration_backup(path=path)
+
+    def test_write_theme_json_atomic_non_dict_payload(self, tmp_path):
+        from docking.core.theme.migration import _write_theme_json_atomic
+
+        path = tmp_path / "theme.json"
+        with pytest.raises(ValueError):
+            _write_theme_json_atomic(path=path, payload=[1, 2, 3])
+
+    def test_write_theme_json_atomic_cleanup_failure(self, tmp_path, monkeypatch):
+        from docking.core.theme import migration as m
+
+        path = tmp_path / "theme.json"
+        # Make replace fail so we enter except block, then make unlink also fail
+        monkeypatch.setattr(
+            m.Path,
+            "replace",
+            lambda _self, _other: (_ for _ in ()).throw(OSError("replace failed")),
+        )
+        monkeypatch.setattr(
+            m.Path,
+            "unlink",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("unlink cleanup failed")),
+        )
+        monkeypatch.setattr(m.os, "fsync", lambda _fd: None)
+
+        with pytest.raises(OSError):
+            m._write_theme_json_atomic(path=path, payload={"key": "value"})
+
+    def test_migrate_existing_user_theme_template_read_failure(
+        self, tmp_path, monkeypatch
+    ):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "bad.json"
+        path.write_text("{}")
+        # Make open fail
+        monkeypatch.setattr(
+            __import__(
+                "docking.core.theme.theme",
+                fromlist=["_migrate_existing_user_theme_template"],
+            ).Path,
+            "open",
+            lambda _self, **kw: (_ for _ in ()).throw(OSError("read failed")),
+        )
+        # Should not raise
+        _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+
+    def test_migrate_existing_user_theme_template_non_dict(self, tmp_path, caplog):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "theme.json"
+        path.write_text("[]", encoding="utf-8")
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+        assert any("not a JSON object" in r.message for r in caplog.records)
+
+    def test_migrate_existing_user_theme_template_backfill_oserror(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        from docking.core.theme.theme import _migrate_existing_user_theme_template
+
+        path = tmp_path / "theme.json"
+        # Write just enough that migration succeeds but write_text fails on backfill
+        path.write_text(
+            json.dumps({"indicators": {"style": "dots", "fill": "flat"}}),
+            encoding="utf-8",
+        )
+        # Force write_text to fail
+        monkeypatch.setattr(
+            path.__class__,
+            "write_text",
+            lambda _self, _text, **kw: (_ for _ in ()).throw(OSError("write failed")),
+        )
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            _migrate_existing_user_theme_template(path=path, directory=tmp_path)
+
+    def test_invalid_indicator_style_logs_and_falls_back(self, tmp_path, caplog):
+        from docking.core.theme.theme import Theme
+
+        theme_data = {"indicators": {"style": "bogus", "fill": "flat"}}
+        theme_file = tmp_path / "bad-style.json"
+        theme_file.write_text(json.dumps(theme_data), encoding="utf-8")
+        import logging
+
+        with (
+            patch("docking.core.theme.theme._BUILTIN_THEMES_DIR", tmp_path),
+            caplog.at_level(logging.WARNING),
+        ):
+            t = Theme.load("bad-style", 48)
+        from docking.core.theme.theme import IndicatorStyle
+
+        assert t.indicator_style is IndicatorStyle.DOTS
+        assert any("indicator style" in r.message.lower() for r in caplog.records)
 
 
 class TestIndicatorFill:

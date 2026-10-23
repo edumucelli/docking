@@ -102,6 +102,43 @@ class TestMusicRenderInternals:
         )
         music_render_mod._draw_idle_music_tile(cr, 64)
 
+    def test_idle_tile_has_no_control_bar_and_centers_note(self):
+        size = 100
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+        cr = cairo.Context(surface)
+        music_render_mod._draw_idle_music_tile_vector(cr, size)
+        pixbuf = music_render_mod.Gdk.pixbuf_get_from_surface(
+            surface,
+            0,
+            0,
+            size,
+            size,
+        )
+        assert pixbuf is not None
+        pixels = pixbuf.get_pixels()
+        rowstride = pixbuf.get_rowstride()
+        channels = pixbuf.get_n_channels()
+
+        def rgb_at(x: int, y: int) -> tuple[int, int, int]:
+            offset = y * rowstride + x * channels
+            return tuple(pixels[offset : offset + 3])
+
+        assert rgb_at(10, 95) == (253, 249, 165)
+        assert rgb_at(90, 95) == (251, 242, 74)
+
+        dark_pixels = [
+            (x, y)
+            for y in range(size)
+            for x in range(size)
+            if all(channel < 100 for channel in rgb_at(x, y))
+        ]
+        min_x = min(x for x, _ in dark_pixels)
+        max_x = max(x for x, _ in dark_pixels)
+        min_y = min(y for _, y in dark_pixels)
+        max_y = max(y for _, y in dark_pixels)
+        assert abs((min_x + max_x) / 2 - size / 2) <= 3
+        assert abs((min_y + max_y) / 2 - size / 2) <= 3
+
     def test_volume_steps_and_badges(self):
         assert music_render_mod._volume_step_count(0) == 0
         assert music_render_mod._volume_step_count(10) == 1
@@ -148,6 +185,25 @@ class TestMusicRenderInternals:
             )
             is not None
         )
+
+    def test_missing_album_art_uses_default_yellow_tile(self, monkeypatch):
+        default_tile_sizes: list[int] = []
+        monkeypatch.setattr(
+            music_render_mod,
+            "_draw_idle_music_tile",
+            lambda cr, size: default_tile_sizes.append(size),
+        )
+
+        pixbuf = music_render_mod.create_music_icon(
+            size=48,
+            playback_status="Playing",
+            album_art=None,
+            volume_percent=50,
+            available=True,
+        )
+
+        assert pixbuf is not None
+        assert default_tile_sizes == [48]
 
     def test_rounded_rect_path_executes(self):
         from docking.applets.draw import rounded_rect

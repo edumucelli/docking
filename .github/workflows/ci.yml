@@ -1,5 +1,14 @@
 name: CI
 
+# ── Supply-chain cooldown ─────────────────────────────────────────────
+# Every pip install step exports PIP_UPLOADED_PRIOR_TO set to 7 days ago
+# (pip >= 26.1).  This prevents freshly-published packages from being
+# resolved, mitigating supply-chain attacks where a compromised release
+# is pushed to PyPI.  Dependabot is also configured with a weekly schedule
+# (.github/dependabot.yml) so new versions age at least 0–7 days before a PR
+# is opened.
+# ──────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches: [master]
@@ -14,7 +23,7 @@ jobs:
     outputs:
       run_ci: ${{ steps.filter.outputs.run_ci }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -69,7 +78,7 @@ jobs:
     needs: [changes]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install i18n tooling
         run: |
@@ -77,10 +86,10 @@ jobs:
           sudo apt-get install -y gettext
 
       - name: Cache pip downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml', 'requirements-typing.txt') }}
           restore-keys: |
             ${{ runner.os }}-quality-pip-
 
@@ -89,7 +98,10 @@ jobs:
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install -e ".[dev]"
+          PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+            python -m pip install --no-deps -r requirements-typing.txt
 
       - name: Verify POT is up to date
         run: bash tools/i18n.sh --check-pot-sync
@@ -113,7 +125,10 @@ jobs:
         run: .venv/bin/python -m ruff format --check docking/ tests/
 
       - name: Type check (ty)
-        run: .venv/bin/python -m ty check docking/
+        run: .venv/bin/python -m ty check --error-on-warning docking/
+
+      - name: Dead code (vulture)
+        run: .venv/bin/python -m vulture --config pyproject.toml
 
   bdd-visual:
     name: BDD + Visual Regression
@@ -153,6 +168,7 @@ jobs:
           python3 -m venv --system-site-packages .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install -e ".[dev]"
 
       - name: Screenshot regression tests
@@ -171,7 +187,7 @@ jobs:
 
       - name: Upload visual artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-output
           path: tests/visual/output/
@@ -191,16 +207,16 @@ jobs:
           - ubuntu: "24.04"
             python: "3.14"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         if: matrix.python == '3.14'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
       - name: Cache pip downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -235,6 +251,7 @@ jobs:
           python3 -m venv --system-site-packages .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install -e ".[dev]"
 
       - name: Install project without GI bindings
@@ -243,6 +260,7 @@ jobs:
           python -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo
           python -m pip install -e ".[dev]"
 
@@ -291,9 +309,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - debian: "11"
+          - debian: "12"
             python: "3.10"
-            image: python:3.10-bullseye
+            image: python:3.10-bookworm
           - debian: "12"
             python: "3.12"
             image: python:3.12-bookworm
@@ -303,10 +321,10 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache pip downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /root/.cache/pip
           key: ${{ runner.os }}-debian-${{ matrix.debian }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -328,6 +346,7 @@ jobs:
         if: matrix.python != '3.14'
         run: |
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo "PyGObject==3.42.2"
           python -m pip install -e ".[dev]"
 
@@ -335,6 +354,7 @@ jobs:
         if: matrix.python == '3.14'
         run: |
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo
           python -m pip install -e ".[dev]"
 
@@ -391,6 +411,7 @@ jobs:
           python3 -m venv --system-site-packages .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install -e ".[dev]"
 
       - name: Full tests
@@ -407,7 +428,7 @@ jobs:
     container:
       image: fedora:41
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -425,6 +446,7 @@ jobs:
           python3 -m venv --system-site-packages .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install -e ".[dev]"
 
       - name: Smoke tests
@@ -446,7 +468,7 @@ jobs:
     container:
       image: opensuse/tumbleweed:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -464,7 +486,9 @@ jobs:
           PYTHON_DEV_PKG="$(choose_pkg python313-devel python312-devel python311-devel python3-devel)"
           PYTHON_PIP_PKG="$(choose_pkg python313-pip python312-pip python311-pip python3-pip)"
           PANGOCAIRO_TYPELIB_PKG="$(choose_pkg typelib-1_0-PangoCairo-1_0 || true)"
-          zypper --non-interactive install --no-recommends \
+          # The rolling image can contain newer libraries than the repository's
+          # matching development packages; let the solver align their versions.
+          zypper --non-interactive install --no-recommends --allow-downgrade \
             git \
             gcc \
             meson \
@@ -488,6 +512,7 @@ jobs:
           "$PYTHON" -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python -m pip install pycairo PyGObject
           python -m pip install -e ".[dev]"
 
@@ -506,12 +531,14 @@ jobs:
             tests/ui/test_menu_integration.py \
             tests/applets/test_trivia.py
 
+  # Package builds run alongside tests after quality passes. The release job
+  # below joins both branches before any tag or release can be published.
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install build dependencies
         run: |
@@ -522,7 +549,12 @@ jobs:
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
+      - name: Build native Wayland fallbacks
+        run: bash packaging/deb/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build .deb
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           bash packaging/deb/build.sh
           mkdir -p artifacts
@@ -584,7 +616,7 @@ jobs:
   build-deb-arm64:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -597,7 +629,12 @@ jobs:
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
 
+      - name: Build native Wayland fallbacks
+        run: bash packaging/deb/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build .deb
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           bash packaging/deb/build.sh
           mkdir -p artifacts
@@ -654,7 +691,7 @@ jobs:
           echo "[check] all ARM64 install validations passed"
 
       - name: Upload ARM64 .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-deb-arm64
           path: artifacts/docking_*.deb
@@ -662,25 +699,36 @@ jobs:
   build-rpm-arm64:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
 
       - name: Upload ARM64 RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-rpm-arm64
           path: artifacts/*.rpm
@@ -688,19 +736,30 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
 
       - name: Install RPM tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols gcc
+          sudo apt-get install -y rpm python3-pip gettext python3-dev libwayland-dev wayland-protocols pkg-config gcc
+          export PIP_UPLOADED_PRIOR_TO="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          python3 -m pip install --upgrade pip setuptools wheel
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
 
+      - name: Build Wayland vendor fallbacks
+        run: bash packaging/rpm/build-wayland-vendors.sh "$RUNNER_TEMP/docking-wayland"
+
       - name: Build RPM package
+        env:
+          DOCKING_EXTRA_PYWAYLAND: ${{ runner.temp }}/docking-wayland
         run: |
           mkdir -p artifacts
           ./packaging/rpm/build.sh
@@ -714,9 +773,9 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Flatpak tooling
         run: |
@@ -744,7 +803,7 @@ jobs:
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -766,7 +825,7 @@ jobs:
           ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload ARM64 Flatpak artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-flatpak-arm64
           path: artifacts/cc.docking.Docking.flatpak
@@ -774,9 +833,9 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Snapcraft
         run: |
@@ -805,7 +864,7 @@ jobs:
   build-snap-arm64:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -831,7 +890,7 @@ jobs:
           ls -lh artifacts/*.snap
 
       - name: Upload ARM64 Snap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-snap-arm64
           path: artifacts/*.snap
@@ -839,15 +898,16 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install AppImage tooling
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python3 -m pip install appimage-builder
 
       - name: Compile translations
@@ -867,7 +927,7 @@ jobs:
   build-appimage-arm64:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -876,6 +936,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools gettext
           python3 -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           python3 -m pip install appimage-builder
 
       - name: Compile translations
@@ -887,7 +948,7 @@ jobs:
           ./packaging/appimage/build.sh
 
       - name: Upload ARM64 AppImage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-appimage-arm64
           path: artifacts/*.AppImage
@@ -895,11 +956,11 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     container:
       image: archlinux:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Arch build tooling
         run: |
@@ -926,7 +987,7 @@ jobs:
   build-arch-arm64:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -949,7 +1010,7 @@ jobs:
           ls -lh artifacts/*.pkg.tar.*
 
       - name: Upload ARM64 Arch artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-arch-arm64
           path: artifacts/*.pkg.tar.*
@@ -957,9 +1018,9 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [changes, test-ubuntu, test-debian, test-fedora-smoke, test-opensuse-smoke]
+    needs: [changes, quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -990,7 +1051,7 @@ jobs:
   build-nix-arm64:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, test-arm64]
+    needs: [changes, quality]
     steps:
       - uses: actions/checkout@v4
 
@@ -1013,22 +1074,154 @@ jobs:
           ./packaging/nix/build.sh
 
       - name: Upload ARM64 Nix artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-nix-arm64
           path: |
             artifacts/docking-nix-output.tar.gz
             artifacts/docking-nix-store-path.txt
 
+  test-deb-install:
+    name: Install .deb (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [build-deb, build-deb-arm64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12', 'debian:13']
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            artifact: docking-deb
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: docking-deb-arm64
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/deb
+      - name: Install the release binary and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e DEBIAN_FRONTEND=noninteractive -e PACKAGE_ARCH \
+            -v "$PWD/artifacts/deb:/packages:ro" \
+            -v "$PWD/packaging/deb:/checks:ro" \
+            "$IMAGE" bash -euc '
+              apt-get update
+              apt-get install -y xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
+              test "$(dpkg-query -W -f="\${Status}" docking)" = "install ok installed"
+              test "$(dpkg --print-architecture)" = "$PACKAGE_ARCH"
+              bash /checks/runtime-smoke.sh
+            '
+
+  test-rpm-install:
+    name: Install RPM (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [build-rpm, build-rpm-arm64]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'fedora:45', 'opensuse/tumbleweed:latest', 'opensuse/leap:16.0']
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            artifact: docking-rpm
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: docking-rpm-arm64
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/rpm
+      - name: Install the release RPM and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/artifacts/rpm:/packages:ro" \
+            -v "$PWD/packaging:/checks:ro" \
+            "$IMAGE" bash -euc '
+              # The container architecture decides which asset is expected, so
+              # nothing has to be passed across the docker boundary.
+              shopt -s nullglob
+              expected="$(uname -m)"
+              echo "Container architecture: ${expected}"
+              ls -l /packages
+              package=(/packages/docking-*."${expected}".rpm)
+              if [ "${#package[@]}" -ne 1 ]; then
+                echo "Expected exactly one RPM for ${expected}, found ${#package[@]}" >&2
+                exit 1
+              fi
+              # Weak dependencies stay disabled so a green run proves the hard
+              # Requires in the spec are complete on their own.
+              if command -v dnf >/dev/null 2>&1; then
+                dnf install -y --setopt=install_weak_deps=False "${package[0]}"
+                dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon glib2 sway
+              else
+                # CI artifacts are unsigned; Cloudsmith signs published RPMs.
+                zypper --non-interactive install --no-recommends --allow-unsigned-rpm "${package[0]}"
+                zypper --non-interactive install --no-recommends xvfb-run xauth dbus-1-daemon glib2-tools sway
+              fi
+              installed="$(rpm -q --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" docking)"
+              built="$(rpm -qp --queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}" "${package[0]}")"
+              if [ "${installed}" != "${built}" ]; then
+                echo "Installed ${installed}, expected ${built}" >&2
+                exit 1
+              fi
+              echo "Installed ${installed}"
+              bash /checks/deb/runtime-smoke.sh
+            '
+
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [changes, build-deb, build-deb-arm64, build-rpm, build-rpm-arm64, build-flatpak, build-flatpak-arm64, build-snap, build-snap-arm64, build-appimage, build-appimage-arm64, build-arch, build-arch-arm64, build-nix, build-nix-arm64]
+    needs:
+      - changes
+      - quality
+      - bdd-visual
+      - test-ubuntu
+      - test-debian
+      - test-arm64
+      - test-fedora-smoke
+      - test-opensuse-smoke
+      - build-deb
+      - build-deb-arm64
+      - test-deb-install
+      - build-rpm
+      - build-rpm-arm64
+      - test-rpm-install
+      - build-flatpak
+      - build-flatpak-arm64
+      - build-snap
+      - build-snap-arm64
+      - build-appimage
+      - build-appimage-arm64
+      - build-arch
+      - build-arch-arm64
+      - build-nix
+      - build-nix-arm64
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
+    outputs:
+      published: ${{ steps.release_check.outputs.should_release }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version from pyproject.toml
         id: version
@@ -1117,85 +1310,85 @@ jobs:
           git push origin "${tag}"
 
       - name: Download .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-deb
           path: artifacts/deb-amd64
 
       - name: Download ARM64 .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-deb-arm64
           path: artifacts/deb-arm64
 
       - name: Download RPM artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-rpm
           path: artifacts/rpm-amd64
 
       - name: Download ARM64 RPM artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-rpm-arm64
           path: artifacts/rpm-arm64
 
       - name: Download Flatpak artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-flatpak
           path: artifacts/flatpak-amd64
 
       - name: Download ARM64 Flatpak artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-flatpak-arm64
           path: artifacts/flatpak-arm64
 
       - name: Download Snap artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-snap
           path: artifacts/snap-amd64
 
       - name: Download ARM64 Snap artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-snap-arm64
           path: artifacts/snap-arm64
 
       - name: Download AppImage artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-appimage
           path: artifacts/appimage-amd64
 
       - name: Download ARM64 AppImage artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-appimage-arm64
           path: artifacts/appimage-arm64
 
       - name: Download Arch artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-arch
           path: artifacts/arch-amd64
 
       - name: Download ARM64 Arch artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-arch-arm64
           path: artifacts/arch-arm64
 
       - name: Download Nix artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-nix
           path: artifacts/nix-amd64
 
       - name: Download ARM64 Nix artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docking-nix-arm64
           path: artifacts/nix-arm64
@@ -1254,14 +1447,24 @@ jobs:
             cp -f "${src}" "${release_dir}/${latest_name}"
           }
 
-          deb_candidates=("${source_dir}"/deb-amd64/docking_*.deb)
-          deb_file="$(pick_candidate "deb" "${deb_candidates[@]}")"
-          deb_arch="$(echo "${deb_file##*/}" | sed -E 's/.*_([[:alnum:]_]+)\.deb$/\1/')"
-          deb_arch="$(normalize_arch "${deb_arch}")"
-          copy_release_asset \
-            "${deb_file}" \
-            "docking-${version}-linux-${deb_arch}.deb" \
-            "docking-latest-linux-${deb_arch}.deb"
+          for deb_arch in amd64 arm64; do
+            deb_candidates=("${source_dir}/deb-${deb_arch}"/docking_*_"${deb_arch}".deb)
+            if [ "${#deb_candidates[@]}" -ne 1 ]; then
+              echo "Expected exactly one docking .deb for ${deb_arch}" >&2
+              exit 1
+            fi
+            deb_file="${deb_candidates[0]}"
+            if [ "$(dpkg-deb -f "${deb_file}" Package)" != docking ] || \
+               [ "$(dpkg-deb -f "${deb_file}" Architecture)" != "${deb_arch}" ]; then
+              echo "Unexpected package metadata: ${deb_file}" >&2
+              exit 1
+            fi
+            asset_arch="$(normalize_arch "${deb_arch}")"
+            copy_release_asset \
+              "${deb_file}" \
+              "docking-${version}-linux-${asset_arch}.deb" \
+              "docking-latest-linux-${asset_arch}.deb"
+          done
 
           for rpm_dir in "${source_dir}"/rpm-*; do
             [ -d "${rpm_dir}" ] || continue
@@ -1377,3 +1580,14 @@ jobs:
           echo "Release skipped: ${{ steps.release_check.outputs.reason }}"
           echo "Latest release tag: ${{ steps.release_check.outputs.latest_tag }}"
           echo "Current pyproject version: ${{ steps.version.outputs.version }}"
+
+  publish-cloudsmith:
+    name: Publish Cloudsmith APT packages
+    needs: [release]
+    if: needs.release.outputs.published == 'true' && vars.CLOUDSMITH_ENABLED == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/cloudsmith.yml
+    with:
+      release_tag: ${{ needs.release.outputs.tag }}

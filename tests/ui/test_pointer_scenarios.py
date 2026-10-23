@@ -24,12 +24,21 @@ import pytest
 import docking.ui.autohide as autohide_mod
 import docking.ui.dnd as dnd_mod
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.input_controller as input_controller_mod
 import docking.ui.menu as menu_mod
 import docking.ui.placement as placement_mod
+from docking.core.config import PinnedEntry
+from docking.core.items import APP_KIND
 from docking.core.position import Position
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationLocation,
+    ApplicationOrigin,
+)
 from docking.platform.model import DockItem
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.dnd import DnDHandler
+from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryBuilder
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
@@ -55,6 +64,9 @@ class _Display:
     def get_default_seat(self):
         return _Seat(self._harness)
 
+    def get_xdisplay(self):
+        """This harness models root-pointer coordinates on X11."""
+
 
 class _ScenarioHarness:
     def __init__(self, *, pos: Position = Position.BOTTOM) -> None:
@@ -64,8 +76,8 @@ class _ScenarioHarness:
             zoom_percent=1.5,
             scaled_icon_size=72,
             zoom_enabled=True,
-            previews_enabled=True,
-            folder_stack_unfold="click",
+            window_preview_thumbnails_enabled=True,
+            stack_unfold="click",
             lock_icons=False,
             pinned=[],
             save=MagicMock(),
@@ -97,23 +109,44 @@ class _ScenarioHarness:
         self.model.visible_items.return_value = self.items
         self.model.pinned_items = []
         self.model.find_by_desktop_id.return_value = None
+
+        def insert_pinned_item(*, item: DockItem, index: int) -> bool:
+            item.is_pinned = True
+            self.model.pinned_items.insert(index, item)
+            self.config.pinned.insert(
+                index,
+                PinnedEntry(kind=item.kind, target=item.target),
+            )
+            self.config.save()
+            self.model.notify()
+            return True
+
+        self.model.insert_pinned_item.side_effect = insert_pinned_item
+        self.model.insert_pinned_application.side_effect = lambda *, desktop_id, index: (
+            insert_pinned_item(
+                item=DockItem(
+                    desktop_id=desktop_id,
+                    kind=APP_KIND,
+                    target=desktop_id,
+                    is_pinned=True,
+                ),
+                index=index,
+            )
+        )
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.screen_pointer = (0, 0)
         self.dock_hovered = False
         self._cache = dock_window_mod._DockWindowCache.create()
         self._redraw_source_id = None
-        self._menu = MagicMock()
-        self._menu.open_folder_stack_item_id.return_value = None
-        self._menu.close_folder_stack = MagicMock()
-        self._menu_popup_visible = False
+        self._interactions = MagicMock()
         self._click_x = 0.0
         self._click_y = 0.0
         self._click_button = 0
         self.preview = None
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
-        self.surface_service = MagicMock()
+        self.surface_service = MagicMock(compositor_sizes_main_axis=False)
         self.renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         self.autohide = SimpleNamespace(
             enabled=True,
@@ -139,7 +172,12 @@ class _ScenarioHarness:
             geometry_builder=self.geometry,
         )
         self.interaction = DockInteractionCoordinator(cast(Any, self))
-        self.launcher = MagicMock()
+        self.application_registry = MagicMock()
+        self.application_registry.get.return_value = None
+        self.application_registry.resolve_by_desktop_file.return_value = None
+        self.application_launcher = MagicMock()
+        self.icon_loader = MagicMock()
+        self.target_service = MagicMock()
         self.window_tracker = MagicMock()
         self.dnd = DnDHandler(
             drawing_area=self.drawing_area,
@@ -148,8 +186,12 @@ class _ScenarioHarness:
             config=cast(Any, self.config),
             renderer=cast(Any, self.renderer),
             theme=cast(Any, self.theme),
-            launcher=self.launcher,
             geometry_builder=self.geometry,
+            folder_stack=self._interactions,
+            application_registry=self.application_registry,
+            application_launcher=self.application_launcher,
+            icon_loader=self.icon_loader,
+            target_service=self.target_service,
         )
         self.update_input_region = MethodType(
             dock_window_mod.DockWindow.update_input_region, self
@@ -244,20 +286,20 @@ class _ScenarioHarness:
 
     def move_to(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_motion(
-            cast(Any, self), self.drawing_area, SimpleNamespace(x=x, y=y)
+        return input_controller_mod.DockInputController._on_motion(
+            _controller(self), self.drawing_area, SimpleNamespace(x=x, y=y)
         )
 
     def enter_at(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_enter(
-            cast(Any, self), self.drawing_area, SimpleNamespace(x=x, y=y)
+        return input_controller_mod.DockInputController._on_enter(
+            _controller(self), self.drawing_area, SimpleNamespace(x=x, y=y)
         )
 
     def leave_at(self, x: float, y: float):
         self.local_to_screen(x, y)
-        return dock_window_mod.DockWindow._on_leave(
-            cast(Any, self),
+        return input_controller_mod.DockInputController._on_leave(
+            _controller(self),
             self.drawing_area,
             SimpleNamespace(
                 x=x,
@@ -266,6 +308,17 @@ class _ScenarioHarness:
                 mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
             ),
         )
+
+
+def _controller(harness: _ScenarioHarness):
+    return SimpleNamespace(
+        _window=harness,
+        _interactions=harness._interactions,
+        _click_x=getattr(harness, "_click_x", -1.0),
+        _click_y=getattr(harness, "_click_y", -1.0),
+        _click_button=getattr(harness, "_click_button", 0),
+        dnd=harness.dnd,
+    )
 
 
 class TestPointerScenarios:
@@ -403,16 +456,15 @@ class TestMenuLifecycleScenarios:
             set_hovered=MagicMock(),
         )
 
-        class _GeometryBuilder:
-            def build_frame(self, **_kwargs: object) -> SimpleNamespace:
-                return SimpleNamespace(
-                    item_at_point=lambda *_args: None,
-                    insertion_index_for_main=lambda *_args, **_kwargs: 0,
-                )
-
         runtime = DockRuntime(
             cast(Any, harness),
             update_checker=MagicMock(),
+        )
+        folder_stack = FolderStackController(
+            config=cast(Any, harness.config),
+            runtime=runtime,
+            dock_window=cast(Any, harness),
+            target_service=harness.target_service,
         )
         handler = MenuHandler(
             about=MagicMock(),
@@ -422,8 +474,13 @@ class TestMenuLifecycleScenarios:
             config=cast(Any, harness.config),
             window_tracker=harness.window_tracker,
             preview_service=MagicMock(),
-            geometry_builder=cast(Any, _GeometryBuilder()),
+            folder_stack=folder_stack,
             diagnostics=MagicMock(),
+            dock_window=cast(Any, harness),
+            search=MagicMock(),
+            application_registry=harness.application_registry,
+            application_launcher=harness.application_launcher,
+            target_service=harness.target_service,
         )
         created: list[_FakePopupMenu] = []
 
@@ -437,21 +494,26 @@ class TestMenuLifecycleScenarios:
         )
 
         event = SimpleNamespace(x=10.0, y=5.0)
-        handler.show(event=event, cursor_main=10.0)
+        frame = SimpleNamespace(
+            item_at_point=lambda *_args: None,
+            insertion_index_for_main=lambda *_args, **_kwargs: 0,
+        )
+        handler.show(event=event, cursor_main=10.0, frame=frame)
         menu = created[0]
 
-        assert harness._menu_popup_visible is True
         harness.autohide.set_disabled.assert_called_once_with(True, reason="menu-open")
         assert menu.shown is True
         assert menu.popup_event is event
 
         menu.emit("hide")
 
-        assert harness._menu_popup_visible is False
+        assert harness.autohide.set_disabled.call_count == 2
 
 
 class TestAutohideAnimationScenarios:
-    def test_autohide_progresses_visible_to_hidden_and_back(self, monkeypatch):
+    def test_autohide_progresses_visible_to_hidden_and_back(
+        self, monkeypatch, monotonic_clock
+    ):
         window = SimpleNamespace(queue_redraw=MagicMock())
         config = SimpleNamespace(
             hide_mode="autohide",
@@ -474,18 +536,22 @@ class TestAutohideAnimationScenarios:
         scheduled.pop(0)()
         assert ctrl.state == HideState.HIDING
 
-        while ctrl.state != HideState.HIDDEN:
+        for _ in range(4):
+            monotonic_clock.now_us += 16_000
             ctrl._animation_tick()
 
+        assert ctrl.state == HideState.HIDDEN
         assert ctrl.hide_offset == 1.0
         assert ctrl.zoom_progress == 0.0
 
         ctrl.on_mouse_enter()
         assert ctrl.state == HideState.SHOWING
 
-        while ctrl.state != HideState.VISIBLE:
+        for _ in range(4):
+            monotonic_clock.now_us += 16_000
             ctrl._animation_tick()
 
+        assert ctrl.state == HideState.VISIBLE
         assert ctrl.hide_offset == 0.0
         assert ctrl.zoom_progress == 1.0
 
@@ -516,7 +582,7 @@ class TestPlacementScenarios:
                 zoom_enabled=True,
                 zoom_percent=1.2,
                 pos=Position.BOTTOM,
-                folder_stack_unfold="click",
+                stack_unfold="click",
                 active_display=True,
                 hide_mode="none",
                 monitor_index=-1,
@@ -568,9 +634,22 @@ class TestDragDropScenarios:
         selection.get_uris.return_value = [
             "file:///usr/share/applications/firefox.desktop"
         ]
-        resolved = SimpleNamespace(name="Firefox", icon_name="firefox", wm_class="ff")
-        harness.launcher.resolve.return_value = resolved
-        harness.launcher.load_icon.return_value = object()
+        resolved = ApplicationInfo(
+            desktop_id="firefox.desktop",
+            name="Firefox",
+            declared_icon="firefox",
+            wm_class="ff",
+            exec_line="/usr/bin/firefox",
+            origin=ApplicationOrigin.INSTALLED,
+            location=ApplicationLocation.SANDBOX,
+            desktop_file=None,
+            executable_path=None,
+            aliases=(),
+            visible=True,
+            has_gio_source=True,
+        )
+        harness.application_registry.get.return_value = resolved
+        harness.icon_loader.load_desktop_icon.return_value = object()
         finish = MagicMock()
         monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
         monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args, **_kwargs: None)

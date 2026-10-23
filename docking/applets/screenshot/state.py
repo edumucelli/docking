@@ -20,7 +20,7 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple
 
 from docking.platform.environment import flatpak, is_flatpak, is_wayland_session
 
@@ -182,8 +182,8 @@ def _portal_args(*, mode: Mode) -> list[str]:
 
 def _launch(*, cmd: list[str], delay_seconds: int) -> None:
     """Launch *cmd* immediately or after a simple in-process delay."""
-    kwargs: dict = {"start_new_session": True}
-    # Suppress stdout/stderr for portal calls — the D-Bus request handle
+    kwargs: dict[str, Any] = {"start_new_session": True}
+    # Suppress stdout/stderr for portal calls - the D-Bus request handle
     # emitted to stdout is noise to the user and the portal completes
     # asynchronously.
     if cmd[0] == "gdbus":

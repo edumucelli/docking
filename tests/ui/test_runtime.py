@@ -102,7 +102,6 @@ class TestDockRuntime:
         runtime = DockRuntime(window, update_checker=update_checker)
 
         runtime.on_hide_mode_changed()
-        runtime.set_icons_locked(True)
         runtime.queue_draw()
         runtime.set_current_workspace_only(True)
         runtime.hide_tooltip()
@@ -112,7 +111,6 @@ class TestDockRuntime:
         runtime.open_releases_page()
 
         window.on_hide_mode_changed.assert_called_once()
-        window.dnd.set_locked.assert_called_once_with(True)
         assert window.queue_redraw.call_count == 2
         window.surface_service.set_workspace_scope.assert_called_once_with(
             current_workspace_only=True
@@ -122,3 +120,12 @@ class TestDockRuntime:
         update_checker.check_now.assert_called_once()
         update_checker.open_releases_page.assert_called_once()
         window.set_theme.assert_called_once_with("new-theme")
+
+    def test_quit_closes_the_dock_window(self):
+        window = _make_window()
+        window.destroy = MagicMock()
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
+
+        runtime.quit()
+
+        window.destroy.assert_called_once()

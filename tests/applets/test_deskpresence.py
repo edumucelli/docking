@@ -31,7 +31,7 @@ from docking.core.config import Config
 def _make_applet(
     icon_size: int = 48, *, config: Config | None = None
 ) -> DeskpresenceApplet:
-    return DeskpresenceApplet(icon_size, config=config)
+    return DeskpresenceApplet(icon_size, config=config or Config())
 
 
 class TestFormatDuration:

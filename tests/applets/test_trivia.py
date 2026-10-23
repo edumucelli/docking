@@ -14,6 +14,7 @@ from docking.applets.trivia.state import (
     format_trivia,
     normalize_text,
 )
+from docking.core.config import Config
 
 ENTRY = TriviaEntry(
     category="Science",
@@ -94,12 +95,12 @@ class TestFetchTrivia:
 
 class TestTriviaApplet:
     def test_creates_with_icon(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         assert applet.item.icon is not None
         assert applet._current is not None
 
     def test_click_advances_questions(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._entries = [
             ENTRY,
             TriviaEntry(
@@ -121,7 +122,7 @@ class TestTriviaApplet:
         assert "1984" in applet._current.question
 
     def test_exhausted_click_triggers_fetch(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._entries = [ENTRY]
         applet._index = 0
         applet._current = ENTRY
@@ -132,7 +133,7 @@ class TestTriviaApplet:
         fetch_mock.assert_called_once_with(show_first=True)
 
     def test_menu_contains_answers_and_actions(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._current = ENTRY
 
         labels = [
@@ -144,7 +145,7 @@ class TestTriviaApplet:
         assert "Refresh Now" in labels
 
     def test_select_answer_updates_current_entry(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._current = ENTRY
 
         applet._select_answer("Venus")
@@ -154,7 +155,7 @@ class TestTriviaApplet:
         assert "Correct answer: Mars" in applet.item.name
 
     def test_next_trivia_clears_answered_icon_state(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         first = answer_entry(ENTRY, "Venus")
         second = TriviaEntry(
             category="Books",
@@ -192,7 +193,7 @@ class TestTriviaRender:
 
 class TestTriviaAppletBranches:
     def test_refresh_from_web_delegates(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._fetch_async = MagicMock()
 
         applet._refresh_from_web()
@@ -200,7 +201,7 @@ class TestTriviaAppletBranches:
         applet._fetch_async.assert_called_once_with(show_first=True)
 
     def test_fetch_async_noop_when_loading(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._loading = True
         applet.present = MagicMock()
 
@@ -209,7 +210,7 @@ class TestTriviaAppletBranches:
         applet.present.assert_not_called()
 
     def test_fetch_async_runs_worker_and_posts_idle_result(self, monkeypatch):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         monkeypatch.setattr(
             trivia_mod,
             "fetch_trivia",
@@ -240,7 +241,7 @@ class TestTriviaAppletBranches:
         assert calls[0][2] is True
 
     def test_on_fetch_result_applies_entries_and_fallback(self, monkeypatch):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._loading = True
         applet.present = MagicMock()
 
@@ -253,7 +254,7 @@ class TestTriviaAppletBranches:
         assert applet._current == ENTRY
 
     def test_refresh_tooltip_loading_state(self):
-        applet = TriviaApplet(48)
+        applet = TriviaApplet(48, config=Config())
         applet._loading = True
         applet._current = None
 

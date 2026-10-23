@@ -6,6 +6,7 @@ import logging
 import subprocess
 from dataclasses import replace
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
@@ -22,6 +23,7 @@ from docking.applets.bluetooth.state import (
     device_menu_label,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 class _ImmediateThread:
@@ -250,7 +252,7 @@ class TestBluetoothStateHelpers:
         monkeypatch.setattr(
             bluetooth_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(list(cmd)),
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
         assert bluetooth_state_mod.open_send_files() is True
@@ -786,7 +788,7 @@ def _make_applet(
     backend = _StubBackend(initial_state=state)
     monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
     monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
-    applet = BluetoothApplet(48)
+    applet = BluetoothApplet(48, config=Config())
     applet._on_poll_result(
         backend.get_state(active_adapter_path=applet._active_adapter_path)
     )
@@ -867,7 +869,7 @@ class TestBluetoothApplet:
         monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
         monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
 
-        applet = BluetoothApplet(48)
+        applet = BluetoothApplet(48, config=Config())
 
         assert backend.get_state_calls == 0
         assert applet._state.available is False
@@ -912,7 +914,10 @@ class TestBluetoothApplet:
         applet.present = lambda: None  # type: ignore[assignment]
 
         applet._on_power_result(
-            False, False, _state(adapters=(_adapter(discovering=True),))
+            "/org/bluez/hci0",
+            False,
+            False,
+            _state(adapters=(_adapter(discovering=True),)),
         )
 
         assert "blocked" in applet._action_error.lower()
@@ -1085,7 +1090,7 @@ class TestBluetoothApplet:
     def test_tick_and_discovery_tick(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         ticked: list[str] = []
-        applet._worker.run = lambda **kwargs: ticked.append("poll")  # type: ignore[assignment]
+        applet._worker.run_guarded = lambda **kwargs: ticked.append("poll") or True  # type: ignore[method-assign]
         applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
 
         assert applet._tick() is True
@@ -1105,14 +1110,28 @@ class TestBluetoothApplet:
             active_adapter_path=applet._active_adapter_path
         )
 
-    def test_on_poll_result_syncs_adapter_and_resets_local_discovery(self, monkeypatch):
+    def test_on_poll_result_keeps_owned_discovery_until_explicit_stop(
+        self, monkeypatch
+    ):
         state = _state(adapters=(_adapter(path="/org/bluez/hci0", discovering=False),))
         applet, _backend = _make_applet(monkeypatch, state)
-        applet._local_discovery_active = True
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
         applet._ensure_discovery = lambda: None  # type: ignore[assignment]
         applet.present = lambda: None  # type: ignore[assignment]
         assert applet._on_poll_result(state) is False
-        assert applet._local_discovery_active is False
+        assert applet._local_discovery_paths == {"/org/bluez/hci0"}
+
+    def test_on_poll_result_skips_present_when_state_is_unchanged(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        state = applet._state
+        applet._local_discovery_paths = set()
+        applet._ensure_discovery = lambda: None  # type: ignore[assignment]
+        present = MagicMock()
+        applet.present = present  # type: ignore[method-assign]
+
+        assert applet._on_poll_result(state) is False
+
+        present.assert_not_called()
 
     def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
@@ -1127,6 +1146,10 @@ class TestBluetoothApplet:
         applet._sync_selected_adapter()
         assert applet._active_adapter_path == "/org/bluez/hci0"
         assert saved
+
+        saved.clear()
+        applet._sync_selected_adapter()
+        assert saved == []
 
         applet._state = _state(adapters=())
         assert applet._active_adapter() is None
@@ -1150,7 +1173,7 @@ class TestBluetoothApplet:
         applet._suppress_discovery_until = 0.0
         applet._ensure_discovery()
         assert backend.discovery_calls == ["/org/bluez/hci0"]
-        assert applet._local_discovery_active is True
+        assert applet._local_discovery_paths == {"/org/bluez/hci0"}
 
     def test_run_async_and_connect_device_paths(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
@@ -1254,10 +1277,10 @@ class TestBluetoothApplet:
     def test_power_result_discovery_toggle_and_pref_bool(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         applet.present = lambda: None  # type: ignore[assignment]
-        applet._local_discovery_active = True
-        applet._on_power_result(False, True, _state())
-        assert applet._local_discovery_active is False
-        applet._on_power_result(True, False, _state())
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
+        applet._on_power_result("/org/bluez/hci0", False, True, _state())
+        assert applet._local_discovery_paths == set()
+        applet._on_power_result("/org/bluez/hci0", True, False, _state())
         assert applet._action_error == "Power on failed."
 
         class _Widget:
@@ -1274,9 +1297,9 @@ class TestBluetoothApplet:
         applet._on_continuous_discovery_toggled(_Widget(active=False))
         assert calls == ["ensure", "run"]
 
-        applet._local_discovery_active = False
+        applet._local_discovery_paths = set()
         assert applet._stop_local_discovery(quiet=True) is True
-        applet._local_discovery_active = True
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
         applet._backend.stop_discovery = (  # type: ignore[attr-defined]
             lambda adapter_path, quiet=True: False
         )

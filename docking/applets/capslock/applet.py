@@ -51,7 +51,7 @@ class CapslockApplet(Applet):
     name = _("Caps Lock")
     icon_name = "input-keyboard"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state: LockKeyState = query_lock_state()
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)

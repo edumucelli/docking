@@ -71,7 +71,10 @@ coordinated carefully.
 
 Workarea vs monitor bounds
 
-Placement does not always use the same rectangle for both axes.
+Placement does not always use the same rectangle for both axes. Backends that
+can distinguish foreign reservations from the dock's own reservation expose an
+external workarea. That rectangle becomes the placement boundary on both axes.
+Other backends retain the monitor/workarea split below.
 
 Why:
 - along the dock edge, the monitor edge matters,
@@ -159,6 +162,8 @@ stack.
 
 from __future__ import annotations
 
+import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import gi
@@ -168,6 +173,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.config import effective_edge_gap
+from docking.core.layout import resting_content_extent
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
@@ -180,11 +186,24 @@ from docking.platform.backends.base import (
     SurfaceService,
 )
 from docking.ui.display import get_pointer_position
+from docking.ui.geometry import (
+    compute_dock_cross_metrics,
+    resting_dock_cross_extent,
+)
 
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
 
 log = get_logger(name="placement")
+
+
+@dataclass(frozen=True)
+class MonitorChoice:
+    """One selectable monitor target for preferences and menus."""
+
+    label: str
+    index: int
+    connector: str | None = None
 
 
 class DockPlacementController:
@@ -202,15 +221,24 @@ class DockPlacementController:
         self._active_monitor: Gdk.Monitor | None = None
         self._screen_signal_handlers: list[tuple[object, int]] = []
         self._geometry_refresh_source: int = 0
+        self._last_reservation_key: tuple[object, ...] | None = None
+        self._reservation_cleared = False
+        self._surface.set_external_workarea_changed_handler(self.schedule_reposition)
 
     def current_monitor_choice(self) -> int:
-        """Current monitor menu selection (-1=primary, >=0 specific monitor)."""
+        """Current configured home monitor (-1=primary, >=0 specific monitor)."""
         display = self._window.get_display()
         if not display:
             return -1
         n_monitors = display.get_n_monitors()
         if n_monitors <= 0:
             return -1
+        configured = self._monitor_for_connector(
+            display=display,
+            connector=getattr(self._window.config, "monitor_connector", None),
+        )
+        if configured is not None:
+            return self._monitor_index(display=display, monitor=configured)
         selected = int(self._window.config.monitor_index)
         if selected == -1:
             return self.primary_monitor_index()
@@ -221,10 +249,18 @@ class DockPlacementController:
     def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
         """Monitor choices for menu display. Empty when only one monitor."""
         display = self._window.get_display()
+        if not display or display.get_n_monitors() <= 1:
+            return []
+        choices = self.get_monitor_choices()
+        return [(choice.label, choice.index) for choice in choices]
+
+    def get_monitor_choices(self) -> list[MonitorChoice]:
+        """Monitor choices with connector identity when GDK exposes it."""
+        display = self._window.get_display()
         if not display:
             return []
         n_monitors = display.get_n_monitors()
-        if n_monitors <= 1:
+        if n_monitors <= 0:
             return []
 
         primary = display.get_primary_monitor() or display.get_monitor(0)
@@ -234,20 +270,27 @@ class DockPlacementController:
                 primary_idx = idx
                 break
 
-        choices: list[tuple[str, int]] = []
+        choices: list[MonitorChoice] = []
         for idx in range(n_monitors):
             monitor = display.get_monitor(idx)
             if monitor is None:
                 continue
             geom = monitor.get_geometry()
+            connector = self._monitor_connector(monitor)
+            model = self._monitor_model(monitor)
             label = _("Display {display}: {width}x{height}").format(
                 display=idx + 1,
                 width=geom.width,
                 height=geom.height,
             )
+            if connector:
+                label += f" - {connector}"
+            elif model:
+                label += f" - {model}"
             if idx == primary_idx:
-                label += f" ({_('Primary')})"
-            choices.append((label, idx))
+                primary_label = _("Primary")
+                label += f" ({primary_label})"
+            choices.append(MonitorChoice(label=label, index=idx, connector=connector))
         return choices
 
     def primary_monitor_index(self) -> int:
@@ -295,9 +338,13 @@ class DockPlacementController:
         self, _widget: Gtk.Widget, _previous_screen: Gdk.Screen | None
     ) -> None:
         self.attach_screen_signals(self._window.get_screen())
+        self._last_reservation_key = None
+        self._surface.refresh_external_workarea()
         self.schedule_reposition()
 
     def on_screen_metrics_changed(self, *_args: object) -> None:
+        self._last_reservation_key = None
+        self._surface.refresh_external_workarea()
         self.schedule_reposition()
 
     def on_scale_factor_changed(self, *_args: object) -> None:
@@ -322,6 +369,7 @@ class DockPlacementController:
             self._geometry_refresh_source = 0
         self.stop_active_display()
         self.disconnect_screen_signals()
+        self._surface.set_external_workarea_changed_handler(None)
 
     def position_dock(self) -> None:
         """Position the dock window at the configured screen edge."""
@@ -332,40 +380,52 @@ class DockPlacementController:
         monitor_idx = self._monitor_index(display=display, monitor=monitor)
         geom = monitor.get_geometry()
         workarea = monitor.get_workarea()
+        snapshot = self._monitor_snapshot(
+            display=display,
+            monitor=monitor,
+            monitor_idx=monitor_idx,
+        )
+        external = self._external_workarea(snapshot)
 
         config = self._window.config
         theme = self._window.theme
         icon_size = config.icon_size
         zoom = config.zoom_percent if config.zoom_enabled else 1.0
-        bounce_headroom = int(icon_size * theme.urgent_bounce_height)
-        cross = int(
-            icon_size * zoom
-            + theme.top_padding
-            + theme.bottom_padding
-            + bounce_headroom
+        cross_metrics = compute_dock_cross_metrics(
+            icon_size=icon_size,
+            zoom=zoom,
+            theme=theme,
+            items=self._window.model.visible_items(),
         )
+        cross = cross_metrics.surface_extent
         pos = config.pos
         gap = effective_edge_gap(theme, config)
-        if is_horizontal(pos=pos):
-            win_w, win_h = geom.width, cross + gap
-            if pos == Position.BOTTOM:
-                win_x = geom.x
-                win_y = geom.y + geom.height - win_h
+        if external is not None:
+            if is_horizontal(pos=pos):
+                win_w, win_h = external.width, cross + gap
+                win_x = external.x
+                win_y = (
+                    external.bottom - win_h if pos == Position.BOTTOM else external.y
+                )
             else:
-                win_x = geom.x
-                win_y = workarea.y
+                win_w, win_h = cross + gap, external.height
+                win_x = external.right - win_w if pos == Position.RIGHT else external.x
+                win_y = external.y
+        elif is_horizontal(pos=pos):
+            win_w, win_h = geom.width, cross + gap
+            win_x = geom.x
+            win_y = (
+                geom.y + geom.height - win_h if pos == Position.BOTTOM else workarea.y
+            )
         else:
             win_w, win_h = cross + gap, workarea.height
-            if pos == Position.LEFT:
-                win_x = geom.x
-                win_y = workarea.y
-            else:
-                win_x = geom.x + geom.width - win_w
-                win_y = workarea.y
+            win_x = geom.x if pos == Position.LEFT else geom.x + geom.width - win_w
+            win_y = workarea.y
 
         log.debug(
             "dock position: monitor=%s geom=(%d,%d %dx%d) workarea=(%d,%d %dx%d) "
-            "win=(%d,%d) size=%dx%d cross=%d bounce_headroom=%d",
+            "external=%s win=(%d,%d) size=%dx%d cross=%d "
+            "animation_headroom=%.1f",
             monitor_idx,
             geom.x,
             geom.y,
@@ -375,20 +435,17 @@ class DockPlacementController:
             workarea.y,
             workarea.width,
             workarea.height,
+            external,
             win_x,
             win_y,
             win_w,
             win_h,
             cross,
-            bounce_headroom,
+            cross_metrics.animation_headroom,
         )
         self._surface.position_or_anchor(
             PlacementRequest(
-                monitor=self._monitor_snapshot(
-                    display=display,
-                    monitor=monitor,
-                    monitor_idx=monitor_idx,
-                ),
+                monitor=snapshot,
                 position=pos,
                 x=win_x,
                 y=win_y,
@@ -402,6 +459,8 @@ class DockPlacementController:
 
     def set_struts(self) -> None:
         """Reserve screen space for the dock via _NET_WM_STRUT_PARTIAL."""
+        if not self._window.get_realized():
+            return
         if self._window.config.hide_mode != "none":
             self.clear_struts()
             return
@@ -410,21 +469,47 @@ class DockPlacementController:
         monitor = self._resolve_target_monitor(display=display)
         if monitor is None:
             return
+        monitor_idx = self._monitor_index(display=display, monitor=monitor)
+        snapshot = self._monitor_snapshot(
+            display=display,
+            monitor=monitor,
+            monitor_idx=monitor_idx,
+        )
+        external = self._external_workarea(snapshot)
         icon_size = self._window.config.icon_size
         gap = effective_edge_gap(self._window.theme, self._window.config)
-        strut_height = int(icon_size + self._window.theme.bottom_padding + gap)
-
-        self._surface.set_reservation(
-            ReservationRequest(
-                monitor=self._monitor_snapshot(
-                    display=display,
-                    monitor=monitor,
-                    monitor_idx=self._monitor_index(display=display, monitor=monitor),
-                ),
-                position=self._window.config.pos,
-                thickness=strut_height,
+        strut_height = (
+            resting_dock_cross_extent(
+                icon_size=icon_size,
+                theme=self._window.theme,
             )
+            + gap
         )
+
+        edge_offset = self._edge_offset(
+            monitor=snapshot.geometry,
+            external=external,
+            position=self._window.config.pos,
+        )
+        span_start, span_end = self._reservation_span(
+            monitor=snapshot.geometry,
+            external=external,
+            position=self._window.config.pos,
+        )
+        request = ReservationRequest(
+            monitor=snapshot,
+            position=self._window.config.pos,
+            thickness=strut_height,
+            edge_offset=edge_offset,
+            span_start=span_start,
+            span_end=span_end,
+        )
+        key = self._reservation_key(request)
+        if key == self._last_reservation_key and not self._reservation_cleared:
+            return
+        self._surface.set_reservation(request)
+        self._last_reservation_key = key
+        self._reservation_cleared = False
 
     def update_barrier(self) -> None:
         """Create or destroy the pointer barrier based on autohide state."""
@@ -446,12 +531,13 @@ class DockPlacementController:
             )
             return
         config = self._window.config
+        snapshot = self._monitor_snapshot(
+            display=display,
+            monitor=monitor,
+            monitor_idx=self._monitor_index(display=display, monitor=monitor),
+        )
         self._surface.update_pointer_barrier(
-            monitor=self._monitor_snapshot(
-                display=display,
-                monitor=monitor,
-                monitor_idx=self._monitor_index(display=display, monitor=monitor),
-            ),
+            monitor=snapshot,
             position=position,
             enabled=True,
             pressure_callback=self._on_barrier_pressure
@@ -469,7 +555,11 @@ class DockPlacementController:
 
     def clear_struts(self) -> None:
         """Remove strut reservation by setting all struts to zero."""
+        if self._reservation_cleared:
+            return
         self._surface.clear_reservation()
+        self._last_reservation_key = None
+        self._reservation_cleared = True
 
     def update_struts(self) -> None:
         """Refresh struts and barrier after autohide toggle."""
@@ -496,6 +586,7 @@ class DockPlacementController:
 
     def reposition(self) -> None:
         """Re-layout after position change -- reposition window, struts, input."""
+        self._window._invalidate_current_geometry_frame()
         self.position_dock()
         self.set_struts()
         self._window.update_input_region()
@@ -550,6 +641,13 @@ class DockPlacementController:
         if n_monitors <= 0:
             return None
 
+        configured = self._monitor_for_connector(
+            display=display,
+            connector=getattr(self._window.config, "monitor_connector", None),
+        )
+        if configured is not None:
+            return configured
+
         selected = int(self._window.config.monitor_index)
         if 0 <= selected < n_monitors:
             monitor = display.get_monitor(selected)
@@ -569,6 +667,35 @@ class DockPlacementController:
             if display.get_monitor(idx) is monitor:
                 return idx
         return -1
+
+    @classmethod
+    def _monitor_for_connector(
+        cls, *, display: Gdk.Display, connector: str | None
+    ) -> Gdk.Monitor | None:
+        if not connector:
+            return None
+        try:
+            n_monitors = display.get_n_monitors()
+        except Exception:
+            return None
+        for idx in range(n_monitors):
+            monitor = display.get_monitor(idx)
+            if monitor is not None and cls._monitor_connector(monitor) == connector:
+                return monitor
+        return None
+
+    @staticmethod
+    def _monitor_connector(monitor: Gdk.Monitor) -> str | None:
+        getter = getattr(monitor, "get_connector", None)
+        if not callable(getter):
+            return None
+        text = str(getter() or "").strip()
+        return text or None
+
+    @staticmethod
+    def _monitor_model(monitor: Gdk.Monitor) -> str | None:
+        text = str(monitor.get_model() or "").strip()
+        return text or None
 
     def _monitor_snapshot(
         self,
@@ -599,4 +726,70 @@ class DockPlacementController:
             ),
             scale=self._window.get_scale_factor(),
             primary=primary,
+            name=self._monitor_model(monitor),
+            connector=self._monitor_connector(monitor),
+        )
+
+    def _external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        external = self._surface.external_workarea(monitor)
+        if not isinstance(external, Rect):
+            return None
+        if external.width <= 0 or external.height <= 0:
+            log.warning("ignored unusable external workarea: %s", external)
+            return None
+        return external
+
+    @staticmethod
+    def _edge_offset(
+        *, monitor: Rect, external: Rect | None, position: Position
+    ) -> int:
+        if external is None:
+            return 0
+        return max(
+            0,
+            {
+                Position.TOP: external.y - monitor.y,
+                Position.BOTTOM: monitor.bottom - external.bottom,
+                Position.LEFT: external.x - monitor.x,
+                Position.RIGHT: monitor.right - external.right,
+            }[position],
+        )
+
+    def _reservation_span(
+        self,
+        *,
+        monitor: Rect,
+        external: Rect | None,
+        position: Position,
+    ) -> tuple[int | None, int | None]:
+        if external is None:
+            return None, None
+        horizontal = is_horizontal(pos=position)
+        available_start = external.x if horizontal else external.y
+        available_extent = external.width if horizontal else external.height
+        theme = self._window.theme
+        content_extent = resting_content_extent(
+            list(self._window.model.visible_items()),
+            self._window.config.icon_size,
+            float(theme.horizontal_padding) + 2 * max(0.0, float(theme.stroke_width)),
+            float(theme.item_padding),
+        )
+        reserved_extent = min(available_extent, max(1, math.ceil(content_extent)))
+        span_start = math.floor(
+            available_start + (available_extent - reserved_extent) / 2
+        )
+        return span_start, span_start + reserved_extent
+
+    @staticmethod
+    def _reservation_key(request: ReservationRequest) -> tuple[object, ...]:
+        monitor = request.monitor
+        return (
+            monitor.index,
+            monitor.geometry,
+            monitor.scale,
+            request.position,
+            request.thickness,
+            request.edge_offset,
+            request.span_start,
+            request.span_end,
         )

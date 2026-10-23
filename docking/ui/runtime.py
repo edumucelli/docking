@@ -11,7 +11,18 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Runtime command surfaces exposed by the dock UI shell to handlers."""
+"""Runtime command surface exposed by the dock UI shell to broad controllers.
+
+Menus, settings, folder stacks, and applet helpers often need to trigger
+dock-wide effects, but letting each of them keep a `DockWindow` reference would
+make those modules depend on the full GTK shell. `DockRuntime` is the small
+imperative facade they share instead.
+
+The boundary is intentionally practical rather than abstract: methods are added
+when a controller needs a real dock-level action. It should stay thinner than
+`DockWindow`, but it should not force callers into generic callbacks when a
+named runtime command is clearer and easier to test.
+"""
 
 from __future__ import annotations
 
@@ -20,11 +31,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from docking.core.theme import Theme
     from docking.ui.dock_window import DockWindow
+    from docking.ui.placement import MonitorChoice
     from docking.ui.update_popup import UpdateCheckController
 
 
 class DockRuntime:
-    """Narrow imperative API for subsystems that should not own DockWindow."""
+    """Narrow imperative API for subsystems that should not own `DockWindow`."""
 
     def __init__(
         self,
@@ -47,6 +59,9 @@ class DockRuntime:
     def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
         return self._window.placement.get_monitor_menu_choices()
 
+    def get_monitor_choices(self) -> list[MonitorChoice]:
+        return self._window.placement.get_monitor_choices()
+
     def current_monitor_choice(self) -> int:
         return self._window.placement.current_monitor_choice()
 
@@ -64,9 +79,6 @@ class DockRuntime:
 
     def refresh_pressure_handler(self) -> None:
         self._window.placement.refresh_pressure_handler()
-
-    def set_icons_locked(self, locked: bool) -> None:
-        self._window.dnd.set_locked(locked)
 
     def queue_draw(self) -> None:
         self._window.queue_redraw()
@@ -90,3 +102,7 @@ class DockRuntime:
 
     def open_releases_page(self) -> None:
         self._update_checker.open_releases_page()
+
+    def quit(self) -> None:
+        """Close the dock window and let normal process shutdown run."""
+        self._window.destroy()

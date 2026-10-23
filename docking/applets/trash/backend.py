@@ -16,9 +16,13 @@
 from __future__ import annotations
 
 import configparser
+import errno
+import os
 import shutil
+import stat
 import subprocess
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -30,6 +34,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -45,6 +50,47 @@ from docking.platform.environment import (
 log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
+@dataclass(frozen=True, slots=True)
+class TrashEmptyResult:
+    """Outcome of an Empty Trash request as far as Docking can observe it."""
+
+    attempted: bool
+    before_count: int
+    remaining_count: int
+    failures: int = 0
+    permission_denied: bool = False
+    delegated: bool = False
+
+
+@dataclass(slots=True)
+class _DeleteStats:
+    failures: int = 0
+    permission_denied: bool = False
+
+    def add_failure(self, exc: BaseException) -> None:
+        self.failures += 1
+        self.permission_denied = self.permission_denied or _is_permission_error(exc)
+
+    def merge(self, other: _DeleteStats) -> None:
+        self.failures += other.failures
+        self.permission_denied = self.permission_denied or other.permission_denied
+
+
+def _coerce_delete_stats(stats: object) -> _DeleteStats:
+    if isinstance(stats, _DeleteStats):
+        return stats
+    return _DeleteStats()
+
+
+def _is_permission_error(exc: BaseException) -> bool:
+    if isinstance(exc, PermissionError):
+        return True
+    if isinstance(exc, OSError) and exc.errno in (errno.EACCES, errno.EPERM):
+        return True
+    message = str(exc).casefold()
+    return "permission denied" in message or "operation not permitted" in message
+
+
 class TrashBackend(Protocol):
     """Desktop-specific trash behavior used by the Trash applet."""
 
@@ -53,11 +99,11 @@ class TrashBackend(Protocol):
 
     def count_items(self) -> int: ...
 
-    def monitor_file(self) -> Gio.File: ...
+    def monitor_files(self) -> tuple[Gio.File, ...]: ...
 
     def open(self) -> None: ...
 
-    def empty(self, confirm: Callable[[], bool]) -> None: ...
+    def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult: ...
 
 
 class _CaseSensitiveConfigParser(configparser.ConfigParser):
@@ -67,6 +113,12 @@ class _CaseSensitiveConfigParser(configparser.ConfigParser):
 
 def _host_user_data_home() -> Path:
     return Path.home() / ".local" / "share"
+
+
+def _visible_trash_directory() -> Path:
+    if is_flatpak():
+        return _host_user_data_home() / "Trash"
+    return xdg_data_home() / "Trash"
 
 
 def _kde_trash_directory() -> Path:
@@ -82,9 +134,106 @@ def _kde_trash_info_directory() -> Path:
 
 
 def _visible_trash_files_directory() -> Path:
-    if is_flatpak():
-        return _host_user_data_home() / "Trash" / "files"
-    return xdg_data_home() / "Trash" / "files"
+    return _visible_trash_directory() / "files"
+
+
+def _visible_trash_info_directory() -> Path:
+    return _visible_trash_directory() / "info"
+
+
+def _decode_mountinfo_path(value: str) -> str:
+    decoded = ""
+    index = 0
+    while index < len(value):
+        if (
+            value[index] == "\\"
+            and index + 3 < len(value)
+            and all(char in "01234567" for char in value[index + 1 : index + 4])
+        ):
+            decoded += chr(int(value[index + 1 : index + 4], 8))
+            index += 4
+            continue
+        decoded += value[index]
+        index += 1
+    return decoded
+
+
+def _mount_points() -> tuple[Path, ...]:
+    try:
+        lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")
+    except OSError as exc:
+        log.bind(action="discover_trash_roots").debug(
+            "Could not read mountinfo: %s",
+            exc,
+        )
+        return ()
+
+    mount_points: list[Path] = []
+    for line in lines:
+        fields = line.split(b" ")
+        if len(fields) < 5:
+            continue
+        mount_point = Path(_decode_mountinfo_path(os.fsdecode(fields[4])))
+        if mount_point not in mount_points:
+            mount_points.append(mount_point)
+    return tuple(mount_points)
+
+
+def _is_trash_directory(path: Path, *, shared: bool = False) -> bool:
+    try:
+        entry = path.lstat()
+        return stat.S_ISDIR(entry.st_mode) and (
+            bool(entry.st_mode & stat.S_ISVTX)
+            if shared
+            else entry.st_uid == os.getuid() and not entry.st_mode & 0o022
+        )
+    except OSError as exc:
+        log.bind(action="discover_trash_roots").debug(
+            "Could not stat trash path %s: %s",
+            path,
+            exc,
+        )
+        return False
+
+
+def _volume_trash_directories() -> tuple[Path, ...]:
+    uid = os.getuid()
+    directories: list[Path] = []
+    for mount_point in _mount_points():
+        candidates = [mount_point / f".Trash-{uid}"]
+        shared = mount_point / ".Trash"
+        if _is_trash_directory(shared, shared=True):
+            candidates.append(shared / str(uid))
+        for directory in candidates:
+            if _is_trash_directory(directory) and directory not in directories:
+                directories.append(directory)
+    return tuple(directories)
+
+
+def _visible_trash_directories() -> tuple[Path, ...]:
+    directories = [_visible_trash_directory()]
+    for directory in _volume_trash_directories():
+        if directory not in directories:
+            directories.append(directory)
+    return tuple(directories)
+
+
+def _visible_trash_files_directories() -> tuple[Path, ...]:
+    return tuple(directory / "files" for directory in _visible_trash_directories())
+
+
+def _visible_trash_info_directories() -> tuple[Path, ...]:
+    return tuple(directory / "info" for directory in _visible_trash_directories())
+
+
+def _count_visible_trash_files(*, action: str) -> int:
+    count = 0
+    for files_dir in _visible_trash_files_directories():
+        try:
+            count += sum(1 for _child in files_dir.iterdir())
+        except OSError as exc:
+            log.bind(action=action).debug("Could not enumerate trash files: %s", exc)
+    return count
 
 
 def _kde_kiorc_file() -> Path:
@@ -93,14 +242,65 @@ def _kde_kiorc_file() -> Path:
     return xdg_config_home() / "kiorc"
 
 
-def _open_trash_uri(uri: str) -> None:
+def _open_trash_uri(
+    uri: str, *, fallback_commands: tuple[tuple[str, ...], ...] = ()
+) -> None:
     if is_flatpak() and _open_host_trash_uri(uri=uri):
         return
 
+    if targets.open_target(uri):
+        return
+
+    if _open_trash_with_commands(uri=uri, commands=fallback_commands):
+        return
+
+    log.bind(action="open_trash").warning("Failed to open trash URI: %s", uri)
+
+
+def _open_trash_with_commands(
+    *, uri: str, commands: tuple[tuple[str, ...], ...]
+) -> bool:
+    for command in (*commands, ("gio", "open", uri), ("xdg-open", uri)):
+        resolved = _available_open_command(command)
+        if resolved is None:
+            continue
+        try:
+            subprocess.Popen(resolved)
+            return True
+        except OSError as exc:
+            log.bind(action="open_trash").debug(
+                "Failed to open trash with %s: %s",
+                resolved[0],
+                exc,
+            )
+
+    files_dir = _visible_trash_files_directory()
+    if not files_dir.exists():
+        return False
+    resolved = _available_open_command(("xdg-open", str(files_dir)))
+    if resolved is None:
+        return False
     try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
-    except GLib.Error as exc:
-        log.bind(action="open_trash").warning("Failed to open trash: %s", exc)
+        subprocess.Popen(resolved)
+        return True
+    except OSError as exc:
+        log.bind(action="open_trash").debug(
+            "Failed to open trash files directory with %s: %s",
+            resolved[0],
+            exc,
+        )
+        return False
+
+
+def _available_open_command(command: tuple[str, ...]) -> tuple[str, ...] | None:
+    if is_flatpak():
+        host_command = flatpak.host_command(list(command))
+        if flatpak.host_command_available(command[0]) and host_command is not None:
+            return tuple(host_command)
+        return None
+    if shutil.which(command[0]):
+        return command
+    return None
 
 
 def _open_host_trash_uri(*, uri: str) -> bool:
@@ -151,23 +351,18 @@ class GioTrashBackend:
 
     name = "gio"
     uri = "trash:///"
+    use_visible_trash_files = False
     confirm_trash_key = "confirm-trash"
     dbus_targets: tuple[tuple[str, str], ...] = (
         ("org.mate.Caja", "/org/mate/Caja"),
         ("org.gnome.Nautilus", "/org/gnome/Nautilus"),
     )
     confirmation_schema: tuple[str, str] | None = None
+    open_commands: tuple[tuple[str, ...], ...] = ()
 
     def count_items(self) -> int:
-        if is_flatpak():
-            files_dir = _visible_trash_files_directory()
-            try:
-                return sum(1 for _child in files_dir.iterdir())
-            except OSError as exc:
-                log.bind(action="count_items").debug(
-                    "Could not enumerate visible trash files: %s", exc
-                )
-                return 0
+        if is_flatpak() or self.use_visible_trash_files:
+            return _count_visible_trash_files(action="count_items")
 
         trash = Gio.File.new_for_uri(self.uri)
         try:
@@ -178,7 +373,7 @@ class GioTrashBackend:
             log.bind(action="count_items").debug(
                 "Could not enumerate trash items: %s", exc
             )
-            return 0
+            return _count_visible_trash_files(action="count_items_fallback")
 
         count = 0
         while enumerator.next_file(None) is not None:
@@ -186,26 +381,57 @@ class GioTrashBackend:
         enumerator.close(None)
         return count
 
-    def monitor_file(self) -> Gio.File:
-        if is_flatpak():
-            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
-        return Gio.File.new_for_uri(self.uri)
+    def monitor_files(self) -> tuple[Gio.File, ...]:
+        if is_flatpak() or self.use_visible_trash_files:
+            return tuple(
+                Gio.File.new_for_path(str(path))
+                for path in _visible_trash_files_directories()
+            )
+        return (Gio.File.new_for_uri(self.uri),)
 
     def open(self) -> None:
-        _open_trash_uri(self.uri)
+        _open_trash_uri(self.uri, fallback_commands=self.open_commands)
 
-    def empty(self, confirm: Callable[[], bool]) -> None:
-        _ = confirm
+    def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
+        before_count = self.count_items()
         if self._confirmation_preference() is False:
             if _empty_host_trash():
-                return
-            self._delete_contents()
-            return
+                return self._empty_result(before_count=before_count)
+            stats = _coerce_delete_stats(self._delete_contents())
+            return self._empty_result(before_count=before_count, stats=stats)
         if self._empty_via_dbus():
-            return
+            return TrashEmptyResult(
+                attempted=False,
+                before_count=before_count,
+                remaining_count=self.count_items(),
+                delegated=True,
+            )
+        # No file manager will prompt, and these files would be gone for good.
+        if not confirm():
+            return TrashEmptyResult(
+                attempted=False,
+                before_count=before_count,
+                remaining_count=before_count,
+            )
         if _empty_host_trash():
-            return
-        self._delete_contents()
+            return self._empty_result(before_count=before_count)
+        stats = _coerce_delete_stats(self._delete_contents())
+        return self._empty_result(before_count=before_count, stats=stats)
+
+    def _empty_result(
+        self,
+        *,
+        before_count: int,
+        stats: _DeleteStats | None = None,
+    ) -> TrashEmptyResult:
+        stats = stats or _DeleteStats()
+        return TrashEmptyResult(
+            attempted=True,
+            before_count=before_count,
+            remaining_count=self.count_items(),
+            failures=stats.failures,
+            permission_denied=stats.permission_denied,
+        )
 
     def _confirmation_preference(self) -> bool | None:
         if self.confirmation_schema is None:
@@ -262,7 +488,11 @@ class GioTrashBackend:
                 )
         return False
 
-    def _delete_contents(self) -> None:
+    def _delete_contents(self) -> _DeleteStats:
+        if self.use_visible_trash_files:
+            return self._delete_visible_trash_contents()
+
+        stats = _DeleteStats()
         trash = Gio.File.new_for_uri(self.uri)
         try:
             enumerator = trash.enumerate_children(
@@ -273,7 +503,9 @@ class GioTrashBackend:
                 "Could not enumerate trash for deletion: %s",
                 exc,
             )
-            return
+            stats.add_failure(exc)
+            stats.merge(self._delete_visible_trash_contents())
+            return stats
 
         while True:
             info = enumerator.next_file(None)
@@ -288,7 +520,86 @@ class GioTrashBackend:
                     info.get_name(),
                     exc,
                 )
+                stats.add_failure(exc)
         enumerator.close(None)
+        return stats
+
+    def _delete_visible_trash_contents(self) -> _DeleteStats:
+        stats = _DeleteStats()
+        for directory in _visible_trash_files_directories():
+            stats.merge(self._delete_directory_contents(directory))
+        for directory in _visible_trash_info_directories():
+            stats.merge(
+                self._delete_directory_contents(
+                    directory, preserve_for=directory.parent / "files"
+                )
+            )
+        return stats
+
+    def _delete_directory_contents(
+        self, directory: Path, *, preserve_for: Path | None = None
+    ) -> _DeleteStats:
+        stats = _DeleteStats()
+        try:
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
+                raise OSError("Refusing to empty a symbolic link to a trash directory")
+            children = list(directory.iterdir())
+        except FileNotFoundError:
+            return stats
+        except OSError as exc:
+            log.bind(action="empty_trash_delete").debug(
+                "Could not enumerate trash directory %s: %s",
+                directory,
+                exc,
+            )
+            stats.add_failure(exc)
+            return stats
+
+        for child in children:
+            if preserve_for is not None and child.name.endswith(".trashinfo"):
+                try:
+                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    stats.add_failure(exc)
+                    continue
+                else:
+                    continue
+            stats.merge(self._delete_path(child))
+        return stats
+
+    def _delete_path(self, path: Path) -> _DeleteStats:
+        stats = _DeleteStats()
+        try:
+            if path.is_dir() and not path.is_symlink():
+                try:
+                    children = list(path.iterdir())
+                except OSError as exc:
+                    log.bind(action="empty_trash_delete").debug(
+                        "Could not enumerate trash item %s: %s",
+                        path,
+                        exc,
+                    )
+                    stats.add_failure(exc)
+                    return stats
+                for child in children:
+                    stats.merge(self._delete_path(child))
+                path.rmdir()
+            else:
+                path.unlink()
+        except OSError as exc:
+            log.bind(action="empty_trash_delete").debug(
+                "Could not delete trash item %s: %s",
+                path,
+                exc,
+            )
+            stats.add_failure(exc)
+        return stats
 
 
 class GnomeTrashBackend(GioTrashBackend):
@@ -296,13 +607,16 @@ class GnomeTrashBackend(GioTrashBackend):
 
     name = "gnome"
     dbus_targets = (("org.gnome.Nautilus", "/org/gnome/Nautilus"),)
+    open_commands = (("nautilus", "trash:///"),)
 
 
 class MateTrashBackend(GioTrashBackend):
     """Trash backend for MATE/Caja sessions."""
 
     name = "mate"
+    use_visible_trash_files = True
     dbus_targets = (("org.mate.Caja", "/org/mate/Caja"),)
+    open_commands = (("caja", "trash:///"),)
     confirmation_schema = (
         "org.mate.caja.preferences",
         "/org/mate/caja/preferences/",
@@ -313,6 +627,7 @@ class CinnamonTrashBackend(GioTrashBackend):
     """Trash backend for Cinnamon/Nemo sessions."""
 
     name = "cinnamon"
+    open_commands = (("nemo", "trash:///"),)
     confirmation_schema = (
         "org.nemo.preferences",
         "/org/nemo/preferences/",
@@ -336,26 +651,13 @@ class KdeTrashBackend:
     )
 
     def count_items(self) -> int:
-        # Inside Flatpak, trash:/// enumeration can report the sandbox trash.
-        # The host trash files are visible through home access, so count them.
-        files_dir = (
-            _visible_trash_files_directory()
-            if is_flatpak()
-            else _kde_trash_files_directory()
-        )
-        try:
-            return sum(1 for _child in files_dir.iterdir())
-        except OSError as exc:
-            log.bind(action="count_kde_items").debug(
-                "Could not enumerate KDE trash items: %s",
-                exc,
-            )
-            return 0
+        return _count_visible_trash_files(action="count_kde_items")
 
-    def monitor_file(self) -> Gio.File:
-        if is_flatpak():
-            return Gio.File.new_for_path(str(_visible_trash_files_directory()))
-        return Gio.File.new_for_path(str(_kde_trash_files_directory()))
+    def monitor_files(self) -> tuple[Gio.File, ...]:
+        return tuple(
+            Gio.File.new_for_path(str(path))
+            for path in _visible_trash_files_directories()
+        )
 
     def open(self) -> None:
         command = self._available_open_command()
@@ -372,11 +674,33 @@ class KdeTrashBackend:
 
         _open_trash_uri(self.uri)
 
-    def empty(self, confirm: Callable[[], bool]) -> None:
+    def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
+        before_count = self.count_items()
         if self._confirmation_preference() is False or confirm():
             if _empty_host_trash():
-                return
-            self._delete_contents()
+                return self._empty_result(before_count=before_count)
+            stats = _coerce_delete_stats(self._delete_contents())
+            return self._empty_result(before_count=before_count, stats=stats)
+        return TrashEmptyResult(
+            attempted=False,
+            before_count=before_count,
+            remaining_count=before_count,
+        )
+
+    def _empty_result(
+        self,
+        *,
+        before_count: int,
+        stats: _DeleteStats | None = None,
+    ) -> TrashEmptyResult:
+        stats = stats or _DeleteStats()
+        return TrashEmptyResult(
+            attempted=True,
+            before_count=before_count,
+            remaining_count=self.count_items(),
+            failures=stats.failures,
+            permission_denied=stats.permission_denied,
+        )
 
     def _confirmation_preference(self) -> bool:
         parser = _CaseSensitiveConfigParser()
@@ -421,31 +745,71 @@ class KdeTrashBackend:
                 return command
         return None
 
-    def _delete_contents(self) -> None:
-        self._delete_directory_contents(_kde_trash_files_directory())
-        self._delete_directory_contents(_kde_trash_info_directory())
+    def _delete_contents(self) -> _DeleteStats:
+        stats = _DeleteStats()
+        for directory in _visible_trash_files_directories():
+            stats.merge(self._delete_directory_contents(directory))
+        for directory in _visible_trash_info_directories():
+            stats.merge(
+                self._delete_directory_contents(
+                    directory, preserve_for=directory.parent / "files"
+                )
+            )
+        return stats
 
-    def _delete_directory_contents(self, directory: Path) -> None:
+    def _delete_directory_contents(
+        self, directory: Path, *, preserve_for: Path | None = None
+    ) -> _DeleteStats:
+        stats = _DeleteStats()
         try:
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
+                raise OSError("Refusing to empty a symbolic link to a trash directory")
             children = list(directory.iterdir())
         except FileNotFoundError:
-            return
+            return stats
         except OSError as exc:
             log.bind(action="empty_kde_trash").debug(
                 "Could not enumerate KDE trash directory %s: %s",
                 directory,
                 exc,
             )
-            return
+            stats.add_failure(exc)
+            return stats
 
         for child in children:
-            self._delete_path(child)
+            if preserve_for is not None and child.name.endswith(".trashinfo"):
+                try:
+                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    stats.add_failure(exc)
+                    continue
+                else:
+                    continue
+            stats.merge(self._delete_path(child))
+        return stats
 
-    def _delete_path(self, path: Path) -> None:
+    def _delete_path(self, path: Path) -> _DeleteStats:
+        stats = _DeleteStats()
         try:
             if path.is_dir() and not path.is_symlink():
-                for child in path.iterdir():
-                    self._delete_path(child)
+                try:
+                    children = list(path.iterdir())
+                except OSError as exc:
+                    log.bind(action="empty_kde_trash").debug(
+                        "Could not enumerate KDE trash item %s: %s",
+                        path,
+                        exc,
+                    )
+                    stats.add_failure(exc)
+                    return stats
+                for child in children:
+                    stats.merge(self._delete_path(child))
                 path.rmdir()
             else:
                 path.unlink()
@@ -455,6 +819,8 @@ class KdeTrashBackend:
                 path,
                 exc,
             )
+            stats.add_failure(exc)
+        return stats
 
 
 def select_trash_backend(*, desktop: Desktop | None = None) -> TrashBackend:

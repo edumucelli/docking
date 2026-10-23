@@ -21,7 +21,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.bookmarks import meta
@@ -36,12 +36,10 @@ from docking.applets.bookmarks.state import (
 from docking.applets.menu import menu_sections
 from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
 from docking.i18n import _
-from docking.log import get_logger, with_context
+from docking.platform import targets
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-
-log = with_context(get_logger(name="bookmarks"), applet_id=meta.id)
 
 ADD_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
@@ -55,9 +53,9 @@ class BookmarksApplet(Applet):
     name = _("Bookmarks")
     icon_name = "user-bookmarks"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._bookmarks: list[Bookmark] = bookmarks_from_prefs(
-            config.applet_prefs.get("bookmarks", {}) if config else None
+            config.applet_prefs.get("bookmarks", {})
         )
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -99,17 +97,13 @@ class BookmarksApplet(Applet):
         )
 
     def _open_url(self, url: str) -> None:
-        try:
-            Gio.AppInfo.launch_default_for_uri(url, None)
-        except GLib.Error as exc:
-            log.bind(action="open_url").warning(
-                f"Failed to open URL: {exc}",
-            )
+        targets.open_target(url)
 
     def _show_add_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Add Bookmark"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(

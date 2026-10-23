@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import gi
 
@@ -64,7 +64,7 @@ PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
 
 
-def _read_prefs_from_disk() -> dict | None:
+def _read_prefs_from_disk() -> dict[str, Any] | None:
     return read_prefs_from_disk()
 
 
@@ -75,12 +75,10 @@ class AiUsageApplet(Applet):
     name = _("AI Usage")
     icon_name = "utilities-terminal"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = None
-        if config:
-            prefs = config.applet_prefs.get(PREFS_KEY)
-            if not prefs:
-                prefs = config.applet_prefs.get(PREFS_KEY_LEGACY)
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get(PREFS_KEY)
+        if not prefs:
+            prefs = config.applet_prefs.get(PREFS_KEY_LEGACY)
         self._state = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         self._selected_provider: Provider | None = None

@@ -19,6 +19,7 @@ from docking.applets.dragshare.state import (
     first_uploadable_file,
     upload_file,
 )
+from docking.core.config import Config
 
 
 class _Response:
@@ -50,6 +51,42 @@ class _ImmediateThread:
 
 
 class TestState:
+    def test_remote_file_uri_cannot_select_a_local_file(self, tmp_path):
+        path = tmp_path / "local-only.txt"
+        path.write_text("private local fixture")
+        assert first_uploadable_file([f"file://remote.example{path}"]) is None
+        assert first_uploadable_file([f"file://localhost{path}"]) == path
+
+    def test_malformed_uri_does_not_prevent_valid_drop(self, tmp_path):
+        path = tmp_path / "share.txt"
+        path.write_text("selected fixture")
+        assert first_uploadable_file(["file://[invalid", path.as_uri()]) == path
+
+    def test_plain_path_keeps_literal_percent_sequences(self, tmp_path):
+        path = tmp_path / "report%20draft.txt"
+        path.write_text("selected file")
+        (tmp_path / "report draft.txt").write_text("another file")
+
+        assert file_path_from_uri(str(path)) == path
+        assert first_uploadable_file([str(path)]) == path
+        assert file_path_from_uri(path.as_uri()) == path
+
+    def test_newlines_in_filename_stay_inside_multipart_filename(self, tmp_path):
+        path = tmp_path / "report\r\nX-Extra: header.txt"
+        path.write_text("payload")
+        captured = []
+
+        def opener(request, timeout):
+            captured.append(request.data)
+            return _Response(b'{"data":{"url":"https://tmpfiles.org/shared"}}')
+
+        upload_file(path, opener=opener)
+
+        header, body = captured[0].split(b"\r\n\r\n", 1)
+        assert b"report%0D%0AX-Extra: header.txt" in header
+        assert b"\r\nX-Extra:" not in header
+        assert body.startswith(b"payload")
+
     def test_file_path_from_uri_accepts_local_file_uri(self, tmp_path):
         file_path = tmp_path / "report 1.txt"
         file_path.write_text("hello", encoding="utf-8")
@@ -188,7 +225,7 @@ class TestApplet:
         assert saved == [True]
 
     def test_drop_without_local_file_sets_error(self, tmp_path):
-        applet = DragshareApplet(icon_size=48)
+        applet = DragshareApplet(icon_size=48, config=Config())
 
         consumed = applet.on_drop_uris(["https://example.test/file.txt"])
 

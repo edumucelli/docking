@@ -166,17 +166,17 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.separator.state import STYLE_LINE
-from docking.core.config import effective_edge_gap
-from docking.core.items import APP_KIND
+from docking.core.config import DockItemClickEffect
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import (
     RGB,
@@ -188,8 +188,13 @@ from docking.core.theme import (
 )
 from docking.log import get_logger
 from docking.ui.autohide import HideState
-from docking.ui.effects import average_icon_color, easing_bounce
-from docking.ui.geometry import DockGeometryFrame, map_icon_position
+from docking.ui.effects import (
+    average_icon_color,
+    click_effect_angle,
+    click_effect_scale,
+    easing_bounce,
+)
+from docking.ui.geometry import DockGeometryFrame, dock_edge_padding, map_icon_position
 from docking.ui.overlays import draw_count_badge, draw_progress_bar
 from docking.ui.shelf import clip_shelf_background, draw_shelf_background, rounded_rect
 
@@ -219,6 +224,7 @@ URGENT_GLOW_INNER_STOP = 0.33
 URGENT_GLOW_INNER_ALPHA = 0.66
 URGENT_GLOW_OUTER_STOP = 0.66
 URGENT_GLOW_OUTER_ALPHA = 0.33
+RECENT_APPS_ICON_OPACITY = 0.85
 
 
 @dataclass(frozen=True)
@@ -613,6 +619,11 @@ def _draw_indicator_count_dots(
     cr.restore()
 
 
+# Opacity a glow holds at when its pulse period is unusable: the value the sine
+# wave starts from, so a steady glow matches the first animation frame.
+_STEADY_GLOW_OPACITY = 0.2 + 0.75 * (math.sin(0.0) + 1) / 2
+
+
 def compute_urgent_glow_opacity(
     elapsed_us: int, glow_time_ms: int, pulse_ms: int
 ) -> float:
@@ -624,6 +635,10 @@ def compute_urgent_glow_opacity(
     glow_time_us = glow_time_ms * 1000
     if elapsed_us >= glow_time_us or elapsed_us < 0:
         return 0.0
+    if pulse_ms <= 0:
+        # A theme file can set `urgent_pulse_ms` to 0, which would divide by
+        # zero on every frame and abort the whole draw handler.
+        return _STEADY_GLOW_OPACITY
     pulse_us = pulse_ms * 1000
     phase = elapsed_us / pulse_us * 2 * math.pi
     return 0.2 + 0.75 * (math.sin(phase) + 1) / 2
@@ -673,6 +688,8 @@ class DockRenderer:
     def __init__(self) -> None:
         self.slide_offsets: dict[str, float] = {}
         self.prev_positions: dict[str, float] = {}
+        self.prev_widths: dict[str, int] = {}
+        self._slide_layout_context: tuple[Position, int] | None = None
         self.smooth_shelf_w: float = 0.0
         self._hover_lighten: dict[str, float] = {}
         self._cache = _RendererCache(icon_surfaces={}, icon_colors={})
@@ -776,17 +793,6 @@ class DockRenderer:
         pos = config.pos
         width = frame.window_rect.w
         height = frame.window_rect.h
-        # Offset content away from the screen edge so the gap area
-        # (at the edge) stays transparent for the autohide trigger.
-        gap = effective_edge_gap(theme, config)
-        if gap > 0:
-            if pos == Position.TOP:
-                cr.translate(0, gap)
-            elif pos == Position.LEFT:
-                cr.translate(gap, 0)
-            # BOTTOM/RIGHT: gap is at high-y/high-x end, content is
-            # already drawn from y=0/x=0 so no translate needed.
-
         items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
             return
@@ -795,6 +801,7 @@ class DockRenderer:
         icon_size = config.icon_size
         layout = [item_geometry.layout_item for item_geometry in frame.item_geometries]
         cross_size = frame.cross_size
+        content_cross_origin = frame.content_cross_origin
         icon_hide = hide_offset
 
         # Include the drop gap so shelf expands to cover displaced items
@@ -803,6 +810,15 @@ class DockRenderer:
         previous_ids = set(self.prev_positions)
         current_ids = {item.desktop_id for item in items}
         membership_changed = bool(previous_ids) and previous_ids != current_ids
+        current_widths = {
+            item.desktop_id: layout_item.width
+            for item, layout_item in zip(items, layout, strict=True)
+        }
+        layout_widths_changed = (
+            bool(self.prev_widths)
+            and set(self.prev_widths) == current_ids
+            and self.prev_widths != current_widths
+        )
 
         # Shelf coordinates from pre-computed geometry frame (no recomputation)
         target_shelf_w = frame.shelf_main_extent
@@ -811,6 +827,7 @@ class DockRenderer:
             or drop_gap > 0
             or hide_offset > 0
             or membership_changed
+            or layout_widths_changed
         ):
             if membership_changed:
                 log.debug(
@@ -901,17 +918,30 @@ class DockRenderer:
         cr.restore()
 
         # --- Draw icons ---
-        self._update_slide_offsets(items=items, layout=layout, icon_offset=icon_offset)
+        main_extent = width if is_horizontal(pos=pos) else height
+        self._update_slide_offsets(
+            items=items,
+            layout=layout,
+            icon_offset=icon_offset,
+            layout_context=(pos, main_extent),
+        )
 
         gap = icon_size + theme.item_padding if drop_insert_index >= 0 else 0
         self._update_hover_lighten(items=items, hovered_id=hovered_id, theme=theme)
 
         # Hide offset: distance to push content toward the screen edge
         hide_cross = icon_hide * cross_size
+        click_effect = (
+            getattr(config, "dock_item_click_effect", DockItemClickEffect.BOUNCE.value)
+            if getattr(config, "dock_item_click_effects_enabled", True)
+            else ""
+        )
+        play_launch_bounce = click_effect == DockItemClickEffect.BOUNCE.value
 
         now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if i == drag_index:
+            item_w = li.width
+            if i == drag_index or item_w <= 0:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -927,7 +957,7 @@ class DockRenderer:
             # Bounce away from screen edge
             bounce = 0.0
             launch_duration_us = theme.launch_bounce_time_ms * 1000
-            if item.last_launched > 0:
+            if play_launch_bounce and item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce += (
                     easing_bounce(t=lt, duration=launch_duration_us, n=2)
@@ -943,9 +973,19 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            item_w = li.width or icon_size
-            scaled_size = item_w * li.scale
+            effect_scale = (
+                click_effect_scale(
+                    click_effect, now - item.last_launched, launch_duration_us
+                )
+                if item.last_launched > 0
+                else 1.0
+            )
+            scaled_size = item_w * li.scale * effect_scale
             main_pos = li.x + icon_offset + slide + drop_shift
+            if effect_scale != 1.0:
+                main_pos += (item_w * li.scale - scaled_size) / 2
+                main_extent = width if is_horizontal(pos) else height
+                main_pos = max(0.0, min(main_pos, main_extent - scaled_size))
             if _is_separator_item(item):
                 self._draw_separator(
                     cr=cr,
@@ -958,16 +998,18 @@ class DockRenderer:
                     main_size=scaled_size,
                     hide_cross=hide_cross,
                     bounce=bounce,
+                    edge_origin=content_cross_origin,
                 )
                 continue
             ix, iy = map_icon_position(
                 pos=pos,
                 main_pos=main_pos,
                 cross_size=cross_size,
-                edge_padding=theme.bottom_padding,
+                edge_padding=dock_edge_padding(theme=theme),
                 scaled_size=scaled_size,
                 hide_cross=hide_cross,
                 bounce=bounce,
+                edge_origin=content_cross_origin,
             )
             expected = frame.item_geometries[i].draw_rect
             render_x = math.floor(ix)
@@ -1009,6 +1051,16 @@ class DockRenderer:
                 y=iy,
                 lighten=lighten,
                 darken=darken,
+                effect_scale=effect_scale,
+                angle=(
+                    click_effect_angle(
+                        effect=click_effect,
+                        t=now - item.last_launched,
+                        duration=launch_duration_us,
+                    )
+                    if item.last_launched > 0
+                    else 0.0
+                ),
             )
 
         # --- Draw indicators ---
@@ -1018,7 +1070,8 @@ class DockRenderer:
         # ahead of the cursor until the next reorder snap. Pin the dragged
         # item's indicator to the cursor instead so it tracks the drag ghost.
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if not item.is_running:
+            item_w = li.width
+            if not item.is_running or item_w <= 0:
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
@@ -1026,7 +1079,7 @@ class DockRenderer:
                 # Center the indicator under the cursor by passing a main_pos
                 # such that _draw_indicator's "li.x + main_pos + scaled/2"
                 # resolves to cursor_main.
-                scaled_size = icon_size * li.scale
+                scaled_size = item_w * li.scale
                 main_pos_indicator = cursor_main - li.x - scaled_size / 2
             else:
                 main_pos_indicator = icon_offset + slide + drop_shift
@@ -1035,24 +1088,32 @@ class DockRenderer:
                 item=item,
                 li=li,
                 show_window_count_numbers=config.show_window_count_numbers,
-                base_size=icon_size,
+                base_size=item_w,
                 main_pos=main_pos_indicator,
                 cross_size=cross_size,
                 hide_cross=hide_cross,
                 theme=theme,
                 pos=pos,
+                edge_origin=content_cross_origin,
             )
 
-        # --- Draw per-app overlays ---
+        # --- Draw per-item overlays ---
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
-            if item.kind != APP_KIND:
+            item_w = li.width
+            show_badge = (
+                item.badge_visible
+                and item.badge_count > 0
+                and config.show_launcher_badges
+            )
+            show_progress = item.progress_visible and config.show_launcher_progress
+            if item_w <= 0 or (not show_badge and not show_progress):
                 continue
             slide = self.slide_offsets.get(item.desktop_id, 0.0)
             drop_shift = gap if drop_insert_index >= 0 and i >= drop_insert_index else 0
 
             bounce = 0.0
             launch_duration_us = theme.launch_bounce_time_ms * 1000
-            if item.last_launched > 0:
+            if play_launch_bounce and item.last_launched > 0:
                 lt = now - item.last_launched
                 bounce += (
                     easing_bounce(t=lt, duration=launch_duration_us, n=2)
@@ -1068,20 +1129,31 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            item_w = li.width or icon_size
-            scaled_size = item_w * li.scale
+            effect_scale = (
+                click_effect_scale(
+                    click_effect, now - item.last_launched, launch_duration_us
+                )
+                if item.last_launched > 0
+                else 1.0
+            )
+            scaled_size = item_w * li.scale * effect_scale
             main_pos = li.x + icon_offset + slide + drop_shift
+            if effect_scale != 1.0:
+                main_pos += (item_w * li.scale - scaled_size) / 2
+                main_extent = width if is_horizontal(pos) else height
+                main_pos = max(0.0, min(main_pos, main_extent - scaled_size))
             ix, iy = map_icon_position(
                 pos=pos,
                 main_pos=main_pos,
                 cross_size=cross_size,
-                edge_padding=theme.bottom_padding,
+                edge_padding=dock_edge_padding(theme=theme),
                 scaled_size=scaled_size,
                 hide_cross=hide_cross,
                 bounce=bounce,
+                edge_origin=content_cross_origin,
             )
 
-            if item.badge_visible and item.badge_count > 0:
+            if show_badge:
                 self._draw_badge(
                     cr=cr,
                     x=ix,
@@ -1089,7 +1161,7 @@ class DockRenderer:
                     size=scaled_size,
                     badge_count=item.badge_count,
                 )
-            if item.progress_visible:
+            if show_progress:
                 self._draw_progress(
                     cr=cr,
                     x=ix,
@@ -1102,7 +1174,7 @@ class DockRenderer:
         # --- Urgent glow at screen edge (only when fully hidden) ---
         if hide_offset >= 1.0:
             for item, li in zip(items, layout, strict=True):
-                if item.last_urgent > 0:
+                if item.last_urgent > 0 and li.width > 0:
                     elapsed = now - item.last_urgent
                     opacity = compute_urgent_glow_opacity(
                         elapsed_us=elapsed,
@@ -1114,9 +1186,13 @@ class DockRenderer:
                         self._draw_urgent_glow(
                             cr=cr,
                             li=li,
-                            icon_size=icon_size,
+                            icon_size=li.width,
                             icon_offset=icon_offset,
-                            cross_size=cross_size,
+                            cross_size=(
+                                frame.window_rect.h
+                                if is_horizontal(pos=pos)
+                                else frame.window_rect.w
+                            ),
                             pos=pos,
                             theme=theme,
                             color=color,
@@ -1176,12 +1252,37 @@ class DockRenderer:
                 del self._hover_lighten[did]
 
     def _update_slide_offsets(
-        self, items: list[DockItem], layout: list[LayoutItem], icon_offset: float
+        self,
+        items: list[DockItem],
+        layout: list[LayoutItem],
+        icon_offset: float,
+        *,
+        layout_context: tuple[Position, int] | None = None,
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
+        new_widths: dict[str, int] = {}
         for item, li in zip(items, layout, strict=True):
             new_positions[item.desktop_id] = li.x + icon_offset
+            new_widths[item.desktop_id] = li.width
+
+        if (
+            layout_context is not None
+            and self._slide_layout_context is not None
+            and layout_context != self._slide_layout_context
+        ):
+            log.debug(
+                "snap slide positions on layout context change: old=%s new=%s",
+                self._slide_layout_context,
+                layout_context,
+            )
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            self.prev_widths = new_widths
+            self._slide_layout_context = layout_context
+            return
+        if layout_context is not None:
+            self._slide_layout_context = layout_context
 
         previous_ids = set(self.prev_positions)
         new_ids = set(new_positions)
@@ -1193,6 +1294,14 @@ class DockRenderer:
             )
             self.slide_offsets.clear()
             self.prev_positions = new_positions
+            self.prev_widths = new_widths
+            return
+
+        if self.prev_widths and self.prev_widths != new_widths:
+            log.debug("snap slide positions on animated item width change")
+            self.slide_offsets.clear()
+            self.prev_positions = new_positions
+            self.prev_widths = new_widths
             return
 
         for desktop_id, new_x in new_positions.items():
@@ -1225,6 +1334,7 @@ class DockRenderer:
             log.debug("active slide offsets: %s", summary)
 
         self.prev_positions = new_positions
+        self.prev_widths = new_widths
 
     def _draw_icon(
         self,
@@ -1237,6 +1347,8 @@ class DockRenderer:
         y: float,
         lighten: float = 0.0,
         darken: float = 0.0,
+        effect_scale: float = 1.0,
+        angle: float = 0.0,
     ) -> None:
         """Draw a single dock icon at (x, y) with hover/click effects."""
         # The common path is "same icon object as last frame". Reuse the cached
@@ -1245,16 +1357,21 @@ class DockRenderer:
         if source_surface is None:
             return
 
-        scaled_size = base_size * li.scale
+        scaled_size = base_size * li.scale * effect_scale
         icon_width = source_surface.get_width()
         icon_height = source_surface.get_height()
 
-        if lighten <= 0 and darken <= 0:
+        # Recent-app icons are drawn at reduced opacity so they read as
+        # visually distinct from pinned launchers.
+        recent_opacity = RECENT_APPS_ICON_OPACITY if item.is_recent else 1.0
+
+        if lighten <= 0 and darken <= 0 and recent_opacity >= 1.0:
             # Idle icons do not need a temporary effect surface. Paint the
             # cached source surface directly and reserve the extra allocation
             # and copy work for frames that actually apply hover/click effects.
             cr.save()
             cr.translate(x, y)
+            self._rotate_icon(cr=cr, size=scaled_size, angle=angle)
             cr.scale(scaled_size / icon_width, scaled_size / icon_height)
             cr.set_source_surface(source_surface, 0, 0)
             cr.paint()
@@ -1277,10 +1394,26 @@ class DockRenderer:
 
         cr.save()
         cr.translate(x, y)
+        self._rotate_icon(cr=cr, size=scaled_size, angle=angle)
         cr.scale(scaled_size / icon_width, scaled_size / icon_height)
         cr.set_source_surface(icon_surface, 0, 0)
-        cr.paint()
+        cr.paint_with_alpha(recent_opacity)
         cr.restore()
+
+    @staticmethod
+    def _rotate_icon(cr: cairo.Context, size: float, angle: float) -> None:
+        """Rotate around the center, fitting the icon inside its original bounds.
+
+        Keeping the painted bounds stable avoids clipping at any dock edge and
+        leaves launcher badges and progress bars anchored to the same square.
+        """
+        if angle == 0.0:
+            return
+        fit = 1.0 / (abs(math.cos(angle)) + abs(math.sin(angle)))
+        cr.translate(size / 2, size / 2)
+        cr.rotate(angle)
+        cr.scale(fit, fit)
+        cr.translate(-size / 2, -size / 2)
 
     def _draw_separator(
         self,
@@ -1294,6 +1427,7 @@ class DockRenderer:
         main_size: float,
         hide_cross: float = 0.0,
         bounce: float = 0.0,
+        edge_origin: float = 0.0,
     ) -> None:
         style, invert_color = _separator_prefs(item=item, config=config)
         if style != STYLE_LINE:
@@ -1301,21 +1435,16 @@ class DockRenderer:
 
         render_main = max(main_size, 1.0)
         render_cross = float(config.icon_size)
-        edge_padding = theme.bottom_padding
-        cross_rest = cross_size - edge_padding - render_cross
-
-        if pos == Position.BOTTOM:
-            x = main_pos
-            y = cross_rest + hide_cross - bounce
-        elif pos == Position.TOP:
-            x = main_pos
-            y = edge_padding - hide_cross + bounce
-        elif pos == Position.LEFT:
-            x = edge_padding - hide_cross + bounce
-            y = main_pos
-        else:
-            x = cross_rest + hide_cross - bounce
-            y = main_pos
+        x, y = map_icon_position(
+            pos=pos,
+            main_pos=main_pos,
+            cross_size=cross_size,
+            edge_padding=dock_edge_padding(theme=theme),
+            scaled_size=render_cross,
+            hide_cross=hide_cross,
+            bounce=bounce,
+            edge_origin=edge_origin,
+        )
 
         brightness = _brightness(theme.fill_start)
         use_dark = brightness > 0.5
@@ -1343,14 +1472,14 @@ class DockRenderer:
         cached = self._cache.cached_icon_surface_for(item=item)
         if cached is not None:
             return cached
-        surface = self._pixbuf_surface(pixbuf=item.icon)
+        surface = self._pixbuf_surface(pixbuf=cast(GdkPixbuf.Pixbuf, item.icon))
         if surface is None:
             self._cache.icon_surfaces.pop(item.desktop_id, None)
             return None
         return self._cache.store_icon_surface(item=item, surface=surface)
 
     @staticmethod
-    def _pixbuf_surface(pixbuf: object) -> cairo.ImageSurface | None:
+    def _pixbuf_surface(pixbuf: GdkPixbuf.Pixbuf | None) -> cairo.ImageSurface | None:
         if pixbuf is None:
             return None
         width = pixbuf.get_width()
@@ -1545,11 +1674,12 @@ class DockRenderer:
         hide_cross: float,
         theme: Theme,
         pos: Position,
+        edge_origin: float = 0.0,
     ) -> None:
         """Draw running indicator(s) near the screen edge."""
         scaled_size = base_size * li.scale
         main_center = li.x + main_pos + scaled_size / 2
-        edge_padding = theme.bottom_padding
+        edge_padding = dock_edge_padding(theme=theme)
 
         color = (
             theme.active_indicator_color if item.is_active else theme.indicator_color
@@ -1569,9 +1699,9 @@ class DockRenderer:
         if pos == Position.BOTTOM:
             cx, cy = main_center, cross_size - edge_padding / 2 + hide_cross
         elif pos == Position.TOP:
-            cx, cy = main_center, edge_padding / 2 - hide_cross
+            cx, cy = main_center, edge_origin + edge_padding / 2 - hide_cross
         elif pos == Position.LEFT:
-            cx, cy = edge_padding / 2 - hide_cross, main_center
+            cx, cy = edge_origin + edge_padding / 2 - hide_cross, main_center
         else:  # RIGHT
             cx, cy = cross_size - edge_padding / 2 + hide_cross, main_center
 

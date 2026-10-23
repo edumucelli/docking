@@ -2,7 +2,6 @@
 
 import math
 import time
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,9 +16,47 @@ from docking.applets.clock.state import (
     hour_rotation_24h,
     load_prefs,
     minute_rotation,
+    normalize_alarm_target,
     seconds_rotation,
 )
 from docking.core.config import Config
+
+
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_non_finite_saved_alarm_does_not_break_clock_startup(value):
+    assert normalize_alarm_target(value, now_ts=100) is None
+    assert load_prefs({"alarm_target": value}, now_ts=100)[-1] is None
+
+
+@pytest.mark.parametrize(
+    "later",
+    ["2026-01-15 11:30", "2026-01-16 10:30"],
+)
+def test_clock_repaints_when_hour_or_date_changes_at_same_minute(monkeypatch, later):
+    times = [time.strptime("2026-01-15 10:30", "%Y-%m-%d %H:%M")]
+    monkeypatch.setattr(clock_mod.time, "localtime", lambda *_args: times[0])
+    config = Config(applet_prefs={"clock": {"show_digital": True, "show_date": True}})
+    clock = ClockApplet(48, config=config)
+    before = bytes(clock.item.icon.get_pixels())
+    times[0] = time.strptime(later, "%Y-%m-%d %H:%M")
+
+    clock._on_tick()
+
+    assert bytes(clock.item.icon.get_pixels()) != before
+    assert time.strftime("%b %-d", times[0]) in clock.item.name
+
+
+@pytest.fixture
+def timezone(monkeypatch):
+    """Switch the process timezone, which the C library caches until tzset()."""
+
+    def _set(zone: str) -> None:
+        monkeypatch.setenv("TZ", zone)
+        time.tzset()
+
+    yield _set
+    monkeypatch.undo()
+    time.tzset()
 
 
 class TestMinuteRotation:
@@ -109,6 +146,27 @@ class TestClockState:
         target = compute_alarm_target(now_ts=base, hour=10, minute=30)
         assert target == int(time.mktime((2024, 1, 3, 10, 30, 0, 1, 2, -1)))
 
+    @pytest.mark.parametrize(
+        ("zone", "night_before"),
+        [
+            # 22:00 on the evening the clocks go back an hour.
+            ("Europe/London", (2026, 10, 24, 22, 0)),
+            ("America/New_York", (2026, 10, 31, 22, 0)),
+            # ... and the evening they go forward.
+            ("Europe/London", (2026, 3, 28, 22, 0)),
+        ],
+    )
+    def test_alarm_rings_at_the_requested_wall_clock_across_a_dst_change(
+        self, timezone, zone, night_before
+    ):
+        """07:00 means 07:00 on the user's clock, whatever the offset does."""
+        timezone(zone)
+        now = time.mktime((*night_before, 0, 0, 0, 0))
+
+        target = compute_alarm_target(now_ts=now, hour=7, minute=0)
+
+        assert time.strftime("%H:%M", time.localtime(target)) == "07:00"
+
     def test_check_alarm_only_fires_at_or_after_target(self):
         assert not check_alarm(now_ts=99, alarm_target=100)
         assert check_alarm(now_ts=100, alarm_target=100)
@@ -123,12 +181,34 @@ class TestClockState:
 
 class TestClockPrefs:
     def test_defaults_when_no_config(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         assert clock._show_digital is False
         assert clock._show_military is False
         assert clock._show_date is False
         assert clock._show_seconds is False
         assert clock._alarm_target is None
+
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            10**18,  # localtime() cannot represent it: OSError errno 75
+            2**63,  # timestamp out of range for platform time_t
+            -(10**18),
+            1.7e9 * 1000,  # a millisecond epoch, an easy hand-edit mistake
+        ],
+    )
+    def test_unusable_alarm_target_does_not_remove_the_applet(self, stored):
+        """An unusable target took the clock off the dock on every start."""
+        config = Config(applet_prefs={"clock": {"alarm_target": stored}})
+
+        clock = ClockApplet(48, config=config)
+
+        assert clock._alarm_target is None
+
+    def test_alarm_target_within_the_horizon_is_kept(self):
+        now = time.time()
+        target = int(now) + 3600
+        assert normalize_alarm_target(target, now_ts=now) == target
 
     def test_loads_prefs_from_config(self):
         config = Config(
@@ -184,7 +264,7 @@ class TestClockPrefs:
 class TestClockRendering:
     @pytest.mark.parametrize("size", [32, 48, 64, 96])
     def test_analog_12h_renders(self, size):
-        clock = ClockApplet(size)
+        clock = ClockApplet(size, config=Config())
         pixbuf = clock.create_icon(size)
         assert pixbuf is not None
         assert pixbuf.get_width() == size
@@ -226,7 +306,7 @@ class TestClockRendering:
 
 class TestClockTooltip:
     def test_tooltip_updates_on_render(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.create_icon(48)
         assert clock.item.name != "Clock"
         assert time.strftime("%b") in clock.item.name
@@ -242,12 +322,12 @@ class TestClockTooltip:
 
 class TestClockMenuItems:
     def test_returns_six_items_without_alarm(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         items = clock.get_menu_items()
         assert len(items) == 6
 
     def test_date_insensitive_in_analog_mode(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         items = clock.get_menu_items()
         assert not items[2].get_sensitive()
 
@@ -270,7 +350,7 @@ class TestClockMenuItems:
         assert "Clear Alarm" in labels
 
     def test_acknowledge_item_is_visible_when_alarm_is_urgent(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.item.is_urgent = True
         labels = [
             item.get_label()
@@ -282,7 +362,7 @@ class TestClockMenuItems:
 
 class TestClockInteractions:
     def test_toggle_handlers_update_state_and_refresh(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock._save_prefs = MagicMock()
         clock.present = MagicMock()
 
@@ -304,7 +384,7 @@ class TestClockInteractions:
         assert clock.present.call_count == 4
 
     def test_start_and_stop_delegate_to_clock_timer(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock._timer = MagicMock()
         clock.start(lambda: None)
         clock.stop()
@@ -317,7 +397,9 @@ class TestClockInteractions:
         )
         clock.present = MagicMock()
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         clock._on_tick()
@@ -326,30 +408,36 @@ class TestClockInteractions:
     def test_tick_only_redraws_on_minute_change_when_seconds_disabled(
         self, monkeypatch
     ):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.present = MagicMock()
-        clock._last_minute = 10
+        clock._last_minute = (2026, 1, 15, 10, 10)
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         clock._on_tick()
         assert clock.present.call_count == 0
 
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=11)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 11, 0, 3, 15, -1)),
         )
         clock._on_tick()
         assert clock.present.call_count == 1
-        assert clock._last_minute == 11
+        assert clock._last_minute == (2026, 1, 15, 10, 11)
 
     def test_tick_triggers_alarm_and_clears_target(self, monkeypatch):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.present = MagicMock()
         clock._save_prefs = MagicMock()
         clock._alarm_target = 100
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         monkeypatch.setattr(clock_mod.GLib, "get_monotonic_time", lambda: 555)
@@ -363,7 +451,7 @@ class TestClockInteractions:
         assert clock.present.call_count == 1
 
     def test_set_alarm_persists_future_target(self, monkeypatch):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.present = MagicMock()
         clock._save_prefs = MagicMock()
         fake_now = 1_700_000_000
@@ -381,17 +469,44 @@ class TestClockInteractions:
         assert clock.present.call_count == 1
 
     def test_click_acknowledges_urgent_alarm(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock.item.is_urgent = True
         clock.present = MagicMock()
+        clock._calendar_popup = MagicMock()
+        clock._calendar_popup.get_visible.return_value = True
 
         clock.on_clicked()
 
         assert clock.item.is_urgent is False
         assert clock.present.call_count == 1
+        clock._calendar_popup.hide.assert_called_once()
+
+    def test_click_shows_shared_calendar_popup(self, monkeypatch):
+        clock = ClockApplet(48, config=Config())
+        popup = MagicMock()
+        show_calendar_popup = MagicMock(return_value=popup)
+        monkeypatch.setattr(clock_mod, "show_calendar_popup", show_calendar_popup)
+
+        clock.on_clicked()
+
+        assert clock._calendar_popup is popup
+        show_calendar_popup.assert_called_once_with(
+            popup=None, anchor=clock.popup_anchor
+        )
+
+    def test_stop_destroys_calendar_popup(self):
+        clock = ClockApplet(48, config=Config())
+        clock._timer = MagicMock()
+        popup = MagicMock()
+        clock._calendar_popup = popup
+
+        clock.stop()
+
+        popup.destroy.assert_called_once()
+        assert clock._calendar_popup is None
 
     def test_clear_alarm_clears_target_and_urgency(self):
-        clock = ClockApplet(48)
+        clock = ClockApplet(48, config=Config())
         clock._alarm_target = int(time.time()) + 60
         clock.item.is_urgent = True
         clock._save_prefs = MagicMock()

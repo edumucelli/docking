@@ -116,16 +116,17 @@ class UnitConverterApplet(Applet):
     name = _("Unit Converter")
     icon_name = "emblem-synchronizing-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._popup: Gtk.Dialog | None = None
         self._result_label: Gtk.Label | None = None
         self._from_combo: Gtk.ComboBoxText | None = None
         self._to_combo: Gtk.ComboBoxText | None = None
         self._entry: Gtk.Entry | None = None
         self._cat_combo: Gtk.ComboBoxText | None = None
+        self._updating_units = False
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = config.applet_prefs.get("unitconverter", {}) if config else {}
+        prefs = config.applet_prefs.get("unitconverter", {})
         self._cat_idx = int(prefs.get("category_index", 0))
         self._from_idx = int(prefs.get("from_index", 0))
         self._to_idx = int(prefs.get("to_index", 1))
@@ -173,7 +174,7 @@ class UnitConverterApplet(Applet):
         if self._popup is None:
             self._popup = Gtk.Dialog(
                 title=_("Unit Converter"),
-                flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                destroy_with_parent=True,
             )
             self._popup.connect("delete-event", self._on_popup_delete)
 
@@ -256,19 +257,23 @@ class UnitConverterApplet(Applet):
         cat = cats[self._cat_idx]
         units = get_units(cat)
 
-        if self._from_combo:
-            self._from_combo.remove_all()
-            for u in units:
-                self._from_combo.append_text(_unit_label(u))
-            idx = clamp_index(self._from_idx, len(units))
-            self._from_combo.set_active(idx)
+        self._updating_units = True
+        try:
+            if self._from_combo:
+                self._from_combo.remove_all()
+                for u in units:
+                    self._from_combo.append_text(_unit_label(u))
+                idx = clamp_index(self._from_idx, len(units))
+                self._from_combo.set_active(idx)
 
-        if self._to_combo:
-            self._to_combo.remove_all()
-            for u in units:
-                self._to_combo.append_text(_unit_label(u))
-            idx = clamp_index(self._to_idx, len(units))
-            self._to_combo.set_active(idx)
+            if self._to_combo:
+                self._to_combo.remove_all()
+                for u in units:
+                    self._to_combo.append_text(_unit_label(u))
+                idx = clamp_index(self._to_idx, len(units))
+                self._to_combo.set_active(idx)
+        finally:
+            self._updating_units = False
 
     def _on_category_changed(self, combo: Gtk.ComboBoxText) -> None:
         idx = combo.get_active()
@@ -287,10 +292,18 @@ class UnitConverterApplet(Applet):
             return
         f = self._from_combo.get_active()
         t = self._to_combo.get_active()
+        if f < 0:
+            f = self._unit_index_from_combo(
+                combo=self._from_combo, fallback=self._from_idx
+            )
+        if t < 0:
+            t = self._unit_index_from_combo(combo=self._to_combo, fallback=self._to_idx)
         self._from_combo.set_active(t)
         self._to_combo.set_active(f)
 
     def _on_unit_changed(self, _combo: Gtk.ComboBoxText) -> None:
+        if self._updating_units:
+            return
         if self._from_combo:
             self._from_idx = self._unit_index_from_combo(
                 combo=self._from_combo,
@@ -308,6 +321,14 @@ class UnitConverterApplet(Applet):
         """Resolve either selected or typed unit text into the current unit index."""
         typed = combo.get_child().get_text().strip()
         units = get_units(get_categories()[self._cat_idx])
+        normalized = typed.casefold()
+        for index, unit in enumerate(units):
+            if normalized in {
+                unit.name.casefold(),
+                unit.symbol.casefold(),
+                _unit_label(unit).casefold(),
+            }:
+                return index
         for index, unit in enumerate(units):
             if _unit_label_matches(typed, _unit_label(unit)):
                 return index

@@ -33,6 +33,7 @@ from docking.applets.crypto.state import (
 )
 from docking.applets.draw import rounded_rect
 from docking.core.math import clamp
+from docking.ui.overlays import draw_warning_badge
 
 _BG_TOP = (0.05, 0.07, 0.11)
 _BG_BOTTOM = (0.11, 0.12, 0.19)
@@ -70,7 +71,7 @@ def render_icon(
             pulse_phase=pulse_phase,
         )
         if fetch_failed:
-            _draw_warning_badge(cr=cr, size=size)
+            draw_warning_badge(cr=cr, size=size)
     else:
         _draw_empty_state(cr=cr, size=size, failed=fetch_failed)
 
@@ -199,13 +200,6 @@ def _draw_empty_state(*, cr: cairo.Context, size: int, failed: bool) -> None:
     cr.line_to(size * 0.73, y)
     cr.stroke()
     cr.restore()
-
-
-def _draw_warning_badge(*, cr: cairo.Context, size: int) -> None:
-    radius = max(2.0, size * 0.07)
-    cr.arc(size * 0.78, size * 0.24, radius, 0, math.tau)
-    cr.set_source_rgba(*_WARN, 0.95)
-    cr.fill()
 
 
 def _draw_symbol(*, cr: cairo.Context, size: int, text: str) -> None:

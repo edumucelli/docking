@@ -2,6 +2,7 @@
 
 import configparser
 import contextlib
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -15,13 +16,19 @@ from docking.applets.trash.backend import (
     GnomeTrashBackend,
     KdeTrashBackend,
     MateTrashBackend,
+    TrashEmptyResult,
+    _decode_mountinfo_path,
     _empty_host_trash,
     _host_user_data_home,
     _kde_kiorc_file,
     _open_trash_uri,
+    _visible_trash_files_directories,
     _visible_trash_files_directory,
+    _visible_trash_info_directories,
+    _visible_trash_info_directory,
     select_trash_backend,
 )
+from docking.core.config import Config
 from docking.platform.environment import Desktop
 
 
@@ -35,6 +42,80 @@ class TestHelperFunctions:
         result = _visible_trash_files_directory()
         assert result == Path("/tmp/test-xdg/data") / "Trash" / "files"
 
+    def test_visible_trash_info_directory_not_flatpak(self, monkeypatch):
+        monkeypatch.setenv("XDG_DATA_HOME", "/tmp/test-xdg/data")
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        result = _visible_trash_info_directory()
+        assert result == Path("/tmp/test-xdg/data") / "Trash" / "info"
+
+    def test_decode_mountinfo_path(self):
+        assert _decode_mountinfo_path("/media/User\\040Disk") == "/media/User Disk"
+        assert (
+            _decode_mountinfo_path("/tmp/backslash\\134path") == "/tmp/backslash\\path"
+        )
+
+    def test_visible_trash_directories_include_mounted_volume_trash(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        mount = tmp_path / "media" / "ARCHIVES"
+        volume_trash = mount / f".Trash-{os.getuid()}"
+        volume_trash.mkdir(parents=True)
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (mount,),
+        )
+
+        assert _visible_trash_files_directories() == (
+            home / "Trash" / "files",
+            volume_trash / "files",
+        )
+        assert _visible_trash_info_directories() == (
+            home / "Trash" / "info",
+            volume_trash / "info",
+        )
+
+    def test_visible_trash_directories_include_shared_volume_trash(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        mount = tmp_path / "media" / "SHARED"
+        volume_trash = mount / ".Trash" / str(os.getuid())
+        volume_trash.mkdir(parents=True)
+        volume_trash.parent.chmod(0o1777)
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (mount,),
+        )
+
+        assert _visible_trash_files_directories() == (
+            home / "Trash" / "files",
+            volume_trash / "files",
+        )
+
+    def test_visible_trash_directories_ignore_unstatable_mounts(
+        self, tmp_path, monkeypatch
+    ):
+        home = tmp_path / "home"
+        bad_mount = tmp_path / "media" / "bad"
+        monkeypatch.setenv("XDG_DATA_HOME", str(home))
+        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
+        monkeypatch.setattr(
+            "docking.applets.trash.backend._mount_points",
+            lambda: (bad_mount,),
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.backend.Path.exists",
+            lambda self: (_ for _ in ()).throw(OSError("stale mount")),
+        )
+
+        assert _visible_trash_files_directories() == (home / "Trash" / "files",)
+
     def test_kde_kiorc_file_not_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/test-xdg/config")
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
@@ -42,11 +123,12 @@ class TestHelperFunctions:
         assert result == Path("/tmp/test-xdg/config") / "kiorc"
 
     def test_open_trash_uri_handles_glib_error(self):
-        from gi.repository import GLib
-
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-            side_effect=GLib.Error("no handler"),
+        with (
+            patch(
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
+            ),
+            patch("docking.applets.trash.backend.shutil.which", return_value=False),
         ):
             _open_trash_uri("trash:///")
 
@@ -120,6 +202,78 @@ class TestTrashBackendSelection:
         )
 
 
+class TestTrashAppletDrops:
+    def test_accepts_drop_uris(self):
+        applet = TrashApplet.__new__(TrashApplet)
+
+        assert applet.accepts_drop_uris() is True
+
+    def test_file_from_drop_uri_accepts_file_uri(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(path.as_uri())
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_accepts_absolute_path(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text("notes")
+
+        file = TrashApplet._file_from_drop_uri(str(path))
+
+        assert file is not None
+        assert file.get_path() == str(path)
+
+    def test_file_from_drop_uri_rejects_non_local_uri(self):
+        assert TrashApplet._file_from_drop_uri("https://example.test/file.txt") is None
+        assert TrashApplet._file_from_drop_uri("trash:///") is None
+
+    def test_on_drop_uris_trashes_local_files_and_refreshes_count(self):
+        file = MagicMock()
+        file.trash.return_value = True
+        backend = MagicMock()
+        backend.count_items.return_value = 3
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = backend
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is True
+
+        file.trash.assert_called_once_with(None)
+        assert applet._item_count == 3
+        applet.present.assert_called_once()
+
+    def test_on_drop_uris_returns_false_when_gio_refuses_trash(self):
+        file = MagicMock()
+        file.trash.return_value = False
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+            assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
+
+    def test_on_drop_uris_returns_false_when_nothing_was_trashed(self):
+        applet = TrashApplet.__new__(TrashApplet)
+        applet._backend = MagicMock()
+        applet._item_count = 0
+        applet.present = MagicMock()
+
+        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=None):
+            assert applet.on_drop_uris(["https://example.test/file.txt"]) is False
+
+        applet._backend.count_items.assert_not_called()
+        applet.present.assert_not_called()
+
+
 class TestGioTrashBackend:
     def test_counts_items(self):
         # Given an enumerator yielding 3 items
@@ -137,17 +291,70 @@ class TestGioTrashBackend:
         # Then
         assert count == 3
 
-    def test_returns_zero_on_count_error(self):
+    def test_returns_zero_on_count_error(self, tmp_path):
         # Given enumerate_children raises
         from gi.repository import GLib
 
+        missing_files_dir = tmp_path / "missing" / "Trash" / "files"
         mock_file = MagicMock()
         mock_file.enumerate_children.side_effect = GLib.Error("fail")
 
-        with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=mock_file
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(missing_files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=mock_file,
+            ),
         ):
             assert GioTrashBackend().count_items() == 0
+
+    def test_falls_back_to_visible_trash_files_on_count_error(self, tmp_path):
+        from gi.repository import GLib
+
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (files_dir / "b.txt").write_text("b")
+        mock_file = MagicMock()
+        mock_file.enumerate_children.side_effect = GLib.Error("unsupported")
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=mock_file,
+            ),
+        ):
+            assert GioTrashBackend().count_items() == 2
+
+    def test_mate_counts_visible_trash_files_directly(self, tmp_path):
+        files_dir = tmp_path / "Trash" / "files"
+        volume_files_dir = tmp_path / "Volume" / ".Trash-1000" / "files"
+        files_dir.mkdir(parents=True)
+        volume_files_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (files_dir / "b.txt").write_text("b")
+        (volume_files_dir / "c.txt").write_text("c")
+
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir, volume_files_dir),
+            ),
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            assert MateTrashBackend().count_items() == 3
+
+        new_for_uri.assert_not_called()
 
     def test_counts_visible_trash_files_in_flatpak(self, tmp_path):
         files_dir = tmp_path / "Trash" / "files"
@@ -158,8 +365,8 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directory",
-                return_value=files_dir,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
             ),
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
         ):
@@ -171,15 +378,32 @@ class TestGioTrashBackend:
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directory",
-                return_value=tmp_path,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
             ),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
         ):
-            GioTrashBackend().monitor_file()
+            GioTrashBackend().monitor_files()
+
+        new_for_path.assert_called_once_with(str(tmp_path))
+        new_for_uri.assert_not_called()
+
+    def test_mate_monitor_uses_visible_trash_files(self, tmp_path):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_path"
+            ) as new_for_path,
+            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+        ):
+            MateTrashBackend().monitor_files()
 
         new_for_path.assert_called_once_with(str(tmp_path))
         new_for_uri.assert_not_called()
@@ -187,13 +411,11 @@ class TestGioTrashBackend:
     def test_open_launches_default_trash_uri(self):
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
 
     def test_open_prefers_sanitized_host_gio_in_flatpak(self):
         with (
@@ -203,9 +425,7 @@ class TestGioTrashBackend:
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch("docking.applets.trash.backend.subprocess.Popen") as popen,
-            patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-            ) as launch,
+            patch("docking.applets.trash.backend.targets.open_target") as open_target,
         ):
             GioTrashBackend().open()
 
@@ -227,7 +447,7 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_not_called()
+        open_target.assert_not_called()
 
     def test_open_falls_back_to_gio_when_host_open_unavailable(self):
         with (
@@ -241,8 +461,8 @@ class TestGioTrashBackend:
                 side_effect=OSError("spawn failed"),
             ) as popen,
             patch(
-                "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri",
-            ) as launch,
+                "docking.applets.trash.backend.targets.open_target",
+            ) as open_target,
         ):
             GioTrashBackend().open()
 
@@ -264,14 +484,69 @@ class TestGioTrashBackend:
                 "trash:///",
             ]
         )
-        launch.assert_called_once_with("trash:///", None)
+        open_target.assert_called_once_with("trash:///")
+
+    def test_mate_open_falls_back_to_caja_when_gio_rejects_trash_uri(self):
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
+            ) as open_target,
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                side_effect=lambda command: (
+                    f"/usr/bin/{command}" if command == "caja" else None
+                ),
+            ),
+            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
+        ):
+            MateTrashBackend().open()
+
+        open_target.assert_called_once_with("trash:///")
+        popen.assert_called_once_with(("caja", "trash:///"))
+
+    def test_open_falls_back_to_visible_trash_files_directory_when_uri_handlers_fail(
+        self, tmp_path
+    ):
+        files_dir = tmp_path / "Trash" / "files"
+        files_dir.mkdir(parents=True)
+        with (
+            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directory",
+                return_value=files_dir,
+            ),
+            patch(
+                "docking.applets.trash.backend.targets.open_target",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.backend.shutil.which",
+                side_effect=lambda command: (
+                    f"/usr/bin/{command}" if command == "xdg-open" else None
+                ),
+            ),
+            patch(
+                "docking.applets.trash.backend.subprocess.Popen",
+                side_effect=[OSError("unsupported"), MagicMock()],
+            ) as popen,
+        ):
+            GioTrashBackend().open()
+
+        assert [args[0] for args, _kwargs in popen.call_args_list] == [
+            ("xdg-open", "trash:///"),
+            ("xdg-open", str(files_dir)),
+        ]
 
     def test_empty_trash_uses_dbus_first(self):
         bus = MagicMock()
         with patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus):
-            GioTrashBackend().empty(lambda: False)
+            result = GioTrashBackend().empty(lambda: False)
 
         bus.call_sync.assert_called_once()
+        assert result.delegated is True
+        assert result.attempted is False
 
     def test_empty_trash_bypasses_dbus_when_file_manager_disables_confirmation(self):
         backend = MateTrashBackend()
@@ -280,7 +555,7 @@ class TestGioTrashBackend:
             patch("docking.applets.trash.backend.Gio.bus_get_sync") as bus_get,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         bus_get.assert_not_called()
         delete_mock.assert_called_once()
@@ -293,6 +568,58 @@ class TestGioTrashBackend:
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
             patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            backend.empty(lambda: True)
+
+        delete_mock.assert_called_once()
+
+    def test_direct_delete_asks_first_when_no_file_manager_answers(self):
+        """Deleting here is irreversible, so the callback is mandatory.
+
+        Handing the request to Nautilus/Caja fails whenever no file manager is
+        running, which is the normal case on i3, sway, and XFCE.
+        """
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        asked: list[str] = []
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+        ):
+            result = backend.empty(lambda: asked.append("asked") or False)
+
+        assert asked == ["asked"]
+        delete_mock.assert_not_called()
+        assert result.attempted is False
+        assert result.remaining_count == result.before_count
+
+    def test_declined_confirmation_survives_a_dead_file_manager(self):
+        """Cancel must leave the trash exactly as it was found."""
+        from gi.repository import GLib
+
+        backend = GnomeTrashBackend()
+        bus = MagicMock()
+        bus.call_sync.side_effect = GLib.Error("nautilus")
+        with (
+            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch.object(backend, "_delete_contents") as delete_mock,
+            patch("docking.applets.trash.backend._empty_host_trash") as host_mock,
+        ):
+            result = backend.empty(lambda: False)
+
+        delete_mock.assert_not_called()
+        host_mock.assert_not_called()
+        assert result.attempted is False
+
+    def test_desktop_preference_false_skips_the_prompt_entirely(self):
+        """A desktop that turned the warning off must not be asked again."""
+        backend = MateTrashBackend()
+        with (
+            patch.object(backend, "_confirmation_preference", return_value=False),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             backend.empty(lambda: False)
@@ -316,7 +643,7 @@ class TestGioTrashBackend:
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             run_mock.return_value.returncode = 0
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         run_mock.assert_called_once_with(
             [
@@ -360,7 +687,7 @@ class TestGioTrashBackend:
             run_mock.return_value.returncode = 1
             run_mock.return_value.stderr = "nope"
             run_mock.return_value.stdout = ""
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete_mock.assert_called_once()
 
@@ -398,16 +725,62 @@ class TestGioTrashBackend:
         child_b.delete.assert_called_once()
         enumerator.close.assert_called_once()
 
-    def test_delete_contents_handles_enumerate_error(self):
+    def test_delete_contents_handles_enumerate_error(self, tmp_path):
         from gi.repository import GLib
 
         trash = MagicMock()
         trash.enumerate_children.side_effect = GLib.Error("enumerate fail")
+        files_dir = tmp_path / "Trash" / "files"
+        info_dir = tmp_path / "Trash" / "info"
 
-        with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
+        with (
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend._visible_trash_info_directories",
+                return_value=(info_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=trash,
+            ),
         ):
             GioTrashBackend()._delete_contents()
+
+    def test_delete_contents_falls_back_to_visible_trash_directories(self, tmp_path):
+        from gi.repository import GLib
+
+        files_dir = tmp_path / "Trash" / "files"
+        info_dir = tmp_path / "Trash" / "info"
+        nested_dir = files_dir / "nested"
+        nested_dir.mkdir(parents=True)
+        info_dir.mkdir(parents=True)
+        (files_dir / "a.txt").write_text("a")
+        (nested_dir / "b.txt").write_text("b")
+        (info_dir / "a.txt.trashinfo").write_text("[Trash Info]")
+        trash = MagicMock()
+        trash.enumerate_children.side_effect = GLib.Error("enumerate fail")
+
+        with (
+            patch(
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(files_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend._visible_trash_info_directories",
+                return_value=(info_dir,),
+            ),
+            patch(
+                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                return_value=trash,
+            ),
+        ):
+            GioTrashBackend()._delete_contents()
+
+        assert list(files_dir.iterdir()) == []
+        assert list(info_dir.iterdir()) == []
 
     def test_delete_contents_child_error(self):
         from gi.repository import GLib
@@ -425,16 +798,27 @@ class TestGioTrashBackend:
         with patch(
             "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
         ):
-            GioTrashBackend()._delete_contents()
+            stats = GioTrashBackend()._delete_contents()
 
         enumerator.close.assert_called_once()
+        assert stats.failures == 1
+
+    def test_delete_path_reports_permission_error(self):
+        mock_path = MagicMock(spec=Path)
+        mock_path.is_dir.return_value = False
+        mock_path.is_symlink.return_value = False
+        mock_path.unlink.side_effect = PermissionError("permission denied")
+
+        stats = GioTrashBackend()._delete_path(mock_path)
+
+        assert stats.failures == 1
+        assert stats.permission_denied is True
 
     def test_count_items_handles_flatpak_oserror(self, monkeypatch):
-
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directory",
-            lambda: Path("/nonexistent/path"),
+            "docking.applets.trash.backend._visible_trash_files_directories",
+            lambda: (Path("/nonexistent/path"),),
         )
         assert GioTrashBackend().count_items() == 0
 
@@ -498,7 +882,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is True
@@ -520,7 +904,7 @@ class TestGioTrashBackend:
         monkeypatch.setattr(
             Gio.Settings,
             "new_full",
-            lambda schema_obj, backend_path, path: settings,
+            lambda _schema_obj, _backend_path, path: settings,
         )
         backend = MateTrashBackend()
         assert backend._confirmation_preference() is None
@@ -546,6 +930,7 @@ class TestKdeTrashBackend:
         (files_dir / "a.txt").write_text("a")
         (files_dir / "b.txt").write_text("b")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
 
         assert KdeTrashBackend().count_items() == 2
 
@@ -560,11 +945,14 @@ class TestKdeTrashBackend:
         (nested_dir / "b.txt").write_text("b")
         (info_dir / "a.txt.trashinfo").write_text("[Trash Info]")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
 
-        KdeTrashBackend().empty(lambda: True)
+        result = KdeTrashBackend().empty(lambda: True)
 
         assert list(files_dir.iterdir()) == []
         assert list(info_dir.iterdir()) == []
+        assert result.attempted is True
+        assert result.remaining_count == 0
 
     def test_open_uses_kde_open_command(self):
         backend = KdeTrashBackend()
@@ -582,14 +970,14 @@ class TestKdeTrashBackend:
     def test_monitor_uses_kde_trash_files(self, tmp_path):
         with (
             patch(
-                "docking.applets.trash.backend._kde_trash_files_directory",
-                return_value=tmp_path,
+                "docking.applets.trash.backend._visible_trash_files_directories",
+                return_value=(tmp_path,),
             ),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path",
             ) as new_for_path,
         ):
-            KdeTrashBackend().monitor_file()
+            KdeTrashBackend().monitor_files()
 
         new_for_path.assert_called_once_with(str(tmp_path))
 
@@ -601,8 +989,8 @@ class TestKdeTrashBackend:
         (files_dir / "a.txt").write_text("a")
         monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directory",
-            lambda: files_dir,
+            "docking.applets.trash.backend._visible_trash_files_directories",
+            lambda: (files_dir,),
         )
 
         assert KdeTrashBackend().count_items() == 1
@@ -631,7 +1019,7 @@ class TestKdeTrashBackend:
 
         backend = KdeTrashBackend()
         with patch.object(backend, "_delete_contents") as delete:
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
         delete.assert_called_once()
 
@@ -656,6 +1044,18 @@ class TestKdeTrashBackend:
             backend.empty(lambda: True)
 
         delete.assert_called_once()
+
+    def test_kde_empty_returns_not_attempted_when_cancelled(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "kiorc").write_text("[Confirmations]\nConfirmEmptyTrash=true\n")
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        backend = KdeTrashBackend()
+
+        result = backend.empty(lambda: False)
+
+        assert result.attempted is False
+        assert result.delegated is False
 
     def test_confirmation_preference_handles_parser_error(self, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/test-xdg/config")
@@ -692,6 +1092,7 @@ class TestKdeTrashBackend:
 
     def test_kde_count_items_handles_oserror(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/nonexistent/path")
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
         assert KdeTrashBackend().count_items() == 0
 
     def test_kde_open_falls_back_to_gio_on_oserror(self, monkeypatch):
@@ -704,12 +1105,10 @@ class TestKdeTrashBackend:
             "docking.applets.trash.backend.subprocess.Popen",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("failed")),
         )
-        with patch(
-            "docking.applets.trash.backend.Gio.AppInfo.launch_default_for_uri"
-        ) as launch:
+        with patch("docking.applets.trash.backend.targets.open_target") as open_target:
             KdeTrashBackend().open()
 
-        launch.assert_called_once_with("trash:/", None)
+        open_target.assert_called_once_with("trash:/")
 
     def test_kde_delete_directory_contents_oserror(self, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/root/restricted")
@@ -764,7 +1163,7 @@ class TestKdeTrashBackend:
             result = _open_host_trash_uri(uri="trash:///")
             assert result is False
 
-    def test_monitor_file_not_flatpak_uses_uri(self):
+    def test_monitor_files_not_flatpak_uses_uri(self):
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
@@ -772,7 +1171,7 @@ class TestKdeTrashBackend:
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
-            GioTrashBackend().monitor_file()
+            GioTrashBackend().monitor_files()
         new_for_uri.assert_called_once_with("trash:///")
         new_for_path.assert_not_called()
 
@@ -790,17 +1189,18 @@ class TestKdeTrashBackend:
             trash.enumerate_children.return_value = MagicMock()
             trash.enumerate_children.return_value.next_file.return_value = None
             new_for_uri.return_value = trash
-            backend.empty(lambda: False)
+            backend.empty(lambda: True)
 
-    def test_kde_monitor_file_not_flatpak(self, tmp_path, monkeypatch):
+    def test_kde_monitor_files_not_flatpak(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
         with (
             patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
                 "docking.applets.trash.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
-            KdeTrashBackend().monitor_file()
+            KdeTrashBackend().monitor_files()
         new_for_path.assert_called_once()
 
     def test_kde_delete_directory_contents_file_not_found(self, tmp_path):
@@ -866,20 +1266,27 @@ class _StubBackend:
         self.monitor = MagicMock()
         self.monitor_file_mock = MagicMock()
         self.monitor_file_mock.monitor.return_value = self.monitor
+        self.monitor_files_mock = (self.monitor_file_mock,)
         self.open_calls = 0
         self.empty_confirm: Callable[[], bool] | None = None
+        self.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=item_count,
+            remaining_count=0,
+        )
 
     def count_items(self) -> int:
         return self.item_count
 
-    def monitor_file(self):
-        return self.monitor_file_mock
+    def monitor_files(self):
+        return self.monitor_files_mock
 
     def open(self) -> None:
         self.open_calls += 1
 
-    def empty(self, confirm: Callable[[], bool]) -> None:
+    def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
         self.empty_confirm = confirm
+        return self.empty_result
 
 
 def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
@@ -888,7 +1295,7 @@ def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
         "select_trash_backend",
         lambda **_: backend,
     )
-    return TrashApplet(48)
+    return TrashApplet(48, config=Config())
 
 
 class TestTrashAppletIcon:
@@ -907,6 +1314,24 @@ class TestTrashAppletIcon:
 
         assert pixbuf is not None
         assert "5 items" in applet.item.name
+
+    def test_warning_attention_overlays_final_icon(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=5))
+        applet._empty_attention = True
+        base_icon = MagicMock()
+        badged_icon = MagicMock()
+
+        with (
+            patch("docking.applets.base.Applet.create_icon", return_value=base_icon),
+            patch(
+                "docking.applets.trash.applet.add_trash_warning_badge",
+                return_value=badged_icon,
+            ) as badge,
+        ):
+            icon = applet.create_icon(48)
+
+        badge.assert_called_once_with(base_icon)
+        assert icon == badged_icon
 
     def test_single_item_singular(self, monkeypatch):
         applet = _make_applet(monkeypatch, _StubBackend(item_count=1))
@@ -944,21 +1369,39 @@ class TestTrashAppletMenu:
         items = applet.get_menu_items()
         assert items[2].get_sensitive()
 
+    def test_menu_shows_empty_trash_attention_status(self, monkeypatch):
+        applet = _make_applet(monkeypatch, _StubBackend(item_count=3))
+        applet._action_error = "Could not empty Trash."
+
+        items = applet.get_menu_items()
+
+        assert items[0].get_label() == "Could not empty Trash."
+        assert items[0].get_sensitive() is False
+
 
 class TestTrashAppletLifecycle:
     def test_start_sets_monitor_and_stop_cancels(self, monkeypatch):
         backend = _StubBackend()
         applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
 
-        applet.start(lambda: None)
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
 
-        assert applet._monitor is backend.monitor
+        assert applet._monitors == [backend.monitor]
         backend.monitor.connect.assert_called_once()
+        assert volume_monitor.connect.call_count == 2
 
         applet.stop()
 
         backend.monitor.cancel.assert_called_once()
-        assert applet._monitor is None
+        volume_monitor.disconnect.assert_any_call(10)
+        volume_monitor.disconnect.assert_any_call(11)
+        assert applet._monitors == []
 
     def test_start_handles_monitor_error(self, monkeypatch):
         from gi.repository import GLib
@@ -966,10 +1409,72 @@ class TestTrashAppletLifecycle:
         backend = _StubBackend()
         backend.monitor_file_mock.monitor.side_effect = GLib.Error("monitor error")
         applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
 
-        applet.start(lambda: None)
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
 
-        assert applet._monitor is None
+        assert applet._monitors == []
+        applet.stop()
+
+    def test_start_monitors_all_backend_files_and_continues_after_error(
+        self, monkeypatch
+    ):
+        from gi.repository import GLib
+
+        backend = _StubBackend()
+        good_file = MagicMock()
+        bad_file = MagicMock()
+        good_monitor = MagicMock()
+        good_file.monitor.return_value = good_monitor
+        bad_file.monitor.side_effect = GLib.Error("monitor error")
+        backend.monitor_files_mock = (bad_file, good_file)
+        applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
+
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
+
+        assert applet._monitors == [good_monitor]
+        good_monitor.connect.assert_called_once()
+        applet.stop()
+
+    def test_mount_change_rebuilds_monitors_and_recounts(self, monkeypatch):
+        backend = _StubBackend(item_count=1)
+        old_monitor = MagicMock()
+        old_file = MagicMock()
+        old_file.monitor.return_value = old_monitor
+        new_monitor = MagicMock()
+        new_file = MagicMock()
+        new_file.monitor.return_value = new_monitor
+        backend.monitor_files_mock = (old_file,)
+        applet = _make_applet(monkeypatch, backend)
+        volume_monitor = MagicMock()
+        volume_monitor.connect.side_effect = [10, 11]
+
+        with patch(
+            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            return_value=volume_monitor,
+        ):
+            applet.start(lambda: None)
+
+        backend.monitor_files_mock = (new_file,)
+        backend.item_count = 4
+
+        applet._on_mounts_changed()
+
+        old_monitor.cancel.assert_called_once()
+        assert applet._monitors == [new_monitor]
+        assert applet._item_count == 4
+        applet.stop()
 
     def test_on_clicked_delegates_to_backend(self, monkeypatch):
         backend = _StubBackend()
@@ -989,6 +1494,19 @@ class TestTrashAppletLifecycle:
         assert applet._item_count == 4
         assert "4 items" in applet.item.name
 
+    def test_on_trash_changed_clears_attention_when_empty(self, monkeypatch):
+        backend = _StubBackend(item_count=3)
+        applet = _make_applet(monkeypatch, backend)
+        applet._action_error = "Could not empty Trash."
+        applet._empty_attention = True
+        backend.item_count = 0
+
+        applet._on_trash_changed()
+
+        assert applet._item_count == 0
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+
     def test_empty_trash_delegates_confirmation_callback(self, monkeypatch):
         backend = _StubBackend(item_count=1)
         applet = _make_applet(monkeypatch, backend)
@@ -996,6 +1514,65 @@ class TestTrashAppletLifecycle:
         applet._empty_trash()
 
         assert backend.empty_confirm == applet._confirm_empty_trash
+
+    def test_empty_trash_partial_failure_sets_attention(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=5,
+            remaining_count=2,
+            failures=1,
+            permission_denied=True,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._item_count == 2
+        assert applet._empty_attention is True
+        assert "2 items remain" not in applet._action_error
+        assert "administrator permissions" in applet._action_error
+        applet.present.assert_called_once()
+        applet.refresh_tooltip()
+        assert "2 items in Trash" in applet.item.name
+        assert applet._action_error in applet.item.name
+
+    def test_empty_trash_success_clears_stale_attention(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=True,
+            before_count=5,
+            remaining_count=0,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet._action_error = "Could not empty Trash."
+        applet._empty_attention = True
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._item_count == 0
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+        applet.present.assert_called_once()
+
+    def test_empty_trash_delegated_result_does_not_warn(self, monkeypatch):
+        backend = _StubBackend(item_count=5)
+        backend.empty_result = TrashEmptyResult(
+            attempted=False,
+            delegated=True,
+            before_count=5,
+            remaining_count=5,
+        )
+        applet = _make_applet(monkeypatch, backend)
+        applet.present = MagicMock()
+
+        applet._empty_trash()
+
+        assert applet._action_error == ""
+        assert applet._empty_attention is False
+        applet.present.assert_called_once()
 
     def test_confirm_empty_trash_dialog(self, monkeypatch):
         applet = _make_applet(monkeypatch, _StubBackend(item_count=1))

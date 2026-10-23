@@ -7,26 +7,44 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.items import DockItem
+from tests.platform.application_fakes import application, identity_services
+
 pytest.importorskip("pywayland")
 
-from pywayland.protocol.ext_foreign_toplevel_list_v1 import ExtForeignToplevelListV1
-from pywayland.protocol.ext_image_capture_source_v1 import (
-    ExtForeignToplevelImageCaptureSourceManagerV1,
-)
-from pywayland.protocol.ext_image_copy_capture_v1 import ExtImageCopyCaptureManagerV1
-from pywayland.protocol.wayland import WlSeat, WlShm
+ExtForeignToplevelListV1 = pytest.importorskip(
+    "pywayland.protocol.ext_foreign_toplevel_list_v1"
+).ExtForeignToplevelListV1
+ExtIdleNotifierV1 = pytest.importorskip(
+    "pywayland.protocol.ext_idle_notify_v1"
+).ExtIdleNotifierV1
+ExtForeignToplevelImageCaptureSourceManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_capture_source_v1"
+).ExtForeignToplevelImageCaptureSourceManagerV1
+ExtImageCopyCaptureManagerV1 = pytest.importorskip(
+    "pywayland.protocol.ext_image_copy_capture_v1"
+).ExtImageCopyCaptureManagerV1
+from pywayland.protocol.wayland import WlOutput, WlSeat, WlShm
 
+from docking.platform.backends.wayland.idle import WaylandIdleService
 from docking.platform.backends.wayland.protocols.ext_workspace_v1.ext_workspace_manager_v1 import (
     ExtWorkspaceManagerV1,
 )
 from docking.platform.backends.wayland.protocols.hyprland_toplevel_export_v1 import (
     HyprlandToplevelExportManagerV1,
 )
+from docking.platform.backends.wayland.protocols.phosh_private import PhoshPrivate
+from docking.platform.backends.wayland.protocols.treeland_shell import (
+    TreelandDDEShellManagerV1,
+    TreelandWindowManagementV1,
+)
 from docking.platform.backends.wayland.protocols.wlr_foreign_toplevel_management_unstable_v1 import (
     ZwlrForeignToplevelManagerV1,
 )
 from docking.platform.backends.wayland.runtime import (
     ForeignToplevelProtocolAdapter,
+    IdleProtocolAdapter,
+    PhocPreviewProtocolAdapter,
     PreviewProtocolAdapter,
     WaylandProtocolFactories,
     WaylandProtocolRuntime,
@@ -43,6 +61,21 @@ class FakeProxy:
         self.dispatcher: dict[str, object] = {}
         self.stop = MagicMock()
         self.commit = MagicMock()
+        self.destroy = MagicMock()
+        self.notifications: list[tuple[int, object, FakeHandle]] = []
+        self.notification_requests: list[str] = []
+
+    def get_idle_notification(self, timeout: int, seat: object) -> FakeHandle:
+        self.notification_requests.append("get_idle_notification")
+        notification = FakeHandle()
+        self.notifications.append((timeout, seat, notification))
+        return notification
+
+    def get_input_idle_notification(self, timeout: int, seat: object) -> FakeHandle:
+        self.notification_requests.append("get_input_idle_notification")
+        notification = FakeHandle()
+        self.notifications.append((timeout, seat, notification))
+        return notification
 
 
 class FakeRegistry:
@@ -186,6 +219,8 @@ def test_wayland_protocol_runtime_binds_known_globals_and_installs_watch():
         (10, ZwlrForeignToplevelManagerV1, ZwlrForeignToplevelManagerV1.version),
         (11, ExtWorkspaceManagerV1, ExtWorkspaceManagerV1.version),
         (12, WlSeat, WlSeat.version),
+        (12, WlSeat, WlSeat.version),
+        (12, WlSeat, WlSeat.version),
     ]
     assert glib.watch is not None
 
@@ -214,12 +249,14 @@ def test_wayland_protocol_runtime_binds_preview_protocol_set():
     assert runtime.preview_protocol is runtime.previews
     assert registry.bound == [
         (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
+        (20, ExtForeignToplevelListV1, ExtForeignToplevelListV1.version),
         (
             21,
             ExtForeignToplevelImageCaptureSourceManagerV1,
             ExtForeignToplevelImageCaptureSourceManagerV1.version,
         ),
         (22, ExtImageCopyCaptureManagerV1, ExtImageCopyCaptureManagerV1.version),
+        (23, WlShm, WlShm.version),
         (23, WlShm, WlShm.version),
         (23, WlShm, WlShm.version),
     ]
@@ -248,7 +285,127 @@ def test_wayland_protocol_runtime_binds_hyprland_preview_protocol():
         ),
         (31, WlShm, WlShm.version),
         (31, WlShm, WlShm.version),
+        (31, WlShm, WlShm.version),
     ]
+
+
+def test_wayland_protocol_runtime_binds_phoc_preview_protocol_only_when_opted_in(
+    monkeypatch,
+):
+    monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", "1")
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 35, "phosh_private", 7)
+    registry.dispatcher["global"](registry, 36, "wl_shm", 99)
+
+    assert runtime.phoc_preview_protocol is runtime.phoc_previews
+    assert (35, PhoshPrivate, PhoshPrivate.version) in registry.bound
+    assert (36, WlShm, WlShm.version) in registry.bound
+
+
+@pytest.mark.parametrize("opt_in", [None, "0", "true"])
+def test_wayland_runtime_leaves_phosh_shell_singleton_unclaimed(monkeypatch, opt_in):
+    if opt_in is None:
+        monkeypatch.delenv("DOCKING_PHOC_PRIVATE_PREVIEWS", raising=False)
+    else:
+        monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", opt_in)
+    runtime = WaylandProtocolRuntime()
+    registry = FakeRegistry()
+    # Refusal to bind is fatal on the display, so verify it is never requested.
+    runtime._on_global(registry, 35, "phosh_private", 7)
+    assert registry.bound == []
+    assert runtime.phoc_preview_protocol is None
+    runtime._on_global(registry, 36, "zwlr_foreign_toplevel_manager_v1", 3)
+    runtime._on_global(registry, 37, "ext_idle_notifier_v1", 1)
+    assert runtime.foreign_toplevel_protocol is not None
+    assert runtime.idle_protocol is not None
+
+
+def test_wayland_runtime_does_not_claim_old_phosh_endpoint_without_thumbnails(
+    monkeypatch,
+):
+    monkeypatch.setenv("DOCKING_PHOC_PRIVATE_PREVIEWS", "1")
+    runtime = WaylandProtocolRuntime()
+    registry = FakeRegistry()
+    runtime._on_global(registry, 35, "phosh_private", 3)
+    assert registry.bound == []
+    assert runtime.phoc_preview_protocol is None
+
+
+def test_phoc_preview_adapter_requires_protocol_v4_and_shm():
+    registry = FakeRegistry()
+    adapter = PhocPreviewProtocolAdapter()
+
+    adapter.bind(registry=registry, name=1, version=3)
+    adapter.bind_shm(registry=registry, name=2, version=1)
+    assert adapter.capture_available is False
+
+    adapter.bind(registry=registry, name=3, version=7)
+    assert adapter.capture_available is True
+
+
+def test_wayland_protocol_runtime_binds_idle_protocol():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](registry, 40, "ext_idle_notifier_v1", 99)
+    registry.dispatcher["global"](registry, 41, "wl_seat", 99)
+
+    assert runtime.idle_protocol is runtime.idle
+    assert registry.bound == [
+        (40, ExtIdleNotifierV1, ExtIdleNotifierV1.version),
+        (41, WlSeat, WlSeat.version),
+        (41, WlSeat, WlSeat.version),
+        (41, WlSeat, WlSeat.version),
+    ]
+
+
+def test_wayland_protocol_runtime_binds_treeland_extensions_and_outputs():
+    glib = FakeGLib()
+    runtime = WaylandProtocolRuntime(factories=_factories(glib))
+
+    assert runtime.start() is True
+    registry = FakeDisplay.registry
+    registry.dispatcher["global"](
+        registry,
+        50,
+        "treeland_dde_shell_manager_v1",
+        99,
+    )
+    registry.dispatcher["global"](
+        registry,
+        51,
+        "treeland_window_management_v1",
+        99,
+    )
+    registry.dispatcher["global"](registry, 52, "wl_output", 99)
+
+    assert runtime.treeland_overlap_protocol is runtime.treeland_overlap
+    assert (
+        runtime.treeland_window_management_protocol
+        is runtime.treeland_window_management
+    )
+    assert registry.bound == [
+        (
+            50,
+            TreelandDDEShellManagerV1,
+            TreelandDDEShellManagerV1.version,
+        ),
+        (
+            51,
+            TreelandWindowManagementV1,
+            TreelandWindowManagementV1.version,
+        ),
+        (52, WlOutput, WlOutput.version),
+    ]
+
+    registry.dispatcher["global_remove"](registry, 52)
+    assert runtime.treeland_overlap._outputs == []
 
 
 def test_wayland_protocol_runtime_fd_read_receives_initial_workspaces():
@@ -321,6 +478,67 @@ def test_workspace_adapter_replays_initial_events_after_service_start():
     assert service.activate("workspace-a") is not None
 
 
+@pytest.mark.parametrize(
+    ("version", "request_name"),
+    [(1, "get_idle_notification"), (2, "get_input_idle_notification")],
+)
+def test_idle_protocol_adapter_creates_notification_and_forwards_events(
+    monkeypatch, version, request_name
+):
+    # Exercise both protocol versions even with v1-only installed bindings.
+    monkeypatch.setattr(ExtIdleNotifierV1, "version", 2)
+    registry = FakeRegistry()
+    adapter = IdleProtocolAdapter()
+    service = MagicMock()
+    flush = MagicMock()
+    adapter.set_flush_callback(flush)
+
+    adapter.bind(registry=registry, name=10, version=version)
+    adapter.bind_seat(registry=registry, name=11, version=99)
+    adapter.start(service)
+
+    notifier = registry.proxies["ext_idle_notifier_v1"]
+    seat = registry.proxies["wl_seat"]
+    assert notifier.notification_requests == [request_name]
+    assert len(notifier.notifications) == 1
+    timeout, notification_seat, notification = notifier.notifications[0]
+    assert timeout == 0
+    assert notification_seat is seat
+    flush.assert_called_once_with()
+
+    notification.dispatcher["idled"](notification)
+    notification.dispatcher["resumed"](notification)
+
+    service.idled.assert_called_once_with()
+    service.resumed.assert_called_once_with()
+
+
+def test_wayland_idle_service_estimates_idle_seconds():
+    now = 10.0
+
+    def clock() -> float:
+        return now
+
+    protocol = MagicMock()
+    service = WaylandIdleService(protocol=protocol, clock=clock)
+
+    service.start()
+    assert service.idle_seconds() is None
+
+    service.idled()
+    now = 15.5
+    assert service.idle_seconds() == 5.5
+
+    service.resumed()
+    now = 18.0
+    assert service.idle_seconds() == 2.5
+
+    service.stop()
+    protocol.start.assert_called_once_with(service)
+    protocol.stop.assert_called_once_with()
+    assert service.idle_seconds() is None
+
+
 def test_workspace_adapter_flushes_activation_commit():
     adapter = WorkspaceProtocolAdapter()
     workspace = SimpleNamespace(activate=MagicMock())
@@ -347,14 +565,13 @@ def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
 
     model = SimpleNamespace(
         visible_items=MagicMock(
-            return_value=[SimpleNamespace(desktop_id="foot.desktop", wm_class="foot")]
+            return_value=[DockItem(desktop_id="foot.desktop", wm_class="foot")]
         ),
         update_running=MagicMock(),
     )
-    launcher = SimpleNamespace(resolve=MagicMock(), resolve_by_wm_class=MagicMock())
     service = WaylandForeignToplevelWindowService(
         model=model,
-        launcher=launcher,
+        **identity_services(application("foot.desktop", wm_class="foot")),
         protocol=adapter,
     )
     adapter.start(service)

@@ -26,6 +26,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
+from .diagnostics import WindowTrackingDiagnostic
+
 
 class DisplayServer(Enum):
     """Display-server family used by the selected session backend."""
@@ -75,6 +77,23 @@ class Rect:
             and self.bottom > other.y
         )
 
+    def device_to_logical(self, scale: int) -> Rect:
+        """Convert device pixels to logical units at an integer ``scale``.
+
+        The origin rounds down and the far edges round up, so the result always
+        covers the original rectangle (by under one logical pixel on odd values).
+        """
+        if scale <= 1:
+            return self
+        left = self.x // scale
+        top = self.y // scale
+        return Rect(
+            left,
+            top,
+            -(-self.right // scale) - left,
+            -(-self.bottom // scale) - top,
+        )
+
 
 @dataclass(frozen=True)
 class Size:
@@ -94,6 +113,7 @@ class MonitorSnapshot:
     scale: int = 1
     primary: bool = False
     name: str | None = None
+    connector: str | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +157,12 @@ class WindowSnapshot:
     can_minimize: bool = False
     can_close: bool = False
     can_preview: bool = False
+    visible: bool | None = None
+    sticky: bool = False
+    dialog: bool = False
+    pid: int | None = None
+    skip_taskbar: bool = False
+    on_current_workspace: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -173,11 +199,20 @@ class PlacementRequest:
 
 @dataclass(frozen=True)
 class ReservationRequest:
-    """Request to reserve edge space for the dock."""
+    """Request to reserve edge space for the dock.
+
+    ``edge_offset`` is the logical distance occupied by external surfaces
+    between the monitor edge and this dock. ``span_start``/``span_end`` are an
+    optional half-open logical root-coordinate range along the dock's main axis.
+    Backends that cannot represent either detail may ignore them.
+    """
 
     monitor: MonitorSnapshot
     position: object
     thickness: int
+    edge_offset: int = 0
+    span_start: int | None = None
+    span_end: int | None = None
 
 
 @dataclass(frozen=True)
@@ -196,6 +231,7 @@ class PlatformCapabilities:
     supports_close: bool = False
     supports_window_menu: bool = False
     tracks_window_geometry: bool = False
+    supports_window_outline: bool = False
     tracks_window_workspace: bool = False
     supports_current_workspace_filter: bool = False
     supports_workspace_list: bool = False
@@ -239,6 +275,24 @@ class Service(ABC):
 
 class WindowService(Service):
     """Taskbar/window state and window actions."""
+
+    def refresh(self) -> None:
+        """Refresh polled state before launching; event-driven services need no scan."""
+
+    def watch(self, on_change: Callable[[], None], /) -> object | None:
+        """Subscribe to snapshot changes, if supported by this service."""
+        return None
+
+    def unwatch(self, handle: object) -> None:
+        """Remove a subscription owned by this service."""
+
+    def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
+        """Read captured evidence without enumerating windows or changing state."""
+        return WindowTrackingDiagnostic()
+
+    @abstractmethod
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every current window known to this backend."""
 
     @abstractmethod
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -287,6 +341,9 @@ class WindowService(Service):
 
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
+
+    def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
+        """Register an optional compositor fallback for missing GTK exit events."""
 
     # TODO: Define a small SurfaceHost/SurfaceWindow ABC for the window
     # methods/properties surface services need, instead of accepting an untyped
@@ -338,6 +395,11 @@ class SurfaceService(Service):
         """Set or clear a compositor blur hint, if supported."""
 
     @property
+    def compositor_sizes_main_axis(self) -> bool:
+        """Whether content must fit the compositor-assigned stretched axis."""
+        return False
+
+    @property
     def popups_use_parent_relative_coordinates(self) -> bool:
         """True when ``Gtk.Window.move()`` on a popup child uses
         parent-relative coordinates.
@@ -362,6 +424,47 @@ class SurfaceService(Service):
         ``(0, 0)`` when it has no knowledge of the absolute placement.
         """
         return None
+
+    @property
+    def overlay_uses_toplevel(self) -> bool:
+        """True when overlay windows must be ``Gtk.WindowType.TOPLEVEL``.
+
+        X11 overlays are override-redirect popups placed with ``move()``.
+        Layer-shell needs a toplevel to assign its surface role to.
+        """
+        return False
+
+    def prepare_overlay_window(self, window: object) -> None:
+        """Give a transient overlay window its platform role before realize."""
+
+    def place_overlay(self, window: object, rect: Rect) -> None:
+        """Place a prepared overlay window at ``rect`` in global coordinates.
+
+        The default suits backends reporting device pixels and where
+        ``Gtk.Window.move()`` takes absolute coordinates, which GTK counts in
+        logical units; compositor-positioned backends override it and receive
+        logical coordinates already.
+        """
+        logical = rect.device_to_logical(window.get_scale_factor())
+        window.move(logical.x, logical.y)
+        window.resize(logical.width, logical.height)
+
+    def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Return monitor space excluding other edge-reserving surfaces.
+
+        The default keeps compositor-managed and unsupported backends on their
+        existing placement path. X11 overrides this using EWMH struts while
+        excluding the dock's own reservation.
+        """
+        return None
+
+    def set_external_workarea_changed_handler(
+        self, callback: Callable[[], None] | None
+    ) -> None:
+        """Set a callback for external panel/reservation geometry changes."""
+
+    def refresh_external_workarea(self) -> None:
+        """Refresh backend-owned external workarea state after screen changes."""
 
 
 class VisibilityMonitor(ABC):
@@ -395,6 +498,8 @@ class VisibilityService(Service):
 
 class PreviewService(Service):
     """Window-preview capture."""
+
+    asynchronous: bool = False
 
     @abstractmethod
     def capture(
@@ -444,6 +549,8 @@ class DesktopActionService(Service):
 class ScreenCaptureService(Service):
     """Screen color-picking operations."""
 
+    interactive = False
+
     @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
         """Pick a screen color in RGB byte values."""
@@ -459,6 +566,12 @@ class IdleService(Service):
 
 class WindowPickService(Service):
     """Window picking and process actions used by window-management applets."""
+
+    interactive = False
+
+    def select_window(self) -> WindowSnapshot | None:
+        """Run a compositor-owned selection UI, when interactive is true."""
+        return None
 
     @abstractmethod
     def pick_window_at(self, *, x: int, y: int) -> WindowSnapshot | None:

@@ -5,11 +5,14 @@ from __future__ import annotations
 from types import MethodType, SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.dock_window as dock_window_mod
+import docking.ui.input_controller as input_controller_mod
 import docking.ui.renderer as renderer_mod
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
-from docking.platform.model import DockItem
+from docking.platform.model import AnimationTickResult, DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect, build_geometry_frame
 from docking.ui.interaction import DockInteractionCoordinator
@@ -28,6 +31,17 @@ def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
         set_disabled=MagicMock(),
         reset=MagicMock(),
     )
+
+
+def _model_mock(
+    tick: AnimationTickResult | None = None,
+) -> MagicMock:
+    model = MagicMock()
+    model.tick_animations.return_value = tick or AnimationTickResult(
+        changed=False,
+        active=False,
+    )
+    return model
 
 
 def _window_cache(
@@ -70,13 +84,46 @@ def _bind_geometry_signature(stub):
     stub._invalidate_current_geometry_frame = MethodType(
         dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
     )
-    stub._show_folder_stack_for_item = MethodType(
-        dock_window_mod.DockWindow._show_folder_stack_for_item, stub
-    )
-    stub._popup_anchor_for_item = MethodType(
-        dock_window_mod.DockWindow._popup_anchor_for_item, stub
+    stub.popup_anchor_for_item = MethodType(
+        dock_window_mod.DockWindow.popup_anchor_for_item, stub
     )
     return stub
+
+
+def _controller(stub):
+    interactions = getattr(stub, "_interactions", MagicMock())
+    interactions.show_applet_stack.return_value = False
+    controller = SimpleNamespace(
+        _window=stub,
+        _interactions=interactions,
+        _application_launcher=getattr(stub, "_application_launcher", MagicMock()),
+        _target_service=getattr(stub, "_target_service", MagicMock()),
+        _click_x=getattr(stub, "_click_x", -1.0),
+        _click_y=getattr(stub, "_click_y", -1.0),
+        _click_button=getattr(stub, "_click_button", 0),
+        dnd=getattr(
+            stub,
+            "dnd",
+            SimpleNamespace(
+                drag_index=-1,
+                drop_insert_index=-1,
+                drop_target_id="",
+            ),
+        ),
+    )
+    controller._show_folder_stack_for_item = MethodType(
+        input_controller_mod.DockInputController._show_folder_stack_for_item,
+        controller,
+    )
+    controller._show_hover_stack_for_item = MethodType(
+        input_controller_mod.DockInputController._show_hover_stack_for_item,
+        controller,
+    )
+    controller._stack_anchor_for_item = MethodType(
+        input_controller_mod.DockInputController._stack_anchor_for_item,
+        controller,
+    )
+    return controller
 
 
 def _make_stub(item: DockItem | None = None):
@@ -91,7 +138,9 @@ def _make_stub(item: DockItem | None = None):
         pos=Position.BOTTOM,
         left_click_action="toggle",
         middle_click_action="new-window",
-        folder_stack_unfold="click",
+        dock_item_click_effects_enabled=True,
+        dock_item_click_effect="bounce",
+        stack_unfold="click",
         icon_size=48,
         additional_distance_from_edge=0,
     )
@@ -99,18 +148,18 @@ def _make_stub(item: DockItem | None = None):
     stub.model.visible_items.return_value = [item]
     stub.model.get_applet = MagicMock()
     stub.theme = SimpleNamespace(
-        item_padding=8, horizontal_padding=10, urgent_glow_time_ms=500
+        item_padding=8,
+        horizontal_padding=10,
+        urgent_glow_time_ms=500,
+        launch_bounce_time_ms=600,
     )
     stub.window_tracker = MagicMock()
-    stub._menu = MagicMock()
-    stub._menu.open_folder_stack_item_id.return_value = None
-    stub._menu.close_folder_stack = MagicMock()
+    stub._interactions = MagicMock()
     stub.tooltip = MagicMock()
     stub.hover = MagicMock()
     stub.hover.hovered_item = item
     stub.hover.cancel = MagicMock()
     stub.preview = None
-    stub._menu_popup_visible = False
     stub.autohide = _autohide(enabled=False)
     stub.cursor_x = 12.0
     stub.cursor_y = 6.0
@@ -121,6 +170,9 @@ def _make_stub(item: DockItem | None = None):
     stub.update_input_region = MagicMock()
     stub.drawing_area = MagicMock()
     stub.get_position = MagicMock(return_value=(100, 200))
+    stub.get_display = MagicMock(
+        return_value=SimpleNamespace(get_xdisplay=lambda: None)
+    )
     stub.get_size = MagicMock(return_value=(1920, 122))
     stub._test_geometry_frame = frame
     stub._cache = _window_cache(
@@ -131,7 +183,9 @@ def _make_stub(item: DockItem | None = None):
     stub.geometry = SimpleNamespace(build_frame=lambda **_kwargs: frame)
     stub.dock_hovered = True
     stub.zoom_animator = SimpleNamespace(progress=1.0)
+    stub.placement = SimpleNamespace(set_struts=MagicMock())
     stub.interaction = MagicMock()
+    stub.interaction.is_pointer_inside_dock.return_value = False
     stub.interaction.on_effective_enter = MagicMock()
     stub.interaction.on_effective_leave = MagicMock()
     _bind_geometry_signature(stub)
@@ -147,12 +201,40 @@ class TestButtonReleaseFlow:
         )
 
         # When
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
         # Then
         assert handled is True
-        stub._menu.show.assert_called_once_with(event, 12.0)
+        stub._interactions.show_context_menu.assert_called_once_with(
+            event=event,
+            cursor_main=12.0,
+            frame=stub._test_geometry_frame,
+            force_background=False,
+        )
+
+    def test_ctrl_right_click_opens_background_context_menu(self):
+        # Given
+        stub, _item = _make_stub()
+        event = SimpleNamespace(
+            x=12.0,
+            y=6.0,
+            button=dock_window_mod.MOUSE_RIGHT,
+            state=dock_window_mod.Gdk.ModifierType.CONTROL_MASK,
+        )
+
+        # When
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
+        )
+        # Then
+        assert handled is True
+        stub._interactions.show_context_menu.assert_called_once_with(
+            event=event,
+            cursor_main=12.0,
+            frame=stub._test_geometry_frame,
+            force_background=True,
+        )
 
     def test_left_click_on_applet_updates_tooltip_immediately(self, monkeypatch):
         # Given
@@ -168,26 +250,91 @@ class TestButtonReleaseFlow:
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
         monkeypatch.setattr(
-            dock_window_mod,
+            input_controller_mod,
             "is_applet",
             lambda desktop_id: desktop_id.startswith("applet://"),
         )
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 999)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 999
+        )
 
         # When
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
         # Then
         assert handled is True
         anchor = applet.set_popup_anchor.call_args.args[0]
-        assert anchor.x == 104
+        assert anchor.x == 128
         assert anchor.y == 205
         assert anchor.position == Position.BOTTOM
         assert anchor.parent is stub
         applet.on_clicked.assert_called_once()
         stub.tooltip.update.assert_called_once_with(item, stub._test_geometry_frame)
         stub.hover.start_anim_pump.assert_called_once_with(350)
+
+    def test_left_click_opens_declarative_applet_stack(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+        controller._interactions.show_applet_stack.return_value = True
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._interactions.show_applet_stack.assert_called_once_with(
+            applet=applet,
+            anchor=input_controller_mod.StackAnchor(
+                x=104,
+                y=205,
+                icon_w=48,
+                position=Position.BOTTOM,
+            ),
+            parent=stub,
+        )
+        applet.on_clicked.assert_not_called()
+        stub.tooltip.hide.assert_called_once()
+        stub.tooltip.update.assert_not_called()
+
+    def test_middle_click_on_applet_skips_declarative_stack(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+        )
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+        controller._interactions.show_applet_stack.return_value = True
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._interactions.show_applet_stack.assert_not_called()
+        applet.on_clicked.assert_called_once()
 
     def test_left_click_running_app_toggles_focus(self, monkeypatch):
         # Given
@@ -196,12 +343,14 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 1010)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 1010
+        )
 
         # When
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
         # Then
         assert handled is True
@@ -210,29 +359,123 @@ class TestButtonReleaseFlow:
         assert item.last_clicked == 1010
         assert item.last_launched == 0
 
-    def test_middle_click_new_window_launches_running_app(self, monkeypatch):
-        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        ("launch_ms", "pump_ms"),
+        [(600, 600), (800, 800), (805, 805), (0, 350), (100, 350)],
+    )
+    def test_left_click_stopped_app_uses_application_launcher(
+        self, monkeypatch, effect, launch_ms, pump_ms
+    ):
+        item = DockItem(desktop_id="firefox.desktop", is_running=False)
         stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
         event = SimpleNamespace(
-            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        launch_calls: list[str] = []
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2020)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
         monkeypatch.setattr(
-            dock_window_mod,
-            "launch_new_window",
-            lambda desktop_id: launch_calls.append(desktop_id),
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 1515
         )
+        controller = _controller(stub)
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert launch_calls == ["firefox.desktop"]
+        controller._application_launcher.launch.assert_called_once_with(
+            "firefox.desktop"
+        )
+        assert item.last_clicked == 1515
+        assert item.last_launched == 1515
+        stub.hover.start_anim_pump.assert_called_once_with(pump_ms)
+
+    def test_click_refreshes_running_state_before_launching(self, monkeypatch):
+        item = DockItem(desktop_id="firefox.desktop", is_running=False)
+        stub, _ = _make_stub(item=item)
+        stub.window_tracker.refresh.side_effect = lambda: setattr(
+            item, "is_running", True
+        )
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        controller = _controller(stub)
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        stub.window_tracker.refresh.assert_called_once_with()
+        stub.window_tracker.toggle_focus.assert_called_once_with("firefox.desktop")
+        controller._application_launcher.launch.assert_not_called()
+        controller._application_launcher.launch_new_window.assert_not_called()
+        assert item.last_launched == 0
+
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        ("launch_ms", "pump_ms"),
+        [(600, 600), (800, 800), (805, 805), (0, 350), (100, 350)],
+    )
+    def test_middle_click_new_window_launches_running_app(
+        self, monkeypatch, effect, launch_ms, pump_ms
+    ):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
+        )
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2020
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        assert handled is True
+        controller._application_launcher.launch_new_window.assert_called_once_with(
+            "firefox.desktop"
+        )
         assert item.last_launched == 2020
-        stub.hover.start_anim_pump.assert_called_once_with(700)
+        stub.hover.start_anim_pump.assert_called_once_with(pump_ms)
+
+    @pytest.mark.parametrize("button", [1, 2])
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize("launch_ms", [100, 800])
+    def test_launch_without_click_effect_keeps_short_click_feedback(
+        self, monkeypatch, button, effect, launch_ms
+    ):
+        item = DockItem(desktop_id="firefox.desktop", is_running=button == 2)
+        stub, _ = _make_stub(item=item)
+        stub.config.dock_item_click_effects_enabled = False
+        stub.config.dock_item_click_effect = effect
+        stub.theme.launch_bounce_time_ms = launch_ms
+        event = SimpleNamespace(x=12.0, y=6.0, button=button, state=0)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2020
+        )
+        controller = _controller(stub)
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
+        )
+
+        launcher = controller._application_launcher
+        if button == 1:
+            launcher.launch.assert_called_once_with("firefox.desktop")
+        else:
+            launcher.launch_new_window.assert_called_once_with("firefox.desktop")
+        assert item.last_clicked == 2020
+        assert item.last_launched == 0
+        stub.hover.start_anim_pump.assert_called_once_with(350)
 
     def test_left_click_cycle_dispatches_cycle_action(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
@@ -241,11 +484,13 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 1111)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 1111
+        )
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
 
         assert handled is True
@@ -261,11 +506,13 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 1313)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 1313
+        )
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
 
         assert handled is True
@@ -282,11 +529,13 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2121)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2121
+        )
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
 
         assert handled is True
@@ -301,11 +550,13 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_MIDDLE, state=0
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2222)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2222
+        )
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
 
         assert handled is True
@@ -323,21 +574,20 @@ class TestButtonReleaseFlow:
             button=dock_window_mod.MOUSE_LEFT,
             state=dock_window_mod.Gdk.ModifierType.CONTROL_MASK,
         )
-        launch_calls: list[str] = []
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 2323)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
         monkeypatch.setattr(
-            dock_window_mod,
-            "launch_new_window",
-            lambda desktop_id: launch_calls.append(desktop_id),
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 2323
         )
+        controller = _controller(stub)
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert launch_calls == ["firefox.desktop"]
+        controller._application_launcher.launch_new_window.assert_called_once_with(
+            "firefox.desktop"
+        )
         stub.window_tracker.cycle.assert_not_called()
         assert item.last_launched == 2323
 
@@ -351,19 +601,20 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 3030)
-        opened: list[str] = []
         monkeypatch.setattr(
-            dock_window_mod, "open_target", lambda target: opened.append(target)
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 3030
         )
+        controller = _controller(stub)
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            controller, MagicMock(), event
         )
 
         assert handled is True
-        assert opened == ["file:///tmp/notes.txt"]
-        assert item.last_launched == 3030
+        controller._target_service.open_target.assert_called_once_with(
+            "file:///tmp/notes.txt"
+        )
+        assert item.last_launched == 0
 
     def test_left_click_folder_item_opens_folder_stack(self, monkeypatch):
         item = DockItem(
@@ -379,20 +630,24 @@ class TestButtonReleaseFlow:
         event = SimpleNamespace(
             x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
-        monkeypatch.setattr(dock_window_mod.GLib, "get_monotonic_time", lambda: 4040)
+        monkeypatch.setattr(
+            input_controller_mod.GLib, "get_monotonic_time", lambda: 4040
+        )
 
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
 
         assert handled is True
-        stub._menu.show_folder_stack.assert_called_once()
-        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        stub._interactions.show_folder_stack.assert_called_once()
+        kwargs = stub._interactions.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
-        assert kwargs["anchor_x"] == 104
-        assert kwargs["anchor_y"] == 205
-        assert kwargs["icon_w"] == 48
-        assert kwargs["position"] == Position.BOTTOM
+        assert kwargs["anchor"] == input_controller_mod.StackAnchor(
+            x=104,
+            y=205,
+            icon_w=48,
+            position=Position.BOTTOM,
+        )
         assert kwargs["toggle_if_same_item"] is True
 
     def test_hover_folder_item_opens_folder_stack_when_enabled(self):
@@ -402,16 +657,18 @@ class TestButtonReleaseFlow:
             target="file:///tmp/docs",
         )
         stub, _ = _make_stub(item=item)
-        stub.config.folder_stack_unfold = "hover"
+        stub.config.stack_unfold = "hover"
         widget = MagicMock()
         event = SimpleNamespace(x=12.0, y=9.0)
 
-        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_motion(
+            _controller(stub), widget, event
+        )
 
         assert handled is False
-        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
-        stub._menu.show_folder_stack.assert_called_once()
-        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        stub._interactions.prewarm_folder_stack.assert_called_once_with(item)
+        stub._interactions.show_folder_stack.assert_called_once()
+        kwargs = stub._interactions.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is item
         assert kwargs["toggle_if_same_item"] is False
 
@@ -422,16 +679,69 @@ class TestButtonReleaseFlow:
             target="file:///tmp/docs",
         )
         stub, _ = _make_stub(item=item)
-        stub.config.folder_stack_unfold = "hover"
+        stub.config.stack_unfold = "hover"
         stub.autohide = _autohide(enabled=True, state=HideState.SHOWING)
         widget = MagicMock()
         event = SimpleNamespace(x=12.0, y=9.0)
 
-        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_motion(
+            _controller(stub), widget, event
+        )
 
         assert handled is False
-        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
-        stub._menu.show_folder_stack.assert_not_called()
+        stub._interactions.prewarm_folder_stack.assert_called_once_with(item)
+        stub._interactions.show_folder_stack.assert_not_called()
+
+    def test_hover_devices_applet_opens_shared_stack_when_enabled(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        stub.config.stack_unfold = "hover"
+        stub._test_geometry_frame.geometry_for_item.return_value = SimpleNamespace(
+            draw_rect=SimpleNamespace(x=4, y=5, w=48, h=48),
+            anchor_point=lambda *, win_x, win_y, position: (win_x + 4, win_y + 5),
+        )
+        applet = MagicMock()
+        stub.model.get_applet.return_value = applet
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_motion(
+            controller, MagicMock(), SimpleNamespace(x=12.0, y=9.0)
+        )
+
+        assert handled is False
+        controller._interactions.show_applet_stack.assert_called_once_with(
+            applet=applet,
+            anchor=input_controller_mod.StackAnchor(
+                x=104,
+                y=205,
+                icon_w=48,
+                position=Position.BOTTOM,
+            ),
+            parent=stub,
+            toggle_if_same_owner=False,
+        )
+
+    def test_click_mode_does_not_open_devices_stack_on_hover(self, monkeypatch):
+        item = DockItem(desktop_id="applet://devices")
+        stub, _ = _make_stub(item=item)
+        monkeypatch.setattr(
+            input_controller_mod,
+            "is_applet",
+            lambda desktop_id: desktop_id.startswith("applet://"),
+        )
+        controller = _controller(stub)
+
+        handled = input_controller_mod.DockInputController._on_motion(
+            controller, MagicMock(), SimpleNamespace(x=12.0, y=9.0)
+        )
+
+        assert handled is False
+        controller._interactions.show_applet_stack.assert_not_called()
 
     def test_motion_prewarms_hovered_folder_item_in_click_mode(self):
         item = DockItem(
@@ -443,11 +753,13 @@ class TestButtonReleaseFlow:
         widget = MagicMock()
         event = SimpleNamespace(x=12.0, y=9.0)
 
-        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_motion(
+            _controller(stub), widget, event
+        )
 
         assert handled is False
-        stub._menu.schedule_folder_stack_prewarm.assert_called_once_with(item)
-        stub._menu.show_folder_stack.assert_not_called()
+        stub._interactions.prewarm_folder_stack.assert_called_once_with(item)
+        stub._interactions.show_folder_stack.assert_not_called()
 
     def test_drag_delta_above_threshold_is_ignored(self):
         # Given
@@ -457,12 +769,12 @@ class TestButtonReleaseFlow:
             x=40.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
         )
         # When
-        handled = dock_window_mod.DockWindow._on_button_release(
-            stub, MagicMock(), event
+        handled = input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
         )
         # Then
         assert handled is False
-        stub._menu.show.assert_not_called()
+        stub._interactions.show_context_menu.assert_not_called()
 
 
 class TestScrollAndHoverFlow:
@@ -478,13 +790,15 @@ class TestScrollAndHoverFlow:
             direction=dock_window_mod.Gdk.ScrollDirection.UP,
         )
         monkeypatch.setattr(
-            dock_window_mod,
+            input_controller_mod,
             "is_applet",
             lambda desktop_id: desktop_id.startswith("applet://"),
         )
 
         # When
-        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_scroll(
+            _controller(stub), MagicMock(), event
+        )
         # Then
         assert handled is True
         applet.on_scroll.assert_called_once_with(True)
@@ -502,12 +816,14 @@ class TestScrollAndHoverFlow:
             get_scroll_deltas=lambda: (True, 0.0, -1.0),
         )
         monkeypatch.setattr(
-            dock_window_mod,
+            input_controller_mod,
             "is_applet",
             lambda desktop_id: desktop_id.startswith("applet://"),
         )
 
-        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_scroll(
+            _controller(stub), MagicMock(), event
+        )
 
         assert handled is True
         applet.on_scroll.assert_called_once_with(True)
@@ -525,12 +841,14 @@ class TestScrollAndHoverFlow:
             get_scroll_deltas=lambda: (True, 1.0, 0.0),
         )
         monkeypatch.setattr(
-            dock_window_mod,
+            input_controller_mod,
             "is_applet",
             lambda desktop_id: desktop_id.startswith("applet://"),
         )
 
-        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_scroll(
+            _controller(stub), MagicMock(), event
+        )
 
         assert handled is False
         applet.on_scroll.assert_not_called()
@@ -544,15 +862,58 @@ class TestScrollAndHoverFlow:
             y=5.0,
             direction=dock_window_mod.Gdk.ScrollDirection.DOWN,
         )
-        monkeypatch.setattr(dock_window_mod, "is_applet", lambda desktop_id: False)
+        monkeypatch.setattr(input_controller_mod, "is_applet", lambda desktop_id: False)
 
         # When
-        handled = dock_window_mod.DockWindow._on_scroll(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_scroll(
+            _controller(stub), MagicMock(), event
+        )
         # Then
         assert handled is False
 
 
 class TestLeaveEnterFlow:
+    @pytest.mark.parametrize("mode", ["NORMAL", "GRAB", "UNGRAB"])
+    @pytest.mark.parametrize("detail", ["ANCESTOR", "NONLINEAR"])
+    def test_wayland_leave_does_not_query_stale_pointer(self, mode, detail):
+        stub, _item = _make_stub()
+        stub.get_display.return_value = SimpleNamespace()
+        stub.interaction.is_pointer_inside_dock.return_value = True
+        widget = MagicMock()
+        event = SimpleNamespace(
+            detail=getattr(dock_window_mod.Gdk.NotifyType, detail),
+            mode=getattr(dock_window_mod.Gdk.CrossingMode, mode),
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
+
+        assert handled is True
+        stub.interaction.is_pointer_inside_dock.assert_not_called()
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
+
+    def test_wayland_duplicate_leave_is_ignored(self):
+        stub, _item = _make_stub()
+        stub.get_display.return_value = SimpleNamespace()
+        stub.dock_hovered = False
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
+
+        assert handled is False
+        stub.interaction.is_pointer_inside_dock.assert_not_called()
+        stub.interaction.on_effective_leave.assert_not_called()
+
     def test_leave_ignores_inferior_notify(self):
         # Given
         stub, _item = _make_stub()
@@ -563,11 +924,13 @@ class TestLeaveEnterFlow:
             y=2.0,
         )
         # When
-        handled = dock_window_mod.DockWindow._on_leave(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
         # Then
         assert handled is False
 
-    def test_leave_inside_input_rect_is_ignored(self):
+    def test_leave_with_live_pointer_inside_input_rect_is_ignored(self):
         # Given
         stub, _item = _make_stub()
         stub._cache.geometry_frame.frame = SimpleNamespace(
@@ -579,15 +942,61 @@ class TestLeaveEnterFlow:
             x=20.0,
             y=20.0,
         )
+        stub.interaction.is_pointer_inside_dock.return_value = True
 
         # When
-        handled = dock_window_mod.DockWindow._on_leave(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
         # Then
         assert handled is False
-        stub.interaction.point_inside_event_frame.assert_called_once_with(
-            x=20.0, y=20.0
-        )
+        stub.interaction.is_pointer_inside_dock.assert_called_once()
         stub.hover.cancel.assert_not_called()
+
+    @pytest.mark.parametrize("session_type", ["x11", "wayland"])
+    def test_shape_leave_at_left_edge_uses_live_pointer_position(
+        self, monkeypatch, session_type
+    ):
+        # An XWayland dock still needs the X11 input-shape guard.
+        monkeypatch.setenv("XDG_SESSION_TYPE", session_type)
+        stub, _item = _make_stub()
+        stub._cache.geometry_frame.frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100)
+        )
+        stub.interaction.point_inside_event_frame.return_value = False
+        stub.interaction.is_pointer_inside_dock.return_value = True
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.ANCESTOR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=-1.0,
+            y=44.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), MagicMock(), event
+        )
+
+        assert handled is False
+        stub.interaction.is_pointer_inside_dock.assert_called_once()
+        stub.interaction.on_effective_leave.assert_not_called()
+
+    def test_stale_inside_crossing_with_live_pointer_outside_releases_hover(self):
+        stub, _item = _make_stub()
+        widget = MagicMock()
+        stub.interaction.is_pointer_inside_dock.return_value = False
+        event = SimpleNamespace(
+            detail=dock_window_mod.Gdk.NotifyType.NONLINEAR,
+            mode=dock_window_mod.Gdk.CrossingMode.NORMAL,
+            x=20.0,
+            y=20.0,
+        )
+
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
+
+        assert handled is True
+        stub.interaction.on_effective_leave.assert_called_once_with(widget)
 
     def test_leave_clears_hover_and_resets_cursor_without_preview_or_autohide(self):
         # Given
@@ -605,7 +1014,9 @@ class TestLeaveEnterFlow:
         )
 
         # When
-        handled = dock_window_mod.DockWindow._on_leave(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
         # Then
         assert handled is True
         stub.interaction.on_effective_leave.assert_called_once_with(widget)
@@ -625,7 +1036,9 @@ class TestLeaveEnterFlow:
             y=200.0,
         )
 
-        handled = dock_window_mod.DockWindow._on_leave(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
 
         assert handled is True
         stub.interaction.on_effective_leave.assert_called_once_with(widget)
@@ -643,7 +1056,9 @@ class TestLeaveEnterFlow:
             y=200.0,
         )
 
-        handled = dock_window_mod.DockWindow._on_leave(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_leave(
+            _controller(stub), widget, event
+        )
 
         assert handled is True
         stub.interaction.on_effective_leave.assert_called_once_with(widget)
@@ -655,7 +1070,9 @@ class TestLeaveEnterFlow:
         stub.dock_hovered = False
         event = SimpleNamespace(x=44.0, y=11.0)
         # When
-        handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_enter(
+            _controller(stub), MagicMock(), event
+        )
         # Then
         assert handled is True
         assert stub.cursor_x == 44.0
@@ -670,7 +1087,9 @@ class TestLeaveEnterFlow:
         stub._test_geometry_frame = outside_frame
         event = SimpleNamespace(x=556.0, y=3.0)
 
-        handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_enter(
+            _controller(stub), MagicMock(), event
+        )
 
         assert handled is True
         assert stub.cursor_x == 556.0
@@ -713,7 +1132,9 @@ class TestLeaveEnterFlow:
             y=float(frame.cursor_rect.y + 1),
         )
 
-        handled = dock_window_mod.DockWindow._on_enter(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_enter(
+            _controller(stub), MagicMock(), event
+        )
 
         assert handled is True
         stub.interaction.on_effective_enter.assert_called_once()
@@ -761,15 +1182,15 @@ class TestModelChangedFlow:
         # Given
         stub, _item = _make_stub()
         timeout_add = MagicMock(return_value=55)
-        monkeypatch.setattr(dock_window_mod.GLib, "timeout_add", timeout_add)
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         # When
-        dock_window_mod.DockWindow._on_model_changed(stub)
+        input_controller_mod.DockInputController._on_model_changed(_controller(stub))
 
         # Then
         stub.update_input_region.assert_called_once()
         stub.hover.on_model_changed.assert_called_once()
-        stub._menu.schedule_visible_folder_stack_prewarm.assert_called_once_with(
+        stub._interactions.prewarm_visible_folder_stacks.assert_called_once_with(
             stub.model.visible_items.return_value
         )
         stub.hover.update.assert_called_once_with(12.0)
@@ -781,15 +1202,15 @@ class TestModelChangedFlow:
         stub, _item = _make_stub()
         stub.hover.hovered_item = None
         timeout_add = MagicMock(return_value=66)
-        monkeypatch.setattr(dock_window_mod.GLib, "timeout_add", timeout_add)
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         # When
-        dock_window_mod.DockWindow._on_model_changed(stub)
+        input_controller_mod.DockInputController._on_model_changed(_controller(stub))
 
         # Then
         stub.update_input_region.assert_called_once()
         stub.hover.on_model_changed.assert_called_once()
-        stub._menu.schedule_visible_folder_stack_prewarm.assert_called_once_with(
+        stub._interactions.prewarm_visible_folder_stacks.assert_called_once_with(
             stub.model.visible_items.return_value
         )
         stub.hover.update.assert_not_called()
@@ -871,13 +1292,6 @@ class TestDockWindowSetupAndGeometry:
         )
         stub = SimpleNamespace(
             add=MagicMock(),
-            _on_draw=MagicMock(),
-            _on_motion=MagicMock(),
-            _on_button_press=MagicMock(),
-            _on_button_release=MagicMock(),
-            _on_leave=MagicMock(),
-            _on_enter=MagicMock(),
-            _on_scroll=MagicMock(),
             _cache=_window_cache(
                 current_geometry_frame="sentinel-current",
                 applied_input_frame="sentinel-applied",
@@ -893,29 +1307,13 @@ class TestDockWindowSetupAndGeometry:
         assert (
             stub.drawing_area.events & dock_window_mod.Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
-        assert "draw" in stub.drawing_area.connected
-        assert "scroll-event" in stub.drawing_area.connected
+        assert stub.drawing_area.connected == []
         assert stub._cache.geometry_frame.frame == "sentinel-current"
         assert stub._cache.applied_input_frame == "sentinel-applied"
 
-    def test_connect_model_registers_change_listener(self):
-        # Given
-        add_change_listener = MagicMock()
-        stub = SimpleNamespace(
-            model=SimpleNamespace(add_change_listener=add_change_listener),
-            _on_model_changed=lambda: None,
-        )
-
-        # When
-        dock_window_mod.DockWindow._connect_model(stub)
-
-        # Then
-        add_change_listener.assert_called_once_with(stub._on_model_changed)
-
-    def test_on_destroy_disconnects_model_listener(self):
+    def test_on_destroy_stops_dodge_monitor(self):
         dodge_monitor = MagicMock()
         stub = SimpleNamespace(
-            _disconnect_model=MagicMock(),
             dodge_monitor=dodge_monitor,
         )
 
@@ -923,18 +1321,6 @@ class TestDockWindowSetupAndGeometry:
 
         dodge_monitor.stop.assert_called_once_with()
         assert stub.dodge_monitor is None
-        stub._disconnect_model.assert_called_once_with()
-
-    def test_disconnect_model_unregisters_change_listener(self):
-        remove_change_listener = MagicMock()
-        stub = SimpleNamespace(
-            model=SimpleNamespace(remove_change_listener=remove_change_listener),
-            _on_model_changed=lambda: None,
-        )
-
-        dock_window_mod.DockWindow._disconnect_model(stub)
-
-        remove_change_listener.assert_called_once_with(stub._on_model_changed)
 
     def test_set_theme_propagates_to_theme_holders_and_invalidates_geometry(self):
         old_theme = object()
@@ -960,7 +1346,6 @@ class TestDockWindowSetupAndGeometry:
         assert stub.theme is new_theme
         stub.tooltip.set_theme.assert_called_once_with(new_theme)
         stub.hover.set_theme.assert_called_once_with(new_theme)
-        stub.dnd.set_theme.assert_called_once_with(new_theme)
         assert stub._cache.geometry_frame is None
 
 
@@ -1113,10 +1498,8 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                model=_model_mock(),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(cursor_rect=Rect(0, 0, 100, 100)),
@@ -1128,6 +1511,7 @@ class TestDockWindowDrawAndHelpers:
                 _sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
+                placement=SimpleNamespace(set_struts=MagicMock()),
                 _cache=_window_cache(
                     current_geometry_frame=SimpleNamespace(
                         cursor_rect=Rect(0, 0, 100, 100)
@@ -1148,7 +1532,9 @@ class TestDockWindowDrawAndHelpers:
         geometry.build_frame.side_effect = lambda **_kwargs: stub._test_geometry_frame
 
         # When
-        result = dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        result = input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
         # Then
         assert result is True
@@ -1158,6 +1544,70 @@ class TestDockWindowDrawAndHelpers:
             frame=stub._cache.geometry_frame.frame
         )
         geometry.build_frame.assert_not_called()
+
+    def test_on_draw_rebuilds_geometry_after_final_animation_mutation(self):
+        stale_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_geometries=(SimpleNamespace(item=DockItem("removed.desktop")),),
+        )
+        current_frame = SimpleNamespace(
+            cursor_rect=Rect(0, 0, 100, 100),
+            item_geometries=(),
+        )
+        geometry = SimpleNamespace(build_frame=MagicMock(return_value=current_frame))
+        renderer = SimpleNamespace(
+            draw=MagicMock(),
+            has_active_urgent_glow=lambda **_kwargs: False,
+        )
+        stub = _bind_geometry_signature(
+            SimpleNamespace(
+                autohide=_autohide(enabled=False),
+                _last_autohide_state=None,
+                dock_hovered=False,
+                dnd=SimpleNamespace(
+                    drag_index=-1,
+                    drop_insert_index=-1,
+                    drop_target_id="",
+                ),
+                hover=SimpleNamespace(hovered_item=None),
+                model=_model_mock(AnimationTickResult(changed=True, active=False)),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
+                theme=MagicMock(),
+                tooltip=MagicMock(),
+                update_input_region=MagicMock(),
+                renderer=renderer,
+                cursor_x=1.0,
+                cursor_y=2.0,
+                get_size=MagicMock(return_value=(1920, 122)),
+                _sync_background_blur_hint=MagicMock(),
+                zoom_animator=SimpleNamespace(progress=1.0),
+                geometry=geometry,
+                placement=SimpleNamespace(set_struts=MagicMock()),
+                _cache=_window_cache(
+                    current_geometry_frame=stale_frame,
+                    current_geometry_frame_signature=(
+                        1920,
+                        122,
+                        1.0,
+                        2.0,
+                        -1,
+                        None,
+                        1.0,
+                        0.0,
+                    ),
+                ),
+            )
+        )
+        stub._schedule_redraw = MagicMock()
+
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
+
+        assert stub._cache.geometry_frame.frame is current_frame
+        geometry.build_frame.assert_called_once()
+        renderer.draw.assert_called_once()
+        stub._schedule_redraw.assert_not_called()
 
     def test_on_draw_rebuilds_geometry_when_signature_changes(self):
         renderer = renderer_mod.DockRenderer()
@@ -1173,10 +1623,8 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=3, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                model=_model_mock(),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 update_input_region=MagicMock(),
@@ -1205,7 +1653,9 @@ class TestDockWindowDrawAndHelpers:
             )
         )
 
-        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
         geometry.build_frame.assert_called_once_with(
             drop_insert_index=3,
@@ -1275,10 +1725,8 @@ class TestDockWindowDrawAndHelpers:
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
                 ),
                 hover=SimpleNamespace(hovered_item=None),
-                model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                model=_model_mock(),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=SimpleNamespace(urgent_glow_time_ms=500),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1301,7 +1749,9 @@ class TestDockWindowDrawAndHelpers:
         )
         stub.model.visible_items.return_value = []
 
-        result = dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        result = input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
         assert result is True
         stub.renderer.draw.assert_called_once()
@@ -1320,10 +1770,8 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                model=_model_mock(),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=SimpleNamespace(
@@ -1344,7 +1792,9 @@ class TestDockWindowDrawAndHelpers:
         )
 
         # When
-        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
         # Then
         assert stub.cursor_x == -1.0
@@ -1368,10 +1818,8 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=MagicMock(),
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                model=_model_mock(),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
                 _test_geometry_frame=frame,
@@ -1386,7 +1834,9 @@ class TestDockWindowDrawAndHelpers:
             )
         )
 
-        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
         stub.hover.update.assert_called_once_with(25.0, frame=frame)
         assert stub._last_autohide_state == HideState.VISIBLE
@@ -1419,15 +1869,15 @@ class TestDockWindowDrawAndHelpers:
                     draw=MagicMock(),
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
-                model=SimpleNamespace(tick_animations=MagicMock(return_value=False)),
+                model=_model_mock(),
                 config=SimpleNamespace(
                     pos=Position.BOTTOM,
-                    folder_stack_unfold="hover",
+                    stack_unfold="hover",
                     icon_size=48,
                 ),
                 theme=MagicMock(),
                 tooltip=MagicMock(),
-                _menu=MagicMock(),
+                _interactions=MagicMock(),
                 _test_geometry_frame=frame,
                 update_input_region=MagicMock(),
                 cursor_x=25.0,
@@ -1442,38 +1892,41 @@ class TestDockWindowDrawAndHelpers:
             )
         )
 
-        dock_window_mod.DockWindow._on_draw(stub, MagicMock(), MagicMock())
+        input_controller_mod.DockInputController._on_draw(
+            _controller(stub), MagicMock(), MagicMock()
+        )
 
-        stub._menu.show_folder_stack.assert_called_once()
-        kwargs = stub._menu.show_folder_stack.call_args.kwargs
+        stub._interactions.show_folder_stack.assert_called_once()
+        kwargs = stub._interactions.show_folder_stack.call_args.kwargs
         assert kwargs["item"] is hovered
-        assert kwargs["anchor_x"] == 104
-        assert kwargs["anchor_y"] == 205
+        assert kwargs["anchor"] == input_controller_mod.StackAnchor(
+            x=104,
+            y=205,
+            icon_w=48,
+            position=Position.BOTTOM,
+        )
         assert kwargs["toggle_if_same_item"] is False
 
     def test_on_motion_updates_cursor_and_hover(self, monkeypatch):
         # Given
         widget = MagicMock()
         timeout_add = MagicMock(return_value=77)
-        monkeypatch.setattr(dock_window_mod.GLib, "timeout_add", timeout_add)
-        menu = MagicMock()
-        menu.open_folder_stack_item_id.return_value = None
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
+        interactions = MagicMock()
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 cursor_x=-1.0,
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=False,
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 _test_geometry_frame=SimpleNamespace(
                     cursor_rect=Rect(0, 0, 100, 100),
                     item_at_point=MagicMock(return_value=None),
                 ),
                 update_input_region=MagicMock(),
                 hover=SimpleNamespace(update=MagicMock()),
-                _menu=menu,
+                _interactions=interactions,
                 autohide=_autohide(enabled=False),
                 zoom_animator=MagicMock(),
                 geometry=SimpleNamespace(
@@ -1483,11 +1936,14 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=7.0, y=9.0)
 
         # When
-        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_motion(
+            _controller(stub), widget, event
+        )
 
         # Then
         assert handled is False
@@ -1499,17 +1955,12 @@ class TestDockWindowDrawAndHelpers:
         assert stub._redraw_source_id == 77
         widget.queue_draw.assert_not_called()
         timeout_add.assert_called_once()
+        interactions.close_stack_unless_target.assert_called_once_with(None)
 
     def test_on_motion_closes_folder_stack_after_leaving_source_folder(self):
-        item = DockItem(
-            desktop_id="file:///tmp/docs",
-            kind=FOLDER_KIND,
-            target="file:///tmp/docs",
-        )
         other_item = DockItem(desktop_id="firefox.desktop")
         widget = MagicMock()
-        menu = MagicMock()
-        menu.open_folder_stack_item_id.return_value = item.desktop_id
+        interactions = MagicMock()
         frame = SimpleNamespace(
             cursor_rect=Rect(0, 0, 100, 100),
             item_at_point=MagicMock(return_value=other_item),
@@ -1520,13 +1971,11 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
                 dock_hovered=True,
-                config=SimpleNamespace(
-                    pos=Position.BOTTOM, folder_stack_unfold="click"
-                ),
+                config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
                 _test_geometry_frame=frame,
                 update_input_region=MagicMock(),
                 hover=SimpleNamespace(update=MagicMock()),
-                _menu=menu,
+                _interactions=interactions,
                 autohide=_autohide(enabled=False),
                 zoom_animator=MagicMock(),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
@@ -1534,29 +1983,35 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=12.0, y=9.0)
 
-        handled = dock_window_mod.DockWindow._on_motion(stub, widget, event)
+        handled = input_controller_mod.DockInputController._on_motion(
+            _controller(stub), widget, event
+        )
 
         assert handled is False
-        menu.close_folder_stack.assert_called_once_with()
+        interactions.close_stack_unless_target.assert_called_once_with(other_item)
 
     def test_on_button_press_records_click_state(self):
         # Given
         stub = SimpleNamespace(_click_x=0.0, _click_y=0.0, _click_button=0)
+        controller = _controller(stub)
         event = SimpleNamespace(x=11.0, y=22.0, button=3)
 
         # When
-        handled = dock_window_mod.DockWindow._on_button_press(stub, MagicMock(), event)
+        handled = input_controller_mod.DockInputController._on_button_press(
+            controller, MagicMock(), event
+        )
 
         # Then
         assert handled is False
-        assert stub._click_x == 11.0
-        assert stub._click_y == 22.0
-        assert stub._click_button == 3
+        assert controller._click_x == 11.0
+        assert controller._click_y == 22.0
+        assert controller._click_button == 3
 
-    def test_queue_redraw(self):
+    def test_queue_redraw(self, monkeypatch):
         timeout_add = MagicMock(return_value=99)
         drawing_area = MagicMock()
         stub = _bind_geometry_signature(
@@ -1566,7 +2021,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
-        dock_window_mod.GLib.timeout_add = timeout_add
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         dock_window_mod.DockWindow.queue_redraw(stub)
 
@@ -1574,10 +2029,10 @@ class TestDockWindowDrawAndHelpers:
         drawing_area.queue_draw.assert_not_called()
         timeout_add.assert_called_once()
 
-    def test_schedule_redraw_coalesces_multiple_requests(self):
+    def test_schedule_redraw_coalesces_multiple_requests(self, monkeypatch):
         timeout_add = MagicMock(return_value=77)
         stub = _bind_geometry_signature(SimpleNamespace(_redraw_source_id=None))
-        dock_window_mod.GLib.timeout_add = timeout_add
+        monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
         dock_window_mod.DockWindow._schedule_redraw(stub)
         dock_window_mod.DockWindow._schedule_redraw(stub)
@@ -1594,7 +2049,7 @@ class TestBlurHintSync:
             get_scale_factor=lambda: 2,
             autohide=_autohide(enabled=False),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
+            config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
             _cache=_window_cache(),
             surface_service=surface_service,
         )
@@ -1621,7 +2076,7 @@ class TestBlurHintSync:
         stub = SimpleNamespace(
             autohide=_autohide(enabled=True, state=HideState.HIDDEN),
             theme=SimpleNamespace(roundness=4.0, round_bottom=True),
-            config=SimpleNamespace(pos=Position.BOTTOM, folder_stack_unfold="click"),
+            config=SimpleNamespace(pos=Position.BOTTOM, stack_unfold="click"),
             _cache=_window_cache(last_blur_region=(1, 2, 3, 4, 5, 6, 7, 8)),
             surface_service=surface_service,
         )

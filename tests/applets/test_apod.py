@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
+
+import pytest
 
 from docking.applets.apod.api import ApodError, fetch_today
 from docking.applets.apod.applet import ApodApplet
+from docking.applets.apod.page import APOD_URL, parse_page
 from docking.applets.apod.state import (
     ApodPrefs,
     ApodResult,
@@ -47,7 +52,7 @@ class _ImmediateWorker:
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> ApodApplet:
     with patch("docking.applets.apod.applet.BackgroundWorker", _ImmediateWorker):
-        return ApodApplet(icon_size, config=config)
+        return ApodApplet(icon_size, config=config or Config())
 
 
 def _sample_result(**overrides: object) -> ApodResult:
@@ -137,6 +142,190 @@ class TestPrefsRoundTrip:
 
 
 class TestFetchToday:
+    def test_fetches_nasa_science_by_default(self, tmp_path, monkeypatch):
+        html = (Path(__file__).parent / "fixtures/apod_nasa_science.html").read_text()
+        requested = []
+
+        def get_text(url, **_kwargs):
+            requested.append(url)
+            return html
+
+        monkeypatch.setattr("docking.applets.apod.api.http_get_text", get_text)
+        monkeypatch.setattr("docking.applets.apod.api.CACHE_DIR", tmp_path)
+        # An old logo must not prevent the corrected image from downloading.
+        (tmp_path / "2026-10-01.jpg").write_bytes(b"old logo")
+        self._patch_image_download(monkeypatch, b"new image")
+        got = fetch_today()
+        assert isinstance(got, ApodResult)
+        assert requested == [APOD_URL]
+        assert got.title == "Harvest Moon with Erupting Mount Etna"
+        assert got.date == "2026-10-01"
+        assert got.copyright == "Dario Giannobile"
+        assert got.explanation == "A full moon rises."
+        assert urlparse(got.image_url).hostname == "assets.science.nasa.gov"
+        assert "&amp;" not in got.image_url
+        assert got.page_url.startswith("https://science.nasa.gov/image-article/apod-")
+        assert Path(got.cached_path).read_bytes() == b"new image"
+
+    def test_rejects_unrelated_page(self):
+        with pytest.raises(ValueError):
+            parse_page('<h2>NASA Science</h2><img src="/nasa-logo.png">')
+
+    def test_video_page_uses_youtube_thumbnail(self):
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <iframe src="https://www.youtube-nocookie.com/embed/abc_123"></iframe>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A video.</p>
+              <table><tr><th>Date</th><td>September 30, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert (
+            got["thumbnail_url"] == "https://img.youtube.com/vi/abc_123/hqdefault.jpg"
+        )
+        assert got["page_url"] == APOD_URL
+
+    def test_self_hosted_video_reads_source_and_credit(self):
+        # NASA serves some entries from its own player: an HTML5 <video> with a
+        # <source>, not a YouTube <iframe>. The no-JS fallback links to the
+        # player, which must not be mistaken for the entry's page.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media margin-bottom-6">
+                <div class="hds-video-container embed-container">
+                  <video title="Astronomy video" class="video-js">
+                    <source src="/content/dam/science/apod/2026/october/launch.mp4"
+                            type="video/mp4">
+                    <p class="vjs-no-js">Please enable JavaScript
+                      <a href="https://videojs.com/html5-video-support/"></a></p>
+                  </video>
+                </div>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A launch.</p>
+              <table>
+                <tr><th>Date</th><td>October 16, 2026</td></tr>
+                <tr><th>Video Credit</th><td>Eric Holland</td></tr>
+              </table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["url"].endswith("/2026/october/launch.mp4")
+        # NASA serves the still beside the video, so the applet shows it
+        # instead of falling back to the placeholder.
+        assert got["thumbnail_url"].endswith("/2026/october/launch.jpg")
+        assert got["page_url"] == APOD_URL
+        assert got["copyright"] == "Eric Holland"
+        assert got["date"] == "2026-10-16"
+
+    def test_video_without_a_usable_still_keeps_no_thumbnail(self):
+        # Not every host serves a sibling still, and a non-mp4 player must not
+        # have one invented for it.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <iframe src="https://player.example.org/embed/abc"></iframe>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A stream.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
+
+    def test_a_poster_without_a_video_is_not_media(self):
+        # A poster is the video's still, so it must not let a broken video
+        # entry pass as an image entry.
+        with pytest.raises(ValueError, match="missing its title or media"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media">
+                    <video poster="/content/dam/poster.jpg"></video>
+                  </div>
+                  <h2>Astronomy video</h2>
+                </div>
+            """)
+
+    def test_a_third_party_mp4_has_no_inferred_still(self):
+        # The sibling-still convention belongs to NASA's asset host; inventing
+        # one for someone else's player would only produce a 404.
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <video><source src="https://cdn.example.org/clip.mp4"></video>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A clip.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"] == ""
+
+    def test_video_poster_is_used_as_the_thumbnail(self):
+        got = parse_page("""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <video poster="/content/dam/poster.jpg">
+                  <source src="/content/dam/movie.mp4" type="video/mp4">
+                </video>
+              </div>
+              <h2>Astronomy video</h2>
+              <p class="media-detail-hero__description">Explanation: A movie.</p>
+              <table><tr><th>Date</th><td>October 16, 2026</td></tr></table>
+            </div>
+        """)
+        assert got["media_type"] == "video"
+        assert got["thumbnail_url"].endswith("/content/dam/poster.jpg")
+
+    def test_media_without_a_source_is_not_the_apod_index(self):
+        # A <video> that names no source must not resolve to the APOD index,
+        # which would be recorded as playable media.
+        with pytest.raises(ValueError, match="missing its title or media"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media"><video></video></div>
+                  <h2>Astronomy video</h2>
+                </div>
+            """)
+
+    @pytest.mark.parametrize("label", ["Date", "Date:", " Date : "])
+    def test_reads_the_publish_date_from_either_label_form(self, label):
+        got = parse_page(
+            f"""
+            <div class="media-detail-hero">
+              <div class="media-detail-hero__media">
+                <img src="/apod.jpg">
+              </div>
+              <h2>Astronomy picture</h2>
+              <table><tr><th>{label}</th><td>September 30, 2026</td></tr></table>
+            </div>
+        """
+        )
+        assert got["date"] == "2026-09-30"
+
+    def test_missing_date_names_the_problem(self):
+        with pytest.raises(ValueError, match="unreadable date"):
+            parse_page("""
+                <div class="media-detail-hero">
+                  <div class="media-detail-hero__media">
+                    <img src="/apod.jpg">
+                  </div>
+                  <h2>Astronomy picture</h2>
+                </div>
+            """)
+
+    def test_page_network_failure_returns_error(self, monkeypatch):
+        def boom(*_args, **_kwargs):
+            raise OSError("network down")
+
+        monkeypatch.setattr("docking.applets.apod.api.http_get_text", boom)
+        assert isinstance(fetch_today(), ApodError)
+
     def _patch_image_download(self, monkeypatch, payload_bytes):
         def fake_urlopen(_req, timeout=None):
             mock = MagicMock()
@@ -157,7 +346,7 @@ class TestFetchToday:
         )
         self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 512)
 
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodResult)
         assert got.date == "2026-04-24"
         assert got.title == "Spiral Galaxy NGC 1234"
@@ -176,7 +365,7 @@ class TestFetchToday:
         )
         self._patch_image_download(monkeypatch, b"\xff\xd8\xff\xe0" + b"\x00" * 64)
 
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodResult)
         assert got.media_type == "video"
         assert got.image_url == "https://example/thumb.jpg"
@@ -186,7 +375,7 @@ class TestFetchToday:
             raise OSError("network down")
 
         monkeypatch.setattr("docking.applets.apod.api.http_get_json", boom)
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodError)
         assert "network down" in got.message
 
@@ -194,11 +383,22 @@ class TestFetchToday:
         monkeypatch.setattr(
             "docking.applets.apod.api.http_get_json", lambda url, **_kwargs: []
         )
-        got = fetch_today()
+        got = fetch_today(api_key="test-key")
         assert isinstance(got, ApodError)
 
 
 class TestAppletLifecycle:
+    def test_refetches_cached_nasa_logo_from_today(self):
+        from docking.applets.apod.applet import _today_iso
+
+        applet = _make_applet()
+        applet._result = _sample_result(
+            date=_today_iso(),
+            title="NASA Science",
+            image_url="https://science.nasa.gov/nasa-logo@2x.png",
+        )
+        assert applet._needs_fetch() is True
+
     def test_creates_with_fallback_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -263,7 +463,7 @@ class TestAppletMenu:
     def test_empty_menu_has_open_and_refresh(self):
         applet = _make_applet()
         labels = [mi.get_label() for mi in applet.get_menu_items()]
-        assert any("Open on apod.nasa.gov" in label for label in labels)
+        assert any("Open in Browser" in label for label in labels)
         assert any("Refresh Now" in label for label in labels)
 
     def test_menu_with_result_has_header_and_copy(self):
@@ -329,14 +529,14 @@ class TestAppletFetch:
     def test_open_page_and_copy_explanation(self, monkeypatch):
         applet = _make_applet()
         applet._result = _sample_result(page_url="https://example.test/apod")
-        opened: list[str] = []
+        open_target = MagicMock(return_value=True)
         monkeypatch.setattr(
-            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
-            lambda url, _ctx: opened.append(url),
+            "docking.applets.apod.applet.targets.open_target",
+            open_target,
         )
 
         applet.on_clicked()
-        assert opened == ["https://example.test/apod"]
+        open_target.assert_called_once_with("https://example.test/apod")
 
         copied: list[str] = []
 
@@ -354,27 +554,17 @@ class TestAppletFetch:
 
         assert copied == ["A distant spiral galaxy.", "-1"]
 
-    def test_open_page_uses_default_and_swallows_launch_error(self, monkeypatch):
+    def test_open_page_uses_default_and_handles_target_failure(self, monkeypatch):
         applet = _make_applet()
-        opened: list[str] = []
+        open_target = MagicMock(return_value=False)
         monkeypatch.setattr(
-            "docking.applets.apod.applet.GLib.Error",
-            RuntimeError,
-            raising=False,
-        )
-
-        def launch(url, _ctx):
-            opened.append(url)
-            raise RuntimeError("no handler")
-
-        monkeypatch.setattr(
-            "docking.applets.apod.applet.Gio.AppInfo.launch_default_for_uri",
-            launch,
+            "docking.applets.apod.applet.targets.open_target",
+            open_target,
         )
 
         applet._open_page()
 
-        assert opened == ["https://apod.nasa.gov/"]
+        open_target.assert_called_once_with(APOD_URL)
 
     def test_needs_fetch_when_date_stale(self):
         applet = _make_applet()

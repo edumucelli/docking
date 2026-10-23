@@ -20,11 +20,13 @@ from enum import Enum
 
 from docking.applets.freshness import (
     cadence_label,
-    parse_timestamp,
-    relative_time_label,
     updated_label,
 )
 from docking.i18n import _
+from docking.ui.tooltip import (
+    parse_timestamp,
+    relative_time_label,
+)
 
 
 class LiveDataStatus(str, Enum):

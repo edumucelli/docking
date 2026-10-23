@@ -61,6 +61,14 @@ class Desktop(enum.Flag):
     HYPRLAND = enum.auto()
     NIRI = enum.auto()
     COSMIC = enum.auto()
+    CAGE = enum.auto()
+    WESTON = enum.auto()
+    LOUVRE = enum.auto()
+    PHOSH = enum.auto()
+    JAY = enum.auto()
+    MIRIWAY = enum.auto()
+    DEEPIN = enum.auto()
+    GAMESCOPE = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -106,6 +114,17 @@ _DESKTOP_MAP: dict[str, Desktop] = {
     "hyprland": Desktop.HYPRLAND,
     "niri": Desktop.NIRI,
     "cosmic": Desktop.COSMIC,
+    "cage": Desktop.CAGE,
+    "weston": Desktop.WESTON,
+    "louvre": Desktop.LOUVRE,
+    "phosh": Desktop.PHOSH,
+    "phoc": Desktop.PHOSH,
+    "jay": Desktop.JAY,
+    "miriway": Desktop.MIRIWAY,
+    "deepin": Desktop.DEEPIN,
+    "treeland": Desktop.DEEPIN,
+    "dde": Desktop.DEEPIN,
+    "gamescope": Desktop.GAMESCOPE,
 }
 
 
@@ -165,6 +184,21 @@ def is_kde_session(*, desktop: Desktop | None = None) -> bool:
     return bool(resolved & Desktop.KDE)
 
 
+def is_gamescope_session(*, desktop: Desktop | None = None) -> bool:
+    """Return True when running under Valve's GameScope compositor.
+
+    GameScope sets ``XDG_CURRENT_DESKTOP=gamescope`` but may set
+    ``XDG_SESSION_TYPE=x11`` even though it is a Wayland compositor
+    (native Wayland clients require ``--expose-wayland``).
+    The ``GAMESCOPE_WAYLAND_DISPLAY`` variable is always set as a
+    secondary detection signal.
+    """
+    resolved = desktop if desktop is not None else detect_desktop()
+    if resolved & Desktop.GAMESCOPE:
+        return True
+    return bool(os.environ.get("GAMESCOPE_WAYLAND_DISPLAY", ""))
+
+
 def is_x11_backend(*, display: object | None = None) -> bool:
     """Return True when the current GTK backend is X11."""
     if display is None:
@@ -215,25 +249,27 @@ def compositor_active(*, display: object | None = None) -> bool | None:
     try:
         import ctypes
 
-        from gi.repository import GdkX11
-
         if display is None:
+            from gi.repository import GdkX11
+
             display = GdkX11.X11Display.get_default()
         if display is None or not is_x11_backend(display=display):
             return None
-        screen_num = display.get_default_screen()
 
         xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
         xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
 
+        xlib.XDefaultScreen.restype = ctypes.c_int
+        xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]
         xlib.XInternAtom.restype = ctypes.c_ulong
         xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
         xlib.XGetSelectionOwner.restype = ctypes.c_ulong
         xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 
+        screen_num = xlib.XDefaultScreen(xdisplay)
         atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
         owner = xlib.XGetSelectionOwner(xdisplay, atom)
-        return owner != 0
+        return bool(owner != 0)
     except Exception as exc:
         log.warning("failed to check compositor status: %s", exc)
         return None
@@ -300,8 +336,9 @@ def _check_compositor() -> None:
 
     log.warning(
         "no compositing manager detected (it may have crashed) -- "
-        "dock may appear behind maximized windows and transparency may not work; "
-        "enable compositing in your desktop settings or install a compositor "
+        "dock transparency and opacity settings will not render "
+        "(the dock will appear opaque); enable compositing in your "
+        "desktop settings or install a compositor "
         "(picom, compton, xcompmgr)"
     )
 

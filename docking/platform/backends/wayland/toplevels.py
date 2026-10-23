@@ -28,35 +28,40 @@ from __future__ import annotations
 
 import importlib
 import struct
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
+    Rect,
     WindowId,
     WindowService,
     WindowSnapshot,
 )
-from docking.platform.launcher import DESKTOP_SUFFIX
-from docking.platform.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
-    from docking.core.items import DockItem
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
-    from docking.platform.launcher import Launcher
     from docking.platform.model import DockModel
 
 STATE_ACTIVATED = "activated"
 STATE_MINIMIZED = "minimized"
 STATE_MAXIMIZED = "maximized"
 STATE_FULLSCREEN = "fullscreen"
+STATE_STICKY = "sticky"
 _STATE_BY_VALUE = {
     0: STATE_MAXIMIZED,
     1: STATE_MINIMIZED,
     2: STATE_ACTIVATED,
     3: STATE_FULLSCREEN,
+    4: STATE_STICKY,
 }
 
 
@@ -66,11 +71,14 @@ class _ToplevelState:
     handle: object
     title: str = "Window"
     app_id: str = ""
-    desktop_id: str | None = None
+    application_match: ApplicationMatch | None = None
     active: bool = False
     minimized: bool | None = None
     maximized: bool | None = None
     fullscreen: bool | None = None
+    sticky: bool = False
+    geometry: Rect | None = None
+    workspace_id: str | None = None
     closed: bool = False
     outputs: set[object] = field(default_factory=set)
     parent: object | None = None
@@ -79,42 +87,13 @@ class _ToplevelState:
     def window_id(self) -> WindowId:
         return WindowId(backend=DisplayServer.WAYLAND, value=self.internal_id)
 
-
-class WaylandAppIdMatcher:
-    """Resolve Wayland compositor app IDs to Docking desktop IDs."""
-
-    def __init__(self, launcher: Launcher) -> None:
-        self._launcher = launcher
-        self._visible_aliases: dict[str, str] = {}
-
-    def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Refresh aliases from current pinned and transient dock items."""
-        self._visible_aliases.clear()
-        for item in items:
-            aliases = {
-                item.desktop_id,
-                item.desktop_id.removesuffix(DESKTOP_SUFFIX),
-                getattr(item, "wm_class", "") or "",
-            }
-            for alias in aliases:
-                normalized = _normalize_app_id(alias)
-                if normalized:
-                    self._visible_aliases[normalized] = item.desktop_id
-
-    def match(self, app_id: str) -> str | None:
-        """Return a Docking desktop ID for a compositor app_id."""
-        for candidate in _app_id_candidates(app_id):
-            visible = self._visible_aliases.get(_normalize_app_id(candidate))
-            if visible:
-                return visible
-            desktop_id = _ensure_desktop_suffix(candidate)
-            resolved = self._launcher.resolve(desktop_id, log_failures=False)
-            if resolved is not None:
-                return resolved.desktop_id
-            by_wm_class = self._launcher.resolve_by_wm_class(candidate)
-            if by_wm_class is not None:
-                return by_wm_class.desktop_id
-        return None
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
 
 
 class WaylandForeignToplevelWindowService(WindowService):
@@ -124,13 +103,17 @@ class WaylandForeignToplevelWindowService(WindowService):
         self,
         *,
         model: DockModel,
-        launcher: Launcher,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
         protocol: object,
         preview_handles: WaylandPreviewHandleTracker | None = None,
         can_preview: bool = False,
     ) -> None:
         self._model = model
-        self._matcher = WaylandAppIdMatcher(launcher=launcher)
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
         self._protocol = protocol
         self._preview_handles = preview_handles
         self._can_preview = can_preview
@@ -138,6 +121,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_handle: dict[object, _ToplevelState] = {}
         self._state_by_id: dict[int, _ToplevelState] = {}
         self._last_running: dict[str, RunningAppInfo] = {}
+        self._changes = WindowChanges()
 
     def start(self) -> None:
         """Start receiving foreign-toplevel events from the adapter."""
@@ -155,6 +139,21 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_id.clear()
         self._last_running = {}
         self._model.update_running(running={})
+        self._changes.clear()
+
+    def refresh(self) -> None:
+        """Reapply taskbar policy to the latest compositor state."""
+        self._publish_running()
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
+
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every current Wayland toplevel."""
+        return tuple(self._snapshot_for(state) for state in self._state_by_id.values())
 
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         """Return current Wayland toplevels matched to one desktop ID."""
@@ -190,8 +189,14 @@ class WaylandForeignToplevelWindowService(WindowService):
         return self._call_action(state=state, action="activate")
 
     def cycle(self, desktop_id: str) -> ActionResult:
-        """Cycle policy is reduced to activating a known window for PR16."""
-        return self.activate_most_recent(desktop_id=desktop_id)
+        """Activate the next app window, wrapping after the active window."""
+        states = self._states_for_desktop(desktop_id)
+        if not states:
+            return ActionResult.NOT_FOUND
+        index = next((i for i, state in enumerate(states) if state.active), -1)
+        return self._call_action(
+            state=states[(index + 1) % len(states)], action="activate"
+        )
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         """Request minimization for all known windows of an app."""
@@ -274,6 +279,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         state.minimized = STATE_MINIMIZED in normalized
         state.maximized = STATE_MAXIMIZED in normalized
         state.fullscreen = STATE_FULLSCREEN in normalized
+        state.sticky = STATE_STICKY in normalized
 
     def output_entered(self, handle: object, output: object) -> None:
         """Track the outputs a toplevel is visible on."""
@@ -287,10 +293,22 @@ class WaylandForeignToplevelWindowService(WindowService):
         """Track transient parent relationships, if provided."""
         self._ensure_state(handle=handle).parent = parent
 
+    def geometry_changed(self, handle: object, geometry: Rect | None) -> None:
+        """Apply compositor-provided geometry to a foreign toplevel."""
+        self._ensure_state(handle=handle).geometry = geometry
+
+    def workspace_changed(self, handle: object, workspace_id: str | None) -> None:
+        """Apply compositor-provided workspace identity to a foreign toplevel."""
+        self._ensure_state(handle=handle).workspace_id = workspace_id
+
     def done(self, handle: object) -> None:
         """Publish state after a protocol atomic update batch."""
-        state = self._ensure_state(handle=handle)
-        self._refresh_match(state=state)
+        self.done_batch((handle,))
+
+    def done_batch(self, handles: Iterable[object]) -> None:
+        """Commit one compositor batch spanning several foreign toplevels."""
+        for handle in handles:
+            self._refresh_match(state=self._ensure_state(handle=handle))
         self._publish_running()
 
     def closed(self, handle: object) -> None:
@@ -311,13 +329,15 @@ class WaylandForeignToplevelWindowService(WindowService):
 
     def _refresh_match(self, *, state: _ToplevelState) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
-        state.desktop_id = self._matcher.match(state.app_id) if state.app_id else None
+        state.application_match = (
+            self._matcher.match_result(state.app_id) if state.app_id else None
+        )
 
     def _publish_running(self) -> None:
         self._matcher.sync_visible_items(self._model.visible_items())
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for state in self._state_by_id.values():
-            if state.closed:
+            if state.closed or not self._taskbar_state(state):
                 continue
             if state.desktop_id is None:
                 self._refresh_match(state=state)
@@ -339,12 +359,18 @@ class WaylandForeignToplevelWindowService(WindowService):
         }
         self._last_running = dict(running)
         self._model.update_running(running=running)
+        self._changes.notify()
+
+    def _taskbar_state(self, state: _ToplevelState) -> bool:
+        return True
 
     def _states_for_desktop(self, desktop_id: str) -> list[_ToplevelState]:
         return [
             state
             for state in self._state_by_id.values()
-            if not state.closed and state.desktop_id == desktop_id
+            if not state.closed
+            and state.desktop_id == desktop_id
+            and self._taskbar_state(state)
         ]
 
     def _first_state_for_desktop(self, desktop_id: str) -> _ToplevelState | None:
@@ -383,6 +409,9 @@ class WaylandForeignToplevelWindowService(WindowService):
             minimized=state.minimized,
             maximized=state.maximized,
             fullscreen=state.fullscreen,
+            geometry=state.geometry,
+            workspace_id=state.workspace_id,
+            sticky=state.sticky,
             can_activate=self._supports_action("activate", state.handle),
             can_minimize=self._supports_action("set_minimized", state.handle),
             can_close=self._supports_action("close", state.handle),
@@ -413,6 +442,24 @@ class WaylandForeignToplevelWindowService(WindowService):
         return ActionResult.UNSUPPORTED
 
 
+class WaylandStandardToplevelWindowService(WaylandForeignToplevelWindowService):
+    """Read-only ext-foreign-toplevel listing. No state or actions are implied."""
+
+    def _supports_action(self, action: str, handle: object) -> bool:
+        return False
+
+    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+        from dataclasses import replace
+
+        return replace(
+            super()._snapshot_for(state),
+            active=False,
+            minimized=None,
+            maximized=None,
+            fullscreen=None,
+        )
+
+
 def load_foreign_toplevel_protocol() -> object | None:
     """Load an optional foreign-toplevel protocol adapter.
 
@@ -433,49 +480,13 @@ def load_foreign_toplevel_protocol() -> object | None:
     return None
 
 
-def _normalize_app_id(value: str) -> str:
-    return value.strip().removesuffix(DESKTOP_SUFFIX).lower()
-
-
-def _ensure_desktop_suffix(value: str) -> str:
-    stripped = value.strip()
-    if stripped.endswith(DESKTOP_SUFFIX):
-        return stripped
-    return f"{stripped}{DESKTOP_SUFFIX}"
-
-
-def _app_id_candidates(app_id: str) -> list[str]:
-    stripped = app_id.strip()
-    if not stripped:
-        return []
-    candidates = [
-        stripped,
-        stripped.removesuffix(DESKTOP_SUFFIX),
-        stripped.lower(),
-        stripped.lower().removesuffix(DESKTOP_SUFFIX),
-    ]
-    if "." in stripped:
-        candidates.append(stripped.split(".")[-1])
-    # Snap / container app-ids like firefox_firefox.desktop: also try the
-    # leading segment so the launcher can match firefox.desktop.
-    body = stripped.removesuffix(DESKTOP_SUFFIX)
-    if "_" in body:
-        segments = body.split("_")
-        prefixes = ["_".join(segments[: i + 1]) for i in range(len(segments) - 1)]
-        for prefix in prefixes:
-            candidates.append(prefix)
-            candidates.append(f"{prefix}{DESKTOP_SUFFIX}")
-            candidates.append(prefix.lower())
-            candidates.append(f"{prefix.lower()}{DESKTOP_SUFFIX}")
-    return list(dict.fromkeys(candidate for candidate in candidates if candidate))
-
-
 def _normalize_state(value: object) -> str:
     if isinstance(value, int):
         return _STATE_BY_VALUE.get(value, str(value)).strip().lower()
     if isinstance(value, str):
         return value.strip().lower()
-    name = getattr(value, "name", "")
+    # getattr is untyped; pin it to object so the isinstance below can narrow.
+    name: object = getattr(value, "name", "")
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()

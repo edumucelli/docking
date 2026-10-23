@@ -36,6 +36,7 @@ log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 REFRESH_INTERVAL = 300  # 5 minutes
 API_RETRY_COUNT = 5
 API_RETRY_BACKOFF_FACTOR = 0.2
+API_TIMEOUT_S = 5
 
 _CACHE_DIR = docking_cache_dir() / "weather"
 
@@ -163,6 +164,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
                 ],
                 "forecast_days": 5,
             },
+            timeout=API_TIMEOUT_S,
         )
         resp = responses[0]
 
@@ -247,6 +249,7 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
                 "longitude": lng,
                 "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
             },
+            timeout=API_TIMEOUT_S,
         )
         current = responses[0].Current()
         aqi = int(current.Variables(0).Value())

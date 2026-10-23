@@ -3,6 +3,7 @@ import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
+import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
 
 const BUS_NAME = "org.docking.Docking.GnomeShellBridge";
@@ -77,13 +78,15 @@ export default class DockingBridgeExtension extends Extension {
     this._connect(global.display, "window-created", () => this._queueChanged());
     this._connect(global.display, "notify::focus-window", () => this._queueChanged());
     this._connect(global.workspace_manager, "workspace-switched", () => this._queueChanged());
+    this._connect(Main.overview, "showing", () => this._queueChanged());
+    this._connect(Main.overview, "hidden", () => this._queueChanged());
 
     this._refreshWindowSignals();
     this._queueChanged();
 
     // Proactively hide the dock window from Alt+Tab after a GNOME
     // Shell restart (when PositionDock is not re-called).  We must
-    // NOT call set_type(DOCK) here — Mutter may re-centre the window
+    // NOT call set_type(DOCK) here - Mutter may re-centre the window
     // when its type changes, and PositionDock has not run yet.
     // The full configuration happens in PositionDock.
     this._dockConfigureRetries = 10;
@@ -96,7 +99,7 @@ export default class DockingBridgeExtension extends Extension {
         const win = this._findDockWindow();
         if (win) {
           this._hideDockFromSwitcher(win);
-          // Don't set _dockConfigured — PositionDock will do the
+          // Don't set _dockConfigured - PositionDock will do the
           // full config when it arrives.
           this._dockConfigureTimerId = 0;
           return GLib.SOURCE_REMOVE;
@@ -167,7 +170,8 @@ export default class DockingBridgeExtension extends Extension {
       return false;
     if (window.minimized && typeof window.unminimize === "function")
       window.unminimize();
-    window.activate(global.get_current_time());
+    Main.activateWindow(window);
+    Main.overview.hide();
     return true;
   }
 
@@ -236,7 +240,7 @@ export default class DockingBridgeExtension extends Extension {
 
   _hideDockFromSwitcher(win) {
     // Hide from Alt+Tab *without* changing the window type.
-    // Safe to call before the window is positioned — set_type(DOCK)
+    // Safe to call before the window is positioned - set_type(DOCK)
     // must wait until PositionDock arrives, otherwise Mutter may
     // re-centre the window.
     if (typeof win.set_skip_taskbar === "function")
@@ -248,7 +252,7 @@ export default class DockingBridgeExtension extends Extension {
   }
 
   _configureDockWindow(win) {
-    // Full dock configuration — called from PositionDock after the
+    // Full dock configuration - called from PositionDock after the
     // window has been positioned.  Safe to set the type now.
     this._hideDockFromSwitcher(win);
     if (typeof win.set_type === "function")
@@ -348,6 +352,11 @@ export default class DockingBridgeExtension extends Extension {
       this._connect(window, "notify::minimized", () => this._queueChanged());
       this._connect(window, "position-changed", () => this._queueChanged());
       this._connect(window, "size-changed", () => this._queueChanged());
+      this._connect(window, "workspace-changed", () => this._queueChanged());
+      this._connect(window, "notify::fullscreen", () => this._queueChanged());
+      this._connect(window, "notify::maximized-horizontally", () => this._queueChanged());
+      this._connect(window, "notify::maximized-vertically", () => this._queueChanged());
+      this._connect(window, "notify::on-all-workspaces", () => this._queueChanged());
     }
   }
 
@@ -378,12 +387,19 @@ export default class DockingBridgeExtension extends Extension {
         "id": id,
         "title": window.get_title() || "Window",
         "app-id": this._appIdFor(app, window),
+        "pid": window.get_pid ? window.get_pid() : 0,
         "active": global.display.focus_window === window,
         "minimized": Boolean(window.minimized),
         "maximized": this._isMaximized(window),
         "fullscreen": Boolean(window.fullscreen),
         "monitor": window.get_monitor(),
         "workspace": workspace ? workspace.index() : -1,
+        "visible": !Main.overview.visible && window.showing_on_its_workspace() &&
+          window.located_on_workspace(global.workspace_manager.get_active_workspace()),
+        "sticky": window.is_on_all_workspaces(),
+        "skip-taskbar": Boolean(window.skip_taskbar),
+        "dialog": [Meta.WindowType.DIALOG, Meta.WindowType.MODAL_DIALOG]
+          .includes(window.get_window_type()),
         "x": rect.x,
         "y": rect.y,
         "width": rect.width,
@@ -405,18 +421,19 @@ export default class DockingBridgeExtension extends Extension {
   }
 
   _shouldExportWindow(window) {
-    if (!window || window.skip_taskbar)
+    if (!window)
       return false;
-    // Never export the docking surface itself — it is a panel, not a
+    // Never export the docking surface itself - it is a panel, not a
     // managed application window.
     if (window.get_wm_class() === "Docking" || window.get_title() === "Docking")
       return false;
     const type = window.get_window_type();
-    return type === Meta.WindowType.NORMAL || type === Meta.WindowType.DIALOG;
+    return [Meta.WindowType.NORMAL, Meta.WindowType.DIALOG,
+      Meta.WindowType.MODAL_DIALOG].includes(type);
   }
 
   _appIdFor(app, window) {
-    if (app?.get_id)
+    if (app?.get_id && !app.is_window_backed())
       return app.get_id() || "";
     if (window.get_wm_class)
       return window.get_wm_class() || "";

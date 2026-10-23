@@ -176,6 +176,8 @@ def _coerce_int(value: Any, *, default: int) -> int:
             return int(value)
         if isinstance(value, str):
             return int(value.strip())
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError covers an infinite float or an int too large for the
+        # platform; escaping the startup timeout broke the greeting for good.
         return default
     return default

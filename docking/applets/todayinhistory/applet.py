@@ -22,16 +22,16 @@ from typing import TYPE_CHECKING
 
 import gi
 
-gi.require_version("Gio", "2.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
-from docking.log import get_logger, with_context
+from docking.platform import targets
+from docking.ui.tooltip import wrapped_tooltip_label
 
 from .render import render_icon
 from .state import (
@@ -45,11 +45,6 @@ from .state import (
 if TYPE_CHECKING:
     from docking.core.config import Config
 
-log = with_context(
-    get_logger(name="todayinhistory"),
-    applet_id=meta.id,
-)
-
 DAY_CHANGE_POLL_INTERVAL_S = 60
 
 
@@ -60,7 +55,7 @@ class TodayInHistoryApplet(Applet):
     name = _("Today in History")
     icon_name = "office-calendar"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._events: list[HistoryEvent] = []
         self._index = -1
         self._current: HistoryEvent | None = None
@@ -121,6 +116,7 @@ class TodayInHistoryApplet(Applet):
         )
 
     def refresh_tooltip(self) -> None:
+        self.item.tooltip_builder = lambda: wrapped_tooltip_label(self.item.name)
         if self._loading and self._current is None:
             self.item.name = _("Today in History: loading...")
             return
@@ -238,11 +234,4 @@ class TodayInHistoryApplet(Applet):
     def _open_current_article(self) -> None:
         if self._current is None or not self._current.article_url:
             return
-        try:
-            Gio.AppInfo.launch_default_for_uri(self._current.article_url, None)
-        except Exception as exc:
-            log.bind(action="open_article").warning(
-                "Failed to open %s: %s",
-                self._current.article_url,
-                exc,
-            )
+        targets.open_target(self._current.article_url)
