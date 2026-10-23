@@ -23,6 +23,7 @@ from typing import NamedTuple
 
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import bsd
 
 BAT_BASE = Path("/sys/class/power_supply")
 log = with_context(get_logger("battery.state"))
@@ -73,6 +74,25 @@ def resolve_battery_icon(capacity_level: str, status: str) -> str:
 
 def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:
     """Read battery state from sysfs. Returns None if battery not found."""
+    if bsd.is_bsd() and base == BAT_BASE:
+        reading = bsd.battery()
+        if reading is None:
+            return None
+        capacity, status, remaining = reading
+        level = (
+            "full"
+            if capacity >= 95
+            else "high"
+            if capacity >= 60
+            else "normal"
+            if capacity >= 30
+            else "low"
+            if capacity >= 10
+            else "critical"
+        )
+        return BatteryState(
+            resolve_battery_icon(level, status), capacity, status, remaining
+        )
     bat_dir = base / bat_name
     if not bat_dir.exists():
         return None

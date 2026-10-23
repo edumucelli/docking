@@ -21,6 +21,7 @@ meta = AppletMeta(
     id="bluetooth",
     name="Bluetooth",
     category=AppletCategory.SYSTEM,
+    bsd_supported=False,
 )
 
 __all__ = ["meta"]

@@ -188,7 +188,8 @@ tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 
 ## Source Requirements
 
-- Linux desktop with X11 (full support) or Wayland (backend-specific support)
+- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD with X11.
+- BSD native packages and source setup: [FreeBSD and OpenBSD](BSD_SUPPORT.md).
 - Python 3.10+
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension

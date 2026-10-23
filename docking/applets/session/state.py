@@ -24,6 +24,7 @@ from typing import NamedTuple
 from docking.applets.session import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import bsd
 from docking.platform.environment import flatpak
 
 log = with_context(get_logger(name="session"), applet_id=meta.id)
@@ -102,6 +103,11 @@ def lock_screen() -> bool:
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
     resolved_cmd = list(cmd)
+    if bsd.is_bsd():
+        resolved_cmd = bsd.session_command(cmd) or []
+        if not resolved_cmd:
+            log.bind(action=action).warning("Session action unavailable: %s", action)
+            return
     if resolved_cmd[0:2] == ["loginctl", "terminate-session"] and resolved_cmd[2] == "":
         # On GNOME, loginctl may not have the session-id available through
         # XDG_SESSION_ID.  Prefer gnome-session-quit which shows the native
@@ -156,7 +162,14 @@ def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
                 ]
             )
     flatpak_spawn = flatpak.spawn_path()
-    for cmd in _LOCK_SCREEN_COMMAND_CANDIDATES:
+    candidates = _LOCK_SCREEN_COMMAND_CANDIDATES
+    if bsd.is_bsd():
+        candidates += (
+            ("xfce4-screensaver-command", "--lock"),
+            ("xscreensaver-command", "-lock"),
+            ("xflock4",),
+        )
+    for cmd in candidates:
         if flatpak_spawn is None and shutil.which(cmd[0]) is None:
             continue
         if cmd[0] == "loginctl" and session_id:

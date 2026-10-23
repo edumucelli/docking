@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import ctypes.util
+import faulthandler
 import html
 import json
 import os
@@ -132,7 +133,15 @@ class Observer:
         if not Gtk.init_check()[0]:
             raise RuntimeError("GTK could not open the private X server")
         self.Gdk, self.Gio, self.GLib, self.Gtk = Gdk, Gio, GLib, Gtk
-        self.screen = Wnck.Screen.get_default()
+        self.Wnck = Wnck
+        self.handle = (
+            Wnck.Handle.new(Wnck.ClientType.PAGER) if hasattr(Wnck, "Handle") else None
+        )
+        self.screen = (
+            self.handle.get_default_screen()
+            if self.handle is not None
+            else Wnck.Screen.get_default()
+        )
         self.output = output
         self.pointer = Pointer()
         self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -281,18 +290,26 @@ def dock_case(observer: Observer, env: dict[str, str], name: str, overrides: dic
     ), f"Runtime traceback; inspect {log.name}"
 
 
-def ready(observer: Observer, child):
+def ready(observer: Observer, child, count: int = 3):
     def dock_window():
         if child.poll() is not None:
             raise AssertionError(f"Dock exited during startup: {child.returncode}")
-        return next((w for w in observer.windows() if w.get_pid() == child.pid), None)
+        return next(
+            (
+                w
+                for w in observer.windows()
+                if w.get_pid() == child.pid
+                or w.get_window_type() == observer.Wnck.WindowType.DOCK
+            ),
+            None,
+        )
 
     window = wait_for(dock_window, "Dock window never appeared")
 
     # Readiness only. Subsequent assertions use window-manager state and pixels.
     def items_ready():
         try:
-            return observer.remote("GetCount") == (3,)
+            return observer.remote("GetCount") == (count,)
         except observer.GLib.Error:
             return False
 
@@ -471,6 +488,29 @@ def run_checks(observer: Observer, env: dict[str, str], record):
 
     record("autohide", autohide)
 
+    def applets():
+        observer.pointer.move(WIDTH // 2, HEIGHT // 2)
+        pinned = [
+            f"applet://{name}"
+            for name in ("calculator", "systemmonitor", "network", "battery", "clock")
+        ]
+        with dock_case(observer, env, "applets", {"pinned": pinned}) as child:
+            ready(observer, child, count=len(pinned))
+            time.sleep(2.5)
+            observer.capture("applets-live")
+            found, x, y, _ = observer.remote(
+                "GetHoverAnchor", "(s)", ("applet://network",)
+            )
+            assert found, "Native Network applet did not load"
+            observer.pointer.move(x + 24, y + 24)
+            observer.pointer.click(3)
+            time.sleep(0.5)
+            observer.capture("applets-network-menu")
+            observer.pointer.escape()
+            return {"pinned": pinned}
+
+    record("applets", applets)
+
 
 def report(output: Path, metadata: dict, results: list[dict]):
     payload = {"environment": metadata, "results": results}
@@ -499,33 +539,99 @@ def report(output: Path, metadata: dict, results: list[dict]):
     )
 
 
-def session(args):
+def environment_metadata(args):
+    metadata = {"os": platform.platform(), "python": sys.version, "wm": args.wm}
+    metadata["commit"] = os.environ.get("GITHUB_SHA", "unknown")
+    if shutil.which("git"):
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if revision.returncode == 0:
+            metadata["commit"] = revision.stdout.strip()
+    return metadata
+
+
+def observe(args):
+    """The GTK observer exits while its controller still owns a live X server."""
     output = args.output.resolve()
-    output.mkdir(parents=True, exist_ok=True)
+    metadata = environment_metadata(args)
     results = []
     observer = None
-    metadata = {"os": platform.platform(), "python": sys.version, "wm": args.wm}
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    metadata["commit"] = revision.stdout.strip()
 
     def record(name, check):
+        if args.case and name not in args.case:
+            return
         try:
-            detail = check()
-            results.append({"case": name, "status": "pass", "detail": detail})
+            results.append({"case": name, "status": "pass", "detail": check()})
         except Exception:
-            detail = traceback.format_exc()
-            results.append({"case": name, "status": "fail", "detail": detail})
+            results.append(
+                {"case": name, "status": "fail", "detail": traceback.format_exc()}
+            )
             if observer is not None:
-                observer.capture(f"{name}-failure")
+                try:
+                    observer.capture(f"{name}-failure")
+                except Exception:
+                    results[-1]["capture_error"] = traceback.format_exc()
         report(output, metadata, results)
         print(f"{name}: {results[-1]['status']}", flush=True)
 
+    try:
+        observer = Observer(output)
+        metadata.update(observer.versions)
+        wait_for(observer.window_manager, "Window manager never became ready")
+        wait_for(
+            observer.Gdk.Screen.get_default().is_composited,
+            "Window manager compositing unavailable",
+        )
+        if args.pytest:
+
+            def unit_tests():
+                with process(
+                    [
+                        sys.executable,
+                        "-m",
+                        "pytest",
+                        "-q",
+                        "tests/core",
+                        "tests/platform",
+                        "tests/applets/test_bsd_volume.py",
+                        "tests/applets/test_bsd_network.py",
+                        "tests/test_bsd_visual.py",
+                        f"--junitxml={output / 'unit-tests.xml'}",
+                    ],
+                    output / "unit-tests.log",
+                    dict(os.environ),
+                ) as child:
+                    assert child.wait(timeout=300) == 0, (
+                        "Unit tests failed; inspect unit-tests.log"
+                    )
+                return {"junit": "unit-tests.xml"}
+
+            record("unit-tests", unit_tests)
+        run_checks(observer, dict(os.environ), record)
+        observer.pointer.close()
+    except Exception:
+        results.append(
+            {
+                "case": "observer-setup",
+                "status": "fail",
+                "detail": traceback.format_exc(),
+            }
+        )
+    report(output, metadata, results)
+    return int(not results or any(r["status"] != "pass" for r in results))
+
+
+def session(args):
+    """Own test services without loading GTK into the X-server controller."""
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    metadata = environment_metadata(args)
+    results = []
     try:
         with tempfile.TemporaryDirectory(prefix="docking-x11-") as temporary:
             env = dict(os.environ)
@@ -562,7 +668,6 @@ def session(args):
                 GIO_USE_VFS="local",
             )
             seed(env)
-            # Refuse occupied display numbers rather than connecting to another session.
             display_number = next(
                 n
                 for n in range(90, 190)
@@ -592,21 +697,40 @@ def session(args):
                     return Path(f"/tmp/.X11-unix/X{display_number}").exists()
 
                 wait_for(display_ready, "Private Xvfb never became ready")
-                os.environ.update(env)
-                with process(shlex.split(args.wm), output / "wm.log", env) as wm:
-                    observer = Observer(output)
-                    metadata.update(observer.versions)
-                    wait_for(
-                        observer.window_manager,
-                        "Window manager never became ready",
-                    )
-                    assert wm.poll() is None, "Window manager exited"
-                    wait_for(
-                        observer.Gdk.Screen.get_default().is_composited,
-                        "Window manager compositing unavailable",
-                    )
-                    run_checks(observer, env, record)
-                    observer.pointer.close()
+                with process(shlex.split(args.wm), output / "wm.log", env):
+                    with process(
+                        [
+                            sys.executable,
+                            "-m",
+                            "tools.bsd_visual.run",
+                            "--observe",
+                            "--output",
+                            str(output),
+                            "--wm",
+                            args.wm,
+                            *(["--pytest"] if args.pytest else []),
+                            *[
+                                argument
+                                for name in args.case
+                                for argument in ("--case", name)
+                            ],
+                        ],
+                        output / "observer.log",
+                        env,
+                    ) as child:
+                        status = child.wait(timeout=900)
+                    payload_path = output / "results.json"
+                    if payload_path.exists():
+                        payload = json.loads(payload_path.read_text())
+                        metadata, results = payload["environment"], payload["results"]
+                    if status:
+                        results.append(
+                            {
+                                "case": "observer-exit",
+                                "status": "fail",
+                                "detail": f"Observer exit {status}; see observer.log",
+                            }
+                        )
             for log in output.glob("*.log"):
                 if "Traceback (most recent call last):" in log.read_text(
                     errors="replace"
@@ -623,23 +747,47 @@ def session(args):
             {"case": "setup", "status": "fail", "detail": traceback.format_exc()}
         )
     report(output, metadata, results)
+    for result in results:
+        print(f"{result['case']}: {result['status']}", flush=True)
     return int(not results or any(r["status"] != "pass" for r in results))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--output", type=Path, default=ROOT / "artifacts" / "bsd-visual"
+        "--output",
+        type=Path,
+        default=ROOT / "artifacts" / "bsd-visual" / str(time.time_ns()),
     )
     parser.add_argument("--wm", default="xfwm4 --compositor=on --sm-client-disable")
+    parser.add_argument(
+        "--pytest",
+        action="store_true",
+        help="Run core/platform and native applet tests in the private desktop.",
+    )
+    parser.add_argument(
+        "--case",
+        action="append",
+        default=[],
+        help="Run only a named case (repeatable).",
+    )
+    parser.add_argument("--observe", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.client:
         fixture_client()
         return 0
+    if args.observe:
+        faulthandler.enable()
+        return observe(args)
     if args.session:
+        faulthandler.enable()
         return session(args)
+    if args.output.exists() and any(args.output.iterdir()):
+        parser.error(
+            "--output must be empty; use a new directory for each run"
+        )
     # Exclude the host's D-Bus activation directories: desktop portals, keyrings
     # and accessibility daemons belong to the host session, not this fixture.
     with tempfile.TemporaryDirectory(prefix="docking-test-bus-") as directory:
@@ -660,7 +808,7 @@ def main():
             '<allow send_destination="*"/><allow receive_sender="*"/>'
             '<allow own="*"/></policy></busconfig>'
         )
-        return subprocess.call(
+        status = subprocess.call(
             [
                 "dbus-run-session",
                 f"--config-file={bus_config}",
@@ -673,9 +821,28 @@ def main():
                 str(args.output),
                 "--wm",
                 args.wm,
+                *(["--pytest"] if args.pytest else []),
+                *[argument for name in args.case for argument in ("--case", name)],
             ],
             cwd=ROOT,
         )
+        print(
+            f"Visual report: {args.output / 'index.html'} (session exit {status})",
+            flush=True,
+        )
+        results_path = args.output / "results.json"
+        if status and results_path.exists():
+            payload = json.loads(results_path.read_text())
+            if all(result["status"] == "pass" for result in payload["results"]):
+                payload["results"].append(
+                    {
+                        "case": "session-exit",
+                        "status": "fail",
+                        "detail": f"Observer exited with status {status}",
+                    }
+                )
+                report(args.output, payload["environment"], payload["results"])
+        return status
 
 
 if __name__ == "__main__":

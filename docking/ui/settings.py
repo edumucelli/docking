@@ -1649,6 +1649,9 @@ class SettingsWindowController:
             desktop_id = applet_desktop_id(applet_id=did)
             check = Gtk.CheckButton()
             check.set_active(desktop_id in active_ids)
+            if not entry.available_on_host and desktop_id not in active_ids:
+                check.set_sensitive(False)
+                check.set_tooltip_text(_("Unavailable on this desktop"))
             check.connect("toggled", self._on_applet_toggled, str(did))
             check.set_hexpand(True)
             check.set_size_request(APPLET_CELL_WIDTH_PX, -1)

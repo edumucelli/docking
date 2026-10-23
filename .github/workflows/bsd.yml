@@ -9,8 +9,6 @@ on:
       - "tests/**"
       - "tools/bsd_visual/**"
       - ".github/workflows/bsd.yml"
-  push:
-    branches: [bsd-support]
 
 permissions:
   contents: read
@@ -30,12 +28,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            python3-gi python3-gi-cairo python3-cairo python3-pytest \
-            gir1.2-gtk-3.0 gir1.2-wnck-3.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu
+            python3-gi python3-gi-cairo python3-cairo python3-pytest python3-venv python3-pip \
+            gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu
       - name: Check visual assertions
         run: python3 -m pytest -q tests/test_bsd_visual.py
+      - name: Install runtime dependencies
+        run: sh tools/bsd_visual/install-python.sh
       - name: Exercise the complete dock
-        run: python3 -m tools.bsd_visual.run --output artifacts/bsd-visual/linux
+        run: .venv-bsd/bin/python -m tools.bsd_visual.run --output artifacts/bsd-visual/linux
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -61,11 +61,14 @@ jobs:
           sync: rsync
           copyback: true
           prepare: |
-            pkg install -y python311 py311-gobject3 py311-cairo py311-pytest \
+            pkg install -y python3
+            python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
+            pkg install -y "py${python_suffix}-gobject3" "py${python_suffix}-cairo" \
+              "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
               gtk3 libwnck3 libXtst xfce4-wm xorg-vfbserver dbus dejavu
           run: |
-            python3.11 -m pytest -q tests/test_bsd_visual.py tests/platform/test_libraries.py
-            python3.11 -m tools.bsd_visual.run --output artifacts/bsd-visual/freebsd
+            sh tools/bsd_visual/install-python.sh
+            .venv-bsd/bin/python -m tools.bsd_visual.run --pytest --output artifacts/bsd-visual/freebsd
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'
         uses: vmactions/openbsd-vm@v1
@@ -74,11 +77,11 @@ jobs:
           sync: rsync
           copyback: true
           prepare: |
-            pkg_add python3 py3-gobject3 py3-cairo py3-test gtk+3 libwnck3 xfwm4 dbus dejavu-fonts
+            pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip gtk+3 libwnck3 xfwm4 dbus
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
-            python3 -m pytest -q tests/test_bsd_visual.py tests/platform/test_libraries.py
-            python3 -m tools.bsd_visual.run --output artifacts/bsd-visual/openbsd
+            sh tools/bsd_visual/install-python.sh
+            .venv-bsd/bin/python -m tools.bsd_visual.run --pytest --output artifacts/bsd-visual/openbsd
       - uses: actions/upload-artifact@v7
         if: always()
         with:

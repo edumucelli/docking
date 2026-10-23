@@ -39,6 +39,7 @@ from docking.applets.pet.state import (
 )
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import bsd
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -87,8 +88,14 @@ class PetApplet(Applet):
     def _tick(self) -> bool:
         """Poll /proc/stat, update mood, redraw if needed."""
         try:
-            with _PROC_STAT.open() as fh:
-                curr = parse_proc_stat(text=fh.read())
+            if bsd.is_bsd():
+                sample = bsd.cpu_sample()
+                if sample is None:
+                    return True
+                curr = CpuSample(*sample)
+            else:
+                with _PROC_STAT.open() as fh:
+                    curr = parse_proc_stat(text=fh.read())
         except OSError as exc:
             log.bind(action="read_proc_stat").debug(
                 "Could not read /proc/stat: %s",

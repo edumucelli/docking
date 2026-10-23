@@ -36,6 +36,7 @@ from docking.applets.tooltip import structured_tooltip
 from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import bsd
 
 SENSORS_BIN = "sensors"
 SENSORS_TIMEOUT_S = 0.6
@@ -379,6 +380,13 @@ def read_thermal_snapshot(
     thermal_dir: Path = THERMAL_DIR,
 ) -> ThermalSnapshot:
     """Read current thermal state from lm-sensors or kernel sysfs."""
+    if bsd.is_bsd() and hwmon_dir == HWMON_DIR and thermal_dir == THERMAL_DIR:
+        readings = bsd.temperatures()
+        hottest = max(readings, key=lambda reading: reading[1]) if readings else None
+        return ThermalSnapshot(
+            available=True,
+            hottest=ThermalReading("", hottest[0], hottest[1]) if hottest else None,
+        )
     backend = FallbackThermalsBackend(
         primary=SensorsThermalsBackend(which=which, run=run),
         fallback=SysfsThermalsBackend(hwmon_dir=hwmon_dir, thermal_dir=thermal_dir),

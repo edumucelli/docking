@@ -47,6 +47,7 @@ from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import bsd
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -181,8 +182,14 @@ class SystemMonitorApplet(Applet):
         if not self._sampling_active:
             return False
         try:
-            with _PROC_STAT.open() as f:
-                curr = parse_proc_stat(text=f.read())
+            if bsd.is_bsd():
+                sample = bsd.cpu_sample()
+                if sample is None:
+                    return True
+                curr = CpuSample(*sample)
+            else:
+                with _PROC_STAT.open() as f:
+                    curr = parse_proc_stat(text=f.read())
         except OSError as exc:
             log.bind(action="read_proc_stat").debug(
                 "Could not read /proc/stat: %s",
@@ -197,8 +204,13 @@ class SystemMonitorApplet(Applet):
         self._prev_sample = curr
 
         try:
-            with _PROC_MEMINFO.open() as f:
-                self._mem = parse_proc_meminfo(text=f.read())
+            if bsd.is_bsd():
+                memory = bsd.memory_fraction()
+                if memory is not None:
+                    self._mem = memory
+            else:
+                with _PROC_MEMINFO.open() as f:
+                    self._mem = parse_proc_meminfo(text=f.read())
         except OSError as exc:
             log.bind(action="read_proc_meminfo").debug(
                 "Could not read /proc/meminfo: %s",

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from docking.log import get_logger
+from docking.platform import bsd
 
 CPU_TEMP_COMMAND_TIMEOUT_S = 0.25
 _THERMAL_ROOT = Path("/sys/class/thermal")
@@ -120,6 +121,9 @@ class TemperatureReader:
 
     def read(self) -> float | None:
         """Return current CPU temperature in celsius if one can be found."""
+        if bsd.is_bsd():
+            values = bsd.temperatures()
+            return max(value for _, value in values) if values else None
         temperature = self._read_from_sysfs()
         if temperature is not None:
             return temperature
