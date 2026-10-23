@@ -43,6 +43,7 @@ def step_hovered_crossing_dock(context, backend, location):
         hover=MagicMock(),
         tooltip=MagicMock(),
         preview=None,
+        surface_service=MagicMock(),
         cursor_x=20.0,
         cursor_y=20.0,
         update_input_region=MagicMock(),

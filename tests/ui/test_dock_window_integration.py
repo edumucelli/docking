@@ -1936,6 +1936,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=7.0, y=9.0)
 
@@ -1982,6 +1983,7 @@ class TestDockWindowDrawAndHelpers:
                 _redraw_source_id=None,
             )
         )
+        stub.surface_service = MagicMock()
         stub.interaction = DockInteractionCoordinator(stub)
         event = SimpleNamespace(x=12.0, y=9.0)
 

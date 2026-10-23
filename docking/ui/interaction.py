@@ -234,6 +234,7 @@ class DockInteractionCoordinator:
             return
         pointer_inside = self.pointer_inside_input_rect()
         if pointer_inside:
+            self.on_effective_enter()
             self._window.autohide.set_hovered(True)
             self._window.autohide.set_disabled(
                 False, reason="menu-close-pointer-inside"
@@ -333,10 +334,14 @@ class DockInteractionCoordinator:
         if self._window.dock_hovered:
             return
         self._window.dock_hovered = True
+        self._window.surface_service.set_pointer_leave_handler(
+            self._on_backend_pointer_leave
+        )
         self._window.zoom_animator.on_enter()
         self._window.autohide.on_mouse_enter()
 
     def on_effective_leave(self, widget: Gtk.DrawingArea) -> None:
+        self._window.surface_service.set_pointer_leave_handler(None)
         self._window.zoom_animator.on_leave()
         preview_visible = bool(
             self._window.preview and self._window.preview.get_visible()
@@ -389,6 +394,12 @@ class DockInteractionCoordinator:
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
         return self.pointer_inside_input_rect()
+
+    def _on_backend_pointer_leave(self) -> None:
+        if self._window.dock_hovered:
+            self.on_effective_leave(self._window.drawing_area)
+        else:
+            self._window.surface_service.set_pointer_leave_handler(None)
 
     def point_inside_event_frame(self, *, x: float, y: float) -> bool:
         frame = self._window.current_interaction_frame()
