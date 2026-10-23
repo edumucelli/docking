@@ -112,6 +112,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.applications.registry": {
             "ApplicationRegistry": type("ApplicationRegistry", (), {}),
         },
+        "docking.platform.applications.steam": {
+            "SteamDiscovery": type("SteamDiscovery", (), {}),
+        },
         "docking.platform.applications.identity": {
             "LaunchProvenanceStore": _LaunchProvenanceStore,
             "ProcessIdentityService": _ProcessIdentityService,
@@ -413,7 +416,7 @@ class TestAppMain:
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
-        registry_cls.assert_called_once_with()
+        registry_cls.assert_called_once_with(steam_source=ANY)
         config_cls.load.assert_called_once()
         assert callable(config_cls.load.call_args.kwargs["initial_pinned_factory"])
         application_launcher = model_cls.call_args.kwargs["application_launcher"]
@@ -805,7 +808,7 @@ class TestAppMain:
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
-        registry_cls.assert_called_once_with()
+        registry_cls.assert_called_once_with(steam_source=ANY)
         application_launcher = factory.call_args.kwargs["application_launcher"]
         icon_loader = factory.call_args.kwargs["icon_loader"]
         target_service = factory.call_args.kwargs["target_service"]

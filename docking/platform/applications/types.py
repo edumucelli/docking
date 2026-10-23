@@ -13,6 +13,7 @@ class ApplicationOrigin(Enum):
     INSTALLED = "installed"
     GENERATED = "generated"
     RUNTIME = "runtime"
+    STEAM = "steam"
 
 
 class ApplicationLocation(Enum):
@@ -64,6 +65,8 @@ class ApplicationInfo:
     actions: tuple[ApplicationAction, ...] = ()
     terminal: bool = False
     working_directory: str = ""
+    steam_app_id: str = ""
+    steam_manifest: Path | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -101,6 +104,8 @@ class ApplicationDiagnostic:
     gio_startup_wm_class: str | None = None
     file_startup_wm_class: str | None = None
     flatpak_app_id: str = ""
+    steam_app_id: str = ""
+    steam_manifest: Path | None = None
 
 
 class DiscoveryReason(Enum):
@@ -153,6 +158,8 @@ class ApplicationDiscoveryDiagnostic:
     applications: tuple[ApplicationDiagnostic, ...] = ()
     decisions: tuple[DiscoveryDecision, ...] = ()
     directory_statuses: tuple[DiscoveryDirectoryDiagnostic, ...] = ()
+    steam_directories: tuple[Path, ...] = ()
+    steam_issues: tuple[str, ...] = ()
 
 
 class MatchMethod(Enum):
@@ -168,6 +175,8 @@ class MatchMethod(Enum):
     APPLICATION_ID = "application-id"
     SANDBOX_ID = "sandbox-id"
     SCRIPT_NAME = "script-name"
+    STEAM_APP_ID = "steam-app-id"
+    STEAM_EXECUTABLE = "steam-executable"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -217,6 +226,7 @@ class ApplicationMatchAttempt:
     failure_reason: MatchFailureReason | None = None
     sandbox_app_id: str | None = None
     script_basename: str | None = None
+    steam_app_id: str | None = None
 
 
 __all__ = [

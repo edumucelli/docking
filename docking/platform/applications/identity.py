@@ -13,6 +13,7 @@ from threading import RLock
 from typing import Any, TypeGuard
 
 from .flatpak import valid_flatpak_app_id
+from .steam import valid_steam_app_id
 
 APP_URI_PREFIX = "application://"
 DEFAULT_MAX_LAUNCH_RECORDS = 256
@@ -37,6 +38,7 @@ class ProcessIdentity:
     launch: LaunchProvenance | None = None
     sandbox_app_id: str | None = None
     script_basename: str | None = None
+    steam_app_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -162,6 +164,7 @@ class ProcessIdentityService:
             launch=self._provenance_store.provenance_for_pid(pid),
             sandbox_app_id=_process_sandbox_app_id(self._proc_root / str(pid)),
             script_basename=_process_python_script(self._proc_root / str(pid)),
+            steam_app_id=_process_steam_app_id(self._proc_root / str(pid)),
         )
 
 
@@ -197,6 +200,24 @@ def _process_sandbox_app_id(process_dir: Path) -> str | None:
     except (UnicodeDecodeError, configparser.Error):
         return None
     return app_id if valid_flatpak_app_id(app_id) else None
+
+
+def _process_steam_app_id(process_dir: Path) -> str | None:
+    """Retain only an allowlisted Steam ID, never the process environment."""
+    data = _bounded_process_file(process_dir / "environ", 131072)
+    if data is None:
+        return None
+    identities: set[str] = set()
+    for item in data.split(b"\0"):
+        key, separator, value = item.partition(b"=")
+        if separator and key in {b"SteamAppId", b"SteamGameId"}:
+            try:
+                app_id = valid_steam_app_id(value.decode("ascii"))
+            except UnicodeDecodeError:
+                continue
+            if app_id is not None:
+                identities.add(app_id)
+    return next(iter(identities)) if len(identities) == 1 else None
 
 
 def _process_python_script(process_dir: Path) -> str | None:
