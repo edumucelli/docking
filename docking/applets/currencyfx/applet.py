@@ -275,6 +275,8 @@ class CurrencyFxApplet(Applet):
 
     def stop(self) -> None:
         """Stop timers before the dock unloads the applet."""
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0

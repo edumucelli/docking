@@ -217,6 +217,43 @@ class TestAlarmState:
 
 class TestAlarmApplet:
     @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    def test_enabling_a_past_alarm_waits_for_next_occurrence(
+        self, monkeypatch, repeat_days
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        applet._state = AlarmState(
+            presets=(AlarmPreset(hour=7, enabled=False, repeat_days=repeat_days),)
+        )
+        applet._toggle_alarm(index=0, enabled=True)
+        assert not tick(applet._state, now=now).started_ringing
+        applet._tick()
+        assert not applet.item.is_urgent
+        alarm = next_alarm(applet._state, now=now)
+        assert alarm.when == dt.datetime(2026, 5, 19, 7, 0, tzinfo=_TZ)
+
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    def test_editing_fired_alarm_to_future_time_today_rearms_it(
+        self, monkeypatch, repeat_days
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        old = AlarmPreset(hour=7, repeat_days=repeat_days, last_triggered="2026-05-18")
+        applet._state = AlarmState(presets=(old,))
+        applet._upsert_preset(
+            index=0, preset=alarm_applet_mod.replace(old, hour=10, enabled=True)
+        )
+        due = dt.datetime(2026, 5, 18, 10, 0, tzinfo=_TZ)
+        assert next_alarm(applet._state, now=now).when == due
+        assert tick(applet._state, now=due).started_ringing
+        monkeypatch.setattr(applet, "_now", lambda: due)
+        applet._tick()
+        assert applet.item.is_urgent
+        assert applet._state.ringing_index == 0
+
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
     @pytest.mark.parametrize("index", [None, 0])
     def test_new_or_edited_past_time_waits_for_next_occurrence(
         self, monkeypatch, repeat_days, index

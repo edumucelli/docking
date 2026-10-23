@@ -2,6 +2,11 @@
 Feature: Accessible overflowing stacks
   Folder and applet fans stay bounded without discarding the displayed entries.
 
+  Scenario: Moving from the source icon toward the popup preserves the stack
+    Given a large stack at the "top" edge
+    When a dock motion event arrives outside its active band
+    Then the stack remains visible for entry selection
+
   Scenario Outline: Large stacks scroll to both ends and their action
     Given a large stack at the "<edge>" edge
     Then the stack popup fits its workarea
