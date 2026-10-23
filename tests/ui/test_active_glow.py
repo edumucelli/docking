@@ -263,6 +263,8 @@ class TestActiveGlowTintAtCallSite:
             ).Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         renderer._draw_content(
@@ -320,6 +322,8 @@ class TestActiveGlowTintAtCallSite:
             ).Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         renderer._draw_content(
@@ -375,6 +379,8 @@ class TestActiveGlowTintAtCallSite:
             ).Position.BOTTOM,
             icon_size=48,
             show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
             additional_distance_from_edge=0,
         )
         renderer._draw_content(

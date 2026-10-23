@@ -145,7 +145,8 @@ def should_check_for_updates(
     if checked_at is None:
         return True
     reference = _aware_utc(now)
-    return reference - checked_at >= timedelta(hours=max(1, interval_hours))
+    # Compare whole hours without constructing a possibly overflowing timedelta.
+    return (reference - checked_at) // timedelta(hours=1) >= max(1, interval_hours)
 
 
 def decide_update_popup(
@@ -242,7 +243,7 @@ def normalize_version(version: str) -> str:
     if value.startswith(("v", "V")):
         value = value[1:]
     match = re.match(r"^([0-9]+(?:\.[0-9]+)*)", value)
-    return match.group(1) if match else value
+    return str(match.group(1)) if match else value
 
 
 def parse_timestamp(value: str | None) -> datetime | None:

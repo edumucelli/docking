@@ -81,7 +81,7 @@ class BluetoothApplet(Applet):
     name = _("Bluetooth")
     icon_name = "bluetooth-active-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = BluezBackend()
         self._state: BluetoothState = unavailable_state()
         self._poll_id: int = 0
@@ -89,33 +89,34 @@ class BluetoothApplet(Applet):
         self._active_adapter_path: str = ""
         self._continuous_discovery = True
         self._suppress_discovery_until: float = 0.0
-        # True only when this applet successfully started discovery.
-        self._local_discovery_active = False
+        # Keep each owned session until its matching StopDiscovery succeeds.
+        self._local_discovery_paths: set[str] = set()
+        self._stopped = False
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
+        self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
         self._recent_connections: dict[str, float] = {}
         self._prefs_dirty = False
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
-            self._continuous_discovery = _as_pref_bool(
-                prefs.get("continuous_discovery", True),
-                default=True,
-            )
-            raw_recent = prefs.get("recent_connections", {})
-            if isinstance(raw_recent, dict):
-                for address, value in raw_recent.items():
-                    try:
-                        timestamp = float(value)
-                    except (TypeError, ValueError):
-                        continue
-                    if address:
-                        self._recent_connections[str(address)] = timestamp
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
+        self._continuous_discovery = _as_pref_bool(
+            prefs.get("continuous_discovery", True),
+            default=True,
+        )
+        raw_recent = prefs.get("recent_connections", {})
+        if isinstance(raw_recent, dict):
+            for address, value in raw_recent.items():
+                try:
+                    timestamp = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if address:
+                    self._recent_connections[str(address)] = timestamp
 
         self._known_connected_addresses: set[str] = set()
         super().__init__(icon_size=icon_size, config=config)
@@ -145,6 +146,7 @@ class BluetoothApplet(Applet):
         self.item.name = text
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
         super().start(notify=notify)
         self._refresh_now()
         self._poll_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
@@ -154,6 +156,7 @@ class BluetoothApplet(Applet):
         )
 
     def stop(self) -> None:
+        self._stopped = True
         # Only try to stop discovery if we own a local discovery session.
         # This avoids noisy NotReady calls when scanning is externally owned.
         self._stop_local_discovery(quiet=True)
@@ -446,13 +449,18 @@ class BluetoothApplet(Applet):
         return menu_item
 
     def _tick(self) -> bool:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="bluetooth-poll",
             fn=lambda: self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             ),
-            on_result=self._on_poll_result,
+            on_result=lambda state: (
+                self._on_poll_result(state)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return True
 
@@ -461,34 +469,36 @@ class BluetoothApplet(Applet):
         return True
 
     def _on_poll_result(self, state: BluetoothState) -> bool:
+        if self._stopped:
+            return False
         previous_state = self._state
         previous_adapter_path = self._active_adapter_path
-        previous_local_discovery_active = self._local_discovery_active
+        previous_discovery_paths = self._local_discovery_paths.copy()
         self._state = state
         self._sync_selected_adapter()
         self._record_recent_connections(state)
-        adapter = self._active_adapter()
-        if adapter is None or not adapter.discovering:
-            # Adapter no longer discovering => local discovery session cannot
-            # still be active.
-            self._local_discovery_active = False
         self._ensure_discovery()
         if (
             state != previous_state
             or self._active_adapter_path != previous_adapter_path
-            or self._local_discovery_active != previous_local_discovery_active
+            or self._local_discovery_paths != previous_discovery_paths
         ):
             self.present()
         return False
 
     def _refresh_now(self) -> None:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="refresh",
             name="bluetooth-refresh",
             fn=lambda: self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             ),
-            on_result=self._on_refresh_result,
+            on_result=lambda state: (
+                self._on_refresh_result(state)
+                if generation == self._poll_generation
+                else False
+            ),
         )
 
     def _sync_selected_adapter(self, persist: bool = True) -> None:
@@ -514,7 +524,7 @@ class BluetoothApplet(Applet):
         )
 
     def _ensure_discovery(self) -> None:
-        if not self._continuous_discovery:
+        if self._stopped or not self._continuous_discovery:
             return
         adapter = self._active_adapter()
         if adapter is None or not adapter.powered or adapter.discovering:
@@ -525,7 +535,7 @@ class BluetoothApplet(Applet):
             key="discovery",
             name="bluetooth-discovery",
             fn=lambda: self._backend.start_discovery(adapter_path=adapter.path),
-            on_result=self._on_discovery_result,
+            on_result=lambda started: self._on_discovery_result(adapter.path, started),
         )
 
     def _run_async(self, action: Callable[[], bool]) -> None:
@@ -550,9 +560,20 @@ class BluetoothApplet(Applet):
     def _on_refresh_result(self, state: BluetoothState) -> bool:
         return self._on_poll_result(state=state)
 
-    def _on_discovery_result(self, started: bool) -> bool:
-        if started:
-            self._local_discovery_active = True
+    def _on_discovery_result(self, adapter_path: str, started: bool) -> bool:
+        if not started:
+            return False
+        self._local_discovery_paths.add(adapter_path)
+        if (
+            self._stopped
+            or not self._continuous_discovery
+            or adapter_path != self._active_adapter_path
+        ):
+            self._worker.run(
+                name="bluetooth-discovery-cleanup",
+                fn=lambda: self._stop_discovery_path(adapter_path, quiet=True),
+                on_result=lambda stopped: self._ensure_discovery() if stopped else None,
+            )
         return False
 
     def _connect_device(self, device: BluetoothDeviceState) -> bool:
@@ -570,9 +591,22 @@ class BluetoothApplet(Applet):
     def _on_select_adapter(self, widget: Gtk.RadioMenuItem, adapter_path: str) -> None:
         if not widget.get_active():
             return
+        previous_path = self._active_adapter_path
         self._active_adapter_path = adapter_path
         self._save_prefs()
-        self._refresh_now()
+        if (
+            previous_path != adapter_path
+            and previous_path in self._local_discovery_paths
+        ):
+            self._worker.run(
+                name="bluetooth-adapter-cleanup",
+                fn=lambda: self._stop_discovery_path(previous_path, quiet=True),
+                on_result=lambda _ok: (
+                    self._refresh_now() if not self._stopped else None
+                ),
+            )
+        else:
+            self._refresh_now()
 
     def _on_power_toggled(self, widget: Gtk.CheckMenuItem) -> None:
         adapter = self._active_adapter()
@@ -594,6 +628,7 @@ class BluetoothApplet(Applet):
         adapter = self._active_adapter()
         if adapter is None:
             return
+        adapter_path = adapter.path
         self._power_transition_in_progress = True
         if not target:
             # Prevent immediate keepalive restart while powering off.
@@ -601,17 +636,17 @@ class BluetoothApplet(Applet):
                 time.monotonic() + DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S
             )
 
-        def task() -> tuple[bool, bool, BluetoothState]:
+        def task() -> tuple[str, bool, bool, BluetoothState]:
             if not target:
                 self._stop_local_discovery(quiet=True)
             ok = self._backend.set_adapter_power(
-                adapter_path=adapter.path,
+                adapter_path=adapter_path,
                 powered=target,
             )
             state = self._backend.get_state(
                 active_adapter_path=self._active_adapter_path
             )
-            return target, ok, state
+            return adapter_path, target, ok, state
 
         self._worker.run(
             name="bluetooth-power",
@@ -621,17 +656,19 @@ class BluetoothApplet(Applet):
 
     def _on_power_result(
         self,
+        adapter_path: str,
         target: bool,
         success: bool,
         state: BluetoothState,
     ) -> bool:
         self._power_transition_in_progress = False
+        self._poll_generation += 1
         self._state = state
         self._sync_selected_adapter()
         if success:
             self._action_error = ""
             if not target:
-                self._local_discovery_active = False
+                self._local_discovery_paths.discard(adapter_path)
         elif not target:
             adapter = self._active_adapter()
             if adapter is not None and adapter.discovering:
@@ -658,12 +695,16 @@ class BluetoothApplet(Applet):
 
     def _stop_local_discovery(self, *, quiet: bool = True) -> bool:
         """Stop discovery only when this applet owns a discovery session."""
-        adapter = self._active_adapter()
-        if adapter is None or not self._local_discovery_active:
-            return True
-        stopped = self._backend.stop_discovery(adapter_path=adapter.path, quiet=quiet)
+        stopped = True
+        for adapter_path in tuple(self._local_discovery_paths):
+            if not self._stop_discovery_path(adapter_path, quiet=quiet):
+                stopped = False
+        return stopped
+
+    def _stop_discovery_path(self, adapter_path: str, *, quiet: bool) -> bool:
+        stopped = self._backend.stop_discovery(adapter_path=adapter_path, quiet=quiet)
         if stopped:
-            self._local_discovery_active = False
+            self._local_discovery_paths.discard(adapter_path)
         return stopped
 
     def _save_prefs(self) -> None:

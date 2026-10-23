@@ -151,6 +151,30 @@ class Bounds(NamedTuple):
     right: float
 
 
+def compute_item_widths(items: list[DockItem], icon_size: int) -> list[int]:
+    """Return animated main-axis widths, preserving a fully collapsed zero."""
+    return [
+        max(0, int((item.main_size or icon_size) * item.insert_factor))
+        for item in items
+    ]
+
+
+def resting_content_extent(
+    items: list[DockItem],
+    icon_size: int,
+    horizontal_padding: float,
+    item_padding: float,
+) -> float:
+    """Return final main-axis content extent, independent of animation state."""
+    widths = [max(0, item.main_size or icon_size) for item in items]
+    visible = [width for width in widths if width > 0]
+    return (
+        2 * (horizontal_padding + item_padding / 2)
+        + sum(visible)
+        + max(0, len(visible) - 1) * item_padding
+    )
+
+
 def compute_layout(
     items: list[DockItem],
     config: Config,
@@ -169,7 +193,7 @@ def compute_layout(
     zoom_percent = 1.0 + (base_zoom - 1.0) * zoom_progress
     zoom_icon_size = icon_size * zoom_percent
 
-    widths = [int((item.main_size or icon_size) * item.insert_factor) for item in items]
+    widths = compute_item_widths(items, icon_size)
 
     rest_centers: list[float] = []
     x = horizontal_padding
@@ -219,11 +243,11 @@ def content_bounds(
     """Compute the left and right edges of the content including padding."""
     half_item_pad = item_padding / 2
     pad = horizontal_padding + half_item_pad
-    if not layout:
+    visible_layout = [item for item in layout if item.width > 0]
+    if not visible_layout:
         return Bounds(left=0.0, right=2 * pad)
-    first = layout[0]
-    last = layout[-1]
+    first = visible_layout[0]
+    last = visible_layout[-1]
     left = first.x - pad
-    last_w = last.width or icon_size
-    right = last.x + last_w * last.scale + pad
+    right = last.x + last.width * last.scale + pad
     return Bounds(left=left, right=right)

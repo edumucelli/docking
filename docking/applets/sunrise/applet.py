@@ -64,11 +64,9 @@ class SunriseApplet(Applet):
     name = _("Sunrise")
     icon_name = "weather-clear"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get("sunrise", {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get("sunrise", {}))
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._label_mode: LabelMode = prefs.label_mode

@@ -18,9 +18,16 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, MutableMapping
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 LOG_LEVEL = os.environ.get("DOCKING_LOG_LEVEL", "WARNING").upper()
+
+if TYPE_CHECKING:
+    # LoggerAdapter only became subscriptable at runtime in 3.11 and this
+    # package still runs on 3.10, so the parameterized base stays static.
+    _AdapterBase = logging.LoggerAdapter[logging.Logger]
+else:
+    _AdapterBase = logging.LoggerAdapter
 _CONTEXT_FIELDS = ("applet_id", "desktop_id", "action")
 
 
@@ -38,7 +45,7 @@ class DockingFormatter(logging.Formatter):
         return super().format(record)
 
 
-class DockingContextAdapter(logging.LoggerAdapter):
+class DockingContextAdapter(_AdapterBase):
     """Logger adapter that carries structured context across calls."""
 
     def process(

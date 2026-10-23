@@ -51,7 +51,7 @@ class TrashApplet(Applet):
     icon_name = "user-trash"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._desktop = detect_desktop()
         self._backend: TrashBackend = select_trash_backend(desktop=self._desktop)
         self._item_count = self._backend.count_items()
@@ -267,4 +267,5 @@ class TrashApplet(Applet):
         dialog.set_position(Gtk.WindowPosition.MOUSE)
         response = dialog.run()
         dialog.destroy()
-        return response == Gtk.ResponseType.OK
+        # dialog.run() is a GI call the checker cannot type; == is always a bool.
+        return bool(response == Gtk.ResponseType.OK)

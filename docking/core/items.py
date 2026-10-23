@@ -17,7 +17,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
+
+if TYPE_CHECKING:
+    from docking.platform.applications.types import ApplicationInfo
 
 ItemKind = Literal["app", "applet", "file", "folder"]
 
@@ -53,6 +56,12 @@ class DockItem:
     name: str = ""
     icon_name: str = "application-x-executable"
     wm_class: str = ""
+    # Original desktop Exec line retained for executable-aware window matching.
+    exec_line: str = ""
+    # Direct executable backing a runtime-only transient item.
+    runtime_executable: str = ""
+    # Canonical application metadata. Non-application items leave this unset.
+    application_info: ApplicationInfo | None = None
     is_pinned: bool = False
     is_running: bool = False
     is_active: bool = False
@@ -72,9 +81,14 @@ class DockItem:
     last_closed: float = 0
     badge_count: int = 0
     badge_visible: bool = False
+    launcher_entry_badge_count: int = 0
+    launcher_entry_badge_visible: bool = False
+    status_notifier_badge_count: int = 0
+    status_notifier_badge_visible: bool = False
     progress: float = 0.0
     progress_visible: bool = False
     launcher_entry_urgent: bool = False
+    status_notifier_urgent: bool = False
     # Callable returning tooltip widget/content; used by applets for rich tooltips
     tooltip_builder: Callable[[], Any] | None = None
     # Optional key for per-item preferences (folder sort/view options, etc.).

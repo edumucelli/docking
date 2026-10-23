@@ -4,22 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Docking - Linux Dock with Applets, X11 &amp; Wayland Support</title>
-  <meta name="description" content="Docking is an open source Linux dock with X11 and Wayland support, 59 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta name="description" content="Docking is an open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
   <link rel="canonical" href="https://docking.cc/">
   <meta property="og:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
-  <meta property="og:description" content="Open source Linux dock with X11 and Wayland support, 59 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta property="og:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://docking.cc/">
   <meta property="og:site_name" content="Docking">
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="https://docking.cc/social-preview.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:width" content="1731">
+  <meta property="og:image:height" content="909">
   <meta property="og:image:alt" content="Docking Linux dock preview with applets">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
-  <meta name="twitter:description" content="Open source Linux dock with X11 and Wayland support, 59 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta name="twitter:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
   <meta name="twitter:image" content="https://docking.cc/social-preview.png">
   <meta name="twitter:image:alt" content="Docking Linux dock preview with applets">
   <script type="application/ld+json">
@@ -27,16 +27,16 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Docking",
-    "description": "Open source Linux dock with X11 and Wayland support, 59 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.",
+    "description": "Open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.",
     "applicationCategory": "DesktopEnhancement",
     "operatingSystem": "Linux",
     "url": "https://docking.cc/",
     "downloadUrl": "https://github.com/edumucelli/docking/releases",
-    "softwareVersion": "2.4.0",
+    "softwareVersion": "2.19.0",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
     "programmingLanguage": "Python",
     "image": "https://docking.cc/social-preview.png",
-    "screenshot": "https://docking.cc/hero.png",
+    "screenshot": "https://docking.cc/hero.gif",
     "sameAs": [
       "https://github.com/edumucelli/docking"
     ],
@@ -302,9 +302,12 @@
             <!-- Soft ambient glow -->
             <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
             <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
-            <div class="absolute -right-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
-            <div class="relative w-full transition duration-500 hover:scale-[1.008]">
-              <img src="hero.png" alt="Docking dock preview with applets" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+            <div class="absolute right-0 top-1/2 h-36 w-36 sm:-right-12 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
+            <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
+              <picture>
+                <source srcset="hero.png" media="(prefers-reduced-motion: reduce)">
+                <img src="hero.gif" alt="Docking dock demonstration with applets and menus" width="960" height="315" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+              </picture>
             </div>
           </div>
         </div>
@@ -320,7 +323,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">58 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
@@ -328,7 +331,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">58 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
             </div>
           </div>
         </div>
@@ -348,7 +351,7 @@
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (58)</h3>
+            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (64)</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
@@ -380,7 +383,7 @@
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: one dock across Linux desktops</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
           </div>
-          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, wlroots, and fallback sessions</div>
+          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, Treeland, and protocol-capable Wayland</div>
         </div>
 
         <div class="mt-10 overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-ember/8 shadow-soft backdrop-blur-2xl">
@@ -427,6 +430,18 @@
               <p class="text-sm leading-7 text-slate-300">Layer-shell placement, AT-SPI window tracking with titles, and workspace switching through KWin D-Bus. Window actions depend on what KWin exposes.</p>
             </article>
 
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cinnamon-wayland" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Cinnamon Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Cinnamon 6.4 and newer</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Cinnamon shell or layer-shell</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, running-window tracking, focus and cycling, minimize and close through Cinnamon's built-in shell API, including activation across workspaces. Placement respects panels and the selected monitor, including sessions without layer-shell. Previews remain unavailable.</p>
+            </article>
+
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cosmic" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
@@ -448,7 +463,7 @@
                 <p class="mt-2 text-sm text-slate-400">Niri compositor sessions</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Niri IPC backend</div>
-              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, previews, workspace switching, Show Desktop, idle time, and color picker — via native Niri IPC.</p>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, previews, workspace switching, Show Desktop, idle time, and color picker - via native Niri IPC.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wayfire" data-status="native">
@@ -460,31 +475,55 @@
                 <p class="mt-2 text-sm text-slate-400">Wayfire compositor sessions</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Wayfire IPC backend</div>
-              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker — via native Wayfire IPC.</p>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker - via native Wayfire IPC.</p>
             </article>
 
-            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wlroots" data-status="partial">
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="protocol-wayland" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
                   <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Varies</span>
-                  <h3 class="text-lg font-semibold text-white">Hyprland, Sway, labwc, river</h3>
+                  <h3 class="text-lg font-semibold text-white">Protocol-capable Wayland</h3>
                 </div>
-                <p class="mt-2 text-sm text-slate-400">wlroots-style Wayland compositors</p>
+                <p class="mt-2 text-sm text-slate-400">Sway, labwc, river, Louvre-based, Jay, Miriway, Phosh / phoc</p>
               </div>
-              <div class="text-sm font-medium text-slate-200">Layer-shell plus compositor protocols</div>
-              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, workspaces, and previews vary by compositor protocol support and backend selection.</p>
+              <div class="text-sm font-medium text-slate-200">Layer-shell plus advertised protocols</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, actions, workspaces, previews, and idle time are enabled independently. Jay and Miriway require trusted-client configuration; phoc can provide native window thumbnails.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="treeland" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Deepin Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Treeland compositor sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Standard protocols plus Treeland extensions</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking and previews, Show Desktop, and overlap-driven hiding. Left-edge overlap falls back while Treeland's current checker remains limited.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gamescope" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Overlay</span>
+                  <h3 class="text-lg font-semibold text-white">GameScope</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Nested and gaming sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Native GameScope Wayland socket</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement as an external overlay, including sessions without <code>--expose-wayland</code>. GameScope does not expose general window management to regular clients.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="reduced" data-status="fallback">
               <div>
                 <div class="flex items-center gap-3">
                   <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Fallback</span>
-                  <h3 class="text-lg font-semibold text-white">Any unsupported session</h3>
+                  <h3 class="text-lg font-semibold text-white">Cage, Weston, and unsupported sessions</h3>
                 </div>
-                <p class="mt-2 text-sm text-slate-400">Safe launcher/app applet mode</p>
+                <p class="mt-2 text-sm text-slate-400">Safe launcher and applet mode</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Reduced backend</div>
-              <p class="text-sm leading-7 text-slate-300">Dock remains usable even without window management, running indicators, previews, or workspace switching.</p>
+              <p class="text-sm leading-7 text-slate-300">Docking remains usable without running indicators, previews, or workspace switching when no supported integration is available.</p>
             </article>
           </div>
         </div>
@@ -493,11 +532,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">59 built-in applets: searchable tools for the dock</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">64 built-in applets: searchable tools for the dock</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">59</span> built-in applets plus folder stacks and a separator item</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">64</span> built-in applets plus folder stacks and a separator item</div>
           </div>
         </div>
 
@@ -507,7 +546,7 @@
               <span class="sr-only">Search applets</span>
               <input id="applet-search" type="search" placeholder="Search applets, categories, or features" class="w-full rounded-[1.1rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-skyline/50 focus:bg-white/[0.11]">
             </label>
-            <p id="applet-result-count" class="text-sm text-slate-300">Showing 59 applets</p>
+            <p id="applet-result-count" class="text-sm text-slate-300">Showing 64 applets</p>
           </div>
           <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"></div>
         </div>
@@ -516,7 +555,7 @@
         <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
         <noscript>
           <div class="mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">
-            <p>Enable JavaScript to search and filter the applet catalog. The release includes 59 built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
+            <p>Enable JavaScript to search and filter the applet catalog. The release includes 64 built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
             <ul class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <li><strong>AI Usage:</strong> Track sessions, token usage, and estimated spend.</li>
               <li><strong>Alarm:</strong> Local-time alarms with repeats and snooze controls.</li>
@@ -540,6 +579,7 @@
               <li><strong>Currency FX:</strong> Live exchange-rate pairs and sparklines.</li>
               <li><strong>Desk Presence:</strong> Track time at desk versus away.</li>
               <li><strong>Desktop:</strong> Desktop actions and surface shortcuts.</li>
+              <li><strong>Devices:</strong> Browse mounted devices in a live stack.</li>
               <li><strong>Docker:</strong> See, stop, and restart running containers.</li>
               <li><strong>Drag Share:</strong> Drop files to create temporary share URLs.</li>
               <li><strong>Hacker News:</strong> Browse top headlines from the dock.</li>
@@ -550,8 +590,10 @@
               <li><strong>Moon:</strong> Current lunar phase and illumination.</li>
               <li><strong>Music:</strong> Media playback status and controls.</li>
               <li><strong>Network:</strong> Connection state and quick network awareness.</li>
+              <li><strong>News:</strong> Follow country-based RSS publications from the dock.</li>
               <li><strong>Notifications:</strong> Notification status and Do Not Disturb.</li>
               <li><strong>Pet:</strong> A playful companion reacting to system activity.</li>
+              <li><strong>Plant Care:</strong> Offline recurring care reminders for multiple plants.</li>
               <li><strong>Pomodoro:</strong> Focused work sessions with timer rhythm.</li>
               <li><strong>Power Profiles:</strong> Switch performance modes.</li>
               <li><strong>Quick Note:</strong> Capture short notes quickly.</li>
@@ -561,6 +603,7 @@
               <li><strong>Reddit:</strong> Browse posts from your favorite subreddits.</li>
               <li><strong>Run Application:</strong> Alt+F2-style command launcher.</li>
               <li><strong>Screenshot:</strong> Screenshot and portal capture actions.</li>
+              <li><strong>Search:</strong> Find applications, dock items, windows, recent files, calculations, and paths.</li>
               <li><strong>Session:</strong> Lock, logout, shutdown, and session actions.</li>
               <li><strong>Speedtest:</strong> One-click internet speed test.</li>
               <li><strong>Stretch Coach:</strong> Movement reminders during long sessions.</li>
@@ -575,6 +618,7 @@
               <li><strong>USB Watch:</strong> Safe-remove access for removable USB storage.</li>
               <li><strong>Volume:</strong> Playback and audio control.</li>
               <li><strong>Weather:</strong> Forecast, conditions, and air quality.</li>
+              <li><strong>WhatsApp:</strong> Persistent WhatsApp Web with notifications and an unread badge.</li>
               <li><strong>Window Killer:</strong> Click a window to force-close it.</li>
               <li><strong>Workspaces:</strong> Switch and track workspaces.</li>
             </ul>
@@ -588,7 +632,7 @@
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
               <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking on any Linux distribution</h2>
-              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Download the latest release package that fits your Linux setup and get straight to work.</p>
+              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Choose your distribution's package manager below, or download a release package for your Linux setup.</p>
             </div>
 
             <div>
@@ -602,17 +646,138 @@
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">RPM</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Flatpak</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Snap</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Nix</a>
               </div>
               <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
             </div>
           </div>
+          <details id="apt-install" class="group mt-8 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+              <span>Debian &amp; Ubuntu: install with APT</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </summary>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13, on both x64 and arm64.</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Ubuntu derivatives, including Linux Mint 21.x/22.x, use their Ubuntu base through <code>UBUNTU_CODENAME</code>. Their desktops are not separately tested.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update
+sudo apt install curl ca-certificates gnupg
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">811B48CD4A69170DD98F4F49185CED80A7947754</code>.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified.</p>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>(
+set -eu
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
+. /etc/os-release
+APT_DISTRO="${ID:-}"
+APT_SUITE="${VERSION_CODENAME:-}"
+if [ -n "${UBUNTU_CODENAME:-}" ]; then
+    APT_DISTRO=ubuntu
+    APT_SUITE="$UBUNTU_CODENAME"
+fi
+if [ "$APT_DISTRO" = debian ] &amp;&amp; [ -z "$APT_SUITE" ]; then
+    DEBIAN_VERSION=$(cat /etc/debian_version 2&gt;/dev/null || true)
+    case "$DEBIAN_VERSION" in
+        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
+        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
+    esac
+fi
+case "$APT_DISTRO:$APT_SUITE" in
+    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
+    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" &gt;&amp;2; exit 1 ;;
+esac
+sudo tee /etc/apt/sources.list.d/docking.sources &gt; /dev/null &lt;&lt;EOF
+Types: deb
+URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
+Suites: ${APT_SUITE}
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
+EOF
+sudo apt update
+sudo apt install docking
+)</code></pre>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo apt update</code> and <code class="text-slate-100">sudo apt upgrade</code>. Existing .deb installations can upgrade directly through APT.</p>
+            <p class="mt-2 text-xs leading-6 text-slate-400">APT packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+          </details>
+          <details id="rpm-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+              <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </summary>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Repository installation is available after the first verified RPM publication. Until then, use the RPM release downloads above.</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    sudo zypper --non-interactive install curl gpg2
+else
+    sudo dnf install -y curl gnupg2
+fi
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">04C7240DAD480161C0DFC791859E104126138494</code>.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It selects DNF on Fedora or Zypper on openSUSE.</p>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>(
+set -eu
+sudo rpm --import /tmp/docking-cloudsmith.asc
+if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    REPO_DIR=/etc/zypp/repos.d
+else
+    REPO_DIR=/etc/yum.repos.d
+fi
+sudo install -d -m 0755 "$REPO_DIR"
+sudo tee "$REPO_DIR/docking-rpm.repo" &gt; /dev/null &lt;&lt;'EOF'
+[docking-rpm]
+name=Docking
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+
+[docking-rpm-noarch]
+name=Docking noarch
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+EOF
+if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    sudo zypper --gpg-auto-import-keys refresh
+    sudo zypper install docking
+else
+    sudo dnf install docking
+fi
+)</code></pre>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo dnf upgrade</code> or <code class="text-slate-100">sudo zypper update</code>. Existing .rpm installations can upgrade directly through the repository.</p>
+            <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+          </details>
         </div>
       </section>
 
       <section id="source" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div class="reveal">
             <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source: clone it, hack on it, extend it</h2>
             <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
@@ -632,7 +797,9 @@
 cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
-pip install -e ".[dev]"</code></pre>
+pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  pip install --no-deps -r requirements-typing.txt</code></pre>
             </div>
           </div>
         </div>
@@ -738,6 +905,7 @@ pip install -e ".[dev]"</code></pre>
       { id: "currencyfx", name: "Currency FX", category: "Information and Environment", summary: "Live exchange-rate pairs with a sparkline right on the dock icon." },
       { id: "deskpresence", name: "Desk Presence", category: "Wellness & Ambient", summary: "Track time at desk versus away, with today's total in the badge." },
       { id: "desktop", name: "Desktop", category: "Launcher & Navigation", summary: "Desktop actions and surface shortcuts in one place." },
+      { id: "devices", name: "Devices", category: "Launcher & Navigation", summary: "Browse every mounted device in a live stack that updates as mounts change." },
       { id: "docker", name: "Docker", category: "System & Power", summary: "See running containers and stop or restart them from the dock menu." },
       { id: "dragshare", name: "Drag Share", category: "Time & Productivity", summary: "Drop a file to upload it to tmpfiles.org and copy the temporary share URL." },
       { id: "hackernews", name: "Hacker News", category: "Information and Environment", summary: "Top headlines with manual navigation and next batches loaded up to 100 items." },
@@ -748,8 +916,10 @@ pip install -e ".[dev]"</code></pre>
       { id: "moon", name: "Moon", category: "Information and Environment", summary: "Current lunar phase with a rendered moon disc and illumination shading." },
       { id: "music", name: "Music", category: "System & Power", summary: "Media playback status, album-art rendering, and transport controls." },
       { id: "network", name: "Network", category: "System & Power", summary: "Connection state and quick network awareness." },
+      { id: "news", name: "News", category: "Information and Environment", summary: "Follow country-based RSS publications and browse their latest headlines from the dock." },
       { id: "notifications", name: "Notifications", category: "System & Power", summary: "Notification status, Do Not Disturb toggle, and pending badge when available." },
       { id: "pet", name: "Pet", category: "Wellness & Ambient", summary: "A playful dock companion that reacts to system activity." },
+      { id: "plantcare", name: "Plant Care", category: "Wellness & Ambient", summary: "Offline recurring care reminders for multiple plants, with due and overdue status." },
       { id: "pomodoro", name: "Pomodoro", category: "Time & Productivity", summary: "Focused work sessions with a built-in timer rhythm." },
       { id: "powerprofiles", name: "Power Profiles", category: "System & Power", summary: "Switch laptop and handheld performance modes based on how you work." },
       { id: "quicknote", name: "Quick Note", category: "Time & Productivity", summary: "Capture short notes without opening a larger app." },
@@ -759,6 +929,7 @@ pip install -e ".[dev]"</code></pre>
       { id: "reddit", name: "Reddit", category: "Information and Environment", summary: "Browse posts from your favorite subreddits and open them in your browser." },
       { id: "runcommand", name: "Run Application", category: "Launcher & Navigation", summary: "Alt+F2-style command launcher with terminal mode and searchable app matching." },
       { id: "screenshot", name: "Screenshot", category: "System & Power", summary: "Launch screenshot and portal capture actions directly from the dock." },
+      { id: "search", name: "Search", category: "Launcher & Navigation", summary: "Find applications, dock items, open windows, recent files, calculations, and paths." },
       { id: "session", name: "Session", category: "System & Power", summary: "Lock, logout, shutdown, and session actions close at hand." },
       { id: "speedtest", name: "Speedtest", category: "System & Power", summary: "One-click internet speed test with a speedometer dial and Mbps badge." },
       { id: "stretchcoach", name: "Stretch Coach", category: "Wellness & Ambient", summary: "Healthy movement reminders during long sessions." },
@@ -773,6 +944,7 @@ pip install -e ".[dev]"</code></pre>
       { id: "usbwatch", name: "USB Watch", category: "System & Power", summary: "Safe-remove access for mounted removable USB storage devices." },
       { id: "volume", name: "Volume", category: "System & Power", summary: "Playback and audio control integrated into the same dock surface." },
       { id: "weather", name: "Weather", category: "Information and Environment", summary: "Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance." },
+      { id: "whatsapp", name: "WhatsApp", category: "Launcher & Navigation", summary: "Persistent WhatsApp Web with desktop notifications and an unread-message badge." },
       { id: "windowkiller", name: "Window Killer", category: "System & Power", summary: "Click the applet, then click any window to force-close it." },
       { id: "workspaces", name: "Workspaces", category: "Launcher & Navigation", summary: "Switch and track workspaces from the dock." }
     ];

@@ -54,8 +54,8 @@ class StretchCoachApplet(Applet):
     name = _("Stretch Coach")
     icon_name = "alarm"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("stretchcoach", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("stretchcoach", {})
         self._state = state_from_prefs(prefs=prefs)
         self._cards = load_cards()
         self._timer_id: int = 0

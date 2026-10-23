@@ -54,11 +54,11 @@ class ClockApplet(Applet):
     name = _("Clock")
     icon_name = "clock"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer = _ClockTimer()
         self._calendar_popup: Gtk.Window | None = None
 
-        prefs = config.applet_prefs.get("clock", {}) if config else None
+        prefs = config.applet_prefs.get("clock", {})
         self._raw_alarm_target = self._prefs_alarm_target(prefs)
         (
             self._show_digital,
@@ -67,7 +67,7 @@ class ClockApplet(Applet):
             self._show_seconds,
             self._alarm_target,
         ) = load_prefs(prefs=prefs, now_ts=time.time())
-        self._last_minute = time.localtime().tm_min
+        self._last_minute = time.localtime()[:5]
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -162,7 +162,7 @@ class ClockApplet(Applet):
 
     def _on_toggle_seconds(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_seconds = widget.get_active()
-        self._last_minute = time.localtime().tm_min
+        self._last_minute = time.localtime()[:5]
         self._save_prefs()
         self.present()
 
@@ -199,8 +199,8 @@ class ClockApplet(Applet):
 
         if self._show_seconds:
             should_present = True
-        elif now.tm_min != self._last_minute:
-            self._last_minute = now.tm_min
+        elif now[:5] != self._last_minute:
+            self._last_minute = now[:5]
             should_present = True
 
         if should_present:

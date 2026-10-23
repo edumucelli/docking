@@ -91,9 +91,12 @@ from docking.applets.moon.render import create_icon as render_moon
 from docking.applets.moon.state import phase_name
 from docking.applets.music.render import create_music_icon
 from docking.applets.network.render import create_icon as render_network
+from docking.applets.news.render import render_icon as render_news
 from docking.applets.notifications.render import create_notifications_icon
 from docking.applets.pet.render import render_icon as render_pet
 from docking.applets.pet.state import PetState
+from docking.applets.plantcare.render import render_icon as render_plantcare
+from docking.applets.plantcare.state import CareStatus, PlantCareSnapshot
 from docking.applets.pomodoro.render import render_icon as render_pomodoro
 from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
@@ -103,6 +106,7 @@ from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.reddit.render import render_icon as render_reddit
 from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.screenshot.applet import _draw_screenshot_icon
+from docking.applets.search.render import render_icon as render_search
 from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
@@ -122,6 +126,8 @@ from docking.applets.urlshortener.render import create_icon as render_urlshorten
 from docking.applets.usbwatch.render import create_usbwatch_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
+from docking.applets.whatsapp.render import render_icon as render_whatsapp
+from docking.applets.whatsapp.state import BrowserPhase as WhatsAppBrowserPhase
 from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.workspaces.render import _render_grid
 
@@ -359,6 +365,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             tx_speed=0.0,
             speed_overlay="none",
         ),
+        AppletId.NEWS: render_news(
+            size=size,
+            index=0,
+            count=18,
+        ),
         AppletId.HACKERNEWS: render_hackernews(
             size=size,
             story=HackerNewsStory(
@@ -382,6 +393,15 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             activity=False,
         ),
         AppletId.PET: render_pet(size=size, state=PetState()),
+        AppletId.PLANTCARE: render_plantcare(
+            size=size,
+            snapshot=PlantCareSnapshot(
+                status=CareStatus.HEALTHY,
+                due_count=0,
+                overdue_count=0,
+                scheduled=(),
+            ),
+        ),
         AppletId.POMODORO: render_pomodoro(size=size, state=PomodoroState()),
         AppletId.POWERPROFILES: create_power_profiles_icon(
             size=size,
@@ -397,6 +417,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.RUNCOMMAND: render_runcommand(size=size),
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
+        AppletId.SEARCH: render_search(size=size),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
         AppletId.SPEEDTEST: render_speedtest(
@@ -447,6 +468,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             weather=None,
             show_temperature=True,
+        ),
+        AppletId.WHATSAPP: render_whatsapp(
+            size=size,
+            phase=WhatsAppBrowserPhase.READY,
         ),
         AppletId.WINDOWKILLER: render_windowkiller(size=size),
         AppletId.WORKSPACES: _workspaces_pixbuf(size=size),

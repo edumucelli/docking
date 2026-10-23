@@ -14,9 +14,13 @@ from gi.repository import (
 class _FakeMenu:
     def __init__(self) -> None:
         self.children: list[object] = []
+        self.destroyed = False
 
     def append(self, item) -> None:
         self.children.append(item)
+
+    def destroy(self) -> None:
+        self.destroyed = True
 
 
 class _FakeMenuItem:

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-07-10 22:37+0200\n"
+"POT-Creation-Date: 2026-10-08 01:03+0200\n"
 "PO-Revision-Date: 2026-03-05 12:18+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -21,55 +21,55 @@ msgstr ""
 msgid "AI Usage"
 msgstr "Uso de IA"
 
-#: docking/applets/aiusage/applet.py:139
+#: docking/applets/aiusage/applet.py:137
 msgid "Auto"
 msgstr "Automatico"
 
-#: docking/applets/aiusage/applet.py:140
+#: docking/applets/aiusage/applet.py:138
 msgid "Claude"
 msgstr "Claude"
 
-#: docking/applets/aiusage/applet.py:141
+#: docking/applets/aiusage/applet.py:139
 msgid "Codex"
 msgstr "Codex"
 
-#: docking/applets/aiusage/applet.py:142
+#: docking/applets/aiusage/applet.py:140
 msgid "OpenCode"
 msgstr "OpenCode"
 
-#: docking/applets/aiusage/applet.py:151
+#: docking/applets/aiusage/applet.py:149
 msgid "Show Cost"
 msgstr "Mostrar coste"
 
-#: docking/applets/aiusage/applet.py:152
+#: docking/applets/aiusage/applet.py:150
 msgid "Show Tokens"
 msgstr "Mostrar tokens"
 
-#: docking/applets/aiusage/applet.py:159
-#: docking/applets/deskpresence/applet.py:121
+#: docking/applets/aiusage/applet.py:157
+#: docking/applets/deskpresence/applet.py:119
 msgid "Reset Today"
 msgstr "Reiniciar Hoy"
 
-#: docking/applets/aiusage/applet.py:220 docking/applets/aiusage/applet.py:235
+#: docking/applets/aiusage/applet.py:218 docking/applets/aiusage/applet.py:233
 #, python-brace-format
 msgid "{name}: no usage today"
 msgstr "{name}: sin uso hoy"
 
-#: docking/applets/aiusage/applet.py:252
+#: docking/applets/aiusage/applet.py:250
 #, python-brace-format
 msgid "<b>{name}: {value}</b>"
 msgstr "<b>{name}: {value}</b>"
 
-#: docking/applets/aiusage/applet.py:296
+#: docking/applets/aiusage/applet.py:294
 #, python-brace-format
 msgid "This week: {value}"
 msgstr "Esta semana: {value}"
 
-#: docking/applets/aiusage/state.py:499
+#: docking/applets/aiusage/state.py:515
 msgid "no usage today"
 msgstr "sin uso hoy"
 
-#: docking/applets/aiusage/state.py:503
+#: docking/applets/aiusage/state.py:519
 #, python-brace-format
 msgid "Today: {cost}"
 msgstr "Hoy: {cost}"
@@ -78,7 +78,8 @@ msgstr "Hoy: {cost}"
 msgid "Alarm"
 msgstr "Alarma"
 
-#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:208
+#: docking/applets/alarm/applet.py:104 docking/applets/alarm/applet.py:209
+#: docking/applets/plantcare/applet.py:376
 msgid "Snooze"
 msgstr "Siesta"
 
@@ -91,6 +92,7 @@ msgid "Add Alarm..."
 msgstr "Agregar alarma..."
 
 #: docking/applets/alarm/applet.py:132
+#, python-brace-format
 msgid "Edit {label}..."
 msgstr "Editar {label}..."
 
@@ -102,42 +104,45 @@ msgstr "Editar alarma"
 msgid "Add Alarm"
 msgstr "Agregar alarma"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/certwatch/state.py:246
-#: docking/applets/clock/applet.py:218 docking/applets/quicknote/applet.py:87
+#: docking/applets/alarm/applet.py:164 docking/applets/certwatch/state.py:246
+#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr "OK"
 
-#: docking/applets/alarm/applet.py:163 docking/applets/clock/applet.py:218
-#: docking/applets/lastfm/applet.py:380 docking/applets/quicknote/applet.py:86
-#: docking/applets/runcommand/applet.py:122
-#: docking/applets/runcommand/applet.py:340
-#: docking/applets/sunrise/applet.py:188 docking/applets/trash/applet.py:263
-#: docking/applets/weather/applet.py:273 docking/ui/diagnostics.py:342
-#: docking/ui/menu.py:439
+#: docking/applets/alarm/applet.py:164 docking/applets/clock/applet.py:231
+#: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:512
+#: docking/applets/plantcare/applet.py:474
+#: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:430
+#: docking/applets/runcommand/applet.py:147
+#: docking/applets/runcommand/applet.py:368
+#: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:264
+#: docking/applets/weather/applet.py:272 docking/applets/whatsapp/applet.py:175
+#: docking/ui/diagnostics.py:391 docking/ui/menu.py:449
 msgid "Cancel"
 msgstr "Cancel"
 
-#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/applet.py:170
+#: docking/applets/alarm/applet.py:166 docking/applets/certwatch/applet.py:168
+#: docking/applets/plantcare/applet.py:477
 msgid "Remove"
 msgstr "Remove"
 
-#: docking/applets/alarm/applet.py:189
+#: docking/applets/alarm/applet.py:190 docking/ui/settings.py:904
 msgid "Enabled"
 msgstr "Activado"
 
-#: docking/applets/alarm/applet.py:202
+#: docking/applets/alarm/applet.py:203
 msgid "Label"
 msgstr "Etiqueta"
 
-#: docking/applets/alarm/applet.py:204 docking/applets/clock/applet.py:255
+#: docking/applets/alarm/applet.py:205 docking/applets/clock/applet.py:268
 msgid "Hour"
 msgstr "Hour"
 
-#: docking/applets/alarm/applet.py:206 docking/applets/clock/applet.py:257
+#: docking/applets/alarm/applet.py:207 docking/applets/clock/applet.py:270
 msgid "Minute"
 msgstr "Minute"
 
-#: docking/applets/alarm/applet.py:211
+#: docking/applets/alarm/applet.py:212
 msgid "Repeat"
 msgstr "Repetir"
 
@@ -174,6 +179,7 @@ msgid "Ring"
 msgstr "Anillo"
 
 #: docking/applets/alarm/state.py:227
+#, python-brace-format
 msgid "{hours}h"
 msgstr "{hours}h"
 
@@ -184,6 +190,7 @@ msgid "{minutes}m"
 msgstr "{minutes}m"
 
 #: docking/applets/alarm/state.py:236
+#, python-brace-format
 msgid "Alarm ringing: {label}"
 msgstr "Sonando alarma: {label}"
 
@@ -192,6 +199,7 @@ msgid "Alarm: no enabled alarms"
 msgstr "Alarma: no hay alarmas habilitadas"
 
 #: docking/applets/alarm/state.py:240
+#, python-brace-format
 msgid "Next alarm: {label} at {time}"
 msgstr "Próxima alarma: {label} en {time}"
 
@@ -200,6 +208,7 @@ msgid "No enabled alarms"
 msgstr "No hay alarmas habilitadas"
 
 #: docking/applets/alarm/state.py:253
+#, python-brace-format
 msgid "{label}: {time} ({duration})"
 msgstr "{label}: {time} ({duration})"
 
@@ -233,10 +242,12 @@ msgid "daily"
 msgstr "a diario"
 
 #: docking/applets/alarm/state.py:304
+#, python-brace-format
 msgid "{days}d {hours}h"
 msgstr "{days}d {hours}h"
 
 #: docking/applets/alarm/state.py:306 docking/applets/sunrise/state.py:417
+#, python-brace-format
 msgid "{hours}h {minutes}m"
 msgstr "{hours}h {minutes}m"
 
@@ -285,7 +296,7 @@ msgstr "Ruido Rosa"
 msgid "Playing: {sound} ({pct}%)"
 msgstr "Reproduciendo: {sound} ({pct}%)"
 
-#: docking/applets/apod/applet.py:68 docking/applets/apod/state.py:114
+#: docking/applets/apod/applet.py:70 docking/applets/apod/state.py:114
 #: docking/applets/apod/state.py:132
 msgid "Astronomy Picture of the Day"
 msgstr "Astronomy Picture of the Day"
@@ -300,42 +311,45 @@ msgid "Untitled"
 msgstr "Untitled"
 
 #: docking/applets/apod/applet.py:119 docking/applets/apod/state.py:119
-#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:147
-#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:101
+#: docking/applets/apod/state.py:138 docking/applets/certwatch/applet.py:145
+#: docking/applets/certwatch/state.py:325 docking/ui/diagnostics.py:116
 msgid "Checks"
 msgstr "Comprobaciones"
 
-#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:141
+#: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:139
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:203
-#: docking/applets/hackernews/applet.py:189
-#: docking/applets/lastfm/applet.py:174 docking/applets/speedtest/applet.py:116
-#: docking/applets/thermals/applet.py:147 docking/applets/tooltip.py:46
-#: docking/applets/weather/applet.py:183 docking/applets/weather/applet.py:567
+#: docking/applets/hackernews/applet.py:192
+#: docking/applets/lastfm/applet.py:173 docking/applets/news/applet.py:273
+#: docking/applets/reddit/applet.py:195 docking/applets/speedtest/applet.py:114
+#: docking/applets/thermals/applet.py:145 docking/applets/tooltip.py:46
+#: docking/applets/weather/applet.py:181 docking/applets/weather/applet.py:566
 #, python-brace-format
 msgid "Error: {msg}"
 msgstr "Error: {msg}"
 
-#: docking/applets/apod/applet.py:134
-msgid "Open on apod.nasa.gov"
-msgstr "Open on apod.nasa.gov"
+#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:101
+msgid "Open in Browser"
+msgstr "Abrir en el navegador"
 
 #: docking/applets/apod/applet.py:139
 msgid "Copy Explanation"
 msgstr "Copy Explanation"
 
-#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:217
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:216
 #: docking/applets/camshield/applet.py:127
 #: docking/applets/capslock/applet.py:97
-#: docking/applets/certwatch/applet.py:158 docking/applets/crypto/applet.py:156
+#: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
-#: docking/applets/hackernews/applet.py:206
-#: docking/applets/lastfm/applet.py:198 docking/applets/micshield/applet.py:131
-#: docking/applets/moon/applet.py:137 docking/applets/quote/applet.py:105
-#: docking/applets/systemtray/applet.py:142
-#: docking/applets/thermals/applet.py:157
-#: docking/applets/todayinhistory/applet.py:112
-#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:190
+#: docking/applets/hackernews/applet.py:209
+#: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:131
+#: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:301
+#: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:104
+#: docking/applets/reddit/applet.py:215
+#: docking/applets/systemtray/applet.py:175
+#: docking/applets/thermals/applet.py:155
+#: docking/applets/todayinhistory/applet.py:107
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:188
 msgid "Refresh Now"
 msgstr "Actualizar Ahora"
 
@@ -344,11 +358,12 @@ msgstr "Actualizar Ahora"
 msgid "(c) {who}"
 msgstr "(c) {who}"
 
-#: docking/applets/applications/applet.py:50
+#: docking/applets/applications/applet.py:56
+#: docking/search/providers/applications.py:216
 msgid "Applications"
 msgstr "Aplicaciones"
 
-#: docking/applets/applications/applet.py:91
+#: docking/applets/applications/applet.py:107
 msgid "Search applications..."
 msgstr "Buscar aplicaciones..."
 
@@ -356,23 +371,23 @@ msgstr "Buscar aplicaciones..."
 msgid "Battery"
 msgstr "Batería"
 
-#: docking/applets/battery/applet.py:109
+#: docking/applets/battery/applet.py:108
 msgid "No overlay"
 msgstr "Sin superposición"
 
-#: docking/applets/battery/applet.py:110
+#: docking/applets/battery/applet.py:109
 msgid "Percentage"
 msgstr "Porcentaje"
 
-#: docking/applets/battery/applet.py:111
+#: docking/applets/battery/applet.py:110
 msgid "Power (W)"
 msgstr "Potencia (W)"
 
-#: docking/applets/battery/applet.py:121
+#: docking/applets/battery/applet.py:120
 msgid "Power Settings"
 msgstr "Power Settings"
 
-#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:644
+#: docking/applets/battery/peripherals.py:46 docking/ui/settings.py:780
 msgid "Mouse"
 msgstr "Mouse"
 
@@ -487,108 +502,109 @@ msgstr "{hours}h {minutes:02d}m"
 msgid "Bluetooth"
 msgstr "Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:181
+#: docking/applets/bluetooth/applet.py:180
 msgid "Bluetooth unavailable"
 msgstr "Bluetooth no disponible"
 
-#: docking/applets/bluetooth/applet.py:185
+#: docking/applets/bluetooth/applet.py:184
 msgid "No Bluetooth adapter"
 msgstr "Sin adaptador Bluetooth"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr "Encendido"
 
-#: docking/applets/bluetooth/applet.py:187
+#: docking/applets/bluetooth/applet.py:186
 #: docking/applets/bluetooth/state.py:155 docking/applets/caffeine/state.py:128
 #: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr "Apagado"
 
-#: docking/applets/bluetooth/applet.py:196
+#: docking/applets/bluetooth/applet.py:195
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr "{alias} ({powered}) - Conectados {connected}"
 
-#: docking/applets/bluetooth/applet.py:207
+#: docking/applets/bluetooth/applet.py:206
 msgid "Continuous Discovery"
 msgstr "Descubrimiento Continuo"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth Off"
 msgstr "Turn Bluetooth Off"
 
-#: docking/applets/bluetooth/applet.py:239
+#: docking/applets/bluetooth/applet.py:238
 msgid "Turn Bluetooth On"
 msgstr "Turn Bluetooth On"
 
-#: docking/applets/bluetooth/applet.py:255
+#: docking/applets/bluetooth/applet.py:254
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr "Disconnect {device}"
 
-#: docking/applets/bluetooth/applet.py:269
+#: docking/applets/bluetooth/applet.py:268
 msgid "Send Files to Device..."
 msgstr "Send Files to Device..."
 
-#: docking/applets/bluetooth/applet.py:277
+#: docking/applets/bluetooth/applet.py:276
 msgid "Devices..."
 msgstr "Devices..."
 
-#: docking/applets/bluetooth/applet.py:283
+#: docking/applets/bluetooth/applet.py:282
 msgid "Adapters..."
 msgstr "Adapters..."
 
-#: docking/applets/bluetooth/applet.py:289
+#: docking/applets/bluetooth/applet.py:288
 msgid "Local Services..."
 msgstr "Local Services..."
 
-#: docking/applets/bluetooth/applet.py:296
+#: docking/applets/bluetooth/applet.py:295
 msgid "Recent Connections"
 msgstr "Recent Connections"
 
-#: docking/applets/bluetooth/applet.py:301
+#: docking/applets/bluetooth/applet.py:300
 msgid "No recent connections"
 msgstr "No recent connections"
 
-#: docking/applets/bluetooth/applet.py:325
+#: docking/applets/bluetooth/applet.py:324
 msgid "Adapter"
 msgstr "Adaptador"
 
-#: docking/applets/bluetooth/applet.py:343
+#: docking/applets/bluetooth/applet.py:342
 msgid "Connected Devices"
 msgstr "Dispositivos conectados"
 
-#: docking/applets/bluetooth/applet.py:344
+#: docking/applets/bluetooth/applet.py:343
 msgid "Paired Devices"
 msgstr "Dispositivos emparejados"
 
-#: docking/applets/bluetooth/applet.py:345
+#: docking/applets/bluetooth/applet.py:344
 msgid "Discovered Devices"
 msgstr "Dispositivos descubiertos"
 
-#: docking/applets/bluetooth/applet.py:370
+#: docking/applets/bluetooth/applet.py:369
+#: docking/applets/whatsapp/applet.py:176
 msgid "Disconnect"
 msgstr "Desconectar"
 
-#: docking/applets/bluetooth/applet.py:379
+#: docking/applets/bluetooth/applet.py:378
 msgid "Connect"
 msgstr "Conectar"
 
-#: docking/applets/bluetooth/applet.py:389
+#: docking/applets/bluetooth/applet.py:388
 msgid "Pair"
 msgstr "Emparejar"
 
-#: docking/applets/bluetooth/applet.py:403
+#: docking/applets/bluetooth/applet.py:402
 msgid "Remove Pairing"
 msgstr "Quitar Emparejamiento"
 
-#: docking/applets/bluetooth/applet.py:415
+#: docking/applets/bluetooth/applet.py:414
 msgid "Trusted"
 msgstr "Confiable"
 
-#: docking/applets/bluetooth/applet.py:430
+#: docking/applets/bluetooth/applet.py:429
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr "Batería: {percent}%"
@@ -628,35 +644,35 @@ msgstr "Emparejados: {n}"
 msgid "Discovering: {state}"
 msgstr "Descubriendo: {state}"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "Yes"
 msgstr "Sí"
 
-#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:391
+#: docking/applets/bluetooth/state.py:165 docking/ui/diagnostics.py:440
 msgid "No"
 msgstr "No"
 
-#: docking/applets/bookmarks/applet.py:55
+#: docking/applets/bookmarks/applet.py:53
 msgid "Bookmarks"
 msgstr "Marcadores"
 
-#: docking/applets/bookmarks/applet.py:87
+#: docking/applets/bookmarks/applet.py:85
 msgid "Add Bookmark..."
 msgstr "Agregar Marcador..."
 
-#: docking/applets/bookmarks/applet.py:90
+#: docking/applets/bookmarks/applet.py:88
 msgid "Remove All"
 msgstr "Eliminar Todos"
 
-#: docking/applets/bookmarks/applet.py:111
+#: docking/applets/bookmarks/applet.py:104
 msgid "Add Bookmark"
 msgstr "Agregar Marcador"
 
-#: docking/applets/bookmarks/applet.py:124
+#: docking/applets/bookmarks/applet.py:118
 msgid "Bookmark name"
 msgstr "Nombre del marcador"
 
-#: docking/applets/bookmarks/applet.py:129
+#: docking/applets/bookmarks/applet.py:123
 msgid "https://..."
 msgstr "https://..."
 
@@ -664,13 +680,13 @@ msgstr "https://..."
 msgid "Brightness"
 msgstr "Brillo"
 
-#: docking/applets/brightness/applet.py:85
+#: docking/applets/brightness/applet.py:84
 #, python-brace-format
 msgid "Brightness: {pct}%"
 msgstr "Brillo: {pct}%"
 
-#: docking/applets/brightness/applet.py:109
-#: docking/applets/volume/applet.py:126
+#: docking/applets/brightness/applet.py:108
+#: docking/applets/volume/applet.py:125
 msgid "Show Level"
 msgstr "Mostrar Nivel"
 
@@ -705,23 +721,28 @@ msgid "Caffeine: keeping awake"
 msgstr "Cafeína: mantenerse despierto"
 
 #: docking/applets/caffeine/state.py:120
+#, python-brace-format
 msgid "Caffeine: {time} remaining"
 msgstr "Cafeína: {time} restante"
 
-#: docking/applets/caffeine/state.py:130
+#: docking/applets/caffeine/state.py:130 docking/search/controller.py:251
+#: docking/search/controller.py:269 docking/search/providers/windows.py:95
 msgid "Active"
 msgstr "Activo"
 
 #: docking/applets/caffeine/state.py:131
+#, python-brace-format
 msgid "Active - {time} left"
 msgstr "Activo - {time} izquierda"
 
 #: docking/applets/calculator/applet.py:78
 #: docking/applets/calculator/applet.py:96
+#: docking/search/providers/calculator.py:66
+#: docking/search/providers/calculator.py:85
 msgid "Calculator"
 msgstr "Calculadora"
 
-#: docking/applets/calendar/applet.py:46 docking/applets/calendar/applet.py:52
+#: docking/applets/calendar/applet.py:69 docking/applets/calendar/applet.py:75
 msgid "Calendar"
 msgstr "Calendario"
 
@@ -761,8 +782,8 @@ msgstr "Camera lock helper unavailable"
 msgid "{command} (PID {pid}) using {devices}"
 msgstr "{command} (PID {pid}) using {devices}"
 
-#: docking/applets/camshield/state.py:91 docking/applets/micshield/state.py:223
-#: docking/applets/usbwatch/state.py:98
+#: docking/applets/camshield/state.py:91 docking/applets/devices/state.py:132
+#: docking/applets/micshield/state.py:223 docking/applets/usbwatch/state.py:99
 #, python-brace-format
 msgid "{count} more"
 msgstr "{count} more"
@@ -774,8 +795,9 @@ msgstr "{command} (PID {pid}) - {devices}"
 
 #: docking/applets/camshield/state.py:192
 #: docking/applets/deskpresence/state.py:185
-#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:95
-#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:396
+#: docking/applets/micshield/state.py:193 docking/applets/music/state.py:116
+#: docking/applets/powerprofiles/state.py:150 docking/ui/diagnostics.py:258
+#: docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr "Desconocido"
 
@@ -813,22 +835,22 @@ msgstr "{name}: {state}"
 msgid "Cert Watch"
 msgstr "Cert Watch"
 
-#: docking/applets/certwatch/applet.py:130
+#: docking/applets/certwatch/applet.py:128
 #: docking/applets/certwatch/state.py:264
 #: docking/applets/certwatch/state.py:312
 #, python-brace-format
 msgid "{host}: loading..."
 msgstr "{host}: loading..."
 
-#: docking/applets/certwatch/applet.py:152
+#: docking/applets/certwatch/applet.py:150
 msgid "Add Domain..."
 msgstr "Add Domain..."
 
-#: docking/applets/certwatch/applet.py:306
+#: docking/applets/certwatch/applet.py:304
 msgid "Add Domain"
 msgstr "Add Domain"
 
-#: docking/applets/certwatch/applet.py:319
+#: docking/applets/certwatch/applet.py:318
 msgid "example.com or example.com:8443"
 msgstr "example.com or example.com:8443"
 
@@ -841,11 +863,12 @@ msgid "Expired"
 msgstr "Expired"
 
 #: docking/applets/certwatch/state.py:250
+#: docking/search/providers/calculator.py:67
 msgid "Error"
 msgstr "Error"
 
 #: docking/applets/certwatch/state.py:251
-#: docking/applets/speedtest/applet.py:74
+#: docking/applets/speedtest/applet.py:72
 msgid "..."
 msgstr "..."
 
@@ -882,7 +905,7 @@ msgstr "{host}: no disponible"
 msgid "Clippy"
 msgstr "Portapapeles"
 
-#: docking/applets/clippy/applet.py:108
+#: docking/applets/clippy/applet.py:107
 msgid "Clear"
 msgstr "Limpiar"
 
@@ -890,53 +913,53 @@ msgstr "Limpiar"
 msgid "Clippy (empty)"
 msgstr "Portapapeles (vacío)"
 
-#: docking/applets/clock/applet.py:53
+#: docking/applets/clock/applet.py:54
 msgid "Clock"
 msgstr "Reloj"
 
-#: docking/applets/clock/applet.py:100
+#: docking/applets/clock/applet.py:109
 msgid "Digital Clock"
 msgstr "Reloj Digital"
 
-#: docking/applets/clock/applet.py:104
+#: docking/applets/clock/applet.py:113
 msgid "24-Hour Clock"
 msgstr "Reloj de 24 Horas"
 
-#: docking/applets/clock/applet.py:108
+#: docking/applets/clock/applet.py:117
 msgid "Show Date"
 msgstr "Mostrar Fecha"
 
-#: docking/applets/clock/applet.py:113
+#: docking/applets/clock/applet.py:122
 msgid "Show Seconds"
 msgstr "Show Seconds"
 
-#: docking/applets/clock/applet.py:117
+#: docking/applets/clock/applet.py:126
 msgid "Set Alarm..."
 msgstr "Set Alarm..."
 
-#: docking/applets/clock/applet.py:123
+#: docking/applets/clock/applet.py:132
 msgid "Clear Alarm"
 msgstr "Clear Alarm"
 
-#: docking/applets/clock/applet.py:128
+#: docking/applets/clock/applet.py:137
 msgid "Acknowledge Alarm"
 msgstr "Acknowledge Alarm"
 
-#: docking/applets/clock/applet.py:215
+#: docking/applets/clock/applet.py:227
 msgid "Set Alarm"
 msgstr "Set Alarm"
 
 #: docking/applets/colorpicker/applet.py:59
-#: docking/applets/colorpicker/applet.py:94
+#: docking/applets/colorpicker/applet.py:93
 msgid "Color Picker"
 msgstr "Selector de Color"
 
-#: docking/applets/colorpicker/applet.py:108
+#: docking/applets/colorpicker/applet.py:107
 #, python-brace-format
 msgid "Copy {hex}"
 msgstr "Copiar {hex}"
 
-#: docking/applets/colorpicker/applet.py:112
+#: docking/applets/colorpicker/applet.py:111
 msgid "Show Hex"
 msgstr "Mostrar Hex"
 
@@ -982,6 +1005,7 @@ msgid "No price data"
 msgstr "Sin datos de precios"
 
 #: docking/applets/crypto/applet.py:381
+#, python-brace-format
 msgid "{asset}: {price} ({change})"
 msgstr "{asset}: {price} ({change})"
 
@@ -989,40 +1013,43 @@ msgstr "{asset}: {price} ({change})"
 msgid "Add Crypto Asset"
 msgstr "Agregar criptoactivo"
 
-#: docking/applets/crypto/applet.py:418
+#: docking/applets/crypto/applet.py:419
 msgid "bitcoin or cryptopunks"
 msgstr "bitcoin o criptopunks"
 
-#: docking/applets/crypto/applet.py:420
+#: docking/applets/crypto/applet.py:421
 msgid "BTC"
 msgstr "btc"
 
-#: docking/applets/crypto/applet.py:422
+#: docking/applets/crypto/applet.py:423
 msgid "Bitcoin"
 msgstr "bitcóin"
 
-#: docking/applets/crypto/applet.py:425
+#: docking/applets/crypto/applet.py:426
 msgid "Type"
 msgstr "Tipo"
 
-#: docking/applets/crypto/applet.py:426
+#: docking/applets/crypto/applet.py:427
 msgid "CoinGecko ID"
 msgstr "ID de CoinGecko"
 
-#: docking/applets/crypto/applet.py:427
+#: docking/applets/crypto/applet.py:428
 msgid "Symbol"
 msgstr "Símbolo"
 
-#: docking/applets/crypto/applet.py:428 docking/ui/folder/_browser.py:39
+#: docking/applets/crypto/applet.py:429 docking/applets/plantcare/applet.py:493
+#: docking/ui/folder/_browser.py:35
 msgid "Name"
 msgstr "Nombre"
 
 #: docking/applets/crypto/state.py:559 docking/applets/currencyfx/state.py:741
 #: docking/applets/live_state.py:93 docking/applets/weather/state.py:180
+#: docking/search/controller.py:271
 msgid "Unavailable"
 msgstr "No disponible"
 
 #: docking/applets/crypto/state.py:579 docking/applets/currencyfx/state.py:768
+#, python-brace-format
 msgid "Interval: {interval}"
 msgstr "Intervalo: {interval}"
 
@@ -1079,13 +1106,13 @@ msgstr "{pair}: {rate} ({change})"
 msgid "Add FX Pair"
 msgstr "Añadir par FX"
 
-#: docking/applets/currencyfx/applet.py:505
+#: docking/applets/currencyfx/applet.py:506
 msgid "Base"
 msgstr "Base"
 
-#: docking/applets/currencyfx/applet.py:507 docking/applets/quote/applet.py:56
-#: docking/applets/quote/applet.py:96 docking/applets/quote/applet.py:221
-#: docking/applets/quote/applet.py:227
+#: docking/applets/currencyfx/applet.py:508 docking/applets/quote/applet.py:56
+#: docking/applets/quote/applet.py:95 docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:226
 msgid "Quote"
 msgstr "Cita"
 
@@ -1099,35 +1126,35 @@ msgstr "1 {base} = {rate} {quote}"
 msgid "Desk Presence"
 msgstr "Desk Presence"
 
-#: docking/applets/deskpresence/applet.py:102
+#: docking/applets/deskpresence/applet.py:100
 #, python-brace-format
 msgid "{status}"
 msgstr "{status}"
 
-#: docking/applets/deskpresence/applet.py:110
+#: docking/applets/deskpresence/applet.py:108
 msgid "Idle Threshold"
 msgstr "Idle Threshold"
 
-#: docking/applets/deskpresence/applet.py:213
+#: docking/applets/deskpresence/applet.py:211
 #: docking/applets/deskpresence/state.py:183
 msgid "At desk"
 msgstr "At desk"
 
-#: docking/applets/deskpresence/applet.py:214
+#: docking/applets/deskpresence/applet.py:212
 #: docking/applets/deskpresence/state.py:184
 msgid "Away"
 msgstr "Away"
 
-#: docking/applets/deskpresence/applet.py:215
+#: docking/applets/deskpresence/applet.py:213
 msgid "Status unknown"
 msgstr "Status unknown"
 
-#: docking/applets/deskpresence/applet.py:222
+#: docking/applets/deskpresence/applet.py:220
 #, python-brace-format
 msgid "{m} min"
 msgstr "{m} min"
 
-#: docking/applets/deskpresence/applet.py:223
+#: docking/applets/deskpresence/applet.py:221
 #, python-brace-format
 msgid "{s} sec"
 msgstr "{s} sec"
@@ -1184,15 +1211,38 @@ msgid "Week total at desk: {d}"
 msgstr "Week total at desk: {d}"
 
 #: docking/applets/desktop/applet.py:41
-#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:147
+#: docking/applets/workspaces/applet.py:101 docking/ui/diagnostics.py:162
 msgid "Desktop"
 msgstr "Escritorio"
+
+#: docking/applets/devices/applet.py:66 docking/applets/devices/state.py:127
+#: docking/applets/devices/state.py:134
+msgid "Devices"
+msgstr "Dispositivos"
+
+#: docking/applets/devices/applet.py:118
+msgid "Refresh Devices"
+msgstr "Actualizar dispositivos"
+
+#: docking/applets/devices/state.py:128
+msgid "No mounted devices"
+msgstr "No hay dispositivos montados"
+
+#: docking/applets/devices/state.py:135 docking/applets/usbwatch/state.py:102
+#, python-brace-format
+msgid "{count} mounted device(s)"
+msgstr "{count} dispositivo(s) conectado(s)"
+
+#: docking/applets/devices/state.py:158 docking/applets/devices/state.py:173
+msgid "Mounted Device"
+msgstr "Dispositivo montado"
 
 #: docking/applets/docker/applet.py:54
 msgid "Docker"
 msgstr "Estibador"
 
 #: docking/applets/docker/applet.py:109
+#, python-brace-format
 msgid "Docker unavailable: {error}"
 msgstr "Ventana acoplable no disponible: {error}"
 
@@ -1205,6 +1255,7 @@ msgid "No running containers"
 msgstr "Sin contenedores en ejecución"
 
 #: docking/applets/docker/applet.py:119
+#, python-brace-format
 msgid "{count} running containers"
 msgstr "{count} contenedores en ejecución"
 
@@ -1225,6 +1276,7 @@ msgid "Restart"
 msgstr "Reiniciar Sistema"
 
 #: docking/applets/docker/applet.py:204
+#, python-brace-format
 msgid "{name} ({image})"
 msgstr "{name} ({image})"
 
@@ -1237,6 +1289,7 @@ msgid "Docker is unavailable"
 msgstr "Docker no está disponible"
 
 #: docking/applets/docker/state.py:80
+#, python-brace-format
 msgid "Docker: {error}"
 msgstr "Ventana acoplable: {error}"
 
@@ -1301,29 +1354,29 @@ msgstr "Drop a local file to upload"
 msgid "Copy Last URL"
 msgstr "Copy Last URL"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 msgid "1 hour"
 msgstr "1 hora"
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:219
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
 #, python-brace-format
 msgid "{count} hours"
 msgstr "{count} horas"
 
-#: docking/applets/freshness.py:33 docking/ui/tooltip.py:213
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:214
 msgid "1 minute"
 msgstr "1 minuto"
 
-#: docking/applets/freshness.py:35 docking/ui/tooltip.py:215
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:216
 #, python-brace-format
 msgid "{count} minutes"
 msgstr "{count} minutos"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:206
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:207
 msgid "1 second"
 msgstr "1 segundo"
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:209
 #, python-brace-format
 msgid "{count} seconds"
 msgstr "{count} segundos"
@@ -1334,7 +1387,7 @@ msgid "{verb} every {interval}"
 msgstr "{verb} cada {interval}"
 
 #: docking/applets/freshness.py:43 docking/applets/freshness.py:50
-#: docking/ui/settings.py:295
+#: docking/ui/settings.py:359
 msgid "Updates"
 msgstr "Actualizaciones"
 
@@ -1344,67 +1397,96 @@ msgid "{verb} on demand"
 msgstr "{verb} bajo demanda"
 
 #: docking/applets/freshness.py:62
+#, python-brace-format
 msgid "Updated: {age}"
 msgstr "Actualizado: {age}"
 
-#: docking/applets/hackernews/applet.py:69
-#: docking/applets/hackernews/state.py:157
+#: docking/applets/hackernews/applet.py:71
 msgid "Hacker News"
 msgstr "Hacker News"
 
-#: docking/applets/hackernews/applet.py:161
-#: docking/applets/hackernews/state.py:163
-#: docking/applets/hackernews/state.py:196
+#: docking/applets/hackernews/applet.py:164
+#: docking/applets/hackernews/state.py:198
+#: docking/applets/hackernews/state.py:231 docking/applets/news/applet.py:238
+#: docking/applets/news/state.py:331 docking/applets/news/state.py:351
+#: docking/applets/reddit/applet.py:168 docking/applets/reddit/state.py:348
+#: docking/applets/reddit/state.py:368
 msgid "Refreshes"
 msgstr "Actualizaciones"
 
-#: docking/applets/hackernews/applet.py:173
-#: docking/applets/hackernews/state.py:178
+#: docking/applets/hackernews/applet.py:176
+#: docking/applets/hackernews/state.py:213
 #, python-brace-format
 msgid "{score} points, {comments} comments"
 msgstr "{score} puntos, {comments} comentarios"
 
-#: docking/applets/hackernews/applet.py:194
+#: docking/applets/hackernews/applet.py:197
 msgid "Open Story"
 msgstr "Abrir historia"
 
-#: docking/applets/hackernews/applet.py:198
+#: docking/applets/hackernews/applet.py:201
 msgid "Open Comments"
 msgstr "Abrir comentarios"
 
-#: docking/applets/hackernews/applet.py:202
+#: docking/applets/hackernews/applet.py:205 docking/applets/news/applet.py:288
+#: docking/applets/reddit/applet.py:206
 msgid "Next Headline"
 msgstr "Siguiente titular"
 
-#: docking/applets/hackernews/applet.py:328
+#: docking/applets/hackernews/applet.py:214
+msgid "Page"
+msgstr "Página"
+
+#: docking/applets/hackernews/applet.py:358
 msgid "No Hacker News stories"
 msgstr "Sin historias de Hacker News"
 
-#: docking/applets/hackernews/state.py:114
+#: docking/applets/hackernews/state.py:71
+msgid "Top Stories"
+msgstr "Historias principales"
+
+#: docking/applets/hackernews/state.py:72
+msgid "Show HN"
+msgstr "Show HN"
+
+#: docking/applets/hackernews/state.py:73
+msgid "Jobs"
+msgstr "Empleos"
+
+#: docking/applets/hackernews/state.py:144 docking/applets/news/state.py:285
+#: docking/applets/reddit/state.py:308
 msgid "now"
 msgstr "ahora"
 
-#: docking/applets/hackernews/state.py:117
+#: docking/applets/hackernews/state.py:147 docking/applets/news/state.py:288
+#: docking/applets/reddit/state.py:311
 #, python-brace-format
 msgid "{minutes}m ago"
 msgstr "hace {minutes} min"
 
-#: docking/applets/hackernews/state.py:120
+#: docking/applets/hackernews/state.py:150 docking/applets/news/state.py:291
+#: docking/applets/reddit/state.py:314
 #, python-brace-format
 msgid "{hours}h ago"
 msgstr "hace {hours} h"
 
-#: docking/applets/hackernews/state.py:122
+#: docking/applets/hackernews/state.py:152 docking/applets/news/state.py:292
+#: docking/applets/reddit/state.py:315
 #, python-brace-format
 msgid "{days}d ago"
 msgstr "hace {days} d"
 
-#: docking/applets/hackernews/state.py:171
+#: docking/applets/hackernews/state.py:180 docking/applets/news/applet.py:806
+#, python-brace-format
+msgid "{source} - {feed}"
+msgstr "{source} - {feed}"
+
+#: docking/applets/hackernews/state.py:206
 #, python-brace-format
 msgid "{source} {rank}"
 msgstr "{source} {rank}"
 
-#: docking/applets/hackernews/state.py:187
+#: docking/applets/hackernews/state.py:222
 msgid "Loading next stories..."
 msgstr "Cargando próximas historias..."
 
@@ -1442,36 +1524,38 @@ msgstr "Keyboard Settings"
 msgid "Show Current Layout"
 msgstr "Show Current Layout"
 
-#: docking/applets/lastfm/applet.py:80
+#: docking/applets/lastfm/applet.py:81
 msgid "Last.fm"
 msgstr "Last.fm"
 
-#: docking/applets/lastfm/applet.py:157
+#: docking/applets/lastfm/applet.py:156
 msgid "Set username..."
 msgstr "Establecer nombre de usuario..."
 
-#: docking/applets/lastfm/applet.py:159
+#: docking/applets/lastfm/applet.py:158
 msgid "Set API key and username..."
 msgstr "Establecer clave API y nombre de usuario..."
 
-#: docking/applets/lastfm/applet.py:165
+#: docking/applets/lastfm/applet.py:164
 #, python-brace-format
 msgid "Recent tracks for {user} ({count})"
 msgstr "Pistas recientes de {user} ({count})"
 
-#: docking/applets/lastfm/applet.py:182
+#: docking/applets/lastfm/applet.py:181
 msgid "Configure..."
 msgstr "Configurar..."
 
-#: docking/applets/lastfm/applet.py:188
+#: docking/applets/lastfm/applet.py:187
+#, python-brace-format
 msgid "Open {service} Profile"
 msgstr "Abrir perfil {service}"
 
-#: docking/applets/lastfm/applet.py:377
+#: docking/applets/lastfm/applet.py:376
 msgid "Scrobbler Settings"
 msgstr "Configuración del scrobbler"
 
-#: docking/applets/lastfm/applet.py:381 docking/ui/diagnostics.py:341
+#: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr "Ahorrar"
 
@@ -1523,6 +1607,7 @@ msgid "Stale data"
 msgstr "Datos antiguos"
 
 #: docking/applets/live_state.py:138
+#, python-brace-format
 msgid "Stale: last updated {age}"
 msgstr "Obsoleto: última actualización {age}"
 
@@ -1577,20 +1662,21 @@ msgstr "{command} (PID {pid})"
 msgid "Moon"
 msgstr "Luna"
 
-#: docking/applets/moon/applet.py:105
+#: docking/applets/moon/applet.py:104
 msgid "Moon (loading...)"
 msgstr "Luna (cargando...)"
 
-#: docking/applets/moon/applet.py:112
+#: docking/applets/moon/applet.py:111
 #, python-brace-format
 msgid "Illumination: {pct}%"
 msgstr "Iluminación: {pct}%"
 
-#: docking/applets/moon/applet.py:133
+#: docking/applets/moon/applet.py:132
 msgid "Show Phase Name"
 msgstr "Mostrar Fase"
 
 #: docking/applets/moon/offline.py:229 docking/applets/moon/state.py:143
+#: docking/applets/reddit/state.py:159
 msgid "New"
 msgstr "Nueva"
 
@@ -1652,48 +1738,48 @@ msgstr "Cuarto Creciente"
 msgid "3rd Quarter"
 msgstr "Cuarto Menguante"
 
-#: docking/applets/music/applet.py:58 docking/applets/music/state.py:142
-#: docking/applets/music/state.py:156
+#: docking/applets/music/applet.py:105 docking/applets/music/state.py:163
+#: docking/applets/music/state.py:177
 msgid "Music"
 msgstr "Música"
 
-#: docking/applets/music/applet.py:118 docking/applets/music/state.py:143
+#: docking/applets/music/applet.py:180 docking/applets/music/state.py:164
 msgid "No active player"
 msgstr "Sin reproductor activo"
 
-#: docking/applets/music/applet.py:120
+#: docking/applets/music/applet.py:182
 msgid "Previous"
 msgstr "Anterior"
 
-#: docking/applets/music/applet.py:128
+#: docking/applets/music/applet.py:190
 msgid "Next"
 msgstr "Siguiente"
 
-#: docking/applets/music/applet.py:132
+#: docking/applets/music/applet.py:194
 msgid "Volume Up"
 msgstr "Subir Volumen"
 
-#: docking/applets/music/applet.py:138
+#: docking/applets/music/applet.py:200
 msgid "Volume Down"
 msgstr "Bajar Volumen"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Pause"
 msgstr "Pausar"
 
-#: docking/applets/music/state.py:82
+#: docking/applets/music/state.py:103
 msgid "Play"
 msgstr "Reproducir"
 
-#: docking/applets/music/state.py:89
+#: docking/applets/music/state.py:110
 msgid "Playing"
 msgstr "Reproduciendo"
 
-#: docking/applets/music/state.py:91
+#: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Pausado"
 
-#: docking/applets/music/state.py:93
+#: docking/applets/music/state.py:114
 msgid "Stopped"
 msgstr "Detenido"
 
@@ -1702,86 +1788,760 @@ msgstr "Detenido"
 msgid "Network"
 msgstr "Red"
 
-#: docking/applets/network/applet.py:127
+#: docking/applets/network/applet.py:126
 #, python-brace-format
 msgid "WiFi: {ssid} ({pct}%)"
 msgstr "WiFi: {ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:136
+#: docking/applets/network/applet.py:135
 #, python-brace-format
 msgid "Ethernet: {iface}"
 msgstr "Ethernet: {iface}"
 
-#: docking/applets/network/applet.py:141 docking/applets/network/state.py:247
+#: docking/applets/network/applet.py:140 docking/applets/network/state.py:247
 msgid "Not connected"
 msgstr "No conectado"
 
-#: docking/applets/network/applet.py:145
+#: docking/applets/network/applet.py:144
 #, python-brace-format
 msgid "IP: {ip}"
 msgstr "IP: {ip}"
 
-#: docking/applets/network/applet.py:156
+#: docking/applets/network/applet.py:155
 msgid "Connection Information"
 msgstr "Connection Information"
 
-#: docking/applets/network/applet.py:162
+#: docking/applets/network/applet.py:161
 msgid "Edit Connections..."
 msgstr "Edit Connections..."
 
-#: docking/applets/network/applet.py:172
+#: docking/applets/network/applet.py:171
 msgid "Connect to Hidden Wi-Fi Network..."
 msgstr "Connect to Hidden Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:179
+#: docking/applets/network/applet.py:178
 msgid "Create New Wi-Fi Network..."
 msgstr "Create New Wi-Fi Network..."
 
-#: docking/applets/network/applet.py:183
+#: docking/applets/network/applet.py:182
 msgid "Enable Networking"
 msgstr "Enable Networking"
 
-#: docking/applets/network/applet.py:194
+#: docking/applets/network/applet.py:193
 msgid "Enable Wi-Fi"
 msgstr "Enable Wi-Fi"
 
-#: docking/applets/network/applet.py:211
+#: docking/applets/network/applet.py:210
 msgid "Show Download"
 msgstr "Mostrar descarga"
 
-#: docking/applets/network/applet.py:212
+#: docking/applets/network/applet.py:211
 msgid "Show Upload"
 msgstr "Mostrar subida"
 
-#: docking/applets/network/applet.py:213
+#: docking/applets/network/applet.py:212
 msgid "Hide Speeds"
 msgstr "Ocultar velocidades"
 
-#: docking/applets/network/applet.py:262
+#: docking/applets/network/applet.py:261
 msgid "Available Networks"
 msgstr "Available Networks"
 
-#: docking/applets/network/applet.py:266
+#: docking/applets/network/applet.py:265
 #, python-brace-format
 msgid "{ssid} ({pct}%)"
 msgstr "{ssid} ({pct}%)"
 
-#: docking/applets/network/applet.py:268
+#: docking/applets/network/applet.py:267
 #, python-brace-format
 msgid "Connected: {label}"
 msgstr "Connected: {label}"
 
-#: docking/applets/network/applet.py:277
+#: docking/applets/network/applet.py:276
 msgid "No networks found"
 msgstr "No networks found"
 
-#: docking/applets/network/applet.py:289
+#: docking/applets/network/applet.py:288
 msgid "VPN Connections"
 msgstr "VPN Connections"
 
-#: docking/applets/network/applet.py:292
+#: docking/applets/network/applet.py:291
 msgid "Unnamed VPN"
 msgstr "Unnamed VPN"
+
+#: docking/applets/news/applet.py:110
+msgid "News"
+msgstr "Noticias"
+
+#: docking/applets/news/applet.py:229
+msgid "No news source selected"
+msgstr "No hay ninguna fuente de noticias seleccionada"
+
+#: docking/applets/news/applet.py:250
+msgid "Open Headline"
+msgstr "Abrir titular"
+
+#: docking/applets/news/applet.py:258
+msgid "Open Publication"
+msgstr "Abrir publicación"
+
+#: docking/applets/news/applet.py:278 docking/applets/reddit/applet.py:200
+msgid "Previous Headline"
+msgstr "Titular anterior"
+
+#: docking/applets/news/applet.py:308 docking/applets/quote/applet.py:108
+msgid "Source"
+msgstr "Fuente"
+
+#: docking/applets/news/applet.py:319
+msgid "Remove Current News Source"
+msgstr "Eliminar la fuente de noticias actual"
+
+#: docking/applets/news/applet.py:323
+msgid "Add News Source..."
+msgstr "Agregar fuente de noticias..."
+
+#: docking/applets/news/applet.py:426
+msgid "No news articles returned"
+msgstr "No hay artículos de noticias"
+
+#: docking/applets/news/applet.py:506
+msgid "Choose News Source"
+msgstr "Elegir fuente de noticias"
+
+#: docking/applets/news/applet.py:511
+msgid "Update List"
+msgstr "Actualizar lista"
+
+#: docking/applets/news/applet.py:513 docking/applets/reddit/applet.py:429
+msgid "Add"
+msgstr "Agregar"
+
+#: docking/applets/news/applet.py:526
+msgid "Choose a country, then select a publication or edition."
+msgstr "Elige un país y luego selecciona una publicación o edición."
+
+#: docking/applets/news/applet.py:548
+msgid "Loading news sources..."
+msgstr "Cargando fuentes de noticias..."
+
+#: docking/applets/news/applet.py:556
+msgid "Country"
+msgstr "País"
+
+#: docking/applets/news/applet.py:560
+msgid "Search countries"
+msgstr "Buscar países"
+
+#: docking/applets/news/applet.py:578
+msgid "Publication or Edition"
+msgstr "Publicación o edición"
+
+#: docking/applets/news/applet.py:582
+msgid "Search publications"
+msgstr "Buscar publicaciones"
+
+#: docking/applets/news/applet.py:622
+msgid "Updating news sources..."
+msgstr "Actualizando fuentes de noticias..."
+
+#: docking/applets/news/applet.py:637
+#, python-brace-format
+msgid "Could not load news sources: {error}"
+msgstr "No se pudieron cargar las fuentes de noticias: {error}"
+
+#: docking/applets/news/applet.py:640
+#, python-brace-format
+msgid "Could not update news sources; using cached list: {error}"
+msgstr "No se pudieron actualizar las fuentes de noticias; se usará la lista "
+"en caché: {error}"
+
+#: docking/applets/news/applet.py:654
+#, python-brace-format
+msgid "{count} sources - updated {time}"
+msgstr "{count} fuentes - actualizado {time}"
+
+#: docking/applets/news/countries.py:13
+msgid "Afghanistan"
+msgstr "Afganistán"
+
+#: docking/applets/news/countries.py:14
+msgid "Albania"
+msgstr "Albania"
+
+#: docking/applets/news/countries.py:15
+msgid "Andorra"
+msgstr "Andorra"
+
+#: docking/applets/news/countries.py:16
+msgid "Argentina"
+msgstr "Argentina"
+
+#: docking/applets/news/countries.py:17
+msgid "Armenia"
+msgstr "Armenia"
+
+#: docking/applets/news/countries.py:18
+msgid "Australia"
+msgstr "Australia"
+
+#: docking/applets/news/countries.py:19
+msgid "Austria"
+msgstr "Austria"
+
+#: docking/applets/news/countries.py:20
+msgid "Azerbaijan"
+msgstr "Azerbaiyán"
+
+#: docking/applets/news/countries.py:21
+msgid "Burundi"
+msgstr "Burundi"
+
+#: docking/applets/news/countries.py:22
+msgid "Belgium"
+msgstr "Bélgica"
+
+#: docking/applets/news/countries.py:23
+msgid "Benin"
+msgstr "Benín"
+
+#: docking/applets/news/countries.py:24
+msgid "Bangladesh"
+msgstr "Bangladés"
+
+#: docking/applets/news/countries.py:25
+msgid "Bulgaria"
+msgstr "Bulgaria"
+
+#: docking/applets/news/countries.py:26
+msgid "Bahamas"
+msgstr "Bahamas"
+
+#: docking/applets/news/countries.py:27
+msgid "Bosnia and Herzegovina"
+msgstr "Bosnia y Herzegovina"
+
+#: docking/applets/news/countries.py:28
+msgid "Belarus"
+msgstr "Bielorrusia"
+
+#: docking/applets/news/countries.py:29
+msgid "Belize"
+msgstr "Belice"
+
+#: docking/applets/news/countries.py:30
+msgid "Bermuda"
+msgstr "Bermudas"
+
+#: docking/applets/news/countries.py:31
+msgid "Bolivia"
+msgstr "Bolivia"
+
+#: docking/applets/news/countries.py:32
+msgid "Brazil"
+msgstr "Brasil"
+
+#: docking/applets/news/countries.py:33
+msgid "Barbados"
+msgstr "Barbados"
+
+#: docking/applets/news/countries.py:34
+msgid "Canada"
+msgstr "Canadá"
+
+#: docking/applets/news/countries.py:35
+msgid "Switzerland"
+msgstr "Suiza"
+
+#: docking/applets/news/countries.py:36
+msgid "Chile"
+msgstr "Chile"
+
+#: docking/applets/news/countries.py:37
+msgid "China"
+msgstr "China"
+
+#: docking/applets/news/countries.py:38
+msgid "Cameroon"
+msgstr "Camerún"
+
+#: docking/applets/news/countries.py:39
+msgid "Democratic Republic of the Congo"
+msgstr "República Democrática del Congo"
+
+#: docking/applets/news/countries.py:40
+msgid "Colombia"
+msgstr "Colombia"
+
+#: docking/applets/news/countries.py:41
+msgid "Costa Rica"
+msgstr "Costa Rica"
+
+#: docking/applets/news/countries.py:42
+msgid "Cuba"
+msgstr "Cuba"
+
+#: docking/applets/news/countries.py:43
+msgid "Cayman Islands"
+msgstr "Islas Caimán"
+
+#: docking/applets/news/countries.py:44
+msgid "Cyprus"
+msgstr "Chipre"
+
+#: docking/applets/news/countries.py:45
+msgid "Czechia"
+msgstr "Chequia"
+
+#: docking/applets/news/countries.py:46
+msgid "Germany"
+msgstr "Alemania"
+
+#: docking/applets/news/countries.py:47
+msgid "Djibouti"
+msgstr "Yibuti"
+
+#: docking/applets/news/countries.py:48
+msgid "Dominica"
+msgstr "Dominica"
+
+#: docking/applets/news/countries.py:49
+msgid "Denmark"
+msgstr "Dinamarca"
+
+#: docking/applets/news/countries.py:50
+msgid "Dominican Republic"
+msgstr "República Dominicana"
+
+#: docking/applets/news/countries.py:51
+msgid "Algeria"
+msgstr "Argelia"
+
+#: docking/applets/news/countries.py:52
+msgid "Ecuador"
+msgstr "Ecuador"
+
+#: docking/applets/news/countries.py:53
+msgid "Egypt"
+msgstr "Egipto"
+
+#: docking/applets/news/countries.py:54
+msgid "Eritrea"
+msgstr "Eritrea"
+
+#: docking/applets/news/countries.py:55
+msgid "Spain"
+msgstr "España"
+
+#: docking/applets/news/countries.py:56
+msgid "Estonia"
+msgstr "Estonia"
+
+#: docking/applets/news/countries.py:57
+msgid "Ethiopia"
+msgstr "Etiopía"
+
+#: docking/applets/news/countries.py:58
+msgid "Finland"
+msgstr "Finlandia"
+
+#: docking/applets/news/countries.py:59
+msgid "France"
+msgstr "Francia"
+
+#: docking/applets/news/countries.py:60
+msgid "Gabon"
+msgstr "Gabón"
+
+#: docking/applets/news/countries.py:61
+msgid "United Kingdom"
+msgstr "Reino Unido"
+
+#: docking/applets/news/countries.py:62
+msgid "Ghana"
+msgstr "Ghana"
+
+#: docking/applets/news/countries.py:63
+msgid "Gibraltar"
+msgstr "Gibraltar"
+
+#: docking/applets/news/countries.py:64
+msgid "Guinea"
+msgstr "Guinea"
+
+#: docking/applets/news/countries.py:65
+msgid "Greece"
+msgstr "Grecia"
+
+#: docking/applets/news/countries.py:66
+msgid "Guatemala"
+msgstr "Guatemala"
+
+#: docking/applets/news/countries.py:67
+msgid "French Guiana"
+msgstr "Guayana Francesa"
+
+#: docking/applets/news/countries.py:68
+msgid "Guyana"
+msgstr "Guyana"
+
+#: docking/applets/news/countries.py:69
+msgid "Hong Kong"
+msgstr "Hong Kong"
+
+#: docking/applets/news/countries.py:70
+msgid "Croatia"
+msgstr "Croacia"
+
+#: docking/applets/news/countries.py:71
+msgid "Haiti"
+msgstr "Haití"
+
+#: docking/applets/news/countries.py:72
+msgid "Hungary"
+msgstr "Hungría"
+
+#: docking/applets/news/countries.py:73
+msgid "Indonesia"
+msgstr "Indonesia"
+
+#: docking/applets/news/countries.py:74
+msgid "Isle of Man"
+msgstr "Isla de Man"
+
+#: docking/applets/news/countries.py:75
+msgid "India"
+msgstr "India"
+
+#: docking/applets/news/countries.py:76
+msgid "Ireland"
+msgstr "Irlanda"
+
+#: docking/applets/news/countries.py:77
+msgid "Iran"
+msgstr "Irán"
+
+#: docking/applets/news/countries.py:78
+msgid "Iceland"
+msgstr "Islandia"
+
+#: docking/applets/news/countries.py:79
+msgid "Israel"
+msgstr "Israel"
+
+#: docking/applets/news/countries.py:80
+msgid "Italy"
+msgstr "Italia"
+
+#: docking/applets/news/countries.py:81
+msgid "Jamaica"
+msgstr "Jamaica"
+
+#: docking/applets/news/countries.py:82
+msgid "Japan"
+msgstr "Japón"
+
+#: docking/applets/news/countries.py:83
+msgid "Kazakhstan"
+msgstr "Kazajistán"
+
+#: docking/applets/news/countries.py:84
+msgid "Kenya"
+msgstr "Kenia"
+
+#: docking/applets/news/countries.py:85
+msgid "Kyrgyzstan"
+msgstr "Kirguistán"
+
+#: docking/applets/news/countries.py:86
+msgid "Cambodia"
+msgstr "Camboya"
+
+#: docking/applets/news/countries.py:87
+msgid "Liberia"
+msgstr "Liberia"
+
+#: docking/applets/news/countries.py:88
+msgid "Sri Lanka"
+msgstr "Sri Lanka"
+
+#: docking/applets/news/countries.py:89
+msgid "Lithuania"
+msgstr "Lituania"
+
+#: docking/applets/news/countries.py:90
+msgid "Luxembourg"
+msgstr "Luxemburgo"
+
+#: docking/applets/news/countries.py:91
+msgid "Latvia"
+msgstr "Letonia"
+
+#: docking/applets/news/countries.py:92
+msgid "Morocco"
+msgstr "Marruecos"
+
+#: docking/applets/news/countries.py:93
+msgid "Monaco"
+msgstr "Mónaco"
+
+#: docking/applets/news/countries.py:94
+msgid "Moldova"
+msgstr "Moldavia"
+
+#: docking/applets/news/countries.py:95
+msgid "Madagascar"
+msgstr "Madagascar"
+
+#: docking/applets/news/countries.py:96
+msgid "Maldives"
+msgstr "Maldivas"
+
+#: docking/applets/news/countries.py:97
+msgid "Mexico"
+msgstr "México"
+
+#: docking/applets/news/countries.py:98
+msgid "North Macedonia"
+msgstr "Macedonia del Norte"
+
+#: docking/applets/news/countries.py:99
+msgid "Mali"
+msgstr "Malí"
+
+#: docking/applets/news/countries.py:100
+msgid "Malta"
+msgstr "Malta"
+
+#: docking/applets/news/countries.py:101
+msgid "Montenegro"
+msgstr "Montenegro"
+
+#: docking/applets/news/countries.py:102
+msgid "Martinique"
+msgstr "Martinica"
+
+#: docking/applets/news/countries.py:103
+msgid "Malawi"
+msgstr "Malaui"
+
+#: docking/applets/news/countries.py:104
+msgid "Malaysia"
+msgstr "Malasia"
+
+#: docking/applets/news/countries.py:105
+msgid "Namibia"
+msgstr "Namibia"
+
+#: docking/applets/news/countries.py:106
+msgid "Niger"
+msgstr "Níger"
+
+#: docking/applets/news/countries.py:107
+msgid "Nigeria"
+msgstr "Nigeria"
+
+#: docking/applets/news/countries.py:108
+msgid "Nicaragua"
+msgstr "Nicaragua"
+
+#: docking/applets/news/countries.py:109
+msgid "Netherlands"
+msgstr "Países Bajos"
+
+#: docking/applets/news/countries.py:110
+msgid "Norway"
+msgstr "Noruega"
+
+#: docking/applets/news/countries.py:111
+msgid "Nepal"
+msgstr "Nepal"
+
+#: docking/applets/news/countries.py:112
+msgid "New Zealand"
+msgstr "Nueva Zelanda"
+
+#: docking/applets/news/countries.py:113
+msgid "Pakistan"
+msgstr "Pakistán"
+
+#: docking/applets/news/countries.py:114
+msgid "Panama"
+msgstr "Panamá"
+
+#: docking/applets/news/countries.py:115
+msgid "Peru"
+msgstr "Perú"
+
+#: docking/applets/news/countries.py:116
+msgid "Philippines"
+msgstr "Filipinas"
+
+#: docking/applets/news/countries.py:117
+msgid "Poland"
+msgstr "Polonia"
+
+#: docking/applets/news/countries.py:118
+msgid "Puerto Rico"
+msgstr "Puerto Rico"
+
+#: docking/applets/news/countries.py:119
+msgid "Portugal"
+msgstr "Portugal"
+
+#: docking/applets/news/countries.py:120
+msgid "Palestine"
+msgstr "Palestina"
+
+#: docking/applets/news/countries.py:121
+msgid "French Polynesia"
+msgstr "Polinesia Francesa"
+
+#: docking/applets/news/countries.py:122
+msgid "Romania"
+msgstr "Rumanía"
+
+#: docking/applets/news/countries.py:123
+msgid "Russia"
+msgstr "Rusia"
+
+#: docking/applets/news/countries.py:124
+msgid "Senegal"
+msgstr "Senegal"
+
+#: docking/applets/news/countries.py:125
+msgid "Singapore"
+msgstr "Singapur"
+
+#: docking/applets/news/countries.py:126
+msgid "Solomon Islands"
+msgstr "Islas Salomón"
+
+#: docking/applets/news/countries.py:127
+msgid "Sierra Leone"
+msgstr "Sierra Leona"
+
+#: docking/applets/news/countries.py:128
+msgid "San Marino"
+msgstr "San Marino"
+
+#: docking/applets/news/countries.py:129
+msgid "Somalia"
+msgstr "Somalia"
+
+#: docking/applets/news/countries.py:130
+msgid "Serbia"
+msgstr "Serbia"
+
+#: docking/applets/news/countries.py:131
+msgid "Suriname"
+msgstr "Surinam"
+
+#: docking/applets/news/countries.py:132
+msgid "Slovakia"
+msgstr "Eslovaquia"
+
+#: docking/applets/news/countries.py:133
+msgid "Slovenia"
+msgstr "Eslovenia"
+
+#: docking/applets/news/countries.py:134
+msgid "Sweden"
+msgstr "Suecia"
+
+#: docking/applets/news/countries.py:135
+msgid "Togo"
+msgstr "Togo"
+
+#: docking/applets/news/countries.py:136
+msgid "Thailand"
+msgstr "Tailandia"
+
+#: docking/applets/news/countries.py:137
+msgid "Tunisia"
+msgstr "Túnez"
+
+#: docking/applets/news/countries.py:138
+msgid "Türkiye"
+msgstr "Türkiye"
+
+#: docking/applets/news/countries.py:139
+msgid "Uganda"
+msgstr "Uganda"
+
+#: docking/applets/news/countries.py:140
+msgid "Ukraine"
+msgstr "Ucrania"
+
+#: docking/applets/news/countries.py:141
+msgid "Uruguay"
+msgstr "Uruguay"
+
+#: docking/applets/news/countries.py:142
+msgid "United States"
+msgstr "Estados Unidos"
+
+#: docking/applets/news/countries.py:143
+msgid "Uzbekistan"
+msgstr "Uzbekistán"
+
+#: docking/applets/news/countries.py:144
+msgid "Venezuela"
+msgstr "Venezuela"
+
+#: docking/applets/news/countries.py:145
+msgid "U.S. Virgin Islands"
+msgstr "Islas Vírgenes de los Estados Unidos"
+
+#: docking/applets/news/countries.py:146
+msgid "Vietnam"
+msgstr "Vietnam"
+
+#: docking/applets/news/countries.py:147
+msgid "Kosovo"
+msgstr "Kosovo"
+
+#: docking/applets/news/countries.py:148
+msgid "Yemen"
+msgstr "Yemen"
+
+#: docking/applets/news/countries.py:149
+msgid "South Africa"
+msgstr "Sudáfrica"
+
+#: docking/applets/news/countries.py:150
+msgid "Zambia"
+msgstr "Zambia"
+
+#: docking/applets/news/countries.py:151
+msgid "Zimbabwe"
+msgstr "Zimbabue"
+
+#: docking/applets/news/countries.py:159
+msgid "Global"
+msgstr "Global"
+
+#: docking/applets/news/state.py:187
+#, python-brace-format
+msgid "{publication} - {category}"
+msgstr "{publication} - {category}"
+
+#: docking/applets/news/state.py:213
+msgid "Unsafe RSS response"
+msgstr "Respuesta RSS no segura"
+
+#: docking/applets/news/state.py:217
+msgid "Invalid RSS response"
+msgstr "Respuesta RSS no válida"
+
+#: docking/applets/news/state.py:310
+msgid "Click to choose a country and news source"
+msgstr "Haz clic para elegir un país y una fuente de noticias"
+
+#: docking/applets/news/state.py:339
+#, python-brace-format
+msgid "By {author}"
+msgstr "Por {author}"
 
 #: docking/applets/notifications/applet.py:78
 #: docking/applets/notifications/state.py:62
@@ -1859,6 +2619,230 @@ msgstr "Emocionado!"
 msgid "{mood} | CPU: {cpu}%"
 msgstr "{mood} | CPU: {cpu}%"
 
+#: docking/applets/plantcare/applet.py:62
+#: docking/applets/plantcare/applet.py:241
+#: docking/applets/plantcare/state.py:438
+msgid "Plant Care"
+msgstr "Cuidado de plantas"
+
+#: docking/applets/plantcare/applet.py:124
+#: docking/applets/plantcare/applet.py:306
+#: docking/applets/plantcare/applet.py:389
+msgid "Add Plant..."
+msgstr "Agregar planta..."
+
+#: docking/applets/plantcare/applet.py:126
+msgid "Manage Plants..."
+msgstr "Gestionar plantas..."
+
+#: docking/applets/plantcare/applet.py:148
+#, python-brace-format
+msgid "{action} {plant}"
+msgstr "{action} {plant}"
+
+#: docking/applets/plantcare/applet.py:155
+#: docking/applets/plantcare/applet.py:374
+msgid "Done"
+msgstr "Hecho"
+
+#: docking/applets/plantcare/applet.py:160
+msgid "Snooze 1 Day"
+msgstr "Posponer 1 día"
+
+#: docking/applets/plantcare/applet.py:175
+#, python-brace-format
+msgid "{count} more due task"
+msgid_plural "{count} more due tasks"
+msgstr[0] "{count} tarea pendiente más"
+msgstr[1] "{count} tareas pendientes más"
+
+#: docking/applets/plantcare/applet.py:244
+#: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
+#: docking/ui/menu.py:584 docking/ui/startup_tips.py:216
+msgid "Close"
+msgstr "Cerrar"
+
+#: docking/applets/plantcare/applet.py:284
+msgid "Care"
+msgstr "Cuidados"
+
+#: docking/applets/plantcare/applet.py:288
+msgid "Plants"
+msgstr "Plantas"
+
+#: docking/applets/plantcare/applet.py:301
+msgid "Add a plant to start tracking care."
+msgstr "Agrega una planta para empezar a controlar sus cuidados."
+
+#: docking/applets/plantcare/applet.py:312
+msgid "No care schedules are enabled."
+msgstr "No hay ningún programa de cuidados activado."
+
+#: docking/applets/plantcare/applet.py:326
+msgid "Due"
+msgstr "Pendiente"
+
+#: docking/applets/plantcare/applet.py:335
+msgid "Upcoming"
+msgstr "Próximos"
+
+#: docking/applets/plantcare/applet.py:360
+#, python-brace-format
+msgid "{plant} - {care}"
+msgstr "{plant} - {care}"
+
+#: docking/applets/plantcare/applet.py:395
+msgid "No plants configured."
+msgstr "No hay plantas configuradas."
+
+#: docking/applets/plantcare/applet.py:421
+msgid "Edit"
+msgstr "Editar"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Edit Plant"
+msgstr "Editar planta"
+
+#: docking/applets/plantcare/applet.py:466
+msgid "Add Plant"
+msgstr "Agregar planta"
+
+#: docking/applets/plantcare/applet.py:495
+msgid "Species"
+msgstr "Especie"
+
+#: docking/applets/plantcare/applet.py:497
+msgid "Care Schedule"
+msgstr "Programa de cuidados"
+
+#: docking/applets/plantcare/applet.py:498
+msgid "Days"
+msgstr "Días"
+
+#: docking/applets/plantcare/state.py:108
+msgid "Watering"
+msgstr "Riego"
+
+#: docking/applets/plantcare/state.py:109
+msgid "Fertilizing"
+msgstr "Fertilización"
+
+#: docking/applets/plantcare/state.py:110
+msgid "Misting"
+msgstr "Pulverización"
+
+#: docking/applets/plantcare/state.py:111
+msgid "Rotating"
+msgstr "Rotación"
+
+#: docking/applets/plantcare/state.py:112
+msgid "Pruning"
+msgstr "Poda"
+
+#: docking/applets/plantcare/state.py:113
+msgid "Repotting"
+msgstr "Trasplante"
+
+#: docking/applets/plantcare/state.py:114
+msgid "Pest check"
+msgstr "Revisión de plagas"
+
+#: docking/applets/plantcare/state.py:122
+msgid "Water"
+msgstr "Regar"
+
+#: docking/applets/plantcare/state.py:123
+msgid "Fertilize"
+msgstr "Fertilizar"
+
+#: docking/applets/plantcare/state.py:124
+msgid "Mist"
+msgstr "Pulverizar"
+
+#: docking/applets/plantcare/state.py:125
+msgid "Rotate"
+msgstr "Rotar"
+
+#: docking/applets/plantcare/state.py:126
+msgid "Prune"
+msgstr "Podar"
+
+#: docking/applets/plantcare/state.py:127
+msgid "Repot"
+msgstr "Trasplantar"
+
+#: docking/applets/plantcare/state.py:128
+msgid "Check for pests"
+msgstr "Comprobar plagas"
+
+#: docking/applets/plantcare/state.py:186
+#: docking/applets/plantcare/state.py:544
+msgid "Plant"
+msgstr "Planta"
+
+#: docking/applets/plantcare/state.py:416
+#, python-brace-format
+msgid "overdue by {count} day"
+msgid_plural "overdue by {count} days"
+msgstr[0] "con {count} día de retraso"
+msgstr[1] "con {count} días de retraso"
+
+#: docking/applets/plantcare/state.py:421
+msgid "due today"
+msgstr "vence hoy"
+
+#: docking/applets/plantcare/state.py:424
+#, python-brace-format
+msgid "in {count} day"
+msgid_plural "in {count} days"
+msgstr[0] "dentro de {count} día"
+msgstr[1] "dentro de {count} días"
+
+#: docking/applets/plantcare/state.py:428
+#, python-brace-format
+msgid "{plant}: {care} {duration}"
+msgstr "{plant}: {care} {duration}"
+
+#: docking/applets/plantcare/state.py:440
+#: docking/applets/plantcare/state.py:475
+msgid "No plants configured"
+msgstr "No hay plantas configuradas"
+
+#: docking/applets/plantcare/state.py:443
+#: docking/applets/plantcare/state.py:477
+msgid "No care schedules enabled"
+msgstr "No hay programas de cuidados activados"
+
+#: docking/applets/plantcare/state.py:449
+#: docking/applets/plantcare/state.py:480
+#: docking/applets/plantcare/state.py:495
+#, python-brace-format
+msgid "{count} task due"
+msgid_plural "{count} tasks due"
+msgstr[0] "{count} tarea pendiente"
+msgstr[1] "{count} tareas pendientes"
+
+#: docking/applets/plantcare/state.py:455
+msgid "All plants are on schedule"
+msgstr "Todas las plantas están al día"
+
+#: docking/applets/plantcare/state.py:463
+#, python-brace-format
+msgid "{count} more task"
+msgid_plural "{count} more tasks"
+msgstr[0] "{count} tarea más"
+msgstr[1] "{count} tareas más"
+
+#: docking/applets/plantcare/state.py:492
+#, python-brace-format
+msgid "{plant} - no schedules"
+msgstr "{plant} - sin programas"
+
+#: docking/applets/plantcare/state.py:499
+#, python-brace-format
+msgid "{plant} - {due}"
+msgstr "{plant} - {due}"
+
 #: docking/applets/pomodoro/applet.py:61 docking/applets/pomodoro/state.py:77
 msgid "Pomodoro"
 msgstr "Pomodoro"
@@ -1933,74 +2917,175 @@ msgstr "Editar Nota"
 msgid "Clear Note"
 msgstr "Borrar Nota"
 
-#: docking/applets/quote/applet.py:99
+#: docking/applets/quote/applet.py:98
 msgid "Next Quote"
 msgstr "Siguiente Cita"
 
-#: docking/applets/quote/applet.py:102
+#: docking/applets/quote/applet.py:101
 msgid "Copy Quote"
 msgstr "Copiar Cita"
 
-#: docking/applets/quote/applet.py:109
-msgid "Source"
-msgstr "Fuente"
-
-#: docking/applets/quote/applet.py:220
+#: docking/applets/quote/applet.py:219
 #, python-brace-format
 msgid "{source}: loading..."
 msgstr "{source}: cargando..."
 
-#: docking/applets/recentfiles/applet.py:48
+#: docking/applets/recentfiles/applet.py:50
+#: docking/search/providers/recent.py:61
 msgid "Recent Files"
 msgstr "Archivos Recientes"
 
-#: docking/applets/recentfiles/applet.py:95
+#: docking/applets/recentfiles/applet.py:121
 msgid "Clear Recent Files"
 msgstr "Borrar Archivos Recientes"
 
-#: docking/applets/runcommand/applet.py:63
-#: docking/applets/runcommand/applet.py:88
-#: docking/applets/runcommand/applet.py:118
-#: docking/applets/runcommand/applet.py:262
+#: docking/applets/reddit/applet.py:67
+msgid "Reddit"
+msgstr "Reddit"
+
+#: docking/applets/reddit/applet.py:179 docking/applets/reddit/state.py:356
+#, python-brace-format
+msgid "Posted by u/{author}"
+msgstr "Publicado por u/{author}"
+
+#: docking/applets/reddit/applet.py:183
+msgid "Open Post"
+msgstr "Abrir publicación"
+
+#: docking/applets/reddit/applet.py:220
+msgid "Subreddit"
+msgstr "Subreddit"
+
+#: docking/applets/reddit/applet.py:230
+msgid "Sort"
+msgstr "Ordenar"
+
+#: docking/applets/reddit/applet.py:240
+msgid "Top Period"
+msgstr "Periodo de Top"
+
+#: docking/applets/reddit/applet.py:252
+msgid "Add Subreddit..."
+msgstr "Agregar subreddit..."
+
+#: docking/applets/reddit/applet.py:258
+#, python-brace-format
+msgid "Remove r/{subreddit}"
+msgstr "Quitar r/{subreddit}"
+
+#: docking/applets/reddit/applet.py:374
+msgid "No Reddit posts returned"
+msgstr "No hay publicaciones de Reddit"
+
+#: docking/applets/reddit/applet.py:423
+msgid "Add Subreddit"
+msgstr "Agregar subreddit"
+
+#: docking/applets/reddit/applet.py:439
+msgid "Subreddit name or URL"
+msgstr "Nombre o URL del subreddit"
+
+#: docking/applets/reddit/applet.py:457
+msgid "Enter a valid subreddit name."
+msgstr "Introduce un nombre de subreddit válido."
+
+#: docking/applets/reddit/state.py:158
+msgid "Hot"
+msgstr "Popular"
+
+#: docking/applets/reddit/state.py:160
+msgid "Top"
+msgstr "Top"
+
+#: docking/applets/reddit/state.py:161
+msgid "Rising"
+msgstr "En auge"
+
+#: docking/applets/reddit/state.py:169
+#: docking/search/recognizers/temporal.py:155
+msgid "Today"
+msgstr "Hoy"
+
+#: docking/applets/reddit/state.py:170
+msgid "This Week"
+msgstr "Esta semana"
+
+#: docking/applets/reddit/state.py:171
+msgid "This Month"
+msgstr "Este mes"
+
+#: docking/applets/reddit/state.py:172
+msgid "This Year"
+msgstr "Este año"
+
+#: docking/applets/reddit/state.py:173
+msgid "All Time"
+msgstr "Todo el tiempo"
+
+#: docking/applets/reddit/state.py:187
+msgid "Invalid subreddit name"
+msgstr "Nombre de subreddit no válido"
+
+#: docking/applets/reddit/state.py:203
+#, python-brace-format
+msgid "{sort}, {period}"
+msgstr "{sort}, {period}"
+
+#: docking/applets/reddit/state.py:207
+#, python-brace-format
+msgid "r/{subreddit} - {listing}"
+msgstr "r/{subreddit} - {listing}"
+
+#: docking/applets/reddit/state.py:225
+msgid "Invalid Reddit RSS response"
+msgstr "Respuesta RSS de Reddit no válida"
+
+#: docking/applets/runcommand/applet.py:75
+#: docking/applets/runcommand/applet.py:113
+#: docking/applets/runcommand/applet.py:143
+#: docking/applets/runcommand/applet.py:287
 msgid "Run Application"
 msgstr "Ejecutar aplicación"
 
-#: docking/applets/runcommand/applet.py:121
+#: docking/applets/runcommand/applet.py:146
 msgid "Help"
 msgstr "Ayuda"
 
-#: docking/applets/runcommand/applet.py:123
+#: docking/applets/runcommand/applet.py:148
 msgid "Run"
 msgstr "Correr"
 
-#: docking/applets/runcommand/applet.py:168
+#: docking/applets/runcommand/applet.py:193
 msgid "Run in terminal"
 msgstr "Ejecutar en la terminal"
 
-#: docking/applets/runcommand/applet.py:170
+#: docking/applets/runcommand/applet.py:195
 msgid "Run with file..."
 msgstr "Ejecutar con archivo..."
 
-#: docking/applets/runcommand/applet.py:175
+#: docking/applets/runcommand/applet.py:200
 msgid "Show list of known applications"
 msgstr "Mostrar lista de aplicaciones conocidas"
 
-#: docking/applets/runcommand/applet.py:181
-#: docking/applets/runcommand/applet.py:286
+#: docking/applets/runcommand/applet.py:206
+#: docking/applets/runcommand/applet.py:311
 msgid "Select an application to view its description."
 msgstr "Seleccione una aplicación para ver su descripción."
 
-#: docking/applets/runcommand/applet.py:265
+#: docking/applets/runcommand/applet.py:290
 msgid "Type a command or select an application to launch it."
 msgstr "Escriba un comando o seleccione una aplicación para iniciarla."
 
-#: docking/applets/runcommand/applet.py:336
+#: docking/applets/runcommand/applet.py:364
 msgid "Run with file"
 msgstr "Ejecutar con archivo"
 
-#: docking/applets/runcommand/applet.py:341
-#: docking/applets/systemtray/applet.py:254 docking/ui/menu.py:441
-#: docking/ui/menu.py:526
+#: docking/applets/runcommand/applet.py:369
+#: docking/applets/systemtray/applet.py:289
+#: docking/search/providers/applications.py:158
+#: docking/search/providers/dock.py:78 docking/search/providers/recent.py:68
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:595
+#: docking/ui/menu.py:451 docking/ui/menu.py:536
 msgid "Open"
 msgstr "Abrir"
 
@@ -2013,35 +3098,40 @@ msgstr "Captura de Pantalla"
 msgid "Full Screen in {delay}s"
 msgstr "Pantalla Completa en {delay}s"
 
+#: docking/applets/search/applet.py:25 docking/applets/search/applet.py:38
+msgid "Search"
+msgstr "Buscar"
+
 #: docking/applets/separator/applet.py:51
 msgid "Separator"
 msgstr "Separador"
 
-#: docking/applets/separator/applet.py:132
+#: docking/applets/separator/applet.py:129
 msgid "Increase Gap"
 msgstr "Aumentar Espacio"
 
-#: docking/applets/separator/applet.py:134
+#: docking/applets/separator/applet.py:131
 msgid "Decrease Gap"
 msgstr "Reducir Espacio"
 
-#: docking/applets/separator/applet.py:137
+#: docking/applets/separator/applet.py:134
 msgid "Style"
 msgstr "Estilo"
 
-#: docking/applets/separator/applet.py:139
+#: docking/applets/separator/applet.py:136
 msgid "Line"
 msgstr "Linea"
 
-#: docking/applets/separator/applet.py:140
+#: docking/applets/separator/applet.py:137
+#: docking/search/ui/shortcut_capture.py:91
 msgid "Space"
 msgstr "Espacio"
 
-#: docking/applets/separator/applet.py:147
+#: docking/applets/separator/applet.py:144
 msgid "Invert Color"
 msgstr "Invertir Color"
 
-#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:148
+#: docking/applets/session/applet.py:42 docking/ui/diagnostics.py:163
 msgid "Session"
 msgstr "Sesión"
 
@@ -2067,30 +3157,30 @@ msgstr "Apagar"
 msgid "Speedtest"
 msgstr "Speedtest"
 
-#: docking/applets/speedtest/applet.py:93 docking/applets/speedtest/state.py:86
+#: docking/applets/speedtest/applet.py:91 docking/applets/speedtest/state.py:86
 msgid "Runs"
 msgstr "Ejecuciones"
 
-#: docking/applets/speedtest/applet.py:96
-#: docking/applets/speedtest/applet.py:114
+#: docking/applets/speedtest/applet.py:94
+#: docking/applets/speedtest/applet.py:112
 #: docking/applets/speedtest/state.py:90
 msgid "Running..."
 msgstr "Running..."
 
-#: docking/applets/speedtest/applet.py:96
+#: docking/applets/speedtest/applet.py:94
 msgid "Run Test"
 msgstr "Run Test"
 
-#: docking/applets/speedtest/applet.py:103
+#: docking/applets/speedtest/applet.py:101
 msgid "Copy Last Result"
 msgstr "Copy Last Result"
 
-#: docking/applets/speedtest/applet.py:119
+#: docking/applets/speedtest/applet.py:117
 #, python-brace-format
 msgid "Down {d:.1f} / Up {u:.1f} Mbps"
 msgstr "Down {d:.1f} / Up {u:.1f} Mbps"
 
-#: docking/applets/speedtest/applet.py:176
+#: docking/applets/speedtest/applet.py:174
 #, python-brace-format
 msgid ""
 "Down: {d:.2f} Mbps, Up: {u:.2f} Mbps, Ping: {p:.1f} ms, Jitter: {j:.1f} ms "
@@ -2156,28 +3246,28 @@ msgstr "Proximo estiramiento en {time}"
 msgid "Sunrise"
 msgstr "Amanecer"
 
-#: docking/applets/sunrise/applet.py:116
+#: docking/applets/sunrise/applet.py:114
 msgid "Times shown in system timezone"
 msgstr "Horas mostradas en la zona horaria del sistema"
 
-#: docking/applets/sunrise/applet.py:121
+#: docking/applets/sunrise/applet.py:119
 msgid "Change City..."
 msgstr "Cambiar ciudad..."
 
-#: docking/applets/sunrise/applet.py:126
+#: docking/applets/sunrise/applet.py:124
 msgid "Label Mode"
 msgstr "Modo de etiqueta"
 
-#: docking/applets/sunrise/applet.py:148 docking/applets/weather/applet.py:218
+#: docking/applets/sunrise/applet.py:146 docking/applets/weather/applet.py:216
 #, python-brace-format
 msgid "Remove {city}"
 msgstr "Eliminar {city}"
 
-#: docking/applets/sunrise/applet.py:185 docking/applets/weather/applet.py:270
+#: docking/applets/sunrise/applet.py:183 docking/applets/weather/applet.py:268
 msgid "Search for the city"
 msgstr "Buscar ciudad"
 
-#: docking/applets/sunrise/applet.py:198 docking/applets/weather/applet.py:283
+#: docking/applets/sunrise/applet.py:197 docking/applets/weather/applet.py:282
 msgid "Type city name..."
 msgstr "Escribir nombre de ciudad..."
 
@@ -2228,7 +3318,7 @@ msgid "Civil"
 msgstr "Civil"
 
 #: docking/applets/sunrise/state.py:390
-#: docking/applets/todayinhistory/applet.py:109
+#: docking/applets/todayinhistory/applet.py:104
 msgid "Next Event"
 msgstr "Proximo Evento"
 
@@ -2245,6 +3335,7 @@ msgid "No city selected"
 msgstr "Ninguna ciudad seleccionada"
 
 #: docking/applets/sunrise/state.py:401
+#, python-brace-format
 msgid "{city}: {phase}"
 msgstr "{city}: {phase}"
 
@@ -2290,20 +3381,22 @@ msgstr "Anochecer astronómico"
 msgid "System Monitor"
 msgstr "Monitor de CPU"
 
-#: docking/applets/systemmonitor/applet.py:102
+#: docking/applets/systemmonitor/applet.py:100
 msgid "Show Disk Usage"
 msgstr "Show Disk Usage"
 
-#: docking/applets/systemmonitor/applet.py:107
-#: docking/applets/thermals/applet.py:162 docking/applets/weather/applet.py:201
+#: docking/applets/systemmonitor/applet.py:105
+#: docking/applets/thermals/applet.py:160 docking/applets/weather/applet.py:199
 msgid "Temperature Unit"
 msgstr "Unidad de temperatura"
 
 #: docking/applets/systemmonitor/gpu.py:145
+#, python-brace-format
 msgid "GPU: {pct}%"
 msgstr "GPU: {pct}%"
 
 #: docking/applets/systemmonitor/gpu.py:147
+#, python-brace-format
 msgid "GPU: {name}"
 msgstr "GPU: {name}"
 
@@ -2332,37 +3425,37 @@ msgstr "{text} | Temp: {temp}"
 msgid "Disk: {usage}"
 msgstr "Disk: {usage}"
 
-#: docking/applets/systemtray/applet.py:52
+#: docking/applets/systemtray/applet.py:60
 msgid "System Tray"
 msgstr "Bandeja del sistema"
 
-#: docking/applets/systemtray/applet.py:81
+#: docking/applets/systemtray/applet.py:106
 #, python-brace-format
 msgid "System Tray: {n} legacy item(s)"
 msgstr "Bandeja del sistema: {n} elementos heredados"
 
-#: docking/applets/systemtray/applet.py:127
+#: docking/applets/systemtray/applet.py:160
 msgid "Activate"
 msgstr "Activar"
 
-#: docking/applets/systemtray/applet.py:132
+#: docking/applets/systemtray/applet.py:165
 msgid "Context Menu"
 msgstr "Menú contextual"
 
-#: docking/applets/systemtray/applet.py:190
+#: docking/applets/systemtray/applet.py:225
 msgid "D-Bus unavailable"
 msgstr "D-Bus no disponible"
 
-#: docking/applets/systemtray/applet.py:199
+#: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
 msgstr "La bandeja Legacy X11 está activa con {n} elementos."
 
-#: docking/applets/systemtray/applet.py:203
+#: docking/applets/systemtray/applet.py:238
 msgid "Legacy X11 tray is active and waiting for tray apps."
 msgstr "La bandeja Legacy X11 está activa y esperando aplicaciones de bandeja."
 
-#: docking/applets/systemtray/applet.py:211
+#: docking/applets/systemtray/applet.py:246
 #, python-brace-format
 msgid ""
 "No StatusNotifier apps are registered. Legacy tray icons are currently owned "
@@ -2373,7 +3466,7 @@ msgstr ""
 "heredada actualmente son propiedad de {owner}. Utilice Take Over Legacy Tray "
 "en el menú del subprograma si desea que Docking los aloje."
 
-#: docking/applets/systemtray/applet.py:217
+#: docking/applets/systemtray/applet.py:252
 msgid ""
 "No tray applications are registered. Use Start Legacy Tray from the applet "
 "menu for older X11 tray apps."
@@ -2381,53 +3474,53 @@ msgstr ""
 "No hay aplicaciones de bandeja registradas. Utilice Iniciar bandeja heredada "
 "desde el menú del subprograma para aplicaciones de bandeja X11 más antiguas."
 
-#: docking/applets/systemtray/applet.py:261
+#: docking/applets/systemtray/applet.py:296
 msgid "Menu"
 msgstr "Menú"
 
-#: docking/applets/systemtray/applet.py:308
+#: docking/applets/systemtray/applet.py:381
 msgid "Release Legacy Tray"
 msgstr "Liberar bandeja heredada"
 
-#: docking/applets/systemtray/applet.py:312
+#: docking/applets/systemtray/applet.py:385
 #, python-brace-format
 msgid "Legacy X11 tray active: {n} item(s)"
 msgstr "Bandeja Legacy X11 activa: {n} elemento(s)"
 
-#: docking/applets/systemtray/applet.py:321
+#: docking/applets/systemtray/applet.py:394
 msgid "Take Over Legacy Tray"
 msgstr "Tomar el control de la bandeja heredada"
 
-#: docking/applets/systemtray/applet.py:325
+#: docking/applets/systemtray/applet.py:398
 #, python-brace-format
 msgid "Legacy X11 tray owned by {owner}"
 msgstr "Bandeja Legacy X11 propiedad de {owner}"
 
-#: docking/applets/systemtray/applet.py:333
+#: docking/applets/systemtray/applet.py:406
 msgid "Start Legacy Tray"
 msgstr "Iniciar bandeja heredada"
 
-#: docking/applets/systemtray/applet.py:349
+#: docking/applets/systemtray/applet.py:422
 msgid "Unknown X11 tray error"
 msgstr "Error de bandeja X11 desconocido"
 
-#: docking/applets/systemtray/applet.py:355
+#: docking/applets/systemtray/applet.py:428
 msgid "Could not start the legacy tray"
 msgstr "No se pudo iniciar la bandeja heredada"
 
-#: docking/applets/systemtray/applet.py:362
+#: docking/applets/systemtray/applet.py:435
 msgid "another tray"
 msgstr "otra bandeja"
 
-#: docking/applets/systemtray/applet.py:368
+#: docking/applets/systemtray/applet.py:441
 msgid "Take over the legacy tray?"
 msgstr "¿Asumir la bandeja heredada?"
 
-#: docking/applets/systemtray/applet.py:370
+#: docking/applets/systemtray/applet.py:443
 msgid "Take Over"
 msgstr "Tomar el control"
 
-#: docking/applets/systemtray/applet.py:373
+#: docking/applets/systemtray/applet.py:446
 #, python-brace-format
 msgid ""
 "Docking will replace {owner} as the X11 system tray host. Existing legacy "
@@ -2437,54 +3530,51 @@ msgstr ""
 "X11. Es posible que sea necesario reiniciar las aplicaciones de bandeja "
 "heredadas existentes antes de acoplarlas al Docking."
 
-#: docking/applets/systemtray/applet.py:436
+#: docking/applets/systemtray/applet.py:509
 msgid "Menu Item"
 msgstr "Elemento del menú"
 
-#: docking/applets/systemtray/applet.py:481
+#: docking/applets/systemtray/applet.py:559
 msgid "System Tray unavailable"
 msgstr "Bandeja del sistema no disponible"
 
-#: docking/applets/systemtray/applet.py:483
+#: docking/applets/systemtray/applet.py:561
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr "Host de la bandeja del sistema: {n} elemento(s)"
 
-#: docking/applets/systemtray/applet.py:484
-#: docking/applets/systemtray/state.py:158
+#: docking/applets/systemtray/applet.py:562
+#: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
 msgstr "Bandeja del sistema: {n} elemento(s)"
 
-#: docking/applets/systemtray/state.py:148
+#: docking/applets/systemtray/state.py:12
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Bandeja del sistema: {error}"
 
-#: docking/applets/systemtray/state.py:149
+#: docking/applets/systemtray/state.py:13
 msgid "System Tray: D-Bus unavailable"
 msgstr "Bandeja del sistema: D-Bus no disponible"
 
-#: docking/applets/systemtray/state.py:152
+#: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
 msgstr "Bandeja del sistema: bandeja heredada propiedad de {owner}"
 
-#: docking/applets/systemtray/state.py:156
+#: docking/applets/systemtray/state.py:20
 msgid "System Tray: waiting for tray apps"
 msgstr "Bandeja del sistema: esperando aplicaciones de la bandeja"
 
-#: docking/applets/systemtray/state.py:157
+#: docking/applets/systemtray/state.py:21
 msgid "System Tray: no tray apps"
 msgstr "Bandeja del sistema: sin aplicaciones de bandeja"
 
-#: docking/applets/systemtray/state.py:162
+#: docking/applets/systemtray/state.py:26
+#, python-brace-format
 msgid "and {n} more"
 msgstr "y {n} más"
-
-#: docking/applets/systemtray/state.py:243
-msgid "session bus unavailable"
-msgstr "bus de sesión no disponible"
 
 #: docking/applets/temperature.py:44
 msgid "Fahrenheit"
@@ -2500,28 +3590,28 @@ msgstr "Celsius"
 msgid "Thermals"
 msgstr "Térmicos"
 
-#: docking/applets/thermals/applet.py:109 docking/applets/thermals/state.py:128
+#: docking/applets/thermals/applet.py:107 docking/applets/thermals/state.py:128
 #: docking/applets/thermals/state.py:441
 msgid "lm-sensors not installed"
 msgstr "lm-sensors no está instalado"
 
-#: docking/applets/thermals/applet.py:118 docking/applets/thermals/state.py:460
+#: docking/applets/thermals/applet.py:116 docking/applets/thermals/state.py:460
 #, python-brace-format
 msgid "Hot: {label} {temp}"
 msgstr "Caliente: {label} {temp}"
 
-#: docking/applets/thermals/applet.py:132 docking/applets/thermals/state.py:472
+#: docking/applets/thermals/applet.py:130 docking/applets/thermals/state.py:472
 #, python-brace-format
 msgid "Fan: {label} {rpm}"
 msgstr "Ventilador: {label} {rpm}"
 
-#: docking/applets/thermals/applet.py:152 docking/applets/thermals/state.py:427
+#: docking/applets/thermals/applet.py:150 docking/applets/thermals/state.py:427
 #: docking/applets/thermals/state.py:439 docking/applets/thermals/state.py:451
 #: docking/applets/thermals/state.py:487
 msgid "Samples"
 msgstr "Muestras"
 
-#: docking/applets/thermals/applet.py:270
+#: docking/applets/thermals/applet.py:268
 msgid "Thermal readings unavailable"
 msgstr "Lecturas térmicas no disponibles"
 
@@ -2541,17 +3631,17 @@ msgstr "Caliente: no disponible"
 msgid "Fan: unavailable"
 msgstr "Ventilador: no disponible"
 
-#: docking/applets/todayinhistory/applet.py:60
-#: docking/applets/todayinhistory/applet.py:130
-#: docking/applets/todayinhistory/applet.py:142
+#: docking/applets/todayinhistory/applet.py:55
+#: docking/applets/todayinhistory/applet.py:126
+#: docking/applets/todayinhistory/applet.py:138
 msgid "Today in History"
 msgstr "Hoy en la Historia"
 
-#: docking/applets/todayinhistory/applet.py:105
+#: docking/applets/todayinhistory/applet.py:100
 msgid "Open Article"
 msgstr "Abrir Articulo"
 
-#: docking/applets/todayinhistory/applet.py:125
+#: docking/applets/todayinhistory/applet.py:121
 msgid "Today in History: loading..."
 msgstr "Hoy en la Historia: cargando..."
 
@@ -2572,7 +3662,7 @@ msgstr "Papelera"
 msgid "Open Trash"
 msgstr "Abrir Papelera"
 
-#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:264
+#: docking/applets/trash/applet.py:133 docking/applets/trash/applet.py:265
 msgid "Empty Trash"
 msgstr "Vaciar Papelera"
 
@@ -2587,11 +3677,11 @@ msgstr ""
 msgid "Could not empty Trash."
 msgstr "No se pudo vaciar la Papelera."
 
-#: docking/applets/trash/applet.py:258
+#: docking/applets/trash/applet.py:259
 msgid "Empty all items from Trash?"
 msgstr "¿Vaciar todos los elementos de la papelera?"
 
-#: docking/applets/trash/applet.py:261
+#: docking/applets/trash/applet.py:262
 msgid "All items in the Trash will be permanently deleted."
 msgstr "Todos los elementos de la papelera se eliminarán permanentemente."
 
@@ -2680,6 +3770,7 @@ msgstr "Acortando..."
 
 #: docking/applets/urlshortener/applet.py:190
 #: docking/applets/urlshortener/applet.py:209
+#: docking/search/providers/temporal.py:65
 msgid "Copy"
 msgstr "Copiar"
 
@@ -2687,12 +3778,12 @@ msgstr "Copiar"
 msgid "Copied!"
 msgstr "Copiado!"
 
-#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:93
-#: docking/applets/usbwatch/state.py:100
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/state.py:101
 msgid "USB Watch"
 msgstr "Vigilancia USB"
 
-#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:94
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:95
 msgid "No mounted USB devices"
 msgstr "No hay dispositivos USB conectados"
 
@@ -2701,12 +3792,7 @@ msgstr "No hay dispositivos USB conectados"
 msgid "Safely Remove {name}"
 msgstr "Quitar {name} de forma segura"
 
-#: docking/applets/usbwatch/state.py:101
-#, python-brace-format
-msgid "{count} mounted device(s)"
-msgstr "{count} dispositivo(s) conectado(s)"
-
-#: docking/applets/usbwatch/state.py:108
+#: docking/applets/usbwatch/state.py:109
 msgid "Removable Drive"
 msgstr "Unidad extraíble"
 
@@ -2714,16 +3800,16 @@ msgstr "Unidad extraíble"
 msgid "Volume"
 msgstr "Volumen"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 msgid "Muted"
 msgstr "Silenciado"
 
-#: docking/applets/volume/applet.py:79
+#: docking/applets/volume/applet.py:78
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr "Volumen: {pct}%"
 
-#: docking/applets/volume/applet.py:133
+#: docking/applets/volume/applet.py:132
 msgid "Volume Settings"
 msgstr "Volume Settings"
 
@@ -2731,29 +3817,30 @@ msgstr "Volume Settings"
 msgid "Weather"
 msgstr "Clima"
 
-#: docking/applets/weather/applet.py:194
+#: docking/applets/weather/applet.py:192
 msgid "Show Temperature"
 msgstr "Mostrar Temperatura"
 
-#: docking/applets/weather/applet.py:452
+#: docking/applets/weather/applet.py:451
 msgid "No weather data"
 msgstr "Sin datos meteorológicos"
 
-#: docking/applets/weather/applet.py:515 docking/applets/weather/state.py:216
+#: docking/applets/weather/applet.py:514 docking/applets/weather/state.py:216
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr "{temp}, {desc}"
 
-#: docking/applets/weather/applet.py:528 docking/applets/weather/state.py:202
+#: docking/applets/weather/applet.py:527 docking/applets/weather/state.py:202
 #, python-brace-format
 msgid "Air: {label}"
 msgstr "Aire: {label}"
 
-#: docking/applets/weather/applet.py:534 docking/applets/weather/state.py:205
+#: docking/applets/weather/applet.py:533 docking/applets/weather/state.py:205
+#, python-brace-format
 msgid "UV Index: {value}"
 msgstr "Índice UV: {value}"
 
-#: docking/applets/weather/applet.py:548
+#: docking/applets/weather/applet.py:547
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr "{date}: {temp_range}"
@@ -2763,11 +3850,162 @@ msgstr "{date}: {temp_range}"
 msgid "{city}: {temp}"
 msgstr "{city}: {temp}"
 
-#: docking/applets/windowkiller/applet.py:78
+#: docking/applets/whatsapp/applet.py:40
+#: docking/applets/whatsapp/browser.py:268
+#: docking/applets/whatsapp/browser.py:278
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Hide WhatsApp"
+msgstr "Ocultar WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:90
+msgid "Open WhatsApp"
+msgstr "Abrir WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:95
+msgid "Reload"
+msgstr "Recargar"
+
+#: docking/applets/whatsapp/applet.py:104
+msgid "Disconnect WhatsApp"
+msgstr "Desconectar WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:167
+msgid "Disconnect WhatsApp?"
+msgstr "¿Desconectar WhatsApp?"
+
+#: docking/applets/whatsapp/applet.py:171
+msgid ""
+"This clears the WhatsApp Web session stored by Docking. You will need to "
+"scan the QR code again."
+msgstr "Esto borra la sesión de WhatsApp Web guardada por Docking. Tendrás "
+"que volver a escanear el código QR."
+
+#: docking/applets/whatsapp/applet.py:192
+msgid "Could not disconnect WhatsApp"
+msgstr "No se pudo desconectar WhatsApp"
+
+#: docking/applets/whatsapp/applet.py:194
+msgid "Unknown WebKit error"
+msgstr "Error desconocido de WebKit"
+
+#: docking/applets/whatsapp/browser.py:154
+msgid "WebKitGTK is unavailable"
+msgstr "WebKitGTK no está disponible"
+
+#: docking/applets/whatsapp/browser.py:279
+msgid "Docking applet"
+msgstr "Applet de Docking"
+
+#: docking/applets/whatsapp/browser.py:285
+msgid "Reload WhatsApp Web"
+msgstr "Recargar WhatsApp Web"
+
+#: docking/applets/whatsapp/browser.py:389
+msgid "browser process stopped"
+msgstr "proceso del navegador detenido"
+
+#: docking/applets/whatsapp/browser.py:473
+msgid "camera and microphone"
+msgstr "cámara y micrófono"
+
+#: docking/applets/whatsapp/browser.py:475
+msgid "camera"
+msgstr "cámara"
+
+#: docking/applets/whatsapp/browser.py:477
+msgid "microphone"
+msgstr "micrófono"
+
+#: docking/applets/whatsapp/browser.py:483
+#, python-brace-format
+msgid "Allow WhatsApp to use your {device}?"
+msgstr "¿Permitir que WhatsApp use tu {device}?"
+
+#: docking/applets/whatsapp/browser.py:485
+msgid "Deny"
+msgstr "Denegar"
+
+#: docking/applets/whatsapp/browser.py:486
+msgid "Allow"
+msgstr "Permitir"
+
+#: docking/applets/whatsapp/browser.py:544
+msgid "WhatsApp requires WebKitGTK"
+msgstr "WhatsApp requiere WebKitGTK"
+
+#: docking/applets/whatsapp/browser.py:548
+msgid ""
+"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr "Instala el paquete de introspección de WebKitGTK 4.1 o 4.0 y reinicia "
+"Docking."
+
+#: docking/applets/whatsapp/browser.py:590
+msgid "unknown browser error"
+msgstr "error desconocido del navegador"
+
+#: docking/applets/whatsapp/state.py:152
+msgid "WhatsApp: WebKitGTK is not installed"
+msgstr "WhatsApp: WebKitGTK no está instalado"
+
+#: docking/applets/whatsapp/state.py:154
+msgid "WhatsApp: loading..."
+msgstr "WhatsApp: cargando..."
+
+#: docking/applets/whatsapp/state.py:156
+msgid "WhatsApp: scan the QR code to connect"
+msgstr "WhatsApp: escanea el código QR para conectarte"
+
+#: docking/applets/whatsapp/state.py:158
+msgid "WhatsApp: synchronizing..."
+msgstr "WhatsApp: sincronizando..."
+
+#: docking/applets/whatsapp/state.py:160
+msgid "WhatsApp: offline"
+msgstr "WhatsApp: sin conexión"
+
+#: docking/applets/whatsapp/state.py:163
+#, python-brace-format
+msgid "WhatsApp: {error}"
+msgstr "WhatsApp: {error}"
+
+#: docking/applets/whatsapp/state.py:164
+msgid "WhatsApp: could not load WhatsApp Web"
+msgstr "WhatsApp: no se pudo cargar WhatsApp Web"
+
+#: docking/applets/whatsapp/state.py:168
+msgid "WhatsApp: 1 new notification"
+msgstr "WhatsApp: 1 notificación nueva"
+
+#: docking/applets/whatsapp/state.py:169
+#, python-brace-format
+msgid "WhatsApp: {count} new notifications"
+msgstr "WhatsApp: {count} notificaciones nuevas"
+
+#: docking/applets/whatsapp/state.py:173
+msgid "WhatsApp: 1 unread message"
+msgstr "WhatsApp: 1 mensaje sin leer"
+
+#: docking/applets/whatsapp/state.py:175
+#, python-brace-format
+msgid "WhatsApp: {count} unread messages"
+msgstr "WhatsApp: {count} mensajes sin leer"
+
+#: docking/applets/whatsapp/state.py:178
+msgid "WhatsApp: no unread messages"
+msgstr "WhatsApp: no hay mensajes sin leer"
+
+#: docking/applets/whatsapp/state.py:179
+msgid "WhatsApp: click to open"
+msgstr "WhatsApp: haz clic para abrir"
+
+#: docking/applets/windowkiller/applet.py:80
 msgid "Window Killer"
 msgstr "Cerrador de Ventanas"
 
-#: docking/applets/windowkiller/applet.py:94
+#: docking/applets/windowkiller/applet.py:96
 msgid "Click, then select a window to kill"
 msgstr "Haga clic y seleccione una ventana para cerrar"
 
@@ -2917,10 +4155,37 @@ msgstr ""
 "pila se comporte como la carpeta que representa."
 
 #: docking/core/tips.py:148
+msgid "Keep mounted devices within reach"
+msgstr "Ten tus dispositivos montados a mano"
+
+#: docking/core/tips.py:150
+msgid ""
+"Add the Devices applet to browse every mounted device in a live stack. "
+"Mounts appear and disappear automatically, and Preferences -> Behavior "
+"controls whether stacks open on hover or click."
+msgstr "Agrega el applet Dispositivos para explorar todos los dispositivos "
+"montados en una pila dinámica. Los montajes aparecen y desaparecen "
+"automáticamente, y Preferencias -> Comportamiento controla si las pilas se "
+"abren al pasar el cursor o al hacer clic."
+
+#: docking/core/tips.py:158
+msgid "Follow news sources by country"
+msgstr "Sigue fuentes de noticias por país"
+
+#: docking/core/tips.py:160
+msgid ""
+"Add the News applet, choose a country, and select a publication or edition. "
+"Scroll through its latest headlines, or add more sources and switch between "
+"them from the applet menu."
+msgstr "Agrega el applet Noticias, elige un país y selecciona una publicación "
+"o edición. Desplázate por sus últimos titulares, o agrega más fuentes y "
+"cambia entre ellas desde el menú del applet."
+
+#: docking/core/tips.py:167
 msgid "Customize pinned icons"
 msgstr "Personalizar iconos fijados"
 
-#: docking/core/tips.py:150
+#: docking/core/tips.py:169
 msgid ""
 "Right-click a pinned app, file, or folder and use Icon -> Choose From File. "
 "Custom icons are stored in Docking's config, so the original desktop file or "
@@ -2931,11 +4196,11 @@ msgstr ""
 "en la configuración de Docking, por lo que el archivo original del "
 "escritorio o el archivo en el disco no se modifica."
 
-#: docking/core/tips.py:157
+#: docking/core/tips.py:176
 msgid "Use the Applications applet search"
 msgstr "Utilice la búsqueda del subprograma de Aplicaciones"
 
-#: docking/core/tips.py:159
+#: docking/core/tips.py:178
 msgid ""
 "Add the Applications applet, open it, and type to filter installed apps. It "
 "gives you a compact launcher menu without leaving the dock."
@@ -2944,11 +4209,36 @@ msgstr ""
 "aplicaciones instaladas. Le brinda un menú de inicio compacto sin salir del "
 "muelle."
 
-#: docking/core/tips.py:166
+#: docking/core/tips.py:185
+msgid "Drag apps straight to the dock"
+msgstr "Arrastra aplicaciones directamente al dock"
+
+#: docking/core/tips.py:187
+msgid ""
+"Open the Applications applet and drag any application from its menu onto the "
+"shelf. Drop it where you want its launcher to stay in the dock."
+msgstr "Abre el applet Aplicaciones y arrastra cualquier aplicación desde su "
+"menú hasta la bandeja. Suéltala donde quieras que permanezca su lanzador en "
+"el dock."
+
+#: docking/core/tips.py:194
+msgid "Keep WhatsApp in the dock"
+msgstr "Mantén WhatsApp en el dock"
+
+#: docking/core/tips.py:196
+msgid ""
+"Add the WhatsApp applet for a persistent WhatsApp Web window, desktop "
+"notifications, and an unread-message badge. Closing the window hides it "
+"without signing out."
+msgstr "Agrega el applet de WhatsApp para tener una ventana persistente de "
+"WhatsApp Web, notificaciones de escritorio y un distintivo de mensajes sin "
+"leer. Al cerrar la ventana se oculta sin cerrar la sesión."
+
+#: docking/core/tips.py:203
 msgid "Use Run Application like Alt+F2"
 msgstr "Utilice Ejecutar aplicación como Alt+F2"
 
-#: docking/core/tips.py:168
+#: docking/core/tips.py:205
 msgid ""
 "Add Run Application to launch commands, apps, and terminal commands from the "
 "dock. As you type, matching applications are shown so you can launch by name "
@@ -2959,11 +4249,11 @@ msgstr ""
 "aplicaciones coincidentes para que pueda iniciarlas por nombre o ejecutar un "
 "comando independiente."
 
-#: docking/core/tips.py:175
+#: docking/core/tips.py:212
 msgid "Use window previews"
 msgstr "Usar vistas previas de ventanas"
 
-#: docking/core/tips.py:177
+#: docking/core/tips.py:214
 msgid ""
 "Hover running apps to inspect open windows before switching. Previews help "
 "when one application has several windows open."
@@ -2972,11 +4262,11 @@ msgstr ""
 "ventanas abiertas antes de cambiar. Las vistas previas ayudan cuando una "
 "aplicación tiene varias ventanas abiertas."
 
-#: docking/core/tips.py:183
+#: docking/core/tips.py:220
 msgid "Choose your click behavior"
 msgstr "Elija su comportamiento de clic"
 
-#: docking/core/tips.py:185
+#: docking/core/tips.py:222
 msgid ""
 "Preferences -> Behavior lets left click toggle, cycle, or focus the most "
 "recent window. Pick the behavior that matches how you switch between running "
@@ -2986,11 +4276,11 @@ msgstr ""
 "o enfoque la ventana más reciente. Elija el comportamiento que coincida con "
 "la forma en que cambia entre aplicaciones en ejecución."
 
-#: docking/core/tips.py:192
+#: docking/core/tips.py:229
 msgid "Ctrl-click opens a new window"
 msgstr "Ctrl-clic abre una nueva ventana"
 
-#: docking/core/tips.py:194
+#: docking/core/tips.py:231
 msgid ""
 "Hold Ctrl while clicking an app icon to launch another window. This works "
 "even when the app is already running and a normal click would focus it."
@@ -2999,11 +4289,23 @@ msgstr ""
 "aplicación para abrir otra ventana. Esto funciona incluso cuando la "
 "aplicación ya se está ejecutando y un clic normal la enfocaría."
 
-#: docking/core/tips.py:201
+#: docking/core/tips.py:238
+msgid "Use Clock as a calendar"
+msgstr "Usa Reloj como calendario"
+
+#: docking/core/tips.py:240
+msgid ""
+"Left-click the Clock applet to open the same calendar popup as the Calendar "
+"applet. Use Clock when you want the time and calendar in one dock item."
+msgstr "Haz clic con el botón izquierdo en el applet Reloj para abrir la "
+"misma ventana emergente de calendario que el applet Calendario. Usa Reloj "
+"cuando quieras la hora y el calendario en un solo elemento del dock."
+
+#: docking/core/tips.py:247
 msgid "Use app right-click menus"
 msgstr "Usar los menús contextuales de la aplicación"
 
-#: docking/core/tips.py:203
+#: docking/core/tips.py:249
 msgid ""
 "Right-click apps for desktop actions, open windows, recent documents, "
 "pinning, and close actions. Many apps expose useful shortcuts there, such as "
@@ -3014,11 +4316,11 @@ msgstr ""
 "aplicaciones exponen allí atajos útiles, como abrir una ventana privada o "
 "redactar un mensaje nuevo."
 
-#: docking/core/tips.py:211
+#: docking/core/tips.py:257
 msgid "Use Recent Files"
 msgstr "Usar archivos recientes"
 
-#: docking/core/tips.py:213
+#: docking/core/tips.py:259
 msgid ""
 "Add the Recent Files applet to jump back into documents you used recently. "
 "It is a faster path when you remember the file, not the folder."
@@ -3027,11 +4329,11 @@ msgstr ""
 "utilizó recientemente. Es una ruta más rápida cuando recuerdas el archivo, "
 "no la carpeta."
 
-#: docking/core/tips.py:220
+#: docking/core/tips.py:266
 msgid "Use System Tray when needed"
 msgstr "Utilice la bandeja del sistema cuando sea necesario"
 
-#: docking/core/tips.py:222
+#: docking/core/tips.py:268
 msgid ""
 "Add System Tray for tray/status apps and use its menu to manage tray "
 "ownership when supported. This helps with legacy apps that still rely on a "
@@ -3042,11 +4344,11 @@ msgstr ""
 "ayuda con las aplicaciones heredadas que todavía dependen de un área de "
 "notificación clásica."
 
-#: docking/core/tips.py:229
+#: docking/core/tips.py:275
 msgid "Use Diagnostics for support"
 msgstr "Utilice Diagnósticos para obtener soporte"
 
-#: docking/core/tips.py:231
+#: docking/core/tips.py:277
 msgid ""
 "Open Diagnostics before filing an issue to copy backend, session, and "
 "feature details. Including that report makes it much easier to understand "
@@ -3057,378 +4359,841 @@ msgstr ""
 "más fácil comprender los problemas específicos del compositor, el monitor y "
 "el entorno."
 
-#: docking/ui/about.py:68
+#: docking/platform/status_notifier/backend.py:239
+msgid "session bus unavailable"
+msgstr "bus de sesión no disponible"
+
+#: docking/search/controller.py:213
+#, python-brace-format
+msgid "Active: {shortcut} (X11)"
+msgstr "Activo: {shortcut} (X11)"
+
+#: docking/search/controller.py:218
+msgid "Shortcut already in use"
+msgstr "El atajo ya está en uso"
+
+#: docking/search/controller.py:219 docking/search/controller.py:244
+msgid "Registration failed"
+msgstr "Error de registro"
+
+#: docking/search/controller.py:222 docking/search/controller.py:245
+msgid "Not active"
+msgstr "No activo"
+
+#: docking/search/controller.py:229
+msgid "Connecting..."
+msgstr "Conectando..."
+
+#: docking/search/controller.py:235
+#, python-brace-format
+msgid "Assigned: {shortcut}"
+msgstr "Asignado: {shortcut}"
+
+#: docking/search/controller.py:236
+msgid "Assigned by desktop"
+msgstr "Asignado por el escritorio"
+
+#: docking/search/controller.py:238
+msgid "Unavailable on this desktop"
+msgstr "No disponible en este escritorio"
+
+#: docking/search/controller.py:240
+msgid "Permission denied"
+msgstr "Permiso denegado"
+
+#: docking/search/controller.py:242
+msgid "Setup cancelled"
+msgstr "Configuración cancelada"
+
+#: docking/search/controller.py:254
+msgid "Conflict"
+msgstr "Conflicto"
+
+#: docking/search/controller.py:255 docking/search/controller.py:277
+msgid "Failed"
+msgstr "Fallido"
+
+#: docking/search/controller.py:258 docking/search/controller.py:278
+msgid "Inactive"
+msgstr "Inactivo"
+
+#: docking/search/controller.py:264
+msgid "Connecting"
+msgstr "Conectando"
+
+#: docking/search/controller.py:273
+msgid "Denied"
+msgstr "Denegado"
+
+#: docking/search/controller.py:275
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#: docking/search/controller.py:734
+msgid "Live Window"
+msgstr "Ventana en vivo"
+
+#: docking/search/preview.py:112
+msgid "Empty folder"
+msgstr "Carpeta vacía"
+
+#: docking/search/preview.py:141
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Image is too large to preview."
+msgstr "{path}\nLa imagen es demasiado grande para previsualizarla."
+
+#: docking/search/preview.py:148
+#, python-brace-format
+msgid ""
+"{path}\n"
+"File is too large to preview."
+msgstr "{path}\nEl archivo es demasiado grande para previsualizarlo."
+
+#: docking/search/preview.py:235
+#, python-brace-format
+msgid ""
+"{path}\n"
+"Archive is too large to preview."
+msgstr "{path}\nEl archivo comprimido es demasiado grande para "
+"previsualizarlo."
+
+#: docking/search/preview.py:256
+msgid "Empty archive"
+msgstr "Archivo comprimido vacío"
+
+#: docking/search/providers/applications.py:149
+msgid "Focus"
+msgstr "Enfocar"
+
+#: docking/search/providers/applications.py:166
+msgid "Open New Window"
+msgstr "Abrir nueva ventana"
+
+#: docking/search/providers/applications.py:183
+#: docking/search/providers/dock.py:94 docking/ui/menu.py:523
+#: docking/ui/menu.py:545 docking/ui/menu.py:568 docking/ui/menu.py:619
+msgid "Remove from Dock"
+msgstr "Quitar del Dock"
+
+#: docking/search/providers/applications.py:183 docking/ui/menu.py:575
+msgid "Keep in Dock"
+msgstr "Mantener en el Dock"
+
+#: docking/search/providers/applications.py:192 docking/ui/menu.py:584
+msgid "Close All"
+msgstr "Cerrar Todo"
+
+#: docking/search/providers/applications.py:200
+msgid "Running"
+msgstr "En ejecución"
+
+#: docking/search/providers/applications.py:201
+#: docking/search/providers/dock.py:106
+msgid "Pinned"
+msgstr "Anclado"
+
+#: docking/search/providers/applications.py:202
+#: docking/search/providers/recent.py:62
+msgid "Recent"
+msgstr "Recientes"
+
+#: docking/search/providers/applications.py:251
+#, python-brace-format
+msgid "Desktop ID: {desktop_id}"
+msgstr "ID de escritorio: {desktop_id}"
+
+#: docking/search/providers/applications.py:253
+#, python-brace-format
+msgid "State: {state}"
+msgstr "Estado: {state}"
+
+#: docking/search/providers/applications.py:257
+#, python-brace-format
+msgid "Categories: {categories}"
+msgstr "Categorías: {categories}"
+
+#: docking/search/providers/applications.py:260
+#: docking/search/providers/windows.py:94
+msgid "Windows"
+msgstr "Ventanas"
+
+#: docking/search/providers/applications.py:263 docking/search/ui/window.py:234
+#: docking/ui/settings.py:1010
+msgid "Actions"
+msgstr "Acciones"
+
+#: docking/search/providers/applications.py:266 docking/ui/menu.py:807
+#: docking/ui/settings.py:882
+msgid "Recent Documents"
+msgstr "Documentos recientes"
+
+#: docking/search/providers/applications.py:293
+#, python-brace-format
+msgid "Activate “{title}”"
+msgstr "Activar «{title}»"
+
+#: docking/search/providers/applications.py:294
+#: docking/search/providers/windows.py:90
+#: docking/search/providers/windows.py:102 docking/ui/menu.py:826
+msgid "Window"
+msgstr "Ventana"
+
+#: docking/search/providers/applications.py:303
+#, python-brace-format
+msgid "Open Recent: {name}"
+msgstr "Abrir reciente: {name}"
+
+#: docking/search/providers/calculator.py:54
+msgid "Division by zero"
+msgstr "División por cero"
+
+#: docking/search/providers/calculator.py:55
+msgid "Invalid value or mathematical domain"
+msgstr "Valor o dominio matemático no válido"
+
+#: docking/search/providers/calculator.py:56
+msgid "Result is too large"
+msgstr "El resultado es demasiado grande"
+
+#: docking/search/providers/calculator.py:57
+msgid "Expression is too complex"
+msgstr "La expresión es demasiado compleja"
+
+#: docking/search/providers/calculator.py:58
+msgid "Unsupported or incomplete expression"
+msgstr "Expresión no compatible o incompleta"
+
+#: docking/search/providers/calculator.py:62
+msgid "Invalid expression"
+msgstr "Expresión no válida"
+
+#: docking/search/providers/calculator.py:91
+#: docking/search/providers/converter.py:101
+#: docking/search/providers/converter.py:165
+msgid "Copy Result"
+msgstr "Copiar resultado"
+
+#: docking/search/providers/converter.py:87
+#: docking/search/providers/converter.py:151
+#, python-brace-format
+msgid "{value:g} {source} to {target}"
+msgstr "{value:g} {source} to {target}"
+
+#: docking/search/providers/converter.py:94
+#: docking/search/providers/converter.py:158
+#: docking/search/providers/converter.py:202
+msgid "Converter"
+msgstr "Conversor"
+
+#: docking/search/providers/converter.py:123
+msgid "Loading currency rates..."
+msgstr "Cargando tipos de cambio..."
+
+#: docking/search/providers/converter.py:130
+msgid "Currency rates unavailable"
+msgstr "Tipos de cambio no disponibles"
+
+#: docking/search/providers/converter.py:142
+msgid "Currency pair unavailable"
+msgstr "Par de divisas no disponible"
+
+#: docking/search/providers/converter.py:159
+#: docking/search/providers/converter.py:203
+msgid "Currency"
+msgstr "Divisa"
+
+#: docking/search/providers/converter.py:190
+msgid "Retry"
+msgstr "Reintentar"
+
+#: docking/search/providers/dock.py:80 docking/search/providers/path.py:75
+#: docking/ui/folder/stack.py:396
+msgid "Open Folder"
+msgstr "Abrir Carpeta"
+
+#: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
+msgid "Open File"
+msgstr "Abrir archivo"
+
+#: docking/search/providers/dock.py:105
+msgid "Dock"
+msgstr "Dock"
+
+#: docking/search/providers/dock.py:118
+msgid "Dock applet"
+msgstr "Applet de Dock"
+
+#: docking/search/providers/path.py:68
+msgid "Path"
+msgstr "Ruta"
+
+#: docking/search/providers/path.py:69
+msgid "Folder"
+msgstr "Carpeta"
+
+#: docking/search/providers/path.py:69
+msgid "File"
+msgstr "Archivo"
+
+#: docking/search/providers/path.py:81
+msgid "Copy Path"
+msgstr "Copiar ruta"
+
+#: docking/search/providers/temporal.py:58
+msgid "Date & Time"
+msgstr "Fecha y hora"
+
+#: docking/search/providers/web.py:82
+msgid "Compose email"
+msgstr "Redactar correo"
+
+#: docking/search/providers/web.py:82
+msgid "Open URL"
+msgstr "Abrir URL"
+
+#: docking/search/providers/web.py:86 docking/search/providers/web.py:125
+msgid "Web"
+msgstr "Web"
+
+#: docking/search/providers/web.py:87
+msgid "Email"
+msgstr "Correo electrónico"
+
+#: docking/search/providers/web.py:87
+msgid "URL"
+msgstr "URL"
+
+#: docking/search/providers/web.py:93
+msgid "Compose"
+msgstr "Redactar"
+
+#: docking/search/providers/web.py:99 docking/search/providers/web.py:138
+msgid "Copy Address"
+msgstr "Copiar dirección"
+
+#: docking/search/providers/web.py:118
+#, python-brace-format
+msgid "Search {engine} for “{query}”"
+msgstr "Buscar en {engine} «{query}»"
+
+#: docking/search/providers/web.py:132
+msgid "Search the Web"
+msgstr "Buscar en la web"
+
+#: docking/search/providers/windows.py:72
+msgid "Activate Window"
+msgstr "Activar ventana"
+
+#: docking/search/providers/windows.py:81
+msgid "Close Window"
+msgstr "Cerrar ventana"
+
+#: docking/search/recognizers/temporal.py:157
+msgid "Tomorrow"
+msgstr "Mañana"
+
+#: docking/search/recognizers/temporal.py:159
+msgid "Yesterday"
+msgstr "Ayer"
+
+#: docking/search/recognizers/temporal.py:161
+#, python-brace-format
+msgid "In {count} days"
+msgstr "Dentro de {count} días"
+
+#: docking/search/recognizers/temporal.py:162
+#, python-brace-format
+msgid "{count} days ago"
+msgstr "Hace {count} días"
+
+#: docking/search/recognizers/temporal.py:176
+msgid "Date"
+msgstr "Fecha"
+
+#: docking/search/recognizers/temporal.py:235
+#: docking/search/recognizers/temporal.py:283
+msgid "Time Zone"
+msgstr "Zona horaria"
+
+#: docking/search/recognizers/temporal.py:277
+#, python-brace-format
+msgid "{time} {source} to {target}"
+msgstr "{time} {source} to {target}"
+
+#: docking/search/ui/shortcut_capture.py:84
+msgid "Not set"
+msgstr "Sin definir"
+
+#: docking/search/ui/shortcut_capture.py:86
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: docking/search/ui/shortcut_capture.py:87
+msgid "Alt"
+msgstr "Alt"
+
+#: docking/search/ui/shortcut_capture.py:88
+msgid "Shift"
+msgstr "Mayús"
+
+#: docking/search/ui/shortcut_capture.py:89
+msgid "Super"
+msgstr "Super"
+
+#: docking/search/ui/shortcut_capture.py:90
+msgid "Num"
+msgstr "Num"
+
+#: docking/search/ui/shortcut_capture.py:92
+msgid "Enter"
+msgstr "Intro"
+
+#: docking/search/ui/shortcut_capture.py:93
+msgid "Escape"
+msgstr "Esc"
+
+#: docking/search/ui/shortcut_capture.py:94
+msgid "Tab"
+msgstr "Tabulador"
+
+#: docking/search/ui/shortcut_capture.py:95
+msgid "Backspace"
+msgstr "Retroceso"
+
+#: docking/search/ui/shortcut_capture.py:135
+msgid "Search shortcut"
+msgstr "Atajo de búsqueda"
+
+#: docking/search/ui/shortcut_capture.py:158
+msgid "Press shortcut..."
+msgstr "Pulsa un atajo..."
+
+#: docking/search/ui/window.py:181 docking/search/ui/window.py:193
+msgid "Docking Search"
+msgstr "Búsqueda de Docking"
+
+#: docking/search/ui/window.py:238
+msgid "Filter actions..."
+msgstr "Filtrar acciones..."
+
+#: docking/search/ui/window.py:300
+msgid "Actions  Ctrl+J"
+msgstr "Acciones  Ctrl+J"
+
+#: docking/search/ui/window.py:303
+msgid "Preview  Ctrl+P"
+msgstr "Vista previa  Ctrl+P"
+
+#: docking/search/ui/window.py:377
+msgid "No matching results"
+msgstr "No hay resultados coincidentes"
+
+#: docking/search/ui/window.py:557
+msgid "Unable to decode image preview"
+msgstr "No se puede descodificar la vista previa de la imagen"
+
+#: docking/search/ui/window.py:566
+#, python-brace-format
+msgid "{width} × {height} · {format} · {size}"
+msgstr "{width} × {height} · {format} · {size}"
+
+#: docking/search/ui/window.py:573
+#, python-brace-format
+msgid "{width} × {height} · {format}"
+msgstr "{width} × {height} · {format}"
+
+#: docking/search/ui/window.py:608
+#, python-brace-format
+msgid "{count} results"
+msgstr "{count} resultados"
+
+#: docking/search/ui/window.py:610
+msgid "Type to search"
+msgstr "Escribe para buscar"
+
+#: docking/search/ui/window.py:612
+msgid "No results"
+msgstr "Sin resultados"
+
+#: docking/search/ui/window.py:614
+msgid "Searching..."
+msgstr "Buscando..."
+
+#: docking/search/ui/window.py:616
+msgid "Some sources failed"
+msgstr "Algunas fuentes fallaron"
+
+#: docking/ui/about.py:65
 msgid "Website"
 msgstr "Sitio Web"
 
-#: docking/ui/diagnostics.py:71 docking/ui/menu.py:693
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:709
 msgid "Diagnostics"
 msgstr "Diagnóstico"
 
-#: docking/ui/diagnostics.py:93
+#: docking/ui/diagnostics.py:108
 msgid "Overview"
 msgstr "Descripción general"
 
-#: docking/ui/diagnostics.py:97
+#: docking/ui/diagnostics.py:112
 msgid "Features"
 msgstr "Características"
 
-#: docking/ui/diagnostics.py:105 docking/ui/diagnostics.py:223
+#: docking/ui/diagnostics.py:120 docking/ui/diagnostics.py:266
 msgid "Environment"
 msgstr "Ambiente"
 
-#: docking/ui/diagnostics.py:109
+#: docking/ui/diagnostics.py:124
 msgid "Report"
 msgstr "Informe"
 
-#: docking/ui/diagnostics.py:116
+#: docking/ui/diagnostics.py:131
 msgid "Refresh"
 msgstr "Refrescar"
 
-#: docking/ui/diagnostics.py:118
+#: docking/ui/diagnostics.py:133
 msgid "Copy Report"
 msgstr "Copiar informe"
 
-#: docking/ui/diagnostics.py:120
+#: docking/ui/diagnostics.py:135
 msgid "Save Report..."
 msgstr "Guardar informe..."
 
-#: docking/ui/diagnostics.py:122 docking/ui/menu.py:574
-#: docking/ui/startup_tips.py:216
-msgid "Close"
-msgstr "Cerrar"
-
-#: docking/ui/diagnostics.py:145 docking/ui/dock_window.py:374
+#: docking/ui/diagnostics.py:160 docking/ui/dock_window.py:375
 msgid "Docking"
 msgstr "Docking"
 
-#: docking/ui/diagnostics.py:146
+#: docking/ui/diagnostics.py:161
 msgid "OS"
 msgstr "SO"
 
-#: docking/ui/diagnostics.py:149
+#: docking/ui/diagnostics.py:164
 msgid "Selected Backend"
 msgstr "Servidor seleccionado"
 
-#: docking/ui/diagnostics.py:150
+#: docking/ui/diagnostics.py:165
 msgid "Display Server"
 msgstr "Servidor de visualización"
 
-#: docking/ui/diagnostics.py:151
+#: docking/ui/diagnostics.py:166
 msgid "GTK Backend"
 msgstr "Motor GTK"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "Forced Backend"
 msgstr "Backend forzado"
 
-#: docking/ui/diagnostics.py:152
+#: docking/ui/diagnostics.py:167
 msgid "None"
 msgstr "Ninguno"
 
-#: docking/ui/diagnostics.py:153
+#: docking/ui/diagnostics.py:168
 msgid "XWayland"
 msgstr "XWayland"
 
-#: docking/ui/diagnostics.py:154
+#: docking/ui/diagnostics.py:169
 msgid "X11 Compositor"
 msgstr "Compositor X11"
 
-#: docking/ui/diagnostics.py:161
+#: docking/ui/diagnostics.py:176
 msgid "Warnings"
 msgstr "Advertencias"
 
-#: docking/ui/diagnostics.py:165
+#: docking/ui/diagnostics.py:180
 msgid "No compatibility warnings detected."
 msgstr "No se detectaron advertencias de compatibilidad."
 
-#: docking/ui/diagnostics.py:191
+#: docking/ui/diagnostics.py:190
+msgid ""
+"Features describe backend-reported support; actual behavior has not been "
+"verified."
+msgstr "Las funciones describen la compatibilidad notificada por el backend; "
+"el comportamiento real no se ha verificado."
+
+#: docking/ui/diagnostics.py:216
 msgid "Runtime"
 msgstr "Tiempo de ejecución"
 
-#: docking/ui/diagnostics.py:195
+#: docking/ui/diagnostics.py:220
 msgid "Python"
 msgstr "Pitón"
 
-#: docking/ui/diagnostics.py:196
+#: docking/ui/diagnostics.py:221
 msgid "GTK"
 msgstr "GTK"
 
-#: docking/ui/diagnostics.py:197
+#: docking/ui/diagnostics.py:222
+msgid "Architecture"
+msgstr "Arquitectura"
+
+#: docking/ui/diagnostics.py:223
+msgid "Kernel"
+msgstr "Núcleo"
+
+#: docking/ui/diagnostics.py:224
 msgid "Backend Class"
 msgstr "Clase de backend"
 
-#: docking/ui/diagnostics.py:198
+#: docking/ui/diagnostics.py:225
 msgid "Wayland Session"
 msgstr "Sesión Wayland"
 
-#: docking/ui/diagnostics.py:199
+#: docking/ui/diagnostics.py:226
 msgid "X11 GTK Backend"
 msgstr "Parte trasera X11 GTK"
 
-#: docking/ui/diagnostics.py:205
+#: docking/ui/diagnostics.py:234
+msgid "Dock Settings"
+msgstr "Ajustes del dock"
+
+#: docking/ui/diagnostics.py:241
 msgid "Monitors"
 msgstr "Monitores"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "primary"
 msgstr "primario"
 
-#: docking/ui/diagnostics.py:209
+#: docking/ui/diagnostics.py:245
 msgid "secondary"
 msgstr "secundario"
 
-#: docking/ui/diagnostics.py:219
+#: docking/ui/diagnostics.py:257
+msgid "GDK-reported workarea"
+msgstr "Área de trabajo según GDK"
+
+#: docking/ui/diagnostics.py:262
 msgid "Monitor details unavailable."
 msgstr "Los detalles del monitor no están disponibles."
 
-#: docking/ui/diagnostics.py:338
+#: docking/ui/diagnostics.py:387
 msgid "Save Diagnostics Report"
 msgstr "Guardar informe de diagnóstico"
 
-#: docking/ui/diagnostics.py:358
+#: docking/ui/diagnostics.py:407
 msgid "Failed to save diagnostics report."
 msgstr "No se pudo guardar el informe de diagnóstico."
 
-#: docking/ui/folder/_browser.py:40
+#: docking/ui/folder/_browser.py:36
 msgid "Kind"
 msgstr "Tipo"
 
-#: docking/ui/folder/_browser.py:41
+#: docking/ui/folder/_browser.py:37
 msgid "Size"
 msgstr "Tamano"
 
-#: docking/ui/folder/_browser.py:42
+#: docking/ui/folder/_browser.py:38
 msgid "Created"
 msgstr "Creado"
 
-#: docking/ui/folder/_browser.py:43
+#: docking/ui/folder/_browser.py:39
 msgid "Modified"
 msgstr "Modificado"
 
-#: docking/ui/folder/stack.py:678
+#: docking/ui/folder/stack.py:322
 msgid "Folder not found"
 msgstr "Carpeta no encontrada"
 
-#: docking/ui/folder/stack.py:692
+#: docking/ui/folder/stack.py:348 docking/ui/folder/stack.py:374
 msgid "Folder is empty"
 msgstr "Carpeta vacia"
 
-#: docking/ui/folder/stack.py:1149
+#: docking/ui/folder/stack.py:391
 #, python-format
 msgid "Open in %s"
 msgstr "Abrir en %s"
 
-#: docking/ui/folder/stack.py:1151
+#: docking/ui/folder/stack.py:393
 #, python-format
 msgid "%d More in %s"
 msgstr "%d Mas en %s"
 
-#: docking/ui/folder/stack.py:1154
-msgid "Open Folder"
-msgstr "Abrir Carpeta"
-
-#: docking/ui/folder/stack.py:1156
+#: docking/ui/folder/stack.py:398
 #, python-format
 msgid "%d More in Folder"
 msgstr "%d Mas en Carpeta"
 
-#: docking/ui/menu.py:386
+#: docking/ui/menu.py:396
 msgid "Docking Icon"
 msgstr "Icono de Docking"
 
-#: docking/ui/menu.py:387
+#: docking/ui/menu.py:397
 msgid "System Icon"
 msgstr "Icono del sistema"
 
-#: docking/ui/menu.py:395 docking/ui/menu.py:404
+#: docking/ui/menu.py:405 docking/ui/menu.py:414
 msgid "Icon"
 msgstr "Icono"
 
-#: docking/ui/menu.py:407
+#: docking/ui/menu.py:417
 msgid "Default Icon"
 msgstr "Icono predeterminado"
 
-#: docking/ui/menu.py:411
+#: docking/ui/menu.py:421
 msgid "Choose From File..."
 msgstr "Elegir desde archivo..."
 
-#: docking/ui/menu.py:415
+#: docking/ui/menu.py:425
 msgid "Reset Custom Icon"
 msgstr "Restablecer icono personalizado"
 
-#: docking/ui/menu.py:434
+#: docking/ui/menu.py:444
 msgid "Choose Icon"
 msgstr "Elija el icono"
 
-#: docking/ui/menu.py:457
+#: docking/ui/menu.py:467
 msgid "Images"
 msgstr "Imágenes"
 
-#: docking/ui/menu.py:470
+#: docking/ui/menu.py:480
 msgid "Could not use selected icon"
 msgstr "No se pudo usar el ícono seleccionado"
 
-#: docking/ui/menu.py:513 docking/ui/menu.py:535 docking/ui/menu.py:558
-#: docking/ui/menu.py:609
-msgid "Remove from Dock"
-msgstr "Quitar del Dock"
-
-#: docking/ui/menu.py:565
-msgid "Keep in Dock"
-msgstr "Mantener en el Dock"
-
-#: docking/ui/menu.py:574
-msgid "Close All"
-msgstr "Cerrar Todo"
-
-#: docking/ui/menu.py:591
+#: docking/ui/menu.py:601
 msgid "Sort By"
 msgstr "Ordenar Por"
 
-#: docking/ui/menu.py:599
+#: docking/ui/menu.py:609
 msgid "Show Hidden Files"
 msgstr "Mostrar Archivos Ocultos"
 
-#: docking/ui/menu.py:639
+#: docking/ui/menu.py:638
+msgid "Search..."
+msgstr "Buscar..."
+
+#: docking/ui/menu.py:654
 msgid "Add Applet"
 msgstr "Applets"
 
-#: docking/ui/menu.py:677
+#: docking/ui/menu.py:693
 msgid "No Applets Available"
 msgstr "Perfiles de Energía no disponibles"
 
-#: docking/ui/menu.py:684
+#: docking/ui/menu.py:700
 msgid "Add Separator"
 msgstr "Agregar Separador"
 
-#: docking/ui/menu.py:698 docking/ui/settings.py:268
+#: docking/ui/menu.py:714 docking/ui/settings.py:332
 msgid "Preferences"
 msgstr "Preferencias"
 
-#: docking/ui/menu.py:703
+#: docking/ui/menu.py:719
 msgid "About"
 msgstr "Acerca de"
 
-#: docking/ui/menu.py:708
+#: docking/ui/menu.py:724
 msgid "Get Support"
 msgstr "Get Support"
 
-#: docking/ui/menu.py:715
+#: docking/ui/menu.py:731
 msgid "Quit"
 msgstr "Salir"
 
-#: docking/ui/menu.py:781
+#: docking/ui/menu.py:797
 msgid "Clear Recent Documents"
 msgstr "Borrar documentos recientes"
-
-#: docking/ui/menu.py:791 docking/ui/settings.py:746
-msgid "Recent Documents"
-msgstr "Documentos recientes"
-
-#: docking/ui/menu.py:810
-msgid "Window"
-msgstr "Ventana"
 
 #: docking/ui/new_year.py:207
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr "Happy new year {year} !!!"
 
-#: docking/ui/placement.py:269
+#: docking/ui/placement.py:281
 #, python-brace-format
 msgid "Display {display}: {width}x{height}"
 msgstr "Pantalla {display}: {width}x{height}"
 
-#: docking/ui/settings.py:292
+#: docking/ui/settings.py:356
 msgid "Appearance"
 msgstr "Apariencia"
 
-#: docking/ui/settings.py:293 docking/ui/settings.py:671
+#: docking/ui/settings.py:357 docking/ui/settings.py:807
 msgid "Behavior"
 msgstr "Comportamiento"
 
-#: docking/ui/settings.py:294
+#: docking/ui/settings.py:358
 msgid "Applets"
 msgstr "Applets"
 
-#: docking/ui/settings.py:318
+#: docking/ui/settings.py:382
 msgid "Don't Hide"
 msgstr "No Ocultar"
 
-#: docking/ui/settings.py:319
+#: docking/ui/settings.py:383
 msgid "Always on Top"
 msgstr "Siempre arriba"
 
-#: docking/ui/settings.py:320
+#: docking/ui/settings.py:384
 msgid "Auto-hide"
 msgstr "Ocultar automáticamente"
 
-#: docking/ui/settings.py:321
+#: docking/ui/settings.py:385
 msgid "Intelligent"
 msgstr "Inteligente"
 
-#: docking/ui/settings.py:322
+#: docking/ui/settings.py:386
 msgid "Dodge Active"
 msgstr "Esquivar activo"
 
-#: docking/ui/settings.py:323
+#: docking/ui/settings.py:387
 msgid "Dodge Windows"
 msgstr "Esquivar ventanas"
 
-#: docking/ui/settings.py:324
+#: docking/ui/settings.py:388
 msgid "Dodge Maximized"
 msgstr "Esquivar Maximizadas"
 
-#: docking/ui/settings.py:335
+#: docking/ui/settings.py:399
 msgid "Toggle Focus"
 msgstr "Toggle Focus"
 
-#: docking/ui/settings.py:336
+#: docking/ui/settings.py:400
 msgid "Cycle Windows"
 msgstr "Cycle Windows"
 
-#: docking/ui/settings.py:337
+#: docking/ui/settings.py:401
 msgid "Most Recent Window"
 msgstr "Most Recent Window"
 
-#: docking/ui/settings.py:344
+#: docking/ui/settings.py:408
 msgid "New Window"
 msgstr "New Window"
 
-#: docking/ui/settings.py:345
+#: docking/ui/settings.py:409
 msgid "Minimize Windows"
 msgstr "Minimize Windows"
 
-#: docking/ui/settings.py:346
+#: docking/ui/settings.py:410
 msgid "Close Focused Window"
 msgstr "Close Focused Window"
 
-#: docking/ui/settings.py:353
+#: docking/ui/settings.py:417
 msgid "Click"
 msgstr "Click"
 
-#: docking/ui/settings.py:354
+#: docking/ui/settings.py:418
 msgid "Hover"
 msgstr "Hover"
 
-#: docking/ui/settings.py:361
+#: docking/ui/settings.py:425
 msgid "Default"
 msgstr "Por defecto"
 
-#: docking/ui/settings.py:362
+#: docking/ui/settings.py:426
 msgid "Alphabetical"
 msgstr "Alfabético"
 
-#: docking/ui/settings.py:380
+#: docking/ui/settings.py:447
 msgid "Daily"
 msgstr "Diariamente"
 
-#: docking/ui/settings.py:381
+#: docking/ui/settings.py:448
 msgid "Weekly"
 msgstr "Semanalmente"
 
-#: docking/ui/settings.py:402
+#: docking/ui/settings.py:469
 msgid ""
 "When Follow Cursor is enabled, the dock follows the pointer across monitors. "
 "The selected monitor is kept as the fallback."
@@ -3436,11 +5201,11 @@ msgstr ""
 "Cuando Seguir el cursor está habilitado, la base sigue el puntero a través "
 "de los monitores. El monitor seleccionado se mantiene como respaldo."
 
-#: docking/ui/settings.py:448
+#: docking/ui/settings.py:515
 msgid "Added on top of the theme's own distance from the edge."
 msgstr "Agregado encima de la propia distancia del tema desde el borde."
 
-#: docking/ui/settings.py:488
+#: docking/ui/settings.py:555
 msgid ""
 "Pixels of cursor pressure against the edge required to reveal a hidden dock. "
 "Higher values mean the dock will not reveal as easily."
@@ -3449,212 +5214,238 @@ msgstr ""
 "muelle oculto. Los valores más altos significan que el muelle no se revelará "
 "tan fácilmente."
 
-#: docking/ui/settings.py:510
+#: docking/ui/settings.py:625
 msgid "Look"
 msgstr "Aspecto"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Theme"
 msgstr "Tema"
 
-#: docking/ui/settings.py:512
+#: docking/ui/settings.py:627
 msgid "Choose the dock color palette."
 msgstr "Elija la paleta de colores del muelle."
 
-#: docking/ui/settings.py:514
+#: docking/ui/settings.py:629
 msgid "Icon Size"
 msgstr "Tamaño del Ícono"
 
-#: docking/ui/settings.py:516
+#: docking/ui/settings.py:631
 msgid "Set the base size of dock icons before zoom is applied."
 msgstr ""
 "Establezca el tamaño base de los iconos del acoplamiento antes de aplicar el "
 "zoom."
 
-#: docking/ui/settings.py:519
+#: docking/ui/settings.py:634
 msgid "Transparency"
 msgstr "Transparency"
 
-#: docking/ui/settings.py:521
+#: docking/ui/settings.py:636
 msgid "Adjust how transparent the dock background is."
 msgstr "Ajuste qué tan transparente es el fondo del muelle."
 
-#: docking/ui/settings.py:524
+#: docking/ui/settings.py:639
 msgid "Zoom"
 msgstr "Zoom"
 
-#: docking/ui/settings.py:526
+#: docking/ui/settings.py:641
 msgid "Enlarge icons when the pointer hovers over the dock."
 msgstr "Amplíe los iconos cuando el puntero pase sobre el muelle."
 
-#: docking/ui/settings.py:529
+#: docking/ui/settings.py:644
 msgid "Zoom Percent"
 msgstr "Porcentaje de Zoom"
 
-#: docking/ui/settings.py:531
+#: docking/ui/settings.py:646
 msgid "Set how much hovered icons grow when zoom is enabled."
 msgstr ""
 "Establezca cuánto crecen los íconos suspendidos cuando el zoom está "
 "habilitado."
 
-#: docking/ui/settings.py:534
+#: docking/ui/settings.py:649
 msgid "Show Tooltips"
 msgstr "Mostrar Sugerencias"
 
-#: docking/ui/settings.py:536
+#: docking/ui/settings.py:651
 msgid "Show item names and details when hovering over dock items."
 msgstr ""
 "Muestra los nombres y detalles de los elementos al pasar el cursor sobre los "
 "elementos del muelle."
 
-#: docking/ui/settings.py:539
+#: docking/ui/settings.py:654
 msgid "Window Previews"
 msgstr "Vista Previa de Ventanas"
 
-#: docking/ui/settings.py:541
+#: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
 "Muestra miniaturas de ventanas al pasar el cursor sobre aplicaciones en "
 "ejecución."
 
-#: docking/ui/settings.py:544
+#: docking/ui/settings.py:659
+msgid "Outline Thumbnail on Hover"
+msgstr "Contorno de la miniatura al pasar el cursor"
+
+#: docking/ui/settings.py:661
+msgid "Highlight the thumbnail under the pointer in the preview."
+msgstr "Resalta la miniatura bajo el puntero en la vista previa."
+
+#: docking/ui/settings.py:664
 msgid "Show Window Counts"
 msgstr "Mostrar recuentos de ventanas"
 
-#: docking/ui/settings.py:547
+#: docking/ui/settings.py:667
 msgid "Show a number on running app indicators when multiple windows are open."
 msgstr ""
 "Muestra un número en los indicadores de la aplicación en ejecución cuando "
 "hay varias ventanas abiertas."
 
-#: docking/ui/settings.py:555
+#: docking/ui/settings.py:672
+msgid "Application Badges"
+msgstr "Distintivos de aplicaciones"
+
+#: docking/ui/settings.py:675
+msgid "Show numeric counts reported by applications on their dock icons."
+msgstr "Muestra los recuentos numéricos notificados por las aplicaciones en "
+"sus iconos del dock."
+
+#: docking/ui/settings.py:680
+msgid "Application Progress"
+msgstr "Progreso de aplicaciones"
+
+#: docking/ui/settings.py:683
+msgid "Show task progress reported by applications on their dock icons."
+msgstr "Muestra el progreso de tareas notificado por las aplicaciones en sus "
+"iconos del dock."
+
+#: docking/ui/settings.py:691
 msgid "Placement"
 msgstr "Ubicacion"
 
-#: docking/ui/settings.py:558
+#: docking/ui/settings.py:694
 msgid "Position"
 msgstr "Posición"
 
-#: docking/ui/settings.py:560
+#: docking/ui/settings.py:696
 msgid "Choose which screen edge the dock uses."
 msgstr "Elija qué borde de pantalla utiliza la base."
 
-#: docking/ui/settings.py:562
+#: docking/ui/settings.py:698
 msgid "Extra Distance from Edge"
 msgstr "Distancia adicional desde el borde"
 
-#: docking/ui/settings.py:564
+#: docking/ui/settings.py:700
 msgid "Current Workspace Only"
 msgstr "Solo espacio de trabajo actual"
 
-#: docking/ui/settings.py:567
+#: docking/ui/settings.py:703
 msgid "Show running windows only from the active workspace when supported."
 msgstr ""
 "Mostrar ventanas en ejecución solo desde el espacio de trabajo activo cuando "
 "sea compatible."
 
-#: docking/ui/settings.py:575 docking/ui/settings.py:585
+#: docking/ui/settings.py:711 docking/ui/settings.py:721
 msgid "Monitor"
 msgstr "Monitor"
 
-#: docking/ui/settings.py:578
+#: docking/ui/settings.py:714
 msgid "Follow Cursor"
 msgstr "Seguir cursor"
 
-#: docking/ui/settings.py:581
+#: docking/ui/settings.py:717
 msgid "Move the dock to the monitor where the pointer is currently located."
 msgstr "Mueva la base al monitor donde se encuentra actualmente el puntero."
 
-#: docking/ui/settings.py:590
+#: docking/ui/settings.py:726
 msgid "Layout"
 msgstr "Disposicion"
 
-#: docking/ui/settings.py:593
+#: docking/ui/settings.py:729
 msgid "Lock Positions"
 msgstr "Bloquear Posiciones"
 
-#: docking/ui/settings.py:596
+#: docking/ui/settings.py:732
 msgid "Prevent dock items from being reordered or removed by drag and drop."
 msgstr ""
 "Evite que los elementos del muelle se reordenen o eliminen arrastrando y "
 "soltando."
 
-#: docking/ui/settings.py:601
+#: docking/ui/settings.py:737
 msgid "Anchor Applets to End"
 msgstr "Anclar applets al final"
 
-#: docking/ui/settings.py:603
+#: docking/ui/settings.py:739
 msgid "Keep applets grouped at the end of the dock."
 msgstr "Mantenga los subprogramas agrupados al final del muelle."
 
-#: docking/ui/settings.py:606
+#: docking/ui/settings.py:742
 msgid "Anchor Files to End"
 msgstr "Fijar Archivos al Final"
 
-#: docking/ui/settings.py:608
+#: docking/ui/settings.py:744
 msgid "Keep pinned files and folders grouped at the end of the dock."
 msgstr "Mantenga los archivos y carpetas anclados agrupados al final del Dock."
 
-#: docking/ui/settings.py:647
+#: docking/ui/settings.py:783
 msgid "Left Click"
 msgstr "Left Click"
 
-#: docking/ui/settings.py:650
+#: docking/ui/settings.py:786
 msgid ""
 "Choose what happens when clicking a running app with the left mouse button."
 msgstr ""
 "Elija qué sucede al hacer clic en una aplicación en ejecución con el botón "
 "izquierdo del mouse."
 
-#: docking/ui/settings.py:655
+#: docking/ui/settings.py:791
 msgid "Middle Click"
 msgstr "Middle Click"
 
-#: docking/ui/settings.py:658
+#: docking/ui/settings.py:794
 msgid "Choose what happens when clicking an app with the middle mouse button."
 msgstr ""
 "Elija qué sucede al hacer clic en una aplicación con el botón central del "
 "mouse."
 
-#: docking/ui/settings.py:663
+#: docking/ui/settings.py:799
 msgid "Window List Sort"
 msgstr "Ordenar lista de ventanas"
 
-#: docking/ui/settings.py:665
+#: docking/ui/settings.py:801
 msgid "Choose how open windows are ordered in app context menus."
 msgstr ""
 "Elija cómo se ordenan las ventanas abiertas en los menús contextuales de la "
 "aplicación."
 
-#: docking/ui/settings.py:673
+#: docking/ui/settings.py:809
 msgid "Hide Mode"
 msgstr "Modo de Ocultacion"
 
-#: docking/ui/settings.py:675
+#: docking/ui/settings.py:811
 msgid "Hide Delay"
 msgstr "Retraso al Ocultar"
 
-#: docking/ui/settings.py:678
+#: docking/ui/settings.py:814
 msgid "Set how long the dock waits before hiding after the pointer leaves."
 msgstr ""
 "Establezca cuánto tiempo espera la base antes de ocultarse después de que se "
 "vaya el puntero."
 
-#: docking/ui/settings.py:683
+#: docking/ui/settings.py:819
 msgid "Unhide Delay"
 msgstr "Retraso al Mostrar"
 
-#: docking/ui/settings.py:686
+#: docking/ui/settings.py:822
 msgid "Set how long the dock waits before showing after the pointer returns."
 msgstr ""
 "Establezca cuánto tiempo espera la base antes de mostrarse después de que "
 "regresa el puntero."
 
-#: docking/ui/settings.py:691
+#: docking/ui/settings.py:827
 msgid "Pressure Reveal"
 msgstr "Revelación de presión"
 
-#: docking/ui/settings.py:694
+#: docking/ui/settings.py:830
 msgid ""
 "Require the pointer to push against the screen edge before revealing a "
 "hidden dock."
@@ -3662,15 +5453,15 @@ msgstr ""
 "Solicite que el puntero empuje contra el borde de la pantalla antes de "
 "revelar una base oculta."
 
-#: docking/ui/settings.py:698
+#: docking/ui/settings.py:834
 msgid "Pressure Threshold"
 msgstr "Umbral de presión"
 
-#: docking/ui/settings.py:700
+#: docking/ui/settings.py:836
 msgid "Show Startup Tips"
 msgstr "Mostrar consejos de inicio"
 
-#: docking/ui/settings.py:703
+#: docking/ui/settings.py:839
 msgid ""
 "Show one Docking usage tip after startup, unless a higher-priority startup "
 "notification is visible."
@@ -3678,151 +5469,182 @@ msgstr ""
 "Muestra un consejo de uso del Docking después del inicio, a menos que esté "
 "visible una notificación de inicio de mayor prioridad."
 
-#: docking/ui/settings.py:711
-msgid "Folder Stacks"
-msgstr "Folder Stacks"
+#: docking/ui/settings.py:847
+msgid "Stacks"
+msgstr "Pilas"
 
-#: docking/ui/settings.py:714
+#: docking/ui/settings.py:850
 msgid "Open On"
 msgstr "Open On"
 
-#: docking/ui/settings.py:716
-msgid "Choose whether folder stacks open on click or while hovering."
-msgstr ""
-"Elija si las pilas de carpetas se abren al hacer clic o al pasar el cursor."
+#: docking/ui/settings.py:852
+msgid "Choose whether stacks open on click or while hovering."
+msgstr "Elige si las pilas se abren al hacer clic o al pasar el cursor."
 
-#: docking/ui/settings.py:722
+#: docking/ui/settings.py:858
 msgid "Recent Apps"
 msgstr "Aplicaciones recientes"
 
-#: docking/ui/settings.py:725
+#: docking/ui/settings.py:861
 msgid "Show Recently Used Apps"
 msgstr "Mostrar aplicaciones utilizadas recientemente"
 
-#: docking/ui/settings.py:728
+#: docking/ui/settings.py:864
 msgid "Show recently closed apps between pinned launchers and running apps."
 msgstr ""
 "Muestra aplicaciones cerradas recientemente entre lanzadores anclados y "
 "aplicaciones en ejecución."
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:869
 msgid "Number of Recent Apps"
 msgstr "Número de aplicaciones recientes"
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:871
 msgid "Maximum recently used app icons to display."
 msgstr ""
 "Número máximo de iconos de aplicaciones utilizados recientemente para "
 "mostrar."
 
-#: docking/ui/settings.py:738
+#: docking/ui/settings.py:874
 msgid "Keep Recent Apps For"
 msgstr "Mantener aplicaciones recientes para"
 
-#: docking/ui/settings.py:740
+#: docking/ui/settings.py:876
 msgid "Remove recent apps after this many days of inactivity."
 msgstr ""
 "Elimina las aplicaciones recientes después de tantos días de inactividad."
 
-#: docking/ui/settings.py:749
+#: docking/ui/settings.py:885
 msgid "Show Recent Documents"
 msgstr "Mostrar documentos recientes"
 
-#: docking/ui/settings.py:752
+#: docking/ui/settings.py:888
 msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
 msgstr ""
 "Muestra un submenú \\\"Documentos recientes\\\" al hacer clic con el botón "
 "derecho en el icono de una aplicación."
 
-#: docking/ui/settings.py:757
+#: docking/ui/settings.py:893
 msgid "Max Documents Per App"
 msgstr "Máximo de documentos por aplicación"
 
-#: docking/ui/settings.py:759
+#: docking/ui/settings.py:895
 msgid "Maximum recent document entries shown per app."
 msgstr "Entradas máximas de documentos recientes mostradas por aplicación."
 
-#: docking/ui/settings.py:831
+#: docking/ui/settings.py:901
+msgid "Global Search"
+msgstr "Búsqueda global"
+
+#: docking/ui/settings.py:906
+msgid "Enable Docking's process-wide search palette."
+msgstr "Activa la paleta de búsqueda global del proceso de Docking."
+
+#: docking/ui/settings.py:909
+msgid "Preferred Shortcut"
+msgstr "Atajo preferido"
+
+#: docking/ui/settings.py:912
+msgid ""
+"Click the button, then press the desired key sequence. The desktop may "
+"reserve some shortcuts."
+msgstr "Haz clic en el botón y pulsa la combinación de teclas deseada. Es "
+"posible que el escritorio reserve algunos atajos."
+
+#: docking/ui/settings.py:917
+msgid "Search Engine"
+msgstr "Motor de búsqueda"
+
+#: docking/ui/settings.py:919
+msgid "Choose the engine used by web fallback."
+msgstr "Elige el motor que se usa cuando la búsqueda recurre a la web."
+
+#: docking/ui/settings.py:991
 msgid "Check Now"
 msgstr "Comprobar ahora"
 
-#: docking/ui/settings.py:833
+#: docking/ui/settings.py:993
 msgid "View Releases"
 msgstr "Ver versiones"
 
-#: docking/ui/settings.py:845
+#: docking/ui/settings.py:1005
 msgid "Update Checks"
 msgstr "Comprobaciones de actualización"
 
-#: docking/ui/settings.py:847
+#: docking/ui/settings.py:1007
 msgid "Check Automatically"
 msgstr "Comprobar automáticamente"
 
-#: docking/ui/settings.py:848
+#: docking/ui/settings.py:1008
 msgid "Frequency"
 msgstr "Frecuencia"
 
-#: docking/ui/settings.py:849
+#: docking/ui/settings.py:1009
 msgid "Status"
 msgstr "Estado"
 
-#: docking/ui/settings.py:850
-msgid "Actions"
-msgstr "Acciones"
-
-#: docking/ui/settings.py:1293
+#: docking/ui/settings.py:1489
 msgid "Primary Display"
 msgstr "Pantalla principal"
 
-#: docking/ui/settings.py:1434
+#: docking/ui/settings.py:1500
+#, python-brace-format
+msgid "Shortcut Status: {status}"
+msgstr "Estado del atajo: {status}"
+
+#: docking/ui/settings.py:1639
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr "Última versión vista: {version}"
 
-#: docking/ui/settings.py:1438
+#: docking/ui/settings.py:1643
 msgid "No update found yet"
 msgstr "Aún no se ha encontrado ninguna actualización"
 
-#: docking/ui/settings.py:1440
+#: docking/ui/settings.py:1645
 msgid "Not checked yet"
 msgstr "Aún no comprobado"
 
-#: docking/ui/settings.py:1521
+#: docking/ui/settings.py:1728
 msgid "The dock is always visible and reserves screen space."
 msgstr "El dock siempre es visible y reserva espacio en pantalla."
 
-#: docking/ui/settings.py:1523
+#: docking/ui/settings.py:1730
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 "Siempre visible y flota sobre todas las ventanas sin reservar espacio en "
 "pantalla."
 
-#: docking/ui/settings.py:1526
+#: docking/ui/settings.py:1733
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr "Se oculta cuando el cursor sale del dock."
 
-#: docking/ui/settings.py:1528
+#: docking/ui/settings.py:1735
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 "Hides when a window from the focused application overlaps the dock area."
 
-#: docking/ui/settings.py:1530
+#: docking/ui/settings.py:1737
 msgid "Hides when the focused window overlaps the dock area."
 msgstr "Se oculta cuando la ventana enfocada se superpone al dock."
 
-#: docking/ui/settings.py:1532
+#: docking/ui/settings.py:1739
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 "Se oculta cuando cualquier ventana del escritorio actual se superpone al "
 "dock."
 
-#: docking/ui/settings.py:1535
+#: docking/ui/settings.py:1742
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
+
+#: docking/ui/stack.py:125
+msgid "No items"
+msgstr "No hay elementos"
 
 #: docking/ui/startup_tips.py:187
 msgid "Tip of the day"
@@ -3836,40 +5658,42 @@ msgstr "Mostrar consejos sobre el inicio"
 msgid "Next Tip"
 msgstr "Siguiente consejo"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
 msgid "1 day"
 msgstr "1 dia"
 
-#: docking/ui/tooltip.py:221
+#: docking/ui/tooltip.py:222
+#, python-brace-format
 msgid "{count} days"
 msgstr "{count} días"
 
-#: docking/ui/tooltip.py:239
+#: docking/ui/tooltip.py:240
 msgid "just now"
 msgstr "En este momento"
 
-#: docking/ui/tooltip.py:240
+#: docking/ui/tooltip.py:241
+#, python-brace-format
 msgid "{age} ago"
 msgstr "Hace {age}"
 
-#: docking/ui/update_popup.py:233
+#: docking/ui/update_popup.py:231
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr "Docking {version} está disponible"
 
-#: docking/ui/update_popup.py:239
+#: docking/ui/update_popup.py:237
 #, python-brace-format
 msgid "You are using {version}."
 msgstr "Está usando {version}."
 
-#: docking/ui/update_popup.py:248
+#: docking/ui/update_popup.py:246
 msgid "View Release"
 msgstr "Ver versión"
 
-#: docking/ui/update_popup.py:249
+#: docking/ui/update_popup.py:247
 msgid "Later"
 msgstr "Más tarde"
 
-#: docking/ui/update_popup.py:250
+#: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "Ignorar"

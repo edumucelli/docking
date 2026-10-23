@@ -86,6 +86,10 @@ class TestAppletCatalog:
     def test_contains_stretchcoach(self):
         assert "stretchcoach" in get_applet_catalog()
 
+    def test_contains_plantcare(self):
+        assert "plantcare" in get_applet_catalog()
+        assert load_applet_class("plantcare").__name__ == "PlantCareApplet"
+
     def test_contains_trivia(self):
         assert "trivia" in get_applet_catalog()
 
@@ -110,6 +114,10 @@ class TestAppletCatalog:
     def test_contains_reddit(self):
         assert "reddit" in get_applet_catalog()
         assert load_applet_class("reddit").__name__ == "RedditApplet"
+
+    def test_contains_news(self):
+        assert "news" in get_applet_catalog()
+        assert load_applet_class("news").__name__ == "NewsApplet"
 
     def test_contains_thermals(self):
         assert "thermals" in get_applet_catalog()

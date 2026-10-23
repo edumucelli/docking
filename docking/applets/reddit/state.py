@@ -21,6 +21,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
+from docking.applets.xml_safety import UnsafeXmlError, parse_untrusted_xml
 from docking.core.math import clamp_index
 from docking.i18n import _
 
@@ -93,7 +94,10 @@ def normalize_subreddit(value: object) -> str | None:
     text = normalize_text(value).strip()
     if not text:
         return None
-    parsed = urlsplit(text)
+    try:
+        parsed = urlsplit(text)
+    except ValueError:
+        return None
     if parsed.scheme in {"http", "https"} and parsed.hostname in {
         "reddit.com",
         "www.reddit.com",
@@ -220,8 +224,8 @@ def parse_reddit_feed(
     if limit <= 0:
         return ()
     try:
-        root = ET.fromstring(payload)
-    except (ET.ParseError, TypeError) as exc:
+        root = parse_untrusted_xml(payload)
+    except (ET.ParseError, TypeError, UnsafeXmlError) as exc:
         raise ValueError(_("Invalid Reddit RSS response")) from exc
 
     namespace = f"{{{ATOM_NAMESPACE}}}"
@@ -302,7 +306,10 @@ def post_age(*, post: RedditPost, now: dt.datetime | None = None) -> str:
     if post.published <= 0:
         return ""
     current = now or dt.datetime.now(dt.timezone.utc)
-    published = dt.datetime.fromtimestamp(post.published, tz=dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(post.published, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
     seconds = max(0, int((current - published).total_seconds()))
     if seconds < 60:
         return _("now")
@@ -520,7 +527,10 @@ def _entry_url(*, entry: ET.Element, namespace: str) -> str:
 def _is_reddit_url(value: str) -> bool:
     if not value:
         return False
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
     host = (parsed.hostname or "").casefold()
     return parsed.scheme in {"http", "https"} and (
         host in {"reddit.com", "redd.it"} or host.endswith((".reddit.com", ".redd.it"))
@@ -550,7 +560,7 @@ def _int_from_value(value: object, fallback: int) -> int:
         return fallback
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return fallback
 
 

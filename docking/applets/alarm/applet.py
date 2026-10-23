@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import gi
@@ -67,8 +68,8 @@ class AlarmApplet(Applet):
     name = _("Alarm")
     icon_name = "alarm"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("alarm", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("alarm", {})
         self._state: AlarmState = state_from_prefs(prefs=prefs)
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)
@@ -231,9 +232,7 @@ class AlarmApplet(Applet):
                 )
                 self._upsert_preset(index=index, preset=updated)
             elif response_id == Gtk.ResponseType.REJECT and index is not None:
-                self._state = remove_preset(state=self._state, index=index)
-                self._save()
-                self.present()
+                self._remove_preset(index=index)
             dialog.destroy()
 
         dialog.connect("response", on_response)
@@ -241,17 +240,50 @@ class AlarmApplet(Applet):
         label_entry.grab_focus()
 
     def _upsert_preset(self, *, index: int | None, preset: AlarmPreset) -> None:
+        now = self._now()
+        if (preset.hour, preset.minute) <= (
+            now.hour,
+            now.minute,
+        ):
+            preset = replace(preset, last_triggered=now.date().isoformat())
+        else:
+            preset = replace(preset, last_triggered="")
         if index is None:
             self._state = add_preset(state=self._state, preset=preset)
         else:
             self._state = replace_preset(state=self._state, index=index, preset=preset)
+            self._state = set_enabled(
+                state=self._state, index=index, enabled=preset.enabled
+            )
         self.item.is_urgent = self._state.ringing_index is not None
         self._save()
+        self._restart_timer()
+        self.present()
+
+    def _remove_preset(self, *, index: int) -> None:
+        self._state = remove_preset(state=self._state, index=index)
+        self.item.is_urgent = self._state.ringing_index is not None
+        self._save()
+        self._restart_timer()
         self.present()
 
     def _toggle_alarm(self, *, index: int, enabled: bool) -> None:
+        if enabled and 0 <= index < len(self._state.presets):
+            preset = self._state.presets[index]
+            if not preset.enabled:
+                now = self._now()
+                consumed = (
+                    now.date().isoformat()
+                    if (preset.hour, preset.minute) <= (now.hour, now.minute)
+                    else ""
+                )
+                self._state = replace_preset(
+                    self._state, index, replace(preset, last_triggered=consumed)
+                )
         self._state = set_enabled(state=self._state, index=index, enabled=enabled)
+        self.item.is_urgent = self._state.ringing_index is not None
         self._save()
+        self._restart_timer()
         self.present()
 
     def _snooze(self) -> None:

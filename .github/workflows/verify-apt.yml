@@ -1,0 +1,54 @@
+name: Verify published APT packages
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published stable tag to verify (e.g. v2.13.8)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify APT (${{ matrix.image }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12', 'debian:13']
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download current and previous stable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 packaging/cloudsmith/verification_assets.py \
+            --release-tag "$RELEASE_TAG" --arch "$PACKAGE_ARCH" --directory incoming
+      - name: Verify signed APT installation, upgrade, and desktop runtimes
+        env:
+          IMAGE: ${{ matrix.image }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          test "$(docker run --rm "$IMAGE" dpkg --print-architecture)" = "$PACKAGE_ARCH"
+          docker run --rm \
+            -v "$PWD/incoming:/release:ro" \
+            -v "$PWD/packaging:/checks:ro" \
+            "$IMAGE" bash /checks/cloudsmith/verify-apt.sh

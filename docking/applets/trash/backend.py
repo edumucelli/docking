@@ -19,6 +19,7 @@ import configparser
 import errno
 import os
 import shutil
+import stat
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
+from docking.platform import targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -158,7 +160,7 @@ def _decode_mountinfo_path(value: str) -> str:
 
 def _mount_points() -> tuple[Path, ...]:
     try:
-        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+        lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")
     except OSError as exc:
         log.bind(action="discover_trash_roots").debug(
             "Could not read mountinfo: %s",
@@ -168,18 +170,23 @@ def _mount_points() -> tuple[Path, ...]:
 
     mount_points: list[Path] = []
     for line in lines:
-        fields = line.split()
+        fields = line.split(b" ")
         if len(fields) < 5:
             continue
-        mount_point = Path(_decode_mountinfo_path(fields[4]))
+        mount_point = Path(_decode_mountinfo_path(os.fsdecode(fields[4])))
         if mount_point not in mount_points:
             mount_points.append(mount_point)
     return tuple(mount_points)
 
 
-def _path_exists(path: Path) -> bool:
+def _is_trash_directory(path: Path, *, shared: bool = False) -> bool:
     try:
-        return path.exists()
+        entry = path.lstat()
+        return stat.S_ISDIR(entry.st_mode) and (
+            bool(entry.st_mode & stat.S_ISVTX)
+            if shared
+            else entry.st_uid == os.getuid() and not entry.st_mode & 0o022
+        )
     except OSError as exc:
         log.bind(action="discover_trash_roots").debug(
             "Could not stat trash path %s: %s",
@@ -193,11 +200,12 @@ def _volume_trash_directories() -> tuple[Path, ...]:
     uid = os.getuid()
     directories: list[Path] = []
     for mount_point in _mount_points():
-        for directory in (
-            mount_point / f".Trash-{uid}",
-            mount_point / ".Trash" / str(uid),
-        ):
-            if _path_exists(directory) and directory not in directories:
+        candidates = [mount_point / f".Trash-{uid}"]
+        shared = mount_point / ".Trash"
+        if _is_trash_directory(shared, shared=True):
+            candidates.append(shared / str(uid))
+        for directory in candidates:
+            if _is_trash_directory(directory) and directory not in directories:
                 directories.append(directory)
     return tuple(directories)
 
@@ -240,16 +248,13 @@ def _open_trash_uri(
     if is_flatpak() and _open_host_trash_uri(uri=uri):
         return
 
-    try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
+    if targets.open_target(uri):
         return
-    except GLib.Error as exc:
-        gio_error = exc
 
     if _open_trash_with_commands(uri=uri, commands=fallback_commands):
         return
 
-    log.bind(action="open_trash").warning("Failed to open trash: %s", gio_error)
+    log.bind(action="open_trash").warning("Failed to open trash URI: %s", uri)
 
 
 def _open_trash_with_commands(
@@ -388,7 +393,6 @@ class GioTrashBackend:
         _open_trash_uri(self.uri, fallback_commands=self.open_commands)
 
     def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult:
-        _ = confirm
         before_count = self.count_items()
         if self._confirmation_preference() is False:
             if _empty_host_trash():
@@ -401,6 +405,13 @@ class GioTrashBackend:
                 before_count=before_count,
                 remaining_count=self.count_items(),
                 delegated=True,
+            )
+        # No file manager will prompt, and these files would be gone for good.
+        if not confirm():
+            return TrashEmptyResult(
+                attempted=False,
+                before_count=before_count,
+                remaining_count=before_count,
             )
         if _empty_host_trash():
             return self._empty_result(before_count=before_count)
@@ -518,12 +529,24 @@ class GioTrashBackend:
         for directory in _visible_trash_files_directories():
             stats.merge(self._delete_directory_contents(directory))
         for directory in _visible_trash_info_directories():
-            stats.merge(self._delete_directory_contents(directory))
+            stats.merge(
+                self._delete_directory_contents(
+                    directory, preserve_for=directory.parent / "files"
+                )
+            )
         return stats
 
-    def _delete_directory_contents(self, directory: Path) -> _DeleteStats:
+    def _delete_directory_contents(
+        self, directory: Path, *, preserve_for: Path | None = None
+    ) -> _DeleteStats:
         stats = _DeleteStats()
         try:
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
+                raise OSError("Refusing to empty a symbolic link to a trash directory")
             children = list(directory.iterdir())
         except FileNotFoundError:
             return stats
@@ -537,6 +560,16 @@ class GioTrashBackend:
             return stats
 
         for child in children:
+            if preserve_for is not None and child.name.endswith(".trashinfo"):
+                try:
+                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    stats.add_failure(exc)
+                    continue
+                else:
+                    continue
             stats.merge(self._delete_path(child))
         return stats
 
@@ -717,12 +750,24 @@ class KdeTrashBackend:
         for directory in _visible_trash_files_directories():
             stats.merge(self._delete_directory_contents(directory))
         for directory in _visible_trash_info_directories():
-            stats.merge(self._delete_directory_contents(directory))
+            stats.merge(
+                self._delete_directory_contents(
+                    directory, preserve_for=directory.parent / "files"
+                )
+            )
         return stats
 
-    def _delete_directory_contents(self, directory: Path) -> _DeleteStats:
+    def _delete_directory_contents(
+        self, directory: Path, *, preserve_for: Path | None = None
+    ) -> _DeleteStats:
         stats = _DeleteStats()
         try:
+            if (
+                directory.is_symlink()
+                or directory.parent.is_symlink()
+                or (preserve_for is not None and preserve_for.is_symlink())
+            ):
+                raise OSError("Refusing to empty a symbolic link to a trash directory")
             children = list(directory.iterdir())
         except FileNotFoundError:
             return stats
@@ -736,6 +781,16 @@ class KdeTrashBackend:
             return stats
 
         for child in children:
+            if preserve_for is not None and child.name.endswith(".trashinfo"):
+                try:
+                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    stats.add_failure(exc)
+                    continue
+                else:
+                    continue
             stats.merge(self._delete_path(child))
         return stats
 

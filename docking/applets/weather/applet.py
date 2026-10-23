@@ -83,7 +83,7 @@ class WeatherApplet(Applet):
     name = _("Weather")
     icon_name = "weather-few-clouds"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
@@ -91,14 +91,13 @@ class WeatherApplet(Applet):
         self._air_quality: AirQualityData | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
+        self._stopped = False
         self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get("weather", {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get("weather", {}))
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature
@@ -229,6 +228,7 @@ class WeatherApplet(Applet):
         )
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
@@ -238,6 +238,10 @@ class WeatherApplet(Applet):
             )
 
     def stop(self) -> None:
+        self._stopped = True
+        self._fetch_pending = False
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -394,7 +398,7 @@ class WeatherApplet(Applet):
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
         active = self._active_city
-        if not active:
+        if self._stopped or not active:
             return
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
@@ -440,7 +444,10 @@ class WeatherApplet(Applet):
         weather: WeatherData | None,
         aqi: AirQualityData | None,
     ) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         self._loading = False
         self._fetch_failed = weather is None
@@ -455,7 +462,10 @@ class WeatherApplet(Applet):
         return False
 
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         log.bind(action="fetch_error").debug("Weather fetch failed: %s", exc)
         self._loading = False
@@ -463,6 +473,16 @@ class WeatherApplet(Applet):
         self._fetch_error = str(exc) or exc.__class__.__name__
         self._present_or_run_pending_fetch()
         return False
+
+    def _settle_replaced_fetch(self) -> None:
+        """Finish the bookkeeping for a reply the user already replaced.
+
+        The queued replacement fetch never starts on its own, so the discarded
+        reply is the only thing that would clear ``_loading``; leaving it set
+        wedged the applet on "Loading..." with stale data forever.
+        """
+        self._loading = False
+        self._present_or_run_pending_fetch()
 
     def _present_or_run_pending_fetch(self) -> None:
         if self._fetch_pending and self._active_city:

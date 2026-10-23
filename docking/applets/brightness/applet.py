@@ -28,6 +28,7 @@ from docking.applets.brightness import meta
 from docking.applets.brightness.render import create_icon
 from docking.applets.brightness.state import (
     STEP,
+    Backend,
     detect_output,
     get_brightness,
     set_brightness,
@@ -56,18 +57,20 @@ class BrightnessApplet(Applet):
     name = _("Brightness")
     icon_name = "display-brightness-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = detect_output()
         if not self._backend:
             log.warning("No xrandr output detected")
         self._brightness = 1.0
         self._show_level = False
         self._timer_id: int = 0
+        self._set_in_progress = False
+        self._pending_brightness: float | None = None
+        self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_level = prefs.get("show_level", False)
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_level = prefs.get("show_level", False)
 
         self._poll()
         super().__init__(icon_size=icon_size, config=config)
@@ -81,7 +84,9 @@ class BrightnessApplet(Applet):
         )
 
     def refresh_tooltip(self) -> None:
-        pct = int(self._brightness * 100)
+        # The backend rounds before applying, so truncating here showed one
+        # percent less than the hardware got.
+        pct = round(self._brightness * 100)
         self.item.name = _("Brightness: {pct}%").format(pct=pct)
 
     def start(self, notify: Callable[[], None]) -> None:
@@ -89,6 +94,8 @@ class BrightnessApplet(Applet):
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
+        self._poll_generation += 1
+        self._pending_brightness = None
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -99,13 +106,9 @@ class BrightnessApplet(Applet):
         if self._backend:
             self._brightness = 1.0
             self.present()
-            backend = self._backend
-            self._worker.run(
-                name="brightness-reset",
-                fn=lambda: set_brightness(backend=backend, value=1.0),
-            )
+            self._queue_brightness(1.0)
 
-    def get_menu_items(self) -> list:
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)
@@ -126,12 +129,41 @@ class BrightnessApplet(Applet):
             new = max(0.1, self._brightness - STEP)
         self._brightness = new
         self.present()
-        backend, value = self._backend, new
-        self._worker.run_guarded(
-            key="brightness-set",
-            name="brightness-scroll",
-            fn=lambda: set_brightness(backend=backend, value=value),
+        self._queue_brightness(new)
+
+    def _queue_brightness(self, value: float) -> None:
+        self._poll_generation += 1
+        self._pending_brightness = value
+        self._start_pending_brightness()
+
+    def _start_pending_brightness(self) -> None:
+        if self._set_in_progress or self._pending_brightness is None:
+            return
+        backend, value = self._backend, self._pending_brightness
+        if backend is None:
+            return
+        self._pending_brightness = None
+        self._set_in_progress = True
+
+        self._worker.run(
+            name="brightness-set",
+            fn=lambda: self._write_brightness(backend, value),
+            on_result=self._on_brightness_set,
+            on_error=lambda _error: self._on_brightness_set(),
         )
+
+    def _on_brightness_set(self, actual: float | None = None) -> bool:
+        self._set_in_progress = False
+        if actual is not None and self._pending_brightness is None:
+            self._brightness = actual
+            self.present()
+        self._start_pending_brightness()
+        return False
+
+    def _write_brightness(self, backend: Backend, value: float) -> float | None:
+        if set_brightness(backend=backend, value=value) is False:
+            return get_brightness(backend=backend)
+        return None
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""
@@ -144,16 +176,23 @@ class BrightnessApplet(Applet):
     def _tick(self) -> bool:
         """Periodic poll in background thread."""
         backend = self._backend
-        if not backend:
+        if not backend or self._set_in_progress:
             return True
+        generation = self._poll_generation
         self._worker.run(
             name="brightness-poll",
             fn=lambda: get_brightness(backend=backend),
-            on_result=self._on_poll_result,
+            on_result=lambda value: self._on_poll_result(value, generation=generation),
         )
         return True
 
-    def _on_poll_result(self, val: float | None) -> bool:
+    def _on_poll_result(
+        self, val: float | None, *, generation: int | None = None
+    ) -> bool:
+        if self._set_in_progress or (
+            generation is not None and generation != self._poll_generation
+        ):
+            return False
         if val is not None and abs(val - self._brightness) > 0.01:
             self._brightness = val
             self.present()

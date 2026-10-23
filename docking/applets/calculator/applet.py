@@ -79,11 +79,11 @@ class CalculatorApplet(Applet):
     icon_name = "accessories-calculator"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._popup: Gtk.Window | None = None
         self._entry: Gtk.Entry | None = None
 
-        prefs = config.applet_prefs.get("calculator", {}) if config else {}
+        prefs = config.applet_prefs.get("calculator", {})
         self._last_expr = str(prefs.get("last_expression", ""))
 
         super().__init__(icon_size=icon_size, config=config)

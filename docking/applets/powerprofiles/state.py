@@ -484,7 +484,7 @@ class TunedBackend:
         text = _run(cmd=["tuned-adm", "active"], timeout_s=TUNED_ACTIVE_TIMEOUT_S) or ""
         match = re.search(r"current active profile:\s*([^\n]+)", text, re.IGNORECASE)
         if match:
-            return match.group(1).strip()
+            return str(match.group(1)).strip()
         return ""
 
     def _available_profile_names(self) -> tuple[str, ...]:

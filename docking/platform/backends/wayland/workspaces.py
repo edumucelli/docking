@@ -60,7 +60,7 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_id: dict[str, _WorkspaceState] = {}
         self._watchers: dict[int, Callable[[], None]] = {}
         self._next_watch_id = 1
-        self._active_id: str | None = None
+        self._active_ids: frozenset[str] = frozenset()
 
     def start(self) -> None:
         start = getattr(self._protocol, "start", None)
@@ -74,7 +74,7 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_handle.clear()
         self._state_by_id.clear()
         self._watchers.clear()
-        self._active_id = None
+        self._active_ids = frozenset()
 
     def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
         return tuple(
@@ -139,6 +139,11 @@ class WaylandWorkspaceService(WorkspaceService):
         self._state_by_id.pop(old_id, None)
         self._state_by_id[state.snapshot_id] = state
 
+    def workspace_id_for_handle(self, handle: object) -> str | None:
+        """Use the same workspace identity for window and workspace snapshots."""
+        state = self._state_by_handle.get(handle)
+        return state.snapshot_id if state is not None and not state.removed else None
+
     def name_changed(self, handle: object, name: str) -> None:
         self._ensure_state(handle=handle).name = name.strip()
 
@@ -161,11 +166,12 @@ class WaylandWorkspaceService(WorkspaceService):
         )
 
     def done(self) -> None:
-        active = self.active_workspace()
-        active_id = active.id if active is not None else None
-        if active_id == self._active_id:
+        active_ids = frozenset(
+            workspace.id for workspace in self.list_workspaces() if workspace.active
+        )
+        if active_ids == self._active_ids:
             return
-        self._active_id = active_id
+        self._active_ids = active_ids
         for callback in tuple(self._watchers.values()):
             callback()
 
@@ -215,7 +221,8 @@ def load_workspace_protocol() -> object | None:
 def _normalize_token(value: object) -> str:
     if isinstance(value, str):
         return value.strip().lower()
-    name = getattr(value, "name", "")
+    # getattr is untyped; pin it to object so the isinstance below can narrow.
+    name: object = getattr(value, "name", "")
     if isinstance(name, str) and name:
         return name.strip().lower()
     return str(value).strip().lower()

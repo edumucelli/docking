@@ -266,15 +266,9 @@ class TestUpdateCheckControllerInit:
         assert controller._latest_release is None
         assert controller._start_source_id == 0
 
-    def test_init_without_window(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        assert controller._window is None
-        assert controller._config is config
-
     def test_set_window_attaches_window(self):
         config = MagicMock()
-        controller = UpdateCheckController(config=config)
+        controller = UpdateCheckController(window=MagicMock(), config=config)
         window = MagicMock()
         controller.set_window(window)
         assert controller._window is window
@@ -663,15 +657,6 @@ class TestUpdateCheckShowPending:
 
 
 class TestUpdateCheckShowPopup:
-    def test_show_popup_skips_null_window(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        release = ReleaseInfo(version="3.0.0", name="v3", url="https://x.com")
-
-        result = controller._show_popup(release=release)
-
-        assert result is False
-
     def test_show_popup_skips_unrealized_window(self, monkeypatch):
         window = _FakeWindow(realized=False)
         config = MagicMock()
@@ -682,7 +667,8 @@ class TestUpdateCheckShowPopup:
 
         assert result is False
 
-    def test_show_popup_creates_and_positions(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_show_popup_creates_and_positions(self, monkeypatch):
         window = _FakeWindow(realized=True)
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
@@ -700,7 +686,8 @@ class TestUpdateCheckShowPopup:
         # Verify content was built
         assert controller._popup.child is not None
 
-    def test_show_popup_reuses_existing_popup(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_show_popup_reuses_existing_popup(self, monkeypatch):
         window = _FakeWindow(realized=True)
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
@@ -729,7 +716,8 @@ class TestUpdateCheckShowPopup:
 
 
 class TestUpdateCheckBuildPopupContent:
-    def test_content_has_title_and_buttons(self, popup_gtk, monkeypatch):
+    @pytest.mark.usefixtures("popup_gtk")
+    def test_content_has_title_and_buttons(self, monkeypatch):
         window = _FakeWindow()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
@@ -767,27 +755,22 @@ class TestUpdateCheckHideAndDismiss:
         controller._popup = None
         controller._hide_popup()  # Should not raise
 
-    def test_open_url_calls_gio_launch(self, monkeypatch):
+    def test_open_url_uses_target_service(self, monkeypatch):
         window = MagicMock()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(mod.targets, "open_target", open_target)
 
         controller._open_url("https://example.com")
 
-        mod.Gio.AppInfo.launch_default_for_uri.assert_called_once_with(
-            "https://example.com", None
-        )
+        open_target.assert_called_once_with("https://example.com")
 
-    def test_open_url_exception_is_handled(self, monkeypatch):
+    def test_open_url_target_failure_is_handled(self, monkeypatch):
         window = MagicMock()
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
-        monkeypatch.setattr(
-            mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            MagicMock(side_effect=RuntimeError("no browser")),
-        )
+        monkeypatch.setattr(mod.targets, "open_target", MagicMock(return_value=False))
 
         # Should not raise
         controller._open_url("https://example.com")
@@ -803,7 +786,7 @@ class TestUpdateCheckHideAndDismiss:
         )
         fake_popup = MagicMock()
         controller._popup = fake_popup
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        monkeypatch.setattr(mod.targets, "open_target", MagicMock(return_value=True))
 
         controller._on_view_release(MagicMock())
 
@@ -816,12 +799,13 @@ class TestUpdateCheckHideAndDismiss:
         controller._latest_release = None
         fake_popup = MagicMock()
         controller._popup = fake_popup
-        monkeypatch.setattr(mod.Gio.AppInfo, "launch_default_for_uri", MagicMock())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(mod.targets, "open_target", open_target)
 
         controller._on_view_release(MagicMock())
 
         fake_popup.hide.assert_called_once()
-        mod.Gio.AppInfo.launch_default_for_uri.assert_not_called()
+        open_target.assert_not_called()
 
     def test_on_later_saves_reminder_and_hides(self, monkeypatch):
         window = MagicMock()
@@ -969,14 +953,6 @@ class TestUpdateCheckPositionPopup:
         config = MagicMock()
         controller = UpdateCheckController(window=window, config=config)
         controller._popup = None
-
-        # Should not raise
-        controller._position_popup()
-
-    def test_position_popup_no_window_returns_early(self):
-        config = MagicMock()
-        controller = UpdateCheckController(config=config)
-        controller._popup = MagicMock()
 
         # Should not raise
         controller._position_popup()

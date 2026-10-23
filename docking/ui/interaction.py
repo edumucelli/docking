@@ -183,14 +183,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from docking.log import get_logger
+from docking.platform.environment import is_x11_backend
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import current_input_rect, point_inside_input_rect
 
 if TYPE_CHECKING:
-    from gi.repository import Gtk
+    from gi.repository import Gdk, Gtk
 
     from docking.ui.dock_window import DockWindow
-    from docking.ui.geometry import DockGeometryFrame
+    from docking.ui.geometry import DockGeometryFrame, Rect
 
 log = get_logger(name="interaction")
 
@@ -233,6 +234,7 @@ class DockInteractionCoordinator:
             return
         pointer_inside = self.pointer_inside_input_rect()
         if pointer_inside:
+            self.on_effective_enter()
             self._window.autohide.set_hovered(True)
             self._window.autohide.set_disabled(
                 False, reason="menu-close-pointer-inside"
@@ -265,6 +267,8 @@ class DockInteractionCoordinator:
         display = self._window.get_display()
         if not display:
             return False
+        if not is_x11_backend(display=display):
+            return self._native_pointer_inside_input_rect(display, input_rect)
         pos = get_pointer_position(display)
         if pos is None:
             return False
@@ -305,14 +309,39 @@ class DockInteractionCoordinator:
             window_y=backend_pos.y,
         )
 
+    def _native_pointer_inside_input_rect(
+        self, display: Gdk.Display, rect: Rect
+    ) -> bool:
+        """Use the pointer's focused window and local coordinates, not a root."""
+        seat = display.get_default_seat()
+        pointer = seat.get_pointer() if seat else None
+        dock_window = self._window.get_window()
+        if pointer is None or dock_window is None:
+            return False
+        try:
+            pointer_window, x, y = pointer.get_window_at_position()
+            # Child-window coordinates must be translated into the dock frame.
+            # Another toplevel (including a menu/preview) is not inside the dock.
+            while pointer_window is not None and pointer_window != dock_window:
+                x, y = pointer_window.coords_to_parent(x, y)
+                pointer_window = pointer_window.get_parent()
+            return pointer_window == dock_window and rect.contains(x, y)
+        except Exception as exc:
+            log.debug("Failed to query native dock pointer position: %s", exc)
+            return False
+
     def on_effective_enter(self) -> None:
         if self._window.dock_hovered:
             return
         self._window.dock_hovered = True
+        self._window.surface_service.set_pointer_leave_handler(
+            self._on_backend_pointer_leave
+        )
         self._window.zoom_animator.on_enter()
         self._window.autohide.on_mouse_enter()
 
     def on_effective_leave(self, widget: Gtk.DrawingArea) -> None:
+        self._window.surface_service.set_pointer_leave_handler(None)
         self._window.zoom_animator.on_leave()
         preview_visible = bool(
             self._window.preview and self._window.preview.get_visible()
@@ -365,6 +394,12 @@ class DockInteractionCoordinator:
     def is_pointer_inside_dock(self) -> bool:
         """Return True when the current pointer is inside the dock input area."""
         return self.pointer_inside_input_rect()
+
+    def _on_backend_pointer_leave(self) -> None:
+        if self._window.dock_hovered:
+            self.on_effective_leave(self._window.drawing_area)
+        else:
+            self._window.surface_service.set_pointer_leave_handler(None)
 
     def point_inside_event_frame(self, *, x: float, y: float) -> bool:
         frame = self._window.current_interaction_frame()

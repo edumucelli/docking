@@ -18,7 +18,7 @@
   "indicators": {
     "inactive_color": [255, 255, 255, 200],
     "active_color": [100, 180, 255, 255],
-    "size_px": 10,
+    "size_px": 5,
     "style": "dots",
     "fill": "flat",
     "max_dots": 4

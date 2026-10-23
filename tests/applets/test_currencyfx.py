@@ -62,7 +62,7 @@ class _ImmediateWorker:
 
 def _make_applet(config: Config | None = None) -> CurrencyFxApplet:
     with patch("docking.applets.currencyfx.applet.BackgroundWorker", _ImmediateWorker):
-        return CurrencyFxApplet(48, config=config)
+        return CurrencyFxApplet(48, config=config or Config())
 
 
 def _units() -> tuple[Unit, ...]:

@@ -96,7 +96,7 @@ class _Harness:
             icon_size=48,
             zoom_percent=1.5,
             zoom_enabled=True,
-            previews_enabled=False,
+            window_preview_thumbnails_enabled=False,
             stack_unfold="click",
             additional_distance_from_edge=0,
         )
@@ -132,7 +132,7 @@ class _Harness:
         self._click_button = 0
         self.tooltip = MagicMock()
         self.drawing_area = MagicMock()
-        self.surface_service = MagicMock()
+        self.surface_service = MagicMock(compositor_sizes_main_axis=False)
         self.autohide = SimpleNamespace(
             enabled=True,
             state=HideState.VISIBLE,

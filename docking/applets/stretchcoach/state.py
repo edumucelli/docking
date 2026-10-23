@@ -91,7 +91,7 @@ def _parse_interval(value: object) -> int:
             minutes = int(value.strip())
         else:
             return DEFAULT_INTERVAL
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         log.debug("Invalid stretch interval %r: %s", value, exc)
         return DEFAULT_INTERVAL
     return max(1, minutes)

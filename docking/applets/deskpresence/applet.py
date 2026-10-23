@@ -67,15 +67,13 @@ class DeskpresenceApplet(Applet):
     name = _("Desk Presence")
     icon_name = "user-available"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
         self._idle_service: IdleService | None = None
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get(meta.id, {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._state: PresenceState = state_from_prefs(prefs=prefs)
 
         super().__init__(icon_size=icon_size, config=config)
