@@ -35,6 +35,8 @@ def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_p
         / f"lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages"
     )
     site.mkdir(parents=True)
+    (venv / "bin").mkdir()
+    (venv / "bin/escape").write_text("escaped")
     for name in ("dependency.py", "pip.py", "__editable__.pth"):
         (site / name).write_text("runtime" if name == "dependency.py" else "build tool")
 
@@ -63,7 +65,7 @@ def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_p
     assert (private / "docking/assets/fixture.svg").is_file()
     assert not (private / "pip.py").exists()
     assert not (private / "__editable__.pth").exists()
-    assert not (destination / "bin/escape").exists()
+    assert not (destination / "usr/local/bin/escape").exists()
     launcher = destination / "usr/local/bin/docking"
     assert launcher.stat().st_mode & 0o111
     assert "/usr/local/lib/docking/python" in launcher.read_text()

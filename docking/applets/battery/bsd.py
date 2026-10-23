@@ -37,9 +37,12 @@ def battery() -> Battery | None:
             capacity = int(percent)
             if not 0 <= capacity <= 100:
                 return None
-            state = "Charging" if status == "3" else "Discharging"
-            if ac == "1" and capacity == 100:
+            if status == "3":
+                state = "Charging"
+            elif ac == "1":
                 state = "Full"
+            else:
+                state = "Discharging"
             remaining = None
             if minutes not in {None, "unknown"}:
                 parsed_minutes = int(minutes)

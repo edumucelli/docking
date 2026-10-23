@@ -11,7 +11,11 @@ from docking.applets.battery import bsd
     "status,capacity,ac,expected",
     [
         ("3", "65", "1", "Charging"),
+        ("3", "100", "1", "Charging"),
         ("0", "100", "1", "Full"),
+        ("0", "98", "1", "Full"),
+        ("1", "60", "1", "Full"),
+        ("2", "8", "1", "Full"),
         ("1", "8", "0", "Discharging"),
         ("4", "0", "0", None),
         ("255", "255", "255", None),

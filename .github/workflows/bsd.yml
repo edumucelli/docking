@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Install desktop test dependencies
         run: |
           sudo apt-get update
@@ -49,6 +51,8 @@ jobs:
         os: [freebsd, openbsd]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: FreeBSD desktop checks
         if: matrix.os == 'freebsd'
         uses: vmactions/freebsd-vm@v1
