@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Applet metadata for the Applications applet."""
+"""Applications applet metadata."""
 
 from __future__ import annotations
 
@@ -22,5 +22,3 @@ meta = AppletMeta(
     name="Applications",
     category=AppletCategory.LAUNCHER,
 )
-
-__all__ = ["meta"]

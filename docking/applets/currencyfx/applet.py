@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -74,6 +74,7 @@ from docking.applets.popup import (
     prepare_dialog_content,
 )
 from docking.applets.worker import BackgroundWorker
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -87,6 +88,7 @@ DIALOG_SPACING_PX = 8
 DIALOG_MARGIN_PX = 12
 _PULSE_INTERVAL_MS = 60
 _PULSE_PERIOD_MS = 1800
+_PULSE_DURATION_MS = 6000
 
 
 class CurrencyFxApplet(Applet):
@@ -101,7 +103,7 @@ class CurrencyFxApplet(Applet):
     name = _("Currency FX")
     icon_name = "emblem-synchronizing-symbolic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         """Load preferences and render the first icon state.
 
         A day interval can render immediately from the local cache before the
@@ -112,6 +114,7 @@ class CurrencyFxApplet(Applet):
         self._startup_fetch_timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
+        self._pulse_started_us: int = 0
         self._fetch_request_id: int = 0
         self._snapshot: FxSnapshot | None = None
         self._loading = False
@@ -119,7 +122,7 @@ class CurrencyFxApplet(Applet):
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        raw_prefs = config.applet_prefs.get(meta.id, {}) if config else None
+        raw_prefs = config.applet_prefs.get(meta.id, {})
         prefs = prefs_from_mapping(raw_prefs)
         self._pairs = list(prefs.pairs)
         self._active_index = prefs.active_index
@@ -272,6 +275,8 @@ class CurrencyFxApplet(Applet):
 
     def stop(self) -> None:
         """Stop timers before the dock unloads the applet."""
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -394,7 +399,7 @@ class CurrencyFxApplet(Applet):
         """Switch active pair by index from scroll or the Added Pairs menu."""
         if not self._pairs:
             return
-        index = max(0, min(index, len(self._pairs) - 1))
+        index = clamp_index(index, len(self._pairs))
         if index == self._active_index:
             return
         self._active_index = index
@@ -486,7 +491,8 @@ class CurrencyFxApplet(Applet):
         """Show the Add FX Pair dialog using the currently known codes."""
         dialog = Gtk.Dialog(
             title=_("Add FX Pair"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         add_cancel_ok_buttons(dialog=dialog)
         box = prepare_dialog_content(
@@ -526,7 +532,8 @@ class CurrencyFxApplet(Applet):
 
     def _currency_combo_text(self, *, combo: Gtk.ComboBoxText, fallback: str) -> str:
         """Return typed or selected currency code from an editable combo."""
-        text = combo.get_child().get_text().strip()
+        child = cast(Gtk.Entry, combo.get_child())
+        text = child.get_text().strip()
         if text:
             return text
         return combo.get_active_text() or fallback
@@ -543,6 +550,7 @@ class CurrencyFxApplet(Applet):
         """Run the endpoint pulse only while the chart dot is visible."""
         should_pulse = self._notify is not None and self._has_chart_dot()
         if should_pulse and not self._pulse_timer_id:
+            self._pulse_started_us = GLib.get_monotonic_time()
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
                 self._pulse_tick,
@@ -551,9 +559,21 @@ class CurrencyFxApplet(Applet):
             GLib.source_remove(self._pulse_timer_id)
             self._pulse_timer_id = 0
             self._pulse_phase = 0.0
+            self._pulse_started_us = 0
 
     def _pulse_tick(self) -> bool:
         """Advance pulse phase and repaint only the icon."""
+        now_us = GLib.get_monotonic_time()
+        if self._pulse_started_us and (
+            now_us - self._pulse_started_us >= _PULSE_DURATION_MS * 1000
+        ):
+            self._pulse_timer_id = 0
+            self._pulse_phase = 0.0
+            self._pulse_started_us = 0
+            self.item.icon = self.create_icon(size=self._icon_size)
+            if self._notify:
+                self._notify()
+            return False
         self._pulse_phase = (
             self._pulse_phase + _PULSE_INTERVAL_MS / _PULSE_PERIOD_MS
         ) % 1.0

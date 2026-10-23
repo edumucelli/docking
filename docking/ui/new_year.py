@@ -40,11 +40,13 @@ from docking.core.greeting import consume_new_year_greeting
 from docking.core.position import Position, is_horizontal
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.tooltip import compute_tooltip_position
 
 log = get_logger("new_year")
 
+NEW_YEAR_POPUP_ID = "new-year"
+NEW_YEAR_POPUP_PRIORITY = 10
 STARTUP_GREETING_DELAY_S = 5
 NEW_YEAR_GREETING_DURATION_S = 15
 GREETING_GAP_PX = 16
@@ -60,6 +62,10 @@ GREETING_BORDER_RGBA = (1.0, 1.0, 1.0, 0.14)
 class NewYearGreetingController:
     """Schedules and displays the dock's annual New Year greeting."""
 
+    source_id = NEW_YEAR_POPUP_ID
+    priority = NEW_YEAR_POPUP_PRIORITY
+    max_wait_seconds: int | None = None
+
     def __init__(
         self,
         *,
@@ -73,11 +79,20 @@ class NewYearGreetingController:
         self._start_source_id: int = 0
         self._hide_source_id: int = 0
         self._popup: Gtk.Window | None = None
+        self._pending_year: int | None = None
+        self._request_show: Callable[[str], None] | None = None
+        self._visibility_changed: Callable[[str, bool], None] | None = None
 
-    def start(self) -> None:
+    def start(
+        self,
+        request_show: Callable[[str], None] | None = None,
+        visibility_changed: Callable[[str, bool], None] | None = None,
+    ) -> None:
         """Start the delayed startup greeting check once per process."""
         if self._start_source_id:
             return
+        self._request_show = request_show
+        self._visibility_changed = visibility_changed
         log.debug(
             "Scheduling New Year greeting check in %ss",
             STARTUP_GREETING_DELAY_S,
@@ -98,6 +113,7 @@ class NewYearGreetingController:
         if self._popup is not None:
             self._popup.destroy()
             self._popup = None
+        self._notify_visible(False)
 
     def _on_startup_complete(self) -> bool:
         self._start_source_id = 0
@@ -108,13 +124,25 @@ class NewYearGreetingController:
         )
         log.debug("New Year greeting evaluation at %s returned %r", now, year)
         if year is not None:
-            self._show_popup(year=year)
+            self._pending_year = year
+            if self._request_show is not None:
+                self._request_show(self.source_id)
+            else:
+                self.show_pending()
         return False
 
-    def _show_popup(self, *, year: int) -> None:
+    def show_pending(self) -> bool:
+        """Show a pending New Year greeting if one exists."""
+        if self._pending_year is None:
+            return False
+        year = self._pending_year
+        self._pending_year = None
+        return self._show_popup(year=year)
+
+    def _show_popup(self, *, year: int) -> bool:
         if not self._window.get_realized():
             log.debug("Skipping New Year greeting because dock window is not realized")
-            return
+            return False
 
         if self._popup is None:
             popup = Gtk.Window(type=Gtk.WindowType.POPUP)
@@ -130,6 +158,7 @@ class NewYearGreetingController:
             if visual is not None:
                 popup.set_visual(visual)
             popup.connect("draw", self._on_popup_draw)
+            popup.connect("destroy", self._on_popup_destroy)
             self._popup = popup
         else:
             child = self._popup.get_child()
@@ -139,6 +168,7 @@ class NewYearGreetingController:
         log.debug("Showing New Year greeting popup for year %s", year)
         self._popup.add(self._build_popup_content(year=year))
         self._popup.show_all()
+        self._notify_visible(True)
         self._position_popup()
 
         if self._hide_source_id:
@@ -147,6 +177,7 @@ class NewYearGreetingController:
             NEW_YEAR_GREETING_DURATION_S,
             self._hide_popup,
         )
+        return True
 
     def _build_popup_content(self, *, year: int) -> Gtk.Widget:
         pos = self._window.config.pos
@@ -184,7 +215,8 @@ class NewYearGreetingController:
         if self._popup is None:
             return
 
-        win_x, win_y = self._window.get_position()
+        window_pos = window_screen_position(self._window)
+        win_x, win_y = window_pos.x, window_pos.y
         win_w, win_h = self._window.get_size()
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)
@@ -207,15 +239,7 @@ class NewYearGreetingController:
             gap=GREETING_GAP_PX,
         )
 
-        screen = self._popup.get_screen()
-        clamped = clamp_to_screen(
-            popup_x,
-            popup_y,
-            popup_w,
-            popup_h,
-            screen.get_width(),
-            screen.get_height(),
-        )
+        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
         log.debug(
             "Positioned New Year greeting popup at (%s, %s) "
             "size=%sx%s dock=(%s,%s %sx%s pos=%s)",
@@ -341,7 +365,11 @@ class NewYearGreetingController:
         self._hide_source_id = 0
         if self._popup is not None:
             self._popup.hide()
+        self._notify_visible(False)
         return False
+
+    def _on_popup_destroy(self, _popup: Gtk.Window) -> None:
+        self._notify_visible(False)
 
     def _on_popup_button_press(
         self,
@@ -353,3 +381,7 @@ class NewYearGreetingController:
             self._hide_source_id = 0
         self._hide_popup()
         return True
+
+    def _notify_visible(self, visible: bool) -> None:
+        if self._visibility_changed is not None:
+            self._visibility_changed(self.source_id, visible)

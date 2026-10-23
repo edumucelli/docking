@@ -54,6 +54,8 @@ from docking.applets.battery.state import BatteryState
 from docking.applets.bluetooth.render import create_bluetooth_icon
 from docking.applets.bookmarks.render import render_icon as render_bookmarks
 from docking.applets.brightness.render import create_icon as render_brightness
+from docking.applets.caffeine.render import render_icon as render_caffeine
+from docking.applets.caffeine.state import CaffeineState
 from docking.applets.calculator.render import create_icon as render_calculator
 from docking.applets.calendar.render import render_icon as render_calendar
 from docking.applets.calendar.state import snapshot_from
@@ -65,11 +67,16 @@ from docking.applets.certwatch.state import CertStatus
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
+from docking.applets.crypto.render import render_icon as render_crypto
+from docking.applets.crypto.state import AssetType as CryptoAssetType
+from docking.applets.crypto.state import CryptoAsset, CryptoPoint, CryptoSnapshot
 from docking.applets.currencyfx.render import render_icon as render_currencyfx
 from docking.applets.currencyfx.state import FxPoint, FxSnapshot
 from docking.applets.deskpresence.render import render_icon as render_deskpresence
 from docking.applets.deskpresence.state import Presence as DeskpresencePresence
 from docking.applets.desktop.render import create_icon as render_desktop
+from docking.applets.devices.render import create_devices_icon
+from docking.applets.docker.render import render_icon as render_docker
 from docking.applets.dragshare.render import render_icon as render_dragshare
 from docking.applets.dragshare.state import DragshareStatus
 from docking.applets.hackernews.render import render_icon as render_hackernews
@@ -77,22 +84,29 @@ from docking.applets.hackernews.state import HackerNewsStory
 from docking.applets.hydration.render import render_icon as render_hydration
 from docking.applets.hydration.state import HydrationState
 from docking.applets.keyboardlayout.render import render_icon as render_keyboardlayout
+from docking.applets.lastfm.render import render_default_icon as render_lastfm
 from docking.applets.micshield.render import render_icon as render_micshield
 from docking.applets.moon.offline import fetch_moon_offline
 from docking.applets.moon.render import create_icon as render_moon
 from docking.applets.moon.state import phase_name
 from docking.applets.music.render import create_music_icon
 from docking.applets.network.render import create_icon as render_network
+from docking.applets.news.render import render_icon as render_news
 from docking.applets.notifications.render import create_notifications_icon
 from docking.applets.pet.render import render_icon as render_pet
 from docking.applets.pet.state import PetState
+from docking.applets.plantcare.render import render_icon as render_plantcare
+from docking.applets.plantcare.state import CareStatus, PlantCareSnapshot
 from docking.applets.pomodoro.render import render_icon as render_pomodoro
 from docking.applets.pomodoro.state import PomodoroState
 from docking.applets.powerprofiles.render import create_power_profiles_icon
 from docking.applets.quicknote.render import render_icon as render_quicknote
 from docking.applets.quote.render import draw_bulb_icon
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
+from docking.applets.reddit.render import render_icon as render_reddit
+from docking.applets.runcommand.render import create_icon as render_runcommand
 from docking.applets.screenshot.applet import _draw_screenshot_icon
+from docking.applets.search.render import render_icon as render_search
 from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest
 from docking.applets.stretchcoach.render import render_icon as render_stretchcoach
@@ -101,6 +115,7 @@ from docking.applets.sunrise.render import render_icon as render_sunrise
 from docking.applets.sunrise.state import CityPref as SunriseCityPref
 from docking.applets.sunrise.state import build_snapshot as build_sunrise_snapshot
 from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
+from docking.applets.systemtray.render import create_status_tray_icon
 from docking.applets.thermals.render import render_icon as render_thermals
 from docking.applets.thermals.state import FanReading, ThermalReading, ThermalSnapshot
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
@@ -111,6 +126,8 @@ from docking.applets.urlshortener.render import create_icon as render_urlshorten
 from docking.applets.usbwatch.render import create_usbwatch_icon
 from docking.applets.volume.render import create_volume_icon
 from docking.applets.weather.render import create_icon as render_weather
+from docking.applets.whatsapp.render import render_icon as render_whatsapp
+from docking.applets.whatsapp.state import BrowserPhase as WhatsAppBrowserPhase
 from docking.applets.windowkiller.render import create_icon as render_windowkiller
 from docking.applets.workspaces.render import _render_grid
 
@@ -202,6 +219,23 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         fetched_at=dt.datetime.now(dt.timezone.utc),
     )
+    crypto_snapshot = CryptoSnapshot(
+        asset=CryptoAsset(
+            asset_type=CryptoAssetType.COIN,
+            asset_id="bitcoin",
+            symbol="BTC",
+            name="Bitcoin",
+        ),
+        vs_currency="usd",
+        price=70_000.0,
+        points=(
+            CryptoPoint(timestamp="2026-05-20T00:00:00+00:00", price=66_500.0),
+            CryptoPoint(timestamp="2026-05-21T00:00:00+00:00", price=68_200.0),
+            CryptoPoint(timestamp="2026-05-22T00:00:00+00:00", price=70_000.0),
+        ),
+        fetched_at=dt.datetime.now(dt.timezone.utc),
+        change_pct_24h=2.5,
+    )
     return {
         AppletId.AIUSAGE: render_aiusage(size=size, state=AiUsageState()),
         AppletId.ALARM: render_alarm(
@@ -242,6 +276,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             brightness=0.70,
             show_level=False,
         ),
+        AppletId.CAFFEINE: render_caffeine(
+            size=size,
+            state=CaffeineState(active=True),
+        ),
         AppletId.CALCULATOR: render_calculator(size=size),
         AppletId.CALENDAR: render_calendar(size=size, snapshot=cal_snapshot),
         AppletId.CAMSHIELD: render_camshield(
@@ -274,6 +312,13 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             b=0.5,
             hex_label=None,
         ),
+        AppletId.CRYPTO: render_crypto(
+            size=size,
+            snapshot=crypto_snapshot,
+            asset_symbol="BTC",
+            asset_type=CryptoAssetType.COIN,
+            pulse_phase=0.35,
+        ),
         AppletId.CURRENCYFX: render_currencyfx(
             size=size,
             snapshot=fx_snapshot,
@@ -288,12 +333,15 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             at_desk_seconds=3 * 3600 + 24 * 60,
         ),
         AppletId.DESKTOP: render_desktop(size=size),
+        AppletId.DEVICES: create_devices_icon(size=size, device_count=2),
+        AppletId.DOCKER: render_docker(size=size, running_count=3, available=True),
         AppletId.DRAGSHARE: render_dragshare(
             size=size,
             status=DragshareStatus.IDLE,
         ),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
+        AppletId.LASTFM: render_lastfm(size=size),
         AppletId.MICSHIELD: render_micshield(
             size=size,
             available=True,
@@ -316,6 +364,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             rx_speed=0.0,
             tx_speed=0.0,
             speed_overlay="none",
+        ),
+        AppletId.NEWS: render_news(
+            size=size,
+            index=0,
+            count=18,
         ),
         AppletId.HACKERNEWS: render_hackernews(
             size=size,
@@ -340,6 +393,15 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             activity=False,
         ),
         AppletId.PET: render_pet(size=size, state=PetState()),
+        AppletId.PLANTCARE: render_plantcare(
+            size=size,
+            snapshot=PlantCareSnapshot(
+                status=CareStatus.HEALTHY,
+                due_count=0,
+                overdue_count=0,
+                scheduled=(),
+            ),
+        ),
         AppletId.POMODORO: render_pomodoro(size=size, state=PomodoroState()),
         AppletId.POWERPROFILES: create_power_profiles_icon(
             size=size,
@@ -348,7 +410,14 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         ),
         AppletId.QUICKNOTE: render_quicknote(size=size, has_content=True),
         AppletId.QUOTE: _quote_pixbuf(size=size),
+        AppletId.REDDIT: render_reddit(
+            size=size,
+            index=0,
+            count=12,
+        ),
+        AppletId.RUNCOMMAND: render_runcommand(size=size),
         AppletId.RECENTFILES: render_recentfiles(size=size, has_files=True),
+        AppletId.SEARCH: render_search(size=size),
         AppletId.SCREENSHOT: _screenshot_pixbuf(size=size),
         AppletId.SESSION: create_session_icon(size=size),
         AppletId.SPEEDTEST: render_speedtest(
@@ -359,6 +428,11 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
         AppletId.STRETCHCOACH: render_stretchcoach(
             size=size,
             state=StretchCoachState(),
+        ),
+        AppletId.SYSTEMTRAY: create_status_tray_icon(
+            size=size,
+            available=True,
+            item_count=3,
         ),
         AppletId.SUNRISE: render_sunrise(
             size=size,
@@ -394,6 +468,10 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             size=size,
             weather=None,
             show_temperature=True,
+        ),
+        AppletId.WHATSAPP: render_whatsapp(
+            size=size,
+            phase=WhatsAppBrowserPhase.READY,
         ),
         AppletId.WINDOWKILLER: render_windowkiller(size=size),
         AppletId.WORKSPACES: _workspaces_pixbuf(size=size),

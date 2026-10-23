@@ -5,16 +5,19 @@ from unittest.mock import patch
 
 from docking.platform.environment import (
     Desktop,
-    _check_compositor,
-    _parse_desktop,
     detect_desktop,
     is_flatpak,
+    is_gamescope_session,
     is_gnome_session,
     is_kde_session,
     is_mate_session,
     is_wayland_session,
     is_x11_backend,
     is_xwayland_session,
+)
+from docking.platform.environment.environment import (
+    _parse_desktop,
+    compositor_active,
 )
 
 
@@ -56,6 +59,29 @@ class TestParseDesktop:
     def test_lxqt_maps_to_lxde(self):
         assert _parse_desktop("lxqt") == Desktop.LXDE
 
+    def test_labwc_wlroots_desktop_list(self):
+        result = _parse_desktop("labwc:wlroots")
+        assert result & Desktop.LABWC
+        assert result & Desktop.WLROOTS
+
+    def test_common_wayland_compositors(self):
+        assert _parse_desktop("sway") == Desktop.SWAY
+        assert _parse_desktop("river") == Desktop.RIVER
+        assert _parse_desktop("wayfire") == Desktop.WAYFIRE
+        assert _parse_desktop("hyprland") == Desktop.HYPRLAND
+        assert _parse_desktop("niri") == Desktop.NIRI
+        assert _parse_desktop("cosmic") == Desktop.COSMIC
+        assert _parse_desktop("cage") == Desktop.CAGE
+        assert _parse_desktop("weston") == Desktop.WESTON
+        assert _parse_desktop("louvre") == Desktop.LOUVRE
+        assert _parse_desktop("phosh") == Desktop.PHOSH
+        assert _parse_desktop("phoc") == Desktop.PHOSH
+        assert _parse_desktop("jay") == Desktop.JAY
+        assert _parse_desktop("miriway") == Desktop.MIRIWAY
+        assert _parse_desktop("deepin") == Desktop.DEEPIN
+        assert _parse_desktop("treeland") == Desktop.DEEPIN
+        assert _parse_desktop("gamescope") == Desktop.GAMESCOPE
+
 
 class TestDetectDesktop:
     """Detection priority: XDG_SESSION_DESKTOP > XDG_CURRENT_DESKTOP > DESKTOP_SESSION."""
@@ -86,6 +112,14 @@ class TestDetectDesktop:
         with patch.dict("os.environ", env, clear=True):
             assert detect_desktop() == Desktop.MATE
 
+    def test_detects_labwc_wlroots_session(self):
+        env = {
+            "XDG_SESSION_DESKTOP": "labwc",
+            "XDG_CURRENT_DESKTOP": "labwc:wlroots",
+        }
+        with patch.dict("os.environ", env, clear=True):
+            assert detect_desktop() == Desktop.LABWC
+
     def test_no_env_returns_unknown(self):
         with patch.dict("os.environ", {}, clear=True):
             assert detect_desktop() == Desktop.UNKNOWN
@@ -114,10 +148,14 @@ class TestSessionBackendDetection:
             assert is_wayland_session() is False
 
     def test_is_flatpak_checks_runtime_marker(self):
-        with patch("docking.platform.environment.Path.exists", return_value=True):
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=True
+        ):
             assert is_flatpak() is True
 
-        with patch("docking.platform.environment.Path.exists", return_value=False):
+        with patch(
+            "docking.platform.environment.environment.Path.exists", return_value=False
+        ):
             assert is_flatpak() is False
 
     def test_is_x11_backend_true_for_x11_display(self):
@@ -152,6 +190,26 @@ class TestSessionBackendDetection:
         with patch.dict("os.environ", {"XDG_SESSION_TYPE": "x11"}, clear=True):
             assert is_xwayland_session(display=display_cls()) is False
 
+    def test_is_gamescope_from_desktop(self):
+        with patch.dict(
+            "os.environ",
+            {"XDG_CURRENT_DESKTOP": "gamescope"},
+            clear=True,
+        ):
+            assert is_gamescope_session() is True
+
+    def test_is_gamescope_from_env_var(self):
+        with patch.dict(
+            "os.environ",
+            {"GAMESCOPE_WAYLAND_DISPLAY": "gamescope-0"},
+            clear=True,
+        ):
+            assert is_gamescope_session() is True
+
+    def test_is_gamescope_false(self):
+        with patch.dict("os.environ", {}, clear=True):
+            assert is_gamescope_session() is False
+
 
 class TestUsesMonitorGeometry:
     """Known DEs use full monitor geometry; unknown uses workarea."""
@@ -179,9 +237,37 @@ class TestUsesMonitorGeometry:
 
 
 class TestCompositorCheck:
-    def test_logs_warning_when_probe_fails(self, caplog):
-        from gi.repository import GdkX11
+    def test_uses_xlib_default_screen_for_compositor_selection(self):
+        class _Display:
+            def get_xdisplay(self):
+                return object()
 
+        class _Callable:
+            def __init__(self, func):
+                self._func = func
+
+            def __call__(self, *args):
+                return self._func(*args)
+
+        class _Xlib:
+            def __init__(self):
+                self.atom_names = []
+                self.XDefaultScreen = _Callable(lambda *_args: 0)
+                self.XInternAtom = _Callable(self._intern_atom)
+                self.XGetSelectionOwner = _Callable(lambda *_args: 42)
+
+            def _intern_atom(self, _display, name, _only_if_exists):
+                self.atom_names.append(name)
+                return 7
+
+        xlib = _Xlib()
+
+        with patch("ctypes.cdll.LoadLibrary", return_value=xlib):
+            assert compositor_active(display=_Display()) is True
+
+        assert xlib.atom_names == [b"_NET_WM_CM_S0"]
+
+    def test_logs_warning_when_probe_fails(self, caplog):
         class _Display:
             def get_default_screen(self):
                 return 0
@@ -190,10 +276,9 @@ class TestCompositorCheck:
                 return object()
 
         with (
-            patch.object(GdkX11.X11Display, "get_default", return_value=_Display()),
             patch("ctypes.cdll.LoadLibrary", side_effect=RuntimeError("boom")),
             caplog.at_level(logging.WARNING, logger="docking.environment"),
         ):
-            _check_compositor()
+            compositor_active(display=_Display())
 
         assert "failed to check compositor status" in caplog.text

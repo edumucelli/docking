@@ -40,8 +40,8 @@ gi.require_version("Gtk", "3.0")
 import docking.ui.renderer as renderer_mod
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import Theme
+from docking.platform.backends.x11.impl.struts import BlurRect, compute_blur_region
 from docking.platform.model import DockItem
-from docking.platform.struts import BlurRect, compute_blur_region
 from docking.ui.autohide import HideState
 from docking.ui.geometry import DockGeometryBuilder, Rect, build_geometry_frame
 from docking.ui.hover import HoverManager
@@ -162,7 +162,7 @@ def _config() -> object:
         icon_size=ICON_SIZE,
         zoom_percent=1.5,
         zoom_enabled=True,
-        previews_enabled=False,
+        window_preview_thumbnails_enabled=False,
         tooltips_enabled=True,
     )
 

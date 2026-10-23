@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.pomodoro.applet as pomodoro_mod
 from docking.applets.pomodoro.applet import PomodoroApplet
 from docking.applets.pomodoro.state import (
@@ -11,10 +13,38 @@ from docking.applets.pomodoro.state import (
     LONG_BREAK_EVERY,
     State,
     format_time,
+    state_from_prefs,
     tooltip_text,
 )
+from docking.core.config import Config
 
 # -- Pure functions -----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "key,default",
+    [
+        ("work", DEFAULT_WORK),
+        ("break_", DEFAULT_BREAK),
+        ("long_break", DEFAULT_LONG_BREAK),
+    ],
+)
+@pytest.mark.parametrize(
+    "value", [None, "invalid", [], {}, False, 0, -5, float("inf"), float("nan")]
+)
+def test_invalid_saved_duration_uses_default(key, default, value):
+    state = state_from_prefs({key: value})
+    attribute = {
+        "work": "work_min",
+        "break_": "break_min",
+        "long_break": "long_break_min",
+    }[key]
+    assert getattr(state, attribute) == default
+
+
+def test_valid_custom_pomodoro_durations_remain_supported():
+    state = state_from_prefs({"work": "35", "break_": 7, "long_break": 25})
+    assert (state.work_min, state.break_min, state.long_break_min) == (35, 7, 25)
 
 
 class TestFormatTime:
@@ -56,25 +86,25 @@ class TestTooltipText:
 
 class TestStateMachine:
     def test_starts_idle(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         assert applet._state == State.IDLE
         assert applet._remaining == 0
 
     def test_click_starts_work(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()
         assert applet._state == State.WORK
         assert applet._remaining == DEFAULT_WORK * 60
 
     def test_click_pauses_work(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         applet.on_clicked()  # work → paused
         assert applet._state == State.PAUSED
         assert applet._paused_from == State.WORK
 
     def test_click_resumes_from_pause(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         remaining = applet._remaining
         applet.on_clicked()  # work → paused
@@ -83,7 +113,7 @@ class TestStateMachine:
         assert applet._remaining == remaining
 
     def test_work_transitions_to_break(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         applet._remaining = 1
         applet._tick()  # remaining → 0 → auto-transition
@@ -91,7 +121,7 @@ class TestStateMachine:
         assert applet._remaining == DEFAULT_BREAK * 60
 
     def test_auto_transition_triggers_urgent(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         applet._remaining = 1
         applet._tick()  # triggers auto-transition
@@ -99,7 +129,7 @@ class TestStateMachine:
         assert applet.item.last_urgent > 0
 
     def test_break_transitions_to_work(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet._state = State.BREAK
         applet._remaining = 1
         applet._tick()
@@ -107,7 +137,7 @@ class TestStateMachine:
         assert applet._remaining == DEFAULT_WORK * 60
 
     def test_long_break_every_n_cycles(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         # Simulate completing LONG_BREAK_EVERY work sessions
         for i in range(LONG_BREAK_EVERY):
             applet._state = State.WORK
@@ -123,19 +153,19 @@ class TestStateMachine:
         assert applet._remaining == DEFAULT_LONG_BREAK * 60
 
     def test_long_break_transitions_to_work(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet._state = State.LONG_BREAK
         applet._remaining = 1
         applet._tick()
         assert applet._state == State.WORK
 
     def test_tick_noop_when_idle(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         assert applet._tick() is True
         assert applet._state == State.IDLE
 
     def test_tick_noop_when_paused(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         remaining = applet._remaining
         applet.on_clicked()  # work → paused
@@ -145,7 +175,7 @@ class TestStateMachine:
 
 class TestReset:
     def test_reset_from_work(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()  # idle → work
         applet._reset()
         assert applet._state == State.IDLE
@@ -158,7 +188,7 @@ class TestReset:
 
 class TestCreateIcon:
     def test_renders_at_various_sizes(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         for size in [32, 48, 64]:
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
@@ -166,20 +196,20 @@ class TestCreateIcon:
             assert pixbuf.get_height() == size
 
     def test_renders_in_work_state(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
 
     def test_renders_in_paused_state(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()
         applet.on_clicked()  # paused
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
 
     def test_renders_in_break_state(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet._state = State.BREAK
         applet._remaining = 300
         pixbuf = applet.create_icon(size=48)
@@ -191,20 +221,20 @@ class TestCreateIcon:
 
 class TestMenu:
     def test_has_reset_item(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items if mi.get_label()]
         assert "Reset" in labels
 
     def test_has_work_presets(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items if mi.get_label()]
         assert "25 min" in labels
         assert "45 min" in labels
 
     def test_has_break_presets(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items if mi.get_label()]
         assert "5 min" in labels
@@ -216,17 +246,17 @@ class TestMenu:
 
 class TestTooltip:
     def test_idle_tooltip(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         assert applet.item.name == "Pomodoro"
 
     def test_work_tooltip(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()
         assert "Work" in applet.item.name
         assert "remaining" in applet.item.name
 
     def test_paused_tooltip(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet.on_clicked()
         applet.on_clicked()
         assert "Paused" in applet.item.name
@@ -234,7 +264,7 @@ class TestTooltip:
 
 class TestPomodoroInternals:
     def test_property_setters_cover_internal_mutators(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet._paused_from = State.WORK
         applet._work_count = 2
         applet._work_min = 30
@@ -250,7 +280,7 @@ class TestPomodoroInternals:
         assert applet._show_timer is False
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         monkeypatch.setattr(
             pomodoro_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 515
         )
@@ -269,7 +299,7 @@ class TestPomodoroInternals:
         assert applet._timer_id == 0
 
     def test_toggle_and_duration_setters_save(self):
-        applet = PomodoroApplet(48)
+        applet = PomodoroApplet(48, config=Config())
         applet._save = MagicMock()
         applet.present = MagicMock()
 

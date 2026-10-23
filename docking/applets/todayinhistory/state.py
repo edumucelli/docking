@@ -15,14 +15,14 @@
 
 from __future__ import annotations
 
-import html
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any
-from urllib.request import Request, urlopen
 
+from docking.applets.http import http_get_json
+from docking.applets.text import normalize_text
 from docking.applets.todayinhistory import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -50,31 +50,11 @@ class HistoryEvent:
     source_label: str = _WIKIPEDIA_SOURCE
 
 
-def normalize_text(text: str) -> str:
-    clean = html.unescape(text).replace("\n", " ").replace("\r", " ").strip()
-    return " ".join(clean.split())
-
-
 def format_history_event(event: HistoryEvent) -> str:
     header = _("{year} - {title}").format(year=event.year, title=event.title)
     if event.summary:
         return "\n".join((header, event.summary))
     return header
-
-
-def _http_get_json(url: str, timeout: float = 8.0) -> Any:
-    request = Request(
-        url=url,
-        headers={
-            "User-Agent": (
-                "DockingTodayInHistoryApplet/1.0 "
-                "(+https://github.com/edumucelli/docking)"
-            )
-        },
-    )
-    with urlopen(request, timeout=timeout) as response:
-        payload = response.read().decode("utf-8", errors="replace")
-    return json.loads(payload)
 
 
 def _date_key(*, month: int, day: int) -> str:
@@ -122,7 +102,9 @@ def _extract_article(page: object) -> tuple[str, str]:
             raw_variant = content_urls.get(variant)
             if not isinstance(raw_variant, dict):
                 continue
-            variant_map = {str(key): value for key, value in raw_variant.items()}
+            variant_map: dict[str, object] = {
+                str(key): value for key, value in raw_variant.items()
+            }
             raw_page = variant_map.get("page")
             if isinstance(raw_page, str):
                 url = raw_page.strip()
@@ -230,11 +212,9 @@ def fetch_today_in_history(
     month: int,
     day: int,
     limit: int = DEFAULT_FETCH_LIMIT,
-    http_get_json: Callable[[str], Any] | None = None,
 ) -> list[HistoryEvent]:
-    getter = http_get_json or _http_get_json
     try:
-        data = getter(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
+        data = http_get_json(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
         return _parse_wikipedia_events(data=data, limit=limit)
     except Exception as exc:
         log.bind(action="fetch_today_in_history").debug(

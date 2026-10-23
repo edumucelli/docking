@@ -26,18 +26,24 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 from docking.applets.base import Applet
 from docking.applets.colorpicker import meta
 from docking.applets.colorpicker.render import create_icon
-from docking.applets.colorpicker.state import pick_pixel, rgb_to_hex
+from docking.applets.colorpicker.state import (
+    coerce_channel,
+    coerce_hex,
+    rgb_to_hex,
+)
 from docking.applets.menu import menu_sections
 from docking.applets.popup import (
     create_capture_overlay,
     dismiss_capture_overlay,
     draw_transparent_capture_overlay,
 )
+from docking.applets.services import AppletServices
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.backends.base import ScreenCaptureService
 
 log = with_context(get_logger(name="colorpicker"), applet_id=meta.id)
 
@@ -57,23 +63,26 @@ class ColorPickerApplet(Applet):
     name = _("Color Picker")
     icon_name = "color-select"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._r, self._g, self._b = _DEFAULT_RGB
         self._hex = ""
         self._show_hex = True
         self._overlay: Gtk.Window | None = None
+        self._screen_capture: ScreenCaptureService | None = None
 
-        if config:
-            prefs = config.applet_prefs.get(meta.id, {})
-            self._show_hex = prefs.get("show_hex", True)
-            # Restore last picked color
-            self._r = prefs.get("r", _DEFAULT_RGB[0])
-            self._g = prefs.get("g", _DEFAULT_RGB[1])
-            self._b = prefs.get("b", _DEFAULT_RGB[2])
-            self._hex = prefs.get("hex", "")
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_hex = prefs.get("show_hex", True)
+        # Restore last picked color; an unusable one must not stop construction.
+        self._r = coerce_channel(prefs.get("r"), default=_DEFAULT_RGB[0])
+        self._g = coerce_channel(prefs.get("g"), default=_DEFAULT_RGB[1])
+        self._b = coerce_channel(prefs.get("b"), default=_DEFAULT_RGB[2])
+        self._hex = coerce_hex(prefs.get("hex"))
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        self._screen_capture = services.screen_capture
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(
@@ -90,6 +99,10 @@ class ColorPickerApplet(Applet):
     def on_clicked(self) -> None:
         """Enter pick mode - fullscreen transparent overlay captures click."""
         self._start_pick()
+
+    def stop(self) -> None:
+        self._dismiss_overlay()
+        super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
@@ -112,7 +125,11 @@ class ColorPickerApplet(Applet):
 
     def _start_pick(self) -> None:
         """Create fullscreen transparent overlay to capture a click."""
-        if self._overlay:
+        if self._overlay or self._screen_capture is None:
+            return
+
+        if getattr(self._screen_capture, "interactive", False) is True:
+            self._apply_pixel(self._screen_capture.pick_color(x=0, y=0))
             return
 
         self._overlay = create_capture_overlay(
@@ -130,8 +147,16 @@ class ColorPickerApplet(Applet):
         """Sample pixel at click position."""
         self._dismiss_overlay()
 
-        pixel = pick_pixel(x=int(event.x_root), y=int(event.y_root))
-        if pixel:
+        pixel = (
+            self._screen_capture.pick_color(x=int(event.x_root), y=int(event.y_root))
+            if self._screen_capture is not None
+            else None
+        )
+        self._apply_pixel(pixel)
+        return True
+
+    def _apply_pixel(self, pixel: tuple[int, int, int] | None) -> None:
+        if pixel is not None:
             r, g, b = pixel
             self._r = r / 255.0
             self._g = g / 255.0
@@ -140,8 +165,6 @@ class ColorPickerApplet(Applet):
             self._copy_to_clipboard()
             self._save()
             self.present()
-
-        return True
 
     def _on_overlay_key(self, _widget: Gtk.Window, event: Gdk.EventKey) -> bool:
         """Escape cancels pick mode."""

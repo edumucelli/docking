@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from docking.applets.systemmonitor.gpu import GpuStats, gpu_summary
 from docking.applets.temperature import (
     TemperatureUnit,
     format_temperature,
@@ -158,6 +159,7 @@ def tooltip_text(
     mem: float,
     temperature_c: float | None = None,
     disks: list[tuple[str, float]] | None = None,
+    gpu: GpuStats | None = None,
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> str:
     """Build tooltip text for current cpu/memory values."""
@@ -174,6 +176,9 @@ def tooltip_text(
             ),
         )
     details = []
+    gpu_line = gpu_summary(gpu)
+    if gpu_line:
+        details.append(gpu_line)
     if disks:
         parts = [f"{mount}: {pct * 100:.0f}%" for mount, pct in disks]
         details.append(_("Disk: {usage}").format(usage="  ".join(parts)))

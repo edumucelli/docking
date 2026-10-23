@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import docking.applets.popup as popup
+from docking.core.position import Position
 from docking.ui.display import ScreenPosition
 
 
@@ -51,6 +52,8 @@ class _FakePopupWindow:
         self.type_hint = None
         self.accept_focus = None
         self.focus_on_map = None
+        self.transient_for = None
+        self.attached_to = None
 
     def set_decorated(self, value: bool) -> None:
         self.decorated = value
@@ -69,6 +72,15 @@ class _FakePopupWindow:
 
     def set_type_hint(self, hint) -> None:
         self.type_hint = hint
+
+    def set_transient_for(self, parent) -> None:
+        self.transient_for = parent
+
+    def set_attached_to(self, parent) -> None:
+        self.attached_to = parent
+
+    def get_transient_for(self):
+        return self.transient_for
 
     def get_child(self):
         return self.child
@@ -127,7 +139,15 @@ class _FakeDialog:
         self.position = None
         self.resizable = None
         self.default_response = None
+        self.skip_taskbar = None
+        self.skip_pager = None
         self.buttons: list[object] = []
+
+    def set_skip_taskbar_hint(self, value: bool) -> None:
+        self.skip_taskbar = value
+
+    def set_skip_pager_hint(self, value: bool) -> None:
+        self.skip_pager = value
 
     def set_default_size(self, width: int, height: int) -> None:
         self.size = (width, height)
@@ -294,6 +314,35 @@ def test_show_wrapped_popup_replaces_content_and_positions(monkeypatch):
     position.assert_called_once_with(window=window, gap_px=24)
 
 
+def test_show_wrapped_popup_positions_from_anchor(monkeypatch):
+    window = _FakePopupWindow()
+    wrapped = object()
+    parent = object()
+    anchor = popup.PopupAnchor(
+        x=40,
+        y=50,
+        position=Position.BOTTOM,
+        parent=parent,
+    )
+    position_anchor = MagicMock()
+    position_pointer = MagicMock()
+    monkeypatch.setattr(popup, "wrap_popup", lambda _content: wrapped)
+    monkeypatch.setattr(popup, "position_popup_near_anchor", position_anchor)
+    monkeypatch.setattr(popup, "position_popup_near_pointer", position_pointer)
+
+    popup.show_wrapped_popup(
+        window=window,
+        content="content",
+        gap_px=12,
+        anchor=anchor,
+    )
+
+    assert window.transient_for is parent
+    assert window.attached_to is parent
+    position_anchor.assert_called_once_with(window=window, anchor=anchor, gap_px=12)
+    position_pointer.assert_not_called()
+
+
 def test_position_popup_near_pointer_clamps_to_screen(monkeypatch):
     window = _FakePopupWindow()
     monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: object())
@@ -306,6 +355,53 @@ def test_position_popup_near_pointer_clamps_to_screen(monkeypatch):
     popup.position_popup_near_pointer(window=window, gap_px=20)
 
     assert window.moved_to == (0, 0)
+
+
+def test_position_popup_near_anchor_uses_bottom_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=50, y=60, position=Position.BOTTOM)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=10)
+
+    assert window.moved_to == (10, 10)
+
+
+def test_position_popup_near_anchor_uses_top_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=60, y=20, position=Position.TOP)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=8)
+
+    # popup_x = int(60 - 80/2) = 20, popup_y = int(20 + 8) = 28
+    # clamp: y=28 fits within screen (0..40)
+    assert window.moved_to == (20, 28)
+
+
+def test_position_popup_near_anchor_uses_left_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=10, y=50, position=Position.LEFT)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=12)
+
+    # popup_x = int(10 + 12) = 22 → clamped to 20 (max for screen 100 with w=80)
+    # popup_y = int(50 - 40/2) = 30
+    assert window.moved_to == (20, 30)
+
+
+def test_position_popup_near_anchor_uses_right_edge():
+    window = _FakePopupWindow()
+    anchor = popup.PopupAnchor(x=200, y=50, position=Position.RIGHT)
+
+    popup.position_popup_near_anchor(window=window, anchor=anchor, gap_px=6)
+
+    # popup_x = int(200 - 80 - 6) = 114 → clamped to 20 (max for screen 100 with w=80)
+    # popup_y = int(50 - 40/2) = 30
+    assert window.moved_to == (20, 30)
+
+
+def test_dismiss_capture_overlay_handles_none():
+    # Should not raise
+    popup.dismiss_capture_overlay(None)
 
 
 def test_prepare_dialog_content_applies_standard_layout():
@@ -322,6 +418,8 @@ def test_prepare_dialog_content_applies_standard_layout():
     )
 
     assert box is dialog.box
+    assert dialog.skip_taskbar is True
+    assert dialog.skip_pager is True
     assert dialog.size == (320, 120)
     assert dialog.position == popup.Gtk.WindowPosition.MOUSE
     assert dialog.resizable is False
@@ -385,6 +483,60 @@ def test_create_capture_overlay_configures_fullscreen_grab(monkeypatch):
     ]
     assert overlay.gdk_window.cursor == "cursor"
     seat.grab.assert_called_once()
+
+
+def test_create_capture_overlay_returns_none_without_a_display(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: None)
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
+
+
+def test_create_capture_overlay_returns_none_without_a_gdk_window(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    overlay.gdk_window = None
+    display = MagicMock()
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: display)
+    monkeypatch.setattr(popup.Gdk.Cursor, "new_for_display", lambda *_args: "cursor")
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
+
+
+def test_create_capture_overlay_returns_none_without_an_input_seat(monkeypatch):
+    overlay = _FakeCaptureOverlay()
+    display = MagicMock()
+    display.get_default_seat.return_value = None
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: display)
+    monkeypatch.setattr(popup.Gdk.Cursor, "new_for_display", lambda *_args: "cursor")
+
+    created = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=MagicMock(),
+    )
+
+    assert created is None
+    assert overlay.destroyed is True
 
 
 def test_dismiss_capture_overlay_ungrabs_and_destroys(monkeypatch):

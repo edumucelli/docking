@@ -53,6 +53,7 @@ def draw_circle_badge(
     outline_width: float = 0.0,
 ) -> None:
     """Draw a filled circular badge, with optional outline."""
+    cr.new_sub_path()
     cr.arc(cx, cy, radius, 0, math.tau)
     cr.set_source_rgba(*background_rgba)
     if outline_rgba is not None and outline_width > 0:
@@ -110,6 +111,25 @@ def draw_count_badge(
         center_y + (ascent - descent) / 2,
     )
     cr.show_text(text)
+    cr.restore()
+
+
+def draw_warning_badge(
+    *,
+    cr: cairo.Context,
+    size: int,
+) -> None:
+    """Draw the standard amber attention chip used by applet icons."""
+    cr.save()
+    draw_circle_badge(
+        cr=cr,
+        cx=size * 0.80,
+        cy=size * 0.20,
+        radius=max(2.0, size * 0.08),
+        background_rgba=(0.95, 0.60, 0.22, 0.96),
+        outline_rgba=(0.0, 0.0, 0.0, 0.42),
+        outline_width=max(0.8, size * 0.018),
+    )
     cr.restore()
 
 

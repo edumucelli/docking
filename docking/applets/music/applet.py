@@ -26,19 +26,27 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import ApplicationServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.music import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.log import get_logger, with_context
+from docking.platform.applications.listing import (
+    activate_listing,
+)
+from docking.platform.applications.types import ApplicationListing
 
 from .artwork import CoverArtResolver
 from .render import create_music_icon
 from .state import (
+    _MPRIS_PREFIX,
     VOLUME_STEP,
     HybridBackend,
     MusicState,
+    _normalize_desktop_entry,
     clamp_percent,
+    has_active_media,
     play_pause_menu_label,
     tooltip_text,
     unavailable_state,
@@ -46,30 +54,82 @@ from .state import (
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
 
 POLL_INTERVAL_S = 1
 SCROLL_SYNC_DELAY_MS = 220
+MEDIA_CONTENT_TYPES = (
+    "audio/mpeg",
+    "audio/flac",
+    "audio/ogg",
+    "audio/x-wav",
+    "video/mp4",
+)
+log = with_context(get_logger(name="music"), applet_id=meta.id)
 
 
-class MusicApplet(Applet):
+def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
+    """Return registry desktop-ID candidates without consulting platform APIs."""
+    value = raw.strip()
+    if not value:
+        return ()
+
+    value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if value.lower().endswith(".desktop"):
+        value = value[: -len(".desktop")]
+    if value.startswith(_MPRIS_PREFIX):
+        value = value[len(_MPRIS_PREFIX) :]
+
+    candidates: list[str] = []
+
+    def add(desktop_id: str) -> None:
+        if desktop_id and desktop_id not in candidates:
+            candidates.append(desktop_id)
+
+    if value:
+        add(f"{value}.desktop")
+
+    normalized = _normalize_desktop_entry(raw)
+    if normalized:
+        add(f"{normalized}.desktop")
+    if normalized == "rhythmbox":
+        add("org.gnome.Rhythmbox3.desktop")
+    return tuple(candidates)
+
+
+class MusicApplet(ApplicationServicesApplet):
     """Media control applet with album-art rendering."""
 
     id = meta.id
     name = _("Music")
     icon_name = "audio-x-generic"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        super().__init__(
+            icon_size=icon_size,
+            config=config,
+            application_registry=application_registry,
+            application_launcher=application_launcher,
+        )
         self._backend = HybridBackend()
         self._cover_art = CoverArtResolver()
         self._state = unavailable_state()
         self._album_art: GdkPixbuf.Pixbuf | None = None
         self._timer_id: int = 0
         self._scroll_sync_id: int = 0
+        self._poll_generation = 0
         self._worker = BackgroundWorker()
 
-        self._state = self._backend.poll()
+        self._state = self._state_with_registry_icon(self._backend.poll())
         self._album_art = self._cover_art.resolve(state=self._state)
-        super().__init__(icon_size=icon_size, config=config)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -99,6 +159,9 @@ class MusicApplet(Applet):
         super().stop()
 
     def on_clicked(self) -> None:
+        if not has_active_media(self._state):
+            self._launch_default_media_app()
+            return
         if self._backend.play_pause(state=self._state):
             self._refresh_now()
 
@@ -108,6 +171,7 @@ class MusicApplet(Applet):
         delta = VOLUME_STEP if direction_up else -VOLUME_STEP
         target = clamp_percent(self._state.volume_percent + delta)
         if self._backend.set_volume(state=self._state, volume_percent=target):
+            self._poll_generation += 1
             # Avoid synchronous re-poll on rapid scroll bursts (can stall UI).
             self._state = replace(self._state, volume_percent=target)
             self.present()
@@ -163,11 +227,16 @@ class MusicApplet(Applet):
         self.on_scroll(direction_up=direction_up)
 
     def _tick(self) -> bool:
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="music-poll",
             fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return True
 
@@ -184,6 +253,7 @@ class MusicApplet(Applet):
         return self._apply_poll_result(state, art)
 
     def _refresh_now(self) -> None:
+        self._poll_generation += 1
         state, art = self._poll_worker()
         self._apply_poll_result(state, art)
 
@@ -192,12 +262,38 @@ class MusicApplet(Applet):
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
     ) -> bool:
+        state = self._state_with_registry_icon(state)
         if state == self._state and art is self._album_art:
             return False
         self._state = state
         self._album_art = art
         self.present()
         return False
+
+    def _state_with_registry_icon(self, state: MusicState) -> MusicState:
+        registry = self._application_registry
+        if not state.player_desktop_entry:
+            return state
+        for desktop_id in _desktop_entry_candidates(state.player_desktop_entry):
+            application = registry.get(desktop_id)
+            if application is None:
+                continue
+            if application.declared_icon:
+                return replace(state, player_icon_name=application.declared_icon)
+            return state
+        return state
+
+    def _find_media_application(self) -> ApplicationListing | None:
+        return self._application_registry.preferred_listing_for_content_types(
+            MEDIA_CONTENT_TYPES
+        )
+
+    def _launch_default_media_app(self) -> bool:
+        launcher = self._application_launcher
+        application = self._find_media_application()
+        if application is None:
+            return False
+        return activate_listing(launcher, application)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:
@@ -209,11 +305,15 @@ class MusicApplet(Applet):
 
     def _run_scroll_sync(self) -> bool:
         self._scroll_sync_id = 0
-        self._worker.run_guarded(
-            key="poll",
-            name="music-poll",
+        generation = self._poll_generation
+        self._worker.run(
+            name="music-scroll-sync",
             fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if generation == self._poll_generation
+                else False
+            ),
         )
         return False
 

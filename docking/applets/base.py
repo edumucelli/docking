@@ -23,15 +23,15 @@ Applets split their work into two explicit paths:
 
 1. ``create_icon(size)``: pure visual rendering to pixbuf,
 2. ``refresh_tooltip()``: update user-facing metadata (name/tooltip builder),
-3. ``present()``: perform both and notify the dock model/UI,
-4. ``present()``: explicit first presentation sync after subclass init completes.
+3. ``present()``: perform both paths and notify the dock model/UI.
 
 Why this split matters
 
 The current applet contract keeps rendering and metadata updates explicit.
 ``create_icon()`` is for pixels, ``refresh_tooltip()`` is for user-facing text,
 ``present()`` is the coordinated update path for later state
-changes, and ``present()`` marks the first sync once subclass state is ready.
+changes, and subclasses call ``present()`` once their own initialization state
+is ready.
 This keeps applet behavior predictable and testable:
 
 - icon tests can assert drawing behavior independently,
@@ -55,7 +55,6 @@ This module also centralizes reusable rendering helpers and icon-theme loading:
 
 - theme icon lookup with fallback candidate names,
 - bundled fallback icon for applet identity consistency across distros,
-- canvas-centering helper for non-square icon assets,
 - shared outlined text drawing used by multiple applets.
 
 Keeping these helpers in one place avoids per-applet duplication and ensures
@@ -79,11 +78,19 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
+from docking.applets.popup import PopupAnchor
+from docking.core.icons import ICON_SOURCE_PREF_KEY, IconSource, icon_source_from_value
 from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import TargetService
+    from docking.ui.stack import StackContent
 
 log = get_logger("applets.base")
 
@@ -121,10 +128,9 @@ _BUNDLED_FALLBACK_ICON_PREFIXES = (
 
 CATALOG_ICON_DIR = "icons/applets"
 
-ICON_SOURCE_PREF_KEY = "icon_source"
-ICON_SOURCE_DOCKING = "docking"
-ICON_SOURCE_SYSTEM = "system"
-ICON_SOURCE_VALUES = frozenset({ICON_SOURCE_DOCKING, ICON_SOURCE_SYSTEM})
+ICON_SOURCE_DOCKING = IconSource.DOCKING.value
+ICON_SOURCE_SYSTEM = IconSource.SYSTEM.value
+ICON_SOURCE_VALUES = frozenset(source.value for source in IconSource)
 
 
 def _icon_name_candidates(name: str) -> tuple[str, ...]:
@@ -173,7 +179,13 @@ def _load_bundled_fallback_icon(size: int) -> GdkPixbuf.Pixbuf | None:
 
 
 def load_theme_icon(name: str, size: int) -> GdkPixbuf.Pixbuf | None:
-    """Load an icon by name from the default GTK icon theme."""
+    """Load an icon by name from GTK icon themes with Docking fallbacks.
+
+    Lookup expands known aliases and symbolic variants, then tries the default
+    theme plus Adwaita/hicolor fallbacks for CI and sparse desktop sessions.
+    For built-in applet names that Docking guarantees visually, missing theme
+    icons fall back to the bundled applet placeholder asset.
+    """
     flags = Gtk.IconLookupFlags.FORCE_SIZE
     for icon_name in _icon_name_candidates(name=name):
         for theme in _icon_theme_candidates():
@@ -299,7 +311,9 @@ def _icon_label_layout(
     font_size: int,
 ) -> Pango.Layout:
     layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(f"Sans Bold {font_size}px"))
+    layout.set_font_description(
+        Pango.FontDescription.from_string(f"Sans Bold {font_size}px")
+    )
     layout.set_text(text, -1)
     return layout
 
@@ -329,6 +343,7 @@ class Applet(ABC):
     Lifecycle:
       __init__  -> create item
       present() -> initial presentation sync once subclass state is ready
+      present() -> later icon/tooltip redraws after applet state changes
       start()   -> begin timers/monitors (called after dock is ready)
       stop()    -> cleanup (called on removal or shutdown)
     """
@@ -336,12 +351,13 @@ class Applet(ABC):
     id: str
     name: str
     icon_name: str
-    supports_system_icon = False
+    icon_source_options: tuple[IconSource, ...] = (IconSource.DOCKING,)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._config = config
         self._icon_size = icon_size
         self._notify: Callable[[], None] | None = None
+        self._popup_anchor: PopupAnchor | None = None
         self.item = DockItem(
             desktop_id=self.desktop_id,
             kind=APPLET_KIND,
@@ -359,15 +375,19 @@ class Applet(ABC):
 
     def load_prefs(self) -> dict[str, Any]:
         """Load this applet's preferences from config."""
-        if self._config:
-            return dict(self._config.applet_prefs.get(self.id, {}))
-        return {}
+        return dict(self._config.applet_prefs.get(self.id, {}))
 
     def save_prefs(self, prefs: dict[str, Any]) -> None:
-        """Save this applet's preferences to config."""
-        if self._config:
-            self._config.applet_prefs[self.id] = prefs
-            self._config.save()
+        """Save this applet's preferences to config.
+
+        Merged into what is already stored: the payload an applet builds from
+        its own state knows nothing about keys other paths wrote, so replacing
+        the mapping silently discarded them.
+        """
+        merged = self.load_prefs()
+        merged.update(prefs)
+        self._config.applet_prefs[self.id] = merged
+        self._config.save()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         """Render the active icon source at the given size."""
@@ -393,28 +413,47 @@ class Applet(ABC):
         """Theme icon name used when the applet is set to System Icon."""
         return self.icon_name
 
+    def _declared_icon_source_options(self) -> tuple[IconSource, ...]:
+        declared = getattr(
+            type(self),
+            "icon_source_options",
+            Applet.icon_source_options,
+        )
+        if declared is not Applet.icon_source_options:
+            options: list[IconSource] = []
+            for source in declared:
+                parsed = icon_source_from_value(source)
+                if parsed is not None and parsed not in options:
+                    options.append(parsed)
+            return tuple(options) or (IconSource.DOCKING,)
+        return Applet.icon_source_options
+
+    def supports_icon_source(self, source: IconSource | str) -> bool:
+        """Whether this applet exposes the requested icon source."""
+        parsed = icon_source_from_value(source)
+        return parsed is not None and parsed in self._declared_icon_source_options()
+
     def icon_source(self) -> str:
         """Return the selected icon source, defaulting to the Docking icon."""
-        if not self.supports_system_icon:
-            return ICON_SOURCE_DOCKING
-        source = self.load_prefs().get(ICON_SOURCE_PREF_KEY)
-        if source == ICON_SOURCE_SYSTEM:
-            return ICON_SOURCE_SYSTEM
-        return ICON_SOURCE_DOCKING
+        source = icon_source_from_value(self.load_prefs().get(ICON_SOURCE_PREF_KEY))
+        if source is not None and self.supports_icon_source(source):
+            return source.value
+        return IconSource.DOCKING.value
 
     def uses_system_icon(self) -> bool:
         """Whether this applet currently requests a theme icon."""
-        return self.icon_source() == ICON_SOURCE_SYSTEM
+        return self.icon_source() == IconSource.SYSTEM.value
 
-    def set_icon_source(self, source: str) -> None:
+    def set_icon_source(self, source: IconSource | str) -> None:
         """Persist and present the selected icon source."""
-        if not self.supports_system_icon or source not in ICON_SOURCE_VALUES:
+        parsed = icon_source_from_value(source)
+        if parsed is None or not self.supports_icon_source(parsed):
             return
-        if source == self.icon_source():
+        if parsed.value == self.icon_source():
             return
 
         prefs = self.load_prefs()
-        prefs[ICON_SOURCE_PREF_KEY] = source
+        prefs[ICON_SOURCE_PREF_KEY] = parsed.value
         self.save_prefs(prefs)
         self.present()
 
@@ -425,6 +464,20 @@ class Applet(ABC):
     def on_clicked(self) -> None:
         """Handle left-click (default: no-op)."""
         return
+
+    def stack_content(self, icon_size: int) -> StackContent | None:
+        """Return reusable stack content, or None for normal click handling."""
+        _ = icon_size
+        return None
+
+    @property
+    def popup_anchor(self) -> PopupAnchor | None:
+        """Most recent dock icon anchor for applet-owned popup surfaces."""
+        return self._popup_anchor
+
+    def set_popup_anchor(self, anchor: PopupAnchor | None) -> None:
+        """Update the dock icon anchor used by applet-owned popup surfaces."""
+        self._popup_anchor = anchor
 
     def on_scroll(self, direction_up: bool) -> None:
         """Handle scroll wheel on applet icon (default: no-op)."""
@@ -455,6 +508,11 @@ class Applet(ABC):
         """
         return
 
+    def set_services(self, services: AppletServices) -> None:
+        """Attach backend services; applets that need them override this hook."""
+        _ = services
+        return
+
     def start(self, notify: Callable[[], None]) -> None:
         """Start timers/monitors. Call notify() to trigger redraw."""
         self._notify = notify
@@ -469,3 +527,35 @@ class Applet(ABC):
         self.refresh_tooltip()
         if self._notify:
             self._notify()
+
+
+class ApplicationServicesApplet(Applet):
+    """Applet base that guarantees application services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+    ) -> None:
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        super().__init__(icon_size=icon_size, config=config)
+
+
+class TargetServicesApplet(Applet):
+    """Applet base that guarantees icon and target services from construction."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+    ) -> None:
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        super().__init__(icon_size=icon_size, config=config)

@@ -34,6 +34,7 @@ sed \
   -e "s|__APT_ARCH__|${apt_arch}|g" \
   -e "s|__APT_MIRROR__|${apt_mirror}|g" \
   -e "s|__APPIMAGE_ARCH__|${appimage_arch}|g" \
+  -e "s|__DEB_MULTIARCH__|${typelib_arch_dir}|g" \
   -e "s|__GI_TYPELIB_PATH__|\\\$APPDIR/usr/lib/${typelib_arch_dir}/girepository-1.0:\\\$APPDIR/usr/lib/girepository-1.0|g" \
   "${RECIPE_TEMPLATE}" > "${tmp_recipe}"
 

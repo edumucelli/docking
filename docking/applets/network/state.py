@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from dataclasses import dataclass
 from typing import NamedTuple
 
 from docking.applets.tooltip import structured_tooltip
@@ -49,6 +50,24 @@ class AvailableNetwork(NamedTuple):
     strength: int
     access_point_path: str
     is_active: bool
+
+
+@dataclass(frozen=True)
+class NetworkState:
+    """Visible state of the Network applet.
+
+    Frozen so equality comparison gates re-rendering: the applet only calls
+    ``present()`` when this value actually changes between polls.
+    """
+
+    is_connected: bool = False
+    is_wifi: bool = False
+    ssid: str = ""
+    signal_strength: int = 0
+    iface: str = ""
+    ip_address: str = ""
+    rx_speed: float = 0.0
+    tx_speed: float = 0.0
 
 
 _CONNECTION_INFO_COMMANDS: tuple[tuple[str, ...], ...] = (

@@ -54,6 +54,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.tooltip import structured_tooltip
 from docking.applets.unitconverter.state import Unit, fetch_currency_rates
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -204,9 +205,9 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CurrencyFxPrefs:
 
     try:
         active_index = int(prefs.get("active_index", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         active_index = 0
-    active_index = max(0, min(active_index, len(pairs) - 1))
+    active_index = clamp_index(active_index, len(pairs))
 
     return CurrencyFxPrefs(
         pairs=pairs,
@@ -235,7 +236,7 @@ def prefs_payload(
     file stays canonical after any menu or dialog action.
     """
     normalized_pairs = normalize_pairs(pairs)
-    active_index = max(0, min(active_index, len(normalized_pairs) - 1))
+    active_index = clamp_index(active_index, len(normalized_pairs))
     interval = normalize_chart_interval(chart_interval)
     return {
         "pairs": [
@@ -735,11 +736,8 @@ def build_tooltip(
 ) -> str:
     """Build tooltip text."""
     pair = f"{base}/{quote}"
-    verb = (
-        _("Day samples")
-        if normalize_chart_interval(chart_interval) == ChartInterval.DAY
-        else None
-    )
+    interval = normalize_chart_interval(chart_interval)
+    verb = _("Day samples") if interval == ChartInterval.DAY else None
     state_error = error or (_("Unavailable") if fetch_failed else None)
     status = resolve_live_status(
         has_data=snapshot is not None,
@@ -766,7 +764,10 @@ def build_tooltip(
             rate=format_rate(snapshot.rate),
             quote=snapshot.quote,
         ),
-        details=(_("Change: {change}").format(change=format_change(snapshot.points)),),
+        details=(
+            _("Interval: {interval}").format(interval=interval.value.title()),
+            _("Change: {change}").format(change=format_change(snapshot.points)),
+        ),
         freshness=live_freshness_lines(
             status=status,
             updated_at=snapshot.fetched_at,

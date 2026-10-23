@@ -44,9 +44,11 @@ def _make_window():
         ),
         autohide=_autohide(),
         dnd=SimpleNamespace(set_locked=MagicMock()),
+        surface_service=SimpleNamespace(set_workspace_scope=MagicMock()),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
         theme="old-theme",
+        set_theme=MagicMock(),
         cursor_x=12.0,
         cursor_y=34.0,
         is_pointer_inside_dock=MagicMock(return_value=True),
@@ -100,8 +102,8 @@ class TestDockRuntime:
         runtime = DockRuntime(window, update_checker=update_checker)
 
         runtime.on_hide_mode_changed()
-        runtime.set_icons_locked(True)
         runtime.queue_draw()
+        runtime.set_current_workspace_only(True)
         runtime.hide_tooltip()
         runtime.hide_hover_ui()
         runtime.set_theme(cast(Theme, "new-theme"))
@@ -109,10 +111,21 @@ class TestDockRuntime:
         runtime.open_releases_page()
 
         window.on_hide_mode_changed.assert_called_once()
-        window.dnd.set_locked.assert_called_once_with(True)
-        window.queue_redraw.assert_called_once()
+        assert window.queue_redraw.call_count == 2
+        window.surface_service.set_workspace_scope.assert_called_once_with(
+            current_workspace_only=True
+        )
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
         update_checker.check_now.assert_called_once()
         update_checker.open_releases_page.assert_called_once()
-        assert window.theme == "new-theme"
+        window.set_theme.assert_called_once_with("new-theme")
+
+    def test_quit_closes_the_dock_window(self):
+        window = _make_window()
+        window.destroy = MagicMock()
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
+
+        runtime.quit()
+
+        window.destroy.assert_called_once()

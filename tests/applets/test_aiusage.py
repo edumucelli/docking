@@ -280,6 +280,18 @@ class TestProvider:
 
 
 class TestClaudeCost:
+    def test_match_fable_5_1_before_fable_5(self):
+        assert match_model_tier(model="claude-fable-5-1") == "fable-5-1"
+
+    def test_match_mythos_5_1_before_mythos_5(self):
+        assert match_model_tier(model="claude-mythos-5-1") == "mythos-5-1"
+
+    def test_match_fable_5(self):
+        assert match_model_tier(model="claude-fable-5") == "fable-5"
+
+    def test_match_opus_5(self):
+        assert match_model_tier(model="claude-opus-5") == "opus-5"
+
     def test_match_opus_4_6(self):
         assert match_model_tier(model="claude-opus-4-6") == "opus-4-6"
 
@@ -289,6 +301,22 @@ class TestClaudeCost:
     def test_cost_for_opus_4_6(self):
         usage = ModelUsage(input_tokens=1_000_000)
         assert cost_for_usage(model="claude-opus-4-6", usage=usage) == 5.0
+
+    def test_cost_for_fable_5(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-fable-5", usage=usage) == 60.0
+
+    def test_cost_for_fable_5_1_uses_lower_cache_read_rate(self):
+        usage = ModelUsage(cache_write_tokens=1_000_000, cache_read_tokens=1_000_000)
+        assert cost_for_usage(model="claude-fable-5-1", usage=usage) == 12.75
+
+    def test_cost_for_opus_5(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-opus-5", usage=usage) == 30.0
+
+    def test_cost_for_sonnet_5_standard_rate(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="claude-sonnet-5", usage=usage) == 12.0
 
     def test_cost_for_opus_4_legacy(self):
         usage = ModelUsage(input_tokens=1_000_000)
@@ -314,27 +342,72 @@ class TestClaudeCost:
 
 
 class TestCodexCost:
-    def test_match_gpt_5(self):
-        assert match_model_tier(model="gpt-5.4") == "gpt-5"
+    def test_current_sol_and_luna_costs(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        for model, expected in (
+            ("gpt-6.1-sol", 11.05),
+            ("gpt-6-sol", 11.1),
+            ("gpt-6-luna", 0.555),
+        ):
+            assert match_model_tier(model=f"{model}-2026-10-01") == model
+            assert provider_for_model(model=model) == Provider.CODEX
+            assert cost_for_usage(model=model, usage=usage) == expected
+
+    def test_match_gpt_6_astra(self):
+        assert match_model_tier(model="gpt-6-astra") == "gpt-6-astra"
+
+    def test_match_gpt_5_6_terra(self):
+        assert match_model_tier(model="gpt-5.6-terra") == "gpt-5.6-terra"
+
+    def test_match_gpt_5_4(self):
+        assert match_model_tier(model="gpt-5.4") == "gpt-5.4"
 
     def test_match_gpt_4o(self):
         assert match_model_tier(model="gpt-4o") == "gpt-4o"
 
-    def test_cost_gpt5_no_cache(self):
+    def test_cost_gpt5_4_no_cache(self):
         # 1M input, no cache -> $2.50
         usage = ModelUsage(input_tokens=1_000_000, output_tokens=0)
         assert cost_for_usage(model="gpt-5.4", usage=usage) == 2.50
 
-    def test_cost_gpt5_with_cache(self):
-        # 1M input, 500K cached -> 500K * $2.50 + 500K * $0.62 + 0 output
+    def test_cost_gpt5_4_with_cache(self):
+        # 1M input, 500K cached -> 500K * $2.50 + 500K * $0.25 + 0 output
         usage = ModelUsage(input_tokens=1_000_000, cache_read_tokens=500_000)
         cost = cost_for_usage(model="gpt-5.4", usage=usage)
-        expected = (500_000 * 2.50 + 500_000 * 0.62) / 1_000_000
+        expected = (500_000 * 2.50 + 500_000 * 0.25) / 1_000_000
         assert abs(cost - expected) < 0.001
 
-    def test_cost_gpt5_output(self):
+    def test_cost_gpt5_4_output(self):
         usage = ModelUsage(output_tokens=1_000_000)
-        assert cost_for_usage(model="gpt-5.4", usage=usage) == 10.0
+        assert cost_for_usage(model="gpt-5.4", usage=usage) == 15.0
+
+    def test_cost_gpt5_6_luna(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        assert cost_for_usage(model="gpt-5.6-luna", usage=usage) == 1.31
+
+    def test_cost_gpt5_6_sol(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="gpt-5.6-sol", usage=usage) == 24.0
+
+    def test_cost_gpt5_6_terra(self):
+        usage = ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)
+        assert cost_for_usage(model="gpt-5.6-terra", usage=usage) == 14.0
+
+    def test_cost_gpt6_astra(self):
+        usage = ModelUsage(
+            input_tokens=1_000_000,
+            cache_read_tokens=500_000,
+            output_tokens=1_000_000,
+        )
+        assert cost_for_usage(model="gpt-6-astra", usage=usage) == 55.5
 
     def test_day_cost_mixed_providers(self):
         entry = DayEntry(
@@ -349,7 +422,7 @@ class TestCodexCost:
 
     def test_cached_tokens_do_not_make_negative_input_cost(self):
         usage = ModelUsage(input_tokens=100, cache_read_tokens=200, output_tokens=100)
-        expected = (200 * 0.62 + 100 * 10.0) / 1_000_000
+        expected = (200 * 0.125 + 100 * 10.0) / 1_000_000
         assert cost_for_usage(model="gpt-5", usage=usage) == expected
 
 
@@ -540,6 +613,54 @@ class TestCodexTranscript:
         assert u.input_tokens == 1000
         assert u.cache_read_tokens == 500
         assert u.output_tokens == 200
+
+    def test_null_model_is_not_reported_as_a_model_name(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        lines = [
+            json.dumps({"type": "turn_context", "payload": {"model": None}}),
+            json.dumps(
+                {
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 1000,
+                                "total_tokens": 1000,
+                            }
+                        },
+                    },
+                }
+            ),
+        ]
+        jsonl.write_text("\n".join(lines))
+
+        # A null model means "unknown", never a model literally called "None".
+        assert codex_backend.parse_transcript(path=jsonl) == {}
+
+    def test_non_finite_counter_does_not_abort_the_parse(self, tmp_path):
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {"type": "turn_context", "payload": {"model": "gpt-5.4"}}
+                    ),
+                    # 1e309 parses as inf, and int(inf) raises OverflowError.
+                    (
+                        '{"type": "event_msg", "payload": {"type": "token_count",'
+                        ' "info": {"total_token_usage": {"input_tokens": 1000,'
+                        ' "output_tokens": 200, "total_tokens": 1200,'
+                        ' "reasoning_output_tokens": 1e309}}}}'
+                    ),
+                ]
+            )
+        )
+
+        result = codex_backend.parse_transcript(path=jsonl)
+
+        assert result["gpt-5.4"].input_tokens == 1000
+        assert result["gpt-5.4"].output_tokens == 200
 
     def test_takes_highest_total(self, tmp_path):
         jsonl = tmp_path / "session.jsonl"
@@ -869,22 +990,22 @@ class TestAiUsageApplet:
         assert applet._state.days[0].sessions == 1
 
     def test_creates_with_icon(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = AiUsageApplet(size)
+            applet = AiUsageApplet(size, config=Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_tooltip_no_usage(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         assert "no usage" in applet.item.name
 
     def test_create_icon_forwards_selected_provider_and_display_mode(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet._selected_provider = Provider.CODEX
         applet._display_mode = DisplayMode.TOKENS
         render_icon = MagicMock(return_value="pixbuf")
@@ -899,7 +1020,7 @@ class TestAiUsageApplet:
         )
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         monkeypatch.setattr(
             aiusage_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 999
         )
@@ -929,12 +1050,12 @@ class TestAiUsageApplet:
         assert applet._timer_id == 0
 
     def test_menu_has_reset(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         labels = [mi.get_label() for mi in applet.get_menu_items()]
         assert "Reset Today" in labels
 
     def test_tooltip_widget_builds_headless_box(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
 
         box = applet._build_tooltip_widget()
@@ -944,7 +1065,7 @@ class TestAiUsageApplet:
         assert box.children[0].label == "AI Usage: no usage today"
 
     def test_tooltip_widget_renders_token_breakdown_and_week_total(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
         today = set_session(
             session_id="today",
@@ -969,7 +1090,7 @@ class TestAiUsageApplet:
         assert "This week: 3.9K" in labels[2]
 
     def test_tooltip_widget_filters_selected_provider_costs(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         _patch_tooltip_widgets(monkeypatch)
         applet._selected_provider = Provider.CODEX
         applet._state = set_session(
@@ -985,10 +1106,10 @@ class TestAiUsageApplet:
 
         labels = [child.label for child in box.children]
         assert "<b>Codex: $2.50</b>" in labels[0]
-        assert "Gpt-5: $2.50" in labels[1]
+        assert "Gpt-5.4: $2.50" in labels[1]
 
     def test_on_scroll_cycles_providers_and_presents(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
 
         applet.on_scroll(direction_up=True)
@@ -999,7 +1120,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 3
 
     def test_set_provider_and_display_mode_present(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
 
         applet._set_provider(provider=Provider.OPENCODE)
@@ -1010,7 +1131,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 2
 
     def test_tick_merges_opencode_sessions_and_updates_state(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
@@ -1039,7 +1160,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 1
 
     def test_tick_merges_codex_sessions_and_updates_state(self, monkeypatch):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
@@ -1069,7 +1190,7 @@ class TestAiUsageApplet:
         assert applet.present.call_count == 1
 
     def test_reset_today_saves_prefs_and_presents(self):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         applet._state = set_session(
             session_id="test",
             state=AiUsageState(),
@@ -1085,7 +1206,7 @@ class TestAiUsageApplet:
         applet.present.assert_called_once()
 
     def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
-        applet = AiUsageApplet(48)
+        applet = AiUsageApplet(48, config=Config())
         monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
 
         def fail_query():

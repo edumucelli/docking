@@ -6,6 +6,10 @@ case "${1:-}" in
         if [ -f /usr/lib/docking/refresh-desktop-caches ]; then
             sh /usr/lib/docking/refresh-desktop-caches
         fi
+        if command -v gnome-extensions >/dev/null 2>&1 \
+           && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+            gnome-extensions disable docking-bridge@docking.org || true
+        fi
         ;;
 esac
 

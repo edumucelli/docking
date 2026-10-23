@@ -24,13 +24,12 @@ test without a desktop session.
 from __future__ import annotations
 
 import datetime as dt
-import html
-import json
-import urllib.request
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, cast
 
+from docking.applets.http import http_get_json
 from docking.applets.live_state import (
     live_freshness_lines,
     live_state_error,
@@ -38,7 +37,9 @@ from docking.applets.live_state import (
     refresh_recovery_label,
     resolve_live_status,
 )
+from docking.applets.text import normalize_text
 from docking.applets.tooltip import structured_tooltip
+from docking.core.math import clamp_index
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -54,6 +55,34 @@ MAX_STORIES = 100
 MAX_STORIES_IN_PREFS = MAX_STORIES
 REFRESH_INTERVAL_S = 10 * 60
 STARTUP_FETCH_DELAY_S = 2
+
+
+class HackerNewsFeed(str, Enum):
+    """HN story lists supported by the applet."""
+
+    TOP = "top"
+    SHOW = "show"
+    JOBS = "jobs"
+
+
+def feed_label(feed: HackerNewsFeed) -> str:
+    """Return the translated label for an HN story list."""
+    labels = {
+        HackerNewsFeed.TOP: _("Top Stories"),
+        HackerNewsFeed.SHOW: _("Show HN"),
+        HackerNewsFeed.JOBS: _("Jobs"),
+    }
+    return labels[feed]
+
+
+def feed_endpoint(feed: HackerNewsFeed) -> str:
+    """Return the Firebase endpoint name for an HN story list."""
+    endpoints = {
+        HackerNewsFeed.TOP: "topstories",
+        HackerNewsFeed.SHOW: "showstories",
+        HackerNewsFeed.JOBS: "jobstories",
+    }
+    return endpoints[feed]
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +109,7 @@ class HackerNewsPrefs:
     stable across restarts.
     """
 
+    feed: HackerNewsFeed = HackerNewsFeed.TOP
     stories: tuple[HackerNewsStory, ...] = ()
     active_index: int = 0
     next_offset: int = 0
@@ -89,17 +119,11 @@ class HackerNewsPrefs:
 
 @dataclass(frozen=True, slots=True)
 class HackerNewsPage:
-    """One fetched page from HN's topstories id list."""
+    """One fetched page from an HN story id list."""
 
     stories: tuple[HackerNewsStory, ...]
     next_offset: int
     has_more: bool
-
-
-def normalize_text(value: object) -> str:
-    """Normalize API text fields for compact tooltip/menu display."""
-    text = html.unescape(str(value or ""))
-    return " ".join(text.replace("\n", " ").replace("\r", " ").split()).strip()
 
 
 def story_rank(*, index: int, count: int) -> str:
@@ -114,7 +138,10 @@ def story_age(*, story: HackerNewsStory, now: dt.datetime | None = None) -> str:
     if story.time <= 0:
         return ""
     current = now or dt.datetime.now(dt.timezone.utc)
-    published = dt.datetime.fromtimestamp(story.time, tz=dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(story.time, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
     seconds = max(0, int((current - published).total_seconds()))
     if seconds < 60:
         return _("now")
@@ -137,7 +164,7 @@ def normalize_active_index(*, index: int, count: int) -> int:
     """Clamp active index for the current story list."""
     if count <= 0:
         return 0
-    return max(0, min(index, count - 1))
+    return clamp_index(index, count)
 
 
 def build_tooltip(
@@ -145,6 +172,7 @@ def build_tooltip(
     story: HackerNewsStory | None,
     index: int,
     count: int,
+    feed: HackerNewsFeed = HackerNewsFeed.TOP,
     loading: bool = False,
     page_loading: bool = False,
     error: str = "",
@@ -152,6 +180,10 @@ def build_tooltip(
     cadence_seconds: int | None = None,
 ) -> str:
     """Build tooltip text for the current applet state."""
+    source_title = _("{source} - {feed}").format(
+        source=HN_SOURCE_LABEL,
+        feed=feed_label(feed),
+    )
     status = resolve_live_status(
         has_data=story is not None,
         loading=loading,
@@ -160,7 +192,7 @@ def build_tooltip(
     )
     if story is None:
         return structured_tooltip(
-            title=_("Hacker News"),
+            title=source_title,
             primary=live_state_label(status),
             freshness=live_freshness_lines(
                 status=status,
@@ -176,7 +208,7 @@ def build_tooltip(
     header = (
         _("{source} {rank}")
         .format(
-            source=HN_SOURCE_LABEL,
+            source=source_title,
             rank=rank,
         )
         .strip()
@@ -209,16 +241,15 @@ def build_tooltip(
 def parse_story_payload(data: object) -> HackerNewsStory | None:
     """Parse one HN item payload into a story.
 
-    Deleted, dead, non-story, or untitled items are ignored. Ask/Show HN items
-    are normal HN stories, so they pass through as long as the API reports
-    ``type == "story"``.
+    Deleted, dead, unsupported, or untitled items are ignored. Ask/Show HN items
+    use ``type == "story"``; items from the jobs list use ``type == "job"``.
     """
     if not isinstance(data, Mapping):
         return None
     raw = cast(Mapping[str, Any], data)
     if raw.get("deleted") or raw.get("dead"):
         return None
-    if raw.get("type") != "story":
+    if raw.get("type") not in {"story", "job"}:
         return None
     try:
         story_id = int(raw.get("id", 0))
@@ -401,7 +432,12 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> HackerNewsPrefs:
         active_index = int(prefs.get("active_index", 0))
     except (TypeError, ValueError):
         active_index = 0
+    try:
+        feed = HackerNewsFeed(normalize_text(prefs.get("feed")) or "top")
+    except ValueError:
+        feed = HackerNewsFeed.TOP
     return HackerNewsPrefs(
+        feed=feed,
         stories=tuple(stories),
         active_index=normalize_active_index(index=active_index, count=len(stories)),
         next_offset=max(0, _int_from_pref(prefs.get("next_offset"), 0)),
@@ -421,6 +457,7 @@ def _int_from_pref(value: object, fallback: int) -> int:
 
 def prefs_payload(
     *,
+    feed: HackerNewsFeed = HackerNewsFeed.TOP,
     stories: Sequence[HackerNewsStory],
     active_index: int,
     next_offset: int,
@@ -432,6 +469,7 @@ def prefs_payload(
     timestamp = fetched_at or dt.datetime.now(dt.timezone.utc)
     return {
         "source": HN_SOURCE,
+        "feed": feed.value,
         "active_index": normalize_active_index(index=active_index, count=len(kept)),
         "next_offset": max(0, next_offset),
         "has_more_stories": has_more_stories,
@@ -440,47 +478,33 @@ def prefs_payload(
     }
 
 
-def _get_json(url: str, *, timeout: float = FETCH_TIMEOUT_S) -> object:
-    request = urllib.request.Request(
-        url=url,
-        headers={
-            "Accept": "application/json",
-            "User-Agent": "DockingHackerNewsApplet/1.0",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read())
-
-
 def fetch_hn_stories(
     *,
+    feed: HackerNewsFeed = HackerNewsFeed.TOP,
     limit: int = DEFAULT_FETCH_LIMIT,
     offset: int = 0,
-    get_json: Callable[[str], object] | None = None,
 ) -> tuple[HackerNewsStory, ...]:
-    """Fetch HN top stories using the official Firebase API."""
-    return fetch_hn_story_page(
-        limit=limit,
-        offset=offset,
-        get_json=get_json,
-    ).stories
+    """Fetch stories from one HN list using the official Firebase API."""
+    return fetch_hn_story_page(feed=feed, limit=limit, offset=offset).stories
 
 
 def fetch_hn_story_page(
     *,
+    feed: HackerNewsFeed = HackerNewsFeed.TOP,
     limit: int = DEFAULT_FETCH_LIMIT,
     offset: int = 0,
-    get_json: Callable[[str], object] | None = None,
 ) -> HackerNewsPage:
-    """Fetch one cursor page using HN topstories ids.
+    """Fetch one cursor page using the selected HN story ids.
 
     ``has_more`` is based on the id cursor, not on the number of displayable
     stories. That lets paging continue even when a fetched id is dead/deleted
     or otherwise filtered out.
     """
-    fetch = get_json or _get_json
     try:
-        raw_ids = fetch(f"{HN_BASE_URL}/topstories.json")
+        raw_ids = http_get_json(
+            f"{HN_BASE_URL}/{feed_endpoint(feed)}.json",
+            timeout=FETCH_TIMEOUT_S,
+        )
         ids, next_offset, has_more = parse_top_story_id_page(
             raw_ids,
             limit=limit,
@@ -488,7 +512,9 @@ def fetch_hn_story_page(
         )
         stories: list[HackerNewsStory] = []
         for story_id in ids:
-            raw_story = fetch(f"{HN_BASE_URL}/item/{story_id}.json")
+            raw_story = http_get_json(
+                f"{HN_BASE_URL}/item/{story_id}.json", timeout=FETCH_TIMEOUT_S
+            )
             story = parse_story_payload(raw_story)
             if story is not None:
                 stories.append(story)

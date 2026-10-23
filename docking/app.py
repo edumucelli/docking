@@ -49,9 +49,20 @@ cleanly?
 from __future__ import annotations
 
 import faulthandler
+import os
 import signal
 import sys
+from collections.abc import Callable
+from contextlib import ExitStack
+from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from docking.platform.gamescope import prepare_gamescope_wayland_environment
+
+# This must run before importing gi or GTK. GameScope's private Wayland socket
+# exposes layer-shell even when the child environment describes an X11 session.
+prepare_gamescope_wayland_environment()
 
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
@@ -66,6 +77,7 @@ if Path(_VENDOR_DIR).is_dir():
 
 # i18n must init before any module with translatable strings is imported.
 from docking.i18n import init as _init_i18n
+from docking.log import get_logger, with_context
 
 _init_i18n()
 
@@ -74,73 +86,229 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
-from docking.core.config import Config
+# Give GTK / Mutter a stable program name so the GNOME Shell extension
+# can find the dock window on Wayland (where WM_CLASS is not forwarded).
+GLib.set_prgname("Docking")
+
+from docking.applets.services import AppletServices
+from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform.applications.identity import (
+    LaunchProvenanceStore,
+    ProcessIdentityService,
+)
+from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.recents import (
+    RecentApplications,
+    RecentApplicationsPersistence,
+)
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
-from docking.platform.launcher import Launcher
+from docking.platform.icons import IconLoader
 from docking.platform.model import DockModel
+from docking.platform.status_notifier import (
+    StatusNotifierNotificationBridge,
+    StatusNotifierService,
+)
+from docking.platform.targets import TargetService
 from docking.platform.unity import UnityLauncherListener
-from docking.platform.window_tracker import WindowTracker
 from docking.ui.factory import build_dock_window
-from docking.ui.new_year import NewYearGreetingController
 from docking.ui.renderer import DockRenderer
+
+if TYPE_CHECKING:
+    from docking.platform.backends.base import SessionBackend
+
+_FORCE_QUIT_SOURCE_ID = 0
+
+
+log = with_context(get_logger(name="app"), action="start_runtime")
+
+
+def _initial_pinned_for_registry(
+    registry: ApplicationRegistry,
+) -> list[PinnedEntry]:
+    def default_desktop_id_for(content_type: str) -> str | None:
+        application = registry.default_for_content_type(content_type)
+        return application.desktop_id if application is not None else None
+
+    return build_initial_pinned(
+        desktop_id_exists=lambda desktop_id: registry.get(desktop_id) is not None,
+        default_desktop_id_for=default_desktop_id_for,
+    )
+
+
+def _refresh_initial_registry(registry: ApplicationRegistry) -> None:
+    """Require one successfully published registry generation before config."""
+    registry.refresh()
+    if registry.generation <= 0:
+        raise RuntimeError("Initial application discovery failed")
+
+
+def _safe_stop(name: str, callback: Callable[[], object]) -> None:
+    """Run one cleanup callback without preventing later cleanup."""
+    try:
+        callback()
+    except Exception:
+        log.exception("Failed to stop runtime stage: %s", name)
 
 
 def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
 
-    config = Config.load()
-    theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
-        config.transparency
-    )
-    launcher = Launcher()
-    model = DockModel(config=config, launcher=launcher)
-    renderer = DockRenderer()
-    tracker = WindowTracker(model=model, launcher=launcher, config=config)
-    unity = UnityLauncherListener(model=model)
+    with ExitStack() as cleanup:
+        registry = ApplicationRegistry()
+        cleanup.callback(_safe_stop, "registry", registry.stop)
 
-    window = build_dock_window(
-        config=config,
-        model=model,
-        renderer=renderer,
-        theme=theme,
-        window_tracker=tracker,
-        launcher=launcher,
-    )
-    items_service = DockItemsService(model=model, window=window)
-    new_year = NewYearGreetingController(window=window)
+        provenance_store = LaunchProvenanceStore()
+        process_identity_service = ProcessIdentityService(provenance_store)
+        application_launcher = ApplicationLauncher(registry, provenance_store)
+        icon_loader = IconLoader()
+        target_service = TargetService(icon_loader=icon_loader)
 
-    # Graceful shutdown on SIGINT/SIGTERM
-    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
-    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
+        _refresh_initial_registry(registry)
 
-    try:
+        config = Config.load(
+            initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
+        )
+        recent_applications = RecentApplications(
+            registry,
+            RecentApplicationsPersistence(config),
+        )
+        theme = Theme.load(name=config.theme, icon_size=config.icon_size).with_opacity(
+            config.transparency
+        )
+        applet_services = AppletServices()
+        model = DockModel(
+            config=config,
+            applet_services=applet_services,
+            application_registry=registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+            recent_applications=recent_applications,
+        )
+        cleanup.callback(_safe_stop, "applets", model.stop_applets)
+
+        renderer = DockRenderer()
+        backend = create_session_backend(
+            config=config,
+            model=model,
+            application_registry=registry,
+            process_identity_service=process_identity_service,
+        )
+        cleanup.callback(_safe_stop, "backend", backend.stop)
+
+        applet_services = replace(
+            applet_services,
+            desktop_actions=backend.desktop_actions,
+            workspaces=backend.workspaces,
+            window_picker=backend.window_picker,
+            idle=backend.idle,
+            screen_capture=backend.screen_capture,
+        )
+        model.set_applet_services(applet_services)
+        unity = UnityLauncherListener(
+            model=model,
+            application_registry=registry,
+        )
+        cleanup.callback(_safe_stop, "unity", unity.stop)
+
+        status_service = StatusNotifierService()
+        cleanup.callback(_safe_stop, "status notifier", status_service.stop)
+
+        status_notifications = StatusNotifierNotificationBridge(
+            model=model,
+            application_registry=registry,
+            service=status_service,
+        )
+        cleanup.callback(
+            _safe_stop,
+            "status notifications",
+            status_notifications.stop,
+        )
+
+        ui = build_dock_window(
+            config=config,
+            model=model,
+            renderer=renderer,
+            theme=theme,
+            window_tracker=backend.windows,
+            preview_service=backend.previews,
+            surface_service=backend.surface,
+            visibility_service=backend.visibility,
+            session_backend=backend,
+            application_registry=registry,
+            application_launcher=application_launcher,
+            icon_loader=icon_loader,
+            target_service=target_service,
+        )
+        cleanup.callback(_safe_stop, "UI", ui.stop)
+
+        window = ui.window
+        items_service = DockItemsService(model=model, window=window)
+        cleanup.callback(_safe_stop, "items service", items_service.stop)
+
+        applet_services = replace(
+            applet_services,
+            search=ui.search,
+            status_notifier=status_service,
+        )
+        model.set_applet_services(applet_services)
+
+        # Graceful shutdown on SIGINT/SIGTERM
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
+
+        registry.start()
+        status_service.start()
+        status_notifications.start()
         unity.start()
         window.show_all()
-        new_year.start()
-        window.start_update_checks()
-        GLib.idle_add(_start_runtime, items_service, model)
+        ui.start()
+        GLib.idle_add(_start_runtime, items_service, model, backend)
         Gtk.main()
-    finally:
-        items_service.stop()
-        window.stop_update_checks()
-        new_year.stop()
-        unity.stop()
-        model.stop_applets()
 
 
-def _start_runtime(items_service: DockItemsService, model: DockModel) -> bool:
+def _start_runtime(
+    items_service: DockItemsService,
+    model: DockModel,
+    backend: SessionBackend,
+) -> bool:
     """Start background runtime pieces after the window has been shown."""
-    items_service.start()
-    model.start_applets()
+    _start_runtime_stage(name="backend", start=backend.start)
+    _start_runtime_stage(name="items_service", start=items_service.start)
+    _start_runtime_stage(name="applets", start=model.start_applets)
     return False
+
+
+def _start_runtime_stage(*, name: str, start: Callable[[], object]) -> None:
+    try:
+        start()
+    except Exception:
+        log.exception("Failed to start runtime stage: %s", name)
 
 
 def _quit() -> bool:
-    Gtk.main_quit()
+    global _FORCE_QUIT_SOURCE_ID
+
+    # Shutdown is intentionally two-stage.  Give GTK, applets, IPC services,
+    # and backend adapters a normal main-loop exit first; if something wedges
+    # during teardown, force the process out after a short grace period.
+    if _FORCE_QUIT_SOURCE_ID == 0:
+        # GDK must cancel its prepared Wayland read before gtk_main() performs
+        # the final display roundtrip. Quitting directly from a high-priority
+        # signal source can otherwise deadlock in gdk_flush().
+        GLib.idle_add(Gtk.main_quit)
+        _FORCE_QUIT_SOURCE_ID = GLib.timeout_add_seconds(3, _force_quit)
     return False
+
+
+def _force_quit() -> bool:
+    log.warning("Forcing shutdown after the cleanup timeout")
+    os._exit(0)
 
 
 if __name__ == "__main__":

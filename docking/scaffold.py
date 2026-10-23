@@ -22,6 +22,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import keyword
 import sys
 from pathlib import Path
 
@@ -130,7 +131,7 @@ class {class_name}(Applet):
     name = _("{display}")
     icon_name = "{icon_name}"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         super().__init__(icon_size, config)
         self.present()
 
@@ -147,16 +148,17 @@ _TEST_PY = '''\
 from __future__ import annotations
 
 from docking.applets.{aid}.applet import {class_name}
+from docking.core.config import Config
 
 
 class Test{class_name}:
     def test_creates_with_icon(self):
-        applet = {class_name}(48)
+        applet = {class_name}(48, Config())
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = {class_name}(size)
+            applet = {class_name}(size, Config())
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
@@ -184,7 +186,9 @@ def _to_display(aid: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Scaffold a new docking applet")
-    parser.add_argument("name", help="Applet id (lowercase, no spaces)")
+    parser.add_argument(
+        "name", help="Applet id (a Python identifier: lowercase, no spaces)"
+    )
     parser.add_argument(
         "--category",
         choices=[c.name for c in AppletCategory],
@@ -193,8 +197,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    aid: str = args.name.lower().replace("-", "").replace("_", "")
-    category: str = args.category
+    aid: str = str(args.name).lower().replace("-", "").replace("_", "")
+    # The id becomes a package name, an import path and a class name, so one
+    # that is not a Python identifier would emit unimportable modules.
+    if not aid.isidentifier() or keyword.iskeyword(aid):
+        print(
+            f"ERROR: {args.name!r} is not a usable applet id (derived id: {aid!r}). "
+            "Use lowercase letters, digits, and underscores, starting with a "
+            "letter, and avoid Python keywords.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    category: str = str(args.category)
     class_name = _to_class_name(aid)
     state_class = aid.capitalize() + "State"
     display = _to_display(aid)

@@ -1,3 +1,5 @@
 packaging/shared/org.docking.Docking.desktop usr/share/applications
 packaging/shared/org.docking.camshield.policy usr/share/polkit-1/actions
 packaging/shared/refresh-desktop-caches.sh usr/lib/docking/refresh-desktop-caches
+docking/platform/backends/gnome/extension/metadata.json usr/share/gnome-shell/extensions/docking-bridge@docking.org/
+docking/platform/backends/gnome/extension/extension.js usr/share/gnome-shell/extensions/docking-bridge@docking.org/

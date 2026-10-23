@@ -31,20 +31,19 @@ XDG state storage rather than in ``dock.json``.
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
+from docking.platform.environment import docking_state_dir
 
 logger = get_logger("greeting")
 
-DEFAULT_STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "docking"
-)
+DEFAULT_STATE_DIR = docking_state_dir()
 DEFAULT_STATE_FILE = DEFAULT_STATE_DIR / "startup.json"
 NEW_YEAR_GREETING_LAST_DAY = 15
 
@@ -96,7 +95,7 @@ def save_state(
 ) -> None:
     """Persist greeting state atomically."""
     state_path = Path(path) if path else DEFAULT_STATE_FILE
-    state_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_dir(state_path)
 
     with tempfile.NamedTemporaryFile(
         "w",
@@ -177,6 +176,8 @@ def _coerce_int(value: Any, *, default: int) -> int:
             return int(value)
         if isinstance(value, str):
             return int(value.strip())
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError covers an infinite float or an int too large for the
+        # platform; escaping the startup timeout broke the greeting for good.
         return default
     return default

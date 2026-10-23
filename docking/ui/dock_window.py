@@ -19,11 +19,10 @@ What this class is
 It is not "the dock logic" in the abstract. It is the shell that:
 
 - owns the GTK window and drawing area,
-- receives raw pointer/button/scroll/crossing events,
-- owns long-lived UI collaborators,
-- turns raw events into calls to the right subsystem.
+- exposes shared geometry/input-region helpers,
+- hosts shell-level collaborators such as placement, hover, tooltip, and preview.
 
-It is intentionally the composition root of the runtime UI layer.
+The UI graph itself is composed in `docking.ui.factory`.
 
 What this class is not
 
@@ -32,7 +31,7 @@ That decomposition matters because this file used to become the place where
 every cross-feature fix landed. The current split is:
 
 - DockWindow
-  GTK shell and event adapter
+  GTK shell and shared window geometry
 
 - DockPlacementController
   monitor choice, reposition, struts, barriers, active-display polling
@@ -43,10 +42,11 @@ every cross-feature fix landed. The current split is:
 - DockGeometryBuilder
   window state -> shared geometry frame
 
-- HoverManager / TooltipManager / PreviewPopup / DnDHandler / MenuHandler
+- HoverManager / TooltipManager / PreviewPopup / DockInputController
   focused feature owners
 
-The point of this file is to connect those pieces, not to replace them.
+The point of this file is to provide the shell those pieces use, not to own
+their higher-level behavior.
 
 What kind of window this is
 
@@ -191,31 +191,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GdkX11, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
-from docking.applets.identity import is_applet_desktop_id as is_applet
-from docking.core.config import FolderStackUnfold, LeftClickAction, MiddleClickAction
-from docking.core.items import FILE_KIND, FOLDER_KIND
-from docking.core.position import is_horizontal
+from docking.applets.popup import PopupAnchor
+from docking.core.position import Position
 from docking.i18n import _
-from docking.log import get_logger
-from docking.platform.environment import detect_desktop, log_runtime_snapshot
-from docking.platform.launcher import launch, launch_new_window, open_target
-from docking.platform.struts import (
-    BlurRect,
-    clear_blur_region,
-    compute_blur_region,
-    set_blur_region,
+from docking.platform.backends.base import (
+    PreviewService,
+    Rect,
+    SessionBackend,
+    SurfaceService,
+    WindowService,
 )
+from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.ui import geometry
-from docking.ui.about import AboutDialogController
 from docking.ui.autohide import AutoHideController, HideState
-from docking.ui.dnd import DnDHandler
+from docking.ui.display import window_screen_position
 from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
@@ -224,15 +219,10 @@ from docking.ui.geometry import (
 )
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
-from docking.ui.menu import MenuHandler
 from docking.ui.placement import DockPlacementController
 from docking.ui.preview import PreviewPopup
-from docking.ui.runtime import DockRuntime
-from docking.ui.settings import SettingsWindowController
 from docking.ui.tooltip import TooltipManager
-from docking.ui.update_popup import UpdateCheckController
-
-log = get_logger(name="dock_window")
+from docking.ui.window_outline import WindowOutline
 
 # Re-exported for existing callers/tests.
 TRIGGER_PX = geometry.TRIGGER_PX
@@ -243,10 +233,8 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.items import DockItem
     from docking.core.theme import Theme
-    from docking.platform.dodge import WindowDodgeMonitor
-    from docking.platform.launcher import Launcher
+    from docking.platform.backends.base import VisibilityMonitor
     from docking.platform.model import DockModel
-    from docking.platform.window_tracker import WindowTracker
     from docking.ui.renderer import DockRenderer
 
 
@@ -272,7 +260,7 @@ class _DockWindowCache:
 
     geometry_frame: _GeometryFrameCacheEntry | None = None
     applied_input_frame: DockGeometryFrame | None = None
-    last_blur_region: tuple[int, ...] | None = None
+    last_blur_region: tuple[object, ...] | None = None
 
     @classmethod
     def create(cls) -> _DockWindowCache:
@@ -323,15 +311,11 @@ MOUSE_RIGHT = 3
 
 
 class DockWindow(Gtk.Window):
-    """Top-level dock window that owns event routing and edge integration.
+    """Top-level dock shell that owns window geometry and edge integration.
 
-    DockWindow acts as the composition root for runtime UI behavior: it keeps
-    references to model, renderer, hover manager, tooltip manager, preview,
-    dnd, menu, and autohide controller, then coordinates them from
-    GTK event callbacks.
-
-    In short: renderer draws pixels, model owns item state, and DockWindow
-    turns pointer/window-manager events into the right calls between them.
+    Runtime UI controllers are composed outside this class. DockWindow keeps the
+    GTK surface, placement, geometry, hover, tooltip, preview, and rendering
+    state they share.
     """
 
     def __init__(
@@ -340,8 +324,10 @@ class DockWindow(Gtk.Window):
         model: DockModel,
         renderer: DockRenderer,
         theme: Theme,
-        window_tracker: WindowTracker,
-        launcher: Launcher,
+        window_tracker: WindowService,
+        preview_service: PreviewService,
+        surface_service: SurfaceService,
+        session_backend: SessionBackend,
     ) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.config = config
@@ -349,14 +335,13 @@ class DockWindow(Gtk.Window):
         self.renderer = renderer
         self.theme = theme
         self.window_tracker = window_tracker
+        self.preview_service = preview_service
+        self.surface_service = surface_service
+        self.session_backend = session_backend
         self.cursor_x: float = -1.0
         self.cursor_y: float = -1.0
         self.autohide: AutoHideController
-        self.dnd: DnDHandler
-        self._menu: MenuHandler
         self.preview: PreviewPopup
-        self._menu_popup_visible: bool = False
-        self._update_checker: UpdateCheckController
         self.tooltip = TooltipManager(self, config, model, theme)
         self.geometry = DockGeometryBuilder(self)
 
@@ -369,19 +354,18 @@ class DockWindow(Gtk.Window):
             geometry_builder=self.geometry,
         )
 
-        self.placement = DockPlacementController(self)
+        self.placement = DockPlacementController(self, surface_service=surface_service)
         self.interaction = DockInteractionCoordinator(self)
         self._cache = _DockWindowCache.create()
         self._redraw_source_id: int | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None
-        self.dodge_monitor: WindowDodgeMonitor | None = None
+        self.dodge_monitor: VisibilityMonitor | None = None
 
         self._setup_window()
         self._setup_drawing_area()
         self.zoom_animator = ZoomAnimator(self.drawing_area)
-        self._build_components(launcher=launcher)
-        self._connect_model()
+        self._build_components()
 
     def _setup_window(self) -> None:
         """Configure GTK window as an X11 dock.
@@ -390,14 +374,14 @@ class DockWindow(Gtk.Window):
         sticky) and enables RGBA visual for composited transparency.
         """
         self.set_title(_("Docking"))
+        self.set_wmclass("Docking", "Docking")
         self.set_decorated(False)
-        self.set_skip_taskbar_hint(True)
-        self.set_skip_pager_hint(True)
-        self.stick()
-        self.set_keep_above(True)
-        self.set_type_hint(Gdk.WindowTypeHint.DOCK)
         self.set_app_paintable(True)
         self.set_resizable(False)
+        self.surface_service.configure_before_realize(self)
+        self.surface_service.set_workspace_scope(
+            current_workspace_only=self.config.current_workspace_only
+        )
 
         # Enable RGBA visual for transparency
         screen = self.get_screen()
@@ -434,76 +418,44 @@ class DockWindow(Gtk.Window):
             | Gdk.EventMask.ENTER_NOTIFY_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
             | Gdk.EventMask.SCROLL_MASK
+            | Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
-        self.drawing_area.connect("draw", self._on_draw)
-        self.drawing_area.connect("motion-notify-event", self._on_motion)
-        self.drawing_area.connect("button-press-event", self._on_button_press)
-        self.drawing_area.connect("button-release-event", self._on_button_release)
-        self.drawing_area.connect("leave-notify-event", self._on_leave)
-        self.drawing_area.connect("enter-notify-event", self._on_enter)
-        self.drawing_area.connect("scroll-event", self._on_scroll)
         self.add(self.drawing_area)
-
-        self._click_x: float = -1.0
-        self._click_y: float = -1.0
-        self._click_button: int = 0
-
-    def _connect_model(self) -> None:
-        """Listen for model changes to trigger redraws."""
-        self.model.add_change_listener(self._on_model_changed)
-
-    def _disconnect_model(self) -> None:
-        """Remove model listener during shutdown."""
-        self.model.remove_change_listener(self._on_model_changed)
 
     def _on_destroy(self, _window: Gtk.Window) -> None:
         """Release model subscriptions owned by the dock shell."""
-        self._disconnect_model()
+        if self.dodge_monitor is not None:
+            self.dodge_monitor.stop()
+            self.dodge_monitor = None
 
-    def start_update_checks(self) -> None:
-        """Start update-check scheduling owned by the dock shell."""
-        self._update_checker.start()
+    def set_theme(self, theme: Theme) -> None:
+        """Replace the runtime theme and notify collaborators that cache it."""
+        self.theme = theme
+        self.tooltip.set_theme(theme)
+        self.hover.set_theme(theme)
+        self._invalidate_current_geometry_frame()
 
-    def stop_update_checks(self) -> None:
-        """Stop update-check scheduling owned by the dock shell."""
-        self._update_checker.stop()
-
-    def _build_components(self, *, launcher: Launcher) -> None:
+    def _build_components(self) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
-        self._update_checker = UpdateCheckController(window=self, config=self.config)
-        runtime = DockRuntime(self, update_checker=self._update_checker)
-        about = AboutDialogController(parent=self)
-        settings = SettingsWindowController(
-            parent=self,
-            runtime=runtime,
-            model=self.model,
-            config=self.config,
-        )
         self.autohide = AutoHideController(self, self.config)
-        self.dnd = DnDHandler(
-            drawing_area=self.drawing_area,
-            window=self,
-            model=self.model,
-            config=self.config,
-            renderer=self.renderer,
-            theme=self.theme,
-            launcher=launcher,
-            geometry_builder=self.geometry,
-        )
-        self._menu = MenuHandler(
-            about=about,
-            settings=settings,
-            runtime=runtime,
-            model=self.model,
-            config=self.config,
+        self.preview = PreviewPopup(
             window_tracker=self.window_tracker,
-            geometry_builder=self.geometry,
-            launcher=launcher,
+            preview_service=self.preview_service,
         )
-        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
-        self.preview = PreviewPopup(window_tracker=self.window_tracker)
+        self.preview.set_transient_for(self)
         self.preview.set_pointer_inside_dock_probe(self.is_pointer_inside_dock)
         self.preview.set_autohide(controller=self.autohide)
+        self.preview.set_thumbnail_outline_enabled(
+            lambda: self.config.window_preview_highlight_thumbnails_on_hover
+        )
+        self.preview.set_thumbnail_width_probe(
+            lambda: self.config.window_preview_thumbnail_width
+        )
+        if self.session_backend.capabilities.supports_window_outline:
+            self.preview.set_window_outline(
+                WindowOutline(self.session_backend.surface),
+                lambda: self.config.window_preview_outline_window_on_hover,
+            )
         self.hover.set_preview(preview=self.preview)
 
     def is_pointer_inside_dock(self) -> bool:
@@ -611,7 +563,8 @@ class DockWindow(Gtk.Window):
         geometry = frame.geometry_for_item(item)
         if geometry is None:
             return None
-        win_x, win_y = self.get_position()
+        window_pos = window_screen_position(self)
+        win_x, win_y = window_pos.x, window_pos.y
         x, y = geometry.anchor_point(
             win_x=win_x,
             win_y=win_y,
@@ -634,434 +587,31 @@ class DockWindow(Gtk.Window):
         if self.dodge_monitor is not None:
             self.dodge_monitor.evaluate_now()
 
-    def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
-        """GTK draw signal handler -- orchestrates each frame.
-
-        Delegates rendering to the DockRenderer, then updates the input
-        region (which may change during hide animation), resets cursor
-        after hide completes, and re-schedules redraws for urgent glow.
-        """
-        self._clear_scheduled_redraw()
-        hide_offset = self.autohide.hide_offset
-        # zoom_progress for debug logging only -- the geometry layer
-        # composes hover zoom * autohide zoom in capture_geometry_inputs().
-        autohide_zoom = self.autohide.zoom_progress if self.autohide.enabled else 1.0
-        zoom_progress = self.zoom_animator.progress * autohide_zoom
-        drag_index = self.dnd.drag_index
-        drop_insert = self.dnd.drop_insert_index
-        drop_target = self.dnd.drop_target_id
-        hovered_id = (
-            self.hover.hovered_item.desktop_id
-            if self.hover and self.hover.hovered_item
-            else ""
-        )
-        current_autohide_state = None
-        if self.autohide.enabled:
-            current_autohide_state = self.autohide.state
-            log.debug(
-                (
-                    "draw: state=%s hide_offset=%.3f zoom_progress=%.3f "
-                    "hovered=%s cursor=(%.0f,%.0f)"
-                ),
-                self.autohide.state.value,
-                hide_offset,
-                zoom_progress,
-                hovered_id or "-",
-                self.cursor_x,
-                self.cursor_y,
-            )
-        # Advance insert/remove animations; request another draw if active
-        if self.model.tick_animations():
-            self._schedule_redraw()
-
-        frame = self._current_or_build_geometry_frame(
-            drop_insert_index=drop_insert,
-        )
-        if current_autohide_state is not None:
-            item_positions = [
-                (
-                    f"{geometry.item.desktop_id}@"
-                    f"({geometry.draw_rect.x},{geometry.draw_rect.y},"
-                    f"{geometry.draw_rect.w}x{geometry.draw_rect.h})"
-                )
-                for geometry in frame.item_geometries
-            ]
-            log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
-        self._sync_background_blur_hint(frame=frame)
-        self.renderer.draw(
-            cr,
-            widget,
-            frame,
-            self.config,
-            self.theme,
-            hide_offset,
-            drag_index,
-            drop_insert,
-            hovered_id,
-            drop_target_id=drop_target,
-        )
-        # Update input region as hide state changes (shrink when hidden)
-        self.update_input_region(frame=frame)
-
-        # Reset cursor/hover after hide completes
-        if self.autohide.state == HideState.HIDDEN:
-            self.cursor_x = -1.0
-            self.cursor_y = -1.0
-            self.hover.hovered_item = None
-            self.dock_hovered = False
-            self.tooltip.hide()
-        elif (
-            self._last_autohide_state == HideState.SHOWING
-            and current_autohide_state == HideState.VISIBLE
-            and self.dock_hovered
-            and self.hover.hovered_item is not None
-        ):
-            cursor_main = (
-                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
-            )
-            self.hover.update(cursor_main, frame=frame)
-            if (
-                self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
-                and self.hover.hovered_item is not None
-                and self.hover.hovered_item.kind == FOLDER_KIND
-            ):
-                self._show_folder_stack_for_item(
-                    item=self.hover.hovered_item,
-                    frame=frame,
-                    fallback_x=self.cursor_x,
-                    fallback_y=self.cursor_y,
-                    toggle_if_same_item=False,
-                )
-
-        # Keep redraw pump alive while urgent glow is visible (dock hidden)
-        if self.renderer.has_active_urgent_glow(
-            model=self.model,
-            theme=self.theme,
-            autohide_state=current_autohide_state,
-            now_us=GLib.get_monotonic_time(),
-        ):
-            self._schedule_redraw()
-
-        self._last_autohide_state = current_autohide_state
-
-        return True
-
-    def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
-        """Update cursor position, trigger zoom redraw, and refresh hover state.
-
-        Returns False to propagate the event so GTK's drag source can
-        detect the drag threshold and initiate DnD when appropriate.
-        """
-        self.cursor_x = event.x
-        self.cursor_y = event.y
-        frame = self._build_and_store_geometry_frame()
-        self.update_input_region(frame=frame)
-        self._schedule_redraw()
-        stack_item_id = self._menu.open_folder_stack_item_id()
-        hovered_item = frame.item_at_point(event.x, event.y)
-        if stack_item_id is not None and (
-            hovered_item is None or hovered_item.desktop_id != stack_item_id
-        ):
-            self._menu.close_folder_stack()
-        if frame.cursor_rect.contains(event.x, event.y):
-            self.interaction.on_effective_enter()
-            cursor_main = (
-                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
-            )
-            self.hover.update(cursor_main, frame=frame)
-            if hovered_item is not None and hovered_item.kind == FOLDER_KIND:
-                self._menu.schedule_folder_stack_prewarm(hovered_item)
-            if (
-                self.config.folder_stack_unfold == FolderStackUnfold.HOVER.value
-                and hovered_item is not None
-                and hovered_item.kind == FOLDER_KIND
-                and (
-                    not self.autohide.enabled
-                    or self.autohide.state == HideState.VISIBLE
-                )
-            ):
-                self._show_folder_stack_for_item(
-                    item=hovered_item,
-                    frame=frame,
-                    fallback_x=event.x,
-                    fallback_y=event.y,
-                    toggle_if_same_item=False,
-                )
-        elif self.dock_hovered:
-            self.interaction.on_effective_leave(widget)
-        return False  # Propagate so GTK drag source can detect drag threshold
-
-    def close_open_folder_stack_for_item(self, desktop_id: str) -> None:
-        """Close the folder stack if it currently belongs to the given item."""
-        if self._menu.open_folder_stack_item_id() == desktop_id:
-            self._menu.close_folder_stack()
-
-    def _show_folder_stack_for_item(
+    def popup_anchor_for_item(
         self,
-        *,
         item: DockItem,
-        frame,
-        fallback_x: float,
-        fallback_y: float,
-        toggle_if_same_item: bool,
-    ) -> None:
+        frame: DockGeometryFrame,
+    ) -> PopupAnchor | None:
+        """Build the current outer-center popup anchor for one dock item."""
         item_geometry = frame.geometry_for_item(item)
-        if item_geometry is not None:
-            win_x, win_y = self.get_position()
-            anchor_x, anchor_y = item_geometry.anchor_point(
-                win_x=win_x,
-                win_y=win_y,
-                position=self.config.pos,
-            )
-            icon_w = int(item_geometry.draw_rect.w)
-        else:
-            win_x, win_y = self.get_position()
-            anchor_x = win_x + int(fallback_x)
-            anchor_y = win_y + int(fallback_y)
-            icon_w = int(self.config.icon_size)
-        self._menu.show_folder_stack(
-            item=item,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            icon_w=icon_w,
+        if item_geometry is None:
+            return None
+        window_pos = window_screen_position(self)
+        anchor_x, anchor_y = item_geometry.anchor_point(
+            win_x=window_pos.x,
+            win_y=window_pos.y,
             position=self.config.pos,
-            toggle_if_same_item=toggle_if_same_item,
         )
-
-    def _on_button_press(
-        self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
-    ) -> bool:
-        """Record press position for click-vs-drag discrimination.
-
-        The actual click action fires on button-release, not here. This
-        handler only stores the press coordinates so _on_button_release
-        can compare them and distinguish clicks from drags.
-        """
-        self._click_x = event.x
-        self._click_y = event.y
-        self._click_button = event.button
-        return False  # Propagate so DnD can still work
-
-    def _on_button_release(
-        self, _widget: Gtk.DrawingArea, event: Gdk.EventButton
-    ) -> bool:
-        """Handle clicks on dock items (on release to avoid DnD conflicts)."""
-        # Only act if release is near the press point (not a drag)
-        if is_horizontal(pos=self.config.pos):
-            drag_delta = abs(event.x - self._click_x)
+        if self.config.pos in (Position.BOTTOM, Position.TOP):
+            anchor_x += int(item_geometry.draw_rect.w / 2)
         else:
-            drag_delta = abs(event.y - self._click_y)
-        if drag_delta > CLICK_DRAG_THRESHOLD:
-            return False
-
-        if event.button == MOUSE_RIGHT:
-            cursor_main = event.x if is_horizontal(pos=self.config.pos) else event.y
-            self._menu.show(event, cursor_main)
-            return True
-
-        if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
-            frame = self._build_and_store_geometry_frame(
-                cursor_x=event.x,
-                cursor_y=event.y,
-            )
-            item = frame.item_at_point(event.x, event.y)
-            if item is None:
-                return True
-
-            # Animation trigger chain:
-            #
-            # Every click sets last_clicked, which triggers the click
-            # darken animation (sine pulse, 300ms). The renderer reads
-            # this timestamp each frame and computes the darken amount.
-            #
-            # If the click also launches the app (not already running,
-            # or force-launch via middle-click/Ctrl+click), we also set
-            # last_launched. This triggers the launch bounce animation
-            # (600ms, two bounces). Both animations run simultaneously --
-            # the icon darkens AND bounces at the same time.
-            #
-            # The two timestamps are independent fields on DockItem.
-            # Setting last_clicked does not affect last_launched, and
-            # vice versa. The renderer evaluates each independently.
-            #
-            # The anim pump duration is set to cover the longer of the
-            # two animations plus a small margin for the final frame.
-            now = GLib.get_monotonic_time()
-            item.last_clicked = now
-
-            # Applets handle their own click
-
-            if is_applet(desktop_id=item.desktop_id):
-                applet = self.model.get_applet(item.desktop_id)
-                if applet:
-                    applet.on_clicked()
-                    # Refresh tooltip immediately so applet name/tooltip
-                    # changes are visible without waiting for pointer motion.
-                    self.tooltip.update(item, frame)
-                    self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                    return True
-
-            if item.kind == FOLDER_KIND:
-                self._show_folder_stack_for_item(
-                    item=item,
-                    frame=frame,
-                    fallback_x=event.x,
-                    fallback_y=event.y,
-                    toggle_if_same_item=(
-                        self.config.folder_stack_unfold != FolderStackUnfold.HOVER.value
-                    ),
-                )
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                return True
-
-            if item.kind == FILE_KIND:
-                item.last_launched = now
-                open_target(item.target)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-                return True
-
-            action = (
-                self.config.middle_click_action
-                if event.button == MOUSE_MIDDLE
-                else self.config.left_click_action
-            )
-            if event.state & Gdk.ModifierType.CONTROL_MASK:
-                action = MiddleClickAction.NEW_WINDOW.value
-
-            if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
-                item.last_launched = now
-                if action == MiddleClickAction.NEW_WINDOW.value:
-                    launch_new_window(desktop_id=item.desktop_id)
-                else:
-                    launch(desktop_id=item.desktop_id)
-                self.hover.start_anim_pump(BOUNCE_ANIMATION_PUMP_MS)
-            elif action == LeftClickAction.CYCLE.value:
-                self.window_tracker.cycle_windows(item.desktop_id)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == LeftClickAction.MOST_RECENT.value:
-                self.window_tracker.activate_most_recent(item.desktop_id)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == MiddleClickAction.MINIMIZE.value:
-                self.window_tracker.minimize_windows(item.desktop_id)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            elif action == MiddleClickAction.CLOSE_FOCUSED.value:
-                self.window_tracker.close_focused(item.desktop_id)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-            else:
-                self.window_tracker.toggle_focus(item.desktop_id)
-                self.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
-
-        return True
-
-    def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
-        """Forward scroll events to the applet under the cursor, if any.
-
-        Hit-tests the cursor against the current layout to find the target
-        item. If it's an applet, delegates to its on_scroll() and refreshes
-        the tooltip (applet name/state may change on scroll, e.g. clippy).
-        """
-        frame = self._build_and_store_geometry_frame(
-            cursor_x=event.x,
-            cursor_y=event.y,
+            anchor_y += int(item_geometry.draw_rect.h / 2)
+        return PopupAnchor(
+            x=anchor_x,
+            y=anchor_y,
+            position=self.config.pos,
+            parent=self,
         )
-        item = frame.item_at_point(event.x, event.y)
-        if item and is_applet(desktop_id=item.desktop_id):
-            applet = self.model.get_applet(item.desktop_id)
-            if applet:
-                direction_up = _scroll_direction_up(event=event)
-                if direction_up is None:
-                    return False
-                applet.on_scroll(direction_up)
-                # Refresh tooltip immediately (item.name may have changed)
-                self.tooltip.update(item, frame)
-                return True
-        return False
-
-    def _on_leave(self, widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
-        """Handle mouse leaving the dock area.
-
-        This is the most complex event handler in the dock because it
-        coordinates several subsystems: zoom state, preview popups,
-        autohide, and cursor tracking.
-        """
-        log.debug(
-            "leave: detail=%s mode=%s x=%.0f y=%.0f",
-            event.detail,
-            event.mode,
-            event.x,
-            event.y,
-        )
-        if event.detail == Gdk.NotifyType.INFERIOR:
-            return False
-
-        # Spurious leave filter: when the tooltip popup appears, GTK
-        # generates a NONLINEAR leave even though the cursor is still
-        # inside the dock's current cursor region. Ignore those leaves
-        # using the same half-open region semantics as the rest of the
-        # shared geometry layer.
-        current_entry = self._cache.geometry_frame
-        frame = (
-            current_entry.frame if current_entry is not None else None
-        ) or self._cache.applied_input_frame
-        input_rect = current_input_rect(frame)
-        if input_rect is not None and self.interaction.point_inside_event_frame(
-            x=event.x, y=event.y
-        ):
-            return False
-
-        if not self.dock_hovered:
-            return False
-
-        # Preview/autohide policy in simple terms:
-        #
-        # - preview visible => dock stays visible
-        # - preview hidden => dock may autohide
-        # - leaving dock should schedule preview hide when preview is visible
-        # - autohide should trigger when the preview actually finishes hiding,
-        #   not at the first dock leave
-        #
-        # This keeps the preview reachable. A user moving from the dock toward
-        # the preview should not make the dock immediately hide underneath the
-        # interaction. When a preview is visible, dock leave only schedules the
-        # preview to disappear after its grace period; the preview layer decides
-        # whether autohide should proceed once that timer actually completes.
-        self.interaction.on_effective_leave(widget)
-        return True
-
-    def _on_enter(self, _widget: Gtk.DrawingArea, event: Gdk.EventCrossing) -> bool:
-        """Handle mouse entering the dock -- trigger reveal and capture cursor.
-
-        Cursor position must be set here (not just in motion events)
-        because during the SHOWING animation the zoom engine needs a
-        valid cursor to compute the expanding displacement effect.
-        Without this, cursor stays at -1 from the HIDDEN reset and
-        compute_layout produces rest-only positions (no expansion).
-        """
-        self.cursor_x = event.x
-        self.cursor_y = event.y
-        frame = self._build_and_store_geometry_frame(
-            cursor_x=event.x,
-            cursor_y=event.y,
-        )
-        if frame.cursor_rect.contains(event.x, event.y):
-            self.interaction.on_effective_enter()
-        return True
-
-    def _on_model_changed(self) -> None:
-        """Reposition and redraw when the model changes."""
-        self._invalidate_current_geometry_frame()
-        self.update_input_region()
-        self.hover.on_model_changed()
-        self._menu.schedule_visible_folder_stack_prewarm(self.model.visible_items())
-        # Refresh hover/tooltip state even without mouse motion so applets
-        # that update item.name asynchronously (e.g. workspace switcher)
-        # show the new tooltip text immediately.
-        if self.hover.hovered_item is not None:
-            cursor_main = (
-                self.cursor_x if is_horizontal(pos=self.config.pos) else self.cursor_y
-            )
-            self.hover.update(cursor_main)
-        self._schedule_redraw()
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:
         """Define which part of the window responds to mouse events.
@@ -1092,9 +642,6 @@ class DockWindow(Gtk.Window):
         containment on the same geometry source instead of rebuilding window
         interaction bounds separately inside DockWindow.
         """
-        gdk_window = self.get_window()
-        if not gdk_window:
-            return
         frame = frame or self._current_or_build_geometry_frame()
         current_entry = self._cache.geometry_frame
         current_frame = current_entry.frame if current_entry is not None else None
@@ -1106,58 +653,47 @@ class DockWindow(Gtk.Window):
         old_rect = current_input_rect(self._cache.applied_input_frame)
         new_rect = frame.cursor_rect
         if new_rect != old_rect:
-            region = cairo.Region(
-                cairo.RectangleInt(new_rect.x, new_rect.y, new_rect.w, new_rect.h)
+            self.surface_service.update_input_region(
+                Rect(
+                    x=new_rect.x,
+                    y=new_rect.y,
+                    width=new_rect.w,
+                    height=new_rect.h,
+                )
             )
-            gdk_window.input_shape_combine_region(region, 0, 0)
             self._cache.applied_input_frame = frame
 
     def _sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
-        gdk_window = self.get_window()
-        if not gdk_window or not isinstance(gdk_window, GdkX11.X11Window):
-            return
-
         if self.autohide.enabled and self.autohide.state == HideState.HIDDEN:
             if self._cache.last_blur_region is not None:
-                clear_blur_region(gdk_window=gdk_window)
+                self.surface_service.set_blur_region(None)
                 self._cache.last_blur_region = None
             return
 
         background = frame.background_rect
-        blur_region = tuple(
-            compute_blur_region(
-                rect=BlurRect(
-                    x=background.x,
-                    y=background.y,
-                    width=background.w,
-                    height=background.h,
-                ),
-                roundness=self.theme.roundness,
-                round_bottom=self.theme.round_bottom,
-                position=self.config.pos,
-                scale=gdk_window.get_scale_factor(),
+        blur_key = (
+            background.x,
+            background.y,
+            background.w,
+            background.h,
+            self.theme.roundness,
+            self.theme.round_bottom,
+            self.config.pos,
+            self.get_scale_factor(),
+        )
+        if blur_key == self._cache.last_blur_region:
+            return
+        self.surface_service.set_blur_region(
+            Rect(
+                x=background.x,
+                y=background.y,
+                width=background.w,
+                height=background.h,
             )
         )
-        if blur_region == self._cache.last_blur_region:
-            return
-        set_blur_region(gdk_window=gdk_window, blur_region=list(blur_region))
-        self._cache.last_blur_region = blur_region
+        self._cache.last_blur_region = blur_key
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
         self._invalidate_current_geometry_frame()
         self._schedule_redraw()
-
-
-def _scroll_direction_up(*, event: Gdk.EventScroll) -> bool | None:
-    """Normalize GTK discrete and smooth scroll events to one applet direction."""
-    if event.direction == Gdk.ScrollDirection.UP:
-        return True
-    if event.direction == Gdk.ScrollDirection.DOWN:
-        return False
-    if event.direction == Gdk.ScrollDirection.SMOOTH:
-        has_deltas, _dx, dy = event.get_scroll_deltas()
-        if not has_deltas or dy == 0:
-            return None
-        return dy < 0
-    return None

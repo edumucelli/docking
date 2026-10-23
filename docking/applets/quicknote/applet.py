@@ -54,8 +54,8 @@ class QuickNoteApplet(Applet):
     name = _("Quick Note")
     icon_name = "text-editor"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
-        prefs = config.applet_prefs.get("quicknote", {}) if config else None
+    def __init__(self, icon_size: int, config: Config) -> None:
+        prefs = config.applet_prefs.get("quicknote", {})
         self._note = note_from_prefs(prefs)
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -81,7 +81,8 @@ class QuickNoteApplet(Applet):
     def _show_edit_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Quick Note"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.add_button(_("OK"), Gtk.ResponseType.OK)

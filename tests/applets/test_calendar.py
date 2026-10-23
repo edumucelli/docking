@@ -12,6 +12,8 @@ import pytest
 import docking.applets.calendar.applet as calendar_applet_mod
 from docking.applets.calendar.applet import CalendarApplet
 from docking.applets.calendar.render import _render_calendar_icon
+from docking.applets.calendar.state import CalendarSnapshot
+from docking.core.config import Config
 
 
 class TestRenderCalendarIcon:
@@ -38,12 +40,24 @@ class TestRenderCalendarIcon:
 
 
 class TestCalendarApplet:
+    def test_same_day_number_with_new_weekday_repaints_icon(self, monkeypatch):
+        snapshots = [CalendarSnapshot(15, "Thu", "Thu, Jan 15")]
+        monkeypatch.setattr(calendar_applet_mod, "snapshot_from", lambda: snapshots[0])
+        applet = CalendarApplet(48, config=Config())
+        before = bytes(applet.item.icon.get_pixels())
+        snapshots[0] = CalendarSnapshot(15, "Sun", "Sun, Feb 15")
+
+        applet._tick()
+
+        assert bytes(applet.item.icon.get_pixels()) != before
+        assert applet.item.name == "Sun, Feb 15"
+
     def test_creates_with_icon(self):
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         assert applet.item.icon is not None
 
     def test_tooltip_is_full_date(self):
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         # Given a second create_icon call (item exists after __init__)
         applet.create_icon(48)
         # Then tooltip contains current day number
@@ -52,18 +66,18 @@ class TestCalendarApplet:
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CalendarApplet(size)
+            applet = CalendarApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_no_menu_items(self):
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         assert applet.get_menu_items() == []
 
     def test_start_and_stop_manage_timer(self, monkeypatch):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         remove = MagicMock()
         monkeypatch.setattr(
             calendar_applet_mod.GLib, "timeout_add_seconds", lambda *_a: 77
@@ -80,13 +94,13 @@ class TestCalendarApplet:
 
     def test_tick_refreshes_presentation_when_day_changes(self, monkeypatch):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         applet._last_day = 10
         applet.present = MagicMock()
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
-            lambda: SimpleNamespace(day=11, tooltip="Tue, Jan 11"),
+            lambda: SimpleNamespace(day=11, weekday="Tue", tooltip="Tue, Jan 11"),
         )
 
         # When
@@ -99,13 +113,15 @@ class TestCalendarApplet:
 
     def test_tick_updates_tooltip_only_when_same_day(self, monkeypatch):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         applet._last_day = 10
         applet.present = MagicMock()
         monkeypatch.setattr(
             calendar_applet_mod,
             "snapshot_from",
-            lambda: SimpleNamespace(day=10, tooltip="Mon, Jan 10"),
+            lambda: SimpleNamespace(
+                day=10, weekday=applet._last_weekday, tooltip="Mon, Jan 10"
+            ),
         )
 
         # When
@@ -118,7 +134,7 @@ class TestCalendarApplet:
 
     def test_on_clicked_hides_existing_popup(self):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         applet._popup = MagicMock()
         applet._popup.get_visible.return_value = True
         applet._show_popup = MagicMock()
@@ -229,14 +245,15 @@ class _FakePopupWindow:
 class TestCalendarPopup:
     def test_show_popup_creates_window_and_uses_shared_surface(self, monkeypatch):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         fake_popup = _FakePopupWindow()
         shown: dict[str, object] = {}
 
-        def show_wrapped_popup(*, window, content, gap_px):
+        def show_wrapped_popup(*, window, content, gap_px, anchor=None):
             shown["window"] = window
             shown["content"] = content
             shown["gap_px"] = gap_px
+            shown["anchor"] = anchor
             window.add(content)
             window.show_all()
 
@@ -264,10 +281,11 @@ class TestCalendarPopup:
         assert shown["window"] is fake_popup
         assert isinstance(shown["content"], _FakeCalendar)
         assert shown["gap_px"] == calendar_applet_mod.CALENDAR_POPUP_CURSOR_GAP_PX
+        assert shown["anchor"] is None
 
     def test_stop_destroys_popup(self):
         # Given
-        applet = CalendarApplet(48)
+        applet = CalendarApplet(48, config=Config())
         popup = MagicMock()
         applet._popup = popup
 

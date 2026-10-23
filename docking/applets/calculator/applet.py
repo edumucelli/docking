@@ -53,6 +53,7 @@ from docking.applets.calculator import meta
 from docking.applets.calculator.render import create_icon
 from docking.applets.calculator.state import evaluate, prefs_payload
 from docking.applets.popup import create_popup_window, show_wrapped_popup
+from docking.core.icons import IconSource
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -76,13 +77,13 @@ class CalculatorApplet(Applet):
     id = meta.id
     name = _("Calculator")
     icon_name = "accessories-calculator"
-    supports_system_icon = True
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._popup: Gtk.Window | None = None
         self._entry: Gtk.Entry | None = None
 
-        prefs = config.applet_prefs.get("calculator", {}) if config else {}
+        prefs = config.applet_prefs.get("calculator", {})
         self._last_expr = str(prefs.get("last_expression", ""))
 
         super().__init__(icon_size=icon_size, config=config)
@@ -116,6 +117,7 @@ class CalculatorApplet(Applet):
             window=self._popup,
             content=self._build_popup_content(),
             gap_px=POPUP_CURSOR_GAP_PX,
+            anchor=self.popup_anchor,
         )
 
     def _build_popup_content(self) -> Gtk.Box:

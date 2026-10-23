@@ -15,24 +15,43 @@
 
 from __future__ import annotations
 
-import gi
+import math
 
-gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk
-
-
-def pick_pixel(x: int, y: int) -> tuple[int, int, int] | None:
-    """Read a single pixel from the root window at screen coordinates."""
-    root = Gdk.get_default_root_window()
-    if root is None:
-        return None
-    pb = Gdk.pixbuf_get_from_window(root, x, y, 1, 1)
-    if pb is None:
-        return None
-    p = pb.get_pixels()
-    return (p[0], p[1], p[2])
+_HEX_DIGITS = set("0123456789abcdefABCDEF")
 
 
 def rgb_to_hex(r: int, g: int, b: int) -> str:
     """Convert RGB to uppercase hex string."""
     return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def coerce_channel(value: object, *, default: float) -> float:
+    """Coerce a persisted colour channel into 0.0-1.0.
+
+    The value reaches cairo's ``set_source_rgb`` during construction, where
+    anything that is not a real number raises.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if not math.isfinite(parsed):
+        return default
+    return min(1.0, max(0.0, parsed))
+
+
+def coerce_hex(value: object) -> str:
+    """Return a usable ``#RRGGBB`` label, or an empty string.
+
+    The value is rendered in a label and a menu item, so it has to be text.
+    """
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if len(text) != 7 or not text.startswith("#"):
+        return ""
+    if not all(char in _HEX_DIGITS for char in text[1:]):
+        return ""
+    return text.upper()

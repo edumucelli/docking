@@ -32,6 +32,10 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, *, key, **kwargs):
+        self.run(**kwargs)
+        return True
+
 
 # -- Parsers ------------------------------------------------------------------
 
@@ -167,7 +171,7 @@ class TestVolumeSettingsLauncher:
         monkeypatch.setattr(
             volume_state_mod.subprocess,
             "Popen",
-            lambda cmd, start_new_session=True: launched.append(cmd),
+            lambda cmd, **_kwargs: launched.append(cmd),
         )
 
         assert open_volume_settings() is True
@@ -192,7 +196,7 @@ def _make_applet(
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
         mock_backend.get_state.return_value = state
-        applet = VolumeApplet(48, config=config)
+        applet = VolumeApplet(48, config=config or Config())
     # Re-attach the mock backend so tests can inspect calls
     applet._backend = mock_backend
     return applet
@@ -295,7 +299,7 @@ class TestVolumeApplet:
 
 def _make_applet_no_backend() -> VolumeApplet:
     with patch("docking.applets.volume.applet._detect_backend", return_value=None):
-        return VolumeApplet(48)
+        return VolumeApplet(48, config=Config())
 
 
 class TestVolumeStateBackendHelpers:
@@ -413,7 +417,9 @@ class TestVolumeAppletInternals:
         applet._backend.get_state.return_value = VolumeState(volume=70, muted=True)
         calls = []
         monkeypatch.setattr(
-            applet, "_on_poll_result", lambda state: calls.append(state) or False
+            applet,
+            "_on_poll_result",
+            lambda state, **_kwargs: calls.append(state) or False,
         )
         assert applet._tick() is True
         assert calls == [VolumeState(volume=70, muted=True)]

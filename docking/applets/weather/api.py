@@ -20,14 +20,14 @@ All functions are pure data -- no GTK dependency.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 from docking.applets.weather import meta
+from docking.core.paths import ensure_dir
 from docking.log import get_logger, with_context
+from docking.platform.environment import docking_cache_dir
 
 log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 
@@ -36,12 +36,9 @@ log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 REFRESH_INTERVAL = 300  # 5 minutes
 API_RETRY_COUNT = 5
 API_RETRY_BACKOFF_FACTOR = 0.2
+API_TIMEOUT_S = 5
 
-_CACHE_DIR = (
-    Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    / "docking"
-    / "weather"
-)
+_CACHE_DIR = docking_cache_dir() / "weather"
 
 _API_URL = "https://api.open-meteo.com/v1/forecast"
 _AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -132,7 +129,7 @@ def _get_client() -> Any:
     import requests_cache
     from retry_requests import retry
 
-    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_dir(_CACHE_DIR)
     cache_path = str(_CACHE_DIR / "responses")
     # Three-layer stack: openmeteo_requests wraps retry_requests wraps
     # requests_cache. Cache avoids redundant HTTP; retry handles failures.
@@ -167,6 +164,7 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
                 ],
                 "forecast_days": 5,
             },
+            timeout=API_TIMEOUT_S,
         )
         resp = responses[0]
 
@@ -219,6 +217,7 @@ class AirQualityData(NamedTuple):
     pm2_5: float  # Fine particulate (μg/m³)
     pm10: float  # Particulate (μg/m³)
     label: str  # Human-readable level
+    uv_index: float | None = None  # Current UV index
 
 
 def aqi_label(aqi: int) -> str:
@@ -248,17 +247,32 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
             params={
                 "latitude": lat,
                 "longitude": lng,
-                "current": ["european_aqi", "pm10", "pm2_5"],
+                "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
             },
+            timeout=API_TIMEOUT_S,
         )
         current = responses[0].Current()
         aqi = int(current.Variables(0).Value())
         pm10 = round(current.Variables(1).Value(), 1)
         pm2_5 = round(current.Variables(2).Value(), 1)
-        return AirQualityData(aqi=aqi, pm2_5=pm2_5, pm10=pm10, label=aqi_label(aqi=aqi))
+        uv_index = _optional_current_value(current, index=3)
+        return AirQualityData(
+            aqi=aqi,
+            pm2_5=pm2_5,
+            pm10=pm10,
+            label=aqi_label(aqi=aqi),
+            uv_index=uv_index,
+        )
     except Exception:
         log.bind(action="fetch_air_quality").warning(
             "Failed to fetch air quality",
             exc_info=True,
         )
+        return None
+
+
+def _optional_current_value(current: Any, *, index: int) -> float | None:
+    try:
+        return round(float(current.Variables(index).Value()), 1)
+    except (AttributeError, IndexError, TypeError, ValueError):
         return None

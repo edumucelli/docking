@@ -14,48 +14,12 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.window_tracker as tracker_mod
-from docking.platform.launcher import DESKTOP_SUFFIX, GNOME_APP_PREFIX
-from docking.platform.window_tracker import WindowMatcher
+import docking.platform.backends.x11.impl.window_tracker as tracker_mod
+from docking.platform.applications.constants import DESKTOP_SUFFIX, GNOME_APP_PREFIX
 
 if _CREATED_GI_FALLBACK:
     sys.modules.pop("gi", None)
     sys.modules.pop("gi.repository", None)
-
-
-class TestWmClassCandidates:
-    """Desktop ID candidates from WM_CLASS with spaces."""
-
-    def test_no_spaces(self):
-        assert WindowMatcher._desktop_candidates(
-            class_lower="firefox",
-            class_group="Firefox",
-        ) == ["firefox", f"{GNOME_APP_PREFIX}Firefox"]
-
-    def test_spaces_to_hyphens_and_joined(self):
-        result = WindowMatcher._desktop_candidates(
-            class_lower="mongodb compass",
-            class_group="MongoDB Compass",
-        )
-        assert "mongodb compass" in result
-        assert "mongodb-compass" in result
-        assert "mongodbcompass" in result
-        assert f"{GNOME_APP_PREFIX}MongoDB Compass" in result
-
-    def test_multi_word(self):
-        result = WindowMatcher._desktop_candidates(
-            class_lower="aws vpn client",
-            class_group="AWS VPN Client",
-        )
-        assert "aws-vpn-client" in result
-        assert "awsvpnclient" in result
-
-    def test_no_duplicates(self):
-        result = WindowMatcher._desktop_candidates(
-            class_lower="simple",
-            class_group="simple",
-        )
-        assert len(result) == len(set(result))
 
 
 class TestDesktopConstants:
@@ -103,12 +67,12 @@ class TestWindowActions:
         tracker._launcher = MagicMock()
         return tracker
 
-    def test_minimize_windows_minimizes_each_non_minimized_window(self):
+    def test_internal_minimize_windows_minimizes_each_non_minimized_window(self):
         first = _FakeWindow(1)
         second = _FakeWindow(2, minimized=True)
         tracker = self._make_tracker([first, second])
 
-        tracker_mod.WindowTracker.minimize_windows(tracker, "firefox.desktop")
+        tracker_mod.WindowTracker._minimize_windows(tracker, "firefox.desktop")
 
         assert first.minimize_calls == 1
         assert second.minimize_calls == 0
@@ -135,7 +99,9 @@ class TestWindowActions:
         assert own.close_calls == []
         assert active.close_calls == []
 
-    def test_cycle_windows_activates_first_when_app_is_not_active(self, monkeypatch):
+    def test_internal_cycle_windows_activates_first_when_app_is_not_active(
+        self, monkeypatch
+    ):
         first = _FakeWindow(1)
         second = _FakeWindow(2)
         third = _FakeWindow(3)
@@ -147,12 +113,12 @@ class TestWindowActions:
             staticmethod(lambda window: activated.append(window.xid)),
         )
 
-        tracker_mod.WindowTracker.cycle_windows(tracker, "firefox.desktop")
+        tracker_mod.WindowTracker._cycle_windows(tracker, "firefox.desktop")
 
         assert activated == [1]
         assert tracker._cycle_index["firefox.desktop"] == 0
 
-    def test_cycle_windows_uses_active_window_position(self, monkeypatch):
+    def test_internal_cycle_windows_uses_active_window_position(self, monkeypatch):
         first = _FakeWindow(1)
         second = _FakeWindow(2)
         third = _FakeWindow(3)
@@ -164,12 +130,12 @@ class TestWindowActions:
             staticmethod(lambda window: activated.append(window.xid)),
         )
 
-        tracker_mod.WindowTracker.cycle_windows(tracker, "firefox.desktop")
+        tracker_mod.WindowTracker._cycle_windows(tracker, "firefox.desktop")
 
         assert activated == [3]
         assert tracker._cycle_index["firefox.desktop"] == 2
 
-    def test_cycle_windows_minimizes_on_last_window(self, monkeypatch):
+    def test_internal_cycle_windows_minimizes_on_last_window(self, monkeypatch):
         first = _FakeWindow(1)
         second = _FakeWindow(2)
         tracker = self._make_tracker([first, second], active=second)
@@ -179,14 +145,16 @@ class TestWindowActions:
             "activate_window",
             staticmethod(lambda window: (_ for _ in ()).throw(AssertionError())),
         )
-        tracker.minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
+        tracker._minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
 
-        tracker_mod.WindowTracker.cycle_windows(tracker, "firefox.desktop")
+        tracker_mod.WindowTracker._cycle_windows(tracker, "firefox.desktop")
 
         assert minimize_calls == ["firefox.desktop"]
         assert tracker._cycle_index["firefox.desktop"] == 0
 
-    def test_cycle_windows_resets_index_when_membership_changes(self, monkeypatch):
+    def test_internal_cycle_windows_resets_index_when_membership_changes(
+        self, monkeypatch
+    ):
         first = _FakeWindow(1)
         second = _FakeWindow(2)
         tracker = self._make_tracker([first, second], active=None)
@@ -199,7 +167,7 @@ class TestWindowActions:
             staticmethod(lambda window: activated.append(window.xid)),
         )
 
-        tracker_mod.WindowTracker.cycle_windows(tracker, "firefox.desktop")
+        tracker_mod.WindowTracker._cycle_windows(tracker, "firefox.desktop")
 
         assert activated == [1]
         assert tracker._cycle_index["firefox.desktop"] == 0
@@ -260,7 +228,7 @@ class TestWindowActions:
             "activate_window",
             staticmethod(lambda window: (_ for _ in ()).throw(AssertionError())),
         )
-        tracker.minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
+        tracker._minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
 
         tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
 

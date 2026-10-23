@@ -1,0 +1,26 @@
+post_install() {
+  if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
+    /usr/lib/docking/refresh-desktop-caches
+  fi
+  if command -v gnome-extensions >/dev/null 2>&1 \
+     && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    gnome-extensions enable docking-bridge@docking.org || true
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  if command -v gnome-extensions >/dev/null 2>&1 \
+     && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    gnome-extensions disable docking-bridge@docking.org || true
+  fi
+}
+
+post_remove() {
+  if [ -x /usr/lib/docking/refresh-desktop-caches ]; then
+    /usr/lib/docking/refresh-desktop-caches
+  fi
+}

@@ -4,16 +4,35 @@ from __future__ import annotations
 
 import datetime as dt
 
+import pytest
+
+import docking.applets.alarm.applet as alarm_applet_mod
 from docking.applets.alarm.applet import AlarmApplet
 from docking.applets.alarm.state import (
+    DEFAULT_LABEL,
+    WEEKDAY_LABELS,
     AlarmPreset,
     AlarmState,
+    _due_occurrence,
+    _next_occurrence,
+    _parse_datetime,
+    _parse_int,
+    _parse_repeat_days,
+    _preset_from_mapping,
     add_preset,
     dismiss_ringing,
+    format_alarm_time,
+    format_clock_time,
+    format_duration,
     icon_label,
+    menu_status_text,
     next_alarm,
+    normalize_preset,
     prefs_from_state,
+    preset_summary,
+    remove_preset,
     repeat_label,
+    replace_preset,
     set_enabled,
     snooze_ringing,
     state_from_prefs,
@@ -26,6 +45,15 @@ _TZ = dt.timezone.utc
 
 
 class TestAlarmState:
+    @pytest.mark.parametrize("enabled", [False, "false", "off", "0"])
+    def test_disabled_preference_stays_disabled(self, enabled):
+        state = state_from_prefs({"presets": [{"enabled": enabled}]})
+
+        assert state.presets[0].enabled is False
+        assert not tick(
+            state, now=dt.datetime(2026, 5, 18, 8, 0, tzinfo=_TZ)
+        ).started_ringing
+
     def test_prefs_round_trip(self):
         state = AlarmState(
             presets=(
@@ -121,6 +149,49 @@ class TestAlarmState:
         assert dismissed.ringing_index is None
         assert dismissed.ringing_since is None
 
+    @pytest.mark.parametrize("hour", [7, 23])
+    def test_dismissing_snooze_keeps_original_occurrence_consumed(self, hour):
+        now = dt.datetime(2026, 5, 18, hour, 58, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(hour=hour, minute=58, repeat_days=tuple(range(7))),)
+        )
+        ringing = tick(state, now=now).state
+        snoozed = snooze_ringing(ringing, now=now)
+        snooze_time = now + dt.timedelta(minutes=5)
+
+        result = tick(snoozed, now=snooze_time)
+        assert result.started_ringing
+        assert result.state.presets[0].last_triggered == now.date().isoformat()
+        # The occurrence marker also survives a dock restart after snoozing.
+        dismissed = state_from_prefs(prefs_from_state(dismiss_ringing(result.state)))
+        assert not tick(dismissed, now=snooze_time).started_ringing
+        tomorrow = now + dt.timedelta(days=1)
+        assert tick(dismissed, now=tomorrow).started_ringing
+
+    def test_disabling_ringing_alarm_clears_ringing_state(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        ringing = tick(
+            AlarmState(presets=(AlarmPreset(repeat_days=(0,)),)), now=now
+        ).state
+
+        disabled = set_enabled(ringing, index=0, enabled=False)
+
+        assert disabled.ringing_index is None
+        assert disabled.ringing_since is None
+        assert not tick(disabled, now=now).started_ringing
+
+    def test_disabling_another_alarm_keeps_current_alarm_ringing(self):
+        state = AlarmState(
+            presets=(AlarmPreset(), AlarmPreset()),
+            ringing_index=0,
+            ringing_since=dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ),
+        )
+
+        disabled = set_enabled(state, index=1, enabled=False)
+
+        assert disabled.ringing_index == 0
+        assert disabled.ringing_since == state.ringing_since
+
     def test_enable_toggle_clears_snooze_when_disabled(self):
         snoozed_until = dt.datetime(2026, 5, 18, 7, 9, tzinfo=_TZ)
         state = AlarmState(
@@ -145,13 +216,71 @@ class TestAlarmState:
 
 
 class TestAlarmApplet:
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    def test_enabling_a_past_alarm_waits_for_next_occurrence(
+        self, monkeypatch, repeat_days
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        applet._state = AlarmState(
+            presets=(AlarmPreset(hour=7, enabled=False, repeat_days=repeat_days),)
+        )
+        applet._toggle_alarm(index=0, enabled=True)
+        assert not tick(applet._state, now=now).started_ringing
+        applet._tick()
+        assert not applet.item.is_urgent
+        alarm = next_alarm(applet._state, now=now)
+        assert alarm.when == dt.datetime(2026, 5, 19, 7, 0, tzinfo=_TZ)
+
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    def test_editing_fired_alarm_to_future_time_today_rearms_it(
+        self, monkeypatch, repeat_days
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        old = AlarmPreset(hour=7, repeat_days=repeat_days, last_triggered="2026-05-18")
+        applet._state = AlarmState(presets=(old,))
+        applet._upsert_preset(
+            index=0, preset=alarm_applet_mod.replace(old, hour=10, enabled=True)
+        )
+        due = dt.datetime(2026, 5, 18, 10, 0, tzinfo=_TZ)
+        assert next_alarm(applet._state, now=now).when == due
+        assert tick(applet._state, now=due).started_ringing
+        monkeypatch.setattr(applet, "_now", lambda: due)
+        applet._tick()
+        assert applet.item.is_urgent
+        assert applet._state.ringing_index == 0
+
+    @pytest.mark.parametrize("repeat_days", [(), tuple(range(7))])
+    @pytest.mark.parametrize("index", [None, 0])
+    def test_new_or_edited_past_time_waits_for_next_occurrence(
+        self, monkeypatch, repeat_days, index
+    ):
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        applet = AlarmApplet(48, config=Config())
+        monkeypatch.setattr(applet, "_now", lambda: now)
+        if index is not None:
+            applet._state = AlarmState(presets=(AlarmPreset(hour=10),))
+
+        applet._upsert_preset(
+            index=index, preset=AlarmPreset(hour=7, repeat_days=repeat_days)
+        )
+
+        scheduled = next_alarm(applet._state, now=now)
+        assert scheduled is not None
+        assert scheduled.when == now.replace(day=19, hour=7)
+        assert not tick(applet._state, now=now).started_ringing
+        assert tick(applet._state, now=scheduled.when).started_ringing
+
     def test_creates_with_icon(self):
-        applet = AlarmApplet(48)
+        applet = AlarmApplet(48, config=Config())
 
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
-        applet = AlarmApplet(48)
+        applet = AlarmApplet(48, config=Config())
         applet._state = AlarmState(presets=(AlarmPreset(hour=7, minute=30),))
 
         for size in [32, 48, 64]:
@@ -170,3 +299,367 @@ class TestAlarmApplet:
 
         prefs = Config.load(path).applet_prefs["alarm"]
         assert prefs["presets"][0]["label"] == "Wake"
+
+    @pytest.mark.parametrize("action", ["disable", "remove", "edit"])
+    def test_stopping_ringing_alarm_clears_urgency_and_restores_timer(
+        self, monkeypatch, action
+    ):
+        applet = AlarmApplet(48, config=Config())
+        applet._state = AlarmState(
+            presets=(AlarmPreset(repeat_days=tuple(range(7))),),
+            ringing_index=0,
+            ringing_since=dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ),
+        )
+        applet.item.is_urgent = True
+        applet._notify = lambda: None
+        applet._timer_id = 123
+        removed = []
+        intervals = []
+        monkeypatch.setattr(alarm_applet_mod.GLib, "source_remove", removed.append)
+
+        def schedule(interval, _callback):
+            intervals.append(interval)
+            return 456
+
+        monkeypatch.setattr(alarm_applet_mod.GLib, "timeout_add_seconds", schedule)
+
+        if action == "disable":
+            applet._toggle_alarm(index=0, enabled=False)
+        elif action == "remove":
+            applet._remove_preset(index=0)
+        else:
+            applet._upsert_preset(index=0, preset=AlarmPreset(enabled=False))
+
+        assert applet._state.ringing_index is None
+        assert applet.item.is_urgent is False
+        assert removed == [123]
+        assert intervals == [alarm_applet_mod.TICK_SECONDS]
+
+
+class TestAlarmStateEdgeCases:
+    def test_state_from_prefs_empty_dict(self):
+        assert state_from_prefs({}) == AlarmState()
+
+    def test_state_from_prefs_none(self):
+        assert state_from_prefs(None) == AlarmState()
+
+    def test_state_from_prefs_non_list_presets(self):
+        assert state_from_prefs({"presets": "bad"}) == AlarmState()
+
+    def test_state_from_prefs_invalid_preset_skipped(self):
+        assert state_from_prefs({"presets": ["not-a-mapping"]}) == AlarmState()
+
+    def test_remove_preset_invalid_index(self):
+        state = AlarmState(presets=(AlarmPreset(label="A"),))
+        assert remove_preset(state, index=5) == state
+
+    def test_remove_preset_clears_ringing_index(self):
+        state = AlarmState(
+            presets=(AlarmPreset(label="A"),),
+            ringing_index=0,
+            ringing_since=dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ),
+        )
+        result = remove_preset(state, index=0)
+        assert result.ringing_index is None
+        assert result.ringing_since is None
+
+    def test_remove_preset_adjusts_ringing_index_when_above(self):
+        state = AlarmState(
+            presets=(
+                AlarmPreset(label="A"),
+                AlarmPreset(label="B"),
+                AlarmPreset(label="C"),
+            ),
+            ringing_index=2,
+        )
+        result = remove_preset(state, index=1)
+        assert result.ringing_index == 1
+
+    def test_replace_preset_invalid_index(self):
+        state = AlarmState(presets=(AlarmPreset(label="A"),))
+        assert replace_preset(state, index=5, preset=AlarmPreset(label="X")) == state
+
+    def test_set_enabled_invalid_index(self):
+        state = AlarmState(presets=(AlarmPreset(label="A"),))
+        assert set_enabled(state, index=5, enabled=False) == state
+
+    def test_snooze_when_not_ringing(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(ringing_index=None)
+        assert snooze_ringing(state, now=now) == state
+
+    def test_tick_when_already_ringing(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(label="Wake"),),
+            ringing_index=0,
+            ringing_since=now,
+        )
+        result = tick(state, now=now)
+        assert not result.started_ringing
+
+    def test_tick_no_due_alarms(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(presets=())
+        result = tick(state, now=now)
+        assert not result.started_ringing
+
+    def test_icon_label_when_ringing(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(label="Wake"),),
+            ringing_index=0,
+            ringing_since=now,
+        )
+        assert icon_label(state, now=now) != ""
+
+    def test_icon_label_no_next_alarm(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        assert icon_label(AlarmState(), now=now) == ""
+
+    def test_icon_label_more_than_24h(self):
+        """Alarm more than 24h away shows weekday abbreviation."""
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(label="Far", hour=7, minute=0, repeat_days=(2,)),)
+        )
+        assert icon_label(state, now=now) == "Wed"
+
+    def test_icon_label_with_hours(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(presets=(AlarmPreset(label="Wake", hour=10, minute=0),))
+        result = icon_label(state, now=now)
+        assert "3" in result
+
+    def test_tooltip_text_when_ringing(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(label="Wake"),),
+            ringing_index=0,
+            ringing_since=now,
+        )
+        assert "Wake" in tooltip_text(state, now=now)
+
+    def test_tooltip_text_no_alarms(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        assert "no enabled alarms" in tooltip_text(AlarmState(), now=now)
+
+    def test_menu_status_text_ringing(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = AlarmState(
+            presets=(AlarmPreset(label="Wake"),),
+            ringing_index=0,
+            ringing_since=now,
+        )
+        assert "Wake" in menu_status_text(state, now=now)
+
+    def test_menu_status_text_no_alarms(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        assert "No enabled alarms" in menu_status_text(AlarmState(), now=now)
+
+    def test_menu_status_text_with_alarm(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        state = add_preset(AlarmState(), AlarmPreset(label="Wake", hour=8, minute=30))
+        assert "Wake" in menu_status_text(state, now=now)
+
+    def test_preset_summary_disabled(self):
+        preset = AlarmPreset(label="Wake", enabled=False)
+        assert "off" in preset_summary(preset)
+
+    def test_preset_summary_enabled(self):
+        preset = AlarmPreset(label="Wake", enabled=True, hour=7, minute=30)
+        assert "07:30 Wake" in preset_summary(preset)
+
+    def test_repeat_label_empty(self):
+        assert repeat_label(()) == "once"
+
+    def test_repeat_label_weekends(self):
+        assert repeat_label((5, 6)) == "weekends"
+
+    def test_repeat_label_daily(self):
+        assert repeat_label(tuple(range(7))) == "daily"
+
+    def test_repeat_label_custom_days(self):
+        result = repeat_label((0, 2, 4))
+        assert result == "Mon, Wed, Fri"
+
+    def test_repeat_label_filters_invalid_days(self):
+        assert repeat_label((0, 7, -1)) == "Mon"
+
+    def test_format_clock_time(self):
+        assert format_clock_time(hour=7, minute=5) == "07:05"
+
+    def test_format_alarm_time_today(self, monkeypatch):
+        monkeypatch.setattr("docking.applets.alarm.state.dt.datetime", dt.datetime)
+        alarm_time = dt.datetime(2026, 5, 18, 14, 30, tzinfo=_TZ)
+        result = format_alarm_time(alarm_time)
+        assert "14:30" in result
+
+    def test_format_alarm_time_other_day(self):
+        alarm_time = dt.datetime(2026, 5, 20, 14, 30, tzinfo=_TZ)
+        result = format_alarm_time(alarm_time)
+        assert result != "14:30"
+
+    def test_format_duration_days(self):
+        delta = dt.timedelta(days=2, hours=3)
+        result = format_duration(delta)
+        assert "2d" in result
+        assert "3h" in result
+
+    def test_format_duration_hours(self):
+        delta = dt.timedelta(hours=5, minutes=30)
+        result = format_duration(delta)
+        assert "5h" in result
+        assert "30m" in result
+
+    def test_format_duration_minutes(self):
+        delta = dt.timedelta(minutes=45)
+        result = format_duration(delta)
+        assert "45m" in result
+
+    def test_format_duration_zero(self):
+        delta = dt.timedelta(seconds=0)
+        result = format_duration(delta)
+        assert result != ""
+
+    def test_normalize_preset_clamps_values(self):
+        preset = AlarmPreset(label="  Test  ", hour=25, minute=60, snooze_minutes=200)
+        normalized = normalize_preset(preset)
+        assert normalized.label == "Test"
+        assert normalized.hour == 23
+        assert normalized.minute == 59
+        assert normalized.snooze_minutes == 120
+
+    def test_normalize_preset_empty_label_uses_default(self):
+        preset = AlarmPreset(label="   ")
+        normalized = normalize_preset(preset)
+        assert normalized.label == DEFAULT_LABEL
+
+
+class TestAlarmHelpers:
+    def test_parse_int_bool(self):
+        assert _parse_int(True, default=7) == 1
+        assert _parse_int(False, default=7) == 0
+
+    def test_parse_int_float(self):
+        assert _parse_int(3.14, default=7) == 3
+
+    def test_parse_int_string(self):
+        assert _parse_int("42", default=7) == 42
+
+    def test_parse_int_invalid_string(self):
+        assert _parse_int("abc", default=7) == 7
+
+    def test_parse_int_none(self):
+        assert _parse_int(None, default=7) == 7
+
+    def test_parse_repeat_days_non_list(self):
+        assert _parse_repeat_days("bad") == ()
+
+    def test_parse_repeat_days_valid(self):
+        assert _parse_repeat_days([0, 2, 4, 7, -1]) == (0, 2, 4)
+
+    def test_parse_datetime_empty_string(self):
+        assert _parse_datetime("") is None
+
+    def test_parse_datetime_non_string(self):
+        assert _parse_datetime(42) is None
+
+    def test_parse_datetime_invalid(self):
+        assert _parse_datetime("not-a-date") is None
+
+    def test_parse_datetime_naive(self):
+        result = _parse_datetime("2026-05-18T07:00:00")
+        assert result is not None
+        assert result.tzinfo is not None
+
+    def test_preset_from_mapping_non_mapping(self):
+        assert _preset_from_mapping("bad") is None
+
+    def test_due_occurrence_snoozed_future(self, monkeypatch):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        snoozed = dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ)
+        preset = AlarmPreset(hour=7, minute=0, snoozed_until=snoozed)
+        assert _due_occurrence(preset=preset, now=now) is None
+
+    def test_due_occurrence_future_alarm(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        preset = AlarmPreset(hour=8, minute=0)
+        assert _due_occurrence(preset=preset, now=now) is None
+
+    def test_due_occurrence_wrong_day(self):
+        now = dt.datetime(2026, 5, 19, 7, 0, tzinfo=_TZ)  # Tuesday
+        preset = AlarmPreset(hour=6, minute=0, repeat_days=(0, 2, 4))  # M,W,F
+        assert _due_occurrence(preset=preset, now=now) is None
+
+    def test_due_occurrence_already_triggered(self):
+        now = dt.datetime(2026, 5, 18, 7, 1, tzinfo=_TZ)
+        preset = AlarmPreset(hour=7, minute=0, last_triggered="2026-05-18")
+        assert _due_occurrence(preset=preset, now=now) is None
+
+    def test_due_occurrence_returns_snoozed_when_due(self):
+        now = dt.datetime(2026, 5, 18, 7, 20, tzinfo=_TZ)
+        snoozed = dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ)
+        preset = AlarmPreset(hour=7, minute=0, snoozed_until=snoozed)
+        result = _due_occurrence(preset=preset, now=now)
+        assert result == snoozed
+
+    def test_next_occurrence_snoozed(self):
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        snoozed = dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ)
+        preset = AlarmPreset(hour=7, minute=0, snoozed_until=snoozed)
+        result = _next_occurrence(preset=preset, now=now)
+        assert result == snoozed
+
+    def test_next_occurrence_no_repeat_no_match(self):
+        """A one-shot alarm that already triggered today will fire tomorrow."""
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)
+        preset = AlarmPreset(hour=8, minute=0, last_triggered="2026-05-18")
+        result = _next_occurrence(preset=preset, now=now)
+        assert result is not None
+        assert result.date() == dt.date(2026, 5, 19)
+
+    def test_next_occurrence_exhausts_loop_when_all_dates_skip(self):
+        """When last_triggered matches the only future repeat day, return None."""
+        now = dt.datetime(2026, 5, 18, 9, 0, tzinfo=_TZ)  # Monday
+        preset = AlarmPreset(
+            hour=8,
+            minute=0,
+            repeat_days=(0,),  # Monday only
+            last_triggered="2026-05-25",  # Next Monday
+        )
+        result = _next_occurrence(preset=preset, now=now)
+        assert result is None
+
+    def test_trigger_key_snoozed(self):
+        from docking.applets.alarm.state import _trigger_key
+
+        preset = AlarmPreset(
+            last_triggered="2026-05-18",
+            snoozed_until=dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ),
+        )
+        when = dt.datetime(2026, 5, 18, 7, 15, tzinfo=_TZ)
+        result = _trigger_key(preset=preset, when=when)
+        assert result == "2026-05-18"
+
+    def test_due_alarm_empty_state(self):
+        from docking.applets.alarm.state import _due_alarm
+
+        now = dt.datetime(2026, 5, 18, 7, 0, tzinfo=_TZ)
+        assert _due_alarm(AlarmState(), now=now) is None
+
+    def test_due_alarm_disabled_presets_skipped(self):
+        from docking.applets.alarm.state import _due_alarm
+
+        now = dt.datetime(2026, 5, 18, 7, 1, tzinfo=_TZ)
+        state = AlarmState(presets=(AlarmPreset(hour=7, minute=0, enabled=False),))
+        assert _due_alarm(state, now=now) is None
+
+    def test_preset_from_mapping_type_error(self):
+        """A mapping that doesn't have the right key types should return None."""
+        raw = {"hour": "not_a_number"}
+        result = _preset_from_mapping(raw)
+        assert result is not None  # Should handle gracefully
+
+    def test_weekday_labels_length(self):
+        assert len(WEEKDAY_LABELS) == 7

@@ -111,6 +111,7 @@ Useful toggles
 
 from __future__ import annotations
 
+import contextlib
 import math
 import os
 import sys
@@ -124,7 +125,7 @@ gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk
 
 from docking.core.position import Position
-from docking.platform.struts import (
+from docking.platform.backends.x11.impl.struts import (
     BlurRect,
     clear_blur_region,
     compute_blur_region,
@@ -132,25 +133,40 @@ from docking.platform.struts import (
 )
 from docking.ui.display import get_pointer_position
 
-
 TRUE_VALUES = {"1", "true", "yes", "on"}
 TRACE = os.environ.get("XWAYLAND_REPRO_TRACE", "1").strip().lower() in TRUE_VALUES
 WATCHDOG_MS = int(os.environ.get("XWAYLAND_REPRO_WATCHDOG_MS", "250"))
 AUTOHIDE_MODE = os.environ.get("XWAYLAND_REPRO_AUTOHIDE", "animate").strip().lower()
-TICK_PUMP = os.environ.get("XWAYLAND_REPRO_TICK_PUMP", "1").strip().lower() in TRUE_VALUES
+TICK_PUMP = (
+    os.environ.get("XWAYLAND_REPRO_TICK_PUMP", "1").strip().lower() in TRUE_VALUES
+)
 RECOVER = os.environ.get("XWAYLAND_REPRO_RECOVER", "0").strip().lower() in TRUE_VALUES
-AUTOCYCLE = os.environ.get("XWAYLAND_REPRO_AUTOCYCLE", "1").strip().lower() in TRUE_VALUES
+AUTOCYCLE = (
+    os.environ.get("XWAYLAND_REPRO_AUTOCYCLE", "1").strip().lower() in TRUE_VALUES
+)
 CYCLE_MS = int(os.environ.get("XWAYLAND_REPRO_CYCLE_MS", "900"))
 RUNTIME_MS = int(os.environ.get("XWAYLAND_REPRO_RUNTIME_MS", "12000"))
-DOCK_HINT = os.environ.get("XWAYLAND_REPRO_DOCK_HINT", "1").strip().lower() in TRUE_VALUES
-KEEP_ABOVE = os.environ.get("XWAYLAND_REPRO_KEEP_ABOVE", "1").strip().lower() in TRUE_VALUES
+DOCK_HINT = (
+    os.environ.get("XWAYLAND_REPRO_DOCK_HINT", "1").strip().lower() in TRUE_VALUES
+)
+KEEP_ABOVE = (
+    os.environ.get("XWAYLAND_REPRO_KEEP_ABOVE", "1").strip().lower() in TRUE_VALUES
+)
 STICKY = os.environ.get("XWAYLAND_REPRO_STICK", "1").strip().lower() in TRUE_VALUES
 USE_RGBA = os.environ.get("XWAYLAND_REPRO_RGBA", "1").strip().lower() in TRUE_VALUES
 CENTERED = os.environ.get("XWAYLAND_REPRO_CENTERED", "0").strip().lower() in TRUE_VALUES
-MOTION_SPAM = os.environ.get("XWAYLAND_REPRO_MOTION_SPAM", "0").strip().lower() in TRUE_VALUES
-OFFSCREEN_BLIT = os.environ.get("XWAYLAND_REPRO_OFFSCREEN_BLIT", "1").strip().lower() in TRUE_VALUES
-INPUT_SHAPE = os.environ.get("XWAYLAND_REPRO_INPUT_SHAPE", "1").strip().lower() in TRUE_VALUES
-BLUR_HINT = os.environ.get("XWAYLAND_REPRO_BLUR_HINT", "1").strip().lower() in TRUE_VALUES
+MOTION_SPAM = (
+    os.environ.get("XWAYLAND_REPRO_MOTION_SPAM", "0").strip().lower() in TRUE_VALUES
+)
+OFFSCREEN_BLIT = (
+    os.environ.get("XWAYLAND_REPRO_OFFSCREEN_BLIT", "1").strip().lower() in TRUE_VALUES
+)
+INPUT_SHAPE = (
+    os.environ.get("XWAYLAND_REPRO_INPUT_SHAPE", "1").strip().lower() in TRUE_VALUES
+)
+BLUR_HINT = (
+    os.environ.get("XWAYLAND_REPRO_BLUR_HINT", "1").strip().lower() in TRUE_VALUES
+)
 FRAME_INTERVAL_MS = 16
 TRIGGER_HEIGHT = 3
 HIDDEN_TRIGGER_HEIGHT = 10
@@ -374,10 +390,8 @@ class ReproWindow(Gtk.Window):
             GLib.source_remove(self.keepalive_id)
             self.keepalive_id = 0
         if self.tick_id:
-            try:
+            with contextlib.suppress(Exception):
                 self.area.remove_tick_callback(self.tick_id)
-            except Exception:
-                pass
             self.tick_id = 0
         gdk_window = self.get_window()
         if (
@@ -424,14 +438,14 @@ class ReproWindow(Gtk.Window):
         if (
             self.autohide_state in {"visible", "showing"}
             and (now_us - self.last_motion_us) >= (MOTION_IDLE_HIDE_MS * 1000)
+            and (self.hovered or self.autohide_state != "hiding")
         ):
-            if self.hovered or self.autohide_state != "hiding":
-                self.hovered = False
-                self.log_event(
-                    "motion-idle-hide",
-                    extra=f"idle_ms={(now_us - self.last_motion_us) / 1000.0:.1f}",
-                )
-                self.trigger_hide()
+            self.hovered = False
+            self.log_event(
+                "motion-idle-hide",
+                extra=f"idle_ms={(now_us - self.last_motion_us) / 1000.0:.1f}",
+            )
+            self.trigger_hide()
         display = self.get_display()
         if display is None:
             return
@@ -582,7 +596,9 @@ class ReproWindow(Gtk.Window):
         hidden_y = height - TRIGGER_HEIGHT
         return visible_y + ((hidden_y - visible_y) * self.hide_offset)
 
-    def compute_input_rect(self, *, width: int, height: int) -> tuple[int, int, int, int]:
+    def compute_input_rect(
+        self, *, width: int, height: int
+    ) -> tuple[int, int, int, int]:
         dock_w = min(width - 40, 920)
         dock_x = int((width - dock_w) / 2.0)
         if self.autohide_state == "hidden":
@@ -762,8 +778,7 @@ class ReproWindow(Gtk.Window):
             self.log_event(
                 "leave-ignored",
                 extra=(
-                    f"detail={event.detail.value_nick} "
-                    f"x={event.x:.1f} y={event.y:.1f}"
+                    f"detail={event.detail.value_nick} x={event.x:.1f} y={event.y:.1f}"
                 ),
             )
             return False
@@ -805,8 +820,12 @@ class ReproWindow(Gtk.Window):
         end_offset = 0.0 if target_visible else 1.0
 
         def tick() -> bool:
-            self.anim_progress = min(1.0, self.anim_progress + (FRAME_INTERVAL_MS / 220.0))
-            self.hide_offset = start_offset + ((end_offset - start_offset) * self.anim_progress)
+            self.anim_progress = min(
+                1.0, self.anim_progress + (FRAME_INTERVAL_MS / 220.0)
+            )
+            self.hide_offset = start_offset + (
+                (end_offset - start_offset) * self.anim_progress
+            )
             if self.anim_progress >= 1.0:
                 self.hide_offset = end_offset
                 self.autohide_state = "visible" if target_visible else "hidden"

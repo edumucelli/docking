@@ -1,4 +1,5 @@
 [Desktop Entry]
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 Type=Application
 Name=Docking
 Comment=A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
@@ -7,4 +8,4 @@ Icon=org.docking.Docking
 Categories=Utility;GTK;
 Terminal=false
 StartupNotify=false
-X-GNOME-Autostart-enabled=false
+X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1

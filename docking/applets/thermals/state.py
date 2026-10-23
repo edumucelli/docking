@@ -33,6 +33,7 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.tooltip import structured_tooltip
+from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -530,7 +531,7 @@ def thermal_level(celsius: float | None) -> float:
     """Map temperature to a 0..1 visual severity value."""
     if celsius is None:
         return 0.0
-    return max(0.0, min(1.0, (celsius - 35.0) / 55.0))
+    return clamp((celsius - 35.0) / 55.0, 0.0, 1.0)
 
 
 def thermal_color(celsius: float | None) -> tuple[float, float, float]:

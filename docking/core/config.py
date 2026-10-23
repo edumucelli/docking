@@ -144,23 +144,33 @@ state that was never persisted.
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 import threading
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, cast
-from urllib.parse import unquote, urlparse
+from typing import TYPE_CHECKING, Any
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
+from docking.core.paths import ensure_parent_dir, local_path_from_uri_or_path
 from docking.core.position import Position
 from docking.log import get_logger
-
-DEFAULT_CONFIG_DIR = (
-    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "docking"
+from docking.platform.environment import docking_config_dir
+from docking.search.config import (
+    DEFAULT_GLOBAL_SEARCH_ENABLED,
+    DEFAULT_GLOBAL_SEARCH_SHORTCUT,
+    DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
+    GLOBAL_SEARCH_WEB_ENGINES,
 )
+
+if TYPE_CHECKING:
+    from docking.core.theme import Theme
+
+DEFAULT_CONFIG_DIR = docking_config_dir()
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "dock.json"
 DEFAULT_CONFIG_BACKUP_FILE = DEFAULT_CONFIG_DIR / "dock.json.bak"
 
@@ -257,7 +267,10 @@ DEFAULT_MONITOR_INDEX = -1
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
 DEFAULT_HIDE_TIME_MS = 250
-DEFAULT_PREVIEWS_ENABLED = True
+DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED = True
+DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER = False
+DEFAULT_WINDOW_PREVIEW_OUTLINE_WINDOW_ON_HOVER = False
+DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH = 200
 DEFAULT_LOCK_ICONS = False
 DEFAULT_CURRENT_WORKSPACE_ONLY = False
 DEFAULT_ANCHOR_APPLETS = False
@@ -266,14 +279,31 @@ DEFAULT_TOOLTIPS_ENABLED = True
 DEFAULT_ACTIVE_DISPLAY = False
 DEFAULT_UPDATE_CHECK_ENABLED = True
 DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24
+DEFAULT_STARTUP_TIPS_ENABLED = True
 DEFAULT_THEME = "default"
 DEFAULT_TRANSPARENCY = 1.0
 MIN_ICON_SIZE = 32
 MAX_ICON_SIZE = 128
+MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH = 120
+MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH = 400
 MIN_ZOOM_PERCENT = 1.0
 MAX_ZOOM_PERCENT = 4.0
 MIN_TRANSPARENCY = 0.15
 MAX_TRANSPARENCY = 1.0
+DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MIN_ADDITIONAL_DISTANCE_FROM_EDGE = 0
+MAX_ADDITIONAL_DISTANCE_FROM_EDGE = 100
+DEFAULT_PRESSURE_REVEAL_ENABLED = False
+DEFAULT_PRESSURE_THRESHOLD = 50
+MIN_PRESSURE_THRESHOLD = 5
+MAX_PRESSURE_THRESHOLD = 500
+DEFAULT_SHOW_RECENT_APPS = True
+DEFAULT_RECENT_APPS_MAX = 5
+DEFAULT_RECENT_APPS_RETENTION_DAYS = 14
+MIN_RECENT_APPS_RETENTION_DAYS = 1
+DEFAULT_SHOW_RECENT_DOCS_IN_MENU = True
+DEFAULT_RECENT_DOCS_MAX = 10
+MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
@@ -286,7 +316,7 @@ class HideMode(str, Enum):
     ──────────────  ──────────────────────────────────────────────────────
     NONE            Never hides, reserves struts so maximized windows
                     avoid the dock area.
-    ALWAYS_ON_TOP   Never hides, but does not reserve struts — maximized
+    ALWAYS_ON_TOP   Never hides, but does not reserve struts - maximized
                     windows fill the full screen and the dock floats above.
     AUTOHIDE        Hides when the mouse leaves the dock area.
     INTELLIGENT     Hides when any window from the active app overlaps
@@ -318,12 +348,33 @@ class HideMode(str, Enum):
 DEFAULT_HIDE_MODE = HideMode.NONE.value
 
 
-def _build_initial_pinned() -> list[PinnedEntry]:
+def _desktop_id_never_exists(_desktop_id: str) -> bool:
+    return False
+
+
+def _no_default_desktop_id(_content_type: str) -> str | None:
+    return None
+
+
+def build_initial_pinned(
+    *,
+    desktop_id_exists: Callable[[str], bool] = _desktop_id_never_exists,
+    default_desktop_id_for: Callable[[str], str | None] = _no_default_desktop_id,
+) -> list[PinnedEntry]:
+    """Build first-run pins using only caller-provided application lookups.
+
+    The pure defaults intentionally seed applets only. The process composition
+    root injects desktop-aware callbacks after its application registry has
+    completed an initial refresh.
+    """
     applications_entry = PinnedEntry(
         kind=APPLET_KIND,
         target=applet_desktop_id(applet_id=STARTER_APPLET_IDS[0]),
     )
-    launcher_entries = _build_initial_launcher_entries()
+    launcher_entries = _build_initial_launcher_entries(
+        desktop_id_exists=desktop_id_exists,
+        default_desktop_id_for=default_desktop_id_for,
+    )
     applet_entries = [
         PinnedEntry(kind=APPLET_KIND, target=applet_desktop_id(applet_id=applet_id))
         for applet_id in STARTER_APPLET_IDS[1:]
@@ -331,7 +382,11 @@ def _build_initial_pinned() -> list[PinnedEntry]:
     return [applications_entry, *launcher_entries, *applet_entries]
 
 
-def _build_initial_launcher_entries() -> list[PinnedEntry]:
+def _build_initial_launcher_entries(
+    *,
+    desktop_id_exists: Callable[[str], bool],
+    default_desktop_id_for: Callable[[str], str | None],
+) -> list[PinnedEntry]:
     entries: list[PinnedEntry] = []
     seen_targets: set[str] = set()
     slots: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -347,6 +402,8 @@ def _build_initial_launcher_entries() -> list[PinnedEntry]:
         desktop_id = _resolve_initial_desktop_id(
             candidates=candidates,
             fallback_content_types=fallback_content_types,
+            desktop_id_exists=desktop_id_exists,
+            default_desktop_id_for=default_desktop_id_for,
         )
         if desktop_id is None or desktop_id in seen_targets:
             continue
@@ -359,42 +416,17 @@ def _resolve_initial_desktop_id(
     *,
     candidates: tuple[str, ...],
     fallback_content_types: tuple[str, ...],
+    desktop_id_exists: Callable[[str], bool],
+    default_desktop_id_for: Callable[[str], str | None],
 ) -> str | None:
     for desktop_id in candidates:
-        if _desktop_id_exists(desktop_id):
+        if desktop_id_exists(desktop_id):
             return desktop_id
     for content_type in fallback_content_types:
-        desktop_id = _default_desktop_id_for(content_type)
-        if desktop_id and _desktop_id_exists(desktop_id):
+        desktop_id = default_desktop_id_for(content_type)
+        if desktop_id and desktop_id_exists(desktop_id):
             return desktop_id
     return None
-
-
-def _desktop_id_exists(desktop_id: str) -> bool:
-    from docking.platform.launcher import Launcher
-
-    return Launcher().resolve(desktop_id=desktop_id, log_failures=False) is not None
-
-
-def _default_desktop_id_for(content_type: str) -> str | None:
-    import gi
-
-    gi.require_version("Gio", "2.0")
-    from gi.repository import Gio, GLib
-
-    try:
-        app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-    except GLib.Error as exc:
-        logger.warning(
-            "Failed to resolve default app for %s while seeding first-run pins: %s",
-            content_type,
-            exc,
-        )
-        return None
-    if app_info is None:
-        return None
-    desktop_id = app_info.get_id()
-    return desktop_id if isinstance(desktop_id, str) and desktop_id else None
 
 
 def _normalize_hide_mode(value: object) -> str:
@@ -442,17 +474,46 @@ class MiddleClickAction(str, Enum):
     CLOSE_FOCUSED = "close-focused"
 
 
-class FolderStackUnfold(str, Enum):
-    """How pinned folder stacks should be opened from the dock."""
+class DockItemClickEffect(str, Enum):
+    """Visual effect played when a dock click launches an application."""
+
+    BOUNCE = "bounce"
+    PULSE = "pulse"
+    WOBBLE = "wobble"
+
+
+PULSE_MAX_SCALE = 1.18
+
+
+class StackUnfold(str, Enum):
+    """How reusable stacks should be opened from the dock."""
 
     CLICK = "click"
     HOVER = "hover"
 
 
+class WindowListSort(str, Enum):
+    """Sort order for open windows in the right-click context menu.
+
+    Mode           Behavior
+    ─────────────  ──────────────────────────────────────────────────────
+    DEFAULT        Windows appear in scan order (the order they were discovered).
+    ALPHABETICAL   Windows are sorted alphabetically by title.
+    """
+
+    DEFAULT = "default"
+    ALPHABETICAL = "alphabetical"
+
+
 DEFAULT_LEFT_CLICK_ACTION = LeftClickAction.TOGGLE.value
 DEFAULT_MIDDLE_CLICK_ACTION = MiddleClickAction.NEW_WINDOW.value
-DEFAULT_FOLDER_STACK_UNFOLD = FolderStackUnfold.HOVER.value
+DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED = True
+DEFAULT_DOCK_ITEM_CLICK_EFFECT = DockItemClickEffect.BOUNCE.value
+DEFAULT_STACK_UNFOLD = StackUnfold.HOVER.value
+DEFAULT_WINDOW_LIST_SORT = WindowListSort.DEFAULT.value
 DEFAULT_SHOW_WINDOW_COUNT_NUMBERS = False
+DEFAULT_SHOW_LAUNCHER_BADGES = True
+DEFAULT_SHOW_LAUNCHER_PROGRESS = True
 
 
 def _normalize_left_click_action(value: object) -> str:
@@ -483,18 +544,41 @@ def _normalize_middle_click_action(value: object) -> str:
     return MiddleClickAction.NEW_WINDOW.value
 
 
-def _normalize_folder_stack_unfold(value: object) -> str:
+def _normalize_dock_item_click_effect(value: object) -> str:
     if isinstance(value, str):
         try:
-            return FolderStackUnfold(value=value).value
+            return DockItemClickEffect(value=value).value
+        except ValueError:
+            logger.warning("Invalid dock item click effect %r; using bounce", value)
+    return DEFAULT_DOCK_ITEM_CLICK_EFFECT
+
+
+def _normalize_stack_unfold(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return StackUnfold(value=value).value
         except ValueError as exc:
             logger.warning(
-                "Invalid folder stack unfold mode %r; using default %r (%s)",
+                "Invalid stack unfold mode %r; using default %r (%s)",
                 value,
-                DEFAULT_FOLDER_STACK_UNFOLD,
+                DEFAULT_STACK_UNFOLD,
                 exc,
             )
-    return DEFAULT_FOLDER_STACK_UNFOLD
+    return DEFAULT_STACK_UNFOLD
+
+
+def _normalize_window_list_sort(value: object) -> str:
+    if isinstance(value, str):
+        try:
+            return WindowListSort(value=value).value
+        except ValueError as exc:
+            logger.warning(
+                "Invalid window list sort %r; using default %r (%s)",
+                value,
+                DEFAULT_WINDOW_LIST_SORT,
+                exc,
+            )
+    return DEFAULT_WINDOW_LIST_SORT
 
 
 @dataclass
@@ -550,16 +634,21 @@ class PinnedEntry:
             return None
         if kind_raw not in {APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND}:
             return None
-        return cls(kind=cast(ItemKind, kind_raw), target=target_raw)
+        return cls(kind=kind_raw, target=target_raw)
 
 
 def _uri_is_dir(target: str) -> bool:
     if not target.startswith("file://"):
         return False
+    path = local_path_from_uri_or_path(target)
+    if path is None:
+        return False
     try:
-        return Path(unquote(urlparse(target).path)).is_dir()
-    except ValueError:
-        logger.warning("Invalid file URI in persisted config: %r", target)
+        return path.is_dir()
+    except (ValueError, OSError) as exc:
+        # is_dir() raises PermissionError for an untraversable parent, and
+        # letting that escape aborts the whole config load over one bad pin.
+        logger.warning("Unusable file URI in persisted config: %r (%s)", target, exc)
         return False
 
 
@@ -591,7 +680,7 @@ def _normalize_int(
             parsed = int(value.strip())
         else:
             return default
-    except (TypeError, ValueError):
+    except (OverflowError, TypeError, ValueError):
         logger.warning(
             "Invalid integer config value %r; using default %r",
             value,
@@ -602,6 +691,15 @@ def _normalize_int(
         parsed = minimum
     if maximum is not None and parsed > maximum:
         parsed = maximum
+    return parsed
+
+
+def _normalize_milliseconds(value: object, *, default: int) -> int:
+    """Keep animation timings within the unsigned GLib millisecond range."""
+    parsed = _normalize_int(value, default=default, minimum=0)
+    if parsed > 2**32 - 1:
+        logger.warning("Config timing exceeds the millisecond range; using %r", default)
+        return default
     return parsed
 
 
@@ -621,7 +719,9 @@ def _normalize_float(
             parsed = float(value.strip())
         else:
             return default
-    except (TypeError, ValueError):
+        if not math.isfinite(parsed):
+            raise ValueError("non-finite number")
+    except (OverflowError, TypeError, ValueError):
         logger.warning(
             "Invalid float config value %r; using default %r",
             value,
@@ -675,6 +775,35 @@ def _normalize_pref_map(raw: object) -> dict[str, dict[str, Any]]:
     return result
 
 
+def _normalize_optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_recent_apps(raw: object) -> list[dict[str, object]]:
+    """Normalize the persisted recent-apps list, dropping malformed entries."""
+    if not isinstance(raw, list):
+        return []
+    result: list[dict[str, object]] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        desktop_id = entry.get("desktop_id")
+        last_closed = entry.get("last_closed")
+        if not isinstance(desktop_id, str) or not desktop_id:
+            continue
+        if not isinstance(last_closed, int | float):
+            continue
+        try:
+            timestamp = int(last_closed)
+        except (OverflowError, ValueError):
+            continue
+        result.append({"desktop_id": desktop_id, "last_closed": timestamp})
+    return result
+
+
 @dataclass
 class Config:
     """Dock configuration with sensible defaults."""
@@ -691,6 +820,10 @@ class Config:
     position: str = DEFAULT_POSITION
     # Target monitor index (-1 means "primary monitor")
     monitor_index: int = DEFAULT_MONITOR_INDEX
+    # Stable monitor connector/output name when the backend can expose one.
+    # ``monitor_index`` remains the fallback for older configs and sessions
+    # where GDK cannot report a connector.
+    monitor_connector: str | None = None
     # Dock hide behavior (see HideMode enum)
     hide_mode: str = DEFAULT_HIDE_MODE
     # Delay in ms before the dock starts hiding after cursor leaves (Plank default: 0)
@@ -700,7 +833,16 @@ class Config:
     # Duration of the hide/show slide animation in ms
     hide_time_ms: int = DEFAULT_HIDE_TIME_MS
     # Whether to show window preview thumbnails on hover
-    previews_enabled: bool = DEFAULT_PREVIEWS_ENABLED
+    window_preview_thumbnails_enabled: bool = DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED
+    window_preview_highlight_thumbnails_on_hover: bool = (
+        DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER
+    )
+    # Whether hovering a preview thumbnail outlines the real window (X11, Sway)
+    window_preview_outline_window_on_hover: bool = (
+        DEFAULT_WINDOW_PREVIEW_OUTLINE_WINDOW_ON_HOVER
+    )
+    # Width in pixels of window preview thumbnails (height keeps the 4:3 ratio)
+    window_preview_thumbnail_width: int = DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH
     # Whether icon reordering, drag-in, and drag-off removal are locked
     lock_icons: bool = DEFAULT_LOCK_ICONS
     # Only show running apps from the active workspace
@@ -717,24 +859,64 @@ class Config:
     update_check_enabled: bool = DEFAULT_UPDATE_CHECK_ENABLED
     # Minimum hours between automatic update checks
     update_check_interval_hours: int = DEFAULT_UPDATE_CHECK_INTERVAL_HOURS
+    # Whether Docking shows one usage tip on startup
+    startup_tips_enabled: bool = DEFAULT_STARTUP_TIPS_ENABLED
     # Left-click behavior for running apps
     left_click_action: str = DEFAULT_LEFT_CLICK_ACTION
     # Middle-click behavior for app items
     middle_click_action: str = DEFAULT_MIDDLE_CLICK_ACTION
-    # How pinned folder stacks open from the dock
-    folder_stack_unfold: str = DEFAULT_FOLDER_STACK_UNFOLD
+    # Whether launching an application from a dock item plays the selected effect
+    dock_item_click_effects_enabled: bool = DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED
+    # Effect to play on an application launch from the dock
+    dock_item_click_effect: str = DEFAULT_DOCK_ITEM_CLICK_EFFECT
+    # How reusable stacks open from the dock
+    stack_unfold: str = DEFAULT_STACK_UNFOLD
+    # Sort order for open windows in the right-click context menu
+    window_list_sort: str = DEFAULT_WINDOW_LIST_SORT
     # Whether running application indicators show a numeric window count
     show_window_count_numbers: bool = DEFAULT_SHOW_WINDOW_COUNT_NUMBERS
+    # Whether numeric badges reported by applications are visible
+    show_launcher_badges: bool = DEFAULT_SHOW_LAUNCHER_BADGES
+    # Whether progress bars reported by applications are visible
+    show_launcher_progress: bool = DEFAULT_SHOW_LAUNCHER_PROGRESS
     # Theme name (loads from assets/themes/{name}.json)
     theme: str = DEFAULT_THEME
     # Multiplier applied to theme alpha values for the dock shelf
     transparency: float = DEFAULT_TRANSPARENCY
+    # Extra pixels added to the theme's distance_from_edge_px. The on-screen
+    # gap between the dock and the screen edge is the sum of the two.
+    additional_distance_from_edge: int = DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE
+    # When True, the hidden dock only reveals after the cursor has pushed
+    # against the screen edge enough to accumulate ``pressure_threshold``
+    # pixels of resisted motion (X11 pointer-barrier "pressure"). Prevents
+    # accidental reveals on multi-monitor setups where the dock edge sits
+    # between two screens.
+    pressure_reveal_enabled: bool = DEFAULT_PRESSURE_REVEAL_ENABLED
+    pressure_threshold: int = DEFAULT_PRESSURE_THRESHOLD
     # Typed pinned entries in display order.
     pinned: list[PinnedEntry] = field(default_factory=lambda: list(DEFAULT_PINNED))
     # Per-applet preferences keyed by applet id (e.g. "clock")
     applet_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Per-item preferences keyed by stable target URI/id.
     item_prefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Whether to show a recently-used apps section between pinned and running apps
+    show_recent_apps: bool = DEFAULT_SHOW_RECENT_APPS
+    # Maximum number of recent app icons to display
+    recent_apps_max: int = DEFAULT_RECENT_APPS_MAX
+    # Days after which unused recent apps are pruned
+    recent_apps_retention_days: int = DEFAULT_RECENT_APPS_RETENTION_DAYS
+    # Persisted recent-app history: [{"desktop_id": "...", "last_closed": epoch}, ...]
+    recent_apps: list[dict[str, object]] = field(default_factory=list)
+    # Whether to show a "Recent Documents" submenu when right-clicking apps
+    show_recent_docs_in_menu: bool = DEFAULT_SHOW_RECENT_DOCS_IN_MENU
+    # Per-app cap for recent document entries in the submenu
+    recent_docs_max: int = DEFAULT_RECENT_DOCS_MAX
+    # Whether the process-wide global search palette is available
+    global_search_enabled: bool = DEFAULT_GLOBAL_SEARCH_ENABLED
+    # Preferred XDG trigger and X11 fallback sequence
+    global_search_shortcut: str = DEFAULT_GLOBAL_SEARCH_SHORTCUT
+    # Web engine used by fallback searches
+    global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
     @property
     def pos(self) -> Position:
@@ -783,25 +965,37 @@ class Config:
                 minimum=DEFAULT_MONITOR_INDEX,
             ),
         )
+        self.monitor_connector = _normalize_optional_text(self.monitor_connector)
         self.hide_mode = _normalize_hide_mode(self.hide_mode)
-        self.hide_delay_ms = _normalize_int(
+        self.hide_delay_ms = _normalize_milliseconds(
             self.hide_delay_ms,
             default=DEFAULT_HIDE_DELAY_MS,
-            minimum=0,
         )
-        self.unhide_delay_ms = _normalize_int(
+        self.unhide_delay_ms = _normalize_milliseconds(
             self.unhide_delay_ms,
             default=DEFAULT_UNHIDE_DELAY_MS,
-            minimum=0,
         )
-        self.hide_time_ms = _normalize_int(
+        self.hide_time_ms = _normalize_milliseconds(
             self.hide_time_ms,
             default=DEFAULT_HIDE_TIME_MS,
-            minimum=0,
         )
-        self.previews_enabled = _normalize_bool(
-            self.previews_enabled,
-            default=DEFAULT_PREVIEWS_ENABLED,
+        self.window_preview_thumbnails_enabled = _normalize_bool(
+            self.window_preview_thumbnails_enabled,
+            default=DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED,
+        )
+        self.window_preview_highlight_thumbnails_on_hover = _normalize_bool(
+            self.window_preview_highlight_thumbnails_on_hover,
+            default=DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER,
+        )
+        self.window_preview_outline_window_on_hover = _normalize_bool(
+            self.window_preview_outline_window_on_hover,
+            default=DEFAULT_WINDOW_PREVIEW_OUTLINE_WINDOW_ON_HOVER,
+        )
+        self.window_preview_thumbnail_width = _normalize_int(
+            self.window_preview_thumbnail_width,
+            default=DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
+            minimum=MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
+            maximum=MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
         )
         self.lock_icons = _normalize_bool(
             self.lock_icons,
@@ -836,31 +1030,123 @@ class Config:
             default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
             minimum=1,
         )
+        self.startup_tips_enabled = _normalize_bool(
+            self.startup_tips_enabled,
+            default=DEFAULT_STARTUP_TIPS_ENABLED,
+        )
         self.left_click_action = _normalize_left_click_action(
             self.left_click_action,
         )
         self.middle_click_action = _normalize_middle_click_action(
             self.middle_click_action,
         )
-        self.folder_stack_unfold = _normalize_folder_stack_unfold(
-            self.folder_stack_unfold,
+        self.dock_item_click_effects_enabled = _normalize_bool(
+            self.dock_item_click_effects_enabled,
+            default=DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED,
+        )
+        self.dock_item_click_effect = _normalize_dock_item_click_effect(
+            self.dock_item_click_effect,
+        )
+        self.stack_unfold = _normalize_stack_unfold(
+            self.stack_unfold,
+        )
+        self.window_list_sort = _normalize_window_list_sort(
+            self.window_list_sort,
         )
         self.show_window_count_numbers = _normalize_bool(
             self.show_window_count_numbers,
             default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
         )
+        self.show_launcher_badges = _normalize_bool(
+            self.show_launcher_badges,
+            default=DEFAULT_SHOW_LAUNCHER_BADGES,
+        )
+        self.show_launcher_progress = _normalize_bool(
+            self.show_launcher_progress,
+            default=DEFAULT_SHOW_LAUNCHER_PROGRESS,
+        )
         self.theme = _normalize_theme(self.theme)
         self.transparency = _normalize_transparency(self.transparency)
-        self.pinned = normalize_pinned_entries(list(self.pinned))
+        self.additional_distance_from_edge = _normalize_int(
+            self.additional_distance_from_edge,
+            default=DEFAULT_ADDITIONAL_DISTANCE_FROM_EDGE,
+            minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
+            maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
+        )
+        self.pressure_reveal_enabled = _normalize_bool(
+            self.pressure_reveal_enabled,
+            default=DEFAULT_PRESSURE_REVEAL_ENABLED,
+        )
+        self.pressure_threshold = _normalize_int(
+            self.pressure_threshold,
+            default=DEFAULT_PRESSURE_THRESHOLD,
+            minimum=MIN_PRESSURE_THRESHOLD,
+            maximum=MAX_PRESSURE_THRESHOLD,
+        )
+        self.pinned = normalize_pinned_entries(self.pinned)
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
+        self.show_recent_apps = _normalize_bool(
+            self.show_recent_apps,
+            default=DEFAULT_SHOW_RECENT_APPS,
+        )
+        self.recent_apps_max = _normalize_int(
+            self.recent_apps_max,
+            default=DEFAULT_RECENT_APPS_MAX,
+            minimum=1,
+            maximum=15,
+        )
+        self.recent_apps_retention_days = _normalize_int(
+            self.recent_apps_retention_days,
+            default=DEFAULT_RECENT_APPS_RETENTION_DAYS,
+            minimum=MIN_RECENT_APPS_RETENTION_DAYS,
+            maximum=MAX_RECENT_APPS_RETENTION_DAYS,
+        )
+        self.recent_apps = _normalize_recent_apps(self.recent_apps)
+        self.show_recent_docs_in_menu = _normalize_bool(
+            self.show_recent_docs_in_menu,
+            default=DEFAULT_SHOW_RECENT_DOCS_IN_MENU,
+        )
+        self.recent_docs_max = _normalize_int(
+            self.recent_docs_max,
+            default=DEFAULT_RECENT_DOCS_MAX,
+            minimum=1,
+            maximum=25,
+        )
+        self.global_search_enabled = _normalize_bool(
+            self.global_search_enabled,
+            default=DEFAULT_GLOBAL_SEARCH_ENABLED,
+        )
+        shortcut = str(self.global_search_shortcut).strip()
+        self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
+        web_engine = str(self.global_search_web_engine).strip().casefold()
+        self.global_search_web_engine = (
+            web_engine
+            if web_engine in GLOBAL_SEARCH_WEB_ENGINES
+            else DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
+        )
 
     @classmethod
-    def load(cls, path: Path | str | None = None) -> Config:
+    def load(
+        cls,
+        path: Path | str | None = None,
+        *,
+        initial_pinned_factory: Callable[[], Iterable[PinnedEntry]] | None = None,
+    ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
+        original_path = path
+        # Resolve as save() does, or the backup is written beside the target
+        # while recovery looks for one beside the link and restores stale values.
+        if path.is_symlink():
+            path = Path(os.path.realpath(path))
         if not path.exists():
-            config = cls(pinned=_build_initial_pinned())
+            factory = (
+                build_initial_pinned
+                if initial_pinned_factory is None
+                else initial_pinned_factory
+            )
+            config = cls(pinned=list(factory()))
             config._path = path
             config.save(path=path)
             return config
@@ -868,9 +1154,15 @@ class Config:
         try:
             config = cls._load_existing_file(path=path)
         except Exception as exc:
-            backup_path = _backup_path_for(path)
+            backup_paths = [_backup_path_for(path)]
+            if original_path != path:
+                # Older versions kept the backup beside the symlink. Prefer
+                # the target's newer backup, but retain recovery after upgrade.
+                backup_paths.append(_backup_path_for(original_path))
             logger.warning("Failed to load config %s: %s", path, exc)
-            if backup_path.exists():
+            for backup_path in backup_paths:
+                if not backup_path.exists():
+                    continue
                 try:
                     config = cls._load_existing_file(path=backup_path)
                 except Exception as backup_exc:
@@ -903,7 +1195,11 @@ class Config:
     def save(self, path: Path | str | None = None) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Dotfiles setups symlink the config into a repository, and replacing
+        # the link would leave the repo silently untracking it, so write through.
+        if path.is_symlink():
+            path = Path(os.path.realpath(path))
+        ensure_parent_dir(path)
         # Write to a sibling temp file and replace in one step so Ctrl+C or
         # process death never leaves the real config half-written.
         backup_path = _backup_path_for(path)
@@ -937,12 +1233,23 @@ class Config:
     @classmethod
     def _load_existing_file(cls, path: Path) -> Config:
         data = _read_config_data(path=path)
+        if "stack_unfold" not in data and "folder_stack_unfold" in data:
+            data["stack_unfold"] = data["folder_stack_unfold"]
+        legacy_window_preview_keys = {
+            "previews_enabled": "window_preview_thumbnails_enabled",
+            "preview_thumbnail_outline": "window_preview_highlight_thumbnails_on_hover",
+        }
+        for old_key, new_key in legacy_window_preview_keys.items():
+            if new_key not in data and old_key in data:
+                data[new_key] = data[old_key]
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
-        if "pinned" in filtered and isinstance(filtered["pinned"], list):
+        if "pinned" in filtered:
             filtered["pinned"] = normalize_pinned_entries(filtered["pinned"])
         filtered["applet_prefs"] = _normalize_pref_map(filtered.get("applet_prefs"))
         filtered["item_prefs"] = _normalize_pref_map(filtered.get("item_prefs"))
+        if "recent_apps" in filtered:
+            filtered["recent_apps"] = _normalize_recent_apps(filtered["recent_apps"])
         config = cls(**filtered)
         config._path = path
         return config
@@ -951,12 +1258,38 @@ class Config:
         return asdict(self)
 
 
-def normalize_pinned_entries(raw_entries: list[object]) -> list[PinnedEntry]:
+def effective_edge_gap(theme: Theme, config: Config) -> int:
+    """Total on-screen dock-to-edge gap.
+
+    Sums the theme's baked-in ``distance_from_edge`` (a visual property) and
+    the user's ``additional_distance_from_edge`` config override
+    (a personal preference), clamped to non-negative.
+    """
+    return max(
+        0,
+        int(theme.distance_from_edge) + int(config.additional_distance_from_edge),
+    )
+
+
+def normalize_pinned_entries(raw_entries: object) -> list[PinnedEntry]:
+    """Rebuild typed pinned entries, dropping invalid ones and duplicates.
+
+    Iterating a hand-edited non-list either aborts the load or explodes into one
+    pin per character, and a duplicate would draw the same app twice and persist.
+    """
+    if not isinstance(raw_entries, list):
+        return []
     entries: list[PinnedEntry] = []
+    seen: set[tuple[str, str]] = set()
     for raw in raw_entries:
         entry = PinnedEntry.from_raw(raw)
-        if entry is not None:
-            entries.append(entry)
+        if entry is None:
+            continue
+        identity = (entry.kind, entry.target)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        entries.append(entry)
     return entries
 
 

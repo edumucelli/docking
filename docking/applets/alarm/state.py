@@ -20,6 +20,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
+from docking.core.math import clamp_int
 from docking.i18n import _
 
 DEFAULT_SNOOZE_MINUTES = 5
@@ -154,7 +155,10 @@ def set_enabled(state: AlarmState, index: int, enabled: bool) -> AlarmState:
         enabled=enabled,
         snoozed_until=None if not enabled else state.presets[index].snoozed_until,
     )
-    return replace_preset(state=state, index=index, preset=preset)
+    updated = replace_preset(state=state, index=index, preset=preset)
+    if not enabled and updated.ringing_index == index:
+        return dismiss_ringing(updated)
+    return updated
 
 
 def dismiss_ringing(state: AlarmState) -> AlarmState:
@@ -313,10 +317,10 @@ def normalize_preset(preset: AlarmPreset) -> AlarmPreset:
     return replace(
         preset,
         label=label,
-        hour=max(0, min(23, int(preset.hour))),
-        minute=max(0, min(59, int(preset.minute))),
+        hour=clamp_int(int(preset.hour), 0, 23),
+        minute=clamp_int(int(preset.minute), 0, 59),
         repeat_days=repeat_days,
-        snooze_minutes=max(1, min(120, int(preset.snooze_minutes))),
+        snooze_minutes=clamp_int(int(preset.snooze_minutes), 1, 120),
     )
 
 
@@ -324,12 +328,15 @@ def _preset_from_mapping(raw: object) -> AlarmPreset | None:
     if not isinstance(raw, Mapping):
         return None
     raw_dict = {str(key): value for key, value in raw.items()}
+    enabled = raw_dict.get("enabled", True)
+    if isinstance(enabled, str):
+        enabled = enabled.strip().casefold() not in {"", "0", "false", "no", "off"}
     try:
         preset = AlarmPreset(
             label=str(raw_dict.get("label", DEFAULT_LABEL)),
             hour=_parse_int(raw_dict.get("hour"), default=7),
             minute=_parse_int(raw_dict.get("minute"), default=0),
-            enabled=bool(raw_dict.get("enabled", True)),
+            enabled=bool(enabled),
             repeat_days=_parse_repeat_days(raw_dict.get("repeat_days")),
             snooze_minutes=_parse_int(
                 raw_dict.get("snooze_minutes"),
@@ -438,6 +445,7 @@ def _next_occurrence(*, preset: AlarmPreset, now: dt.datetime) -> dt.datetime | 
 
 
 def _trigger_key(*, preset: AlarmPreset, when: dt.datetime) -> str:
-    if preset.snoozed_until is not None:
-        return f"snooze:{when.isoformat(timespec='minutes')}"
+    # A snooze belongs to the original occurrence, even across midnight.
+    if preset.snoozed_until is not None and preset.last_triggered:
+        return preset.last_triggered
     return when.date().isoformat()

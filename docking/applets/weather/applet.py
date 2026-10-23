@@ -83,7 +83,7 @@ class WeatherApplet(Applet):
     name = _("Weather")
     icon_name = "weather-few-clouds"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
@@ -91,13 +91,13 @@ class WeatherApplet(Applet):
         self._air_quality: AirQualityData | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
+        self._stopped = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get("weather", {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get("weather", {}))
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature
@@ -140,6 +140,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -227,6 +228,7 @@ class WeatherApplet(Applet):
         )
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
@@ -236,6 +238,10 @@ class WeatherApplet(Applet):
             )
 
     def stop(self) -> None:
+        self._stopped = True
+        self._fetch_pending = False
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -266,7 +272,8 @@ class WeatherApplet(Applet):
     def _show_city_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Search for the city"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         dialog.connect("response", lambda dlg, _response: dlg.destroy())
@@ -342,6 +349,7 @@ class WeatherApplet(Applet):
                 self._air_quality = None
                 self._last_updated = None
                 self._loading = False
+                self._fetch_pending = False
                 self._fetch_failed = False
                 self._fetch_error = ""
                 self._save_prefs()
@@ -354,6 +362,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -369,6 +378,7 @@ class WeatherApplet(Applet):
         self._air_quality = None
         self._last_updated = None
         self._loading = False
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self._save_prefs()
@@ -388,27 +398,34 @@ class WeatherApplet(Applet):
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
         active = self._active_city
-        if not active:
+        if self._stopped or not active:
             return
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
             self._startup_fetch_timer_id = 0
+        if self._loading:
+            self._fetch_pending = True
+            return
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         lat = active.lat
         lng = active.lng
         self._loading = True
+        self._fetch_pending = False
         self._fetch_failed = False
         self._fetch_error = ""
         self.present()
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = fetch_weather(lat=lat, lng=lng)
+            if weather is None:
+                return None, None
             aqi = fetch_air_quality(lat=lat, lng=lng)
             return weather, aqi
 
-        self._worker.run(
+        started = self._worker.run_guarded(
+            key="weather-fetch",
             name="weather-fetch",
             fn=fetch,
             on_result=lambda result: self._on_fetch_result(
@@ -418,6 +435,8 @@ class WeatherApplet(Applet):
             ),
             on_error=lambda exc: self._on_fetch_error(request_id=request_id, exc=exc),
         )
+        if not started:
+            self._fetch_pending = True
 
     def _on_fetch_result(
         self,
@@ -425,7 +444,10 @@ class WeatherApplet(Applet):
         weather: WeatherData | None,
         aqi: AirQualityData | None,
     ) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         self._loading = False
         self._fetch_failed = weather is None
@@ -436,18 +458,38 @@ class WeatherApplet(Applet):
             self._last_updated = dt.datetime.now(dt.timezone.utc)
         else:
             self._fetch_error = _("No weather data")
-        self.present()
+        self._present_or_run_pending_fetch()
         return False
 
     def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
+        if self._stopped:
+            return False
         if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
             return False
         log.bind(action="fetch_error").debug("Weather fetch failed: %s", exc)
         self._loading = False
         self._fetch_failed = True
         self._fetch_error = str(exc) or exc.__class__.__name__
-        self.present()
+        self._present_or_run_pending_fetch()
         return False
+
+    def _settle_replaced_fetch(self) -> None:
+        """Finish the bookkeeping for a reply the user already replaced.
+
+        The queued replacement fetch never starts on its own, so the discarded
+        reply is the only thing that would clear ``_loading``; leaving it set
+        wedged the applet on "Loading..." with stale data forever.
+        """
+        self._loading = False
+        self._present_or_run_pending_fetch()
+
+    def _present_or_run_pending_fetch(self) -> None:
+        if self._fetch_pending and self._active_city:
+            self._fetch_pending = False
+            self._fetch_async()
+            return
+        self.present()
 
     def _build_tooltip(self) -> str:
         active = self._active_city
@@ -508,6 +550,14 @@ class WeatherApplet(Applet):
             )
             aqi_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
             box.pack_start(aqi_lbl, False, False, 0)
+            if self._air_quality.uv_index is not None:
+                uv_lbl = Gtk.Label(
+                    label=_("UV Index: {value}").format(
+                        value=f"{self._air_quality.uv_index:.1f}"
+                    )
+                )
+                uv_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
+                box.pack_start(uv_lbl, False, False, 0)
 
         for day in weather.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)

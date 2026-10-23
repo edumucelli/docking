@@ -161,6 +161,7 @@ geometry model.
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 from typing import TYPE_CHECKING
 
@@ -168,14 +169,77 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 from docking.core.position import Position
+from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_to_screen
+from docking.ui.display import clamp_popup, popup_workarea, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
 log = get_logger(name="tooltip")
+
+
+def parse_timestamp(timestamp: dt.datetime | str | None) -> dt.datetime | None:
+    """Parse an aware UTC/local timestamp into a timezone-aware datetime."""
+    if timestamp is None:
+        return None
+    if isinstance(timestamp, dt.datetime):
+        parsed = timestamp
+    else:
+        text = str(timestamp).strip()
+        if not text:
+            return None
+        try:
+            parsed = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed
+
+
+def _format_relative_interval(seconds: int) -> str:
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return (
+            _("1 second")
+            if seconds == 1
+            else _("{count} seconds").format(count=seconds)
+        )
+    minutes = seconds // 60
+    if minutes < 60:
+        return (
+            _("1 minute")
+            if minutes == 1
+            else _("{count} minutes").format(count=minutes)
+        )
+    hours = minutes // 60
+    if hours < 24:
+        return _("1 hour") if hours == 1 else _("{count} hours").format(count=hours)
+    days = hours // 24
+    return _("1 day") if days == 1 else _("{count} days").format(count=days)
+
+
+def relative_time_label(
+    timestamp: dt.datetime | str | None,
+    *,
+    now: dt.datetime | None = None,
+) -> str:
+    """Return a human relative age such as "5 minutes ago"."""
+    parsed = parse_timestamp(timestamp)
+    if parsed is None:
+        return ""
+    reference = now or dt.datetime.now(dt.timezone.utc)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=dt.timezone.utc)
+    elapsed = reference.astimezone(dt.timezone.utc) - parsed.astimezone(dt.timezone.utc)
+    elapsed_seconds = max(0, int(elapsed.total_seconds()))
+    if elapsed_seconds == 0:
+        return _("just now")
+    return _("{age} ago").format(age=_format_relative_interval(elapsed_seconds))
+
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -189,6 +253,34 @@ TOOLTIP_CORNER_RADIUS_PX = 6
 TOOLTIP_CONTENT_MARGIN_PX = 6
 TOOLTIP_BACKGROUND_ALPHA = 0.85
 TOOLTIP_BOUNCE_HEADROOM_FACTOR = 0.5
+WRAPPED_TOOLTIP_MAX_WIDTH_CHARS = 48
+
+
+def wrapped_tooltip_label(
+    text: str,
+    *,
+    max_width_chars: int = WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
+) -> Gtk.Label:
+    """Build a reusable tooltip label whose text wraps within a readable width."""
+    label = Gtk.Label(label=text)
+    return _configure_wrapped_tooltip_label(
+        label,
+        max_width_chars=max_width_chars,
+    )
+
+
+def _configure_wrapped_tooltip_label(
+    label: Gtk.Label,
+    *,
+    max_width_chars: int,
+) -> Gtk.Label:
+    label.set_xalign(0.0)
+    label.set_justify(Gtk.Justification.LEFT)
+    label.set_line_wrap(True)
+    label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+    label.set_max_width_chars(max_width_chars)
+    label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+    return label
 
 
 def compute_tooltip_position(
@@ -247,6 +339,10 @@ class TooltipManager:
         self._last_name: str = ""
         self._pending_show_source: int = 0
 
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for tooltip spacing."""
+        self._theme = theme
+
     def update(
         self,
         item: DockItem | None,
@@ -268,25 +364,35 @@ class TooltipManager:
         if geometry is None:
             return
 
+        # Build the display text, including recent-app context when applicable.
+        display_text = item.name
+        if item.is_recent and item.last_closed > 0:
+            closed_dt = dt.datetime.fromtimestamp(item.last_closed, tz=dt.timezone.utc)
+            rel = relative_time_label(closed_dt)
+            if rel:
+                display_text = f"{item.name}\n{rel}"
+
         # Check if content needs rebuilding (expensive: show_all triggers
         # crossing events) vs just repositioning (cheap: move only).
-        content_changed = not (item is self._last_item and item.name == self._last_name)
+        content_changed = not (
+            item is self._last_item and display_text == self._last_name
+        )
         if content_changed:
-            log.debug(f"content changed: {item.name}")
+            log.debug(f"content changed: {display_text}")
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:
             self.hide()
             return
         pos = self._config.pos
-        win_x, win_y = self._window.get_position()
-        anchor_x = win_x + item_geometry.anchor_x
-        anchor_y = win_y + item_geometry.anchor_y
+        window_pos = window_screen_position(self._window)
+        anchor_x = window_pos.x + item_geometry.anchor_x
+        anchor_y = window_pos.y + item_geometry.anchor_y
 
         if not content_changed:
             self._cancel_pending_show()
             self._show_tooltip(
-                text=item.name,
+                text=display_text,
                 pos=pos,
                 anchor_x=anchor_x,
                 anchor_y=anchor_y,
@@ -300,7 +406,7 @@ class TooltipManager:
         widget = item.tooltip_builder() if item.tooltip_builder else None
         self._schedule_show(
             item=item,
-            text=item.name,
+            text=display_text,
             pos=pos,
             anchor_x=anchor_x,
             anchor_y=anchor_y,
@@ -356,10 +462,17 @@ class TooltipManager:
         """
         if self._tooltip_window is None:
             self._tooltip_window = Gtk.Window(type=Gtk.WindowType.POPUP)
+            try:
+                self._tooltip_window.set_transient_for(self._window)
+                self._tooltip_window.set_attached_to(self._window)
+            except TypeError:
+                pass
             self._tooltip_window.set_decorated(False)
             self._tooltip_window.set_skip_taskbar_hint(True)
             self._tooltip_window.set_resizable(False)
             self._tooltip_window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+            self._tooltip_window.set_accept_focus(False)
+            self._tooltip_window.set_focus_on_map(False)
             self._tooltip_window.set_app_paintable(True)
 
             screen = self._tooltip_window.get_screen()
@@ -425,11 +538,15 @@ class TooltipManager:
             gap=gap,
         )
 
-        # Clamp to screen
-        screen = self._tooltip_window.get_screen()
-        screen_w = screen.get_width()
-        screen_h = screen.get_height()
-        tooltip_pos = clamp_to_screen(tx, ty, tw, th, screen_w, screen_h)
+        # Clamp to screen (respects parent-relative vs screen-absolute coords)
+        tooltip_pos = clamp_popup(
+            self._tooltip_window,
+            tx,
+            ty,
+            tw,
+            th,
+            bounds=popup_workarea(self._tooltip_window, anchor_x, anchor_y),
+        )
         tx, ty = tooltip_pos.x, tooltip_pos.y
 
         log.debug(
@@ -444,6 +561,12 @@ class TooltipManager:
         )
         self._tooltip_window.move(tx, ty)
         self._tooltip_window.show_all()
+
+        # Keep tooltips behind dialogs and other dock popups.
+        tooltip_surface = self._tooltip_window.get_window()
+        dock_surface = self._window.get_window()
+        if tooltip_surface is not None and dock_surface is not None:
+            tooltip_surface.restack(dock_surface, False)
 
     def hide(self) -> None:
         """Hide the tooltip window and clear tracking state."""

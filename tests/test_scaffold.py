@@ -92,3 +92,60 @@ def test_main_exits_when_target_package_already_exists(tmp_path, monkeypatch, ca
     err = capsys.readouterr().err
     assert "already exists" in err
     assert not (tests_dir / "test_myapplet.py").exists()
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "my applet",  # space would land in an import path
+        "2fa",  # a leading digit is not an identifier
+        "class",  # a keyword cannot be a package name
+        "my.applet",  # a dot would be read as package separation
+        "",
+    ],
+)
+def test_main_rejects_names_that_are_not_importable(
+    name, tmp_path, monkeypatch, capsys
+):
+    """A name the generator cannot turn into valid Python must fail up front.
+
+    An unusable id used to write out modules that raise SyntaxError on import,
+    which breaks suite collection.
+    """
+    applets_dir = tmp_path / "docking" / "applets"
+    applets_dir.mkdir(parents=True)
+    tests_dir = tmp_path / "tests" / "applets"
+    monkeypatch.setattr(scaffold, "_ROOT", tmp_path / "docking")
+    monkeypatch.setattr(scaffold, "_APPLETS_DIR", applets_dir)
+    monkeypatch.setattr(scaffold, "_TESTS_DIR", tests_dir)
+    monkeypatch.setattr(sys, "argv", ["python", name])
+
+    with pytest.raises(SystemExit) as excinfo:
+        scaffold.main()
+
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    assert "not a usable applet id" in err
+    # Nothing may be written: a half-created package is worse than no package.
+    assert list(applets_dir.iterdir()) == []
+    assert not tests_dir.exists()
+
+
+@pytest.mark.parametrize("name", ["my_applet", "my-applet", "MyApplet"])
+def test_main_accepts_names_that_normalize_to_an_identifier(
+    name, tmp_path, monkeypatch
+):
+    applets_dir = tmp_path / "docking" / "applets"
+    applets_dir.mkdir(parents=True)
+    monkeypatch.setattr(scaffold, "_ROOT", tmp_path / "docking")
+    monkeypatch.setattr(scaffold, "_APPLETS_DIR", applets_dir)
+    monkeypatch.setattr(scaffold, "_TESTS_DIR", tmp_path / "tests" / "applets")
+    monkeypatch.setattr(sys, "argv", ["python", name])
+
+    scaffold.main()
+
+    pkg_dir = applets_dir / "myapplet"
+    assert pkg_dir.is_dir()
+    # The whole point of the guard: everything written must be importable.
+    for generated in pkg_dir.glob("*.py"):
+        compile(generated.read_text(), str(generated), "exec")

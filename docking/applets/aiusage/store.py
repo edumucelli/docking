@@ -19,9 +19,12 @@ import fcntl
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from docking.applets.aiusage import state as aiusage_state
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
+from docking.platform.environment import docking_config_dir
 
 PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
@@ -30,21 +33,26 @@ log = get_logger("aiusage.store")
 
 
 def config_path() -> Path:
-    xdg = os.environ.get("XDG_CONFIG_HOME", "")
-    base = Path(xdg) if xdg else Path.home() / ".config"
-    return base / "docking" / "dock.json"
+    return docking_config_dir() / "dock.json"
 
 
-def read_prefs_from_disk() -> dict | None:
+def read_prefs_from_disk() -> dict[str, Any] | None:
     """Read aiusage prefs directly from dock.json on disk."""
     path = config_path()
     try:
-        config = json.loads(path.read_text(encoding="utf-8"))
+        document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log.debug("Failed to read AI usage prefs from %s: %s", path, exc)
         return None
-    prefs = config.get("applet_prefs", {})
-    return prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
+    # dock.json is user-editable, so every level is checked before use: a
+    # JSON array or list-valued key would otherwise raise AttributeError.
+    if not isinstance(document, dict):
+        return None
+    prefs = document.get("applet_prefs")
+    if not isinstance(prefs, dict):
+        return None
+    value = prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
+    return value if isinstance(value, dict) else None
 
 
 def replace_session(
@@ -57,7 +65,7 @@ def replace_session(
         return
 
     path = config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_dir(path)
 
     fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
     try:

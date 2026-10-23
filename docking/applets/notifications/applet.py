@@ -33,6 +33,7 @@ from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
+from docking.core.math import clamp_index, clamp_int
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak, is_flatpak
@@ -77,7 +78,7 @@ class NotificationsApplet(Applet):
     name = _("Notifications")
     icon_name = "preferences-system-notifications"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend: NotificationsBackend = detect_backend()
         self._state: NotificationsState = self._backend.get_state()
         self._timer_id: int = 0
@@ -221,7 +222,7 @@ class NotificationsApplet(Applet):
         )
 
     def _history_badge_count(self) -> int:
-        return max(0, min(MAX_HISTORY_BADGE_COUNT, len(self._history)))
+        return clamp_int(len(self._history), 0, MAX_HISTORY_BADGE_COUNT)
 
     def _on_notification_activity(self, force_refresh: bool = False) -> bool:
         previous = self._show_activity_badge()
@@ -283,9 +284,11 @@ class NotificationsApplet(Applet):
                 [
                     "sh",
                     "-c",
-                    "command -v dbus-monitor >/dev/null || exit 127; "
-                    f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                    f"exec dbus-monitor --session {monitor_rule}",
+                    (
+                        "command -v dbus-monitor >/dev/null || exit 127; "
+                        f"echo {HOST_MONITOR_PID_PREFIX}$$; "
+                        f"exec dbus-monitor --session {monitor_rule}"
+                    ),
                 ]
             )
 
@@ -389,7 +392,7 @@ class NotificationsApplet(Applet):
     def _current_notification_lines(self) -> list[str]:
         if not self._history:
             return []
-        idx = max(0, min(self._history_index, len(self._history) - 1))
+        idx = clamp_index(self._history_index, len(self._history))
         entry = self._history[idx]
         lines = [f"Notification {idx + 1}/{len(self._history)}:"]
         if entry.summary:

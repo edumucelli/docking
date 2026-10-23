@@ -3,28 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration</title>
-  <meta name="description" content="Docking is an open source dock for Linux (X11) with 52 built-in applets, customizable themes, multi-monitor support, and full desktop integration. Written in Python with GTK and Cairo.">
+  <title>Docking - Linux Dock with Applets, X11 &amp; Wayland Support</title>
+  <meta name="description" content="Docking is an open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
-  <link rel="canonical" href="https://docking.cc">
-  <meta property="og:title" content="Docking - Open Source Linux Dock with Applets, Themes and Desktop Integration">
-  <meta property="og:description" content="Fast, customizable dock for Linux (X11) with 52 built-in applets, themes, multi-monitor support, and desktop integration. Written in Python with GTK and Cairo.">
+  <link rel="canonical" href="https://docking.cc/">
+  <meta property="og:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
+  <meta property="og:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://docking.cc">
-  <meta property="og:image" content="https://raw.githubusercontent.com/edumucelli/docking/master/website/hero.png">
+  <meta property="og:url" content="https://docking.cc/">
+  <meta property="og:site_name" content="Docking">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="https://docking.cc/social-preview.png">
+  <meta property="og:image:width" content="1731">
+  <meta property="og:image:height" content="909">
+  <meta property="og:image:alt" content="Docking Linux dock preview with applets">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
+  <meta name="twitter:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta name="twitter:image" content="https://docking.cc/social-preview.png">
+  <meta name="twitter:image:alt" content="Docking Linux dock preview with applets">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Docking",
-    "description": "Open source dock for Linux (X11) with 52 built-in applets, customizable themes, multi-monitor support, and full desktop integration.",
+    "description": "Open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.",
     "applicationCategory": "DesktopEnhancement",
     "operatingSystem": "Linux",
-    "url": "https://docking.cc",
+    "url": "https://docking.cc/",
     "downloadUrl": "https://github.com/edumucelli/docking/releases",
-    "softwareVersion": "1.3.0",
+    "softwareVersion": "2.19.0",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
     "programmingLanguage": "Python",
+    "image": "https://docking.cc/social-preview.png",
+    "screenshot": "https://docking.cc/hero.gif",
+    "sameAs": [
+      "https://github.com/edumucelli/docking"
+    ],
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -47,7 +62,7 @@
         "name": "What Linux desktop environments does Docking support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking."
+          "text": "Docking supports X11 and Wayland through backend-specific integrations: full X11 support, GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, COSMIC through native Wayland protocols, wlroots-style compositors via layer-shell and advertised protocols, and reduced mode when compositor integration is unavailable."
         }
       },
       {
@@ -63,7 +78,7 @@
         "name": "Does Docking support Wayland?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing."
+          "text": "Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell/protocol paths, or reduced mode when needed."
         }
       },
       {
@@ -166,15 +181,6 @@
         0 0 52px rgba(59, 130, 246, 0.08);
     }
 
-    .carousel-track {
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-
-    .carousel-track::-webkit-scrollbar {
-      display: none;
-    }
-
     .code-scroll::-webkit-scrollbar {
       height: 8px;
     }
@@ -214,6 +220,11 @@
               <a href="#features" title="Features" aria-label="Features" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
                 <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16"></path><path d="M7 12h10"></path><path d="M10 17h4"></path></svg>
                 <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Features</span>
+              </a>
+
+              <a href="#compatibility" title="Compatibility" aria-label="Compatibility" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="5" width="17" height="11" rx="2"></rect><path d="M8 20h8"></path><path d="M12 16v4"></path><path d="m9 11 2 2 4-5"></path></svg>
+                <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Compatibility</span>
               </a>
 
               <a href="#applets" title="Applets" aria-label="Applets" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
@@ -258,11 +269,12 @@
             </div>
           </div>
           <div id="mobile-dock-menu" class="mt-3 hidden rounded-[1.4rem] border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.10))] p-3 backdrop-blur-xl">
-            <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="grid grid-cols-2 gap-2 text-center">
               <a href="#features" class="rounded-[1rem] border border-white/15 bg-skyline/12 px-3 py-3 text-sm text-white">Features</a>
+              <a href="#compatibility" class="rounded-[1rem] border border-white/15 bg-ember/12 px-3 py-3 text-sm text-white">Compatibility</a>
               <a href="#applets" class="rounded-[1rem] border border-white/15 bg-accent/12 px-3 py-3 text-sm text-white">Applets</a>
               <a href="#install" class="rounded-[1rem] border border-white/15 bg-ember/12 px-3 py-3 text-sm text-white">Install</a>
-              <a href="#source" class="col-span-3 rounded-[1rem] border border-white/15 bg-skyline/10 px-3 py-3 text-sm text-white">From Source</a>
+              <a href="#source" class="col-span-2 rounded-[1rem] border border-white/15 bg-skyline/10 px-3 py-3 text-sm text-white">From Source</a>
             </div>
           </div>
         </div>
@@ -290,10 +302,12 @@
             <!-- Soft ambient glow -->
             <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
             <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
-            <div class="absolute -right-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
-            <!-- Dock image -->
-            <div class="relative w-full transition duration-500 hover:scale-[1.008]">
-              <img src="hero.png" alt="Docking dock preview with applets" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+            <div class="absolute right-0 top-1/2 h-36 w-36 sm:-right-12 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
+            <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
+              <picture>
+                <source srcset="hero.png" media="(prefers-reduced-motion: reduce)">
+                <img src="hero.gif" alt="Docking dock demonstration with applets and menus" width="960" height="315" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+              </picture>
             </div>
           </div>
         </div>
@@ -309,7 +323,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">49 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
@@ -317,7 +331,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">49 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
             </div>
           </div>
         </div>
@@ -337,13 +351,13 @@
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (52)</h3>
+            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (64)</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Fully customizable themes</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Adjust the dock to your desktop instead of adapting your desktop to the dock.</p>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Adjust themes, sizing, behavior, and pinned item icons so the dock fits the desktop you already use.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/14 text-rose-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
@@ -363,601 +377,254 @@
         </div>
       </section>
 
+      <section id="compatibility" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+        <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div class="max-w-3xl">
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: one dock across Linux desktops</h2>
+            <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
+          </div>
+          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, Treeland, and protocol-capable Wayland</div>
+        </div>
+
+        <div class="mt-10 overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-ember/8 shadow-soft backdrop-blur-2xl">
+          <div class="grid border-b border-white/10 bg-white/[0.04] px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 md:grid-cols-[1fr_1fr_1.6fr]">
+            <div>Environment</div>
+            <div class="hidden md:block">Backend Path</div>
+            <div class="hidden md:block">Coverage</div>
+          </div>
+
+          <div class="divide-y divide-white/10">
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="x11" data-status="full">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100">Full</span>
+                  <h3 class="text-lg font-semibold text-white">X11 desktops</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">MATE, Xfce, Cinnamon, KDE, GNOME Flashback</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Native X11 backend</div>
+              <p class="text-sm leading-7 text-slate-300">Running indicators, window actions, previews, workspace behavior, dodge/auto-hide, and desktop integration.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gnome-wayland" data-status="full">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100">Full</span>
+                  <h3 class="text-lg font-semibold text-white">GNOME Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">GNOME / Mutter 45+</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">GNOME Shell bridge</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, activate/minimize/close actions, previews, workspace switching, Show Desktop, and Alt+Tab hiding.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="kde-wayland" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">KDE Plasma Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">KWin / Plasma 6</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">KWin backend</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, AT-SPI window tracking with titles, and workspace switching through KWin D-Bus. Window actions depend on what KWin exposes.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cinnamon-wayland" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Cinnamon Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Cinnamon 6.4 and newer</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Cinnamon shell or layer-shell</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, running-window tracking, focus and cycling, minimize and close through Cinnamon's built-in shell API, including activation across workspaces. Placement respects panels and the selected monitor, including sessions without layer-shell. Previews remain unavailable.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cosmic" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">COSMIC Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">COSMIC desktop sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">COSMIC protocols</div>
+              <p class="text-sm leading-7 text-slate-300">Native layer-shell placement with COSMIC toplevel, workspace, overlap, and preview protocol paths where available.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="niri" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Niri Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Niri compositor sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Niri IPC backend</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, previews, workspace switching, Show Desktop, idle time, and color picker - via native Niri IPC.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wayfire" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Wayfire Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Wayfire compositor sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Wayfire IPC backend</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker - via native Wayfire IPC.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="protocol-wayland" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Varies</span>
+                  <h3 class="text-lg font-semibold text-white">Protocol-capable Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Sway, labwc, river, Louvre-based, Jay, Miriway, Phosh / phoc</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Layer-shell plus advertised protocols</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking, actions, workspaces, previews, and idle time are enabled independently. Jay and Miriway require trusted-client configuration; phoc can provide native window thumbnails.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="treeland" data-status="native">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <h3 class="text-lg font-semibold text-white">Deepin Wayland</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Treeland compositor sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Standard protocols plus Treeland extensions</div>
+              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking and previews, Show Desktop, and overlap-driven hiding. Left-edge overlap falls back while Treeland's current checker remains limited.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gamescope" data-status="partial">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Overlay</span>
+                  <h3 class="text-lg font-semibold text-white">GameScope</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Nested and gaming sessions</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Native GameScope Wayland socket</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement as an external overlay, including sessions without <code>--expose-wayland</code>. GameScope does not expose general window management to regular clients.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="reduced" data-status="fallback">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Fallback</span>
+                  <h3 class="text-lg font-semibold text-white">Cage, Weston, and unsupported sessions</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Safe launcher and applet mode</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">Reduced backend</div>
+              <p class="text-sm leading-7 text-slate-300">Docking remains usable without running indicators, previews, or workspace switching when no supported integration is available.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">52 built-in applets: useful widgets, already in the dock</h2>
-            <p class="mt-4 text-lg leading-8 text-slate-300">Small tools with real utility: glanceable information, richer controls, and compact workflow helpers. Browse the full applet catalog without leaving the page.</p>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">64 built-in applets: searchable tools for the dock</h2>
+            <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">52 built-in applets, with more room to explore</div>
-            <div class="hidden items-center gap-2 sm:flex">
-              <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="prev" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Previous applets">
-                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"></path></svg>
-              </button>
-              <button type="button" data-carousel-target="applets-carousel" data-carousel-direction="next" class="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:border-white/30 hover:bg-white/14" aria-label="Next applets">
-                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 6 6 6-6 6"></path></svg>
-              </button>
-            </div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">64</span> built-in applets plus folder stacks and a separator item</div>
           </div>
         </div>
 
-        <div class="relative mt-12">
-          <div id="applets-carousel" class="carousel-track flex gap-5 overflow-x-auto px-1 pb-4 snap-x snap-proximity">
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/10 to-skyline/8 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/aiusage.png" alt="AI Usage applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">AI Usage</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Track sessions, token usage, and estimated spend across Claude, Codex, and OpenCode.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/ambient.png" alt="Ambient applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Ambient</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Ambient controls for a calmer desktop atmosphere.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/apod.png" alt="Astronomy Picture of the Day applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">APOD</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">NASA's Astronomy Picture of the Day, as a daily thumbnail with title and explanation in the tooltip.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/applications.png" alt="Applications applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Applications</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">A launcher-style entry point for your installed apps.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-rose-400/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-rose-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/thermals.png" alt="Thermals applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Thermals</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Thermometer icon with degree-only label for hottest lm-sensors temperature, plus fan RPM tooltip and Celsius/Fahrenheit toggle.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/battery.png" alt="Battery applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Battery</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Battery level and charging status at a glance.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bluetooth.png" alt="Bluetooth applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Bluetooth</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Quick Bluetooth visibility and device awareness.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/bookmarks.png" alt="Bookmarks applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Bookmarks</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Pinned shortcuts for the places and links you revisit.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/brightness.png" alt="Brightness applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Brightness</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Screen brightness control without leaving the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calendar.png" alt="Calendar applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Calendar</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Compact date browsing and schedule context.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/calculator.png" alt="Calculator applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Calculator</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Quick calculations without leaving the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/currencyfx.png" alt="Currency FX applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Currency FX</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Live exchange-rate pairs with a sparkline right on the dock icon.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-orange-400/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-orange-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/hackernews.png" alt="Hacker News applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Hacker News</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Hacker News top headlines with manual navigation and next batches loaded up to 100 items.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/certwatch.png" alt="Cert Watch applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Cert Watch</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">TLS certificate expiry monitor with a color-coded shield and days-remaining badge.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-rose-400/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-rose-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/camshield.png" alt="Cam Shield applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Cam Shield</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Camera privacy indicator that shows a red dot when a process holds a video device.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-rose-400/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-rose-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/micshield.png" alt="Mic Shield applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Mic Shield</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Microphone mute toggle with a red privacy dot while an app is capturing input.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clippy.png" alt="Clipboard (Clippy) applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Clipboard (Clippy)</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Keep recent snippets close and move faster between repeated tasks.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/clock.png" alt="Clock applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Clock</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Clean time display with polished, always-visible presence.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/alarm.png" alt="Alarm applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Alarm</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Multiple local-time alarm presets with weekday repeats, snooze, and dismiss controls.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/colorpicker.png" alt="Color Picker applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Color Picker</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Pick and inspect colors directly from the desktop.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/deskpresence.png" alt="Desk Presence applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Desk Presence</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Tracks time at desk vs away from X11 idle signals, with today's total in the badge.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/desktop.png" alt="Desktop applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Desktop</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Desktop actions and surface shortcuts in one place.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/hydration.png" alt="Hydration applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Hydration</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">A lightweight reminder to keep healthy breaks in view.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/keyboardlayout.png" alt="Keyboard Layout applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Keyboard Layout</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">See and switch your current keyboard layout.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/capslock.png" alt="Caps Lock applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Caps Lock</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Caps and Num Lock LED states for keyboards without physical indicators.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/moon.png" alt="Moon Phase applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Moon Phase</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Current lunar phase and a bit of night-sky context.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/music.png" alt="Music applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Music</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Playback status and quick transport controls.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/network.png" alt="Network applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Network</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Connection state and quick network awareness.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/notifications.png" alt="Notifications applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Notifications</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Unread state and notification shortcuts in one widget.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pet.png" alt="Pet applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Pet</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">A playful companion that lives in the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/pomodoro.png" alt="Pomodoro applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Pomodoro</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Focused work sessions with built-in timer rhythm.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/powerprofiles.png" alt="Power Profiles applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Power Profiles</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Switch performance modes based on how you work.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quicknote.png" alt="Quick Note applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Quick Note</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Capture short notes without opening a larger app.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/quote.png" alt="Quote applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Quote</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">A rotating quote for a little personality in the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/recentfiles.png" alt="Recent Files applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Recent Files</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Jump back into documents you touched most recently.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/screenshot.png" alt="Screenshot applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Screenshot</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Launch capture actions directly from the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/session.png" alt="Session applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Session</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Lock, logout, shutdown, and session actions close at hand.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-emerald-400/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/speedtest.png" alt="Speedtest applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Speedtest</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">One-click internet speed test with a red-to-green speedometer dial and the Mbps result on the badge.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/stretchcoach.png" alt="Stretch Coach applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Stretch Coach</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Healthy movement reminders during long sessions.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/systemmonitor.png" alt="System Monitor applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">System Monitor</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Live CPU, memory, and system activity in one widget.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/todayinhistory.png" alt="Today in History applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Today in History</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">A daily historical fact built right into the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trash.png" alt="Trash applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Trash</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Trash state and cleanup access without opening a file manager.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/usbwatch.png" alt="USB Watch applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">USB Watch</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Safe-remove access for mounted removable USB storage devices.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/trivia.png" alt="Trivia applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Trivia</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Short knowledge prompts for a lighter desktop moment.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/unitconverter.png" alt="Unit Converter applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Unit Converter</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Convert between units directly from the dock.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/urlshortener.png" alt="URL Shortener applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">URL Shortener</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Shorten URLs via is.gd and copy to clipboard.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-skyline/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/dragshare.png" alt="Drag Share applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Drag Share</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Drop a file onto the applet to upload to tmpfiles.org and copy the temporary share URL.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/volume.png" alt="Volume applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Volume</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Playback and audio control integrated into the same dock surface.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/weather.png" alt="Weather applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Weather</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/sunrise.png" alt="Sunrise applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Sunrise</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Sunrise, sunset, twilight phases, and a rich solar dial for selected cities.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-accent/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/windowkiller.png" alt="Window Killer applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Window Killer</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Force-close any window with a single click.</p>
-          </article>
-          <article class="reveal snap-start shrink-0 basis-[82%] sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-2.5rem)/3)] xl:basis-[calc((100%-5rem)/5)] rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-5 shadow-soft backdrop-blur-2xl" data-carousel-card>
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/12 bg-ember/10 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/workspaces.png" alt="Workspaces applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-white">Workspaces</h3>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Switch and track workspaces from the dock.</p>
-          </article>
+        <div class="reveal mt-10 rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-accent/8 p-5 shadow-soft backdrop-blur-2xl">
+          <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+            <label class="block" for="applet-search">
+              <span class="sr-only">Search applets</span>
+              <input id="applet-search" type="search" placeholder="Search applets, categories, or features" class="w-full rounded-[1.1rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-skyline/50 focus:bg-white/[0.11]">
+            </label>
+            <p id="applet-result-count" class="text-sm text-slate-300">Showing 64 applets</p>
           </div>
+          <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"></div>
         </div>
+
+        <div id="applet-grid" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+        <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
+        <noscript>
+          <div class="mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">
+            <p>Enable JavaScript to search and filter the applet catalog. The release includes 64 built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
+            <ul class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <li><strong>AI Usage:</strong> Track sessions, token usage, and estimated spend.</li>
+              <li><strong>Alarm:</strong> Local-time alarms with repeats and snooze controls.</li>
+              <li><strong>Ambient:</strong> Calming ambient controls for quieter sessions.</li>
+              <li><strong>Applications:</strong> Browse and launch installed desktop applications.</li>
+              <li><strong>Astronomy Picture of the Day:</strong> NASA APOD thumbnails and context.</li>
+              <li><strong>Battery:</strong> Battery level, charging state, and power context.</li>
+              <li><strong>Bluetooth:</strong> Bluetooth adapter and device awareness.</li>
+              <li><strong>Bookmarks:</strong> Pinned shortcuts for frequent places and links.</li>
+              <li><strong>Brightness:</strong> Screen brightness control from the dock.</li>
+              <li><strong>Caffeine:</strong> Keep the session awake with optional timers.</li>
+              <li><strong>Calculator:</strong> Quick calculations without opening a larger app.</li>
+              <li><strong>Calendar:</strong> Compact date browsing and schedule context.</li>
+              <li><strong>Cam Shield:</strong> Camera privacy indicator for video-device access.</li>
+              <li><strong>Caps Lock:</strong> Caps and Num Lock LED states.</li>
+              <li><strong>Cert Watch:</strong> TLS certificate expiry monitor.</li>
+              <li><strong>Clippy:</strong> Clipboard history for recent snippets.</li>
+              <li><strong>Clock:</strong> Analog or digital clock display.</li>
+              <li><strong>Color Picker:</strong> Pick and inspect desktop colors.</li>
+              <li><strong>Crypto:</strong> Track selected coins and NFT collections.</li>
+              <li><strong>Currency FX:</strong> Live exchange-rate pairs and sparklines.</li>
+              <li><strong>Desk Presence:</strong> Track time at desk versus away.</li>
+              <li><strong>Desktop:</strong> Desktop actions and surface shortcuts.</li>
+              <li><strong>Devices:</strong> Browse mounted devices in a live stack.</li>
+              <li><strong>Docker:</strong> See, stop, and restart running containers.</li>
+              <li><strong>Drag Share:</strong> Drop files to create temporary share URLs.</li>
+              <li><strong>Hacker News:</strong> Browse top headlines from the dock.</li>
+              <li><strong>Hydration:</strong> Lightweight healthy-break reminders.</li>
+              <li><strong>Keyboard Layout:</strong> See and switch keyboard layout.</li>
+              <li><strong>Last.fm:</strong> Recent scrobbles with album art.</li>
+              <li><strong>Mic Shield:</strong> Microphone mute and privacy indicator.</li>
+              <li><strong>Moon:</strong> Current lunar phase and illumination.</li>
+              <li><strong>Music:</strong> Media playback status and controls.</li>
+              <li><strong>Network:</strong> Connection state and quick network awareness.</li>
+              <li><strong>News:</strong> Follow country-based RSS publications from the dock.</li>
+              <li><strong>Notifications:</strong> Notification status and Do Not Disturb.</li>
+              <li><strong>Pet:</strong> A playful companion reacting to system activity.</li>
+              <li><strong>Plant Care:</strong> Offline recurring care reminders for multiple plants.</li>
+              <li><strong>Pomodoro:</strong> Focused work sessions with timer rhythm.</li>
+              <li><strong>Power Profiles:</strong> Switch performance modes.</li>
+              <li><strong>Quick Note:</strong> Capture short notes quickly.</li>
+              <li><strong>Quote:</strong> Rotating quote and joke content.</li>
+              <li><strong>Random Trivia:</strong> Quick trivia questions and answers.</li>
+              <li><strong>Recent Files:</strong> Jump back into recent documents.</li>
+              <li><strong>Reddit:</strong> Browse posts from your favorite subreddits.</li>
+              <li><strong>Run Application:</strong> Alt+F2-style command launcher.</li>
+              <li><strong>Screenshot:</strong> Screenshot and portal capture actions.</li>
+              <li><strong>Search:</strong> Find applications, dock items, windows, recent files, calculations, and paths.</li>
+              <li><strong>Session:</strong> Lock, logout, shutdown, and session actions.</li>
+              <li><strong>Speedtest:</strong> One-click internet speed test.</li>
+              <li><strong>Stretch Coach:</strong> Movement reminders during long sessions.</li>
+              <li><strong>Sunrise:</strong> Sunrise, sunset, twilight, and solar dial.</li>
+              <li><strong>System Monitor:</strong> Live CPU, memory, and activity.</li>
+              <li><strong>System Tray:</strong> Legacy tray area for status icons.</li>
+              <li><strong>Thermals:</strong> Sensor temperatures and fan context.</li>
+              <li><strong>Today in History:</strong> Notable events with offline fallback.</li>
+              <li><strong>Trash:</strong> Trash state, open, empty, and drop-to-trash access.</li>
+              <li><strong>Unit Converter:</strong> Convert units from the dock.</li>
+              <li><strong>URL Shortener:</strong> Shorten URLs and copy results.</li>
+              <li><strong>USB Watch:</strong> Safe-remove access for removable USB storage.</li>
+              <li><strong>Volume:</strong> Playback and audio control.</li>
+              <li><strong>Weather:</strong> Forecast, conditions, and air quality.</li>
+              <li><strong>WhatsApp:</strong> Persistent WhatsApp Web with notifications and an unread badge.</li>
+              <li><strong>Window Killer:</strong> Click a window to force-close it.</li>
+              <li><strong>Workspaces:</strong> Switch and track workspaces.</li>
+            </ul>
+          </div>
+        </noscript>
+
       </section>
 
       <section id="install" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
@@ -965,7 +632,7 @@
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
               <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking on any Linux distribution</h2>
-              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Download the latest release package that fits your Linux setup and get straight to work.</p>
+              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Choose your distribution's package manager below, or download a release package for your Linux setup.</p>
             </div>
 
             <div>
@@ -979,17 +646,138 @@
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">RPM</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Flatpak</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Snap</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.zst" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
                 <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Nix</a>
               </div>
               <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
             </div>
           </div>
+          <details id="apt-install" class="group mt-8 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+              <span>Debian &amp; Ubuntu: install with APT</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </summary>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13, on both x64 and arm64.</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Ubuntu derivatives, including Linux Mint 21.x/22.x, use their Ubuntu base through <code>UBUNTU_CODENAME</code>. Their desktops are not separately tested.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update
+sudo apt install curl ca-certificates gnupg
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">811B48CD4A69170DD98F4F49185CED80A7947754</code>.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified.</p>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>(
+set -eu
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
+. /etc/os-release
+APT_DISTRO="${ID:-}"
+APT_SUITE="${VERSION_CODENAME:-}"
+if [ -n "${UBUNTU_CODENAME:-}" ]; then
+    APT_DISTRO=ubuntu
+    APT_SUITE="$UBUNTU_CODENAME"
+fi
+if [ "$APT_DISTRO" = debian ] &amp;&amp; [ -z "$APT_SUITE" ]; then
+    DEBIAN_VERSION=$(cat /etc/debian_version 2&gt;/dev/null || true)
+    case "$DEBIAN_VERSION" in
+        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
+        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
+    esac
+fi
+case "$APT_DISTRO:$APT_SUITE" in
+    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
+    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" &gt;&amp;2; exit 1 ;;
+esac
+sudo tee /etc/apt/sources.list.d/docking.sources &gt; /dev/null &lt;&lt;EOF
+Types: deb
+URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
+Suites: ${APT_SUITE}
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
+EOF
+sudo apt update
+sudo apt install docking
+)</code></pre>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo apt update</code> and <code class="text-slate-100">sudo apt upgrade</code>. Existing .deb installations can upgrade directly through APT.</p>
+            <p class="mt-2 text-xs leading-6 text-slate-400">APT packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+          </details>
+          <details id="rpm-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+              <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </summary>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Repository installation is available after the first verified RPM publication. Until then, use the RPM release downloads above.</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    sudo zypper --non-interactive install curl gpg2
+else
+    sudo dnf install -y curl gnupg2
+fi
+curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
+  -o /tmp/docking-cloudsmith.asc
+gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">04C7240DAD480161C0DFC791859E104126138494</code>.</p>
+            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It selects DNF on Fedora or Zypper on openSUSE.</p>
+            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+              <pre class="text-sm leading-7 text-slate-200"><code>(
+set -eu
+sudo rpm --import /tmp/docking-cloudsmith.asc
+if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    REPO_DIR=/etc/zypp/repos.d
+else
+    REPO_DIR=/etc/yum.repos.d
+fi
+sudo install -d -m 0755 "$REPO_DIR"
+sudo tee "$REPO_DIR/docking-rpm.repo" &gt; /dev/null &lt;&lt;'EOF'
+[docking-rpm]
+name=Docking
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+
+[docking-rpm-noarch]
+name=Docking noarch
+baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
+sslverify=1
+type=rpm-md
+metadata_expire=300
+EOF
+if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
+    sudo zypper --gpg-auto-import-keys refresh
+    sudo zypper install docking
+else
+    sudo dnf install docking
+fi
+)</code></pre>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo dnf upgrade</code> or <code class="text-slate-100">sudo zypper update</code>. Existing .rpm installations can upgrade directly through the repository.</p>
+            <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+          </details>
         </div>
       </section>
 
       <section id="source" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div class="reveal">
             <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source: clone it, hack on it, extend it</h2>
             <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
@@ -1009,7 +797,9 @@
 cd docking
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
-pip install -e ".[dev]"</code></pre>
+pip install -e ".[dev]"
+PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
+  pip install --no-deps -r requirements-typing.txt</code></pre>
             </div>
           </div>
         </div>
@@ -1031,7 +821,7 @@ pip install -e ".[dev]"</code></pre>
           <div class="mt-10 space-y-6">
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What Linux desktop environments does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking runs on any Linux desktop environment using X11, including GNOME, KDE Plasma, XFCE, MATE, Cinnamon, and others. It uses GTK 3 and Cairo for rendering, with Wnck for window tracking.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports X11 and Wayland through backend-specific integrations: full X11 support, GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, COSMIC through native Wayland protocols, wlroots-style compositors via layer-shell and advertised protocols, and reduced mode when compositor integration is unavailable.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1039,7 +829,7 @@ pip install -e ".[dev]"</code></pre>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking currently targets X11. Wayland support is not available yet due to fundamental differences in how Wayland handles window positioning, struts, and input grabbing.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell/protocol paths, or reduced mode when needed.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -1070,7 +860,7 @@ pip install -e ".[dev]"</code></pre>
 
     <footer class="border-t border-white/10">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-300 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div>Docking is an open source dock for Linux (X11), written in Python with GTK and Cairo.</div>
+        <div>Docking is an open source dock for Linux with X11 and Wayland backends, written in Python with GTK and Cairo.</div>
         <div class="flex items-center gap-6">
           <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">GitHub</a>
           <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">Releases</a>
@@ -1090,6 +880,195 @@ pip install -e ".[dev]"</code></pre>
     }, { threshold: 0.18 });
 
     document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
+
+    const APPLET_ICON_BASE = "https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/";
+    const APPLETS = [
+      { id: "aiusage", name: "AI Usage", category: "Time & Productivity", summary: "Track sessions, token usage, and estimated spend across Claude, Codex, and OpenCode." },
+      { id: "alarm", name: "Alarm", category: "Time & Productivity", summary: "Multiple local-time alarm presets with weekday repeats, snooze, and dismiss controls." },
+      { id: "ambient", name: "Ambient", category: "Wellness & Ambient", summary: "Calming ambient controls for focus, atmosphere, and quieter desktop sessions." },
+      { id: "applications", name: "Applications", category: "Launcher & Navigation", summary: "Browse and launch installed desktop applications from a compact app menu." },
+      { id: "apod", name: "Astronomy Picture of the Day", category: "Information and Environment", summary: "NASA APOD thumbnails with title, credit, and explanation in the tooltip." },
+      { id: "battery", name: "Battery", category: "System & Power", summary: "Battery level, charging state, and power context at a glance." },
+      { id: "bluetooth", name: "Bluetooth", category: "System & Power", summary: "Bluetooth adapter and device awareness with quick access from the dock." },
+      { id: "bookmarks", name: "Bookmarks", category: "Time & Productivity", summary: "Pinned shortcuts for places, links, and resources you revisit often." },
+      { id: "brightness", name: "Brightness", category: "System & Power", summary: "Screen brightness control without leaving the dock." },
+      { id: "caffeine", name: "Caffeine", category: "System & Power", summary: "Keep the session awake with optional timers for focus blocks or long tasks." },
+      { id: "calculator", name: "Calculator", category: "Time & Productivity", summary: "Quick calculations without opening a larger application." },
+      { id: "calendar", name: "Calendar", category: "Time & Productivity", summary: "Compact date browsing and schedule context." },
+      { id: "camshield", name: "Cam Shield", category: "System & Power", summary: "Camera privacy indicator that shows when a process holds a video device." },
+      { id: "capslock", name: "Caps Lock", category: "System & Power", summary: "Caps and Num Lock LED states for keyboards without physical indicators." },
+      { id: "certwatch", name: "Cert Watch", category: "System & Power", summary: "TLS certificate expiry monitor with a color-coded shield and days-remaining badge." },
+      { id: "clippy", name: "Clippy", category: "Time & Productivity", summary: "Clipboard history for recent snippets and repeated text." },
+      { id: "clock", name: "Clock", category: "Time & Productivity", summary: "Analog or digital clock display with optional seconds and alarm reminder support." },
+      { id: "colorpicker", name: "Color Picker", category: "Time & Productivity", summary: "Pick and inspect colors directly from the desktop." },
+      { id: "crypto", name: "Crypto", category: "Information and Environment", summary: "Track selected coins and NFT collections with live prices and compact sparklines." },
+      { id: "currencyfx", name: "Currency FX", category: "Information and Environment", summary: "Live exchange-rate pairs with a sparkline right on the dock icon." },
+      { id: "deskpresence", name: "Desk Presence", category: "Wellness & Ambient", summary: "Track time at desk versus away, with today's total in the badge." },
+      { id: "desktop", name: "Desktop", category: "Launcher & Navigation", summary: "Desktop actions and surface shortcuts in one place." },
+      { id: "devices", name: "Devices", category: "Launcher & Navigation", summary: "Browse every mounted device in a live stack that updates as mounts change." },
+      { id: "docker", name: "Docker", category: "System & Power", summary: "See running containers and stop or restart them from the dock menu." },
+      { id: "dragshare", name: "Drag Share", category: "Time & Productivity", summary: "Drop a file to upload it to tmpfiles.org and copy the temporary share URL." },
+      { id: "hackernews", name: "Hacker News", category: "Information and Environment", summary: "Top headlines with manual navigation and next batches loaded up to 100 items." },
+      { id: "hydration", name: "Hydration", category: "Wellness & Ambient", summary: "A lightweight reminder to keep healthy breaks in view." },
+      { id: "keyboardlayout", name: "Keyboard Layout", category: "System & Power", summary: "See and switch your current keyboard layout." },
+      { id: "lastfm", name: "Last.fm", category: "Information and Environment", summary: "Recent Last.fm and Libre.fm scrobbles with album art and profile shortcuts." },
+      { id: "micshield", name: "Mic Shield", category: "System & Power", summary: "Microphone mute toggle with a privacy dot while an app captures input." },
+      { id: "moon", name: "Moon", category: "Information and Environment", summary: "Current lunar phase with a rendered moon disc and illumination shading." },
+      { id: "music", name: "Music", category: "System & Power", summary: "Media playback status, album-art rendering, and transport controls." },
+      { id: "network", name: "Network", category: "System & Power", summary: "Connection state and quick network awareness." },
+      { id: "news", name: "News", category: "Information and Environment", summary: "Follow country-based RSS publications and browse their latest headlines from the dock." },
+      { id: "notifications", name: "Notifications", category: "System & Power", summary: "Notification status, Do Not Disturb toggle, and pending badge when available." },
+      { id: "pet", name: "Pet", category: "Wellness & Ambient", summary: "A playful dock companion that reacts to system activity." },
+      { id: "plantcare", name: "Plant Care", category: "Wellness & Ambient", summary: "Offline recurring care reminders for multiple plants, with due and overdue status." },
+      { id: "pomodoro", name: "Pomodoro", category: "Time & Productivity", summary: "Focused work sessions with a built-in timer rhythm." },
+      { id: "powerprofiles", name: "Power Profiles", category: "System & Power", summary: "Switch laptop and handheld performance modes based on how you work." },
+      { id: "quicknote", name: "Quick Note", category: "Time & Productivity", summary: "Capture short notes without opening a larger app." },
+      { id: "quote", name: "Quote", category: "Information and Environment", summary: "Rotating quote and joke applet with local fallback content and online refresh." },
+      { id: "trivia", name: "Random Trivia", category: "Information and Environment", summary: "Quick trivia questions with answer choices and result feedback." },
+      { id: "recentfiles", name: "Recent Files", category: "Time & Productivity", summary: "Jump back into documents you touched most recently." },
+      { id: "reddit", name: "Reddit", category: "Information and Environment", summary: "Browse posts from your favorite subreddits and open them in your browser." },
+      { id: "runcommand", name: "Run Application", category: "Launcher & Navigation", summary: "Alt+F2-style command launcher with terminal mode and searchable app matching." },
+      { id: "screenshot", name: "Screenshot", category: "System & Power", summary: "Launch screenshot and portal capture actions directly from the dock." },
+      { id: "search", name: "Search", category: "Launcher & Navigation", summary: "Find applications, dock items, open windows, recent files, calculations, and paths." },
+      { id: "session", name: "Session", category: "System & Power", summary: "Lock, logout, shutdown, and session actions close at hand." },
+      { id: "speedtest", name: "Speedtest", category: "System & Power", summary: "One-click internet speed test with a speedometer dial and Mbps badge." },
+      { id: "stretchcoach", name: "Stretch Coach", category: "Wellness & Ambient", summary: "Healthy movement reminders during long sessions." },
+      { id: "sunrise", name: "Sunrise", category: "Information and Environment", summary: "Sunrise, sunset, twilight phases, and a solar dial for selected cities." },
+      { id: "systemmonitor", name: "System Monitor", category: "System & Power", summary: "Live CPU, memory, and system activity in one widget." },
+      { id: "systemtray", name: "System Tray", category: "System & Power", summary: "Legacy X11 tray area for status icons, with takeover and release controls." },
+      { id: "thermals", name: "Thermals", category: "System & Power", summary: "Hottest sensor temperature, fan RPM tooltip, and Celsius/Fahrenheit toggle." },
+      { id: "todayinhistory", name: "Today in History", category: "Information and Environment", summary: "One notable event at a time with online refresh and offline fallback data." },
+      { id: "trash", name: "Trash", category: "System & Power", summary: "Trash state and cleanup access without opening a file manager." },
+      { id: "unitconverter", name: "Unit Converter", category: "Time & Productivity", summary: "Convert between units directly from the dock." },
+      { id: "urlshortener", name: "URL Shortener", category: "Time & Productivity", summary: "Shorten URLs via is.gd and copy the result to the clipboard." },
+      { id: "usbwatch", name: "USB Watch", category: "System & Power", summary: "Safe-remove access for mounted removable USB storage devices." },
+      { id: "volume", name: "Volume", category: "System & Power", summary: "Playback and audio control integrated into the same dock surface." },
+      { id: "weather", name: "Weather", category: "Information and Environment", summary: "Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance." },
+      { id: "whatsapp", name: "WhatsApp", category: "Launcher & Navigation", summary: "Persistent WhatsApp Web with desktop notifications and an unread-message badge." },
+      { id: "windowkiller", name: "Window Killer", category: "System & Power", summary: "Click the applet, then click any window to force-close it." },
+      { id: "workspaces", name: "Workspaces", category: "Launcher & Navigation", summary: "Switch and track workspaces from the dock." }
+    ];
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function categoryClasses(category) {
+      if (category === "System & Power") return "from-accent/12 to-ember/6 text-rose-100";
+      if (category === "Launcher & Navigation") return "from-skyline/12 to-emerald-400/6 text-blue-100";
+      if (category === "Time & Productivity") return "from-ember/12 to-skyline/6 text-amber-100";
+      if (category === "Wellness & Ambient") return "from-emerald-400/12 to-skyline/6 text-emerald-100";
+      return "from-skyline/12 to-accent/6 text-slate-100";
+    }
+
+    function installAppletIconFallback(root = document) {
+      root.querySelectorAll('img[src*="/docking/assets/icons/applets/"]').forEach((image) => {
+        if (image.dataset.fallbackBound === "true") return;
+        image.dataset.fallbackBound = "true";
+        const fallback = () => {
+          const label = (image.alt || "Applet").replace(" applet icon", "");
+          const initials = label
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join("")
+            .toUpperCase();
+          const badge = document.createElement("span");
+          badge.className = "flex h-full w-full items-center justify-center rounded-xl bg-white/10 text-xs font-bold tracking-wide text-white";
+          badge.textContent = initials || "A";
+          image.replaceWith(badge);
+        };
+        image.addEventListener("error", fallback, { once: true });
+        if (image.complete && image.naturalWidth === 0) fallback();
+      });
+    }
+
+    (function () {
+      const grid = document.getElementById("applet-grid");
+      const search = document.getElementById("applet-search");
+      const filters = document.getElementById("applet-category-filters");
+      const resultCount = document.getElementById("applet-result-count");
+      const totalCount = document.getElementById("applet-total-count");
+      const emptyState = document.getElementById("applet-empty-state");
+      if (!grid || !search || !filters || !resultCount || !emptyState) {
+        installAppletIconFallback(document);
+        return;
+      }
+
+      const categories = [
+        "All",
+        "Launcher & Navigation",
+        "Time & Productivity",
+        "System & Power",
+        "Wellness & Ambient",
+        "Information and Environment"
+      ];
+      let activeCategory = "All";
+
+      if (totalCount) totalCount.textContent = String(APPLETS.length);
+
+      filters.innerHTML = categories.map((category) => {
+        const isActive = category === activeCategory;
+        return `<button type="button" data-applet-category="${escapeHtml(category)}" class="rounded-full border px-4 py-2 text-sm font-semibold transition ${isActive ? "border-amber-200/30 bg-ember/14 text-white" : "border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white"}" aria-pressed="${isActive ? "true" : "false"}">${escapeHtml(category)}</button>`;
+      }).join("");
+
+      function searchableText(applet) {
+        return `${applet.name} ${applet.category} ${applet.summary}`.toLowerCase();
+      }
+
+      function filteredApplets() {
+        const query = search.value.trim().toLowerCase();
+        return APPLETS.filter((applet) => {
+          const categoryMatches = activeCategory === "All" || applet.category === activeCategory;
+          const queryMatches = !query || searchableText(applet).includes(query);
+          return categoryMatches && queryMatches;
+        });
+      }
+
+      function renderGrid() {
+        const applets = filteredApplets();
+        resultCount.textContent = `Showing ${applets.length} of ${APPLETS.length} applets`;
+        emptyState.classList.toggle("hidden", applets.length > 0);
+        grid.innerHTML = applets.map((applet) => {
+          const classes = categoryClasses(applet.category);
+          return `<article class="reveal is-visible rounded-[1.4rem] border border-white/12 bg-gradient-to-br ${classes} p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="${escapeHtml(applet.category)}">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="${APPLET_ICON_BASE}${escapeHtml(applet.id)}.png" alt="${escapeHtml(applet.name)} applet icon" class="h-full w-full object-contain" loading="lazy">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">${escapeHtml(applet.name)}</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">${escapeHtml(applet.category)}</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">${escapeHtml(applet.summary)}</p>
+          </article>`;
+        }).join("");
+        installAppletIconFallback(grid);
+      }
+
+      filters.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const button = target ? target.closest("[data-applet-category]") : null;
+        if (!button) return;
+        activeCategory = button.dataset.appletCategory || "All";
+        filters.querySelectorAll("[data-applet-category]").forEach((candidate) => {
+          const isActive = candidate === button;
+          candidate.setAttribute("aria-pressed", isActive ? "true" : "false");
+          candidate.className = `rounded-full border px-4 py-2 text-sm font-semibold transition ${isActive ? "border-amber-200/30 bg-ember/14 text-white" : "border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white"}`;
+        });
+        renderGrid();
+      });
+
+      search.addEventListener("input", renderGrid);
+      renderGrid();
+      installAppletIconFallback(document);
+    })();
 
     const mobileDockToggle = document.getElementById("mobile-dock-toggle");
     const mobileDockMenu = document.getElementById("mobile-dock-menu");
@@ -1184,60 +1163,6 @@ pip install -e ".[dev]"</code></pre>
       setArch("x64");
     })();
 
-    /* Carousel: auto-drift + arrow navigation */
-    (function () {
-      const track = document.getElementById("applets-carousel");
-      if (!track) return;
-
-      const PX_PER_FRAME = 1;
-      let drift = 1;
-      let paused = false;
-
-      function cardStep() {
-        const firstCard = track.querySelector("[data-carousel-card]");
-        const gap = parseFloat(getComputedStyle(track).gap || 0);
-        return firstCard ? firstCard.getBoundingClientRect().width + gap : track.clientWidth * 0.85;
-      }
-
-      function maxScroll() { return track.scrollWidth - track.clientWidth; }
-
-      function tick() {
-        if (!paused) {
-          var sl = track.scrollLeft;
-          if (sl >= maxScroll() - 1) drift = -1;
-          if (sl <= 1) drift = 1;
-          track.scrollLeft = sl + PX_PER_FRAME * drift;
-        }
-        requestAnimationFrame(tick);
-      }
-
-      /* Arrow buttons */
-      document.querySelectorAll("[data-carousel-target='applets-carousel']").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var dir = btn.dataset.carouselDirection === "next" ? 1 : -1;
-          var step = cardStep();
-          var raw = track.scrollLeft + step * dir;
-          var snapped = Math.max(0, Math.min(Math.round(raw / step) * step, maxScroll()));
-          track.scrollTo({ left: snapped, behavior: "smooth" });
-          drift = dir;
-        });
-        btn.addEventListener("mouseenter", function () { paused = true; });
-        btn.addEventListener("mouseleave", function () { paused = false; });
-      });
-
-      track.addEventListener("mouseenter", function () { paused = true; });
-      track.addEventListener("mouseleave", function () {
-        paused = false;
-        /* After hover ends, correct drift if at an edge */
-        if (track.scrollLeft >= maxScroll() - 1) drift = -1;
-        if (track.scrollLeft <= 1) drift = 1;
-      });
-      track.addEventListener("pointerdown", function () { paused = true; });
-      track.addEventListener("pointerup", function () { paused = false; });
-
-      track.style.scrollSnapType = "none";
-      requestAnimationFrame(tick);
-    })();
   </script>
 </body>
 </html>

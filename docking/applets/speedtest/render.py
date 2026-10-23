@@ -26,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.speedtest.state import format_speed, speed_tier
+from docking.core.math import clamp
 
 # Visible tick positions along the dial (0.0..1.0).
 _TICK_STEPS = (0.0, 0.25, 0.5, 0.75, 1.0)
@@ -110,7 +111,7 @@ def _draw_needle(
     tier: str,
 ) -> None:
     cx, cy, radius = _dial_center(size)
-    fraction = max(0.0, min(1.0, download_mbps / _NEEDLE_FULL_SCALE_MBPS))
+    fraction = clamp(download_mbps / _NEEDLE_FULL_SCALE_MBPS, 0.0, 1.0)
     angle = math.pi + fraction * math.pi
 
     length = radius - size * 0.04

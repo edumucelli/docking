@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, NamedTuple
+from urllib.parse import urlsplit
 
 from docking.applets.live_state import (
     live_freshness_lines,
@@ -91,28 +92,23 @@ def parse_host_port(text: str) -> DomainPref | None:
         if raw.lower().startswith(prefix):
             raw = raw[len(prefix) :]
             break
-    raw = raw.split("/", 1)[0]
-    if ":" in raw:
-        host, _, port_text = raw.rpartition(":")
-        host = host.strip()
-        try:
-            port = int(port_text)
-        except ValueError:
-            return None
-        if not host or port <= 0 or port > 65535:
-            return None
-        return DomainPref(host=host, port=port)
-    host = raw.strip()
-    if not host:
+    try:
+        parsed = urlsplit(f"//{raw}")
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
         return None
-    return DomainPref(host=host, port=DEFAULT_HTTPS_PORT)
+    if not host or parsed.netloc.endswith(":") or port == 0:
+        return None
+    return DomainPref(host=host, port=port or DEFAULT_HTTPS_PORT)
 
 
 def format_host(pref: DomainPref) -> str:
     """Render a DomainPref for display (hides default port)."""
+    host = f"[{pref.host}]" if ":" in pref.host else pref.host
     if pref.port == DEFAULT_HTTPS_PORT:
-        return pref.host
-    return f"{pref.host}:{pref.port}"
+        return host
+    return f"{host}:{pref.port}"
 
 
 def days_until(
@@ -224,8 +220,9 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> CertwatchPrefs:
         if not host:
             continue
         try:
-            port = int(entry.get("port", DEFAULT_HTTPS_PORT))
-        except (TypeError, ValueError):
+            raw_port = entry.get("port", DEFAULT_HTTPS_PORT)
+            port = DEFAULT_HTTPS_PORT if isinstance(raw_port, bool) else int(raw_port)
+        except (TypeError, ValueError, OverflowError):
             port = DEFAULT_HTTPS_PORT
         if port <= 0 or port > 65535:
             port = DEFAULT_HTTPS_PORT
@@ -323,6 +320,7 @@ def build_tooltip(
             updated_at=updated_at,
             cadence_seconds=cadence_seconds,
             cadence_verb=_("Checks"),
+            now=now,
         ),
         error=live_state_error(status=status, error=error),
         recovery=refresh_recovery_label(status),

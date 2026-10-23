@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from docking.core.config import Config
 
 pytest.importorskip(
     "docking.applets.todayinhistory",
@@ -48,7 +49,7 @@ class TestHistoryHelpers:
         assert "Apollo 11" in text
         assert "Sea of Tranquility" in text
 
-    @patch("docking.applets.todayinhistory.state._http_get_json")
+    @patch("docking.applets.todayinhistory.state.http_get_json")
     def test_fetch_today_in_history_parses_wikipedia_response(self, mock_get):
         mock_get.return_value = {
             "events": [
@@ -78,7 +79,7 @@ class TestHistoryHelpers:
         assert entries[0].article_url.endswith("/Apollo_11")
 
     @patch(
-        "docking.applets.todayinhistory.state._http_get_json",
+        "docking.applets.todayinhistory.state.http_get_json",
         side_effect=RuntimeError,
     )
     def test_fetch_failure_returns_empty(self, _mock_get):
@@ -166,29 +167,6 @@ class TestHistoryHelpers:
         assert today_state_mod._parse_wikipedia_events(data=[], limit=3) == []
         assert today_state_mod._parse_wikipedia_events(data={}, limit=3) == []
 
-    def test_http_get_json_uses_urlopen(self, monkeypatch):
-        class _Response:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args):
-                return False
-
-            def read(self):
-                return json.dumps({"ok": True}).encode()
-
-        seen = []
-        monkeypatch.setattr(
-            today_state_mod,
-            "urlopen",
-            lambda request, timeout: (
-                seen.append((request.full_url, timeout)) or _Response()
-            ),
-        )
-
-        assert today_state_mod._http_get_json("https://example.test") == {"ok": True}
-        assert seen == [("https://example.test", 8.0)]
-
     def test_fallback_catalog_exact_pool_and_empty(self):
         catalog = {
             "03-14": [ENTRY],
@@ -202,13 +180,13 @@ class TestHistoryHelpers:
 
 class TestTodayInHistoryApplet:
     def test_creates_with_icon_and_initial_event(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
 
         assert applet.item.icon is not None
         assert applet._current is not None
 
     def test_start_and_stop_timer(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         fetch = MagicMock()
         removed: list[int] = []
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -231,7 +209,7 @@ class TestTodayInHistoryApplet:
         assert applet._timer_id == 0
 
     def test_click_without_events_fetches(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._events = []
         fetch = MagicMock()
         monkeypatch.setattr(applet, "_fetch_async", fetch)
@@ -242,7 +220,7 @@ class TestTodayInHistoryApplet:
         fetch.assert_called_once_with(show_first=True)
 
     def test_click_advances_and_wraps_events(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         second = HistoryEvent(
             year=1989,
             title="World Wide Web proposal",
@@ -264,7 +242,7 @@ class TestTodayInHistoryApplet:
         assert applet._current == ENTRY
 
     def test_menu_contains_core_actions(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current = ENTRY
 
         labels = [
@@ -277,7 +255,7 @@ class TestTodayInHistoryApplet:
         assert "Open Article" in labels
 
     def test_menu_omits_open_article_without_url(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current = HistoryEvent(
             year=44,
             title="Julius Caesar assassinated",
@@ -293,7 +271,7 @@ class TestTodayInHistoryApplet:
         assert "Open Article" not in labels
 
     def test_source_label_date_and_tooltip_defaults(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current = None
         assert applet._date_key(month=3, day=4) == "03-04"
         assert applet._source_label() == "Today in History"
@@ -302,7 +280,7 @@ class TestTodayInHistoryApplet:
         assert applet.item.name == "Today in History"
 
     def test_on_fetch_result_uses_fallback_when_api_returns_empty(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 7
         applet._current_day = 20
         applet._current = None
@@ -322,7 +300,7 @@ class TestTodayInHistoryApplet:
         assert applet._current == ENTRY
 
     def test_on_fetch_result_ignores_stale_day_results(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         current = HistoryEvent(
             year=2001,
             title="Current day event",
@@ -357,7 +335,7 @@ class TestTodayInHistoryApplet:
         assert applet._loading_key == "03-15"
 
     def test_on_fetch_result_entries_keep_current_when_not_show_first(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 7
         applet._current_day = 20
         current = HistoryEvent(1, "Current", "Current summary")
@@ -373,7 +351,7 @@ class TestTodayInHistoryApplet:
         assert applet._loading is False
 
     def test_on_fetch_result_empty_keeps_existing_current(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 7
         applet._current_day = 20
         current = HistoryEvent(1, "Current", "Current summary")
@@ -389,7 +367,7 @@ class TestTodayInHistoryApplet:
         assert applet._current == current
 
     def test_refresh_from_web_syncs_to_new_local_day_immediately(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         old_entry = HistoryEvent(
             year=1900,
             title="Old day event",
@@ -438,7 +416,7 @@ class TestTodayInHistoryApplet:
         assert started
 
     def test_sync_to_local_day_no_change_and_poll_day_change(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 3
         applet._current_day = 14
         monkeypatch.setattr(applet, "_current_date", lambda: (3, 14))
@@ -459,7 +437,7 @@ class TestTodayInHistoryApplet:
         applet._fetch_async.assert_called_once_with(show_first=False)
 
     def test_advance_event_without_events(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._events = []
         applet._advance_event()
 
@@ -467,7 +445,7 @@ class TestTodayInHistoryApplet:
         assert applet._current is None
 
     def test_fetch_async_dedupes_same_loading_request(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 7
         applet._current_day = 20
         applet._loading = True
@@ -482,7 +460,7 @@ class TestTodayInHistoryApplet:
         applet._fetch_async(show_first=True)
 
     def test_fetch_async_worker_posts_idle_result(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._current_month = 7
         applet._current_day = 20
         idle_calls = []
@@ -514,7 +492,7 @@ class TestTodayInHistoryApplet:
         assert idle_calls[0][1:4] == (7, 20, [ENTRY])
 
     def test_refresh_tooltip_loading_state(self):
-        applet = TodayInHistoryApplet(48)
+        applet = TodayInHistoryApplet(48, config=Config())
         applet._loading = True
         applet._current = None
 
@@ -522,27 +500,33 @@ class TestTodayInHistoryApplet:
 
         assert "loading" in applet.item.name.lower()
 
-    def test_open_current_article_noop_success_and_error(self, monkeypatch):
-        applet = TodayInHistoryApplet(48)
+    def test_tooltip_uses_wrapped_label(self, monkeypatch):
+        applet = TodayInHistoryApplet(48, config=Config())
+        applet._current = ENTRY
+        label = object()
+        build_label = MagicMock(return_value=label)
+        monkeypatch.setattr(today_applet_mod, "wrapped_tooltip_label", build_label)
+
+        applet.refresh_tooltip()
+
+        assert applet.item.tooltip_builder() is label
+        build_label.assert_called_once_with(format_history_event(ENTRY))
+
+    def test_open_current_article_noop_success_and_target_failure(self, monkeypatch):
+        applet = TodayInHistoryApplet(48, config=Config())
+        open_target = MagicMock(return_value=True)
+        monkeypatch.setattr(today_applet_mod.targets, "open_target", open_target)
         applet._current = None
         applet._open_current_article()
 
         applet._current = HistoryEvent(1, "No URL", "Summary")
         applet._open_current_article()
+        open_target.assert_not_called()
 
-        opened: list[str] = []
         applet._current = ENTRY
-        monkeypatch.setattr(
-            today_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda url, _ctx: opened.append(url),
-        )
         applet._open_current_article()
-        assert opened == [ENTRY.article_url]
+        open_target.assert_called_once_with(ENTRY.article_url)
 
-        monkeypatch.setattr(
-            today_applet_mod.Gio.AppInfo,
-            "launch_default_for_uri",
-            lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")),
-        )
+        open_target.return_value = False
         applet._open_current_article()
+        assert open_target.call_count == 2

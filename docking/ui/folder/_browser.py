@@ -15,9 +15,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from collections.abc import Hashable, Mapping
+from dataclasses import dataclass, replace
+from typing import Any, TypeVar
 
 import gi
 
@@ -25,13 +25,9 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import GdkPixbuf, Gio
 
-import docking.platform.launcher as launcher_mod
 from docking.i18n import _
 from docking.log import get_logger
-
-if TYPE_CHECKING:
-    from docking.platform.launcher import Launcher
-
+from docking.platform.targets import TargetService
 
 FOLDER_DIRECTORY_CACHE_MAX_ENTRIES = 48
 FOLDER_SMALL_ICON_PX = 16
@@ -44,6 +40,9 @@ FOLDER_SORT_OPTIONS = (
 )
 
 log = get_logger("folder.browser")
+
+K = TypeVar("K", bound=Hashable)
+V = TypeVar("V")
 
 
 @dataclass(frozen=True)
@@ -101,37 +100,49 @@ class FolderRow:
         }
 
 
+@dataclass
+class _FolderEntry:
+    """Cached metadata with an icon loaded only when a caller needs it."""
+
+    row: FolderRow
+    gicon: Gio.Icon | None
+    content_type: str
+    icon_loaded: bool = False
+
+
 class FolderBrowser:
     """List folder children with bounded caching and stable sort behavior."""
 
-    def __init__(self, launcher: Launcher | None = None) -> None:
-        self._launcher = launcher
-        self._directory_rows: dict[tuple[str, int, bool, int], list[FolderRow]] = {}
+    def __init__(
+        self,
+        *,
+        target_service: TargetService,
+    ) -> None:
+        self._target_service = target_service
+        self._directory_rows: dict[tuple[str, int, bool, int], list[_FolderEntry]] = {}
 
     @staticmethod
-    def _get_lru(cache: dict[Any, Any], key: Any) -> Any | None:
+    def _get_lru(cache: dict[K, V], key: K) -> V | None:
         cached = cache.pop(key, None)
         if cached is not None:
             cache[key] = cached
         return cached
 
     @staticmethod
-    def _put_lru(
-        cache: dict[Any, Any], key: Any, value: Any, *, max_entries: int
-    ) -> None:
+    def _put_lru(cache: dict[K, V], key: K, value: V, *, max_entries: int) -> None:
         cache[key] = value
         while len(cache) > max_entries:
             cache.pop(next(iter(cache)))
 
     def invalidate_target(self, target: str) -> None:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         for key in [key for key in self._directory_rows if key[0] == uri]:
             self._directory_rows.pop(key, None)
 
     def target_state(self, target: str) -> str:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return "missing"
         try:
@@ -142,7 +153,7 @@ class FolderBrowser:
             return "missing"
 
     def cache_stamp(self, target: str) -> int:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return 0
         try:
@@ -162,8 +173,16 @@ class FolderBrowser:
         target: str,
         prefs: FolderPrefs,
         icon_px: int | None = None,
+        icon_limit: int | None = None,
     ) -> list[FolderRow]:
-        uri = launcher_mod.normalize_file_target(target)
+        """Return all sorted rows, loading icons only for the requested prefix.
+
+        Menus request the default full list. Stacks need nine icons, but retain
+        the complete metadata listing for sorting and the hidden-row count.
+        Hydrated entries stay cached so opening a menu or changing sort order
+        neither loses existing icons nor repeatedly decodes failed thumbnails.
+        """
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return []
         resolved_icon_px = FOLDER_SMALL_ICON_PX if icon_px is None else max(icon_px, 1)
@@ -174,10 +193,39 @@ class FolderBrowser:
             resolved_icon_px,
         )
         cached = self._get_lru(self._directory_rows, cache_key)
-        if cached is not None:
-            rows = list(cached)
-            rows.sort(key=lambda row: self.sort_key(row=row, mode=prefs.sort))
-            return rows
+        if cached is None:
+            cached = self._read_directory(uri=uri, show_hidden=prefs.show_hidden)
+            if cached is None:
+                return []
+            self._put_lru(
+                self._directory_rows,
+                cache_key,
+                cached,
+                max_entries=FOLDER_DIRECTORY_CACHE_MAX_ENTRIES,
+            )
+        entries = sorted(
+            cached, key=lambda entry: self.sort_key(row=entry.row, mode=prefs.sort)
+        )
+        limit = len(entries) if icon_limit is None else max(icon_limit, 0)
+        for entry in entries[:limit]:
+            if not entry.icon_loaded:
+                row = entry.row
+                entry.row = replace(
+                    row,
+                    icon=self._target_service.resolve_file_icon(
+                        target=row.target,
+                        gicon=entry.gicon,
+                        content_type=entry.content_type,
+                        size=resolved_icon_px,
+                        is_dir=row.is_dir,
+                    ),
+                )
+                entry.icon_loaded = True
+        return [entry.row for entry in entries]
+
+    def _read_directory(
+        self, *, uri: str, show_hidden: bool
+    ) -> list[_FolderEntry] | None:
         try:
             folder = Gio.File.new_for_uri(uri)
             enumerator = folder.enumerate_children(
@@ -198,61 +246,48 @@ class FolderBrowser:
                 None,
             )
         except Exception as exc:
-            log.warning("Failed to enumerate folder menu target %s: %s", target, exc)
-            return []
+            log.warning("Failed to enumerate folder menu target %s: %s", uri, exc)
+            return None
 
-        rows: list[FolderRow] = []
+        entries: list[_FolderEntry] = []
         while True:
             info = enumerator.next_file(None)
             if info is None:
                 break
-            if info.get_is_hidden() and not prefs.show_hidden:
+            if info.get_is_hidden() and not show_hidden:
                 continue
             child = folder.get_child(info.get_name())
             child_uri = child.get_uri()
             icon = info.get_icon()
             is_dir = info.get_file_type() == Gio.FileType.DIRECTORY
-            rows.append(
-                FolderRow(
-                    target=child_uri,
-                    name=info.get_display_name() or info.get_name(),
-                    kind="dir" if is_dir else "file",
-                    is_dir=is_dir,
-                    has_children=(
-                        self.directory_has_visible_children(
-                            target=child_uri,
-                            show_hidden=prefs.show_hidden,
-                        )
-                        if is_dir
-                        else False
+            entries.append(
+                _FolderEntry(
+                    row=FolderRow(
+                        target=child_uri,
+                        name=info.get_display_name() or info.get_name(),
+                        kind="dir" if is_dir else "file",
+                        is_dir=is_dir,
+                        has_children=(
+                            self.directory_has_visible_children(
+                                target=child_uri,
+                                show_hidden=show_hidden,
+                            )
+                            if is_dir
+                            else False
+                        ),
+                        size=int(info.get_size()),
+                        created=int(info.get_attribute_uint64("time::created")),
+                        modified=int(info.get_attribute_uint64("time::modified")),
+                        icon=None,
                     ),
-                    size=int(info.get_size()),
-                    created=int(info.get_attribute_uint64("time::created")),
-                    modified=int(info.get_attribute_uint64("time::modified")),
-                    icon=(
-                        self._launcher.resolve_file_icon(
-                            target=child_uri,
-                            gicon=icon,
-                            content_type=info.get_content_type() or "",
-                            size=resolved_icon_px,
-                            is_dir=is_dir,
-                        )
-                    )
-                    if self._launcher
-                    else None,
+                    gicon=icon,
+                    content_type=info.get_content_type() or "",
                 )
             )
-        self._put_lru(
-            self._directory_rows,
-            cache_key,
-            list(rows),
-            max_entries=FOLDER_DIRECTORY_CACHE_MAX_ENTRIES,
-        )
-        rows.sort(key=lambda row: self.sort_key(row=row, mode=prefs.sort))
-        return rows
+        return entries
 
     def directory_has_visible_children(self, target: str, show_hidden: bool) -> bool:
-        uri = launcher_mod.normalize_file_target(target)
+        uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return False
         try:

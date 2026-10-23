@@ -7,6 +7,8 @@ import ssl
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.certwatch.api as certwatch_api
 import docking.applets.certwatch.applet as certwatch_applet_mod
 from docking.applets.certwatch.api import fetch_cert
@@ -73,10 +75,27 @@ def _make_applet(
     icon_size: int = 48, *, config: Config | None = None
 ) -> CertwatchApplet:
     with patch("docking.applets.certwatch.applet.BackgroundWorker", _ImmediateWorker):
-        return CertwatchApplet(icon_size, config=config)
+        return CertwatchApplet(icon_size, config=config or Config())
 
 
 class TestParseHostPort:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("[::1]", DomainPref("::1", 443)),
+            ("[::1]:8443", DomainPref("::1", 8443)),
+            ("https://[2001:db8::1]:8443/path", DomainPref("2001:db8::1", 8443)),
+            ("https://example.com?view=cert#expiry", DomainPref("example.com", 443)),
+        ],
+    )
+    def test_url_authority_is_used_for_tls_connection(self, text, expected):
+        assert parse_host_port(text) == expected
+        assert parse_host_port(format_host(expected)) == expected
+
+    @pytest.mark.parametrize("text", ["[::1", "[::1]:abc", "example.com:"])
+    def test_malformed_authority_returns_none(self, text):
+        assert parse_host_port(text) is None
+
     def test_bare_host_defaults_to_443(self):
         assert parse_host_port("example.com") == DomainPref("example.com", 443)
 
@@ -261,7 +280,7 @@ class TestTooltip:
         assert "a.test" in text
         assert "b.test" in text
         assert "5d" in text
-        assert "Updated:" in text
+        assert "Updated: just now" in text
         assert "Checks every 1 hour" in text
 
     def test_loading_line_when_cert_missing(self):

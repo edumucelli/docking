@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from pathlib import Path
 from typing import NamedTuple
 
 from docking.applets.session import meta
@@ -100,11 +101,40 @@ def lock_screen() -> bool:
 
 def _run(*, cmd: list[str], action: str) -> None:
     """Run a session/power command, logging failures."""
-    resolved_cmd = flatpak.host_command(cmd) or cmd
+    resolved_cmd = list(cmd)
+    if resolved_cmd[0:2] == ["loginctl", "terminate-session"] and resolved_cmd[2] == "":
+        # On GNOME, loginctl may not have the session-id available through
+        # XDG_SESSION_ID.  Prefer gnome-session-quit which shows the native
+        # logout dialog; fall back to loginctl with /proc/self/sessionid.
+        if shutil.which("gnome-session-quit"):
+            subprocess.Popen(["gnome-session-quit", "--logout"])
+            return
+        session_id = _current_session_id()
+        resolved_cmd[2] = session_id
+    resolved_cmd = flatpak.host_command(resolved_cmd) or resolved_cmd
+    resolved_cmd = [a for a in resolved_cmd if a != ""]
     try:
-        subprocess.Popen(resolved_cmd, start_new_session=True)
+        subprocess.Popen(resolved_cmd)
     except OSError as exc:
         log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
+
+
+def _current_session_id() -> str:
+    """Return the logind session ID for the current process.
+
+    Tries ``XDG_SESSION_ID`` first, then ``/proc/self/sessionid``.
+    Returns an empty string when neither source is available.
+    """
+    env_id = (os.environ.get("XDG_SESSION_ID") or "").strip()
+    if env_id:
+        return env_id
+    try:
+        proc_id = Path("/proc/self/sessionid").read_text().strip()
+        if proc_id:
+            return proc_id
+    except (OSError, PermissionError):
+        pass
+    return ""
 
 
 def _lock_screen_commands(*, session_id: str) -> list[list[str]]:

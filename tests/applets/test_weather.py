@@ -61,10 +61,23 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, **kwargs) -> bool:
+        self.run(**kwargs)
+        return True
+
+
+class _PendingWorker:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def run_guarded(self, **kwargs) -> bool:
+        self.calls.append(kwargs)
+        return True
+
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> WeatherApplet:
     with patch("docking.applets.weather.applet.BackgroundWorker", _ImmediateWorker):
-        return WeatherApplet(icon_size, config=config)
+        return WeatherApplet(icon_size, config=config or Config())
 
 
 # -- State-level tests -------------------------------------------------------
@@ -341,7 +354,13 @@ class TestWeatherMenu:
         assert not any("Remove" in label for label in labels)
 
 
-_SAMPLE_AQI = AirQualityData(aqi=28, pm2_5=8.1, pm10=9.1, label="Fair")
+_SAMPLE_AQI = AirQualityData(
+    aqi=28,
+    pm2_5=8.1,
+    pm10=9.1,
+    label="Fair",
+    uv_index=5.7,
+)
 
 
 class TestAqiLabel:
@@ -379,6 +398,7 @@ class TestAirQualityInTooltip:
         applet._air_quality = _SAMPLE_AQI
         applet.refresh_tooltip()
         assert "Air: Fair" in applet.item.name
+        assert "UV Index: 5.7" in applet.item.name
 
     def test_tooltip_no_aqi_when_unavailable(self):
         applet = _make_applet()
@@ -477,12 +497,55 @@ class TestWeatherAsyncFetch:
         applet._fetch_request_id = 2
         applet._weather = None
         applet._air_quality = None
+        applet._loading = True
         refresh = MagicMock()
         monkeypatch.setattr(applet, "present", refresh)
         result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
         assert result is False
+        # The replaced result is never applied...
         assert applet._weather is None
-        refresh.assert_not_called()
+        # ...but it still settles the fetch and repaints, so "Loading..." cannot
+        # outlive the request that set it.
+        assert applet._loading is False
+        refresh.assert_called_once()
+
+    def test_replaced_fetch_settles_and_starts_the_queued_refresh(self):
+        """Switching city mid-fetch must not wedge the applet on "Loading...".
+
+        The new fetch is only queued, so the replaced reply is the one that has
+        to clear the flag; discarding it without settling left it set, and every
+        later attempt returned early on it.
+        """
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 2
+        applet._loading = True
+        applet._fetch_pending = True
+
+        result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
+
+        assert result is False
+        assert applet._fetch_pending is False
+        assert applet._fetch_request_id == 3
+        assert worker.calls[0]["name"] == "weather-fetch"
+        assert applet._loading is True  # the queued fetch is now in flight
+
+    def test_replaced_fetch_error_also_settles(self):
+        applet = _make_applet()
+        applet._worker = _PendingWorker()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 3
+        applet._loading = True
+
+        result = applet._on_fetch_error(request_id=1, exc=RuntimeError("boom"))
+
+        assert result is False
+        assert applet._loading is False
+        assert applet._fetch_failed is False  # a replaced failure is not ours
 
     def test_on_fetch_result_applies_latest_request(self, monkeypatch):
         applet = _make_applet()
@@ -555,6 +618,58 @@ class TestWeatherAsyncFetch:
         applet._fetch_async()
         assert captured["lat"] == _TOKYO.lat
         assert captured["lng"] == _TOKYO.lng
+
+    def test_fetch_async_skips_air_quality_when_weather_fails(self, monkeypatch):
+        applet = _make_applet()
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        fetch_air_quality = MagicMock(return_value=_SAMPLE_AQI)
+        monkeypatch.setattr(weather_applet_mod, "fetch_weather", lambda **_kw: None)
+        monkeypatch.setattr(
+            weather_applet_mod,
+            "fetch_air_quality",
+            fetch_air_quality,
+        )
+
+        applet._fetch_async()
+
+        fetch_air_quality.assert_not_called()
+        assert applet._fetch_failed is True
+
+    def test_fetch_async_queues_refresh_while_loading(self):
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._loading = True
+
+        applet._fetch_async()
+
+        assert worker.calls == []
+        assert applet._fetch_pending is True
+
+    def test_fetch_result_runs_pending_refresh(self):
+        applet = _make_applet()
+        worker = _PendingWorker()
+        applet._worker = worker
+        applet._cities = [_BERLIN]
+        applet._active_index = 0
+        applet._fetch_request_id = 7
+        applet._loading = True
+        applet._fetch_pending = True
+
+        result = applet._on_fetch_result(
+            request_id=7,
+            weather=_SAMPLE_WEATHER,
+            aqi=_SAMPLE_AQI,
+        )
+
+        assert result is False
+        assert applet._fetch_request_id == 8
+        assert applet._loading is True
+        assert applet._fetch_pending is False
+        assert worker.calls[0]["name"] == "weather-fetch"
 
 
 class TestWeatherLifecycleAndInteractions:
@@ -869,6 +984,12 @@ class _FakeWeatherDialog:
     def set_default_size(self, *_args) -> None:
         return
 
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_skip_pager_hint(self, _value: bool) -> None:
+        return
+
     def set_position(self, *_args) -> None:
         return
 
@@ -1024,5 +1145,10 @@ class TestWeatherDialogAndWidget:
         box = applet._build_tooltip_widget()
 
         # Then
-        # city + current + air + 2 daily rows
-        assert len(box.get_children()) >= 5
+        labels = [
+            child._label
+            for child in box.get_children()
+            if isinstance(child, _FakeLabel)
+        ]
+        assert "Air: Fair" in labels
+        assert "UV Index: 5.7" in labels

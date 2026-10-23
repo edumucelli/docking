@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 
 from docking.i18n import _
+from docking.ui.tooltip import relative_time_label
 
 
 def format_interval(seconds: int) -> str:
@@ -49,31 +50,16 @@ def on_demand_label(*, verb: str | None = None) -> str:
     return _("{verb} on demand").format(verb=verb or _("Updates"))
 
 
-def updated_label(timestamp: dt.datetime | str | None) -> str:
-    """Return a local-time updated label, or an empty string when unknown."""
-    parsed = parse_timestamp(timestamp)
-    if parsed is None:
+def updated_label(
+    timestamp: dt.datetime | str | None,
+    *,
+    now: dt.datetime | None = None,
+) -> str:
+    """Return a relative updated label, or an empty string when unknown."""
+    age = relative_time_label(timestamp=timestamp, now=now)
+    if not age:
         return ""
-    return _("Updated: {time}").format(time=format_local_time(parsed))
-
-
-def parse_timestamp(timestamp: dt.datetime | str | None) -> dt.datetime | None:
-    """Parse an aware UTC/local timestamp into a timezone-aware datetime."""
-    if timestamp is None:
-        return None
-    if isinstance(timestamp, dt.datetime):
-        parsed = timestamp
-    else:
-        text = str(timestamp).strip()
-        if not text:
-            return None
-        try:
-            parsed = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
-        except ValueError:
-            return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=dt.timezone.utc)
-    return parsed
+    return _("Updated: {age}").format(age=age)
 
 
 def format_local_time(timestamp: dt.datetime) -> str:

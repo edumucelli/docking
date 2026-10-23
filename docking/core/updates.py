@@ -21,7 +21,6 @@ last check time, ignored versions, and reminder suppression.
 from __future__ import annotations
 
 import json
-import os
 import re
 import tempfile
 import urllib.error
@@ -31,7 +30,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import cast
 
+from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
+from docking.platform.environment import docking_state_dir
 
 logger = get_logger("updates")
 
@@ -39,9 +40,7 @@ GITHUB_LATEST_RELEASE_URL = (
     "https://api.github.com/repos/edumucelli/docking/releases/latest"
 )
 PROJECT_RELEASES_URL = "https://github.com/edumucelli/docking/releases"
-DEFAULT_STATE_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "docking"
-)
+DEFAULT_STATE_DIR = docking_state_dir()
 DEFAULT_STATE_FILE = DEFAULT_STATE_DIR / "updates.json"
 DEFAULT_UPDATE_TIMEOUT_S = 6
 UPDATE_USER_AGENT = "Docking update checker"
@@ -105,7 +104,7 @@ def load_state(path: Path | str | None = None) -> UpdateState:
 def save_state(state: UpdateState, *, path: Path | str | None = None) -> None:
     """Persist update state atomically."""
     state_path = Path(path) if path is not None else DEFAULT_STATE_FILE
-    state_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_dir(state_path)
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="utf-8",
@@ -146,7 +145,8 @@ def should_check_for_updates(
     if checked_at is None:
         return True
     reference = _aware_utc(now)
-    return reference - checked_at >= timedelta(hours=max(1, interval_hours))
+    # Compare whole hours without constructing a possibly overflowing timedelta.
+    return (reference - checked_at) // timedelta(hours=1) >= max(1, interval_hours)
 
 
 def decide_update_popup(
@@ -243,7 +243,7 @@ def normalize_version(version: str) -> str:
     if value.startswith(("v", "V")):
         value = value[1:]
     match = re.match(r"^([0-9]+(?:\.[0-9]+)*)", value)
-    return match.group(1) if match else value
+    return str(match.group(1)) if match else value
 
 
 def parse_timestamp(value: str | None) -> datetime | None:
