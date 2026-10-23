@@ -42,6 +42,7 @@ def test_enum_wire_values_match_the_v3_contract():
         "installed",
         "generated",
         "runtime",
+        "steam",
     ]
     assert [member.value for member in ApplicationLocation] == [
         "sandbox",
@@ -62,6 +63,8 @@ def test_enum_wire_values_match_the_v3_contract():
         "application-id",
         "sandbox-id",
         "script-name",
+        "steam-app-id",
+        "steam-executable",
     ]
 
 

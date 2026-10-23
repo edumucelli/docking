@@ -19,9 +19,12 @@ from docking.log import get_logger, with_context
 
 from . import discovery
 from . import entries as desktop_entries
+from .steam import SteamDiscoveryResult, steam_app_id_from_exec
 from .types import (
+    ApplicationDiagnostic,
     ApplicationDiscoveryDiagnostic,
     ApplicationInfo,
+    DiscoveryReason,
     TransientApplicationInfo,
 )
 
@@ -54,6 +57,8 @@ class _RegistryState:
     unidentified: tuple[TransientApplicationInfo, ...]
     unidentified_gio_handles: Mapping[str, object]
     diagnostic: ApplicationDiscoveryDiagnostic
+    steam_apps: Mapping[str, ApplicationInfo]
+    steam_installs: tuple[tuple[Path, str], ...]
 
 
 def _empty_state() -> _RegistryState:
@@ -69,6 +74,8 @@ def _empty_state() -> _RegistryState:
         unidentified=(),
         unidentified_gio_handles=MappingProxyType({}),
         diagnostic=ApplicationDiscoveryDiagnostic(0, 0, 0, (), False),
+        steam_apps=MappingProxyType({}),
+        steam_installs=(),
     )
 
 
@@ -84,12 +91,14 @@ class ApplicationRegistry:
         *,
         application_source: Callable[[], Iterable[object]] | None = None,
         desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
+        steam_source: Callable[[], SteamDiscoveryResult] | None = None,
     ) -> None:
         self._application_source = (
             discovery.default_gio_applications
             if application_source is None
             else application_source
         )
+        self._steam_source = steam_source
         self._desktop_directories_source = (
             desktop_directories_source or desktop_entries.desktop_dirs
         )
@@ -154,6 +163,19 @@ class ApplicationRegistry:
         """Return the first source-ordered record sharing an alias."""
         matches = self.resolve_all_by_wm_class(wm_class)
         return matches[0] if matches else None
+
+    def resolve_steam_app_id(self, app_id: str) -> ApplicationInfo | None:
+        return self._state.steam_apps.get(app_id)
+
+    def resolve_steam_executable(self, path: Path) -> ApplicationInfo | None:
+        candidates = {
+            app_id
+            for directory, app_id in self._state.steam_installs
+            if path.is_relative_to(directory)
+        }
+        if len(candidates) != 1:
+            return None
+        return self._state.steam_apps.get(next(iter(candidates)))
 
     def resolve_by_desktop_file(self, path: Path) -> ApplicationInfo | None:
         """Resolve an application by its exact or canonical desktop-file path."""
@@ -393,9 +415,62 @@ class ApplicationRegistry:
             desktop_app_info_from_filename=self._desktop_app_info_from_filename,
             handle_epoch=handle_epoch,
         )
+        steam = (
+            self._steam_source()
+            if self._steam_source is not None
+            else SteamDiscoveryResult()
+        )
+        applications = list(result.applications)
+        diagnostics = list(result.diagnostics)
+        steam_apps: dict[str, ApplicationInfo] = {}
+        for index, app in enumerate(applications):
+            app_id = steam_app_id_from_exec(app.exec_line)
+            if app_id:
+                app = replace(app, steam_app_id=app_id)
+                applications[index] = app
+                steam_apps.setdefault(app_id, app)
+        steam_ids = {app.desktop_id: app.steam_app_id for app in applications}
+        diagnostics = [
+            replace(item, steam_app_id=steam_ids.get(item.desktop_id, ""))
+            for item in diagnostics
+        ]
+        hidden: set[str] = set()
+        hidden_ids: set[str] = set()
+        for decision in result.decisions:
+            if decision.reason is DiscoveryReason.HIDDEN:
+                hidden_ids.add(decision.desktop_id)
+                if decision.desktop_file is not None:
+                    facts = discovery.file_facts(decision.desktop_file)
+                    app_id = steam_app_id_from_exec(facts.exec_line) if facts else None
+                    if app_id:
+                        hidden.add(app_id)
+        known_ids = {app.desktop_id for app in applications}
+        for game in steam.games:
+            if game.app_id in steam_apps or game.app_id in hidden:
+                continue
+            app = game.application()
+            if app.desktop_id in hidden_ids or app.desktop_id in known_ids:
+                continue
+            steam_apps[game.app_id] = app
+            known_ids.add(app.desktop_id)
+            applications.append(app)
+            diagnostics.append(
+                ApplicationDiagnostic(
+                    desktop_id=app.desktop_id,
+                    name=app.name,
+                    desktop_file=None,
+                    visible=False,
+                    has_gio_source=False,
+                    wm_class=app.wm_class,
+                    launcher_basename="flatpak" if game.flatpak else "steam",
+                    aliases=app.aliases,
+                    steam_app_id=game.app_id,
+                    steam_manifest=game.manifest,
+                )
+            )
         state = _build_state(
             handle_epoch=handle_epoch,
-            applications=result.applications,
+            applications=applications,
             handles=result.handles,
             unidentified=result.transient,
             unidentified_handles=result.transient_handles,
@@ -404,11 +479,17 @@ class ApplicationRegistry:
         )
         return replace(
             state,
+            steam_apps=MappingProxyType(steam_apps),
+            steam_installs=tuple(
+                (game.install_dir, game.app_id) for game in steam.games
+            ),
             diagnostic=replace(
                 state.diagnostic,
-                applications=result.diagnostics,
+                applications=tuple(diagnostics),
                 decisions=result.decisions,
                 directory_statuses=result.directory_statuses,
+                steam_directories=steam.watch_directories,
+                steam_issues=steam.issues,
             ),
         )
 
@@ -515,6 +596,7 @@ class ApplicationRegistry:
     def _sync_directory_monitors(self) -> None:
         try:
             wanted = set(discovery.unique_paths(self._desktop_directories_source()))
+            wanted.update(self._state.diagnostic.steam_directories)
         except Exception as exc:
             log.bind(action="list_desktop_directories").warning(
                 "Could not list desktop application directories: %s",
@@ -612,6 +694,8 @@ def _state_content(state: _RegistryState) -> tuple[object, ...]:
         state.wm_class_index,
         state.desktop_file_index,
         state.unidentified,
+        state.steam_apps,
+        state.steam_installs,
     )
 
 
@@ -666,6 +750,8 @@ def _build_state(
 
     return _RegistryState(
         generation=0,
+        steam_apps=MappingProxyType({}),
+        steam_installs=(),
         directories=directories,
         handle_epoch=handle_epoch,
         applications_by_id=MappingProxyType(applications_by_id),
