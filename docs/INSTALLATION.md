@@ -197,7 +197,9 @@ Install the verified package as root:
 pkg add "./$FILE"
 
 # OpenBSD: GitHub artifacts are unsigned; this exception applies to this file.
-pkg_add -D unsigned "./$FILE"
+VERSION=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$FILE.json")
+mv "$FILE" "docking-${VERSION}.tgz"
+pkg_add -D unsigned "./docking-${VERSION}.tgz"
 ```
 
 Start `docking` inside the desktop session. For updates, download and verify the

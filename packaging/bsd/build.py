@@ -204,7 +204,13 @@ def openbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
     return package
 
 
-def install_and_check(package: Path, system: str, work: Path) -> None:
+def install_and_check(package: Path, system: str, work: Path, version: str) -> None:
+    if system == "openbsd":
+        # pkg_add checks the filename against the archive's @name. Downloads
+        # retain the OS/release suffix; installation uses the canonical name.
+        canonical = work / f"docking-{version}.tgz"
+        shutil.copy2(package, canonical)
+        package = canonical
     command = (
         ["pkg", "add", str(package)]
         if system == "freebsd"
@@ -266,7 +272,7 @@ def main() -> None:
             f"docking-latest-{system}-{release}-{platform.machine()}{package.suffix}"
         )
         shutil.copy2(package, alias)
-        install_and_check(alias, system, work)
+        install_and_check(alias, system, work, version[1])
         metadata = {
             "name": "docking",
             "version": version[1],
