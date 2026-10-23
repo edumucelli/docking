@@ -1414,6 +1414,8 @@ class DockHarness:
             self._hover_window.dock_hovered
         )
         self._preview_popup._hide_timer_id = 0
+        self._preview_popup._preview_refresh_timer_id = 0
+        self._preview_popup._thumbnail_images = {}
         self._preview_popup._current_desktop_id = ""
         self._preview_popup._thumbnail_outline_enabled = lambda: False
         self._preview_popup._outline = None

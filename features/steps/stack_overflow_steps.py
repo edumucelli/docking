@@ -1,9 +1,47 @@
 """Real GTK allocation/scrolling; content and click dispatch are fixtures."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 from behave import given, then, when
 
 from docking.core.position import Position
+from docking.ui.geometry import Rect
+from docking.ui.input_controller import DockInputController
 from tests.ui.preview_support import settle_gtk
+
+
+@when("a dock motion event arrives outside its active band")
+def transit_outside_dock(context):
+    frame = SimpleNamespace(
+        cursor_rect=Rect(0, 0, 100, 54), item_at_point=lambda *_: None
+    )
+    window = SimpleNamespace(
+        _build_and_store_geometry_frame=lambda: frame,
+        update_input_region=lambda **_: None,
+        _schedule_redraw=lambda: None,
+        dock_hovered=False,
+    )
+    interactions = SimpleNamespace(
+        close_stack_unless_target=lambda _: context.stack.stack.close()
+    )
+    controller = DockInputController(
+        window=window,
+        interactions=interactions,
+        dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
+    )
+    controller._on_motion(MagicMock(), SimpleNamespace(x=50, y=80))
+    settle_gtk()
+
+
+@then("the stack remains visible for entry selection")
+def stack_stays_visible(context):
+    assert context.stack.popup.get_visible()
+    context.stack.scroll_to(True)
+    context.stack.click_label(-1)
+    assert context.stack.activated[-1] == 8
 
 
 @given('a large stack at the "{edge}" edge')

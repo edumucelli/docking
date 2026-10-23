@@ -499,6 +499,8 @@ class VisibilityService(Service):
 class PreviewService(Service):
     """Window-preview capture."""
 
+    asynchronous: bool = False
+
     @abstractmethod
     def capture(
         self, window_id: WindowId, *, width: int, height: int

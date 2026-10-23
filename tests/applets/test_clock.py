@@ -2,7 +2,6 @@
 
 import math
 import time
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,6 +20,30 @@ from docking.applets.clock.state import (
     seconds_rotation,
 )
 from docking.core.config import Config
+
+
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_non_finite_saved_alarm_does_not_break_clock_startup(value):
+    assert normalize_alarm_target(value, now_ts=100) is None
+    assert load_prefs({"alarm_target": value}, now_ts=100)[-1] is None
+
+
+@pytest.mark.parametrize(
+    "later",
+    ["2026-01-15 11:30", "2026-01-16 10:30"],
+)
+def test_clock_repaints_when_hour_or_date_changes_at_same_minute(monkeypatch, later):
+    times = [time.strptime("2026-01-15 10:30", "%Y-%m-%d %H:%M")]
+    monkeypatch.setattr(clock_mod.time, "localtime", lambda *_args: times[0])
+    config = Config(applet_prefs={"clock": {"show_digital": True, "show_date": True}})
+    clock = ClockApplet(48, config=config)
+    before = bytes(clock.item.icon.get_pixels())
+    times[0] = time.strptime(later, "%Y-%m-%d %H:%M")
+
+    clock._on_tick()
+
+    assert bytes(clock.item.icon.get_pixels()) != before
+    assert time.strftime("%b %-d", times[0]) in clock.item.name
 
 
 @pytest.fixture
@@ -374,7 +397,9 @@ class TestClockInteractions:
         )
         clock.present = MagicMock()
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         clock._on_tick()
@@ -385,20 +410,24 @@ class TestClockInteractions:
     ):
         clock = ClockApplet(48, config=Config())
         clock.present = MagicMock()
-        clock._last_minute = 10
+        clock._last_minute = (2026, 1, 15, 10, 10)
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         clock._on_tick()
         assert clock.present.call_count == 0
 
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=11)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 11, 0, 3, 15, -1)),
         )
         clock._on_tick()
         assert clock.present.call_count == 1
-        assert clock._last_minute == 11
+        assert clock._last_minute == (2026, 1, 15, 10, 11)
 
     def test_tick_triggers_alarm_and_clears_target(self, monkeypatch):
         clock = ClockApplet(48, config=Config())
@@ -406,7 +435,9 @@ class TestClockInteractions:
         clock._save_prefs = MagicMock()
         clock._alarm_target = 100
         monkeypatch.setattr(
-            clock_mod.time, "localtime", lambda *_args: SimpleNamespace(tm_min=10)
+            clock_mod.time,
+            "localtime",
+            lambda *_args: time.struct_time((2026, 1, 15, 10, 10, 0, 3, 15, -1)),
         )
         monkeypatch.setattr(clock_mod.time, "time", lambda: 100)
         monkeypatch.setattr(clock_mod.GLib, "get_monotonic_time", lambda: 555)

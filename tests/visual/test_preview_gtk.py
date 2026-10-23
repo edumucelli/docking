@@ -6,11 +6,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.core.items import DockItem
 from docking.core.position import Position
-from docking.platform.backends.base import Rect, WindowId
+from docking.platform.backends.base import PreviewImage, Rect, WindowId
 from docking.ui.hover import HoverManager
 from docking.ui.preview import POPUP_PADDING
 from tests.ui.preview_support import PreviewHarness, settle_gtk
@@ -25,6 +25,41 @@ def preview():
     harness = PreviewHarness()
     yield harness
     harness.close()
+
+
+def test_visible_popup_displays_asynchronous_capture_when_it_arrives(preview):
+    capture = preview.popup._preview_service
+    capture.asynchronous = True
+    capture.capture.return_value = None
+    preview.show(1)
+    image = preview.cards[0].get_child().get_children()[0]
+    assert image.get_pixbuf() is None
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 20, 10)
+    pixbuf.fill(0xFF0000FF)
+    capture.capture.return_value = PreviewImage(pixbuf, 20, 10)
+
+    for _ in range(10):
+        settle_gtk()
+
+    assert image.get_pixbuf() is not None
+    assert image.get_pixbuf().get_pixels()[:4] == b"\xff\x00\x00\xff"
+    preview.popup._do_hide()
+    calls = capture.capture.call_count
+    for _ in range(3):
+        settle_gtk()
+    assert capture.capture.call_count == calls
+    assert preview.popup._preview_refresh_timer_id == 0
+
+
+def test_synchronous_preview_does_not_add_capture_polling(preview):
+    capture = preview.popup._preview_service
+    capture.asynchronous = False
+    preview.show(1)
+    calls = capture.capture.call_count
+    for _ in range(3):
+        settle_gtk()
+    assert capture.capture.call_count == calls
+    assert preview.popup._preview_refresh_timer_id == 0
 
 
 @pytest.fixture

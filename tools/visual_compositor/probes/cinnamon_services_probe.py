@@ -164,6 +164,9 @@ class Probe:
         GLib.timeout_add(50, run)
 
     def capture(self, name):
+        # Nested GTK waits can defer frame-clock paints until this callback exits.
+        # Flush pending updates before sampling the compositor's pixels.
+        self.window.get_window().process_updates(True)
         path = self.evidence / f"services-{name}.png"
         screenshot(str(path))
         deadline = time.monotonic() + 2

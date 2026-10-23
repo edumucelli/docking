@@ -395,6 +395,7 @@ class DockPlacementController:
             icon_size=icon_size,
             zoom=zoom,
             theme=theme,
+            items=self._window.model.visible_items(),
         )
         cross = cross_metrics.surface_extent
         pos = config.pos
