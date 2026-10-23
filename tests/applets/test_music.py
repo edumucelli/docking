@@ -1279,15 +1279,14 @@ class TestMusicApplet:
 
         calls: list[str] = []
 
-        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
-            _ = name, fn, on_result, on_error
-            calls.append(key)
-            return True
+        def fake_run(*, name, fn, on_result=None, on_error=None):
+            _ = fn, on_result, on_error
+            calls.append(name)
 
-        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
+        applet._worker.run = fake_run  # type: ignore[method-assign]
         assert applet._run_scroll_sync() is False
         assert applet._scroll_sync_id == 0
-        assert calls == ["poll"]
+        assert calls == ["music-scroll-sync"]
 
         applet._state = _state(title="Song", artist="Artist", album="Album")
 
