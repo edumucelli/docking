@@ -187,7 +187,7 @@ jobs:
 
       - name: Upload visual artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-output
           path: tests/visual/output/
@@ -284,7 +284,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: matrix.python != '3.14'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}
           path: |
@@ -608,7 +608,7 @@ jobs:
           echo "[check] all install validations passed"
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-deb
           path: artifacts/docking_*.deb
@@ -691,7 +691,7 @@ jobs:
           echo "[check] all ARM64 install validations passed"
 
       - name: Upload ARM64 .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-deb-arm64
           path: artifacts/docking_*.deb
@@ -728,7 +728,7 @@ jobs:
           ./packaging/rpm/build.sh
 
       - name: Upload ARM64 RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-rpm-arm64
           path: artifacts/*.rpm
@@ -765,7 +765,7 @@ jobs:
           ./packaging/rpm/build.sh
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-rpm
           path: artifacts/*.rpm
@@ -795,7 +795,7 @@ jobs:
           ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload Flatpak artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-flatpak
           path: artifacts/cc.docking.Docking.flatpak
@@ -825,7 +825,7 @@ jobs:
           ls -lh artifacts/cc.docking.Docking.flatpak
 
       - name: Upload ARM64 Flatpak artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-flatpak-arm64
           path: artifacts/cc.docking.Docking.flatpak
@@ -856,7 +856,7 @@ jobs:
           ls -lh artifacts/*.snap
 
       - name: Upload Snap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-snap
           path: artifacts/*.snap
@@ -890,7 +890,7 @@ jobs:
           ls -lh artifacts/*.snap
 
       - name: Upload ARM64 Snap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-snap-arm64
           path: artifacts/*.snap
@@ -919,7 +919,7 @@ jobs:
           ./packaging/appimage/build.sh
 
       - name: Upload AppImage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-appimage
           path: artifacts/*.AppImage
@@ -948,7 +948,7 @@ jobs:
           ./packaging/appimage/build.sh
 
       - name: Upload ARM64 AppImage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-appimage-arm64
           path: artifacts/*.AppImage
@@ -979,7 +979,7 @@ jobs:
           ls -lh artifacts/*.pkg.tar.*
 
       - name: Upload Arch artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-arch
           path: artifacts/*.pkg.tar.*
@@ -1010,7 +1010,7 @@ jobs:
           ls -lh artifacts/*.pkg.tar.*
 
       - name: Upload ARM64 Arch artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-arch-arm64
           path: artifacts/*.pkg.tar.*
@@ -1041,7 +1041,7 @@ jobs:
           ./packaging/nix/build.sh
 
       - name: Upload Nix artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-nix
           path: |
@@ -1074,7 +1074,7 @@ jobs:
           ./packaging/nix/build.sh
 
       - name: Upload ARM64 Nix artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docking-nix-arm64
           path: |
