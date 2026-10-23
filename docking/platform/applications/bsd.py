@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from docking.log import get_logger
+from docking.platform.applications.process_backend import ProcessBackend
 
 log = get_logger("applications.bsd")
 
@@ -52,4 +53,15 @@ def process_script(pid: int) -> str | None:
         )
     except Exception as exc:
         log.debug("Process command unavailable for %d: %s", pid, exc)
+        return None
+
+
+class BsdProcessBackend(ProcessBackend):
+    def executable(self, pid: int) -> Path | None:
+        return process_executable(pid)
+
+    def script(self, pid: int) -> str | None:
+        return process_script(pid)
+
+    def sandbox_app_id(self, pid: int) -> str | None:
         return None

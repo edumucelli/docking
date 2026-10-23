@@ -146,10 +146,65 @@ For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
 
 ## FreeBSD and OpenBSD
 
-Native FreeBSD `.pkg` and OpenBSD `.tgz` release packages, dependency setup,
-checksum verification, and install commands are in the
-[BSD installation guide](BSD_SUPPORT.md#release-packages). Current targets are
-FreeBSD 15.1/amd64 and OpenBSD 7.9/amd64.
+
+BSD packages are published as GitHub Release assets, starting with the first
+release containing BSD support. Current build targets are FreeBSD 15.1/amd64
+(Python 3.12) and OpenBSD 7.9/amd64 (Python 3.13). Use a package matching the OS
+release and architecture. The package includes Docking, translations, icons, and
+its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+
+Run the dependency installation and package-manager commands as root. Downloads
+and checksum verification can run as an ordinary user.
+
+On FreeBSD 15.1/amd64:
+
+```sh
+pkg install python312 py312-pygobject py312-pycairo py312-psutil \
+  gtk3 libwnck3 dbus libXScrnSaver
+FILE=docking-latest-freebsd-15.1-amd64.pkg
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+fetch "$BASE/$FILE"
+fetch "$BASE/$FILE.json"
+```
+
+On OpenBSD 7.9/amd64:
+
+```sh
+pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus
+FILE=docking-latest-openbsd-7.9-amd64.tgz
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+ftp -o "$FILE" "$BASE/$FILE"
+ftp -o "$FILE.json" "$BASE/$FILE.json"
+```
+
+Verify the downloaded bytes against the release manifest before installing:
+
+```sh
+python3 - "$FILE" <<'PYTHON'
+import hashlib, json, sys
+from pathlib import Path
+package = Path(sys.argv[1])
+manifest = json.loads(Path(str(package) + ".json").read_text())
+assert hashlib.sha256(package.read_bytes()).hexdigest() == manifest["sha256"], "Checksum mismatch"
+print("Verified Docking", manifest["version"], manifest["os"], manifest["release"])
+PYTHON
+```
+
+Install the verified package as root:
+
+```sh
+# FreeBSD
+pkg add "./$FILE"
+
+# OpenBSD: GitHub artifacts are unsigned; this exception applies to this file.
+pkg_add -D unsigned "./$FILE"
+```
+
+Start `docking` inside the desktop session. For updates, download and verify the
+new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
+OpenBSD. These are direct release downloads; no third-party package repository
+is configured. The release also includes versioned filenames and
+`SHA256SUMS-bsd`.
 
 ## Release downloads
 
@@ -196,7 +251,7 @@ tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 ## Source Requirements
 
 - Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD with X11.
-- BSD native packages and source setup: [FreeBSD and OpenBSD](BSD_SUPPORT.md).
+- BSD native packages: [FreeBSD and OpenBSD](#freebsd-and-openbsd).
 - Python 3.10+
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension

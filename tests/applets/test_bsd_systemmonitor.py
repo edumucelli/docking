@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from docking.applets.systemmonitor import bsd
-from docking.applets.trash import backend as trash_backend
+from docking.applets.trash import bsd as trash_backend
 
 
 def test_cpu_uses_cumulative_native_times_without_sleeping(monkeypatch):
@@ -44,5 +44,5 @@ def test_mount_table_keeps_zfs_and_deduplicates_mount_points(monkeypatch):
         ),
     )
     monkeypatch.setattr(trash_backend, "_psutil", bsd._psutil)
-    assert trash_backend._bsd_mount_points() == (Path("/"), Path("/home"), Path("/dev"))
+    assert trash_backend.mount_points() == (Path("/"), Path("/home"), Path("/dev"))
     assert bsd.disk_usage() == [("/", 0.25), ("/home", 0.25)]

@@ -5,6 +5,12 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from docking.applets.systemmonitor.backend import (
+    SystemMonitorBackend,
+    TemperatureSource,
+)
+from docking.applets.systemmonitor.state import CpuSample
+from docking.applets.thermals import bsd as thermal_readings
 from docking.log import get_logger
 
 log = get_logger("systemmonitor.bsd")
@@ -68,3 +74,24 @@ def disk_usage() -> list[tuple[str, float]]:
         except (OSError, ValueError) as exc:
             log.debug("Disk usage unavailable for %s: %s", path, exc)
     return readings
+
+
+class BsdSystemMonitorBackend(SystemMonitorBackend):
+    def cpu_sample(self) -> CpuSample | None:
+        sample = cpu_sample()
+        return CpuSample(*sample) if sample is not None else None
+
+    def memory_fraction(self) -> float | None:
+        return memory_fraction()
+
+    def disk_usage(self) -> list[tuple[str, float]]:
+        return disk_usage()
+
+    def temperature_reader(self, **kwargs: Any) -> TemperatureSource:
+        return BsdTemperatureReader()
+
+
+class BsdTemperatureReader(TemperatureSource):
+    def read(self) -> float | None:
+        readings = thermal_readings.temperatures()
+        return max(value for _, value in readings) if readings else None

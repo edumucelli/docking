@@ -5,12 +5,12 @@ import socket
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
-from docking.applets.network.backend import ConnectionManager
+from docking.applets.network.backend import ConnectionManager, NetworkBackend
 from docking.applets.network.state import NetworkState, TrafficCounters
 from docking.log import get_logger
 
 
-class BsdNetworkBackend:
+class BsdNetworkBackend(NetworkBackend):
     """Read interface status and counters without GTK or NetworkManager."""
 
     def __init__(self, interface: str = "") -> None:

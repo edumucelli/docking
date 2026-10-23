@@ -18,10 +18,8 @@ from __future__ import annotations
 import colorsys
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, NamedTuple
 
-from docking.applets.systemmonitor import bsd
 from docking.applets.systemmonitor.gpu import GpuStats, gpu_summary
 from docking.applets.temperature import (
     TemperatureUnit,
@@ -31,7 +29,6 @@ from docking.applets.temperature import (
 from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform import environment
 
 # Redraw thresholds (avoid excessive redraws)
 CPU_THRESHOLD = 0.03
@@ -40,7 +37,7 @@ log = get_logger("systemmonitor.state")
 
 
 class CpuSample(NamedTuple):
-    """Raw CPU jiffies from /proc/stat."""
+    """Cumulative CPU counters in consistent units."""
 
     total: int
     idle: int
@@ -116,46 +113,10 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
     return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
 
 
-_SKIP_FS_TYPES = {"squashfs", "tmpfs", "devtmpfs", "overlay", "fuse.snapfuse"}
-_PROC_MOUNTS = Path("/proc/mounts")
-
-
 def disk_usage() -> list[tuple[str, float]]:
-    """Return (mountpoint, usage_fraction) for real disk partitions."""
-    if environment.is_bsd():
-        return bsd.disk_usage()
-    import os
+    from docking.applets.systemmonitor.backend import create_backend
 
-    result: list[tuple[str, float]] = []
-    try:
-        with _PROC_MOUNTS.open() as f:
-            text = f.read()
-    except OSError as exc:
-        log.debug("Failed to read %s: %s", _PROC_MOUNTS, exc)
-        return result
-    seen: set[str] = set()
-    for line in text.splitlines():
-        parts = line.split()
-        if len(parts) < 3:
-            continue
-        dev, mount, fstype = parts[0], parts[1], parts[2]
-        if not dev.startswith("/dev/"):
-            continue
-        if fstype in _SKIP_FS_TYPES:
-            continue
-        if dev in seen:
-            continue
-        seen.add(dev)
-        try:
-            st = os.statvfs(mount)
-        except OSError as exc:
-            log.debug("Failed to stat filesystem %s: %s", mount, exc)
-            continue
-        if st.f_blocks == 0:
-            continue
-        used = 1.0 - st.f_bavail / st.f_blocks
-        result.append((mount, used))
-    return result
+    return create_backend().disk_usage()
 
 
 def tooltip_text(

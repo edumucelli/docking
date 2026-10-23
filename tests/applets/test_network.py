@@ -8,11 +8,11 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.network.applet as network_applet_mod
-import docking.applets.network.networkmanager as networkmanager_mod
+import docking.applets.network.linux as networkmanager_mod
 import docking.applets.network.render as network_render_mod
 import docking.applets.network.state as network_state_mod
 from docking.applets.network.applet import NetworkApplet
-from docking.applets.network.networkmanager import NetworkManagerBackend
+from docking.applets.network.linux import LinuxNetworkBackend
 from docking.applets.network.render import create_icon as create_network_icon
 from docking.applets.network.state import (
     AvailableNetwork,
@@ -1424,10 +1424,10 @@ class TestNetworkAppletInternals:
         applet._backend._nm_client.get_devices.return_value = [eth, wifi]
 
         assert applet._backend.has_wifi_device() is True
-        assert NetworkManagerBackend._device_priority(device=wifi) == 2
-        assert NetworkManagerBackend._device_priority(device=eth) == 1
-        assert NetworkManagerBackend._device_priority(device=other) == 0
-        assert NetworkManagerBackend._device_priority(device=tun) == -1
+        assert LinuxNetworkBackend._device_priority(device=wifi) == 2
+        assert LinuxNetworkBackend._device_priority(device=eth) == 1
+        assert LinuxNetworkBackend._device_priority(device=other) == 0
+        assert LinuxNetworkBackend._device_priority(device=tun) == -1
 
 
 class TestNetworkRender:

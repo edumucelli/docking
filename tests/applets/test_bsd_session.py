@@ -19,9 +19,9 @@ def test_session_actions_select_native_commands_without_elevation(
 ):
     monkeypatch.setattr(bsd.sys, "platform", system)
     monkeypatch.setattr(bsd.shutil, "which", lambda command: f"/sbin/{command}")
-    assert bsd.session_command(original) == expected
+    assert bsd.command_for(original[-1]) == expected
 
 
 def test_unavailable_native_commands_return_none(monkeypatch):
     monkeypatch.setattr(bsd.shutil, "which", lambda command: None)
-    assert bsd.session_command(["systemctl", "reboot"]) is None
+    assert bsd.command_for("reboot") is None

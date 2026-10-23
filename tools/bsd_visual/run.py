@@ -336,6 +336,7 @@ def desktop_client():
 
     def mapped(_widget, _event):
         (Path(os.environ["XDG_RUNTIME_DIR"]) / "desktop-ready").touch()
+        print("Desktop fixture mapped", flush=True)
         return False
 
     area.connect("draw", draw)
@@ -343,6 +344,7 @@ def desktop_client():
     window.connect("map-event", mapped)
     window.connect("destroy", Gtk.main_quit)
     window.show_all()
+    print("Desktop fixture shown; entering GTK event loop", flush=True)
     Gtk.main()
 
 
@@ -802,7 +804,7 @@ def session(args):
                             )
                         return (Path(env["XDG_RUNTIME_DIR"]) / "desktop-ready").exists()
 
-                    wait_for(desktop_ready, "Desktop fixture never mapped")
+                    wait_for(desktop_ready, "Desktop fixture never mapped", timeout=30)
                     with process(
                         [
                             sys.executable,

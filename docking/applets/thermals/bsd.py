@@ -7,6 +7,11 @@ import re
 import sys
 from typing import Any
 
+from docking.applets.thermals.state import (
+    ThermalReading,
+    ThermalsBackend,
+    ThermalSnapshot,
+)
 from docking.log import get_logger
 from docking.platform.commands import read_command as command
 
@@ -40,3 +45,13 @@ def temperatures() -> list[tuple[str, float]]:
     value = command(["sysctl", "-n", "dev.cpu.0.temperature"])
     match = re.fullmatch(r"(-?\d+(?:\.\d+)?)C", value or "")
     return [("CPU", float(match[1]))] if match else []
+
+
+class BsdThermalsBackend(ThermalsBackend):
+    def get_snapshot(self) -> ThermalSnapshot:
+        readings = temperatures()
+        hottest = max(readings, key=lambda reading: reading[1]) if readings else None
+        return ThermalSnapshot(
+            available=True,
+            hottest=ThermalReading("", hottest[0], hottest[1]) if hottest else None,
+        )

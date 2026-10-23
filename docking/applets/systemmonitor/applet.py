@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -27,7 +26,8 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections, radio_submenu
-from docking.applets.systemmonitor import bsd, meta
+from docking.applets.systemmonitor import meta
+from docking.applets.systemmonitor.backend import create_backend
 from docking.applets.systemmonitor.gpu import GpuReader, GpuStats
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
@@ -36,8 +36,6 @@ from docking.applets.systemmonitor.state import (
     CpuSample,
     cpu_percent,
     disk_usage,
-    parse_proc_meminfo,
-    parse_proc_stat,
     prefs_from_mapping,
     prefs_payload,
     tooltip_text,
@@ -47,7 +45,6 @@ from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform import environment
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -56,8 +53,6 @@ log = with_context(
     get_logger(name="systemmonitor"),
     applet_id=meta.id,
 )
-_PROC_STAT = Path("/proc/stat")
-_PROC_MEMINFO = Path("/proc/meminfo")
 
 
 class SystemMonitorApplet(Applet):
@@ -72,6 +67,7 @@ class SystemMonitorApplet(Applet):
         self._sampling_active = False
         self._sample_generation = 0
         self._worker = BackgroundWorker(logger=log)
+        self._backend = create_backend()
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
         self._mem: float = 0.0
@@ -181,20 +177,8 @@ class SystemMonitorApplet(Applet):
         """Read cheap CPU/memory counters; sample blocking sensors off GTK."""
         if not self._sampling_active:
             return False
-        try:
-            if environment.is_bsd():
-                sample = bsd.cpu_sample()
-                if sample is None:
-                    return True
-                curr = CpuSample(*sample)
-            else:
-                with _PROC_STAT.open() as f:
-                    curr = parse_proc_stat(text=f.read())
-        except OSError as exc:
-            log.bind(action="read_proc_stat").debug(
-                "Could not read /proc/stat: %s",
-                exc,
-            )
+        curr = self._backend.cpu_sample()
+        if curr is None:
             return True
 
         if self._prev_sample is not None:
@@ -203,19 +187,9 @@ class SystemMonitorApplet(Applet):
             self._cpu = (raw + self._cpu) / 2.0
         self._prev_sample = curr
 
-        try:
-            if environment.is_bsd():
-                memory = bsd.memory_fraction()
-                if memory is not None:
-                    self._mem = memory
-            else:
-                with _PROC_MEMINFO.open() as f:
-                    self._mem = parse_proc_meminfo(text=f.read())
-        except OSError as exc:
-            log.bind(action="read_proc_meminfo").debug(
-                "Could not read /proc/meminfo: %s",
-                exc,
-            )
+        memory = self._backend.memory_fraction()
+        if memory is not None:
+            self._mem = memory
 
         self._sample_sensors()
 

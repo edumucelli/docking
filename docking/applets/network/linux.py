@@ -13,7 +13,11 @@ gi.require_version("NM", "1.0")
 from gi.repository import NM, GLib
 
 from docking.applets.network import meta
-from docking.applets.network.backend import ConnectionManager, VpnConnection
+from docking.applets.network.backend import (
+    ConnectionManager,
+    NetworkBackend,
+    VpnConnection,
+)
 from docking.applets.network.state import (
     AvailableNetwork,
     NetworkState,
@@ -38,7 +42,7 @@ def _skip_device_types() -> frozenset[object]:
     )
 
 
-class NetworkManagerBackend:
+class LinuxNetworkBackend(NetworkBackend, ConnectionManager):
     def __init__(self, interface: str = "") -> None:
         self.interface = interface
         self._nm_client: NM.Client | None = None

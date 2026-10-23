@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 from typing import Any, NamedTuple
 
+from docking.applets.battery.backend import BatteryBackend
+from docking.applets.battery.state import BatteryState, resolve_battery_icon
 from docking.log import get_logger
 from docking.platform.commands import read_command as command
 
@@ -57,4 +60,29 @@ def battery() -> Battery | None:
         return Battery(capacity, state, seconds if seconds >= 0 else None)
     except Exception as exc:
         log.debug("Battery unavailable: %s", exc)
+        return None
+
+
+class BsdBatteryBackend(BatteryBackend):
+    def read_battery(self, bat_name: str, base: Path) -> BatteryState | None:
+        reading = battery()
+        if reading is None:
+            return None
+        capacity, status, remaining = reading
+        level = (
+            "full"
+            if capacity >= 95
+            else "high"
+            if capacity >= 60
+            else "normal"
+            if capacity >= 30
+            else "low"
+            if capacity >= 10
+            else "critical"
+        )
+        return BatteryState(
+            resolve_battery_icon(level, status), capacity, status, remaining
+        )
+
+    def read_power_watts(self, bat_name: str, base: Path) -> float | None:
         return None

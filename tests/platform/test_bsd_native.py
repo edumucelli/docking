@@ -21,7 +21,7 @@ def test_actual_kernel_cpu_memory_and_mounts():
     assert total > 0 and 0 <= idle <= total
     memory = system_bsd.memory_fraction()
     assert memory is not None and 0 <= memory <= 1
-    assert Path("/") in trash_backend._bsd_mount_points()
+    assert Path("/") in trash_backend._mount_points()
     assert any(path == "/" and 0 <= used <= 1 for path, used in system_bsd.disk_usage())
 
 

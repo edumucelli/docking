@@ -47,7 +47,7 @@ Choose the instructions for your system:
 - [Release downloads and local installation](docs/INSTALLATION.md#release-downloads)
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.
 - [Run from source](docs/DEVELOPMENT.md#source-setup) using pip or uv.
-- [FreeBSD and OpenBSD](docs/BSD_SUPPORT.md) source setup and desktop coverage.
+- [FreeBSD and OpenBSD](docs/INSTALLATION.md#freebsd-and-openbsd) package installation instructions.
 
 The [website](https://docking.cc/#install) also provides APT and RPM instructions.
 
@@ -137,7 +137,7 @@ preferences, update intervals, and integration requirements.
 |---|---|
 | [Installation](docs/INSTALLATION.md) | Package repositories, downloads, and source dependencies |
 | [Wayland](docs/WAYLAND_SUPPORT.md) | Backend support matrix and compositor setup |
-| [BSD](docs/BSD_SUPPORT.md) | Native FreeBSD/OpenBSD integration and VM visual checks |
+| [BSD](docs/INSTALLATION.md#freebsd-and-openbsd) | FreeBSD/OpenBSD package installation |
 | [Configuration](docs/CONFIGURATION.md) | First use, preferences, and saved settings |
 | [Global Search](docs/SEARCH.md) | Providers, examples, and keyboard controls |
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |

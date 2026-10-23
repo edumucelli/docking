@@ -3,10 +3,12 @@
 import shutil
 import sys
 
+from docking.applets.session.backend import SessionBackend
 
-def session_command(original: list[str]) -> list[str] | None:
+
+def command_for(action: str) -> list[str] | None:
     """Translate session actions; leave privilege decisions to the native OS."""
-    if original[:2] == ["loginctl", "terminate-session"]:
+    if action == "logout":
         for argv in (
             ("xfce4-session-logout", "--logout"),
             ("mate-session-save", "--logout-dialog"),
@@ -17,9 +19,25 @@ def session_command(original: list[str]) -> list[str] | None:
         return None
     openbsd = sys.platform.startswith("openbsd")
     commands = {
-        ("systemctl", "suspend"): ["zzz"] if openbsd else ["acpiconf", "-s", "3"],
-        ("systemctl", "reboot"): ["shutdown", "-r", "now"],
-        ("systemctl", "poweroff"): ["shutdown", "-hp" if openbsd else "-p", "now"],
+        "suspend": ["zzz"] if openbsd else ["acpiconf", "-s", "3"],
+        "reboot": ["shutdown", "-r", "now"],
+        "poweroff": ["shutdown", "-hp" if openbsd else "-p", "now"],
     }
-    result = commands.get(tuple(original[:2]))
+    result = commands.get(action)
     return result if result and shutil.which(result[0]) else None
+
+
+class BsdSessionBackend(SessionBackend):
+    def command_for(self, action: str) -> list[str] | None:
+        return command_for(action)
+
+    def lock_commands(self) -> tuple[tuple[str, ...], ...]:
+        return (
+            ("mate-screensaver-command", "-l"),
+            ("gnome-screensaver-command", "-l"),
+            ("xdg-screensaver", "lock"),
+            ("dm-tool", "lock"),
+            ("xfce4-screensaver-command", "--lock"),
+            ("xscreensaver-command", "-lock"),
+            ("xflock4",),
+        )

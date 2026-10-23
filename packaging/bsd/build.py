@@ -254,7 +254,6 @@ def main() -> None:
         package = (freebsd_package if system == "freebsd" else openbsd_package)(
             stage_dir, work, version[1]
         )
-        install_and_check(package, system, work)
         release = re.match(r"\d+\.\d+", platform.release())[0]
         filename = (
             f"docking-{version[1]}-{system}-{release}-"
@@ -262,6 +261,12 @@ def main() -> None:
         )
         destination = args.output / filename
         shutil.copy2(package, destination)
+        # Exercise the same latest filename used by the installation guide.
+        alias = work / (
+            f"docking-latest-{system}-{release}-{platform.machine()}{package.suffix}"
+        )
+        shutil.copy2(package, alias)
+        install_and_check(alias, system, work)
         metadata = {
             "name": "docking",
             "version": version[1],
