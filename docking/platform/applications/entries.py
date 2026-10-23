@@ -82,6 +82,26 @@ def normalized_exec_basename(exec_line: str) -> str:
     return Path(executable).name.lower() if executable else ""
 
 
+def script_launcher_basename(exec_line: str) -> str:
+    """Identify a script launcher, including a simple pkexec command wrapper.
+
+    This is matching evidence only: callers must preserve the original Exec
+    line for launching and executable-path comparisons.
+    """
+    try:
+        argv = desktop_exec_argv(exec_line)
+    except ValueError:
+        return ""
+    if not argv or Path(argv[0]).name != "pkexec":
+        return normalized_exec_basename(exec_line)
+    command = argv[1:]
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command or command[0].startswith("-"):
+        return ""
+    return Path(command[0]).name.lower()
+
+
 def executable_path_from_exec_line(exec_line: str) -> Path | None:
     """Return a canonical direct executable path from a desktop Exec line."""
     executable = _executable_token(exec_line)
@@ -516,6 +536,7 @@ __all__ = [
     "make_user_executable",
     "match_aliases",
     "normalized_exec_basename",
+    "script_launcher_basename",
     "user_applications_dir",
     "wine_executable_aliases",
 ]
