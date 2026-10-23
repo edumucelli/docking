@@ -64,6 +64,7 @@ def private_environment(directory: Path) -> dict[str, str]:
         GDK_DPI_SCALE="1",
         NO_AT_BRIDGE="1",
         GIO_USE_VFS="local",
+        PYTHONPATH=str(ROOT) + os.pathsep + env.get("PYTHONPATH", ""),
     )
     return env
 
@@ -79,12 +80,12 @@ def wait_for(check, message: str, timeout: float = 12):
 
 
 @contextmanager
-def process(command: list[str], log: Path, env: dict[str, str]):
+def process(command: list[str], log: Path, env: dict[str, str], *, cwd: Path = ROOT):
     """Bound every child lifetime and redirect output away from the CI SSH pipe."""
     with log.open("w") as stream:
         child = subprocess.Popen(
             command,
-            cwd=ROOT,
+            cwd=cwd,
             env=env,
             stdout=stream,
             stderr=stream,
@@ -159,7 +160,7 @@ class Pointer:
 
 
 class Observer:
-    def __init__(self, output: Path):
+    def __init__(self, output: Path, dock_command: str | None = None):
         import gi
 
         for namespace, version in (("Gtk", "3.0"), ("Gdk", "3.0"), ("Wnck", "3.0")):
@@ -179,6 +180,7 @@ class Observer:
             else Wnck.Screen.get_default()
         )
         self.output = output
+        self.dock_command = shlex.split(dock_command) if dock_command else None
         self.pointer = Pointer()
         self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self.versions = {
@@ -366,7 +368,10 @@ def dock_case(observer: Observer, env: dict[str, str], name: str, overrides: dic
     config_path.write_text(json.dumps(config))
     (observer.output / f"{name}.config.json").write_text(json.dumps(config, indent=2))
     log = observer.output / f"{name}.log"
-    with process([sys.executable, "-m", "docking.launcher"], log, env) as child:
+    command = observer.dock_command or [sys.executable, "-m", "docking.launcher"]
+    with process(
+        command, log, env, cwd=Path("/tmp") if observer.dock_command else ROOT
+    ) as child:
         yield child
     assert child.returncode == 0, f"Dock shutdown failed: {child.returncode}"
     assert "Traceback (most recent call last):" not in log.read_text(
@@ -690,7 +695,7 @@ def observe(args):
         print(f"{name}: {results[-1]['status']}", flush=True)
 
     try:
-        observer = Observer(output)
+        observer = Observer(output, args.dock_command)
         metadata.update(observer.versions)
         wait_for(observer.window_manager, "Window manager never became ready")
         wait_for(
@@ -809,6 +814,11 @@ def session(args):
                             "--wm",
                             args.wm,
                             *(["--pytest"] if args.pytest else []),
+                            *(
+                                ["--dock-command", args.dock_command]
+                                if args.dock_command
+                                else []
+                            ),
                             *[
                                 argument
                                 for name in args.case
@@ -874,6 +884,7 @@ def main():
         help="Run only a named case (repeatable).",
     )
     parser.add_argument("--observe", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--dock-command", help="Exercise an installed Docking command.")
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
@@ -927,6 +938,7 @@ def main():
                 "--wm",
                 args.wm,
                 *(["--pytest"] if args.pytest else []),
+                *(["--dock-command", args.dock_command] if args.dock_command else []),
                 *[argument for name in args.case for argument in ("--case", name)],
             ],
             cwd=ROOT,
