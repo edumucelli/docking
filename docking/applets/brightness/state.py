@@ -64,17 +64,22 @@ def _find_sysfs_backlight() -> Path | None:
 def detect_output() -> Backend | None:
     """Detect the primary connected xrandr output."""
     out = _run(cmd=["xrandr", "--listmonitors"])
+    sysfs = _find_sysfs_backlight()
+    brightnessctl = shutil.which("brightnessctl")
     if not out:
+        if sysfs is not None and is_wayland_session():
+            return Backend(output="", sysfs=sysfs, brightnessctl=brightnessctl)
         return None
     # Format: " 0: +*HDMI-1 1920/480x1080/270+0+0  HDMI-1"
-    for line in out.strip().splitlines()[1:]:
-        parts = line.split()
-        if len(parts) >= 4:
-            return Backend(
-                output=parts[-1],
-                sysfs=_find_sysfs_backlight(),
-                brightnessctl=shutil.which("brightnessctl"),
-            )
+    monitors = [line.split() for line in out.strip().splitlines()[1:]]
+    candidates = [parts for parts in monitors if len(parts) >= 4]
+    if candidates:
+        primary = next(
+            (parts for parts in candidates if "*" in parts[1]), candidates[0]
+        )
+        return Backend(output=primary[-1], sysfs=sysfs, brightnessctl=brightnessctl)
+    if sysfs is not None and is_wayland_session():
+        return Backend(output="", sysfs=sysfs, brightnessctl=brightnessctl)
     return None
 
 
@@ -114,7 +119,7 @@ def _get_brightness_xrandr(backend: Backend) -> float | None:
         return None
     in_output = False
     for line in out.splitlines():
-        if line and not line[0].isspace() and backend.output in line:
+        if line and not line[0].isspace() and line.split()[0] == backend.output:
             in_output = True
         elif line and not line[0].isspace():
             in_output = False

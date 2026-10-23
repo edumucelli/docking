@@ -66,6 +66,7 @@ def _load_preview_module():
     repo_module = types.ModuleType("gi.repository")
     repo_module.Gtk = fake_gtk
     repo_module.Gdk = fake_gdk
+    repo_module.GdkPixbuf = SimpleNamespace(Pixbuf=object)
     repo_module.GLib = fake_glib
     repo_module.Pango = fake_pango
     gi_module.repository = repo_module
@@ -197,6 +198,8 @@ class FakeLabel:
 
 
 class FakePreviewService:
+    asynchronous = False
+
     def __init__(self) -> None:
         self.capture = MagicMock(return_value=None)
 
@@ -218,6 +221,8 @@ def _make_popup():
     popup._autohide = None
     popup._pointer_inside_dock = None
     popup._hide_timer_id = 0
+    popup._preview_refresh_timer_id = 0
+    popup._thumbnail_images = {}
     popup._current_desktop_id = ""
     popup._thumbnail_outline_enabled = lambda: False
     popup._thumbnail_width = lambda: preview_mod.THUMB_W

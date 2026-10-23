@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -152,7 +153,12 @@ def test_activation_timestamp_is_used_for_window_manager_focus() -> None:
     window.window.present.assert_not_called()
 
 
-def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "filename", ["screenshot.png", os.fsdecode(b"screenshot-\xff.png")]
+)
+def test_image_preview_shows_thumbnail_and_metadata(
+    tmp_path, monkeypatch, filename
+) -> None:
     monkeypatch.setattr(
         window_mod,
         "ThreadPoolExecutor",
@@ -173,10 +179,11 @@ def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> No
     )
     pixbuf.fill(0x3366CCFF)
     pixbuf.savev(str(image_path), "png", [], [])
+    image_path = image_path.rename(tmp_path / filename)
     identity = SearchIdentity("recent-files", image_path.as_uri())
     result = SearchResult(
         identity=identity,
-        title=image_path.name,
+        title="Screenshot",
         preview=SearchPreview(
             title=image_path.name,
             body=str(image_path),
@@ -214,6 +221,8 @@ def test_image_preview_shows_thumbnail_and_metadata(tmp_path, monkeypatch) -> No
     assert row_thumbnail.get_height() == 16
     window.toggle_preview()
 
+    assert window.preview_title.get_label().encode("utf-8")
+    assert window.preview_body.get_label().encode("utf-8")
     thumbnail = window.preview_image.get_pixbuf()
     assert thumbnail is not None
     assert thumbnail.get_width() == 120

@@ -6,10 +6,30 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 from stack_probe import ICON_COLOR, locate, popup_bounds
+
+
+def capture_screen(path: Path, scale: int) -> None:
+    display = os.environ.get("LAB_PARENT_DISPLAY", os.environ["WAYLAND_DISPLAY"])
+    if os.environ.get("COMPOSITOR") == "cinnamon":
+        command = [
+            sys.executable,
+            str(Path(__file__).with_name("cinnamon_probe.py")),
+            "screenshot",
+            str(path),
+        ]
+    else:
+        command = ["grim", "-s", str(scale), str(path)]
+    subprocess.run(
+        command,
+        env={**os.environ, "WAYLAND_DISPLAY": display},
+        check=True,
+        timeout=15,
+    )
 
 
 def main() -> None:
@@ -25,15 +45,18 @@ def main() -> None:
     def snapshot():
         return json.loads(state_path.read_text())
 
+    def wait(predicate):
+        deadline = time.monotonic() + 6
+        while time.monotonic() < deadline:
+            value = predicate()
+            if value:
+                return value
+            time.sleep(0.05)
+        raise AssertionError("stack state did not converge")
+
     def capture(phase):
         path = root / f"{name}.{phase}.png"
-        display = os.environ.get("LAB_PARENT_DISPLAY", os.environ["WAYLAND_DISPLAY"])
-        subprocess.run(
-            ["grim", "-s", str(scale), str(path)],
-            env={**os.environ, "WAYLAND_DISPLAY": display},
-            check=True,
-            timeout=15,
-        )
+        capture_screen(path, scale)
         return path
 
     def send(x, y, *, button=0, scroll=0):
@@ -66,15 +89,14 @@ def main() -> None:
             (1, False, "first"),
             (0, False, "action"),
         ):
-            path = capture("resting")
-            icon = locate(path, ICON_COLOR)
-            assert icon is not None, "dock icon stimulus not visible"
+            icon = wait(lambda: locate(capture("resting"), ICON_COLOR))
             x, y = icon[0] // scale + 2, icon[1] // scale + 2
             send(x - 2, y)
             time.sleep(0.15)
             send(x, y)
             time.sleep(0.25)
             send(x, y, button=272)
+            wait(lambda: snapshot()["visible"])
             time.sleep(0.9)
             state = snapshot()
             assert state["visible"], "native click did not open stack"
@@ -97,7 +119,12 @@ def main() -> None:
             time.sleep(0.15)
             previous = len(state["activations"])
             send(ox + cx, oy + cy, button=272)
-            time.sleep(0.4)
+            wait(
+                lambda: (
+                    not snapshot()["visible"]
+                    and len(snapshot()["activations"]) > previous
+                )
+            )
             state = snapshot()
             assert not state["visible"], "activation did not close stack"
             assert len(state["activations"]) == previous + 1

@@ -42,6 +42,7 @@ def host_command(
     *,
     sanitize_env: bool = True,
     require_flatpak: bool = True,
+    working_directory: str | None = None,
 ) -> list[str] | None:
     """Build a flatpak-spawn --host command, or None outside Flatpak."""
     flatpak_spawn = spawn_path(require_flatpak=require_flatpak)
@@ -49,12 +50,14 @@ def host_command(
         return None
 
     command = [flatpak_spawn, "--host"]
+    if working_directory:
+        command.append(f"--directory={working_directory}")
     if sanitize_env:
         # Host GLib/GSettings commands can break if they inherit sandbox
         # typelibs, schemas, or XDG search paths from the Flatpak runtime.
+        command.append("env")
         for name in HOST_ENV_UNSET:
             command.extend(["-u", name])
-        command.insert(2, "env")
     command.extend(cmd)
     return command
 

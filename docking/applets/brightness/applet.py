@@ -28,6 +28,7 @@ from docking.applets.brightness import meta
 from docking.applets.brightness.render import create_icon
 from docking.applets.brightness.state import (
     STEP,
+    Backend,
     detect_output,
     get_brightness,
     set_brightness,
@@ -144,14 +145,9 @@ class BrightnessApplet(Applet):
         self._pending_brightness = None
         self._set_in_progress = True
 
-        def task() -> float | None:
-            if set_brightness(backend=backend, value=value) is False:
-                return get_brightness(backend=backend)
-            return None
-
         self._worker.run(
             name="brightness-set",
-            fn=task,
+            fn=lambda: self._write_brightness(backend, value),
             on_result=self._on_brightness_set,
             on_error=lambda _error: self._on_brightness_set(),
         )
@@ -163,6 +159,11 @@ class BrightnessApplet(Applet):
             self.present()
         self._start_pending_brightness()
         return False
+
+    def _write_brightness(self, backend: Backend, value: float) -> float | None:
+        if set_brightness(backend=backend, value=value) is False:
+            return get_brightness(backend=backend)
+        return None
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""

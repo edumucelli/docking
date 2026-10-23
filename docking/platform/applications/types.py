@@ -62,6 +62,8 @@ class ApplicationInfo:
     categories_raw: str = ""
     keywords: tuple[str, ...] = ()
     actions: tuple[ApplicationAction, ...] = ()
+    terminal: bool = False
+    working_directory: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

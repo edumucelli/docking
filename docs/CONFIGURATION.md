@@ -141,6 +141,8 @@ the dock follows the pointer at runtime.
 |---|---:|---|---|
 | `left_click_action` | `"toggle"` | `toggle`, `cycle`, `most-recent` | Left-click behavior for a running application. |
 | `middle_click_action` | `"new-window"` | `new-window`, `minimize`, `close-focused` | Middle-click behavior for application items. |
+| `dock_item_click_effects_enabled` | `true` | boolean | Plays the selected effect when clicking a dock item launches an application. |
+| `dock_item_click_effect` | `"bounce"` | `bounce`, `pulse`, `wobble` | Effect played when a click launches an application: bounce away from the screen edge, briefly grow and settle, or wobble from side to side. The selector is disabled when click effects are off, but its value is retained. |
 | `window_list_sort` | `"default"` | `default`, `alphabetical` | Ordering of open windows in application context menus. |
 | `stack_unfold` | `"hover"` | `hover`, `click` | Controls whether folder and device stacks open on hover or click. |
 

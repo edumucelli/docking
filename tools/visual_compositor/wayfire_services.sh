@@ -3,6 +3,7 @@
 set -euo pipefail
 if [ "${1:-}" != --session ]; then
     repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
+    mkdir -p "$repo_dir/tools/visual_compositor/evidence"
     evidence="$(mktemp -d "$repo_dir/tools/visual_compositor/evidence/wayfire-contract.XXXXXX")"
     image="${DOCKING_LAB_IMAGE:-docking-lab:wayfire}"
     lab_uid="$(id -u)"
