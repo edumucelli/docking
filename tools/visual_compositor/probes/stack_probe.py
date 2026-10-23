@@ -64,12 +64,16 @@ def popup_bounds(
 
 
 def run() -> None:
+    from docking.launcher import prepare_display
+
+    prepare_display()
     import gi
 
     gi.require_version("Gtk", "3.0")
     from gi.repository import GLib, Gtk
 
     from docking import app
+    from docking.platform.environment import is_x11_backend
 
     state_path = Path(os.environ["LAB_STACK_STATE"])
     original = app.build_dock_window
@@ -80,10 +84,9 @@ def run() -> None:
         window = ui.window
         stack = ui.input_controller._interactions._folder_stack
         stack._target_service.open_target = lambda target: activations.append(target)
-        marked_window = None
+        marked_widgets = set()
 
-        def mark_icon(widget, cr):
-            frame = window.geometry.build_frame()
+        def mark_icon(frame, cr):
             rect = frame.item_geometries[0].draw_rect
             cr.set_source_rgb(1, 0, 0)
             cr.rectangle(
@@ -93,40 +96,56 @@ def run() -> None:
             return False
 
         def mark_popup(widget, cr):
-            width, height = widget.get_size()
+            popup = stack._folder_stack_window
+            width, height = popup.get_size()
+            offset = popup.translate_coordinates(widget, 0, 0)
+            if offset is None:
+                return False
+            cr.save()
             for (x, y), color in zip(
                 ((0, 0), (width - 4, 0), (0, height - 4), (width - 4, height - 4)),
                 CORNER_COLORS,
                 strict=True,
             ):
                 cr.set_source_rgb(*(value / 255 for value in color))
-                cr.rectangle(x, y, 4, 4)
+                cr.rectangle(offset[0] + x, offset[1] + y, 4, 4)
                 cr.fill()
+            cr.restore()
             return False
+
+        def mark_tree(widget):
+            if widget not in marked_widgets:
+                widget.connect_after("draw", mark_popup)
+                marked_widgets.add(widget)
+            # Native Wayland only needs the popup marker; child marks scroll.
+            if isinstance(widget, Gtk.Container) and is_x11_backend(
+                display=widget.get_display()
+            ):
+                widget.forall(mark_tree)
 
         original_draw = window.renderer.draw
 
-        def draw_with_marker(cr, widget, *args, **kwargs):
-            original_draw(cr, widget, *args, **kwargs)
+        def draw_with_marker(cr, widget, frame, *args, **kwargs):
+            original_draw(cr, widget, frame, *args, **kwargs)
             cr.save()
-            mark_icon(widget, cr)
+            mark_icon(frame, cr)
             cr.restore()
 
         window.renderer.draw = draw_with_marker
         window.queue_draw()
 
         def sample():
-            nonlocal marked_window
             popup = stack._folder_stack_window
             state = {
                 "visible": bool(popup and popup.get_visible()),
                 "activations": activations,
             }
             if popup is not None:
-                if marked_window is not popup:
-                    popup.connect_after("draw", mark_popup)
-                    popup.queue_draw()
-                    marked_window = popup
+                # X11 child windows can paint over their parent's draw marker.
+                # Mark each native drawing context and clear scrolled copies.
+                mark_tree(popup)
+                if popup.get_visible() and popup.get_window() is not None:
+                    popup.get_window().invalidate_rect(None, True)
                 state["size"] = list(popup.get_size())
                 child = stack._folder_stack_revealer.get_child()
                 if isinstance(child, Gtk.ScrolledWindow):

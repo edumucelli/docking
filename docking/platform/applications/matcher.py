@@ -591,7 +591,7 @@ class AppIdMatcher:
             return None
         application = candidates[0]
         if (
-            desktop_entries.normalized_exec_basename(application.exec_line)
+            desktop_entries.script_launcher_basename(application.exec_line)
             != stem.lower()
         ):
             return None
