@@ -1,6 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure logic for quick note applet -- no GTK dependency."""
 
 from __future__ import annotations
+
+from typing import Any
 
 MAX_TOOLTIP_LEN = 80
 
@@ -21,8 +36,9 @@ def prefs_from_note(*, note: str) -> dict[str, str]:
     return {"note": note}
 
 
-def note_from_prefs(prefs: dict | None) -> str:
+def note_from_prefs(prefs: dict[str, Any] | None) -> str:
     """Load note text from preferences, default empty."""
     if not prefs:
         return ""
-    return prefs.get("note", "")
+    note = prefs.get("note", "")
+    return note if isinstance(note, str) else ""

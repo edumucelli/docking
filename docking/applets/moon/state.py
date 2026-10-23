@@ -1,4 +1,17 @@
-"""Moon phase data from briancasey.org — pure helpers, no GTK dependency.
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Moon phase data from briancasey.org - pure helpers, no GTK dependency.
 
 This parser is a direct descendant of the original Moon applet written by
 Eduardo Mucelli for Cairo-Dock (circa 2012). That applet parsed the same
@@ -6,7 +19,7 @@ website using SGMLParser to extract moon phase images and illumination data.
 
 Over a decade later, the same website still serves the same HTML structure.
 The parsing logic below is adapted from MoonCalendarParser.py in the original
-cairo-dock-plug-ins-extras/Moon directory — coming full circle from a Cairo-Dock
+cairo-dock-plug-ins-extras/Moon directory - coming full circle from a Cairo-Dock
 applet created years ago back into a dock built from scratch.
 """
 
@@ -66,18 +79,28 @@ def fetch_moon(day: date | None = None) -> MoonData | None:
         log.warning("Failed to fetch moon data, using offline: %s", exc)
         from docking.applets.moon.offline import fetch_moon_offline
 
-        return fetch_moon_offline(d=day)
+        offline = fetch_moon_offline(d=day)
+        return MoonData(*offline)
 
 
 # -- HTML parsing (adapted from the original MoonCalendarParser.py) -----------
 #
 # The original used SGMLParser (removed in Python 3). We use simple regexes
-# on the same HTML structure — the website hasn't changed its format.
+# on the same HTML structure - the website hasn't changed its format.
 
-_IMG_RE = re.compile(r'<img\s+src="images/(moon\d+[ab])\.gif"', re.IGNORECASE)
-_ILLUM_RE = re.compile(r"Illuminated Fraction:\s*([\d.]+)")
-_DESC_RE = re.compile(r"([\d.]+\s+days?\s+(?:after|before)\s+\w[\w\s]*)")
-_DATE_RE = re.compile(r"The Moon for\s+(.+?)\s*</font>", re.IGNORECASE)
+# Order matters: _IMG_RE and _ILLUM_RE are required; others optional.
+_IMG_RE = re.compile(  # phase image filename
+    r'<img\s+src="images/(moon\d+[ab])\.gif"', re.IGNORECASE
+)
+_ILLUM_RE = re.compile(  # 0.0-1.0 illumination
+    r"Illuminated Fraction:\s*([\d.]+)"
+)
+_DESC_RE = re.compile(  # "N days after/before <phase>"
+    r"([\d.]+\s+days?\s+(?:after|before)\s+\w[\w\s]*)"
+)
+_DATE_RE = re.compile(  # display date
+    r"The Moon for\s+(.+?)\s*</font>", re.IGNORECASE
+)
 
 
 def _parse_moon_html(html: str) -> MoonData | None:
@@ -105,8 +128,8 @@ def _parse_moon_html(html: str) -> MoonData | None:
 def phase_name(illumination: float, description: str) -> str:
     """Human-readable phase name from illumination and description text."""
     desc_lower = description.lower()
-    # Check directional phrases first (before matching exact phase names,
-    # since "after full moon" would otherwise match "full moon").
+    # Directional phrases checked first - "after full moon" contains "full moon"
+    # as a substring, so exact phase checks must come after these.
     if "after new" in desc_lower or "before first" in desc_lower:
         return _("Waxing Crescent")
     if "after first" in desc_lower or "before full" in desc_lower:

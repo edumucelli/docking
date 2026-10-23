@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for music applet icon."""
 
 from __future__ import annotations
@@ -12,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
+from docking.ui.overlays import draw_circle_badge
 
 _NO_PLAYER_ICON_CACHE: dict[int, GdkPixbuf.Pixbuf] = {}
 
@@ -22,8 +36,8 @@ def _crop_center_square(pixbuf: GdkPixbuf.Pixbuf, size: int) -> GdkPixbuf.Pixbuf
     if w <= 0 or h <= 0:
         return None
     scale = max(size / w, size / h)
-    scaled_w = max(size, int(round(w * scale)))
-    scaled_h = max(size, int(round(h * scale)))
+    scaled_w = max(size, round(w * scale))
+    scaled_h = max(size, round(h * scale))
     scaled = pixbuf.scale_simple(scaled_w, scaled_h, GdkPixbuf.InterpType.BILINEAR)
     if scaled is None:
         return None
@@ -39,7 +53,7 @@ def _crop_center_square(pixbuf: GdkPixbuf.Pixbuf, size: int) -> GdkPixbuf.Pixbuf
 
 def _draw_album_art(cr: cairo.Context, size: int, art: GdkPixbuf.Pixbuf) -> None:
     margin = size * 0.08
-    tile_size = int(round(size - 2 * margin))
+    tile_size = round(size - 2 * margin)
     cropped = _crop_center_square(pixbuf=art, size=tile_size)
     if cropped is None:
         return
@@ -60,31 +74,29 @@ def _draw_album_art(cr: cairo.Context, size: int, art: GdkPixbuf.Pixbuf) -> None
 
 
 def _draw_idle_music_tile_vector(cr: cairo.Context, size: int) -> None:
-    """Draw the yellow split music tile used for non-playing states."""
-    top_h = size * 0.767
-    bottom_h = size - top_h
+    """Draw the centered-note yellow tile used without album art."""
     split_x = size * 0.3535
 
-    # Top yellow panel (matched to target palette).
-    cr.rectangle(0, 0, split_x, top_h)
+    # Split yellow background (matched to target palette).
+    cr.rectangle(0, 0, split_x, size)
     cr.set_source_rgb(253 / 255.0, 249 / 255.0, 165 / 255.0)
     cr.fill()
-    cr.rectangle(split_x, 0, size - split_x, top_h)
+    cr.rectangle(split_x, 0, size - split_x, size)
     cr.set_source_rgb(251 / 255.0, 242 / 255.0, 74 / 255.0)
     cr.fill()
 
-    # Stylized note (filled geometry to avoid stroke artifacts at small sizes).
+    # Centered stylized note (filled geometry avoids small-size stroke artifacts).
     note_dark = (36 / 255.0, 36 / 255.0, 36 / 255.0)
     note_gray = (67 / 255.0, 67 / 255.0, 67 / 255.0)
     note_w = size * 0.066
     half_w = note_w / 2.0
 
-    left_stem_x = size * 0.47
-    left_stem_top = top_h * 0.30
-    left_stem_bottom = top_h * 0.691
-    right_stem_x = size * 0.73
-    right_stem_top = top_h * 0.23
-    right_stem_bottom = top_h * 0.612
+    left_stem_x = size * 0.43
+    left_stem_top = size * 0.32
+    left_stem_bottom = size * 0.62
+    right_stem_x = size * 0.69
+    right_stem_top = size * 0.26
+    right_stem_bottom = size * 0.56
 
     cr.set_source_rgb(*note_dark)
     cr.rectangle(
@@ -125,34 +137,11 @@ def _draw_idle_music_tile_vector(cr: cairo.Context, size: int) -> None:
     cr.close_path()
     cr.fill()
 
-    cr.arc(size * 0.408, top_h * 0.74, size * 0.088, 0, 2 * math.pi)
+    cr.arc(size * 0.37, size * 0.66, size * 0.088, 0, 2 * math.pi)
     cr.set_source_rgb(*note_gray)
     cr.fill()
-    cr.arc(size * 0.669, top_h * 0.66, size * 0.084, 0, 2 * math.pi)
+    cr.arc(size * 0.63, size * 0.59, size * 0.084, 0, 2 * math.pi)
     cr.set_source_rgb(*note_dark)
-    cr.fill()
-
-    # Bottom transport strip.
-    cr.rectangle(0, top_h, split_x, bottom_h)
-    cr.set_source_rgb(192 / 255.0, 192 / 255.0, 192 / 255.0)
-    cr.fill()
-    cr.rectangle(split_x, top_h, size - split_x, bottom_h)
-    cr.set_source_rgb(130 / 255.0, 130 / 255.0, 130 / 255.0)
-    cr.fill()
-
-    button = max(2.0, size * 0.06)
-    by = top_h + (bottom_h - button) / 2
-    cr.set_source_rgb(67 / 255.0, 67 / 255.0, 67 / 255.0)
-    cr.rectangle(size * 0.09, by, button, button)
-    cr.rectangle(size * 0.20, by, button, button)
-    cr.fill()
-
-    bar_h = max(2.0, size * 0.06)
-    bar_w = size * 0.42
-    bx = size * 0.47
-    by2 = top_h + (bottom_h - bar_h) / 2
-    cr.rectangle(bx, by2, bar_w, bar_h)
-    cr.set_source_rgb(36 / 255.0, 36 / 255.0, 36 / 255.0)
     cr.fill()
 
 
@@ -178,7 +167,7 @@ def _idle_music_tile_pixbuf(size: int) -> GdkPixbuf.Pixbuf | None:
 
 def _draw_idle_music_tile(cr: cairo.Context, size: int) -> None:
     tile_margin = size * 0.06
-    tile_size = int(round(size - (2 * tile_margin)))
+    tile_size = round(size - (2 * tile_margin))
     tile_x = (size - tile_size) / 2.0
     tile_y = (size - tile_size) / 2.0
     tile_radius = tile_size * 0.10
@@ -227,42 +216,6 @@ def _draw_idle_music_tile(cr: cairo.Context, size: int) -> None:
     cr.reset_clip()
 
 
-def _draw_fallback_music_glyph(cr: cairo.Context, size: int) -> None:
-    # Background tile.
-    margin = size * 0.08
-    x = margin
-    y = margin
-    w = size - 2 * margin
-    h = w
-    rounded_rect(cr=cr, x=x, y=y, width=w, height=h, radius=w * 0.16)
-    grad = cairo.LinearGradient(x, y, x + w, y + h)
-    grad.add_color_stop_rgb(0.0, 0.22, 0.29, 0.50)
-    grad.add_color_stop_rgb(1.0, 0.08, 0.12, 0.27)
-    cr.set_source(grad)
-    cr.fill()
-
-    # Music note.
-    cr.set_source_rgba(1, 1, 1, 0.92)
-    cr.set_line_width(max(1.4, size * 0.06))
-    stem_x = size * 0.58
-    stem_top = size * 0.28
-    stem_bottom = size * 0.64
-    cr.move_to(stem_x, stem_top)
-    cr.line_to(stem_x, stem_bottom)
-    cr.stroke()
-
-    cr.arc(size * 0.48, size * 0.67, size * 0.10, 0, 2 * math.pi)
-    cr.fill()
-
-    cr.arc(size * 0.66, size * 0.60, size * 0.09, 0, 2 * math.pi)
-    cr.fill()
-
-    cr.set_line_width(max(1.4, size * 0.055))
-    cr.move_to(stem_x, stem_top)
-    cr.line_to(size * 0.74, size * 0.24)
-    cr.stroke()
-
-
 def _volume_step_count(volume_percent: int) -> int:
     volume = max(0, min(100, int(volume_percent)))
     if volume <= 0:
@@ -281,9 +234,13 @@ def _draw_volume_badge(cr: cairo.Context, size: int, volume_percent: int) -> Non
     cx = radius + size * 0.06
     cy = size - radius - size * 0.06
 
-    cr.arc(cx, cy, radius, 0, 2 * math.pi)
-    cr.set_source_rgba(0.20, 0.20, 0.20, 0.95)
-    cr.fill()
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius,
+        background_rgba=(0.20, 0.20, 0.20, 0.95),
+    )
 
     cr.set_source_rgba(1, 1, 1, 0.95)
     # Keep the speaker tiny so arc levels are the primary visual cue.
@@ -341,9 +298,13 @@ def _draw_status_badge(cr: cairo.Context, size: int, playback_status: str) -> No
     else:
         color = (0.42, 0.42, 0.42)
 
-    cr.arc(cx, cy, radius, 0, 2 * math.pi)
-    cr.set_source_rgba(*color, 0.95)
-    cr.fill()
+    draw_circle_badge(
+        cr=cr,
+        cx=cx,
+        cy=cy,
+        radius=radius,
+        background_rgba=(*color, 0.95),
+    )
 
     cr.set_source_rgba(1, 1, 1, 0.95)
     if playback_status == "Paused":
@@ -389,7 +350,7 @@ def create_music_icon(
     elif album_art is not None:
         _draw_album_art(cr=cr, size=size, art=album_art)
     else:
-        _draw_fallback_music_glyph(cr=cr, size=size)
+        _draw_idle_music_tile(cr=cr, size=size)
 
     if available:
         _draw_volume_badge(cr=cr, size=size, volume_percent=volume_percent)

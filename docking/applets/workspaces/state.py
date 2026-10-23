@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State helpers for workspaces applet."""
 
 from __future__ import annotations
@@ -24,8 +37,9 @@ def next_workspace_index(*, current: int, count: int, delta: int) -> int:
     return (current + delta) % count
 
 
-def workspace_label(*, name: str | None, number: int) -> str:
-    base = f"Workspace {number + 1}"
+def workspace_label(*, name: str | None, index: int) -> str:
+    """Label a workspace by its position, which users see numbered from 1."""
+    base = f"Workspace {index + 1}"
     if name:
         clean = name.strip()
         if clean and clean != base and not _GENERIC_WS_NAME_RE.match(clean):

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Screenshot applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -13,7 +26,9 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.screenshot import meta
+from docking.core.icons import IconSource
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -38,8 +53,9 @@ class ScreenshotApplet(Applet):
     id = meta.id
     name = _("Screenshot")
     icon_name = "applets-screenshooter"
+    icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._tool = _detect_tool()
         if not self._tool:
             log.bind(action="detect_tool").warning(
@@ -48,7 +64,7 @@ class ScreenshotApplet(Applet):
         super().__init__(icon_size, config)
         self.present()
 
-    def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
+    def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         _draw_screenshot_icon(cr=cr, size=size)
@@ -61,24 +77,24 @@ class ScreenshotApplet(Applet):
         self._run_mode(mode="full")
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
         tool = self._tool
         if not tool:
-            return items
+            return []
+        primary: list[Gtk.MenuItem] = []
         for label, mode in _MODE_OPTIONS:
             mi = Gtk.MenuItem(label=label)
             mi.connect("activate", lambda _w, m=mode: self._run_mode(mode=m))
-            items.append(mi)
+            primary.append(mi)
 
-        items.append(Gtk.SeparatorMenuItem())
+        manage: list[Gtk.MenuItem] = []
         for delay_s in _TIMED_DELAYS_S:
             mi = Gtk.MenuItem(label=_("Full Screen in {delay}s").format(delay=delay_s))
             mi.connect(
                 "activate",
                 lambda _w, d=delay_s: self._run_mode(mode="full", delay_seconds=d),
             )
-            items.append(mi)
-        return items
+            manage.append(mi)
+        return menu_sections(primary=primary, manage=manage, gtk=Gtk)
 
     def _run_mode(self, *, mode: Mode, delay_seconds: int = 0) -> None:
         if not self._tool:

@@ -1,9 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """State and backend helpers for the Notifications applet."""
 
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Protocol
@@ -11,6 +23,7 @@ from typing import Protocol
 from docking.applets.notifications import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.environment import flatpak
 
 log = with_context(
     get_logger(name="notifications"),
@@ -57,7 +70,7 @@ def pending_badge_count(state: NotificationsState) -> int:
     return max(0, min(99, state.pending))
 
 
-def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
+def _run_direct(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     """Run command and return stdout when successful."""
     try:
         result = subprocess.run(
@@ -73,6 +86,16 @@ def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip()
+
+
+def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
+    """Run host notification command when sandboxed, else run directly."""
+    host_cmd = flatpak.host_command(cmd)
+    if host_cmd is not None:
+        output = _run_direct(host_cmd, timeout_s=timeout_s)
+        if output is not None:
+            return output
+    return _run_direct(cmd, timeout_s=timeout_s)
 
 
 def _parse_bool(value: str | None) -> bool | None:
@@ -98,7 +121,8 @@ def _parse_pending_count(value: str | None) -> int | None:
 
     try:
         payload = json.loads(stripped)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        log.debug("Failed to parse pending notification count %r: %s", stripped, exc)
         return None
 
     if isinstance(payload, dict):
@@ -106,10 +130,6 @@ def _parse_pending_count(value: str | None) -> int | None:
         if isinstance(waiting, int):
             return max(0, waiting)
     return None
-
-
-def _has_command(command: str) -> bool:
-    return shutil.which(command) is not None
 
 
 class NotificationsBackend(Protocol):
@@ -214,11 +234,11 @@ class NullBackend:
 
 def detect_backend() -> NotificationsBackend:
     """Detect the best available notification backend."""
-    if _has_command("dunstctl"):
+    if flatpak.host_command_available("dunstctl"):
         backend = DunstBackend()
         if backend.get_state().available:
             return backend
-    if _has_command("gsettings"):
+    if flatpak.host_command_available("gsettings"):
         backend = GnomeBackend()
         if backend.get_state().available:
             return backend

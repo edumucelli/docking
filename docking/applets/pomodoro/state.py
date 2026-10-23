@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and formatting logic for Pomodoro applet."""
 
 from __future__ import annotations
@@ -79,11 +92,24 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> PomodoroState:
     if not prefs:
         return PomodoroState()
     return PomodoroState(
-        work_min=int(prefs.get("work", DEFAULT_WORK)),
-        break_min=int(prefs.get("break_", DEFAULT_BREAK)),
-        long_break_min=int(prefs.get("long_break", DEFAULT_LONG_BREAK)),
+        work_min=_duration_from_pref(prefs.get("work"), default=DEFAULT_WORK),
+        break_min=_duration_from_pref(prefs.get("break_"), default=DEFAULT_BREAK),
+        long_break_min=_duration_from_pref(
+            prefs.get("long_break"), default=DEFAULT_LONG_BREAK
+        ),
         show_timer=bool(prefs.get("show_timer", True)),
     )
+
+
+def _duration_from_pref(value: object, *, default: int) -> int:
+    """Keep invalid saved durations from crashing startup or skipping phases."""
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return default
+    try:
+        minutes = int(value)
+    except (ValueError, OverflowError):
+        return default
+    return minutes if minutes > 0 else default
 
 
 def prefs_from_state(state: PomodoroState) -> dict[str, object]:
@@ -104,6 +130,7 @@ def start_work(state: PomodoroState) -> PomodoroState:
 def auto_transition(state: PomodoroState) -> PomodoroState:
     """Transition to next phase when timer expires."""
     if state.phase == State.WORK:
+        # Increment before modulo: the 4th completed work triggers long break.
         next_work_count = state.work_count + 1
         if next_work_count % LONG_BREAK_EVERY == 0:
             return replace(
@@ -139,6 +166,7 @@ def tick(state: PomodoroState) -> TickResult:
 
     next_state = replace(state, remaining=state.remaining - 1)
     if next_state.remaining <= 0:
+        # phase_changed signals caller to redraw icon + fire notification
         return TickResult(state=auto_transition(state=next_state), phase_changed=True)
     return TickResult(state=next_state, phase_changed=False)
 

@@ -1,7 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and metadata logic for Ambient applet."""
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any, NamedTuple
@@ -62,9 +76,26 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AmbientState:
         return AmbientState()
     return AmbientState(
         current=str(prefs.get("sound", DEFAULT_SOUND)),
-        volume=float(prefs.get("volume", DEFAULT_VOLUME)),
+        volume=coerce_volume(prefs.get("volume")),
         playing=False,
     )
+
+
+def coerce_volume(value: object) -> float:
+    """Coerce a persisted volume into 0.0-1.0, falling back to the default.
+
+    Read during construction, so a hand-edited config value that raised here
+    took the applet off the bar instead of showing the default volume.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_VOLUME
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return DEFAULT_VOLUME
+    if not math.isfinite(parsed):
+        return DEFAULT_VOLUME
+    return min(1.0, max(0.0, parsed))
 
 
 def prefs_from_state(state: AmbientState) -> dict[str, object]:

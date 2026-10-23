@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Rendering for workspaces applet icon."""
 
 from __future__ import annotations
@@ -6,7 +19,11 @@ import cairo
 
 
 def _render_grid(cr: cairo.Context, size: int, count: int, active_num: int) -> None:
-    """Draw a grid of workspace rectangles with the active one highlighted."""
+    """Draw a grid of workspace rectangles with the active one highlighted.
+
+    ``active_num`` is a position in the caller's list, not a backend number, so
+    an out-of-range value simply leaves every cell unhighlighted.
+    """
     if count <= 0:
         return
 

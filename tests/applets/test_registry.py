@@ -48,6 +48,9 @@ class TestAppletCatalog:
     def test_contains_desktop(self):
         assert "desktop" in get_applet_catalog()
 
+    def test_contains_devices(self):
+        assert "devices" in get_applet_catalog()
+
     def test_contains_systemmonitor(self):
         assert "systemmonitor" in get_applet_catalog()
 
@@ -83,6 +86,10 @@ class TestAppletCatalog:
     def test_contains_stretchcoach(self):
         assert "stretchcoach" in get_applet_catalog()
 
+    def test_contains_plantcare(self):
+        assert "plantcare" in get_applet_catalog()
+        assert load_applet_class("plantcare").__name__ == "PlantCareApplet"
+
     def test_contains_trivia(self):
         assert "trivia" in get_applet_catalog()
 
@@ -91,6 +98,32 @@ class TestAppletCatalog:
             pytest.skip("Today in History applet is not available in this checkout")
 
         assert "todayinhistory" in get_applet_catalog()
+
+    def test_contains_currencyfx(self):
+        assert "currencyfx" in get_applet_catalog()
+
+    def test_contains_crypto(self):
+        assert "crypto" in get_applet_catalog()
+
+    def test_contains_micshield(self):
+        assert "micshield" in get_applet_catalog()
+
+    def test_contains_hackernews(self):
+        assert "hackernews" in get_applet_catalog()
+
+    def test_contains_reddit(self):
+        assert "reddit" in get_applet_catalog()
+        assert load_applet_class("reddit").__name__ == "RedditApplet"
+
+    def test_contains_news(self):
+        assert "news" in get_applet_catalog()
+        assert load_applet_class("news").__name__ == "NewsApplet"
+
+    def test_contains_thermals(self):
+        assert "thermals" in get_applet_catalog()
+
+    def test_contains_docker(self):
+        assert "docker" in get_applet_catalog()
 
     def test_logs_warning_for_package_missing_init_py(
         self, tmp_path, monkeypatch, caplog

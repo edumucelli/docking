@@ -1,0 +1,1348 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+"""Niri IPC helpers and WindowService.
+
+Niri exposes a single JSON Unix socket at ``$NIRI_SOCKET``.  Requests are
+single-line JSON objects; replies are also single-line JSON.  The event
+stream is started with an ``{"EventStream":null}`` request, acknowledged
+with ``{"Ok":"Handled"}``, and then delivers full current state up-front
+followed by incremental events - no polling needed.
+
+The IPC is simpler than Hyprland's two-socket model and requires no
+external tools.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import socket
+import tempfile
+import threading
+from collections import deque
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+import gi
+
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, GLib
+
+from docking.core.json_types import JsonObject, JsonValue, as_json_object
+from docking.log import get_logger
+from docking.platform.applications.matcher import AppIdMatcher
+from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
+from docking.platform.applications.types import ApplicationMatch
+from docking.platform.backends.base import (
+    ActionResult,
+    DesktopActionService,
+    DisplayServer,
+    PreviewImage,
+    PreviewService,
+    Rect,
+    ScreenCaptureService,
+    WindowId,
+    WindowService,
+    WindowSnapshot,
+    WorkspaceService,
+    WorkspaceSnapshot,
+)
+from docking.platform.backends.visibility import WindowChanges
+
+if TYPE_CHECKING:
+    from docking.platform.applications.identity import ProcessIdentityService
+    from docking.platform.applications.registry import ApplicationRegistry
+
+log = get_logger(name="niri_ipc")
+
+# ---------------------------------------------------------------------------
+# Niri IPC wire helpers
+# ---------------------------------------------------------------------------
+
+_NIRI_WINDOW_EVENTS = {
+    "WindowsChanged",
+    "WindowOpenedOrChanged",
+    "WindowClosed",
+    "WindowFocusChanged",
+    "WindowUrgencyChanged",
+    "WorkspacesChanged",
+    "WorkspaceActivated",
+    "WorkspaceActiveWindowChanged",
+    "WindowLayoutsChanged",
+    "OverviewOpenedOrClosed",
+}
+
+_NIRI_WORKSPACE_EVENTS = {
+    "WorkspacesChanged",
+    "WorkspaceActivated",
+    "WorkspaceActiveWindowChanged",
+}
+
+
+def _niri_socket_path(environ: Mapping[str, str] | None = None) -> Path | None:
+    """Return the Niri IPC socket path from the process environment."""
+    env = os.environ if environ is None else environ
+    raw = env.get("NIRI_SOCKET", "").strip()
+    if not raw:
+        return None
+    return Path(raw)
+
+
+# ---------------------------------------------------------------------------
+# Backend-neutral data types
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NiriWindowRecord:
+    """Backend-neutral projection of one Niri window."""
+
+    id: int
+    title: str
+    app_id: str
+    application_match: ApplicationMatch | None
+    active: bool
+    urgent: bool
+    workspace_id: int | None
+    pid: int | None
+    layout: JsonObject | None = None
+
+    @property
+    def window_id(self) -> WindowId:
+        return WindowId(backend=DisplayServer.WAYLAND, value=str(self.id))
+
+    @property
+    def desktop_id(self) -> str | None:
+        return (
+            self.application_match.desktop_id
+            if self.application_match is not None
+            else None
+        )
+
+
+@dataclass(frozen=True)
+class NiriWorkspaceRecord:
+    """Backend-neutral projection of one Niri workspace."""
+
+    id: int
+    idx: int
+    name: str
+    output: str
+    active: bool
+    focused: bool
+    number: int
+    active_window_id: int | None = None
+
+    @property
+    def snapshot_id(self) -> str:
+        return str(self.id)
+
+
+# ---------------------------------------------------------------------------
+# IPC request client
+# ---------------------------------------------------------------------------
+
+
+class NiriIpcClient:
+    """Short-lived request client for Niri's JSON IPC socket."""
+
+    def __init__(
+        self,
+        *,
+        socket_path: str | Path,
+        socket_factory: Callable[[int, int], socket.socket] = socket.socket,
+        timeout: float = 1.0,
+    ) -> None:
+        self._path = str(socket_path)
+        self._socket_factory = socket_factory
+        self._timeout = timeout
+
+    def request(self, payload: JsonValue) -> JsonObject:
+        """Send one JSON request and return the parsed reply dict.
+
+        Returns an empty dict on any error so callers can safely chain
+        ``.get(...)`` accessors.
+        """
+        try:
+            raw = json.dumps(payload, separators=(",", ":"))
+        except (TypeError, ValueError):
+            return {}
+        try:
+            with self._socket_factory(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.settimeout(self._timeout)
+                sock.connect(self._path)
+                sock.sendall((raw + "\n").encode("utf-8"))
+                sock.shutdown(socket.SHUT_WR)
+                chunks: list[bytes] = []
+                while True:
+                    chunk = sock.recv(65536)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+            return _parse_response(b"".join(chunks))
+        except OSError as exc:
+            log.info("Niri IPC request failed: %s", exc)
+            return {}
+        except json.JSONDecodeError as exc:
+            log.info("Niri IPC response parse error: %s", exc)
+            return {}
+
+    def ok_data(self, payload: JsonValue, key: str) -> JsonValue | None:
+        """Send a request and return ``Ok.<key>`` from the reply, or None."""
+        reply = self.request(payload)
+        ok = reply.get("Ok")
+        ok_object = as_json_object(ok)
+        if ok_object is not None:
+            return ok_object.get(key)
+        return None
+
+    def action(self, action_payload: JsonObject) -> ActionResult:
+        """Send an ``Action`` request.  Returns OK when the server accepts it."""
+        try:
+            reply = self.request({"Action": action_payload})
+            if "Ok" in reply:
+                return ActionResult.OK
+            return ActionResult.FAILED
+        except Exception:
+            return ActionResult.FAILED
+
+
+# ---------------------------------------------------------------------------
+# Event stream
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NiriEvent:
+    """One parsed event from the Niri event stream."""
+
+    name: str
+    data: JsonObject
+
+
+class NiriEventStream:
+    """Background reader for Niri's event stream.
+
+    Sends ``{"EventStream":null}``, consumes the ``{"Ok":"Handled"}``
+    acknowledgement, then reads line-by-line JSON events forever.
+    """
+
+    def __init__(
+        self,
+        *,
+        socket_path: str | Path,
+        callback: Callable[[NiriEvent], None],
+        socket_factory: Callable[[int, int], socket.socket] = socket.socket,
+        timeout: float = 1.0,
+    ) -> None:
+        self._path = str(socket_path)
+        self._callback = callback
+        self._socket_factory = socket_factory
+        self._timeout = timeout
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._socket: socket.socket | None = None
+
+    def start(self) -> None:
+        """Start the reader thread once."""
+        if self._thread is not None:
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="docking-niri-events",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop the reader thread."""
+        self._stop.set()
+        if self._socket is not None:
+            with suppress(OSError):
+                self._socket.shutdown(socket.SHUT_RDWR)
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=self._timeout)
+        self._thread = None
+
+    def _run(self) -> None:
+        try:
+            with self._socket_factory(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                self._socket = sock
+                sock.settimeout(self._timeout)
+                sock.connect(self._path)
+                # Start event stream.
+                sock.sendall(b'{"EventStream":null}\n')
+                sock.settimeout(None)
+                with sock.makefile("rb") as file_obj:
+                    for raw_line in file_obj:
+                        if self._stop.is_set():
+                            break
+                        event = _parse_event_line(raw_line.decode("utf-8", "replace"))
+                        if event is not None:
+                            self._callback(event)
+        except OSError as exc:
+            if not self._stop.is_set():
+                log.info("Niri event stream stopped: %s", exc)
+        finally:
+            self._socket = None
+
+
+# ---------------------------------------------------------------------------
+# WindowService
+# ---------------------------------------------------------------------------
+
+
+class NiriWindowService(WindowService):
+    """WindowService backed by Niri IPC snapshots and events."""
+
+    def __init__(
+        self,
+        *,
+        model,
+        application_registry: ApplicationRegistry,
+        process_identity_service: ProcessIdentityService,
+        client: NiriIpcClient,
+        event_stream_factory: Callable[
+            [Callable[[NiriEvent], None]], NiriEventStream | None
+        ],
+    ) -> None:
+        self._model = model
+        self._matcher = AppIdMatcher(
+            registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
+        self._client = client
+        self._event_stream_factory = event_stream_factory
+        self._event_stream: NiriEventStream | None = None
+        self._records: dict[int, NiriWindowRecord] = {}
+        self._workspaces: dict[int, JsonObject] = {}
+        self._overview_open = False
+        self._on_overview_changed: Callable[[bool], None] | None = None
+        self._outputs: JsonObject = {}
+        self._changes = WindowChanges()
+        self._pending = 0
+        self._event_lock = threading.Lock()
+        self._events: deque[NiriEvent] = deque()
+        self._resync = False
+        self._started = False
+
+    def watch(self, on_change: Callable[[], None]) -> object:
+        return self._changes.watch(on_change)
+
+    def unwatch(self, handle: object) -> None:
+        self._changes.unwatch(handle)
+
+    def refresh(self) -> None:
+        self._refresh_outputs()
+        self._refresh_workspaces()
+        self._refresh_windows()
+        self._changes.notify()
+
+    # -- WindowService interface -----------------------------------------------
+
+    def start(self) -> None:
+        """Load initial windows and subscribe to events."""
+        self._started = True
+        self.refresh()
+        self._event_stream = self._event_stream_factory(self._queue_event)
+        if self._event_stream is not None:
+            self._event_stream.start()
+
+    def stop(self) -> None:
+        """Stop event delivery and clear published running state."""
+        self._started = False
+        with self._event_lock:
+            pending, self._pending = self._pending, 0
+            self._events.clear()
+            self._resync = False
+        if pending:
+            GLib.source_remove(pending)
+        if self._event_stream is not None:
+            self._event_stream.stop()
+            self._event_stream = None
+        self._records.clear()
+        self._workspaces.clear()
+        self._outputs.clear()
+        self._changes.notify()
+        self._changes.clear()
+        self._model.update_running(running={})
+
+    def list_all_windows(self) -> Sequence[WindowSnapshot]:
+        """Return every known Niri window."""
+        return tuple(self._snapshot_for(record) for record in self._records.values())
+
+    def live_window(self, window_id: WindowId) -> WindowSnapshot | None:
+        """Resolve a fresh target; a failed query must not reuse cached PIDs."""
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None:
+            return None
+        raw = self._client.ok_data({"Windows": None}, "Windows")
+        if not isinstance(raw, list):
+            return None
+        self._replace_windows(raw)
+        self._publish_running()
+        self._changes.notify()
+        record = self._records.get(niri_id)
+        return self._snapshot_for(record) if record is not None else None
+
+    def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
+        """Return known Niri windows for one desktop ID."""
+        return tuple(
+            self._snapshot_for(record)
+            for record in self._records.values()
+            if record.desktop_id == desktop_id
+        )
+
+    def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
+        """Return menu rows; preview capture is not available via Niri IPC."""
+        return self.list_windows(desktop_id=desktop_id)
+
+    def icon_name_for_desktop(self, desktop_id: str) -> str:
+        """Return a generic icon fallback."""
+        return "application-x-executable"
+
+    def protocol_handle_for_window_id(self, window_id: WindowId) -> object | None:
+        """Niri IPC does not expose toplevel-export handles."""
+        return None
+
+    # -- Actions ----------------------------------------------------------------
+
+    def activate(self, window_id: WindowId) -> ActionResult:
+        """Focus a Niri window by id."""
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None or niri_id not in self._records:
+            return ActionResult.NOT_FOUND
+        return self._client.action({"FocusWindow": {"id": niri_id}})
+
+    def activate_most_recent(self, desktop_id: str) -> ActionResult:
+        """Activate the active or first known window for an app."""
+        record = self._first_record_for_desktop(desktop_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        return self.activate(record.window_id)
+
+    def cycle(self, desktop_id: str) -> ActionResult:
+        """Cycle policy starts as activating a known app window."""
+        return self.activate_most_recent(desktop_id=desktop_id)
+
+    def minimize_all(self, desktop_id: str) -> ActionResult:
+        """Niri is a tiling compositor without a minimize concept."""
+        return ActionResult.UNSUPPORTED
+
+    def close(self, window_id: WindowId) -> ActionResult:
+        """Close a Niri window by id."""
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None or niri_id not in self._records:
+            return ActionResult.NOT_FOUND
+        return self._client.action({"CloseWindow": {"id": niri_id}})
+
+    def close_all(self, desktop_id: str) -> ActionResult:
+        """Close all known windows for an app."""
+        records = self._records_for_desktop(desktop_id)
+        if not records:
+            return ActionResult.NOT_FOUND
+        result = ActionResult.OK
+        for record in records:
+            action = self._client.action({"CloseWindow": {"id": record.id}})
+            if action is not ActionResult.OK:
+                result = action
+        return result
+
+    def close_focused(self, desktop_id: str) -> ActionResult:
+        """Close the active window for an app, falling back to the first."""
+        record = self._first_record_for_desktop(desktop_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        return self.close(record.window_id)
+
+    def toggle_focus(self, desktop_id: str) -> ActionResult:
+        """Focus inactive apps; no-op for active ones (no minimize in Niri)."""
+        record = self._first_record_for_desktop(desktop_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        if record.active:
+            return ActionResult.OK  # already focused; nothing to toggle
+        return self.activate(record.window_id)
+
+    def fullscreen(self, window_id: WindowId) -> ActionResult:
+        """Toggle fullscreen state for a Niri window."""
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None or niri_id not in self._records:
+            return ActionResult.NOT_FOUND
+        return self._client.action({"FullscreenWindow": {"id": niri_id}})
+
+    @property
+    def is_overview_open(self) -> bool:
+        """Return True when the Niri overview UI is currently open."""
+        return self._overview_open
+
+    def set_overview_changed_callback(
+        self, callback: Callable[[bool], None] | None
+    ) -> None:
+        """Register a callback invoked when the overview opens or closes.
+
+        The callback receives ``True`` when the overview opens and ``False``
+        when it closes.
+        """
+        self._on_overview_changed = callback
+
+    # -- Internal ---------------------------------------------------------------
+
+    def _queue_event(self, event: NiriEvent) -> None:
+        if event.name not in _NIRI_WINDOW_EVENTS:
+            return
+        with self._event_lock:
+            if not self._started:
+                return
+            if len(self._events) >= 256:
+                self._events.clear()
+                self._resync = True
+            self._events.append(event)
+            if not self._pending:
+                self._pending = GLib.idle_add(self._dispatch_events)
+
+    def _dispatch_events(self) -> bool:
+        with self._event_lock:
+            events, self._events = self._events, deque()
+            resync, self._resync = self._resync, False
+            self._pending = 0
+        if self._started:
+            if resync:
+                self.refresh()
+            for event in events:
+                self._on_event(event)
+        return False
+
+    def _on_event(self, event: NiriEvent) -> None:
+        if event.name in _NIRI_WINDOW_EVENTS:
+            # Full state replacements.
+            if event.name == "WindowsChanged":
+                windows_raw = event.data.get("windows")
+                if isinstance(windows_raw, list):
+                    self._replace_windows(windows_raw)
+                    self._publish_running()
+                    self._changes.notify()
+                return
+            if event.name == "WorkspacesChanged":
+                workspaces_raw = event.data.get("workspaces")
+                if isinstance(workspaces_raw, list):
+                    self._workspaces = _workspaces_by_id(workspaces_raw)
+                    self._refresh_outputs()
+                    self._changes.notify()
+                return
+            # Incremental updates.
+            if event.name == "WindowOpenedOrChanged":
+                window_raw = event.data.get("window")
+                window = as_json_object(window_raw)
+                if window is not None:
+                    self._upsert_window(window)
+            elif event.name == "WindowClosed":
+                window_id = event.data.get("id")
+                if isinstance(window_id, int):
+                    self._records.pop(window_id, None)
+            elif event.name == "WindowFocusChanged":
+                self._apply_focus_change(event.data.get("id"))
+            elif event.name == "WindowUrgencyChanged":
+                self._apply_urgency_change(event.data)
+            elif event.name == "WorkspaceActivated":
+                self._refresh_workspaces()
+                self._refresh_outputs()
+            elif event.name == "WorkspaceActiveWindowChanged":
+                pass  # workspace-level change, not window state
+            elif event.name == "WindowLayoutsChanged":
+                changes = event.data.get("changes")
+                if isinstance(changes, list):
+                    for change in changes:
+                        if not isinstance(change, list) or len(change) != 2:
+                            continue
+                        window_id, layout = change
+                        record = (
+                            self._records.get(window_id)
+                            if isinstance(window_id, int)
+                            else None
+                        )
+                        if record is not None:
+                            self._records[record.id] = replace(
+                                record,
+                                layout=as_json_object(layout),
+                            )
+            elif event.name == "OverviewOpenedOrClosed":
+                is_open = event.data.get("is_open")
+                if isinstance(is_open, bool) and is_open != self._overview_open:
+                    self._overview_open = is_open
+                    if self._on_overview_changed is not None:
+                        self._on_overview_changed(is_open)
+                return  # no window state change
+            self._publish_running()
+            self._changes.notify()
+
+    def _refresh_outputs(self) -> None:
+        self._outputs = (
+            as_json_object(self._client.ok_data({"Outputs": None}, "Outputs")) or {}
+        )
+
+    def _refresh_windows(self) -> None:
+        windows_raw = self._client.ok_data({"Windows": None}, "Windows")
+        if isinstance(windows_raw, list):
+            self._replace_windows(windows_raw)
+            self._publish_running()
+
+    def _refresh_workspaces(self) -> None:
+        workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
+        if isinstance(workspaces_raw, list):
+            self._workspaces = _workspaces_by_id(workspaces_raw)
+
+    def _replace_windows(self, items: list[JsonValue]) -> None:
+        self._matcher.sync_visible_items(self._model.visible_items())
+        records: dict[int, NiriWindowRecord] = {}
+        for item in items:
+            item_object = as_json_object(item)
+            if item_object is None:
+                continue
+            record = _record_from_window(item_object, matcher=self._matcher)
+            if record is not None:
+                records[record.id] = record
+        self._records = records
+
+    def _upsert_window(self, item: Mapping[str, JsonValue]) -> None:
+        record = _record_from_window(item, matcher=self._matcher)
+        if record is not None:
+            self._records[record.id] = record
+
+    def _apply_focus_change(self, focused_id: object) -> None:
+        if not isinstance(focused_id, int | type(None)):
+            return
+        for record in self._records.values():
+            record = self._records[record.id]
+            active = record.id == focused_id
+            if record.active != active:
+                self._records[record.id] = replace(record, active=active)
+
+    def _apply_urgency_change(self, data: Mapping[str, JsonValue]) -> None:
+        window_id = data.get("id")
+        urgent = data.get("urgent")
+        if not isinstance(window_id, int) or not isinstance(urgent, bool):
+            return
+        record = self._records.get(window_id)
+        if record is None or record.urgent == urgent:
+            return
+        self._records[window_id] = replace(record, urgent=urgent)
+
+    def _publish_running(self) -> None:
+        windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        for record in self._records.values():
+            if record.desktop_id is None:
+                continue
+            windows_by_desktop.setdefault(record.desktop_id, []).append(
+                RunningWindowInfo(
+                    desktop_id=record.desktop_id,
+                    xid=0,
+                    window_id=record.window_id,
+                    active=record.active,
+                    urgent=record.urgent,
+                    window=str(record.id),
+                    runtime_app=(
+                        record.application_match.runtime_app
+                        if record.application_match is not None
+                        else None
+                    ),
+                )
+            )
+        self._model.update_running(
+            running={
+                desktop_id: RunningAppInfo.from_windows(items)
+                for desktop_id, items in windows_by_desktop.items()
+            }
+        )
+
+    def _snapshot_for(self, record: NiriWindowRecord) -> WindowSnapshot:
+        workspace = (
+            self._workspaces.get(record.workspace_id)
+            if record.workspace_id is not None
+            else None
+        )
+        output = (
+            as_json_object(self._outputs.get(str(workspace.get("output"))))
+            if workspace
+            else None
+        )
+        logical = as_json_object(output.get("logical")) if output else None
+        geometry = _geometry_from_niri_window({"layout": record.layout}, output=logical)
+        return WindowSnapshot(
+            id=record.window_id,
+            desktop_id=record.desktop_id or "",
+            title=record.title,
+            app_id=record.app_id or None,
+            active=record.active,
+            urgent=record.urgent,
+            minimized=None,
+            fullscreen=None,
+            geometry=geometry,
+            workspace_id=str(record.workspace_id)
+            if record.workspace_id is not None
+            else None,
+            can_activate=True,
+            can_minimize=False,  # Niri is a tiling compositor
+            can_close=True,
+            can_preview=True,  # ScreenshotWindow IPC
+            visible=bool(workspace and workspace.get("is_active") is True),
+            pid=record.pid,
+        )
+
+    def _records_for_desktop(self, desktop_id: str) -> list[NiriWindowRecord]:
+        return [
+            record
+            for record in self._records.values()
+            if record.desktop_id == desktop_id
+        ]
+
+    def _first_record_for_desktop(self, desktop_id: str) -> NiriWindowRecord | None:
+        records = self._records_for_desktop(desktop_id)
+        if not records:
+            return None
+        return next((r for r in records if r.active), records[0])
+
+
+class NiriWorkspaceService(WorkspaceService):
+    """WorkspaceService backed by Niri IPC workspace snapshots and actions."""
+
+    def __init__(
+        self,
+        *,
+        client: NiriIpcClient,
+        event_stream_factory: Callable[
+            [Callable[[NiriEvent], None]], NiriEventStream | None
+        ],
+    ) -> None:
+        self._client = client
+        self._event_stream_factory = event_stream_factory
+        self._event_stream: NiriEventStream | None = None
+        self._records: dict[str, NiriWorkspaceRecord] = {}
+        self._watchers: dict[int, Callable[[], None]] = {}
+        self._next_watch_id = 1
+        self._active_ids: tuple[str, ...] = ()
+
+    def start(self) -> None:
+        self._refresh_workspaces()
+        self._event_stream = self._event_stream_factory(self._on_event)
+        if self._event_stream is not None:
+            self._event_stream.start()
+
+    def stop(self) -> None:
+        if self._event_stream is not None:
+            self._event_stream.stop()
+            self._event_stream = None
+        self._records.clear()
+        self._watchers.clear()
+        self._active_ids = ()
+
+    def list_workspaces(self) -> Sequence[WorkspaceSnapshot]:
+        return tuple(
+            WorkspaceSnapshot(
+                id=record.snapshot_id,
+                number=record.number,
+                name=record.name,
+                active=record.focused,
+            )
+            for record in sorted(self._records.values(), key=_workspace_sort_key)
+        )
+
+    def active_workspace(self) -> WorkspaceSnapshot | None:
+        for workspace in self.list_workspaces():
+            if workspace.active:
+                return workspace
+        return None
+
+    def activate(self, workspace_id: str) -> ActionResult:
+        record = self._resolve_workspace(workspace_id)
+        if record is None:
+            return ActionResult.NOT_FOUND
+        return _focus_niri_workspace(client=self._client, record=record)
+
+    def watch_active_workspace(self, on_change: Callable[[], None]) -> object | None:
+        watch_id = self._next_watch_id
+        self._next_watch_id += 1
+        self._watchers[watch_id] = on_change
+        return watch_id
+
+    def unwatch_active_workspace(self, handle: object) -> None:
+        if isinstance(handle, int):
+            self._watchers.pop(handle, None)
+
+    def _on_event(self, event: NiriEvent) -> None:
+        if event.name not in _NIRI_WORKSPACE_EVENTS:
+            return
+        if event.name == "WorkspacesChanged":
+            workspaces_raw = event.data.get("workspaces")
+            if isinstance(workspaces_raw, list):
+                self._replace_workspaces(workspaces_raw)
+            return
+        self._refresh_workspaces()
+
+    def _refresh_workspaces(self) -> None:
+        workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
+        if isinstance(workspaces_raw, list):
+            self._replace_workspaces(workspaces_raw)
+
+    def _replace_workspaces(self, items: list[JsonValue]) -> None:
+        records: list[NiriWorkspaceRecord] = []
+        for item in items:
+            item_object = as_json_object(item)
+            if item_object is None:
+                continue
+            record = _record_from_workspace(item_object, number=len(records))
+            if record is not None:
+                records.append(record)
+        self._records = {record.snapshot_id: record for record in records}
+        self._notify_if_active_changed()
+
+    def _notify_if_active_changed(self) -> None:
+        active_ids = tuple(
+            record.snapshot_id
+            for record in sorted(self._records.values(), key=_workspace_sort_key)
+            if record.focused
+        )
+        if active_ids == self._active_ids:
+            return
+        self._active_ids = active_ids
+        for callback in tuple(self._watchers.values()):
+            callback()
+
+    def _resolve_workspace(self, workspace_id: str) -> NiriWorkspaceRecord | None:
+        record = self._records.get(workspace_id)
+        if record is not None:
+            return record
+        for candidate in self._records.values():
+            if str(candidate.number) == workspace_id or candidate.name == workspace_id:
+                return candidate
+        return None
+
+
+class NiriDesktopActionService(DesktopActionService):
+    """DesktopActionService that focuses an empty Niri workspace."""
+
+    def __init__(self, *, client: NiriIpcClient) -> None:
+        self._client = client
+        self._restore_by_output: dict[str, str] = {}
+
+    def start(self) -> None:
+        """No persistent runtime resources."""
+
+    def stop(self) -> None:
+        self._restore_by_output.clear()
+
+    def show_desktop(self, show: bool | None = None) -> ActionResult:
+        records = self._list_workspaces()
+        focused = next((record for record in records if record.focused), None)
+        if focused is None:
+            return ActionResult.NOT_FOUND
+
+        wants_show = focused.active_window_id is not None if show is None else show
+        if wants_show:
+            if focused.active_window_id is not None:
+                self._restore_by_output[focused.output] = focused.snapshot_id
+            empty = self._empty_workspace_for_output(
+                records=records,
+                output=focused.output,
+                exclude_id=focused.snapshot_id,
+            )
+            if empty is None:
+                return ActionResult.NOT_FOUND
+            return _focus_niri_workspace(client=self._client, record=empty)
+
+        restore_id = self._restore_by_output.pop(focused.output, "")
+        restore = next(
+            (record for record in records if record.snapshot_id == restore_id),
+            None,
+        )
+        if restore is None:
+            return ActionResult.OK
+        return _focus_niri_workspace(client=self._client, record=restore)
+
+    def _list_workspaces(self) -> tuple[NiriWorkspaceRecord, ...]:
+        workspaces_raw = self._client.ok_data({"Workspaces": None}, "Workspaces")
+        if not isinstance(workspaces_raw, list):
+            return ()
+        records: list[NiriWorkspaceRecord] = []
+        for item in workspaces_raw:
+            if not isinstance(item, Mapping):
+                continue
+            record = _record_from_workspace(item, number=len(records))
+            if record is not None:
+                records.append(record)
+        return tuple(records)
+
+    def _empty_workspace_for_output(
+        self,
+        *,
+        records: Sequence[NiriWorkspaceRecord],
+        output: str,
+        exclude_id: str,
+    ) -> NiriWorkspaceRecord | None:
+        for record in records:
+            if record.output != output or record.snapshot_id == exclude_id:
+                continue
+            if record.active_window_id is None:
+                return record
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Public loaders
+# ---------------------------------------------------------------------------
+
+
+def load_niri_window_service(
+    *,
+    model,
+    application_registry: ApplicationRegistry,
+    process_identity_service: ProcessIdentityService,
+) -> NiriWindowService | None:
+    """Return a Niri WindowService when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    client = NiriIpcClient(socket_path=socket_path)
+    return NiriWindowService(
+        model=model,
+        application_registry=application_registry,
+        process_identity_service=process_identity_service,
+        client=client,
+        event_stream_factory=lambda callback: NiriEventStream(
+            socket_path=socket_path,
+            callback=callback,
+        ),
+    )
+
+
+def load_niri_workspace_service() -> NiriWorkspaceService | None:
+    """Return a Niri WorkspaceService when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    client = NiriIpcClient(socket_path=socket_path)
+    return NiriWorkspaceService(
+        client=client,
+        event_stream_factory=lambda callback: NiriEventStream(
+            socket_path=socket_path,
+            callback=callback,
+        ),
+    )
+
+
+def load_niri_desktop_action_service() -> NiriDesktopActionService | None:
+    """Return Niri desktop actions when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return NiriDesktopActionService(client=NiriIpcClient(socket_path=socket_path))
+
+
+def load_niri_preview_service() -> NiriPreviewService | None:
+    """Return a Niri PreviewService when the IPC socket is detectable."""
+    socket_path = _niri_socket_path()
+    if socket_path is None or not socket_path.exists():
+        return None
+    return NiriPreviewService(socket_path=str(socket_path))
+
+
+def niri_pick_color(
+    socket_path: str | None = None, *, timeout: float = 10.0
+) -> tuple[int, int, int] | None:
+    """Pick a screen colour via Niri's ``PickColor`` IPC request.
+
+    Returns an ``(r, g, b)`` tuple of byte values (0-255), or ``None`` when
+    the picker is unavailable or the user cancels.
+    """
+    path = socket_path or _niri_socket_path()
+    if path is None:
+        return None
+    try:
+        raw = b'{"PickColor":null}\n'
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect(str(path))
+            sock.sendall(raw)
+            sock.shutdown(socket.SHUT_WR)
+            chunks: list[bytes] = []
+            while True:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        reply = _parse_response(b"".join(chunks))
+        ok = reply.get("Ok")
+        ok_object = as_json_object(ok)
+        if ok_object is not None:
+            picked = as_json_object(ok_object.get("PickedColor"))
+            if picked is not None:
+                rgb = picked.get("rgb")
+                if isinstance(rgb, list) and len(rgb) == 3:
+                    red = _float_value(rgb[0])
+                    green = _float_value(rgb[1])
+                    blue = _float_value(rgb[2])
+                    if red is not None and green is not None and blue is not None:
+                        return (
+                            max(0, min(255, round(red * 255))),
+                            max(0, min(255, round(green * 255))),
+                            max(0, min(255, round(blue * 255))),
+                        )
+        return None
+    except OSError as exc:
+        log.info("Niri PickColor failed: %s", exc)
+        return None
+
+
+class NiriScreenCaptureService(ScreenCaptureService):
+    """ScreenCaptureService using Niri's native ``PickColor`` IPC."""
+
+    def __init__(self, socket_path: str, *, timeout: float = 10.0) -> None:
+        self._socket_path = socket_path
+        self._timeout = timeout
+
+    def start(self) -> None:
+        """No persistent state."""
+
+    def stop(self) -> None:
+        """No persistent state."""
+
+    def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
+        del x, y  # Niri's interactive picker ignores coordinates.
+        return niri_pick_color(socket_path=self._socket_path, timeout=self._timeout)
+
+
+# ---------------------------------------------------------------------------
+# Preview service
+# ---------------------------------------------------------------------------
+
+
+class NiriPreviewService(PreviewService):
+    """PreviewService backed by Niri's ``ScreenshotWindow`` IPC action.
+
+    Each capture opens a short-lived connection to ``$NIRI_SOCKET``, sends a
+    ``ScreenshotWindow`` action with a temporary file path, reads the
+    resulting PNG from disk, and returns a scaled :class:`PreviewImage`.
+    """
+
+    def __init__(self, *, socket_path: str, timeout: float = 2.0) -> None:
+        self._socket_path = socket_path
+        self._timeout = timeout
+
+    # -- Service ---------------------------------------------------------------
+
+    def start(self) -> None:
+        """No persistent state to initialise."""
+
+    def stop(self) -> None:
+        """No persistent state to tear down."""
+
+    # -- PreviewService --------------------------------------------------------
+
+    def capture(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        return self._capture_impl(window_id, width=width, height=height)
+
+    def thumbnail(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        return self._capture_impl(window_id, width=width, height=height)
+
+    # -- Internal ---------------------------------------------------------------
+
+    def _capture_impl(
+        self, window_id: WindowId, *, width: int, height: int
+    ) -> PreviewImage | None:
+        if window_id.backend is not DisplayServer.WAYLAND:
+            return None
+        niri_id = _niri_window_id(window_id)
+        if niri_id is None:
+            return None
+
+        tmp_path = None
+        try:
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                suffix=".png", prefix="docking-niri-preview-"
+            )
+            os.close(tmp_fd)
+
+            payload = {
+                "Action": {
+                    "ScreenshotWindow": {
+                        "id": niri_id,
+                        "write_to_disk": True,
+                        "show_pointer": False,
+                        "path": tmp_path,
+                    }
+                }
+            }
+            raw = json.dumps(payload, separators=(",", ":"))
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.settimeout(self._timeout)
+                sock.connect(self._socket_path)
+                sock.sendall((raw + "\n").encode("utf-8"))
+                sock.shutdown(socket.SHUT_WR)
+                # Drain the response (screenshot is async; the file
+                # won't be ready until the compositor finishes writing).
+                _drain_socket(sock)
+
+            # Wait for the compositor to write the screenshot file.
+            if not _wait_for_nonempty_file(tmp_path, timeout=self._timeout):
+                return None
+
+            # Load the PNG from disk.
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(tmp_path)
+            if pixbuf is None:
+                return None
+
+            scaled = pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
+            image = scaled if scaled is not None else pixbuf
+            return PreviewImage(
+                image=image,
+                width=int(image.get_width()),
+                height=int(image.get_height()),
+            )
+        except OSError as exc:
+            log.info("Niri preview capture failed for window %s: %s", niri_id, exc)
+            return None
+        finally:
+            if tmp_path is not None:
+                with suppress(OSError):
+                    Path(tmp_path).unlink()
+
+
+def _drain_socket(sock: socket.socket) -> None:
+    """Read and discard any remaining data from *sock*."""
+    try:
+        while True:
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+    except OSError:
+        pass
+
+
+def _wait_for_nonempty_file(path: str, *, timeout: float = 2.0) -> bool:
+    """Poll *path* until it exists and has non-zero size, or *timeout* expires."""
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            st = Path(path).stat()
+            if st.st_size > 0:
+                return True
+        except OSError:
+            pass
+        time.sleep(0.05)
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Parse helpers - internal
+# ---------------------------------------------------------------------------
+
+
+def _workspaces_by_id(items: list[JsonValue]) -> dict[int, JsonObject]:
+    """Index valid workspace objects by their Niri numeric identifier."""
+    workspaces: dict[int, JsonObject] = {}
+    for item in items:
+        workspace = as_json_object(item)
+        if workspace is None:
+            continue
+        workspace_id = workspace.get("id")
+        if isinstance(workspace_id, int):
+            workspaces[workspace_id] = workspace
+    return workspaces
+
+
+def _parse_response(raw: bytes) -> JsonObject:
+    """Parse one reply line from Niri IPC into a dict."""
+    text = raw.decode("utf-8", errors="replace").strip()
+    if not text:
+        return {}
+    return as_json_object(cast(JsonValue, json.loads(text))) or {}
+
+
+def _parse_event_line(line: str) -> NiriEvent | None:
+    """Parse one event-stream line into a ``NiriEvent``."""
+    stripped = line.strip()
+    if not stripped:
+        return None
+    try:
+        obj = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    obj = as_json_object(cast(JsonValue, obj))
+    if obj is None or len(obj) != 1:
+        return None
+    # The first ``{"Ok":"Handled"}`` acknowledgement is not a real event.
+    if "Ok" in obj:
+        return None
+    (name, data_raw) = next(iter(obj.items()))
+    if not isinstance(name, str):
+        return None
+    data = as_json_object(data_raw) or {}
+    return NiriEvent(name=name, data=data)
+
+
+def _record_from_window(
+    item: Mapping[str, JsonValue],
+    *,
+    matcher: AppIdMatcher,
+) -> NiriWindowRecord | None:
+    window_id = item.get("id")
+    if not isinstance(window_id, int):
+        return None
+    app_id = str(item.get("app_id") or "").strip()
+    pid_value = item.get("pid")
+    pid = (
+        pid_value
+        if isinstance(pid_value, int)
+        and not isinstance(pid_value, bool)
+        and pid_value > 0
+        else None
+    )
+    match = matcher.match_result(app_id, process_id=pid) if app_id else None
+    workspace_id = item.get("workspace_id")
+    if not isinstance(workspace_id, int):
+        workspace_id = None
+    return NiriWindowRecord(
+        id=window_id,
+        title=str(item.get("title") or "Window"),
+        app_id=app_id,
+        application_match=match,
+        active=bool(item.get("is_focused", False)),
+        urgent=bool(item.get("is_urgent", False)),
+        workspace_id=workspace_id,
+        pid=pid,
+        layout=as_json_object(item.get("layout")),
+    )
+
+
+def _record_from_workspace(
+    item: Mapping[str, JsonValue],
+    *,
+    number: int,
+) -> NiriWorkspaceRecord | None:
+    workspace_id = item.get("id")
+    idx = item.get("idx")
+    if not isinstance(workspace_id, int) or not isinstance(idx, int):
+        return None
+    name = str(item.get("name") or "").strip()
+    output = str(item.get("output") or "").strip()
+    active_window_id = item.get("active_window_id")
+    if not isinstance(active_window_id, int):
+        active_window_id = None
+    return NiriWorkspaceRecord(
+        id=workspace_id,
+        idx=idx,
+        name=name,
+        output=output,
+        active=bool(item.get("is_active", False)),
+        focused=bool(item.get("is_focused", False)),
+        number=number,
+        active_window_id=active_window_id,
+    )
+
+
+def _workspace_sort_key(record: NiriWorkspaceRecord) -> tuple[int, int]:
+    return (record.number, record.id)
+
+
+def _focus_niri_workspace(
+    *,
+    client: NiriIpcClient,
+    record: NiriWorkspaceRecord,
+) -> ActionResult:
+    if record.output:
+        monitor = client.action({"FocusMonitor": {"output": record.output}})
+        if monitor is not ActionResult.OK:
+            return monitor
+    return client.action({"FocusWorkspace": {"reference": {"Index": record.idx}}})
+
+
+def _geometry_from_niri_window(
+    item: Mapping[str, JsonValue], *, output: JsonObject | None = None
+) -> Rect | None:
+    """Global visual tile bounds, not underlying client contents or guessed origins."""
+    layout = as_json_object(item.get("layout"))
+    if layout is None or output is None:
+        return None
+    pos = layout.get("tile_pos_in_workspace_view")
+    size = layout.get("tile_size")
+    if not isinstance(pos, list) or len(pos) != 2:
+        return None
+    offset = [0, 0]
+    if not isinstance(size, list) or len(size) != 2:
+        size = layout.get("window_size")
+        offset = layout.get("window_offset_in_tile")
+    if (
+        not isinstance(size, list)
+        or len(size) != 2
+        or not isinstance(offset, list)
+        or len(offset) != 2
+    ):
+        return None
+    values = [output.get("x"), output.get("y"), *pos, *size, *offset]
+    coordinates: list[float] = []
+    for value in values:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(value)
+        ):
+            return None
+        coordinates.append(float(value))
+    ox, oy, px, py, width, height, dx, dy = coordinates
+    if width <= 0 or height <= 0:
+        return None
+    left, top = math.floor(ox + px + dx), math.floor(oy + py + dy)
+    return Rect(
+        left,
+        top,
+        math.ceil(ox + px + dx + width) - left,
+        math.ceil(oy + py + dy + height) - top,
+    )
+
+
+def _int_value(value: JsonValue) -> int | None:
+    """Convert a scalar JSON value to an integer without accepting containers."""
+    if not isinstance(value, int | float | str):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _float_value(value: JsonValue) -> float | None:
+    """Convert a scalar JSON value to a float without accepting containers."""
+    if not isinstance(value, int | float | str):
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _niri_window_id(window_id: WindowId) -> int | None:
+    """Extract a Niri numeric window id from a backend-neutral ``WindowId``."""
+    if window_id.backend is not DisplayServer.WAYLAND:
+        return None
+    try:
+        return int(window_id.value)
+    except (TypeError, ValueError):
+        return None

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for pet applet."""
 
 from __future__ import annotations
@@ -41,7 +54,7 @@ class PetApplet(Applet):
     name = _("Pet")
     icon_name = "face-smile"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._state = PetState()
         self._prev_sample: CpuSample | None = None
         self._timer_id: int = 0
@@ -65,7 +78,7 @@ class PetApplet(Applet):
         super().stop()
 
     def on_clicked(self) -> None:
-        """Pet the creature — reset to happy."""
+        """Pet the creature - reset to happy."""
         self._state = reset_to_happy(state=self._state)
         self.item.is_urgent = False
         self.refresh_tooltip()

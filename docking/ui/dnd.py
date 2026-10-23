@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Drag-and-drop controller for internal reorder and external application drops.
 
 Why drag-and-drop needs its own controller
@@ -22,7 +35,8 @@ This module intentionally keeps both major drag paths together:
    Move an existing dock item to a new index.
 
 2. External drop
-   Drop a `.desktop` URI onto the dock to pin a launcher.
+   Drop a `.desktop` URI, executable, AppImage, file, or folder onto the dock
+   to pin the matching launcher or target.
 
 Those are not split into separate classes because they share:
 
@@ -90,8 +104,9 @@ External drops use a different visual model:
     drag-drop / drag-data-received
       |
       +--> parse URI list
-      +--> resolve launcher metadata
-      +--> pin launcher at insert index
+      +--> resolve launcher/file metadata
+      +--> create generated desktop entries for executable drops when needed
+      +--> pin target at insert index
       +--> clear insertion gap
       +--> keep dock open if pointer is still on dock
 
@@ -141,33 +156,36 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlparse
-
-from docking.log import get_logger
-
-log = get_logger(name="dnd")
-DROP_GAP_CLEAR_DELAY_MS = 100
 
 import gi
+
+from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
+from docking.core.position import Position, is_horizontal
+from docking.log import get_logger
+from docking.platform.applications import entries as desktop_entries
+from docking.ui.display import get_pointer_position, window_screen_position
+from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
+from docking.ui.poof import show_poof
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-import docking.platform.launcher as launcher_mod
-from docking.core.config import PinnedEntry
-from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND, DockItem
-from docking.core.position import Position, is_horizontal
-from docking.ui.geometry import DockGeometryBuilder
-from docking.ui.poof import show_poof
-
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.core.theme import Theme
-    from docking.platform.launcher import Launcher
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.applications.types import ApplicationInfo
+    from docking.platform.icons import IconLoader
     from docking.platform.model import DockModel
+    from docking.platform.targets import TargetService
+    from docking.ui.dock_window import DockWindow
+    from docking.ui.folder.stack import FolderStackController
     from docking.ui.renderer import DockRenderer
-    from docking.ui.runtime import DockDragRuntime
+
+log = get_logger(name="dnd")
+DROP_GAP_CLEAR_DELAY_MS = 100
 
 DRAG_ICON_SCALE = 1.2  # dragged icon shown at this multiplier of icon_size
 
@@ -186,32 +204,61 @@ class DnDHandler:
     def __init__(
         self,
         drawing_area: Gtk.DrawingArea,
-        runtime: DockDragRuntime,
+        window: DockWindow,
         model: DockModel,
         config: Config,
         renderer: DockRenderer,
         theme: Theme,
-        launcher: Launcher,
         geometry_builder: DockGeometryBuilder,
+        folder_stack: FolderStackController,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
     ) -> None:
         self._drawing_area = drawing_area
-        self._runtime = runtime
+        self._window = window
         self._model = model
         self._config = config
         self._renderer = renderer
         self._theme = theme
-        self._launcher = launcher
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        self._icon_loader = icon_loader
+        self._target_service = target_service
         self._geometry_builder = geometry_builder
+        self._folder_stack = folder_stack
 
         self.drag_index: int = -1
         self._drag_from: int = -1
+        self._dragged_item: DockItem | None = None
         self.drop_insert_index: int = -1  # for external drops: where to insert
         self.drop_target_id: str = (
             ""  # launcher desktop_id under cursor during external drag
         )
         self._drop_committed: bool = False  # True after drag-drop fires
+        # True only when GTK reports drag-leave for an internal dock item drag.
+        # This is an input-event fact, separate from screen-coordinate math.
+        # Drag-off removal uses it as the "the drag actually left the dock"
+        # condition before trusting final pointer distance.
+        self._internal_drag_left_dock: bool = False
 
         self._setup_dnd()
+
+    def set_theme(self, theme: Theme) -> None:
+        """Update the theme used for drag-and-drop spacing."""
+        self._theme = theme
+
+    def _current_drag_index(self) -> int:
+        """Find the grabbed object in the model's current visible order."""
+        return next(
+            (
+                index
+                for index, item in enumerate(self._model.visible_items())
+                if item is self._dragged_item
+            ),
+            -1,
+        )
 
     def _setup_dnd(self) -> None:
         """Configure GTK drag-and-drop on the drawing area.
@@ -242,7 +289,7 @@ class DnDHandler:
             Gdk.DragAction.MOVE,
         )
         da.drag_dest_set(
-            0,
+            Gtk.DestDefaults(0),
             [_DOCK_ITEM_TARGET, _URI_TARGET],
             Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
         )
@@ -268,10 +315,15 @@ class DnDHandler:
         a scaled pixbuf as the drag icon.
         """
         frame = self._geometry_builder.build_frame()
-        self._runtime.begin_drag()
+        self._drag_from = self.drag_index = -1
+        self._dragged_item = None
+        self._begin_drag_autohide()
+        # Each internal reorder starts inside the dock. The drag-off removal
+        # path must earn this flag through drag-leave during this drag cycle.
+        self._internal_drag_left_dock = False
         items = self._model.visible_items()
         horizontal = is_horizontal(pos=self._config.pos)
-        cursor_x, cursor_y = self._runtime.cursor_position()
+        cursor_x, cursor_y = self._window.cursor_x, self._window.cursor_y
         win_cx = cursor_x if horizontal else cursor_y
         dragged_index = frame.item_index_at_point(cursor_x, cursor_y)
         log.debug(
@@ -294,6 +346,7 @@ class DnDHandler:
                 self.drag_index = i
 
                 item = items[i]
+                self._dragged_item = item
                 if item.icon:
                     icon_size = int(self._config.icon_size * DRAG_ICON_SCALE)
                     scaled = item.icon.scale_simple(
@@ -336,7 +389,7 @@ class DnDHandler:
         #
         # To fix this, we explicitly call autohide.on_mouse_enter() from
         # the drag-motion handler, which IS delivered during DnD.
-        self._runtime.drag_motion_enter()
+        self._on_drag_motion_enter()
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
         if self._drag_from < 0:
@@ -347,12 +400,21 @@ class DnDHandler:
             if changed:
                 self.drop_insert_index = insert
 
-            # Green glow on any app icon under cursor during external drag
+            # Green glow on any compatible target under cursor during external drag
             gap_frame = self._geometry_builder.build_frame(
                 main_cursor=-1.0, drop_insert_index=self.drop_insert_index
             )
-            item = gap_frame.item_at_point(float(x), float(y))
-            new_target = item.desktop_id if item and item.kind == APP_KIND else ""
+            item = self._drop_target_item_at_point(
+                gap_frame,
+                x=float(x),
+                y=float(y),
+                accepted_kinds=(APP_KIND, APPLET_KIND),
+            )
+            if item is not None and item.kind == APPLET_KIND:
+                applet = self._model.get_applet(item.desktop_id)
+                if applet is None or not applet.accepts_drop_uris():
+                    item = None
+            new_target = item.desktop_id if item is not None else ""
             if new_target != self.drop_target_id:
                 self.drop_target_id = new_target
                 changed = True
@@ -363,7 +425,14 @@ class DnDHandler:
             return True
 
         frame = self._geometry_builder.build_frame(main_cursor=-1.0)
+        self.drag_index = self._current_drag_index()
+        if self.drag_index < 0:
+            return False
         new_index = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
+        if new_index > self.drag_index:
+            # The gap counts the dragged item and reorder_visible pops first,
+            # so shift down one; clamping first would stop the item one short.
+            new_index -= 1
         if frame.item_geometries:
             new_index = min(new_index, len(frame.item_geometries) - 1)
         else:
@@ -372,7 +441,13 @@ class DnDHandler:
         if new_index != self.drag_index:
             log.debug(f"drag-motion: reorder {self.drag_index} -> {new_index}")
             self._model.reorder_visible(self.drag_index, new_index)
-            self.drag_index = new_index
+            self.drag_index = self._current_drag_index()
+
+        # Track cursor during drag so the renderer can pin the dragged item's
+        # running-indicator dot under the drag ghost instead of letting it drift
+        # to the layout slot center as the model reorders.
+        self._window.cursor_x = float(x)
+        self._window.cursor_y = float(y)
 
         Gdk.drag_status(context, Gdk.DragAction.MOVE, time)
 
@@ -423,7 +498,7 @@ class DnDHandler:
         # Internal reorder -- already handled during drag-motion
         if self._drag_from >= 0:
             log.debug("drag-data-received: internal reorder complete")
-            self._runtime.reconcile_after_drag(reason="drag-data-received")
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, True, False, time)
             return
 
@@ -436,25 +511,32 @@ class DnDHandler:
             if text:
                 uris = [line.strip() for line in text.splitlines() if line.strip()]
 
-        # Check if dropped onto a launcher icon -- open files with that app
-        if uris and self._try_open_with_launcher(x=x, y=y, uris=uris):
+        # Check if dropped onto an applet that handles file/URI drops.
+        applet_drop = self._try_drop_on_applet(x=x, y=y, uris=uris)
+        if applet_drop is not None:
             self.drop_insert_index = -1
-            self._runtime.reconcile_after_drag(reason="drag-data-received")
-            Gtk.drag_finish(context, True, False, time)
+            self.drop_target_id = ""
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, applet_drop, False, time)
+            return
+
+        # Check if dropped onto a launcher icon -- open files with that app.
+        # A targeted launch failure is still a completed routing decision: never
+        # reinterpret those files as a request to pin them to the dock.
+        launcher_drop = (
+            self._try_open_with_launcher(x=x, y=y, uris=uris) if uris else None
+        )
+        if launcher_drop is not None:
+            self.drop_insert_index = -1
+            self.drop_target_id = ""
+            self._drop_committed = False
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, launcher_drop, False, time)
             return
 
         added = False
         for uri in uris:
-            item = self._item_from_uri(uri=uri)
-            if item and not self._model.find_by_desktop_id(item.desktop_id):
-                insert_at = min(insert_at, len(self._model.pinned_items))
-                self._model.pinned_items.insert(insert_at, item)
-                self._config.pinned.insert(
-                    insert_at,
-                    PinnedEntry(kind=item.kind, target=item.target),
-                )
-                self._model.sync_pinned_to_config()
-                self._config.save()
+            if self._insert_pinned_uri(uri=uri, index=insert_at):
                 # External insertion should snap to the new final layout.
                 # Slide offsets are useful for internal reorder, but for a
                 # completed drop they make the dock look like it is slowly
@@ -462,54 +544,124 @@ class DnDHandler:
                 # committed the drop.
                 self._renderer.slide_offsets.clear()
                 self._renderer.prev_positions.clear()
-                self._model.notify()
                 insert_at += 1
                 added = True
 
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False
-        self._runtime.reconcile_after_drag(reason="drag-data-received")
+        self._reconcile_autohide_after_drag(reason="drag-data-received")
         Gtk.drag_finish(context, added, False, time)
 
-    def _try_open_with_launcher(self, *, x: int, y: int, uris: list[str]) -> bool:
-        """If drop lands on an app icon, try opening the files with it."""
-        from gi.repository import Gio
+    def _try_drop_on_applet(self, *, x: int, y: int, uris: list[str]) -> bool | None:
+        """Return drop success for applet targets, or None when not on an applet."""
+        if not uris:
+            return None
+        frame = self._geometry_builder.build_frame(
+            main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+        )
+        item = self._drop_target_item_at_point(
+            frame,
+            x=float(x),
+            y=float(y),
+            accepted_kinds=(APPLET_KIND,),
+        )
+        if item is None:
+            return None
 
-        frame = self._geometry_builder.build_frame(main_cursor=-1.0)
-        item = frame.item_at_point(float(x), float(y))
-        if not item or item.kind != APP_KIND:
+        applet = self._model.get_applet(item.desktop_id)
+        if applet is None or not applet.accepts_drop_uris():
             return False
+
+        try:
+            return applet.on_drop_uris(uris)
+        except Exception as exc:
+            log.warning("Applet drop handler failed for %s: %s", item.desktop_id, exc)
+            return False
+
+    def _try_open_with_launcher(
+        self, *, x: int, y: int, uris: list[str]
+    ) -> bool | None:
+        """Return launch result on an app icon, or ``None`` when not targeted."""
+        frame = self._geometry_builder.build_frame(
+            main_cursor=-1.0, drop_insert_index=self.drop_insert_index
+        )
+        item = self._drop_target_item_at_point(
+            frame,
+            x=float(x),
+            y=float(y),
+            accepted_kinds=(APP_KIND,),
+        )
+        if item is None:
+            return None
 
         launchable = [u for u in uris if not u.endswith(".desktop")]
         if not launchable:
-            return False
+            return None
 
-        try:
-            app_info = Gio.DesktopAppInfo.new(item.desktop_id)
-        except (TypeError, GLib.Error):
-            return False
-        if not app_info:
-            return False
+        return self._application_launcher.launch_app_uris(
+            item.desktop_id,
+            launchable,
+        )
 
-        try:
-            app_info.launch_uris(launchable, None)
-            log.debug("Opened %d file(s) with %s", len(launchable), item.desktop_id)
-            return True
-        except GLib.Error as exc:
-            log.warning("Failed to open with %s: %s", item.desktop_id, exc)
-            return False
+    def _drop_target_item_at_point(
+        self,
+        frame: DockGeometryFrame,
+        *,
+        x: float,
+        y: float,
+        accepted_kinds: tuple[str, ...],
+    ) -> DockItem | None:
+        """Return the target icon directly under the pointer during an external drop.
+
+        External drops should only target the visible icon itself.
+        Using the broader item hit rect would make the shelf/background segment
+        under an item steal drops that should land in the insertion gap.
+        """
+        if not frame.cursor_rect.contains(x=x, y=y):
+            return None
+        gap = (
+            self._config.icon_size + self._theme.item_padding
+            if self.drop_insert_index >= 0
+            else 0
+        )
+        horizontal = is_horizontal(pos=self._config.pos)
+        for index, item_geometry in enumerate(frame.item_geometries):
+            if item_geometry.item.kind not in accepted_kinds:
+                continue
+            draw_rect = item_geometry.draw_rect
+            if gap > 0 and index >= self.drop_insert_index:
+                if horizontal:
+                    left = draw_rect.x + gap
+                    top = draw_rect.y
+                else:
+                    left = draw_rect.x
+                    top = draw_rect.y + gap
+                contains = (
+                    left <= x < left + draw_rect.w and top <= y < top + draw_rect.h
+                )
+            else:
+                contains = draw_rect.contains(x=x, y=y)
+            if contains:
+                return item_geometry.item
+        return None
 
     def _on_drag_leave(
         self, widget: Gtk.DrawingArea, _context: Gdk.DragContext, _time: int
     ) -> None:
         """Handle drag leaving the dock area.
 
-        GTK fires drag-leave before drag-drop, so we can't clear
-        drop_insert_index here (drag-data-received still needs it).
-        Instead we schedule a deferred clear -- if a drop happens,
-        drag-data-received or drag-end will clear it first. If the
-        drag truly left (cancelled), the deferred clear closes the gap.
+        External drops use drop_insert_index for the visual insertion gap.
+        GTK can emit drag-leave before drag-drop, so external drag-leave only
+        schedules a deferred gap clear. The later drop/data/end handler still
+        gets a chance to consume the insert position first.
+
+        Internal drags use drag-leave differently. Reordering is a same-widget
+        operation, while dragging an item away from the dock is a destructive
+        "remove from dock" gesture. A drag-leave signal is therefore recorded
+        as one required condition for drag-off removal. It is not sufficient on
+        its own; _on_drag_end also requires the drop not to have committed and
+        the final distance check to say the pointer ended outside.
         """
         if self._drag_from < 0 and self.drop_insert_index >= 0:
             GLib.timeout_add(
@@ -517,6 +669,8 @@ class DnDHandler:
                 self._deferred_clear_drop_gap,
                 widget,
             )
+        elif self._drag_from >= 0:
+            self._internal_drag_left_dock = True
         self.drop_target_id = ""
         widget.queue_draw()
 
@@ -524,21 +678,39 @@ class DnDHandler:
         """Clear stale drop gap if it wasn't consumed by a drop."""
         if self.drop_insert_index >= 0 and self._drag_from < 0:
             self.drop_insert_index = -1
-            self._runtime.reconcile_after_drag(reason="drag-leave")
+            self._reconcile_autohide_after_drag(reason="drag-leave")
             widget.queue_draw()
         return False
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
-        """Clean up drag state and unpin if item was dragged outside the dock.
+        """Clean up drag state and optionally remove a dragged-off dock item.
 
-        Checks if the cursor ended up beyond the icon_size threshold from
-        the dock edge. If so, unpins the item and plays the poof animation.
+        Internal reorder is finalized live during drag-motion. Drag-end is
+        responsible for cleanup and for the separate drag-off removal gesture.
+
+        Removal is intentionally gated by four current-state conditions:
+
+        1. this drag started as an internal dock item drag (_drag_from >= 0),
+        2. GTK reported that the internal drag left the dock destination,
+        3. no valid same-widget drop was committed,
+        4. the final pointer distance check says the pointer ended outside.
+
+        The distance check is kept as the geometric threshold for the existing
+        drag-off gesture, but it is no longer the only signal. Native Wayland
+        sessions do not provide X11-style global pointer/window coordinates in
+        a way this code can always trust, so the coordinate result is treated as
+        evidence only after the drag event sequence also says the drag left the
+        dock.
         """
         if self._drag_from >= 0:
             # Get absolute cursor position and dock window position
-            screen_x, screen_y = self._runtime.pointer_screen_position()
-            win_x, win_y = self._runtime.window_position()
-            win_w, win_h = self._runtime.window_size()
+            display = self._window.get_display()
+            pointer_pos = get_pointer_position(display)
+            screen_x = pointer_pos.x if pointer_pos is not None else 0
+            screen_y = pointer_pos.y if pointer_pos is not None else 0
+            window_pos = window_screen_position(self._window)
+            win_x, win_y = window_pos.x, window_pos.y
+            win_w, win_h = self._window.get_size()
 
             # Outside if cursor moved away from the dock edge
             items = self._model.visible_items()
@@ -564,53 +736,105 @@ class DnDHandler:
                 outside,
             )
 
-            if outside and 0 <= self.drag_index < len(items):
-                item = items[self.drag_index]
-                if item.is_pinned:
-                    log.debug(
-                        "drag-end: unpinning %s (running=%s)",
-                        item.name,
-                        item.is_running,
-                    )
-                    show_poof(x=int(screen_x), y=int(screen_y))
-                    # Clear slide state to avoid stale offsets
-                    self._renderer.slide_offsets.clear()
-                    self._renderer.prev_positions.clear()
-                    self._model.unpin_item(item.desktop_id)
+            # Conditions 2 and 3 from the docstring. If either fails, this was
+            # a normal same-widget reorder/cleanup path, even when Wayland's
+            # final global coordinate query appears to be outside the dock.
+            if (
+                pointer_pos is None
+                or not self._internal_drag_left_dock
+                or self._drop_committed
+            ):
+                outside = False
+
+            item = self._dragged_item
+            if (
+                outside
+                and item is not None
+                and item.is_pinned
+                and any(current is item for current in items)
+            ):
+                log.debug(
+                    "drag-end: unpinning %s (running=%s)",
+                    item.name,
+                    item.is_running,
+                )
+                if self._folder_stack.open_item_id() == item.desktop_id:
+                    self._folder_stack.close()
+                show_poof(x=int(screen_x), y=int(screen_y))
+                # Clear slide state to avoid stale offsets
+                self._renderer.slide_offsets.clear()
+                self._renderer.prev_positions.clear()
+                self._model.unpin_item(item.desktop_id)
 
         self.drag_index = -1
+        self._dragged_item = None
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False
+        self._internal_drag_left_dock = False
         self._drag_from = -1
         self._config.save()
-        self._runtime.reconcile_after_drag(reason="drag-end")
+        self._reconcile_autohide_after_drag(reason="drag-end")
         widget.queue_draw()
 
-    def _item_from_uri(self, uri: str) -> DockItem | None:
-        """Build a pinned DockItem from an external URI drop."""
-        desktop_id = self._uri_to_desktop_id(uri)
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
-        if desktop_id:
-            resolved = self._launcher.resolve(desktop_id)
-            if resolved is None:
-                return None
-            icon = self._launcher.load_icon(resolved.icon_name, icon_size)
-            return DockItem(
-                desktop_id=desktop_id,
-                kind=APP_KIND,
-                target=desktop_id,
-                name=resolved.name,
-                icon_name=resolved.icon_name,
-                wm_class=resolved.wm_class,
-                is_pinned=True,
-                icon=icon,
+    def _insert_pinned_uri(self, *, uri: str, index: int) -> bool:
+        """Resolve and insert one external URI through the owning model boundary."""
+        icon_size = self._config.scaled_icon_size
+        application = self._resolve_desktop_application(uri)
+        desktop_path = desktop_entries.local_path_from_uri_or_path(uri)
+        is_desktop_target = (
+            desktop_path is not None
+            and desktop_path.suffix == desktop_entries.DESKTOP_SUFFIX
+        )
+        log.debug(
+            "_insert_pinned_uri: uri=%s desktop_id=%s",
+            uri,
+            application.desktop_id if application is not None else None,
+        )
+        if application is not None:
+            log.debug(
+                "_insert_pinned_uri: resolved application desktop_id=%s",
+                application.desktop_id,
+            )
+            return self._model.insert_pinned_application(
+                desktop_id=application.desktop_id,
+                index=index,
+            )
+        if is_desktop_target:
+            desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
+            if desktop_id is not None:
+                log.debug(
+                    "_insert_pinned_uri: resolve returned None for %s",
+                    desktop_id,
+                )
+                return False
+
+        if not self._prepare_appimage_for_generation(uri):
+            return False
+
+        generated = desktop_entries.create_desktop_entry_for_executable(uri)
+        if generated is not None:
+            self._application_registry.refresh()
+            application = self._application_registry.get(generated.desktop_id)
+            if application is None:
+                log.debug(
+                    "_insert_pinned_uri: generated desktop entry did not resolve: %s",
+                    generated.desktop_id,
+                )
+                return False
+            log.debug(
+                "_insert_pinned_uri: generated application desktop_id=%s",
+                application.desktop_id,
+            )
+            return self._model.insert_pinned_application(
+                desktop_id=application.desktop_id,
+                index=index,
             )
 
-        info = self._launcher.resolve_file(target=uri, size=icon_size)
+        info = self._target_service.resolve_file(target=uri, size=icon_size)
         if info is None:
-            return None
-        return DockItem(
+            return False
+        item = DockItem(
             desktop_id=info.target,
             kind=FOLDER_KIND if info.is_dir else FILE_KIND,
             target=info.target,
@@ -620,14 +844,71 @@ class DnDHandler:
             icon=info.icon,
             prefs_key=info.target,
         )
+        return self._model.insert_pinned_item(item=item, index=index)
 
-    @staticmethod
-    def _uri_to_desktop_id(uri: str) -> str | None:
-        """Extract a .desktop ID from a file URI or path."""
-        normalized = launcher_mod.normalize_file_target(uri)
-        if normalized is None:
+    def _resolve_desktop_application(self, target: str) -> ApplicationInfo | None:
+        """Resolve desktop drops without flattening nested desktop IDs."""
+        exact = self._application_registry.get(target)
+        if exact is not None:
+            return exact
+
+        path = desktop_entries.local_path_from_uri_or_path(target)
+        if path is None or path.suffix != desktop_entries.DESKTOP_SUFFIX:
             return None
-        path = Path(unquote(urlparse(normalized).path))
-        if not path.name.endswith(".desktop"):
+
+        application = self._application_registry.resolve_by_desktop_file(path)
+        if application is not None:
+            return application
+
+        desktop_id = desktop_entries.desktop_id_from_uri_or_path(target)
+        if desktop_id is None:
             return None
-        return path.name
+        return self._application_registry.get(desktop_id)
+
+    def _prepare_appimage_for_generation(self, uri: str) -> bool:
+        appimage = desktop_entries.appimage_path_needing_executable_permission(uri)
+        if appimage is None:
+            return True
+        if not self._confirm_make_appimage_executable(appimage):
+            return False
+        return desktop_entries.make_user_executable(appimage)
+
+    def _confirm_make_appimage_executable(self, path: Path) -> bool:
+        dialog = Gtk.MessageDialog(
+            transient_for=self._window,
+            modal=True,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.CANCEL,
+            text="Make AppImage executable and pin it?",
+        )
+        dialog.format_secondary_text(
+            f"{path.name} is an AppImage, but it is not executable yet. "
+            "Docking can mark it executable so it can be pinned and launched."
+        )
+        dialog.add_button("Make Executable and Pin", Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            response = dialog.run()
+        finally:
+            dialog.destroy()
+        return bool(response == Gtk.ResponseType.OK)
+
+    def _begin_drag_autohide(self) -> None:
+        if self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-begin")
+
+    def _on_drag_motion_enter(self) -> None:
+        if self._window.autohide.enabled:
+            self._window.autohide.set_disabled(True, reason="drag-motion")
+            self._window.autohide.on_mouse_enter()
+
+    def _reconcile_autohide_after_drag(self, *, reason: str) -> None:
+        if not self._window.autohide.enabled:
+            return
+        if self._window.is_pointer_inside_dock():
+            self._window.autohide.set_hovered(True)
+            self._window.autohide.set_disabled(False, reason=f"{reason}-inside")
+            return
+        self._window.autohide.set_hovered(False)
+        self._window.autohide.set_disabled(False, reason=f"{reason}-outside")
+        self._window.autohide.on_mouse_leave()

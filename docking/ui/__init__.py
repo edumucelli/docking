@@ -1,23 +1,14 @@
-"""Lazy UI package exports.
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
 
-Keep package import cheap so modules like ``docking.ui.about`` can be imported
-without pulling in the full dock window/runtime surface.
-"""
-
-from __future__ import annotations
-
-from typing import Any
-
-__all__ = ["DockRenderer", "DockWindow"]
-
-
-def __getattr__(name: str) -> Any:
-    if name == "DockWindow":
-        from docking.ui.dock_window import DockWindow
-
-        return DockWindow
-    if name == "DockRenderer":
-        from docking.ui.renderer import DockRenderer
-
-        return DockRenderer
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+"""UI package."""

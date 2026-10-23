@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from dataclasses import replace
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
@@ -21,6 +23,7 @@ from docking.applets.bluetooth.state import (
     device_menu_label,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 class _ImmediateThread:
@@ -195,6 +198,73 @@ class TestBluetoothStateHelpers:
             )
         )
         assert label == "11:22:33:44:55:66"
+
+    def test_command_helpers_prefer_first_available(self, monkeypatch):
+        commands = {
+            "blueman-sendto": None,
+            "bluetooth-sendto": "/usr/bin/bluetooth-sendto",
+            "blueman-manager": None,
+            "gnome-control-center": "/usr/bin/gnome-control-center",
+            "blueman-adapters": None,
+            "blueman-services": "/usr/bin/blueman-services",
+        }
+
+        monkeypatch.setattr(
+            bluetooth_state_mod.shutil,
+            "which",
+            lambda cmd: commands.get(cmd),
+        )
+
+        assert bluetooth_state_mod.send_files_command() == ["bluetooth-sendto"]
+        assert bluetooth_state_mod.devices_command() == [
+            "gnome-control-center",
+            "bluetooth",
+        ]
+        assert bluetooth_state_mod.adapters_command() == [
+            "gnome-control-center",
+            "bluetooth",
+        ]
+        assert bluetooth_state_mod.local_services_command() == ["blueman-services"]
+
+    def test_open_command_helpers(self, monkeypatch):
+        launched: list[list[str]] = []
+
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "send_files_command",
+            lambda: ["bluetooth-sendto"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "devices_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "adapters_command",
+            lambda: ["blueman-adapters"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod,
+            "local_services_command",
+            lambda: ["blueman-services"],
+        )
+        monkeypatch.setattr(
+            bluetooth_state_mod.subprocess,
+            "Popen",
+            lambda cmd, **_kwargs: launched.append(list(cmd)),
+        )
+
+        assert bluetooth_state_mod.open_send_files() is True
+        assert bluetooth_state_mod.open_devices() is True
+        assert bluetooth_state_mod.open_adapters() is True
+        assert bluetooth_state_mod.open_local_services() is True
+        assert launched == [
+            ["bluetooth-sendto"],
+            ["gnome-control-center", "bluetooth"],
+            ["blueman-adapters"],
+            ["blueman-services"],
+        ]
 
 
 class TestBluezBackend:
@@ -650,6 +720,13 @@ class TestBluezBackend:
         assert bluetooth_state_mod._as_int(_Variant("7")) == 7
         assert bluetooth_state_mod._as_int("bad", default=None) is None
 
+    def test_as_int_skips_debug_log_for_absent_optional_values(self, caplog):
+        with caplog.at_level(logging.DEBUG, logger="docking.bluetooth"):
+            assert bluetooth_state_mod._as_int(None, default=None) is None
+            assert bluetooth_state_mod._as_int("  ", default=None) is None
+
+        assert "Failed to coerce Bluetooth value" not in caplog.text
+
 
 class _StubBackend:
     def __init__(self, initial_state: BluetoothState) -> None:
@@ -711,7 +788,11 @@ def _make_applet(
     backend = _StubBackend(initial_state=state)
     monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
     monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
-    applet = BluetoothApplet(48)
+    applet = BluetoothApplet(48, config=Config())
+    applet._on_poll_result(
+        backend.get_state(active_adapter_path=applet._active_adapter_path)
+    )
+    backend.discovery_calls.clear()
     return applet, backend
 
 
@@ -745,6 +826,9 @@ class _FakeMenuItem:
     def set_submenu(self, submenu) -> None:
         self._submenu = submenu
 
+    def get_submenu(self):
+        return self._submenu
+
 
 class _FakeCheckMenuItem(_FakeMenuItem):
     def __init__(self, label: str = "") -> None:
@@ -769,6 +853,27 @@ class _FakeSeparatorMenuItem(_FakeMenuItem):
 
 
 class TestBluetoothApplet:
+    def test_constructor_does_not_query_bluez_synchronously(self, monkeypatch):
+        class _Backend:
+            def __init__(self) -> None:
+                self.get_state_calls = 0
+
+            def get_state(
+                self, active_adapter_path: str | None = None
+            ) -> BluetoothState:
+                _ = active_adapter_path
+                self.get_state_calls += 1
+                return _state()
+
+        backend = _Backend()
+        monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
+        monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
+
+        applet = BluetoothApplet(48, config=Config())
+
+        assert backend.get_state_calls == 0
+        assert applet._state.available is False
+
     def _fake_gtk(self, monkeypatch):
         fake_gtk = SimpleNamespace(
             Menu=_FakeMenu,
@@ -809,7 +914,10 @@ class TestBluetoothApplet:
         applet.present = lambda: None  # type: ignore[assignment]
 
         applet._on_power_result(
-            False, False, _state(adapters=(_adapter(discovering=True),))
+            "/org/bluez/hci0",
+            False,
+            False,
+            _state(adapters=(_adapter(discovering=True),)),
         )
 
         assert "blocked" in applet._action_error.lower()
@@ -817,6 +925,22 @@ class TestBluetoothApplet:
 
     def test_menu_contains_expected_sections(self, monkeypatch):
         self._fake_gtk(monkeypatch)
+        monkeypatch.setattr(
+            bluetooth_applet_mod, "send_files_command", lambda: ["bluetooth-sendto"]
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod,
+            "devices_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod,
+            "adapters_command",
+            lambda: ["gnome-control-center", "bluetooth"],
+        )
+        monkeypatch.setattr(
+            bluetooth_applet_mod, "local_services_command", lambda: ["blueman-services"]
+        )
         state = _state(
             adapters=(
                 _adapter(path="/org/bluez/hci0", alias="A0"),
@@ -832,8 +956,13 @@ class TestBluetoothApplet:
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
-        assert "General" in labels
-        assert "Bluetooth On" in labels
+        assert "Turn Bluetooth Off" in labels
+        assert "Disconnect Device" in labels
+        assert "Send Files to Device..." in labels
+        assert "Recent Connections" in labels
+        assert "Devices..." in labels
+        assert "Adapters..." in labels
+        assert "Local Services..." in labels
         assert "Continuous Discovery" in labels
         assert "Adapter" in labels
         assert "Connected Devices" in labels
@@ -851,6 +980,61 @@ class TestBluetoothApplet:
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
         assert "None" not in labels
+        assert "Connected Devices" not in labels
+        assert "Paired Devices" not in labels
+        assert "Discovered Devices" not in labels
+
+    def test_recent_connections_submenu_prefers_recent_paired_devices(
+        self, monkeypatch
+    ):
+        self._fake_gtk(monkeypatch)
+        applet, _backend = _make_applet(
+            monkeypatch,
+            _state(
+                devices=(
+                    _device(
+                        path="/d/1",
+                        alias="Headphones",
+                        connected=False,
+                        paired=True,
+                    ),
+                    _device(
+                        path="/d/2",
+                        alias="Keyboard",
+                        connected=True,
+                        paired=True,
+                    ),
+                ),
+            ),
+        )
+        applet._recent_connections = {
+            "11:22:33:44:55:66": 100.0,
+        }
+        submenu_item = applet._build_recent_connections_submenu(
+            adapter_path="/org/bluez/hci0"
+        )
+        submenu = submenu_item.get_submenu()
+        assert submenu is not None
+        labels = [item.get_label() for item in submenu.children]
+        assert labels == ["Keyboard (Connected, Paired)", "Headphones (Paired)"]
+        assert submenu.children[0].get_sensitive() is False
+
+    def test_record_recent_connections_persists_only_on_new_connection(
+        self, monkeypatch
+    ):
+        applet, _backend = _make_applet(monkeypatch, _state(devices=()))
+        saved: list[dict[str, object]] = []
+        applet.save_prefs = lambda prefs: saved.append(prefs)  # type: ignore[assignment]
+        monkeypatch.setattr(bluetooth_applet_mod.time, "time", lambda: 123.0)
+
+        state = _state(devices=(_device(path="/d/1", connected=True, paired=True),))
+        applet._record_recent_connections(state)
+        assert saved
+        assert applet._recent_connections["11:22:33:44:55:66"] == 123.0
+
+        saved.clear()
+        applet._record_recent_connections(state)
+        assert saved == []
 
     def test_scroll_is_noop(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
@@ -906,7 +1090,7 @@ class TestBluetoothApplet:
     def test_tick_and_discovery_tick(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         ticked: list[str] = []
-        applet._worker.run = lambda **kwargs: ticked.append("poll")  # type: ignore[assignment]
+        applet._worker.run_guarded = lambda **kwargs: ticked.append("poll") or True  # type: ignore[method-assign]
         applet._ensure_discovery = lambda: ticked.append("discover")  # type: ignore[assignment]
 
         assert applet._tick() is True
@@ -926,14 +1110,28 @@ class TestBluetoothApplet:
             active_adapter_path=applet._active_adapter_path
         )
 
-    def test_on_poll_result_syncs_adapter_and_resets_local_discovery(self, monkeypatch):
+    def test_on_poll_result_keeps_owned_discovery_until_explicit_stop(
+        self, monkeypatch
+    ):
         state = _state(adapters=(_adapter(path="/org/bluez/hci0", discovering=False),))
         applet, _backend = _make_applet(monkeypatch, state)
-        applet._local_discovery_active = True
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
         applet._ensure_discovery = lambda: None  # type: ignore[assignment]
         applet.present = lambda: None  # type: ignore[assignment]
         assert applet._on_poll_result(state) is False
-        assert applet._local_discovery_active is False
+        assert applet._local_discovery_paths == {"/org/bluez/hci0"}
+
+    def test_on_poll_result_skips_present_when_state_is_unchanged(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state())
+        state = applet._state
+        applet._local_discovery_paths = set()
+        applet._ensure_discovery = lambda: None  # type: ignore[assignment]
+        present = MagicMock()
+        applet.present = present  # type: ignore[method-assign]
+
+        assert applet._on_poll_result(state) is False
+
+        present.assert_not_called()
 
     def test_sync_selected_adapter_active_adapter_and_discovery_flow(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
@@ -948,6 +1146,10 @@ class TestBluetoothApplet:
         applet._sync_selected_adapter()
         assert applet._active_adapter_path == "/org/bluez/hci0"
         assert saved
+
+        saved.clear()
+        applet._sync_selected_adapter()
+        assert saved == []
 
         applet._state = _state(adapters=())
         assert applet._active_adapter() is None
@@ -971,7 +1173,7 @@ class TestBluetoothApplet:
         applet._suppress_discovery_until = 0.0
         applet._ensure_discovery()
         assert backend.discovery_calls == ["/org/bluez/hci0"]
-        assert applet._local_discovery_active is True
+        assert applet._local_discovery_paths == {"/org/bluez/hci0"}
 
     def test_run_async_and_connect_device_paths(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
@@ -1075,10 +1277,10 @@ class TestBluetoothApplet:
     def test_power_result_discovery_toggle_and_pref_bool(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
         applet.present = lambda: None  # type: ignore[assignment]
-        applet._local_discovery_active = True
-        applet._on_power_result(False, True, _state())
-        assert applet._local_discovery_active is False
-        applet._on_power_result(True, False, _state())
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
+        applet._on_power_result("/org/bluez/hci0", False, True, _state())
+        assert applet._local_discovery_paths == set()
+        applet._on_power_result("/org/bluez/hci0", True, False, _state())
         assert applet._action_error == "Power on failed."
 
         class _Widget:
@@ -1095,9 +1297,9 @@ class TestBluetoothApplet:
         applet._on_continuous_discovery_toggled(_Widget(active=False))
         assert calls == ["ensure", "run"]
 
-        applet._local_discovery_active = False
+        applet._local_discovery_paths = set()
         assert applet._stop_local_discovery(quiet=True) is True
-        applet._local_discovery_active = True
+        applet._local_discovery_paths = {"/org/bluez/hci0"}
         applet._backend.stop_discovery = (  # type: ignore[attr-defined]
             lambda adapter_path, quiet=True: False
         )

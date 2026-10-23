@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Volume applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -9,16 +22,25 @@ import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, GLib
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections
 from docking.applets.volume import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_volume_icon
-from .state import _BACKENDS, STEP, VolumeState, _detect_backend, _volume_icon_name
+from .state import (
+    _BACKENDS,
+    STEP,
+    VolumeState,
+    _detect_backend,
+    _volume_icon_name,
+    open_volume_settings,
+    volume_settings_command,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -33,7 +55,7 @@ class VolumeApplet(Applet):
     name = _("Volume")
     icon_name = "audio-volume-medium"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._backend = _detect_backend()
         if not self._backend:
             log.bind(action="detect_backend").warning(
@@ -42,8 +64,12 @@ class VolumeApplet(Applet):
             )
         self._volume = 0
         self._muted = False
+        self._show_level = False
         self._timer_id: int = 0
+        self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
+        prefs = config.applet_prefs.get(meta.id, {})
+        self._show_level = bool(prefs.get("show_level", False))
         self._poll()
         super().__init__(icon_size, config)
         self.present()
@@ -58,13 +84,19 @@ class VolumeApplet(Applet):
         self._update_tooltip()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        return create_volume_icon(size=size, volume=self._volume, muted=self._muted)
+        return create_volume_icon(
+            size=size,
+            volume=self._volume,
+            muted=self._muted,
+            show_level=self._show_level,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
+        self._poll_generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -73,6 +105,7 @@ class VolumeApplet(Applet):
     def on_clicked(self) -> None:
         """Toggle mute on left-click."""
         if self._backend:
+            self._poll_generation += 1
             self._backend.toggle_mute()
             self._poll()
             self._update_tooltip()
@@ -82,6 +115,7 @@ class VolumeApplet(Applet):
         """Adjust volume ±5% on scroll."""
         if not self._backend:
             return
+        self._poll_generation += 1
         if direction_up:
             new = min(100, self._volume + STEP)
         else:
@@ -89,6 +123,24 @@ class VolumeApplet(Applet):
         self._backend.set_volume(new)
         self._poll()
         self._update_tooltip()
+        self.present()
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        show = Gtk.CheckMenuItem(label=_("Show Level"))
+        show.set_active(self._show_level)
+        show.connect("toggled", self._on_toggle_level)
+
+        settings: list[Gtk.MenuItem] = []
+        cmd = volume_settings_command()
+        if cmd is not None:
+            volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
+            volume_settings.connect("activate", lambda _widget: open_volume_settings())
+            settings.append(volume_settings)
+        return menu_sections(display=[show], settings=settings, gtk=Gtk)
+
+    def _on_toggle_level(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_level = widget.get_active()
+        self.save_prefs(prefs={"show_level": self._show_level})
         self.present()
 
     def _poll(self) -> None:
@@ -104,16 +156,22 @@ class VolumeApplet(Applet):
         """Periodic poll - fetch state in background thread."""
         if not self._backend:
             return True
-        self._worker.run(
+        generation = self._poll_generation
+        self._worker.run_guarded(
+            key="volume-poll",
             name="volume-poll",
             fn=self._backend.get_state,
-            on_result=self._on_poll_result,
+            on_result=lambda state: self._on_poll_result(state, generation=generation),
         )
         return True
 
-    def _on_poll_result(self, state: VolumeState | None) -> bool:
+    def _on_poll_result(
+        self, state: VolumeState | None, *, generation: int | None = None
+    ) -> bool:
         """Apply polled state on main thread, refresh if changed."""
-        if state is None:
+        if state is None or (
+            generation is not None and generation != self._poll_generation
+        ):
             return False
         if (state.volume, state.muted) != (self._volume, self._muted):
             self._volume = state.volume

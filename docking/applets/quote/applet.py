@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Quote applet behavior and GTK wiring."""
 
 from __future__ import annotations
@@ -14,12 +27,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.quote import meta
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import draw_bulb_icon
 from .state import (
+    DEFAULT_FETCH_LIMIT,
     DEFAULT_SOURCE,
     SOURCE_LABELS,
     QuoteEntry,
@@ -41,19 +56,19 @@ class QuoteApplet(Applet):
     name = _("Quote")
     icon_name = "idea"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._source = DEFAULT_SOURCE
         self._quotes: list[QuoteEntry] = []
         self._index = -1
         self._current: QuoteEntry | None = None
         self._loading = False
+        self._request_id = 0
         self._clipboard: Gtk.Clipboard | None = None
 
-        if config:
-            prefs = config.applet_prefs.get("quote", {})
-            source = prefs.get("source", DEFAULT_SOURCE)
-            if source in SOURCE_LABELS:
-                self._source = source
+        prefs = config.applet_prefs.get("quote", {})
+        source = prefs.get("source", DEFAULT_SOURCE)
+        if source in SOURCE_LABELS:
+            self._source = source
 
         super().__init__(icon_size, config)
         self._quotes = source_fallback(source=self._source)
@@ -77,42 +92,42 @@ class QuoteApplet(Applet):
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
-
-        source_header = Gtk.MenuItem(label=SOURCE_LABELS.get(self._source, _("Quote")))
-        source_header.set_sensitive(False)
-        items.append(source_header)
+        status = [
+            disabled_menu_item(SOURCE_LABELS.get(self._source, _("Quote")), gtk=Gtk)
+        ]
 
         next_item = Gtk.MenuItem(label=_("Next Quote"))
         next_item.connect("activate", lambda _: self.on_clicked())
-        items.append(next_item)
 
         copy_item = Gtk.MenuItem(label=_("Copy Quote"))
         copy_item.connect("activate", lambda _: self._copy_current_quote())
-        items.append(copy_item)
 
-        refresh_item = Gtk.MenuItem(label=_("Refresh from Web"))
+        refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
         refresh_item.connect("activate", lambda _: self._refresh_from_web())
-        items.append(refresh_item)
 
-        items.append(Gtk.SeparatorMenuItem())
+        display = [
+            disabled_menu_item(_("Source"), gtk=Gtk),
+            *radio_menu_items(
+                choices=tuple(
+                    (label, source_id) for source_id, label in SOURCE_LABELS.items()
+                ),
+                active_value=self._source,
+                on_selected=lambda widget, value: self._on_source_toggled(
+                    widget,
+                    value,
+                ),
+                gtk=Gtk,
+            ),
+        ]
 
-        source_title = Gtk.MenuItem(label=_("Source"))
-        source_title.set_sensitive(False)
-        items.append(source_title)
-
-        group: Gtk.RadioMenuItem | None = None
-        for source_id, label in SOURCE_LABELS.items():
-            radio = Gtk.RadioMenuItem(label=label)
-            if group:
-                radio.join_group(group)
-            else:
-                group = radio
-            radio.set_active(source_id == self._source)
-            radio.connect("toggled", self._on_source_toggled, source_id)
-            items.append(radio)
-
-        return items
+        return menu_sections(
+            status=status,
+            primary=[copy_item],
+            navigation=[next_item],
+            refresh=[refresh_item],
+            display=display,
+            gtk=Gtk,
+        )
 
     def _on_source_toggled(self, widget: Gtk.RadioMenuItem, source_id: str) -> None:
         if not widget.get_active():
@@ -123,6 +138,7 @@ class QuoteApplet(Applet):
         if source_id not in SOURCE_LABELS or source_id == self._source:
             return
         self._source = source_id
+        self._loading = False
         self.save_prefs({"source": self._source})
         self._quotes = source_fallback(source=self._source)
         self._index = -1
@@ -157,10 +173,12 @@ class QuoteApplet(Applet):
             self.present()
 
         source = self._source
+        self._request_id += 1
+        request_id = self._request_id
 
         def worker() -> None:
-            quotes = fetch_quotes(source=source, limit=20)
-            GLib.idle_add(self._on_fetch_result, source, quotes, show_first)
+            quotes = fetch_quotes(source=source, limit=DEFAULT_FETCH_LIMIT)
+            GLib.idle_add(self._on_fetch_result, source, quotes, show_first, request_id)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -169,11 +187,11 @@ class QuoteApplet(Applet):
         source_id: str,
         quotes: list[QuoteEntry],
         show_first: bool,
+        request_id: int,
     ) -> bool:
-        self._loading = False
-        # Ignore stale async results if source changed in the meantime.
-        if source_id != self._source:
+        if request_id != self._request_id or source_id != self._source:
             return False
+        self._loading = False
 
         if quotes:
             self._quotes = quotes

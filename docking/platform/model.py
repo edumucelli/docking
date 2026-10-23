@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Canonical dock state: visible item order, persistence, and applet ownership.
 
 Why this module exists
@@ -129,9 +142,18 @@ If these invariants hold, the rest of the dock can remain much simpler.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import gi
 
 import docking.applets as applets
+from docking.applets.base import (
+    Applet,
+    ApplicationServicesApplet,
+    TargetServicesApplet,
+)
 from docking.applets.identity import (
     APPLET_PREFIX,
     applet_desktop_id,
@@ -139,6 +161,7 @@ from docking.applets.identity import (
     is_applet_desktop_id,
 )
 from docking.applets.separator import meta as _separator_meta
+from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry, normalize_pinned_entries
 from docking.core.items import (
     APP_KIND,
@@ -147,37 +170,144 @@ from docking.core.items import (
     FOLDER_KIND,
     DockItem,
 )
+from docking.core.math import clamp
 from docking.log import get_logger, with_context
-
-if TYPE_CHECKING:
-    from docking.applets.base import Applet
-    from docking.core.config import Config
-    from docking.platform.launcher import Launcher
-
-import gi
+from docking.platform import icon_overrides
+from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.projections import dock_icon_name
+from docking.platform.applications.recents import (
+    RecentApplications,
+)
+from docking.platform.applications.running import RunningAppInfo
+from docking.platform.applications.types import (
+    ApplicationInfo,
+    ApplicationOrigin,
+)
+from docking.platform.icons import fallback_file_icon_name
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
+if TYPE_CHECKING:
+    from docking.core.config import Config
+    from docking.platform.applications.launcher import ApplicationLauncher
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.icons import IconLoader
+    from docking.platform.targets import TargetService
+
 log = with_context(get_logger(name="model"))
+
+ITEM_ANIMATION_DURATION_MS = 140
+_ITEM_ANIMATION_DURATION_US = ITEM_ANIMATION_DURATION_MS * 1000
+
+
+@dataclass(frozen=True)
+class AnimationTickResult:
+    """Item animation mutations made by one UI frame."""
+
+    changed: bool
+    active: bool
+
+
+@dataclass(frozen=True)
+class LauncherEntryState:
+    """Normalized Unity LauncherEntry overlay state for one sender."""
+
+    sender_name: str
+    app_uri: str
+    desktop_id: str | None
+    badge_count: int = 0
+    badge_visible: bool = False
+    progress: float = 0.0
+    progress_visible: bool = False
+    urgent: bool = False
+
+    @property
+    def shows_overlay(self) -> bool:
+        return (
+            self.urgent
+            or self.progress_visible
+            or (self.badge_visible and self.badge_count > 0)
+        )
+
+
+@dataclass(frozen=True)
+class StatusNotifierOverlayState:
+    """Badge state inferred from one StatusNotifier item."""
+
+    source_id: str
+    desktop_id: str
+    badge_count: int = 0
+
+
+def launcher_state_shows_effective_overlay(
+    *,
+    state: LauncherEntryState,
+    config: Config,
+) -> bool:
+    """Whether publisher state should currently create a visible dock item."""
+    return (
+        state.urgent
+        or (config.show_launcher_progress and state.progress_visible)
+        or (
+            config.show_launcher_badges
+            and state.badge_visible
+            and state.badge_count > 0
+        )
+    )
 
 
 class DockModel:
     """Ordered collection of dock items, merging pinned and running apps."""
 
-    def __init__(self, config: Config, launcher: Launcher) -> None:
+    def __init__(
+        self,
+        *,
+        config: Config,
+        applet_services: AppletServices,
+        application_registry: ApplicationRegistry,
+        application_launcher: ApplicationLauncher,
+        icon_loader: IconLoader,
+        target_service: TargetService,
+        recent_applications: RecentApplications,
+    ) -> None:
         self._config = config
-        self._launcher = launcher
+        self._application_registry = application_registry
+        self._application_launcher = application_launcher
+        self._icon_loader = icon_loader
+        self._target_service = target_service
+        self._applet_services = applet_services
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
         self._applets: dict[str, Applet] = {}
         self._animating_out: list[DockItem] = []
+        self._animation_last_update_us: dict[int, int] = {}
         self._change_listeners: list[Callable[[], None]] = []
+        self._applet_change_listeners: list[Callable[[str], None]] = []
+        self._launcher_entries: dict[str, LauncherEntryState] = {}
+        self._launcher_item_by_sender: dict[str, str] = {}
+        self._status_notifier_entries: dict[str, StatusNotifierOverlayState] = {}
+        self._recent_apps: list[DockItem] = []
+        self._recent_item_overrides: dict[str, DockItem] = {}
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
 
         self._load_pinned()
+        self._recent_applications = recent_applications
+        self._recent_applications.load(pinned_ids=self._pinned_ids())
+        self._materialize_recent_apps()
+
+    @staticmethod
+    def _apply_application_metadata(
+        item: DockItem,
+        application: ApplicationInfo,
+    ) -> None:
+        item.application_info = application
+        item.name = application.name
+        item.icon_name = dock_icon_name(application)
+        item.wm_class = application.wm_class
+        item.exec_line = application.exec_line
 
     def add_change_listener(self, callback: Callable[[], None]) -> None:
         """Register a callback fired whenever model-visible state changes.
@@ -191,8 +321,20 @@ class DockModel:
         """Remove a previously registered change callback."""
         try:
             self._change_listeners.remove(callback)
-        except ValueError:
-            return
+        except ValueError as exc:
+            log.debug("Tried to remove unknown change listener: %s", exc)
+
+    def add_applet_change_listener(self, callback: Callable[[str], None]) -> None:
+        """Register a callback receiving the applet whose presentation changed."""
+        if callback not in self._applet_change_listeners:
+            self._applet_change_listeners.append(callback)
+
+    def remove_applet_change_listener(self, callback: Callable[[str], None]) -> None:
+        """Remove a previously registered applet-change callback."""
+        try:
+            self._applet_change_listeners.remove(callback)
+        except ValueError as exc:
+            log.debug("Tried to remove unknown applet change listener: %s", exc)
 
     def _load_pinned(self) -> None:
         """Load pinned items from config and resolve their desktop info."""
@@ -201,14 +343,54 @@ class DockModel:
             if item is not None:
                 self.pinned_items.append(item)
 
+    def rebuild_recent_apps(self) -> None:
+        """Apply recent-app policy and rebuild its dock-item projection."""
+        self._recent_applications.reload_policy(pinned_ids=self._pinned_ids())
+        self._materialize_recent_apps()
+        self.notify()
+
+    def _pinned_ids(self) -> set[str]:
+        return {item.desktop_id for item in self.pinned_items}
+
+    def _materialize_recent_apps(self) -> None:
+        """Project service records into model-owned DockItems."""
+        existing = {item.desktop_id: item for item in self._recent_apps}
+        recent_apps: list[DockItem] = []
+        for record in self._recent_applications.snapshot():
+            item = self._recent_item_overrides.get(record.desktop_id)
+            should_set_last_closed = item is not None
+            if item is None:
+                item = existing.get(record.desktop_id)
+            if item is None:
+                item = self._make_app_item(
+                    desktop_id=record.desktop_id,
+                    is_pinned=False,
+                    running_info=None,
+                )
+                should_set_last_closed = True
+            item.is_pinned = False
+            item.is_running = False
+            item.is_active = False
+            item.instance_count = 0
+            item.is_recent = True
+            if should_set_last_closed:
+                item.last_closed = float(record.last_closed)
+            recent_apps.append(item)
+
+        retained = {id(item) for item in recent_apps}
+        for item in self._recent_apps:
+            if id(item) not in retained:
+                item.is_recent = False
+        self._recent_apps = recent_apps
+
     def _build_pinned_item(self, entry: PinnedEntry) -> DockItem | None:
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         if entry.kind == APPLET_KIND:
             did = applet_id_from(desktop_id=entry.target)
             cls = applets.load_applet_class(did)
             if cls:
                 try:
-                    applet = cls(icon_size=icon_size, config=self._config)
+                    applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
                     applet.item.desktop_id = entry.id
                     applet.item.kind = APPLET_KIND
                     applet.item.target = entry.target
@@ -230,25 +412,48 @@ class DockModel:
             return None
 
         if entry.kind == APP_KIND:
-            info = self._launcher.resolve(desktop_id=entry.target)
-            if info is None:
+            application = self._application_registry.get(entry.target)
+            if application is None:
                 return None
-            icon = self._launcher.load_icon(icon_name=info.icon_name, size=icon_size)
-            return DockItem(
+            icon = self._icon_loader.load_desktop_icon(
+                info=application,
+                size=icon_size,
+            )
+            item = DockItem(
                 desktop_id=entry.id,
                 kind=APP_KIND,
                 target=entry.target,
-                name=info.name,
-                icon_name=info.icon_name,
-                wm_class=info.wm_class,
+                name=application.name,
+                icon_name=dock_icon_name(application),
+                wm_class=application.wm_class,
+                exec_line=application.exec_line,
+                application_info=application,
                 is_pinned=True,
                 icon=icon,
             )
+            return self._apply_icon_override(item=item)
 
-        info = self._launcher.resolve_file(target=entry.target, size=icon_size)
+        info = self._target_service.resolve_file(
+            target=entry.target,
+            size=icon_size,
+        )
         if info is None:
-            return None
-        return DockItem(
+            icon_name = fallback_file_icon_name(is_dir=entry.kind == FOLDER_KIND)
+            item = DockItem(
+                desktop_id=entry.id,
+                kind=entry.kind,
+                target=entry.target,
+                name=entry.target,
+                icon_name=icon_name,
+                is_pinned=True,
+                icon=self._icon_loader.load_icon(
+                    icon_name=icon_name,
+                    size=icon_size,
+                ),
+                prefs_key=entry.target,
+            )
+            return self._apply_icon_override(item=item)
+        item = DockItem(
             desktop_id=entry.id,
             kind=entry.kind,
             target=entry.target,
@@ -258,10 +463,456 @@ class DockModel:
             icon=info.icon,
             prefs_key=entry.target,
         )
+        return self._apply_icon_override(item=item)
+
+    def _make_app_item(
+        self, *, desktop_id: str, is_pinned: bool, running_info: RunningAppInfo | None
+    ) -> DockItem:
+        runtime = running_info.runtime_app if running_info is not None else None
+        application = runtime or self._application_registry.get(desktop_id)
+        icon_size = self._config.scaled_icon_size
+        icon = (
+            self._icon_loader.load_desktop_icon(info=application, size=icon_size)
+            if application is not None
+            else self._icon_loader.load_icon(
+                icon_name="application-x-executable",
+                size=icon_size,
+            )
+        )
+        runtime_executable = (
+            str(application.executable_path)
+            if application is not None
+            and application.origin is ApplicationOrigin.RUNTIME
+            and application.executable_path is not None
+            else ""
+        )
+        item = DockItem(
+            desktop_id=desktop_id,
+            kind=APP_KIND,
+            target=desktop_id,
+            name=application.name if application is not None else desktop_id,
+            icon_name=(
+                dock_icon_name(application)
+                if application is not None
+                else "application-x-executable"
+            ),
+            wm_class=application.wm_class if application is not None else "",
+            exec_line=application.exec_line if application is not None else "",
+            runtime_executable=runtime_executable,
+            application_info=application,
+            is_pinned=is_pinned,
+            is_running=running_info is not None,
+            is_active=running_info.active if running_info is not None else False,
+            instance_count=running_info.count if running_info is not None else 0,
+            icon=icon,
+        )
+        item.window_urgent = running_info.urgent if running_info is not None else False
+        self._recompute_urgent(item=item)
+        return self._apply_icon_override(item=item)
+
+    def _default_icon_for_item(self, item: DockItem) -> None:
+        """Reload an item's default icon fields without replacing the item."""
+        icon_size = self._config.scaled_icon_size
+        if item.kind == APP_KIND:
+            current_application = item.application_info
+            application = (
+                current_application
+                if current_application is not None
+                and current_application.origin is ApplicationOrigin.GENERATED
+                else (
+                    self._application_registry.get(item.target or item.desktop_id)
+                    or current_application
+                )
+            )
+            if application is None:
+                item.icon_name = item.icon_name or "application-x-executable"
+                item.icon = self._icon_loader.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
+                return
+            self._apply_application_metadata(item, application)
+            item.icon = self._icon_loader.load_desktop_icon(
+                info=application,
+                size=icon_size,
+            )
+            return
+
+        if item.kind in {FILE_KIND, FOLDER_KIND}:
+            info = self._target_service.resolve_file(
+                target=item.target,
+                size=icon_size,
+            )
+            if info is None:
+                item.icon_name = fallback_file_icon_name(
+                    is_dir=item.kind == FOLDER_KIND,
+                )
+                item.icon = self._icon_loader.load_icon(
+                    icon_name=item.icon_name,
+                    size=icon_size,
+                )
+                return
+            item.target = info.target
+            item.name = info.name
+            item.icon_name = info.icon_name
+            item.icon = info.icon
+
+    def _apply_icon_override(self, item: DockItem) -> DockItem:
+        """Apply a persisted custom icon to a normal dock item when available."""
+        if item.kind not in {APP_KIND, FILE_KIND, FOLDER_KIND}:
+            return item
+        path = icon_overrides.custom_icon_path(config=self._config, item=item)
+        if path is None:
+            return item
+        icon = self._icon_loader.load_icon_file(
+            path=path,
+            size=self._config.scaled_icon_size,
+        )
+        if icon is not None:
+            item.icon = icon
+            item.icon_name = path.name
+        return item
+
+    def _clear_launcher_state(self, item: DockItem) -> None:
+        item.launcher_entry_badge_count = 0
+        item.launcher_entry_badge_visible = False
+        item.progress = 0.0
+        item.progress_visible = False
+        item.launcher_entry_urgent = False
+        self._recompute_badge(item=item)
+
+    def _apply_launcher_state(
+        self, *, item: DockItem, state: LauncherEntryState
+    ) -> None:
+        item.launcher_entry_badge_count = state.badge_count
+        item.launcher_entry_badge_visible = state.badge_visible
+        item.progress = clamp(state.progress, 0.0, 1.0)
+        item.progress_visible = (
+            self._config.show_launcher_progress and state.progress_visible
+        )
+        item.launcher_entry_urgent = state.urgent
+        self._recompute_badge(item=item)
+        self._recompute_urgent(item=item)
+
+    def _recompute_badge(self, *, item: DockItem) -> None:
+        item.badge_count = max(
+            0,
+            item.launcher_entry_badge_count if item.launcher_entry_badge_visible else 0,
+            item.status_notifier_badge_count
+            if item.status_notifier_badge_visible
+            else 0,
+        )
+        item.badge_visible = self._config.show_launcher_badges and item.badge_count > 0
+
+    def _recompute_urgent(self, *, item: DockItem) -> None:
+        effective = (
+            item.window_urgent
+            or item.launcher_entry_urgent
+            or item.status_notifier_urgent
+        )
+        if effective and not item.is_urgent:
+            item.last_urgent = GLib.get_monotonic_time()
+        item.is_urgent = effective
+
+    def _find_launcher_target(
+        self, *, sender_name: str, desktop_id: str | None
+    ) -> DockItem | None:
+        if desktop_id:
+            item = self.find_by_desktop_id(desktop_id=desktop_id)
+            if item is not None:
+                return item
+        previous_desktop_id = self._launcher_item_by_sender.get(sender_name)
+        if previous_desktop_id:
+            return self.find_by_desktop_id(desktop_id=previous_desktop_id)
+        return None
+
+    @staticmethod
+    def _is_launcher_only_transient(item: DockItem) -> bool:
+        return (
+            item.kind == APP_KIND
+            and not item.is_pinned
+            and not item.is_running
+            and (
+                item.launcher_entry_urgent
+                or item.progress_visible
+                or (item.badge_visible and item.badge_count > 0)
+            )
+        )
+
+    def _drop_transient(self, *, item: DockItem) -> None:
+        if item in self._transient:
+            self._transient.remove(item)
+
+    def apply_launcher_entry(
+        self,
+        *,
+        sender_name: str,
+        app_uri: str,
+        state: LauncherEntryState,
+        create_transient: bool = False,
+    ) -> bool:
+        """Apply LauncherEntry state to a visible item or create a transient one."""
+        self._launcher_entries.pop(sender_name, None)
+        self._launcher_entries[sender_name] = state
+        item = self._find_launcher_target(
+            sender_name=sender_name,
+            desktop_id=state.desktop_id,
+        )
+        if (
+            item is None
+            and create_transient
+            and state.desktop_id
+            and launcher_state_shows_effective_overlay(
+                state=state,
+                config=self._config,
+            )
+        ):
+            item = self.find_by_desktop_id(desktop_id=state.desktop_id)
+            if item is None:
+                application = self._application_registry.get(state.desktop_id)
+                if application is not None:
+                    item = self._make_app_item(
+                        desktop_id=state.desktop_id,
+                        is_pinned=False,
+                        running_info=None,
+                    )
+                    self._transient.append(item)
+        if item is None:
+            return False
+
+        self._launcher_item_by_sender[sender_name] = item.desktop_id
+        self._apply_launcher_state(item=item, state=state)
+        if (
+            item in self._transient
+            and not item.is_running
+            and not launcher_state_shows_effective_overlay(
+                state=state,
+                config=self._config,
+            )
+        ):
+            self._drop_transient(item=item)
+        self.notify()
+        return True
+
+    def refresh_launcher_overlay_visibility(self) -> None:
+        """Reapply cached publisher state after an overlay preference changes.
+
+        LauncherEntry state is retained even while hidden so re-enabling a
+        preference restores an active overlay without waiting for another
+        D-Bus signal. Rebuilding launcher-only transients here also prevents
+        hidden badge/progress state from leaving unexplained icons in the dock.
+        """
+        existing_transient = {
+            item.desktop_id: item for item in self._transient if item.kind == APP_KIND
+        }
+        self._transient = [item for item in self._transient if item.is_running]
+
+        stable_items = self.pinned_items + self._recent_apps + self._transient
+        items_by_desktop_id = {
+            item.desktop_id: item for item in stable_items if item.kind == APP_KIND
+        }
+        for item in items_by_desktop_id.values():
+            self._clear_launcher_state(item)
+            self._recompute_urgent(item=item)
+
+        for sender_name, state in self._launcher_entries.items():
+            desktop_id = state.desktop_id or self._launcher_item_by_sender.get(
+                sender_name
+            )
+            item = items_by_desktop_id.get(desktop_id) if desktop_id else None
+            if (
+                item is None
+                and desktop_id
+                and launcher_state_shows_effective_overlay(
+                    state=state,
+                    config=self._config,
+                )
+            ):
+                item = existing_transient.get(desktop_id)
+                if item is None:
+                    application = self._application_registry.get(desktop_id)
+                    if application is not None:
+                        item = self._make_app_item(
+                            desktop_id=desktop_id,
+                            is_pinned=False,
+                            running_info=None,
+                        )
+                if item is not None:
+                    item.is_pinned = False
+                    item.is_running = False
+                    item.is_active = False
+                    item.instance_count = 0
+                    item.window_urgent = False
+                    self._transient.append(item)
+                    items_by_desktop_id[desktop_id] = item
+
+            if item is None:
+                if desktop_id is None:
+                    self._launcher_item_by_sender.pop(sender_name, None)
+                continue
+            self._launcher_item_by_sender[sender_name] = item.desktop_id
+            self._apply_launcher_state(item=item, state=state)
+
+        self.notify()
+
+    def remove_launcher_entry(self, *, sender_name: str) -> None:
+        """Clear LauncherEntry state for a vanished sender."""
+        state = self._launcher_entries.pop(sender_name, None)
+        desktop_id = self._launcher_item_by_sender.pop(sender_name, None)
+        if desktop_id is None and state is not None:
+            desktop_id = state.desktop_id
+        if not desktop_id:
+            return
+
+        item = self.find_by_desktop_id(desktop_id=desktop_id)
+        if item is None:
+            return
+
+        replacement = next(
+            (
+                other_state
+                for other_sender, other_state in self._launcher_entries.items()
+                if self._launcher_item_by_sender.get(other_sender) == desktop_id
+            ),
+            None,
+        )
+        if replacement is not None:
+            self._apply_launcher_state(item=item, state=replacement)
+        else:
+            self._clear_launcher_state(item)
+            self._recompute_urgent(item=item)
+            if item in self._transient and not item.is_running:
+                self._drop_transient(item=item)
+        self.notify()
+
+    def apply_status_notifier_overlay(
+        self,
+        *,
+        source_id: str,
+        desktop_id: str,
+        badge_count: int,
+    ) -> bool:
+        """Apply one tray-derived badge without overwriting Unity state."""
+        if not source_id or not desktop_id:
+            return False
+        previous_count = self._status_notifier_count(desktop_id=desktop_id)
+        previous = self._status_notifier_entries.get(source_id)
+        normalized = StatusNotifierOverlayState(
+            source_id=source_id,
+            desktop_id=desktop_id,
+            badge_count=max(0, int(badge_count)),
+        )
+        self._status_notifier_entries[source_id] = normalized
+
+        changed = False
+        if previous is not None and previous.desktop_id != desktop_id:
+            _found, old_changed = self._refresh_status_notifier_item(
+                desktop_id=previous.desktop_id,
+                pulse=False,
+            )
+            changed = changed or old_changed
+
+        current_count = self._status_notifier_count(desktop_id=desktop_id)
+        found, current_changed = self._refresh_status_notifier_item(
+            desktop_id=desktop_id,
+            pulse=current_count > previous_count,
+        )
+        changed = changed or current_changed
+        if changed:
+            self.notify()
+        return found
+
+    def remove_status_notifier_overlay(self, *, source_id: str) -> bool:
+        """Remove one vanished tray-derived overlay and recompute the item."""
+        previous = self._status_notifier_entries.pop(source_id, None)
+        if previous is None:
+            return False
+        found, changed = self._refresh_status_notifier_item(
+            desktop_id=previous.desktop_id,
+            pulse=False,
+        )
+        if changed:
+            self.notify()
+        return found
+
+    def _status_notifier_count(self, *, desktop_id: str) -> int:
+        return max(
+            (
+                state.badge_count
+                for state in self._status_notifier_entries.values()
+                if state.desktop_id == desktop_id
+            ),
+            default=0,
+        )
+
+    def _refresh_status_notifier_item(
+        self,
+        *,
+        desktop_id: str,
+        pulse: bool,
+    ) -> tuple[bool, bool]:
+        item = self.find_by_desktop_id(desktop_id=desktop_id)
+        if item is None:
+            return False, False
+        before = (
+            item.badge_count,
+            item.badge_visible,
+            item.status_notifier_badge_count,
+            item.status_notifier_badge_visible,
+            item.status_notifier_urgent,
+            item.is_urgent,
+            item.last_urgent,
+        )
+        count = self._status_notifier_count(desktop_id=desktop_id)
+        item.status_notifier_badge_count = count
+        item.status_notifier_badge_visible = count > 0
+        item.status_notifier_urgent = count > 0
+        self._recompute_badge(item=item)
+        was_urgent = item.is_urgent
+        self._recompute_urgent(item=item)
+        if pulse and was_urgent:
+            item.last_urgent = GLib.get_monotonic_time()
+        after = (
+            item.badge_count,
+            item.badge_visible,
+            item.status_notifier_badge_count,
+            item.status_notifier_badge_visible,
+            item.status_notifier_urgent,
+            item.is_urgent,
+            item.last_urgent,
+        )
+        return True, before != after
 
     def get_applet(self, desktop_id: str) -> Applet | None:
         """Look up active applet by desktop_id."""
         return self._applets.get(desktop_id)
+
+    def set_applet_services(self, services: AppletServices) -> None:
+        """Attach applet-facing backend services to current and future applets."""
+        self._applet_services = services
+        for applet in self._applets.values():
+            applet.set_services(services)
+
+    def _instantiate_applet(self, *, cls: type[Applet], icon_size: int) -> Applet:
+        """Construct an applet with every service required by its declared type."""
+        if isinstance(cls, type) and issubclass(cls, ApplicationServicesApplet):
+            applet = cls(
+                icon_size=icon_size,
+                config=self._config,
+                application_registry=self._application_registry,
+                application_launcher=self._application_launcher,
+            )
+        elif isinstance(cls, type) and issubclass(cls, TargetServicesApplet):
+            applet = cls(
+                icon_size=icon_size,
+                config=self._config,
+                icon_loader=self._icon_loader,
+                target_service=self._target_service,
+            )
+        else:
+            applet = cls(icon_size=icon_size, config=self._config)
+        applet.set_services(self._applet_services)
+        return applet
 
     def add_applet(self, applet_id: str) -> None:
         """Instantiate a applet and add to the dock."""
@@ -284,9 +935,9 @@ class DockModel:
                 f"No class registered for applet: {did}"
             )
             return
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         try:
-            applet = cls(icon_size=icon_size, config=self._config)
+            applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
         except Exception:
             log.bind(applet_id=str(did), action="add_applet").exception(
                 f"Failed to create applet {did}"
@@ -297,8 +948,15 @@ class DockModel:
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
         applet.item.insert_factor = 0.0
+        self._start_item_animation(applet.item)
         self.pinned_items.append(applet.item)
-        applet.start(notify=self.notify)
+        if not self._start_applet(desktop_id=desktop_id, applet=applet):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+            self._applets.pop(desktop_id, None)
+            if applet.item in self.pinned_items:
+                self.pinned_items.remove(applet.item)
+            self._animation_last_update_us.pop(id(applet.item), None)
+            return
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -315,9 +973,9 @@ class DockModel:
         n = max(nums, default=-1) + 1
         desktop_id = applet_desktop_id(applet_id=_separator_meta.id, instance=n)
 
-        icon_size = int(self._config.icon_size * self._config.zoom_percent)
+        icon_size = self._config.scaled_icon_size
         try:
-            applet = cls(icon_size=icon_size, config=self._config)
+            applet = self._instantiate_applet(cls=cls, icon_size=icon_size)
         except Exception:
             log.bind(applet_id="separator", action="add_separator").exception(
                 "Failed to create separator",
@@ -328,13 +986,20 @@ class DockModel:
         applet.item.target = desktop_id
         applet.item.prefs_key = desktop_id
         applet.item.insert_factor = 0.0
+        self._start_item_animation(applet.item)
         applet.apply_prefs()
         self._applets[desktop_id] = applet
         if index < 0 or index >= len(self.pinned_items):
             self.pinned_items.append(applet.item)
         else:
             self.pinned_items.insert(index, applet.item)
-        applet.start(notify=self.notify)
+        if not self._start_applet(desktop_id=desktop_id, applet=applet):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+            self._applets.pop(desktop_id, None)
+            if applet.item in self.pinned_items:
+                self.pinned_items.remove(applet.item)
+            self._animation_last_update_us.pop(id(applet.item), None)
+            return
         self.sync_pinned_to_config()
         self._config.save()
         self.notify()
@@ -343,9 +1008,10 @@ class DockModel:
         """Stop and remove a applet from the dock (animated)."""
         applet = self._applets.pop(desktop_id, None)
         if applet:
-            applet.stop()
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
             if applet.item in self.pinned_items:
                 applet.item.removal_index = self.visible_items().index(applet.item)
+                self._reverse_item_animation(applet.item, target=1.0)
                 self.pinned_items.remove(applet.item)
                 self._animating_out.append(applet.item)
             self.sync_pinned_to_config()
@@ -354,17 +1020,50 @@ class DockModel:
 
     def start_applets(self) -> None:
         """Start all active applets (call after dock is ready)."""
-        for applet in self._applets.values():
-            applet.start(notify=self.notify)
+        for desktop_id, applet in list(self._applets.items()):
+            self._start_applet(desktop_id=desktop_id, applet=applet)
 
     def stop_applets(self) -> None:
         """Stop all active applets (call on shutdown)."""
-        for applet in self._applets.values():
+        for desktop_id, applet in list(self._applets.items()):
+            self._stop_applet(desktop_id=desktop_id, applet=applet)
+
+    def _start_applet(self, *, desktop_id: str, applet: Applet) -> bool:
+        """Start one applet without letting it break the dock lifecycle."""
+        try:
+            applet.start(
+                notify=lambda: self._notify_applet_changed(desktop_id=desktop_id)
+            )
+        except Exception:
+            log.bind(applet_id=desktop_id, action="start_applet").exception(
+                "Failed to start applet",
+            )
+            return False
+        return True
+
+    def _stop_applet(self, *, desktop_id: str, applet: Applet) -> bool:
+        """Stop one applet without blocking removal or process shutdown."""
+        try:
             applet.stop()
+        except Exception:
+            log.bind(applet_id=desktop_id, action="stop_applet").exception(
+                "Failed to stop applet",
+            )
+            return False
+        return True
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display with optional independent anchoring rules."""
-        items = self.pinned_items + self._transient
+        """All items to display with optional independent anchoring rules.
+
+        Visual order: pinned_items + recent_apps + transient_items.
+        Recent apps that are currently running are suppressed (they appear
+        in either pinned or transient instead).
+        """
+        if not self._config.show_recent_apps:
+            recent: list[DockItem] = []
+        else:
+            recent = [item for item in self._recent_apps if not item.is_running]
+        items = self.pinned_items + recent + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
         if not anchor_applets and not anchor_files:
@@ -408,120 +1107,382 @@ class DockModel:
         return result
 
     def find_by_desktop_id(self, desktop_id: str) -> DockItem | None:
-        for item in self.pinned_items + self._transient:
+        for item in self.pinned_items + self._recent_apps + self._transient:
             if item.desktop_id == desktop_id:
                 return item
         return None
 
-    def find_by_wm_class(self, wm_class: str) -> DockItem | None:
-        wm_lower = wm_class.lower()
-        for item in self.pinned_items + self._transient:
-            if item.wm_class.lower() == wm_lower:
-                return item
-        return None
+    def set_custom_icon(self, item: DockItem, path: Path) -> bool:
+        """Persist a custom icon for a pinned normal item and refresh matches."""
+        if not self._can_edit_custom_icon(item=item):
+            return False
+        selected = path.expanduser()
+        if (
+            not selected.is_absolute()
+            or not selected.is_file()
+            or self._icon_loader.load_icon_file(
+                path=selected,
+                size=self._config.scaled_icon_size,
+            )
+            is None
+        ):
+            return False
+        icon_overrides.set_custom_icon(config=self._config, item=item, path=selected)
+        self._config.save()
+        self.refresh_item_icons(item=item)
+        return True
 
-    def update_running(self, running: dict[str, dict[str, Any]]) -> None:
+    def reset_custom_icon(self, item: DockItem) -> None:
+        """Remove a custom icon override for a pinned normal item."""
+        if not self._can_edit_custom_icon(item=item):
+            return
+        icon_overrides.reset_custom_icon(config=self._config, item=item)
+        self._config.save()
+        self.refresh_item_icons(item=item)
+
+    def refresh_item_icons(self, item: DockItem) -> None:
+        """Refresh icon fields for all model items sharing the same preference key."""
+        key = icon_overrides.item_icon_key(item=item)
+        candidates = [
+            candidate
+            for candidate in self.pinned_items + self._recent_apps + self._transient
+            if candidate.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
+            and icon_overrides.item_icon_key(item=candidate) == key
+        ]
+        refreshed = False
+        for candidate in candidates:
+            self._default_icon_for_item(item=candidate)
+            self._apply_icon_override(item=candidate)
+            refreshed = True
+        if refreshed:
+            self.notify()
+
+    @staticmethod
+    def _can_edit_custom_icon(item: DockItem) -> bool:
+        return item.is_pinned and item.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
+
+    def update_running(self, running: dict[str, RunningAppInfo]) -> None:
         """Update running state from WindowTracker data.
 
         Args:
-            running: {desktop_id: {"count": int, "active": bool}}
+            running: Desktop ID to latest running-app aggregate.
         """
-        # Reset running state (preserve is_urgent for transition detection)
+        self._recent_applications.reconcile_running(
+            running.keys(),
+            pinned_ids=self._pinned_ids(),
+        )
+
+        # Keep the old transient objects available while rebuilding the list.
+        # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
+        # animation fields already attached to the DockItem.
+        existing_transient = {item.desktop_id: item for item in self._transient}
+        self._reset_pinned_running_state()
+        matched_ids = self._apply_running_to_pinned(running=running)
+        new_transient = self._build_running_transients(
+            running=running,
+            matched_ids=matched_ids,
+            existing_transient=existing_transient,
+        )
+
+        items_by_desktop_id = {
+            item.desktop_id: item for item in self.pinned_items + new_transient
+        }
+        self._apply_launcher_entries(
+            items_by_desktop_id=items_by_desktop_id,
+            new_transient=new_transient,
+            existing_transient=existing_transient,
+        )
+
+        self._transient = new_transient
+        self._materialize_recent_apps()
+        self.notify()
+
+    def _reset_pinned_running_state(self) -> None:
+        """Clear live window state before applying the latest scan."""
         for item in self.pinned_items:
             if item.kind != APP_KIND:
                 continue
+            # Only reset live-window fields here. LauncherEntry badge/progress
+            # state is separate and must survive Wnck rescans.
             item.is_running = False
             item.is_active = False
             item.instance_count = 0
 
-        # Update pinned items that are running
-        matched_ids = set()
+    def _apply_running_to_pinned(
+        self, *, running: dict[str, RunningAppInfo]
+    ) -> set[str]:
+        """Apply scan results to pinned app items and return matched IDs."""
+        matched_ids: set[str] = set()
         for item in self.pinned_items:
             if item.kind != APP_KIND:
                 continue
-            if item.desktop_id not in running:
-                item.is_urgent = False
+            info = running.get(item.desktop_id)
+            if info is None:
+                # No Wnck windows matched this pinned app. Clear only window
+                # urgency, then recompute effective urgency so launcher-driven
+                # urgency can remain visible.
+                item.window_urgent = False
+                self._recompute_urgent(item=item)
                 continue
-            info = running[item.desktop_id]
-            item.is_running = True
-            item.is_active = info.get("active", False)
-            item.instance_count = info.get("count", 1)
-            # Set urgent timestamp only on false->true transition
-            urgent = info.get("urgent", False)
-            if urgent and not item.is_urgent:
-                item.last_urgent = GLib.get_monotonic_time()
-            item.is_urgent = urgent
+            self._apply_running_state(item=item, info=info)
             matched_ids.add(item.desktop_id)
+        return matched_ids
 
-        # Add transient items for running apps not in pinned
+    def _build_running_transients(
+        self,
+        *,
+        running: dict[str, RunningAppInfo],
+        matched_ids: set[str],
+        existing_transient: dict[str, DockItem],
+    ) -> list[DockItem]:
+        """Build transient items for running apps not already pinned."""
         new_transient: list[DockItem] = []
         for desktop_id, info in running.items():
-            if desktop_id not in matched_ids:
-                existing = next(
-                    (t for t in self._transient if t.desktop_id == desktop_id), None
+            if desktop_id in matched_ids:
+                continue
+            existing = existing_transient.get(desktop_id)
+            if existing:
+                # Existing transient wins over allocating a new DockItem. This
+                # keeps visual/launcher state stable while only live-window
+                # fields are refreshed from RunningAppInfo.
+                self._apply_running_state(item=existing, info=info)
+                new_transient.append(existing)
+                continue
+            new_transient.append(
+                self._make_app_item(
+                    desktop_id=desktop_id,
+                    is_pinned=False,
+                    running_info=info,
                 )
-                if existing:
-                    existing.is_running = True
-                    existing.is_active = info.get("active", False)
-                    existing.instance_count = info.get("count", 1)
-                    new_transient.append(existing)
-                else:
-                    resolved = self._launcher.resolve(desktop_id=desktop_id)
-                    icon_size = int(self._config.icon_size * self._config.zoom_percent)
-                    icon = self._launcher.load_icon(
-                        icon_name=(
-                            resolved.icon_name
-                            if resolved
-                            else "application-x-executable"
-                        ),
-                        size=icon_size,
-                    )
-                    new_transient.append(
-                        DockItem(
-                            desktop_id=desktop_id,
-                            kind=APP_KIND,
-                            target=desktop_id,
-                            name=resolved.name if resolved else desktop_id,
-                            icon_name=(
-                                resolved.icon_name
-                                if resolved
-                                else "application-x-executable"
-                            ),
-                            wm_class=resolved.wm_class if resolved else "",
-                            is_pinned=False,
-                            is_running=True,
-                            is_active=info.get("active", False),
-                            instance_count=info.get("count", 1),
-                            icon=icon,
-                        )
-                    )
+            )
+        return new_transient
 
-        self._transient = new_transient
-        self.notify()
+    def _apply_running_state(self, *, item: DockItem, info: RunningAppInfo) -> None:
+        """Apply one running aggregate to one dock item."""
+        runtime = info.runtime_app
+        if (
+            runtime is not None
+            and item.application_info != runtime
+            and (
+                item.application_info is None
+                or item.application_info.origin is not ApplicationOrigin.GENERATED
+            )
+        ):
+            self._apply_application_metadata(item, runtime)
+            item.runtime_executable = (
+                str(runtime.executable_path)
+                if runtime.executable_path is not None
+                else ""
+            )
+            item.icon = self._icon_loader.load_desktop_icon(
+                info=runtime,
+                size=self._config.scaled_icon_size,
+            )
+            self._apply_icon_override(item=item)
+        item.is_running = True
+        item.is_active = info.active
+        item.instance_count = info.count
+        item.window_urgent = info.urgent
+        self._recompute_urgent(item=item)
+
+    def _apply_launcher_entries(
+        self,
+        *,
+        items_by_desktop_id: dict[str, DockItem],
+        new_transient: list[DockItem],
+        existing_transient: dict[str, DockItem],
+    ) -> None:
+        """Reapply Unity LauncherEntry overlays after rebuilding running state."""
+        for sender_name, state in self._launcher_entries.items():
+            # LauncherEntry signals are sender-based. Prefer the current
+            # desktop_id from the signal, but fall back to the item previously
+            # associated with the same sender so overlays survive imperfect or
+            # delayed desktop ID updates.
+            item = self._visible_launcher_entry_item(
+                sender_name=sender_name,
+                state=state,
+                items_by_desktop_id=items_by_desktop_id,
+            )
+            if item is None:
+                # A launcher overlay can exist before any Wnck window appears.
+                # Keep or create a launcher-only transient so progress/badge or
+                # urgency remains visible during that gap.
+                item = self._launcher_only_transient(
+                    state=state,
+                    existing_transient=existing_transient,
+                    items_by_desktop_id=items_by_desktop_id,
+                )
+                if item is not None:
+                    new_transient.append(item)
+                    items_by_desktop_id[item.desktop_id] = item
+            if item is None:
+                self._launcher_item_by_sender.pop(sender_name, None)
+                continue
+            self._launcher_item_by_sender[sender_name] = item.desktop_id
+            self._apply_launcher_state(item=item, state=state)
+
+    def _visible_launcher_entry_item(
+        self,
+        *,
+        sender_name: str,
+        state: LauncherEntryState,
+        items_by_desktop_id: dict[str, DockItem],
+    ) -> DockItem | None:
+        """Find a current pinned/running item for a LauncherEntry sender."""
+        if state.desktop_id:
+            item = items_by_desktop_id.get(state.desktop_id)
+            if item is not None:
+                return item
+        previous_desktop_id = self._launcher_item_by_sender.get(sender_name)
+        if previous_desktop_id:
+            return items_by_desktop_id.get(previous_desktop_id)
+        return None
+
+    def _launcher_only_transient(
+        self,
+        *,
+        state: LauncherEntryState,
+        existing_transient: dict[str, DockItem],
+        items_by_desktop_id: dict[str, DockItem],
+    ) -> DockItem | None:
+        """Return or create a transient item that only has launcher overlay state."""
+        if not state.desktop_id or not launcher_state_shows_effective_overlay(
+            state=state,
+            config=self._config,
+        ):
+            return None
+        if state.desktop_id in items_by_desktop_id:
+            return items_by_desktop_id[state.desktop_id]
+        item = existing_transient.get(state.desktop_id)
+        if item is None:
+            # Only create launcher-only transients for desktop files we can
+            # resolve. Otherwise a stale LauncherEntry sender could create a
+            # generic, unlaunchable item that has no real app identity.
+            application = self._application_registry.get(state.desktop_id)
+            if application is None:
+                return None
+            item = self._make_app_item(
+                desktop_id=state.desktop_id,
+                is_pinned=False,
+                running_info=None,
+            )
+        # Launcher-only transients intentionally look non-running. Their visual
+        # presence is driven by badge/progress/urgent overlay state that gets
+        # applied by _apply_launcher_state immediately after this returns.
+        item.is_pinned = False
+        item.is_running = False
+        item.is_active = False
+        item.instance_count = 0
+        item.window_urgent = False
+        return item
 
     def pin_item(self, desktop_id: str) -> None:
-        """Pin a transient item to the dock."""
+        """Pin a transient or recent item to the dock."""
         item = next((t for t in self._transient if t.desktop_id == desktop_id), None)
+        if item is None:
+            item = next(
+                (r for r in self._recent_apps if r.desktop_id == desktop_id), None
+            )
         if item:
-            self._transient.remove(item)
-            item.is_pinned = True
-            self.pinned_items.append(item)
+            if not self._prepare_runtime_item_for_pinning(item):
+                return
+            self._promote_to_pinned(item)
             self._persist_pinned_changes()
+            self._materialize_recent_apps()
             self.notify()
 
-    def add_pinned_item(self, item: DockItem, index: int = -1) -> None:
-        """Insert a already-resolved pinned item at the given pinned index."""
+    def _promote_to_pinned(self, item: DockItem) -> None:
+        """Move an app item into pinned ownership without persisting order."""
+        if item in self._transient:
+            self._transient.remove(item)
+        self._recent_applications.discard(item.desktop_id)
+        item.is_recent = False
         item.is_pinned = True
-        item.insert_factor = 0.0
-        if index < 0 or index >= len(self.pinned_items):
+        if item not in self.pinned_items:
             self.pinned_items.append(item)
-        else:
-            self.pinned_items.insert(index, item)
+
+    def _prepare_runtime_item_for_pinning(self, item: DockItem) -> bool:
+        """Persist a safe launcher before a runtime-only item becomes pinned."""
+        if not item.runtime_executable:
+            return True
+        # Runtime IDs deliberately use generated_desktop_id_for_path(), so this
+        # promotion creates the matching desktop file without changing the
+        # item's identity (and therefore without losing its running windows).
+        generated = desktop_entries.create_desktop_entry_for_executable(
+            item.runtime_executable,
+            startup_wm_class=item.wm_class,
+        )
+        if generated is None or generated.desktop_id != item.desktop_id:
+            return False
+        self._application_registry.refresh()
+        application = self._application_registry.get(generated.desktop_id)
+        if application is None:
+            return False
+        item.target = generated.desktop_id
+        item.prefs_key = generated.desktop_id
+        self._apply_application_metadata(item, application)
+        item.runtime_executable = ""
+        item.icon = self._icon_loader.load_desktop_icon(
+            info=application,
+            size=self._config.scaled_icon_size,
+        )
+        return True
+
+    def pin_application(self, desktop_id: str) -> bool:
+        """Pin an installed application even when it has no visible dock item."""
+        existing = self.find_by_desktop_id(desktop_id=desktop_id)
+        if existing is not None:
+            if existing.is_pinned:
+                return False
+            self.pin_item(desktop_id)
+            return existing.is_pinned
+        if self._application_registry.get(desktop_id) is None:
+            return False
+        item = self._make_app_item(
+            desktop_id=desktop_id,
+            is_pinned=True,
+            running_info=None,
+        )
+        self._recent_applications.discard(desktop_id)
+        self.pinned_items.append(item)
         self._persist_pinned_changes()
+        self._materialize_recent_apps()
         self.notify()
+        return True
+
+    def insert_pinned_application(self, *, desktop_id: str, index: int) -> bool:
+        """Resolve and insert an application at an explicit pinned position."""
+        if self.find_by_desktop_id(desktop_id=desktop_id) is not None:
+            return False
+        if self._application_registry.get(desktop_id) is None:
+            return False
+        item = self._make_app_item(
+            desktop_id=desktop_id,
+            is_pinned=True,
+            running_info=None,
+        )
+        return self.insert_pinned_item(item=item, index=index)
+
+    def insert_pinned_item(self, item: DockItem, index: int) -> bool:
+        """Insert a resolved pinned item, applying final model-owned persistence."""
+        if item.kind not in {APP_KIND, FILE_KIND, FOLDER_KIND}:
+            return False
+        if self.find_by_desktop_id(item.desktop_id) is not None:
+            return False
+        self._recent_applications.discard(item.desktop_id)
+        item.is_recent = False
+        item.is_pinned = True
+        self._apply_icon_override(item=item)
+        insert_at = max(0, min(index, len(self.pinned_items)))
+        self.pinned_items.insert(insert_at, item)
+        self._persist_pinned_changes()
+        self._materialize_recent_apps()
+        self.notify()
+        return True
 
     def unpin_item(self, desktop_id: str) -> None:
-        """Unpin an item. If running, becomes transient; otherwise animated out.
+        """Unpin an item. If running, becomes transient. If recently used, becomes
+        a recent app. Otherwise animated out.
 
         Applets are fully removed (stop + cleanup) since they can't be transient.
         """
@@ -531,24 +1492,30 @@ class DockModel:
         item = next((p for p in self.pinned_items if p.desktop_id == desktop_id), None)
         if item:
             visible_index = self.visible_items().index(item)
-            self.pinned_items.remove(item)
-            item.is_pinned = False
-            if item.kind == APP_KIND and item.is_running:
-                item.removal_index = -1
-                self._transient.append(item)
-            else:
-                item.removal_index = visible_index
-                self._animating_out.append(item)
-            self._persist_pinned_changes()
-            self.notify()
-
-    def reorder(self, from_index: int, to_index: int) -> None:
-        """Move a pinned item from one position to another."""
-        items = self.pinned_items
-        if 0 <= from_index < len(items) and 0 <= to_index < len(items):
-            item = items.pop(from_index)
-            items.insert(to_index, item)
-            self._persist_pinned_changes()
+            self._recent_item_overrides[desktop_id] = item
+            try:
+                self.pinned_items.remove(item)
+                item.is_pinned = False
+                item.is_recent = False
+                if item.kind == APP_KIND and (
+                    item.is_running or self._is_launcher_only_transient(item)
+                ):
+                    item.removal_index = -1
+                    self._transient.append(item)
+                elif (
+                    item.kind == APP_KIND
+                    and self._config.show_recent_apps
+                    and self._recent_applications.record_unpinned(desktop_id)
+                ):
+                    pass
+                else:
+                    item.removal_index = visible_index
+                    self._reverse_item_animation(item, target=1.0)
+                    self._animating_out.append(item)
+                self._persist_pinned_changes()
+                self._materialize_recent_apps()
+            finally:
+                self._recent_item_overrides.pop(desktop_id, None)
             self.notify()
 
     def reorder_visible(self, from_index: int, to_index: int) -> None:
@@ -561,26 +1528,30 @@ class DockModel:
             return
 
         item = items[from_index]
+        target_item = items[to_index]
+        if any(
+            outgoing is item or outgoing is target_item
+            for outgoing in self._animating_out
+        ):
+            return
+        candidates = (item,) if target_item is item else (item, target_item)
+        for candidate in candidates:
+            if not candidate.is_pinned and not self._prepare_runtime_item_for_pinning(
+                candidate
+            ):
+                return
 
-        # Auto-pin transient items so they can be reordered among pinned items
+        # Auto-pin either endpoint through the same transition as explicit pinning.
         if not item.is_pinned:
-            if item in self._transient:
-                self._transient.remove(item)
-            item.is_pinned = True
-            self.pinned_items.append(item)
+            self._promote_to_pinned(item)
 
         # Map visible index -> pinned index for the source item
         pinned_from = self.pinned_items.index(item)
 
-        # Map visible target index -> pinned index (auto-pin target if transient)
-        target_item = items[to_index] if to_index < len(items) else None
-        if target_item and not target_item.is_pinned:
-            if target_item in self._transient:
-                self._transient.remove(target_item)
-            target_item.is_pinned = True
-            self.pinned_items.append(target_item)
+        if not target_item.is_pinned:
+            self._promote_to_pinned(target_item)
 
-        if target_item and target_item in self.pinned_items:
+        if target_item in self.pinned_items:
             pinned_to = self.pinned_items.index(target_item)
         else:
             pinned_to = len(self.pinned_items) - 1
@@ -590,6 +1561,7 @@ class DockModel:
             self.pinned_items.insert(pinned_to, item)
 
         self._persist_pinned_changes()
+        self._materialize_recent_apps()
         self.notify()
 
     def sync_pinned_to_config(self) -> None:
@@ -620,29 +1592,104 @@ class DockModel:
         safely while notifications are in flight.
         """
         for callback in list(self._change_listeners):
-            callback()
+            try:
+                callback()
+            except Exception:
+                log.bind(
+                    action="notify_listener",
+                    listener=repr(callback),
+                ).exception("Model change listener failed")
 
-    def tick_animations(self) -> bool:
-        """Advance insert/remove animations. Returns True if any are active."""
-        speed = 0.12
+    def _notify_applet_changed(self, *, desktop_id: str) -> None:
+        """Notify general redraw listeners and applet-specific consumers."""
+        self.notify()
+        for callback in list(self._applet_change_listeners):
+            try:
+                callback(desktop_id)
+            except Exception:
+                log.bind(
+                    action="notify_applet_listener",
+                    listener=repr(callback),
+                    applet_id=desktop_id,
+                ).exception("Applet change listener failed")
+
+    def _start_item_animation(
+        self,
+        item: DockItem,
+        *,
+        now_us: int | None = None,
+    ) -> None:
+        self._animation_last_update_us[id(item)] = (
+            GLib.get_monotonic_time() if now_us is None else now_us
+        )
+
+    def _advance_item_animation(
+        self,
+        item: DockItem,
+        *,
+        target: float,
+        now_us: int,
+    ) -> bool:
+        key = id(item)
+        last_update_us = self._animation_last_update_us.get(key)
+        if last_update_us is None:
+            self._animation_last_update_us[key] = now_us
+            return False
+
+        elapsed_us = max(0, now_us - last_update_us)
+        self._animation_last_update_us[key] = now_us
+        if elapsed_us == 0:
+            return False
+
+        previous = item.insert_factor
+        distance = elapsed_us / _ITEM_ANIMATION_DURATION_US
+        if target > previous:
+            item.insert_factor = min(target, previous + distance)
+        else:
+            item.insert_factor = max(target, previous - distance)
+        if item.insert_factor == target:
+            self._animation_last_update_us.pop(key, None)
+        return item.insert_factor != previous
+
+    def _reverse_item_animation(self, item: DockItem, *, target: float) -> None:
+        """Settle elapsed progress before changing an item's direction."""
+        now_us = GLib.get_monotonic_time()
+        self._advance_item_animation(item, target=target, now_us=now_us)
+        self._start_item_animation(item, now_us=now_us)
+
+    def tick_animations(self) -> AnimationTickResult:
+        """Advance item animations by elapsed time for the current UI frame."""
+        now_us = GLib.get_monotonic_time()
+        changed = False
         active = False
 
-        # Grow newly inserted items
         for item in self.pinned_items + self._transient:
-            if item.insert_factor < 1.0:
-                item.insert_factor = min(1.0, item.insert_factor + speed)
-                active = True
+            if item.insert_factor >= 1.0:
+                self._animation_last_update_us.pop(id(item), None)
+                continue
+            changed |= self._advance_item_animation(
+                item,
+                target=1.0,
+                now_us=now_us,
+            )
+            active |= item.insert_factor < 1.0
 
-        # Shrink items being removed
-        done = []
+        done: list[DockItem] = []
         for item in self._animating_out:
-            item.insert_factor = max(0.0, item.insert_factor - speed)
+            if item.insert_factor > 0.0:
+                changed |= self._advance_item_animation(
+                    item,
+                    target=0.0,
+                    now_us=now_us,
+                )
             if item.insert_factor <= 0.0:
                 done.append(item)
             else:
                 active = True
         for item in done:
             self._animating_out.remove(item)
+            self._animation_last_update_us.pop(id(item), None)
             item.removal_index = -1
+            changed = True
 
-        return active
+        return AnimationTickResult(changed=changed, active=active)

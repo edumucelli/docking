@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.ambient.applet as ambient_mod
 from docking.applets.ambient.applet import SOUNDS_DIR, AmbientApplet
 from docking.applets.ambient.state import (
@@ -11,7 +13,9 @@ from docking.applets.ambient.state import (
     DEFAULT_SOUND,
     DEFAULT_VOLUME,
     VOLUME_STEP,
+    coerce_volume,
 )
+from docking.core.config import Config
 
 
 class _FakeMenuItem:
@@ -41,7 +45,36 @@ class _FakeCheckMenuItem(_FakeMenuItem):
 def _make_applet() -> AmbientApplet:
     """Create applet with mocked GStreamer."""
     with patch("docking.applets.ambient.applet.Gst"):
-        return AmbientApplet(48)
+        return AmbientApplet(48, config=Config())
+
+
+class TestVolumeCoercion:
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            (0.25, 0.25),
+            ("0.5", 0.5),
+            (2, 1.0),
+            (-1, 0.0),
+            (None, DEFAULT_VOLUME),
+            ("loud", DEFAULT_VOLUME),
+            (float("nan"), DEFAULT_VOLUME),
+            (float("inf"), DEFAULT_VOLUME),
+            (True, DEFAULT_VOLUME),
+        ],
+    )
+    def test_coerce_volume(self, stored, expected):
+        assert coerce_volume(stored) == expected
+
+    @pytest.mark.parametrize("stored", [None, "loud", float("nan"), float("inf")])
+    def test_unusable_persisted_volume_does_not_remove_the_applet(self, stored):
+        """A raising constructor used to take the ambient tile off the dock."""
+        with patch("docking.applets.ambient.applet.Gst"):
+            applet = AmbientApplet(
+                48, config=Config(applet_prefs={"ambient": {"volume": stored}})
+            )
+
+        assert applet._state.volume == DEFAULT_VOLUME
 
 
 class TestAmbientApplet:

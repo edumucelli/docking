@@ -6,6 +6,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:
@@ -21,6 +23,7 @@ from docking.applets.quicknote.state import (
     prefs_from_note,
     tooltip_text,
 )
+from docking.core.config import Config
 
 
 class TestState:
@@ -94,13 +97,23 @@ class TestRender:
 
 
 class TestApplet:
+    @pytest.mark.parametrize("note", [None, 42, [], {}])
+    def test_malformed_saved_note_keeps_applet_usable(self, note):
+        applet = quicknote_applet_mod.QuickNoteApplet(
+            48, config=Config(applet_prefs={"quicknote": {"note": note}})
+        )
+
+        assert applet._note == ""
+        assert applet.item.name == "Empty note"
+        assert applet.item.icon is not None
+
     """GTK lifecycle tests."""
 
     def test_creates_with_empty_note(self):
         """Given no config, applet starts with empty note."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         assert applet._note == ""
         assert applet.item.name == "Empty note"
 
@@ -128,7 +141,7 @@ class TestApplet:
         """Given an applet, create_icon returns pixbuf."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         pixbuf = applet.create_icon(size=48)
         assert pixbuf is not None
 
@@ -136,14 +149,14 @@ class TestApplet:
         """Given an applet, menu has edit and clear items."""
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         items = applet.get_menu_items()
-        assert len(items) == 2
+        assert [item.get_label() for item in items] == ["Edit Note", "", "Clear Note"]
 
     def test_on_clicked_opens_edit_dialog(self, monkeypatch):
         from docking.applets.quicknote.applet import QuickNoteApplet
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         show = MagicMock()
         monkeypatch.setattr(applet, "_show_edit_dialog", show)
 
@@ -166,7 +179,7 @@ class TestApplet:
 
         monkeypatch.setattr(quicknote_applet_mod.Gtk, "MenuItem", _FakeMenuItem)
 
-        applet = QuickNoteApplet(48)
+        applet = QuickNoteApplet(48, config=Config())
         show = MagicMock()
         clear = MagicMock()
         monkeypatch.setattr(applet, "_show_edit_dialog", show)
@@ -174,7 +187,7 @@ class TestApplet:
 
         items = applet.get_menu_items()
         items[0].emit("activate")
-        items[1].emit("activate")
+        items[2].emit("activate")
 
         show.assert_called_once_with()
         clear.assert_called_once_with()
@@ -244,10 +257,19 @@ class TestApplet:
                 self.content = _FakeBox()
                 self.response_cb = None
 
+            def set_skip_taskbar_hint(self, _value):
+                return
+
+            def set_skip_pager_hint(self, _value):
+                return
+
             def set_default_size(self, *_args):
                 return
 
             def set_position(self, *_args):
+                return
+
+            def set_default_response(self, *_args):
                 return
 
             def add_button(self, *_args):
@@ -279,10 +301,17 @@ class TestApplet:
 
         applet._show_edit_dialog()
         text_view = created["text_view"]
+        text_view.get_buffer().set_text("cancelled")
+        dialog.response_cb(dialog, quicknote_applet_mod.Gtk.ResponseType.CANCEL)
+        assert applet._note == "old"
+        config.save.assert_not_called()
+
+        applet._show_edit_dialog()
+        text_view = created["text_view"]
         text_view.get_buffer().set_text("updated note")
         dialog.response_cb(dialog, quicknote_applet_mod.Gtk.ResponseType.OK)
 
         assert applet._note == "updated note"
         assert config.applet_prefs[applet.id]["note"] == "updated note"
         config.save.assert_called_once_with()
-        assert destroyed == [True]
+        assert destroyed == [True, True]

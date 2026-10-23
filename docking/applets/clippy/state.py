@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state helpers for Clippy applet."""
 
 from __future__ import annotations
@@ -5,6 +18,26 @@ from __future__ import annotations
 from docking.i18n import _
 
 MAX_DISPLAY_LEN = 50
+DEFAULT_MAX_ENTRIES = 15
+MIN_MAX_ENTRIES = 1
+MAX_MAX_ENTRIES = 500
+
+
+def normalize_max_entries(value: object) -> int:
+    """Coerce the persisted history cap, falling back to the default.
+
+    A raw negative cap raised IndexError on every clipboard change, so history
+    stopped recording for good. Zero disables history.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_MAX_ENTRIES
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return DEFAULT_MAX_ENTRIES
+    if parsed == 0:
+        return 0
+    return max(MIN_MAX_ENTRIES, min(MAX_MAX_ENTRIES, parsed))
 
 
 def _truncate(text: str, max_len: int = MAX_DISPLAY_LEN) -> str:
@@ -28,7 +61,8 @@ def add_clip(clips: list[str], text: str, max_entries: int) -> tuple[list[str], 
     if text in next_clips:
         next_clips.remove(text)
     next_clips.append(text)
-    while len(next_clips) > max_entries:
+    # `next_clips and` stops a nonsensical cap raising on an empty list.
+    while next_clips and len(next_clips) > max_entries:
         next_clips.pop(0)
     return next_clips, len(next_clips)
 

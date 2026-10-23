@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docking"
-version = "1.2.4"
+version = "2.26.0"
 description = "A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
@@ -15,10 +15,26 @@ dependencies = [
 ]
 
 [project.scripts]
-docking = "docking.app:main"
+docking = "docking.launcher:main"
+docking-camshield-helper = "docking.applets.camshield.helper:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.15", "ty>=0.0.19"]
+wayland = [
+    "pywayland>=0.4.18",
+]
+dev = [
+    "behave>=1.2.6",
+    "Pillow>=11.0",
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff==0.16.9",
+    "scikit-image>=0.25",
+    "ty==0.0.84",
+    "vulture>=2.16",
+]
+
+[tool.uv]
+config-settings-package = { pygobject-stubs = { config = "Gtk3,Gdk3" } }
 
 [tool.setuptools.packages.find]
 include = ["docking*"]
@@ -32,11 +48,13 @@ docking = [
     "assets/icons/*.png",
     "assets/icons/applets/*.png",
     "assets/themes/*.json",
-    "assets/weather/*.csv.gz",
+    "assets/*.csv.gz",
     "assets/sounds/*.ogg",
     "assets/sounds/*.md",
     "assets/history/*.json",
     "assets/stretch/*.json",
+    "platform/backends/wayland/protocols/*.xml",
+    "platform/backends/kwin/*.js",
     "locale/*.pot",
     "locale/*/LC_MESSAGES/*.mo",
     "locale/*/LC_MESSAGES/*.po",
@@ -44,11 +62,23 @@ docking = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = '-m "not visual"'
+markers = [
+    "visual: screenshot-based visual regression tests",
+]
 
 
 [tool.coverage.run]
 omit = [
-    "docking/platform/*",
+    "docking/platform/__init__.py",
+    "docking/platform/diagnostics.py",
+    "docking/platform/gamescope.py",
+    "docking/platform/icon_overrides.py",
+    "docking/platform/model.py",
+    "docking/platform/unity.py",
+    "docking/platform/backends/**",
+    "docking/platform/environment/**",
+    "docking/platform/status_notifier/**",
     "docking/ui/preview.py",
     "docking/ui/renderer.py",
 ]
@@ -64,8 +94,6 @@ ignore = [
     "RUF001", # allow existing non-ASCII UI/test glyphs
     "RUF002", # avoid broad docstring punctuation churn
     "RUF003", # avoid broad comment punctuation churn
-    "RUF046", # low-signal micro-cleanup for now
-    "RUF059", # test-heavy unused-unpack noise
 ]  
 
 [tool.ruff.lint.per-file-ignores]
@@ -75,9 +103,31 @@ ignore = [
 [tool.ty.environment]
 python-version = "3.10"
 
+[tool.ty.src]
+# Generated pywayland bindings: the request/event decorators build their
+# proxies dynamically, so every method returns Unknown by construction.
+exclude = ["docking/platform/backends/wayland/protocols/"]
+
 [tool.ty.rules]
 unresolved-import = "ignore"  # gi/cairo lack type stubs
 unresolved-attribute = "ignore"  # gi.repository dynamic attrs
 # openmeteo-requests has incomplete type stubs
 invalid-argument-type = "warn"
 no-matching-overload = "warn"
+# Rules ty leaves off by default, turned on so the imprecision they describe
+# cannot creep back in. Keep the list to rules this codebase has cleared.
+missing-type-argument = "error"
+unsound-return-statement = "error"
+unsound-assignment = "error"
+dynamic-function-decorator-return = "error"
+possibly-missing-attribute = "error"
+possibly-missing-import = "error"
+possibly-unresolved-reference = "error"
+blanket-ignore-comment = "error"
+unused-ignore-comment = "error"
+redundant-cast = "error"
+
+[tool.vulture]
+paths = ["docking", "tests"]
+min_confidence = 100
+sort_by_size = true

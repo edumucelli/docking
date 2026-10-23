@@ -1,7 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for weather applet."""
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -13,6 +27,15 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.cities import search_cities
+from docking.applets.freshness import cadence_label, updated_label
+from docking.applets.live_state import (
+    live_state_error,
+    live_state_label,
+    resolve_live_status,
+)
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.popup import prepare_dialog_content
 from docking.applets.weather import meta
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
@@ -22,16 +45,19 @@ from docking.applets.weather.api import (
     fetch_weather,
     wmo_icon_name,
 )
-from docking.applets.weather.cities import search_cities
 from docking.applets.weather.render import create_icon
 from docking.applets.weather.state import (
     CityPref,
+    TemperatureUnit,
     build_tooltip,
     cached_cities,
     cycle_active_index,
+    format_temperature,
+    format_temperature_range,
     menu_header_label,
     prefs_from_mapping,
     prefs_payload,
+    temperature_unit_label,
 )
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -45,7 +71,6 @@ log = with_context(get_logger(name="weather"), applet_id=meta.id)
 CITY_DIALOG_WIDTH_PX = 350
 DIALOG_CONTENT_SPACING_PX = 8
 DIALOG_HORIZONTAL_MARGIN_PX = 12
-DIALOG_VERTICAL_MARGIN_PX = 8
 CITY_SEARCH_MIN_CHARS = 2
 CITY_SEARCH_RESULT_LIMIT = 10
 STARTUP_FETCH_DELAY_S = 1
@@ -58,20 +83,25 @@ class WeatherApplet(Applet):
     name = _("Weather")
     icon_name = "weather-few-clouds"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
         self._startup_fetch_timer_id: int = 0
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
+        self._last_updated: dt.datetime | None = None
+        self._loading = False
+        self._stopped = False
+        self._fetch_pending = False
+        self._fetch_failed = False
+        self._fetch_error = ""
         self._worker = BackgroundWorker(logger=log)
 
-        prefs = prefs_from_mapping(
-            config.applet_prefs.get("weather", {}) if config else None
-        )
+        prefs = prefs_from_mapping(config.applet_prefs.get("weather", {}))
         self._cities: list[CityPref] = list(prefs.cities)
         self._active_index: int = prefs.active_index
         self._show_temperature = prefs.show_temperature
+        self._temperature_unit = prefs.temperature_unit
 
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -87,6 +117,7 @@ class WeatherApplet(Applet):
             size=size,
             weather=self._weather,
             show_temperature=self._show_temperature,
+            temperature_unit=self._temperature_unit,
         )
 
     def refresh_tooltip(self) -> None:
@@ -94,7 +125,7 @@ class WeatherApplet(Applet):
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def on_clicked(self) -> None:
-        return
+        self._show_city_dialog()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Cycle through cities on scroll."""
@@ -107,43 +138,97 @@ class WeatherApplet(Applet):
         )
         self._weather = None
         self._air_quality = None
+        self._last_updated = None
+        self._loading = False
+        self._fetch_pending = False
+        self._fetch_failed = False
+        self._fetch_error = ""
         self._save_prefs()
         self._fetch_async()
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        items: list[Gtk.MenuItem] = []
+        status: list[Gtk.MenuItem] = []
         active = self._active_city
 
         if active:
-            header = Gtk.MenuItem(
-                label=menu_header_label(
-                    city_display=active.city_display,
-                    weather=self._weather,
+            status.append(
+                disabled_menu_item(
+                    menu_header_label(
+                        city_display=active.city_display,
+                        weather=self._weather,
+                        temperature_unit=self._temperature_unit,
+                    ),
+                    gtk=Gtk,
                 )
             )
-            header.set_sensitive(False)
-            items.append(header)
+            status.append(
+                disabled_menu_item(
+                    cadence_label(seconds=REFRESH_INTERVAL),
+                    gtk=Gtk,
+                )
+            )
+            state_status = self._live_status()
+            state_label = live_state_label(state_status)
+            if state_label:
+                status.append(disabled_menu_item(state_label, gtk=Gtk))
+            error = live_state_error(
+                status=state_status,
+                error=self._fetch_error,
+            )
+            if error:
+                status.append(
+                    disabled_menu_item(
+                        _("Error: {msg}").format(msg=error),
+                        gtk=Gtk,
+                    )
+                )
+
+        refresh: list[Gtk.MenuItem] = []
+        if active:
+            refresh_item = Gtk.MenuItem(label=_("Refresh Now"))
+            refresh_item.connect("activate", lambda _w: self._fetch_async())
+            refresh.append(refresh_item)
 
         show_temp = Gtk.CheckMenuItem(label=_("Show Temperature"))
         show_temp.set_active(self._show_temperature)
         show_temp.connect("toggled", self._on_toggle_temperature)
-        items.append(show_temp)
 
-        add_city = Gtk.MenuItem(label=_("Add City..."))
-        add_city.connect("activate", lambda _: self._show_city_dialog())
-        items.append(add_city)
+        display = [
+            show_temp,
+            radio_submenu(
+                label=_("Temperature Unit"),
+                choices=tuple(
+                    (temperature_unit_label(unit), unit)
+                    for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
+                ),
+                active_value=self._temperature_unit,
+                on_selected=lambda widget, value: self._on_temperature_unit_selected(
+                    widget=widget,
+                    temperature_unit=value,
+                ),
+                gtk=Gtk,
+            ),
+        ]
 
+        destructive: list[Gtk.MenuItem] = []
         if active and len(self._cities) > 1:
             remove = Gtk.MenuItem(
                 label=_("Remove {city}").format(city=active.city_display)
             )
             remove.connect("activate", lambda _: self._remove_active_city())
-            items.append(remove)
+            destructive.append(remove)
 
-        return items
+        return menu_sections(
+            status=status,
+            refresh=refresh,
+            display=display,
+            destructive=destructive,
+            gtk=Gtk,
+        )
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
@@ -153,6 +238,10 @@ class WeatherApplet(Applet):
             )
 
     def stop(self) -> None:
+        self._stopped = True
+        self._fetch_pending = False
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -166,20 +255,34 @@ class WeatherApplet(Applet):
         self._save_prefs()
         self.present()
 
+    def _on_temperature_unit_selected(
+        self,
+        *,
+        widget: Gtk.RadioMenuItem,
+        temperature_unit: TemperatureUnit,
+    ) -> None:
+        if not widget.get_active():
+            return
+        if temperature_unit == self._temperature_unit:
+            return
+        self._temperature_unit = temperature_unit
+        self._save_prefs()
+        self.present()
+
     def _show_city_dialog(self) -> None:
         dialog = Gtk.Dialog(
             title=_("Search for the city"),
-            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            modal=True,
+            destroy_with_parent=True,
         )
-        dialog.set_default_size(CITY_DIALOG_WIDTH_PX, -1)
-        dialog.set_position(Gtk.WindowPosition.MOUSE)
-
-        box = dialog.get_content_area()
-        box.set_spacing(DIALOG_CONTENT_SPACING_PX)
-        box.set_margin_start(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_end(DIALOG_HORIZONTAL_MARGIN_PX)
-        box.set_margin_top(DIALOG_VERTICAL_MARGIN_PX)
-        box.set_margin_bottom(DIALOG_VERTICAL_MARGIN_PX)
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.connect("response", lambda dlg, _response: dlg.destroy())
+        box = prepare_dialog_content(
+            dialog=dialog,
+            width=CITY_DIALOG_WIDTH_PX,
+            spacing=DIALOG_CONTENT_SPACING_PX,
+            margin=DIALOG_HORIZONTAL_MARGIN_PX,
+        )
 
         entry = Gtk.Entry()
         entry.set_placeholder_text(_("Type city name..."))
@@ -212,7 +315,12 @@ class WeatherApplet(Applet):
             lat = model.get_value(tree_iter, 1)
             lng = model.get_value(tree_iter, 2)
             self._add_city(display=display, lat=lat, lng=lng)
-            dialog.destroy()
+
+            def destroy_dialog() -> bool:
+                dialog.destroy()
+                return False
+
+            GLib.idle_add(destroy_dialog)
             return True
 
         entry.connect("changed", on_changed)
@@ -239,6 +347,11 @@ class WeatherApplet(Applet):
                 self._active_index = i
                 self._weather = None
                 self._air_quality = None
+                self._last_updated = None
+                self._loading = False
+                self._fetch_pending = False
+                self._fetch_failed = False
+                self._fetch_error = ""
                 self._save_prefs()
                 self._fetch_async()
                 self.present()
@@ -247,6 +360,11 @@ class WeatherApplet(Applet):
         self._active_index = len(self._cities) - 1
         self._weather = None
         self._air_quality = None
+        self._last_updated = None
+        self._loading = False
+        self._fetch_pending = False
+        self._fetch_failed = False
+        self._fetch_error = ""
         self._save_prefs()
         self._fetch_async()
         self.present()
@@ -258,6 +376,11 @@ class WeatherApplet(Applet):
         self._active_index = min(self._active_index, len(self._cities) - 1)
         self._weather = None
         self._air_quality = None
+        self._last_updated = None
+        self._loading = False
+        self._fetch_pending = False
+        self._fetch_failed = False
+        self._fetch_error = ""
         self._save_prefs()
         self._fetch_async()
         self.present()
@@ -268,29 +391,41 @@ class WeatherApplet(Applet):
                 cities=tuple(self._cities),
                 active_index=self._active_index,
                 show_temperature=self._show_temperature,
+                temperature_unit=self._temperature_unit,
             )
         )
 
     def _fetch_async(self) -> None:
         """Fetch weather + air quality in a background thread."""
         active = self._active_city
-        if not active:
+        if self._stopped or not active:
             return
         if self._startup_fetch_timer_id:
             GLib.source_remove(self._startup_fetch_timer_id)
             self._startup_fetch_timer_id = 0
+        if self._loading:
+            self._fetch_pending = True
+            return
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         lat = active.lat
         lng = active.lng
+        self._loading = True
+        self._fetch_pending = False
+        self._fetch_failed = False
+        self._fetch_error = ""
+        self.present()
 
         def fetch() -> tuple[WeatherData | None, AirQualityData | None]:
             weather = fetch_weather(lat=lat, lng=lng)
+            if weather is None:
+                return None, None
             aqi = fetch_air_quality(lat=lat, lng=lng)
             return weather, aqi
 
-        self._worker.run(
+        started = self._worker.run_guarded(
+            key="weather-fetch",
             name="weather-fetch",
             fn=fetch,
             on_result=lambda result: self._on_fetch_result(
@@ -298,7 +433,10 @@ class WeatherApplet(Applet):
                 weather=result[0],
                 aqi=result[1],
             ),
+            on_error=lambda exc: self._on_fetch_error(request_id=request_id, exc=exc),
         )
+        if not started:
+            self._fetch_pending = True
 
     def _on_fetch_result(
         self,
@@ -306,12 +444,52 @@ class WeatherApplet(Applet):
         weather: WeatherData | None,
         aqi: AirQualityData | None,
     ) -> bool:
-        if request_id != self._fetch_request_id:
+        if self._stopped:
             return False
-        self._weather = weather
-        self._air_quality = aqi
-        self.present()
+        if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
+            return False
+        self._loading = False
+        self._fetch_failed = weather is None
+        if weather is not None:
+            self._weather = weather
+            self._air_quality = aqi
+            self._fetch_error = ""
+            self._last_updated = dt.datetime.now(dt.timezone.utc)
+        else:
+            self._fetch_error = _("No weather data")
+        self._present_or_run_pending_fetch()
         return False
+
+    def _on_fetch_error(self, *, request_id: int, exc: Exception) -> bool:
+        if self._stopped:
+            return False
+        if request_id != self._fetch_request_id:
+            self._settle_replaced_fetch()
+            return False
+        log.bind(action="fetch_error").debug("Weather fetch failed: %s", exc)
+        self._loading = False
+        self._fetch_failed = True
+        self._fetch_error = str(exc) or exc.__class__.__name__
+        self._present_or_run_pending_fetch()
+        return False
+
+    def _settle_replaced_fetch(self) -> None:
+        """Finish the bookkeeping for a reply the user already replaced.
+
+        The queued replacement fetch never starts on its own, so the discarded
+        reply is the only thing that would clear ``_loading``; leaving it set
+        wedged the applet on "Loading..." with stale data forever.
+        """
+        self._loading = False
+        self._present_or_run_pending_fetch()
+
+    def _present_or_run_pending_fetch(self) -> None:
+        if self._fetch_pending and self._active_city:
+            self._fetch_pending = False
+            self._fetch_async()
+            return
+        self.present()
 
     def _build_tooltip(self) -> str:
         active = self._active_city
@@ -319,6 +497,21 @@ class WeatherApplet(Applet):
             city_display=active.city_display if active else "",
             weather=self._weather,
             air_quality=self._air_quality,
+            loading=self._loading,
+            fetch_failed=self._fetch_failed,
+            error=self._fetch_error,
+            temperature_unit=self._temperature_unit,
+            updated_at=self._last_updated,
+            cadence_seconds=REFRESH_INTERVAL,
+        )
+
+    def _live_status(self):
+        return resolve_live_status(
+            has_data=self._weather is not None,
+            loading=self._loading,
+            error=self._fetch_error if self._fetch_failed else None,
+            updated_at=self._last_updated,
+            stale_after_seconds=REFRESH_INTERVAL * 2,
         )
 
     def _build_tooltip_widget(self) -> Gtk.Box:
@@ -340,8 +533,12 @@ class WeatherApplet(Applet):
         box.pack_start(city, False, False, 0)
 
         current = Gtk.Label(
-            label=_("{temp}°C, {desc}").format(
-                temp=f"{weather.temperature:.0f}", desc=weather.description
+            label=_("{temp}, {desc}").format(
+                temp=format_temperature(
+                    weather.temperature,
+                    temperature_unit=self._temperature_unit,
+                ),
+                desc=weather.description,
             )
         )
         current.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))
@@ -353,6 +550,14 @@ class WeatherApplet(Applet):
             )
             aqi_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
             box.pack_start(aqi_lbl, False, False, 0)
+            if self._air_quality.uv_index is not None:
+                uv_lbl = Gtk.Label(
+                    label=_("UV Index: {value}").format(
+                        value=f"{self._air_quality.uv_index:.1f}"
+                    )
+                )
+                uv_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
+                box.pack_start(uv_lbl, False, False, 0)
 
         for day in weather.daily:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
@@ -361,15 +566,40 @@ class WeatherApplet(Applet):
                 Gtk.IconSize.LARGE_TOOLBAR,
             )
             label = Gtk.Label(
-                label=_("{date}: {min_temp}/{max_temp}°C").format(
+                label=_("{date}: {temp_range}").format(
                     date=day.date,
-                    min_temp=f"{day.temp_min:.0f}",
-                    max_temp=f"{day.temp_max:.0f}",
+                    temp_range=format_temperature_range(
+                        low_celsius=day.temp_min,
+                        high_celsius=day.temp_max,
+                        temperature_unit=self._temperature_unit,
+                    ),
                 )
             )
             label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
             row.pack_start(icon, False, False, 0)
             row.pack_start(label, False, False, 0)
             box.pack_start(row, False, False, 0)
+
+        state_status = self._live_status()
+        state_label = live_state_label(state_status)
+        error = live_state_error(status=state_status, error=self._fetch_error)
+        for text in (
+            state_label,
+            _("Error: {msg}").format(msg=error) if error else "",
+        ):
+            if not text:
+                continue
+            label = Gtk.Label(label=text)
+            label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.72))
+            box.pack_start(label, False, False, 0)
+
+        details = [
+            updated_label(self._last_updated),
+            cadence_label(seconds=REFRESH_INTERVAL),
+        ]
+        for text in (line for line in details if line):
+            label = Gtk.Label(label=text)
+            label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.62))
+            box.pack_start(label, False, False, 0)
 
         return box

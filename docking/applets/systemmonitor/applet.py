@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """GTK lifecycle glue for System Monitor applet."""
 
 from __future__ import annotations
@@ -9,21 +22,29 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, GLib
+gi.require_version("Gtk", "3.0")
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
+from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.systemmonitor import meta
+from docking.applets.systemmonitor.gpu import GpuReader, GpuStats
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
     CPU_THRESHOLD,
     MEM_THRESHOLD,
     CpuSample,
     cpu_percent,
+    disk_usage,
     parse_proc_meminfo,
     parse_proc_stat,
+    prefs_from_mapping,
+    prefs_payload,
     tooltip_text,
 )
 from docking.applets.systemmonitor.temperature import TemperatureReader
+from docking.applets.temperature import TemperatureUnit, temperature_unit_label
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -45,15 +66,23 @@ class SystemMonitorApplet(Applet):
     name = _("System Monitor")
     icon_name = "utilities-system-monitor"
 
-    def __init__(self, icon_size: int, config: Config | None = None) -> None:
+    def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
+        self._sampling_active = False
+        self._sample_generation = 0
+        self._worker = BackgroundWorker(logger=log)
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
         self._mem: float = 0.0
         self._temperature_c: float | None = None
         self._temperature_reader = TemperatureReader()
+        self._gpu: GpuStats | None = None
+        self._gpu_reader = GpuReader()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
+        prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
+        self._show_disk = prefs.show_disk
+        self._temperature_unit = prefs.temperature_unit
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -66,15 +95,71 @@ class SystemMonitorApplet(Applet):
             cpu=self._cpu,
             mem=self._mem,
             temperature_c=self._temperature_c,
+            disks=disk_usage() if self._show_disk else None,
+            gpu=self._gpu,
+            temperature_unit=self._temperature_unit,
+        )
+
+    def get_menu_items(self) -> list[Gtk.MenuItem]:
+        show_disk = Gtk.CheckMenuItem(label=_("Show Disk Usage"))
+        show_disk.set_active(self._show_disk)
+        show_disk.connect("toggled", self._on_toggle_disk)
+
+        temperature_unit = radio_submenu(
+            label=_("Temperature Unit"),
+            choices=tuple(
+                (temperature_unit_label(unit), unit)
+                for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
+            ),
+            active_value=self._temperature_unit,
+            on_selected=lambda widget, value: self._on_temperature_unit_selected(
+                widget=widget,
+                temperature_unit=value,
+            ),
+            gtk=Gtk,
+        )
+        return menu_sections(display=[show_disk, temperature_unit], gtk=Gtk)
+
+    def _on_toggle_disk(self, widget: Gtk.CheckMenuItem) -> None:
+        self._show_disk = widget.get_active()
+        self._save_prefs()
+        self._refresh_tooltip_only()
+
+    def _on_temperature_unit_selected(
+        self,
+        *,
+        widget: Gtk.RadioMenuItem,
+        temperature_unit: TemperatureUnit,
+    ) -> None:
+        if not widget.get_active():
+            return
+        if temperature_unit == self._temperature_unit:
+            return
+        self._temperature_unit = temperature_unit
+        self._save_prefs()
+        self._refresh_tooltip_only()
+
+    def _save_prefs(self) -> None:
+        self.save_prefs(
+            prefs=prefs_payload(
+                show_disk=self._show_disk,
+                temperature_unit=self._temperature_unit,
+            )
         )
 
     def start(self, notify: Callable[[], None]) -> None:
         """Start 1-second polling timer for /proc/stat and /proc/meminfo."""
         super().start(notify=notify)
+        if self._sampling_active:
+            return
+        self._sampling_active = True
+        self._sample_generation += 1
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
         """Stop the polling timer."""
+        self._sampling_active = False
+        self._sample_generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -92,7 +177,9 @@ class SystemMonitorApplet(Applet):
         return round(value, 1)
 
     def _tick(self) -> bool:
-        """Read CPU, memory, and temperature and refresh the applet state."""
+        """Read cheap CPU/memory counters; sample blocking sensors off GTK."""
+        if not self._sampling_active:
+            return False
         try:
             with _PROC_STAT.open() as f:
                 curr = parse_proc_stat(text=f.read())
@@ -118,8 +205,7 @@ class SystemMonitorApplet(Applet):
                 exc,
             )
 
-        previous_temperature = self._temperature_c
-        self._temperature_c = self._temperature_reader.read()
+        self._sample_sensors()
 
         cpu_delta = abs(self._cpu - self._last_drawn_cpu)
         mem_delta = abs(self._mem - self._last_drawn_mem)
@@ -127,10 +213,35 @@ class SystemMonitorApplet(Applet):
             self._last_drawn_cpu = self._cpu
             self._last_drawn_mem = self._mem
             self.present()
-        else:
-            previous_display = self._display_temperature(previous_temperature)
-            current_display = self._display_temperature(self._temperature_c)
-            if previous_display != current_display:
-                self._refresh_tooltip_only()
-
         return True
+
+    def _sample_sensors(self) -> None:
+        # Keep the guard across stop/restart: stateful readers must never race.
+        generation = self._sample_generation
+        self._worker.run_guarded(
+            key="sensors",
+            name="sample_sensors",
+            fn=self._read_sensors,
+            on_result=lambda sample: self._on_sensor_result(sample, generation),
+        )
+
+    def _read_sensors(self) -> tuple[float | None, GpuStats | None]:
+        return self._temperature_reader.read(), self._gpu_reader.read()
+
+    def _on_sensor_result(
+        self,
+        sample: tuple[float | None, GpuStats | None],
+        generation: int,
+    ) -> None:
+        """Publish on GTK only if this polling lifecycle is still active."""
+        if not self._sampling_active or generation != self._sample_generation:
+            return
+        temperature, gpu = sample
+        previous_display = self._display_temperature(self._temperature_c)
+        previous_gpu = self._gpu
+        self._temperature_c, self._gpu = temperature, gpu
+        if (
+            previous_display != self._display_temperature(temperature)
+            or previous_gpu != gpu
+        ):
+            self._refresh_tooltip_only()

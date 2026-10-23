@@ -22,6 +22,7 @@ from docking.applets.powerprofiles.state import (
     tooltip_text,
     unavailable_state,
 )
+from docking.core.config import Config
 
 
 def _state(**overrides: object) -> PowerProfilesState:
@@ -481,7 +482,7 @@ def _make_applet(
 ) -> tuple[PowerProfilesApplet, _StubBackend]:
     backend = _StubBackend(state=state)
     monkeypatch.setattr(powerprofiles_applet_mod, "detect_backend", lambda: backend)
-    applet = PowerProfilesApplet(48)
+    applet = PowerProfilesApplet(48, config=Config())
     return applet, backend
 
 
@@ -646,7 +647,7 @@ class TestPowerProfilesApplet:
         assert backend.set_calls == ["power-saver"]
 
     def test_set_profile_async_worker_and_success_result(self, monkeypatch):
-        applet, backend = _make_applet(monkeypatch, _state())
+        applet, _backend = _make_applet(monkeypatch, _state())
         applet._set_in_progress = False
         run_calls: list[dict[str, object]] = []
 

@@ -1,7 +1,20 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Cairo icon rendering for Moon applet.
 
 Draws a moon disc with illumination. The lit portion is rendered as a
-clipped fill — no external image assets needed. The original Cairo-Dock
+clipped fill - no external image assets needed. The original Cairo-Dock
 Moon applet used pre-rendered GIF images (moon00a.gif through moon10b.gif)
 from the briancasey.org website. This version renders the moon purely in
 Cairo, giving smooth scaling at any icon size.
@@ -51,7 +64,7 @@ def create_icon(
     cr.set_source_rgb(*_DARK)
     cr.fill()
 
-    # Lit portion — use a terminator curve (ellipse clip)
+    # Lit portion - use a terminator curve (ellipse clip)
     # The terminator is the boundary between lit and dark.
     # At illumination 0.5 the terminator is a straight vertical line.
     # At 1.0 or 0.0 the terminator matches the disc edge.

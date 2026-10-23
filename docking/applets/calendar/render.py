@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure Cairo rendering for Calendar applet icon."""
 
 from __future__ import annotations
@@ -54,7 +67,7 @@ def _render_calendar_icon(
     weekday_font_size = max(1, int(header_h * 0.55))
     layout = PangoCairo.create_layout(cr)
     layout.set_font_description(
-        Pango.FontDescription(f"Sans Bold {weekday_font_size}px")
+        Pango.FontDescription.from_string(f"Sans Bold {weekday_font_size}px")
     )
     layout.set_text(weekday.upper(), -1)
     _, logical = layout.get_pixel_extents()
@@ -68,7 +81,9 @@ def _render_calendar_icon(
     day_area_h = body_h - header_h
     day_font_size = max(1, int(day_area_h * 0.65))
     layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(f"Sans Bold {day_font_size}px"))
+    layout.set_font_description(
+        Pango.FontDescription.from_string(f"Sans Bold {day_font_size}px")
+    )
     layout.set_text(str(day), -1)
     _, logical = layout.get_pixel_extents()
     tx = body_x + (body_w - logical.width) / 2 - logical.x

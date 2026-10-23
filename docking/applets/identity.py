@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Applet identity, metadata, and menu-grouping helpers.
 
 Applets appear in several places at once: persisted dock configuration, runtime
@@ -110,4 +123,4 @@ def category_for(applet_id: str) -> AppletCategory:
     if meta is None:
         log.warning("No metadata for applet %s, falling back to OTHER", applet_id)
         return AppletCategory.OTHER
-    return meta.category
+    return AppletCategory(meta.category)

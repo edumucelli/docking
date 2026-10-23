@@ -268,7 +268,7 @@ class TestCoverArtResolver:
             def __enter__(self):
                 return self
 
-            def __exit__(self, exc_type, exc, tb):
+            def __exit__(self, _exc_type, exc, _tb):
                 return False
 
         monkeypatch.setattr(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -10,6 +11,8 @@ import cairo
 import pytest
 
 import docking.ui.renderer as renderer_mod
+from docking.core.config import Config
+from docking.core.items import APPLET_KIND
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
@@ -19,6 +22,24 @@ from docking.ui.geometry import (
     ItemGeometry,
     Rect,
     build_geometry_frame,
+    compute_dock_cross_metrics,
+)
+from docking.ui.renderer import RenderState
+
+THEME_NAMES = (
+    "candy",
+    "default",
+    "ember",
+    "glass",
+    "gruvbox",
+    "nord",
+    "olive",
+    "onyx",
+    "paper",
+    "pill",
+    "slate",
+    "solarized",
+    "transparent",
 )
 
 
@@ -90,17 +111,660 @@ class TestRendererDrawEntry:
             frame=frame,
             config=config,
             theme=theme,
+            state=renderer_mod.RenderState(),
         )
         # Then
         renderer._draw_content.assert_called_once()
 
+    def test_draw_reuses_offscreen_surface_for_same_allocation(self):
+        renderer = renderer_mod.DockRenderer()
+        renderer._draw_content = MagicMock()
+        widget = MagicMock()
+        widget.get_allocation.return_value = SimpleNamespace(width=420, height=90)
+        cr = _surface_context()
+        frame = _frame([], [])
+
+        renderer.draw(
+            cr=cr,
+            widget=widget,
+            frame=frame,
+            config=SimpleNamespace(),
+            theme=MagicMock(),
+            state=renderer_mod.RenderState(),
+        )
+        first_surface = renderer._cache.offscreen_surface
+
+        renderer.draw(
+            cr=cr,
+            widget=widget,
+            frame=frame,
+            config=SimpleNamespace(),
+            theme=MagicMock(),
+            state=renderer_mod.RenderState(),
+        )
+
+        assert first_surface is not None
+        assert renderer._cache.offscreen_surface is first_surface
+        assert renderer._cache.offscreen_surface.surface is first_surface.surface
+
+    def test_draw_recreates_offscreen_surface_when_allocation_changes(self):
+        renderer = renderer_mod.DockRenderer()
+        renderer._draw_content = MagicMock()
+        widget = MagicMock()
+        cr = _surface_context()
+        frame = _frame([], [])
+
+        widget.get_allocation.return_value = SimpleNamespace(width=420, height=90)
+        renderer.draw(
+            cr=cr,
+            widget=widget,
+            frame=frame,
+            config=SimpleNamespace(),
+            theme=MagicMock(),
+            state=renderer_mod.RenderState(),
+        )
+        first_surface = renderer._cache.offscreen_surface
+
+        widget.get_allocation.return_value = SimpleNamespace(width=480, height=90)
+        renderer.draw(
+            cr=cr,
+            widget=widget,
+            frame=frame,
+            config=SimpleNamespace(),
+            theme=MagicMock(),
+            state=renderer_mod.RenderState(),
+        )
+
+        assert first_surface is not None
+        assert renderer._cache.offscreen_surface is not first_surface
+        assert renderer._cache.offscreen_surface.surface is not first_surface.surface
+
 
 class TestRendererContentFlow:
+    def test_fully_collapsed_item_is_not_drawn(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=True,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+        )
+        item = DockItem(
+            desktop_id="clock.desktop",
+            insert_factor=0.0,
+            is_running=True,
+            badge_count=1,
+            badge_visible=True,
+            progress_visible=True,
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **_kwargs: None
+        )
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(width=420, height=187),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(),
+        )
+
+        renderer._draw_icon.assert_not_called()
+        renderer._draw_indicator.assert_not_called()
+        renderer._draw_badge.assert_not_called()
+        renderer._draw_progress.assert_not_called()
+
+    def test_item_width_animation_keeps_shelf_on_geometry_frame(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+        steady = DockItem(desktop_id="firefox.desktop")
+        animated = DockItem(desktop_id="clock.desktop", insert_factor=0.25)
+        painted_widths: list[float] = []
+        monkeypatch.setattr(
+            renderer_mod,
+            "draw_shelf_background",
+            lambda **kwargs: painted_widths.append(kwargs["w"]),
+        )
+        renderer._draw_icon = MagicMock()
+
+        frames = []
+        for factor in (0.25, 0.75, 1.0):
+            animated.insert_factor = factor
+            frame = build_geometry_frame(
+                items=[steady, animated],
+                config=config,
+                theme=theme,
+                window_w=420,
+                window_h=187,
+                cursor_main=-1.0,
+                autohide_state=None,
+            )
+            frames.append(frame)
+            renderer._draw_content(
+                cr=_surface_context(width=420, height=187),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+
+        assert painted_widths == [frame.shelf_main_extent for frame in frames]
+        assert renderer.slide_offsets == {}
+
+    @pytest.mark.parametrize(
+        "pos",
+        [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],
+    )
+    def test_edge_gap_geometry_matches_painted_content(self, monkeypatch, pos):
+        renderer = renderer_mod.DockRenderer()
+        theme = replace(Theme.load("default", 48), distance_from_edge=30)
+        config = SimpleNamespace(
+            pos=pos,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+        )
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            instance_count=1,
+            badge_count=2,
+            badge_visible=True,
+            progress=0.5,
+            progress_visible=True,
+        )
+        metrics = compute_dock_cross_metrics(
+            icon_size=48,
+            zoom=1.0,
+            theme=theme,
+        )
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
+        window_w = 420 if horizontal else metrics.surface_extent + 30
+        window_h = metrics.surface_extent + 30 if horizontal else 420
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        painted_icons: list[tuple[float, float]] = []
+        painted_shelves: list[Rect] = []
+
+        def capture_icon(**kwargs):
+            painted_icons.append(kwargs["cr"].user_to_device(kwargs["x"], kwargs["y"]))
+
+        def capture_shelf(**kwargs):
+            cr = kwargs["cr"]
+            x = kwargs["x"]
+            y = kwargs["y"]
+            width = kwargs["w"]
+            height = kwargs["h"]
+            corners = [
+                cr.user_to_device(px, py)
+                for px, py in (
+                    (x, y),
+                    (x + width, y),
+                    (x, y + height),
+                    (x + width, y + height),
+                )
+            ]
+            left = round(min(point[0] for point in corners))
+            top = round(min(point[1] for point in corners))
+            right = round(max(point[0] for point in corners))
+            bottom = round(max(point[1] for point in corners))
+            painted_shelves.append(Rect(left, top, right - left, bottom - top))
+
+        monkeypatch.setattr(renderer_mod, "draw_shelf_background", capture_shelf)
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 1_000_000)
+        renderer._draw_icon = MagicMock(side_effect=capture_icon)
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(width=window_w, height=window_h),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(),
+        )
+
+        item_geometry = frame.item_geometries[0]
+        assert len(painted_icons) == 1
+        assert math.floor(painted_icons[0][0]) == item_geometry.draw_rect.x
+        assert math.floor(painted_icons[0][1]) == item_geometry.draw_rect.y
+        assert painted_shelves == [frame.background_rect]
+        renderer._draw_indicator.assert_called_once()
+        assert (
+            renderer._draw_indicator.call_args.kwargs["edge_origin"]
+            == frame.content_cross_origin
+        )
+        renderer._draw_badge.assert_called_once()
+        renderer._draw_progress.assert_called_once()
+        assert renderer._draw_badge.call_args.kwargs["x"] == pytest.approx(
+            painted_icons[0][0]
+        )
+        assert renderer._draw_badge.call_args.kwargs["y"] == pytest.approx(
+            painted_icons[0][1]
+        )
+
+    @pytest.mark.parametrize(
+        "pos",
+        [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],
+    )
+    def test_hidden_urgent_glow_uses_physical_surface_edge(self, monkeypatch, pos):
+        renderer = renderer_mod.DockRenderer()
+        theme = replace(Theme.load("default", 48), distance_from_edge=30)
+        config = SimpleNamespace(
+            pos=pos,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_urgent=now_us - 100_000,
+        )
+        metrics = compute_dock_cross_metrics(
+            icon_size=48,
+            zoom=1.0,
+            theme=theme,
+        )
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
+        window_w = 420 if horizontal else metrics.surface_extent + 30
+        window_h = metrics.surface_extent + 30 if horizontal else 420
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=-1.0,
+            autohide_state=HideState.HIDDEN,
+            hide_offset=1.0,
+        )
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **_kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_urgent_glow = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(width=window_w, height=window_h),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(hide_offset=1.0),
+        )
+
+        renderer._draw_urgent_glow.assert_called_once()
+        assert renderer._draw_urgent_glow.call_args.kwargs["cross_size"] == (
+            window_h if horizontal else window_w
+        )
+
+    @pytest.mark.parametrize(
+        "pos",
+        [Position.BOTTOM, Position.TOP, Position.LEFT, Position.RIGHT],
+    )
+    @pytest.mark.parametrize("zoom", [1.0, 1.5])
+    @pytest.mark.parametrize("theme_name", THEME_NAMES)
+    def test_combined_launch_and_urgent_bounce_stays_in_surface(
+        self, monkeypatch, pos, zoom, theme_name
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = replace(Theme.load(theme_name, 48), distance_from_edge=30)
+        config = SimpleNamespace(
+            pos=pos,
+            icon_size=48,
+            zoom_enabled=zoom > 1.0,
+            zoom_percent=zoom,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_launched=now_us - theme.launch_bounce_time_ms * 1000 // 4,
+            last_urgent=now_us - theme.urgent_bounce_time_ms * 1000 // 2,
+        )
+        metrics = compute_dock_cross_metrics(
+            icon_size=48,
+            zoom=zoom,
+            theme=theme,
+        )
+        horizontal = pos in (Position.BOTTOM, Position.TOP)
+        window_w = 420 if horizontal else metrics.surface_extent + 30
+        window_h = metrics.surface_extent + 30 if horizontal else 420
+        main_size = window_w if horizontal else window_h
+        base_width = 2 * (theme.horizontal_padding + theme.item_padding / 2) + 48
+        rest_center = theme.horizontal_padding + 48 / 2
+        cursor_main = rest_center + (main_size - base_width) / 2 if zoom > 1.0 else -1.0
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=window_w,
+            window_h=window_h,
+            cursor_main=cursor_main,
+            autohide_state=None,
+        )
+        painted_icons: list[tuple[float, float, float]] = []
+
+        def capture_icon(**kwargs):
+            x, y = kwargs["cr"].user_to_device(kwargs["x"], kwargs["y"])
+            painted_icons.append((x, y, kwargs["base_size"] * kwargs["li"].scale))
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **_kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock(side_effect=capture_icon)
+
+        renderer._draw_content(
+            cr=_surface_context(width=window_w, height=window_h),
+            frame=frame,
+            config=config,
+            theme=theme,
+            state=RenderState(),
+        )
+
+        x, y, size = painted_icons[0]
+        assert x >= 0.0
+        assert y >= 0.0
+        assert x + size <= window_w
+        assert y + size <= window_h
+
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_disabling_click_effect_keeps_urgent_bounce_and_click_feedback(
+        self, monkeypatch, effect
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            zoom_enabled=False,
+            zoom_percent=1.0,
+            additional_distance_from_edge=0,
+            show_window_count_numbers=False,
+            show_launcher_badges=False,
+            show_launcher_progress=False,
+            dock_item_click_effects_enabled=True,
+            dock_item_click_effect=effect,
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_clicked=now_us - 150_000,
+            last_launched=now_us - 150_000,
+            last_urgent=now_us - 300_000,
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=-1.0,
+            autohide_state=None,
+        )
+        bounces = []
+        original_map = renderer_mod.map_icon_position
+
+        def capture_bounce(**kwargs):
+            bounces.append(kwargs["bounce"])
+            return original_map(**kwargs)
+
+        monkeypatch.setattr(renderer_mod, "map_icon_position", capture_bounce)
+        monkeypatch.setattr(renderer_mod, "draw_shelf_background", lambda **_: None)
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock()
+
+        for enabled in (True, False):
+            config.dock_item_click_effects_enabled = enabled
+            renderer._draw_content(
+                cr=_surface_context(width=420, height=187),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            assert renderer._draw_icon.call_args.kwargs["darken"] > 0
+            icon_args = renderer._draw_icon.call_args.kwargs
+            assert (icon_args["angle"] != 0.0) == (enabled and effect == "wobble")
+            assert (icon_args["effect_scale"] > 1.0) == (enabled and effect == "pulse")
+
+        assert bounces[1] > 0
+        if effect == "bounce":
+            assert bounces[0] > bounces[1]
+        else:
+            assert bounces[0] == bounces[1]
+
+    @pytest.mark.parametrize("pos", list(Position))
+    @pytest.mark.parametrize("main_extent", [86, 420])
+    @pytest.mark.parametrize("main_size", [0, 96])
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    @pytest.mark.parametrize(
+        "elapsed_us", [0, 50_000, 150_000, 300_000, 450_000, 600_000, 650_000]
+    )
+    def test_click_effects_fit_surface_with_zoom_and_urgent_bounce(
+        self, monkeypatch, pos, main_extent, main_size, effect, elapsed_us
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        theme = replace(
+            theme,
+            launch_bounce_height=theme.launch_bounce_height
+            if effect == "bounce"
+            else 0.0,
+            horizontal_padding=0.0,
+            item_padding=0.0,
+        )
+        config = Config(
+            position=pos.value,
+            zoom_enabled=True,
+            zoom_percent=1.5,
+            dock_item_click_effect=effect,
+        )
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            main_size=main_size,
+            last_launched=now_us - elapsed_us,
+            last_clicked=now_us - elapsed_us,
+            last_urgent=now_us - theme.urgent_bounce_time_ms * 1000 // 2,
+            badge_visible=True,
+            badge_count=2,
+            progress_visible=True,
+            progress=0.5,
+        )
+        cross = compute_dock_cross_metrics(
+            icon_size=48, zoom=1.5, theme=theme, items=[item]
+        )
+        main_extent = max(main_extent, math.ceil((main_size or 48) * 1.5 * 1.18))
+        width, height = (
+            (main_extent, cross.surface_extent)
+            if pos in (Position.TOP, Position.BOTTOM)
+            else (cross.surface_extent, main_extent)
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=main_extent / 2,
+            zoom_progress=1.0,
+            autohide_state=None,
+        )
+        corners = []
+        rotate = renderer._rotate_icon
+
+        def capture_rotation(cr, size, angle):
+            rotate(cr, size, angle)
+            corners.extend(
+                cr.user_to_device(x, y)
+                for x, y in ((0, 0), (size, 0), (0, size), (size, size))
+            )
+
+        source = cairo.ImageSurface(cairo.FORMAT_ARGB32, 48, 48)
+        monkeypatch.setattr(renderer, "_icon_surface_for_item", lambda **_: source)
+        monkeypatch.setattr(renderer, "_rotate_icon", capture_rotation)
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+        draw_icon = renderer._draw_icon
+        renderer._draw_icon = MagicMock(side_effect=draw_icon)
+        cr = _surface_context(width, height)
+        original_matrix = tuple(cr.get_matrix())
+
+        renderer._draw_content(
+            cr=cr, frame=frame, config=config, theme=theme, state=RenderState()
+        )
+
+        assert len(corners) == 4
+        assert all(-0.001 <= x <= width + 0.001 for x, _ in corners)
+        assert all(-0.001 <= y <= height + 0.001 for _, y in corners)
+        assert tuple(cr.get_matrix()) == original_matrix
+        icon_args = renderer._draw_icon.call_args.kwargs
+        for overlay in (renderer._draw_badge, renderer._draw_progress):
+            overlay_args = overlay.call_args.kwargs
+            assert overlay_args["x"] == icon_args["x"]
+            assert overlay_args["y"] == icon_args["y"]
+            assert overlay_args["size"] == pytest.approx(
+                icon_args["base_size"]
+                * icon_args["li"].scale
+                * icon_args["effect_scale"]
+            )
+
+    @pytest.mark.parametrize("pos", list(Position))
+    @pytest.mark.parametrize("zoom", [1.0, 1.5])
+    @pytest.mark.parametrize("urgent", [False, True])
+    @pytest.mark.parametrize(
+        ("elapsed_ms", "height_ratio"),
+        [(0, 0.0), (150, 1.0), (300, 0.0), (450, 1 / 3), (600, 0.0), (700, 0.0)],
+    )
+    def test_bounce_moves_icon_and_overlays_away_from_edge_then_returns_to_rest(
+        self, monkeypatch, pos, zoom, urgent, elapsed_ms, height_ratio
+    ):
+        renderer = renderer_mod.DockRenderer()
+        config = Config(position=pos.value, zoom_enabled=zoom > 1.0, zoom_percent=zoom)
+        theme = Theme.load("default", config.icon_size)
+        now_us = 1_000_000
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            last_launched=now_us - elapsed_ms * 1000,
+            last_urgent=now_us - 300_000 if urgent else 0,
+            badge_visible=True,
+            badge_count=2,
+            progress_visible=True,
+            progress=0.5,
+        )
+        horizontal = pos in (Position.TOP, Position.BOTTOM)
+        cross = compute_dock_cross_metrics(
+            icon_size=config.icon_size, zoom=zoom, theme=theme
+        )
+        width, height = (
+            (420, cross.surface_extent) if horizontal else (cross.surface_extent, 420)
+        )
+        frame = build_geometry_frame(
+            items=[item],
+            config=config,
+            theme=theme,
+            window_w=width,
+            window_h=height,
+            cursor_main=210.0,
+            autohide_state=None,
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+        icons = []
+
+        # Compare the launch effect with the same frame's urgency-only position.
+        for enabled in (False, True):
+            config.dock_item_click_effects_enabled = enabled
+            renderer._draw_content(
+                cr=_surface_context(width, height),
+                frame=frame,
+                config=config,
+                theme=theme,
+                state=RenderState(),
+            )
+            icon = renderer._draw_icon.call_args.kwargs
+            icons.append(icon)
+            size = icon["base_size"] * icon["li"].scale
+            assert icon["effect_scale"] == 1.0
+            assert icon["angle"] == 0.0
+            for overlay in (renderer._draw_badge, renderer._draw_progress):
+                args = overlay.call_args.kwargs
+                assert (args["x"], args["y"]) == pytest.approx((icon["x"], icon["y"]))
+                assert args["size"] == pytest.approx(size)
+
+        main_axis, cross_axis = ("x", "y") if horizontal else ("y", "x")
+        assert icons[1][main_axis] == icons[0][main_axis]
+        direction = -1 if pos in (Position.BOTTOM, Position.RIGHT) else 1
+        assert icons[1][cross_axis] - icons[0][cross_axis] == pytest.approx(
+            direction * config.icon_size * theme.launch_bounce_height * height_ratio
+        )
+
     def test_draw_content_runs_icons_indicators_and_urgent_glow(self, monkeypatch):
         # Given
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
         i1 = DockItem(
             desktop_id="firefox.desktop",
             is_active=True,
@@ -141,10 +805,12 @@ class TestRendererContentFlow:
             frame=_frame([i1, i2], layout),
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=1,
-            hovered_id="firefox.desktop",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=1,
+                hovered_id="firefox.desktop",
+            ),
         )
 
         # Then
@@ -159,7 +825,14 @@ class TestRendererContentFlow:
     def test_draw_content_uses_frame_background_rect_for_shelf(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = Theme.load("default", 48)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
         model = MagicMock()
         model.visible_items.return_value = [item]
@@ -200,10 +873,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -211,10 +886,168 @@ class TestRendererContentFlow:
         assert shelf_calls[0]["w"] == 120
         assert shelf_calls[0]["h"] == 21
 
+    def test_draw_content_dispatches_badge_and_progress_overlays(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            badge_count=5,
+            badge_visible=True,
+            progress=0.4,
+            progress_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
+        )
+
+        renderer._draw_badge.assert_called_once()
+        renderer._draw_progress.assert_called_once()
+
+    def test_draw_content_dispatches_badge_for_applet_items(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
+        item = DockItem(
+            desktop_id="applet://whatsapp",
+            kind=APPLET_KIND,
+            badge_count=5,
+            badge_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
+        )
+
+        renderer._draw_badge.assert_called_once()
+        renderer._draw_progress.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("show_badges", "show_progress", "badge_calls", "progress_calls"),
+        [
+            (False, True, 0, 1),
+            (True, False, 1, 0),
+            (False, False, 0, 0),
+        ],
+    )
+    def test_draw_content_respects_launcher_overlay_preferences(
+        self,
+        monkeypatch,
+        show_badges,
+        show_progress,
+        badge_calls,
+        progress_calls,
+    ):
+        renderer = renderer_mod.DockRenderer()
+        theme = Theme.load("default", 48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=show_badges,
+            show_launcher_progress=show_progress,
+            additional_distance_from_edge=0,
+        )
+        item = DockItem(
+            desktop_id="firefox.desktop",
+            is_running=True,
+            badge_count=5,
+            badge_visible=True,
+            progress=0.4,
+            progress_visible=True,
+        )
+        layout = [SimpleNamespace(x=0.0, scale=1.0, width=48.0)]
+
+        monkeypatch.setattr(
+            renderer_mod, "draw_shelf_background", lambda **kwargs: None
+        )
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: 100_000)
+        renderer._draw_icon = MagicMock()
+        renderer._draw_indicator = MagicMock()
+        renderer._draw_badge = MagicMock()
+        renderer._draw_progress = MagicMock()
+
+        renderer._draw_content(
+            cr=_surface_context(),
+            frame=_frame([item], layout),
+            config=config,
+            theme=theme,
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
+        )
+
+        assert renderer._draw_badge.call_count == badge_calls
+        assert renderer._draw_progress.call_count == progress_calls
+
     def test_draw_content_hides_shelf_when_dock_is_hidden_with_gap(self, monkeypatch):
         renderer = renderer_mod.DockRenderer()
         theme = replace(Theme.load("default", 48), distance_from_edge=6)
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            show_launcher_badges=True,
+            show_launcher_progress=True,
+            additional_distance_from_edge=0,
+        )
         frame = build_geometry_frame(
             items=[DockItem(desktop_id="firefox.desktop", is_running=True)],
             config=SimpleNamespace(
@@ -222,6 +1055,7 @@ class TestRendererContentFlow:
                 icon_size=48,
                 zoom_percent=1.5,
                 zoom_enabled=True,
+                additional_distance_from_edge=0,
             ),
             theme=theme,
             window_w=420,
@@ -247,10 +1081,12 @@ class TestRendererContentFlow:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=1.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=1.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         assert shelf_calls
@@ -263,6 +1099,7 @@ class TestRendererContentFlow:
             pos=Position.BOTTOM,
             icon_size=48,
             applet_prefs={"separator#0": {"style": "line", "invert_color": False}},
+            additional_distance_from_edge=0,
         )
         item = DockItem(
             desktop_id="applet://separator#0",
@@ -288,10 +1125,12 @@ class TestRendererContentFlow:
             frame=_frame([item], layout),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
 
         renderer._draw_icon.assert_not_called()
@@ -302,7 +1141,12 @@ class TestRendererContentFlow:
         renderer = renderer_mod.DockRenderer()
         model = MagicMock()
         model.visible_items.return_value = []
-        config = SimpleNamespace(pos=Position.BOTTOM, icon_size=48)
+        config = SimpleNamespace(
+            pos=Position.BOTTOM,
+            icon_size=48,
+            show_window_count_numbers=False,
+            additional_distance_from_edge=0,
+        )
         theme = Theme.load("default", 48)
         cr = _surface_context()
 
@@ -311,10 +1155,12 @@ class TestRendererContentFlow:
             frame=_frame([], []),
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=RenderState(
+                hide_offset=0.0,
+                drag_index=-1,
+                drop_insert_index=-1,
+                hovered_id="",
+            ),
         )
         # Then
         # When
@@ -322,6 +1168,61 @@ class TestRendererContentFlow:
 
 
 class TestRendererHelpers:
+    def test_icon_surface_for_item_caches_surface_until_icon_changes(self, monkeypatch):
+        renderer = renderer_mod.DockRenderer()
+        item = DockItem(desktop_id="firefox.desktop")
+        first_icon = SimpleNamespace(get_width=lambda: 64, get_height=lambda: 64)
+        second_icon = SimpleNamespace(get_width=lambda: 64, get_height=lambda: 64)
+        item.icon = first_icon
+        created_surfaces = [object(), object()]
+        pixbuf_surface = MagicMock(side_effect=created_surfaces)
+        monkeypatch.setattr(renderer, "_pixbuf_surface", pixbuf_surface)
+
+        first = renderer._icon_surface_for_item(item=item)
+        second = renderer._icon_surface_for_item(item=item)
+        item.icon = second_icon
+        third = renderer._icon_surface_for_item(item=item)
+
+        assert first is created_surfaces[0]
+        assert second is first
+        assert third is created_surfaces[1]
+        assert pixbuf_surface.call_count == 2
+
+    def test_draw_icon_idle_path_uses_source_surface_without_temp_allocation(
+        self, monkeypatch
+    ):
+        renderer = renderer_mod.DockRenderer()
+        source_surface = SimpleNamespace(get_width=lambda: 64, get_height=lambda: 64)
+        monkeypatch.setattr(
+            renderer,
+            "_icon_surface_for_item",
+            lambda **_kwargs: source_surface,
+        )
+        monkeypatch.setattr(
+            renderer_mod.cairo,
+            "ImageSurface",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("idle path should not allocate a temp icon surface")
+            ),
+        )
+        cr = MagicMock()
+        item = DockItem(desktop_id="firefox.desktop")
+        li = SimpleNamespace(scale=1.0)
+
+        renderer._draw_icon(
+            cr=cr,
+            item=item,
+            config=SimpleNamespace(),
+            li=li,
+            base_size=48,
+            x=10.0,
+            y=12.0,
+            lighten=0.0,
+            darken=0.0,
+        )
+
+        cr.set_source_surface.assert_called_once_with(source_surface, 0, 0)
+
     def test_compute_dock_size_uses_custom_main_size(self):
         # Given
         renderer = renderer_mod.DockRenderer()
@@ -330,7 +1231,7 @@ class TestRendererHelpers:
             DockItem(desktop_id="a.desktop", main_size=40),
             DockItem(desktop_id="b.desktop", main_size=0),
         ]
-        config = SimpleNamespace(icon_size=48)
+        config = SimpleNamespace(icon_size=48, additional_distance_from_edge=0)
         theme = Theme.load("default", 48)
 
         width, height = renderer.compute_dock_size(
@@ -352,8 +1253,6 @@ class TestRendererHelpers:
             pos=pos,
             width=300,
             height=80,
-            main_size=300,
-            cross_size=80,
             # Then
             # When
         )
@@ -371,6 +1270,7 @@ class TestRendererHelpers:
             cr=cr,
             item=item,
             li=li,
+            show_window_count_numbers=False,
             base_size=48,
             main_pos=5.0,
             cross_size=80.0,
@@ -380,3 +1280,89 @@ class TestRendererHelpers:
             # Then
             # When
         )
+
+    @pytest.mark.parametrize(
+        "theme", [Theme.load("default", 48), Theme.load("slate", 48)]
+    )
+    def test_draw_indicator_supports_numbered_window_counts(self, theme):
+        cr = _surface_context()
+        item = DockItem(desktop_id="x.desktop", instance_count=12, is_active=True)
+        li = SimpleNamespace(x=10.0, scale=1.0)
+
+        renderer_mod.DockRenderer._draw_indicator(
+            cr=cr,
+            item=item,
+            li=li,
+            show_window_count_numbers=True,
+            base_size=48,
+            main_pos=5.0,
+            cross_size=80.0,
+            hide_cross=0.0,
+            theme=theme,
+            pos=Position.BOTTOM,
+        )
+
+    @pytest.mark.parametrize(
+        ("pos", "expected_axis", "expected_direction"),
+        [
+            (Position.BOTTOM, "cy", -1.0),
+            (Position.TOP, "cy", 1.0),
+            (Position.LEFT, "cx", 1.0),
+            (Position.RIGHT, "cx", -1.0),
+        ],
+    )
+    def test_draw_indicator_insets_numbered_dot_from_screen_edge(
+        self, monkeypatch, pos, expected_axis, expected_direction
+    ):
+        # Given
+        cr = _surface_context()
+        theme = Theme.load("default", 48)
+        item = DockItem(desktop_id="x.desktop", instance_count=12, is_active=True)
+        li = SimpleNamespace(x=10.0, scale=1.0)
+        calls = []
+        original_main_center = 39.0
+        edge_origin = 30.0 if pos in (Position.TOP, Position.LEFT) else 0.0
+        original_edge_center = (
+            80.0 - theme.bottom_padding / 2.0
+            if pos in (Position.BOTTOM, Position.RIGHT)
+            else edge_origin + theme.bottom_padding / 2.0
+        )
+        count_height = renderer_mod._window_count_dot_height(
+            count=item.instance_count,
+            base_size=48,
+            radius=theme.indicator_radius,
+        )
+        count_inset = count_height / 2.0 - theme.indicator_radius
+
+        monkeypatch.setattr(
+            renderer_mod,
+            "_draw_indicator_count_dots",
+            lambda **kwargs: calls.append(kwargs),
+        )
+
+        # When
+        renderer_mod.DockRenderer._draw_indicator(
+            cr=cr,
+            item=item,
+            li=li,
+            show_window_count_numbers=True,
+            base_size=48,
+            main_pos=5.0,
+            cross_size=80.0,
+            hide_cross=0.0,
+            theme=theme,
+            pos=pos,
+            edge_origin=edge_origin,
+        )
+
+        # Then
+        if expected_axis == "cy":
+            assert calls[0]["cx"] == pytest.approx(original_main_center)
+            assert calls[0]["cy"] == pytest.approx(
+                original_edge_center + count_inset * expected_direction
+            )
+        else:
+            assert calls[0]["cx"] == pytest.approx(
+                original_edge_center + count_inset * expected_direction
+            )
+            assert calls[0]["cy"] == pytest.approx(original_main_center)

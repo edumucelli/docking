@@ -1,16 +1,27 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure logic for the bookmarks applet -- no GTK dependency."""
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 
 class Bookmark(NamedTuple):
     name: str
     url: str
 
-
-DEFAULT_BOOKMARKS: tuple[Bookmark, ...] = ()
 
 MAX_LABEL_LEN = 30
 
@@ -22,7 +33,7 @@ def truncate_label(text: str) -> str:
     return text[: MAX_LABEL_LEN - 1] + "\u2026"
 
 
-def bookmarks_from_prefs(prefs: dict | None) -> list[Bookmark]:
+def bookmarks_from_prefs(prefs: dict[str, Any] | None) -> list[Bookmark]:
     """Deserialize bookmarks list from an applet prefs dict."""
     if not prefs:
         return []
@@ -36,7 +47,7 @@ def bookmarks_from_prefs(prefs: dict | None) -> list[Bookmark]:
     return results
 
 
-def prefs_from_bookmarks(bookmarks: list[Bookmark]) -> dict:
+def prefs_from_bookmarks(bookmarks: list[Bookmark]) -> dict[str, Any]:
     """Serialize bookmarks list into an applet prefs dict."""
     return {
         "bookmarks": [{"name": b.name, "url": b.url} for b in bookmarks],

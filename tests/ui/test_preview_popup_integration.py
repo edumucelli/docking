@@ -9,11 +9,16 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
+from docking.core.config import Config
 from docking.core.position import Position
+from docking.platform.backends.base import Rect, WindowId, WindowSnapshot
 
 
 def _load_preview_module():
@@ -38,24 +43,16 @@ def _load_preview_module():
         Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
         Align=SimpleNamespace(CENTER=1),
         IconSize=SimpleNamespace(DIALOG=1),
+        StateFlags=SimpleNamespace(NORMAL=0, PRELIGHT=2),
     )
     fake_gdk = types.SimpleNamespace(
         WindowTypeHint=SimpleNamespace(TOOLTIP=1),
         Screen=SimpleNamespace(get_default=lambda: object()),
-        EventMask=SimpleNamespace(BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2),
+        EventMask=SimpleNamespace(
+            BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2, LEAVE_NOTIFY_MASK=4
+        ),
         NotifyType=SimpleNamespace(INFERIOR=1),
         CrossingMode=SimpleNamespace(NORMAL=1),
-    )
-    fake_gdkpixbuf = types.SimpleNamespace(
-        Pixbuf=type("Pixbuf", (), {}),
-        InterpType=SimpleNamespace(BILINEAR=1),
-        Colorspace=SimpleNamespace(RGB=1),
-    )
-    fake_gdkx11 = types.SimpleNamespace(
-        X11Display=SimpleNamespace(get_default=lambda: MagicMock()),
-        X11Window=SimpleNamespace(
-            foreign_new_for_display=lambda _display, _xid: MagicMock()
-        ),
     )
     fake_glib = types.SimpleNamespace(
         Error=Exception,
@@ -63,18 +60,15 @@ def _load_preview_module():
         source_remove=lambda *_args, **_kwargs: None,
     )
     fake_pango = types.SimpleNamespace(EllipsizeMode=SimpleNamespace(END=1))
-    fake_wnck = types.SimpleNamespace(Window=type("Window", (), {}))
 
     gi_module = types.ModuleType("gi")
     gi_module.require_version = lambda *_args, **_kwargs: None
     repo_module = types.ModuleType("gi.repository")
     repo_module.Gtk = fake_gtk
     repo_module.Gdk = fake_gdk
-    repo_module.GdkPixbuf = fake_gdkpixbuf
-    repo_module.GdkX11 = fake_gdkx11
+    repo_module.GdkPixbuf = SimpleNamespace(Pixbuf=object)
     repo_module.GLib = fake_glib
     repo_module.Pango = fake_pango
-    repo_module.Wnck = fake_wnck
     gi_module.repository = repo_module
     sys.modules["gi"] = gi_module
     sys.modules["gi.repository"] = repo_module
@@ -203,22 +197,51 @@ class FakeLabel:
         return
 
 
+class FakePreviewService:
+    asynchronous = False
+
+    def __init__(self) -> None:
+        self.capture = MagicMock(return_value=None)
+
+
+def _snapshot(value: int, title: str = "Window") -> WindowSnapshot:
+    return WindowSnapshot(
+        id=WindowId.x11(value),
+        desktop_id="firefox.desktop",
+        title=title,
+        can_activate=True,
+        can_preview=True,
+    )
+
+
 def _make_popup():
     popup = object.__new__(preview_mod.PreviewPopup)
     popup._tracker = MagicMock()
+    popup._preview_service = FakePreviewService()
     popup._autohide = None
     popup._pointer_inside_dock = None
     popup._hide_timer_id = 0
+    popup._preview_refresh_timer_id = 0
+    popup._thumbnail_images = {}
     popup._current_desktop_id = ""
+    popup._thumbnail_outline_enabled = lambda: False
+    popup._thumbnail_width = lambda: preview_mod.THUMB_W
+    popup._outline = None
+    popup._outline_enabled = lambda: False
+    popup.get_transient_for = MagicMock(return_value=None)
     return popup
 
 
 class TestPreviewPopupIntegration:
-    def test_show_for_item_hides_when_no_windows(self):
+    def test_show_for_item_hides_when_no_windows(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.get_xids_for.return_value = []
+        popup._tracker.list_preview_windows.return_value = []
         popup.hide = MagicMock()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
 
         # When
         preview_mod.PreviewPopup.show_for_item(
@@ -232,25 +255,40 @@ class TestPreviewPopupIntegration:
 
         # Then
         popup.hide.assert_called_once()
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == ""
 
     def test_show_for_item_builds_content_and_moves(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.get_xids_for.return_value = [1, 2]
+        popup._tracker.list_preview_windows.return_value = [_snapshot(1), _snapshot(2)]
         popup._tracker.icon_name_for_desktop.return_value = "firefox"
         popup._cancel_hide_timer = MagicMock()
-        popup._make_thumbnail_for_xid = MagicMock(return_value=object())
+        popup._make_thumbnail_for_window = MagicMock(return_value=object())
         popup.get_child = MagicMock(return_value=None)
         popup.remove = MagicMock()
         popup.add = MagicMock()
+        popup.get_transient_for = MagicMock(return_value=None)
         popup.get_screen = MagicMock(return_value=FakeScreen(width=320, height=200))
         popup.move = MagicMock()
+        popup.resize = MagicMock()
+        popup.hide = MagicMock()
         popup.show_all = MagicMock()
+        scroller = MagicMock()
+        scroller.get_vscrollbar().get_preferred_width.return_value = (13, 13)
+        scroller.get_hscrollbar().get_preferred_height.return_value = (13, 13)
+        monkeypatch.setattr(
+            preview_mod, "popup_workarea", lambda *_: Rect(0, 0, 320, 200)
+        )
         monkeypatch.setattr(
             preview_mod,
             "Gtk",
             SimpleNamespace(
                 Box=FakeBox,
+                ScrolledWindow=lambda: scroller,
+                ShadowType=SimpleNamespace(NONE=0),
+                PolicyType=SimpleNamespace(AUTOMATIC=1),
                 Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
             ),
         )
@@ -269,14 +307,14 @@ class TestPreviewPopupIntegration:
         popup._cancel_hide_timer.assert_called_once()
         popup.add.assert_called_once()
         popup.move.assert_called_once_with(0, 0)
+        popup.resize.assert_called_once_with(236, 136)
         popup.show_all.assert_called_once()
         assert popup._current_desktop_id == "firefox.desktop"
 
     def test_make_thumbnail_truncates_label(self, monkeypatch):
         # Given
         popup = _make_popup()
-        popup._tracker.get_window_title_for_xid.return_value = "A" * 40
-        monkeypatch.setattr(preview_mod, "capture_xid", lambda **_kwargs: None)
+        popup._preview_service.capture.return_value = None
         monkeypatch.setattr(
             preview_mod,
             "Gtk",
@@ -295,19 +333,95 @@ class TestPreviewPopupIntegration:
             preview_mod,
             "Gdk",
             SimpleNamespace(
-                EventMask=SimpleNamespace(BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2),
+                EventMask=SimpleNamespace(
+                    BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2, LEAVE_NOTIFY_MASK=4
+                ),
                 RGBA=lambda *_args, **_kwargs: None,
             ),
         )
         # When
-        widget = preview_mod.PreviewPopup._make_thumbnail_for_xid(
-            popup, xid=42, fallback_icon_name="app"
+        widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
+            popup, window=_snapshot(42, title="A" * 40), fallback_icon_name="app"
         )
 
         # Then
         vbox = widget.child
         label = vbox.children[1]
         assert label.label.endswith("\u2026")
+
+    @staticmethod
+    def _patch_thumbnail_toolkit(monkeypatch, image_cls=FakeImage):
+        monkeypatch.setattr(
+            preview_mod,
+            "Gtk",
+            SimpleNamespace(
+                EventBox=FakeEventBox,
+                Box=FakeBox,
+                Orientation=SimpleNamespace(HORIZONTAL=1, VERTICAL=2),
+                Image=image_cls,
+                Label=FakeLabel,
+                IconSize=SimpleNamespace(DIALOG=1),
+                Align=SimpleNamespace(CENTER=1),
+                StateFlags=SimpleNamespace(NORMAL=1),
+            ),
+        )
+        monkeypatch.setattr(
+            preview_mod,
+            "Gdk",
+            SimpleNamespace(
+                EventMask=SimpleNamespace(
+                    BUTTON_PRESS_MASK=1, ENTER_NOTIFY_MASK=2, LEAVE_NOTIFY_MASK=4
+                ),
+                RGBA=lambda *_args, **_kwargs: None,
+            ),
+        )
+
+    def test_configured_width_reaches_snapshot_request_and_size_request(
+        self, monkeypatch
+    ):
+        sizes = []
+
+        class RecordingImage(FakeImage):
+            def set_size_request(self, width: int, height: int) -> None:
+                sizes.append((width, height))
+
+        self._patch_thumbnail_toolkit(monkeypatch, RecordingImage)
+        popup = _make_popup()
+        popup._thumbnail_width = lambda: 320
+        popup._preview_service.capture.return_value = None
+
+        preview_mod.PreviewPopup._make_thumbnail_for_window(
+            popup, window=_snapshot(7), fallback_icon_name="app"
+        )
+
+        popup._preview_service.capture.assert_called_once_with(
+            _snapshot(7).id, width=320, height=240
+        )
+        assert sizes == [(320, 240)]
+
+    def test_wider_thumbnail_keeps_more_of_the_title(self, monkeypatch):
+        self._patch_thumbnail_toolkit(monkeypatch)
+        title = "PartnerBookingRulesApi.yml - bookings-api - VSCodium"
+        labels = {}
+        for width in (200, 320):
+            popup = _make_popup()
+            popup._thumbnail_width = lambda width=width: width
+            popup._preview_service.capture.return_value = None
+            widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
+                popup, window=_snapshot(1, title=title), fallback_icon_name="app"
+            )
+            labels[width] = widget.child.children[1].label
+
+        assert len(labels[200]) == 25
+        assert len(labels[320]) == 40
+        assert labels[320].startswith(labels[200][:-1])
+
+    def test_set_thumbnail_width_probe_stores_probe(self):
+        popup = _make_popup()
+
+        preview_mod.PreviewPopup.set_thumbnail_width_probe(popup, lambda: 300)
+
+        assert popup._thumbnail_width() == 300
 
     def test_timer_and_leave_branches(self, monkeypatch):
         # Given
@@ -357,17 +471,263 @@ class TestPreviewPopupIntegration:
         popup.hide.assert_called_once()
         popup._autohide.on_mouse_leave.assert_not_called()
 
-    def test_thumb_click_releases_autohide_when_pointer_is_off_dock(self):
+    def test_thumb_click_releases_autohide_when_pointer_is_off_dock(self, monkeypatch):
         popup = _make_popup()
         popup._autohide = MagicMock()
         popup._pointer_inside_dock = MagicMock(return_value=False)
         popup.hide = MagicMock()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
 
         handled = preview_mod.PreviewPopup._on_thumb_click(
-            popup, MagicMock(), MagicMock(), xid=42
+            popup, MagicMock(), MagicMock(), window_id=WindowId.x11(42)
         )
 
         assert handled is True
-        popup._tracker.activate_xid.assert_called_once_with(xid=42)
+        popup._tracker.activate.assert_called_once_with(WindowId.x11(42))
         popup.hide.assert_called_once()
         popup._autohide.on_mouse_leave.assert_called_once()
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == ""
+
+    def test_cancel_hide_keeps_current_popup_and_autohide_hold(self, monkeypatch):
+        popup = _make_popup()
+        popup._hide_timer_id = 77
+        popup._current_desktop_id = "firefox.desktop"
+        popup.hide = MagicMock()
+        popup._autohide = MagicMock()
+        remove = MagicMock()
+        monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
+
+        popup.cancel_hide()
+        popup.cancel_hide()
+
+        remove.assert_called_once_with(77)
+        assert popup._hide_timer_id == 0
+        assert popup.current_desktop_id == "firefox.desktop"
+        popup.hide.assert_not_called()
+        popup._autohide.on_mouse_leave.assert_not_called()
+
+    def test_thumb_enter_sets_prelight_when_thumbnail_outline_enabled(self):
+        popup = _make_popup()
+        popup._thumbnail_outline_enabled = lambda: True
+        widget = MagicMock()
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
+
+        widget.set_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT, False
+        )
+
+    def test_thumb_enter_never_sets_prelight_when_thumbnail_outline_disabled(self):
+        popup = _make_popup()
+        popup._thumbnail_outline_enabled = lambda: False
+        widget = MagicMock()
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
+
+        widget.set_state_flags.assert_not_called()
+
+    def test_thumb_enter_does_not_set_prelight_with_default_config(self):
+        popup = _make_popup()
+        popup._thumbnail_outline_enabled = lambda: (
+            Config().window_preview_highlight_thumbnails_on_hover
+        )
+        widget = MagicMock()
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
+
+        widget.set_state_flags.assert_not_called()
+
+    def test_thumb_leave_clears_prelight_even_if_option_turned_off_meanwhile(self):
+        popup = _make_popup()
+        popup._thumbnail_outline_enabled = lambda: False
+        widget = MagicMock()
+        outside = SimpleNamespace(detail=object())
+        inferior = SimpleNamespace(detail=preview_mod.Gdk.NotifyType.INFERIOR)
+
+        preview_mod.PreviewPopup._on_thumb_leave(popup, widget, inferior)
+        widget.unset_state_flags.assert_not_called()
+        preview_mod.PreviewPopup._on_thumb_leave(popup, widget, outside)
+
+        widget.unset_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT
+        )
+
+    def test_set_thumbnail_outline_enabled_stores_probe(self):
+        popup = _make_popup()
+
+        preview_mod.PreviewPopup.set_thumbnail_outline_enabled(popup, lambda: True)
+
+        assert popup._thumbnail_outline_enabled() is True
+
+    @staticmethod
+    def _hover_popup(*, enabled: bool = True):
+        popup = _make_popup()
+        popup._outline = MagicMock()
+        popup._outline_enabled = lambda: enabled
+        popup.get_window = MagicMock()
+        return popup
+
+    def test_thumb_enter_applies_prelight_and_overlay_when_both_enabled(self):
+        popup = self._hover_popup()
+        popup._thumbnail_outline_enabled = lambda: True
+        widget = MagicMock()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock(), window)
+
+        widget.set_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT, False
+        )
+        popup._outline.show_around.assert_called_once_with(geometry)
+
+    def test_thumb_enter_overlay_only_does_not_set_prelight(self):
+        popup = self._hover_popup()
+        popup._thumbnail_outline_enabled = lambda: False
+        widget = MagicMock()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        preview_mod.PreviewPopup._on_thumb_enter(popup, widget, MagicMock(), window)
+
+        widget.set_state_flags.assert_not_called()
+        popup._outline.show_around.assert_called_once_with(geometry)
+
+    def test_thumb_enter_prelight_survives_overlay_skips(self):
+        popup = self._hover_popup(enabled=False)
+        popup._thumbnail_outline_enabled = lambda: True
+        widget = MagicMock()
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, widget, MagicMock(), _snapshot(1)
+        )
+
+        widget.set_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT, False
+        )
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_leave_clears_prelight_and_hides_overlay(self):
+        popup = self._hover_popup()
+        widget = MagicMock()
+        outside = SimpleNamespace(detail=object())
+
+        preview_mod.PreviewPopup._on_thumb_leave(popup, widget, outside)
+
+        widget.unset_state_flags.assert_called_once_with(
+            preview_mod.Gtk.StateFlags.PRELIGHT
+        )
+        popup._outline.hide.assert_called_once()
+
+    def test_thumb_enter_outlines_window_geometry_when_enabled(self):
+        popup = self._hover_popup()
+        geometry = Rect(10, 20, 800, 600)
+        window = replace(_snapshot(1), geometry=geometry)
+
+        handled = preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        assert handled is False
+        popup._outline.show_around.assert_called_once_with(geometry)
+        popup.get_window.return_value.raise_.assert_called_once()
+
+    def test_thumb_enter_does_nothing_when_disabled(self):
+        popup = self._hover_popup(enabled=False)
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10))
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_enter_skips_unknown_geometry_and_minimized_windows(self):
+        popup = self._hover_popup()
+        no_geometry = _snapshot(1)
+        minimized = replace(_snapshot(2), geometry=Rect(0, 0, 10, 10), minimized=True)
+
+        for window in (no_geometry, minimized):
+            preview_mod.PreviewPopup._on_thumb_enter(
+                popup, MagicMock(), MagicMock(), window
+            )
+
+        popup._outline.show_around.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            {"visible": False},
+            {"on_current_workspace": False},
+        ],
+    )
+    def test_thumb_enter_skips_windows_that_are_not_on_screen(self, state):
+        popup = self._hover_popup()
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10), **state)
+
+        preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        popup._outline.show_around.assert_not_called()
+
+    def test_thumb_enter_outlines_when_visibility_is_unknown_or_true(self):
+        popup = self._hover_popup()
+        geometry = Rect(0, 0, 10, 10)
+
+        for state in ({}, {"visible": True, "on_current_workspace": True}):
+            window = replace(_snapshot(1), geometry=geometry, **state)
+            preview_mod.PreviewPopup._on_thumb_enter(
+                popup, MagicMock(), MagicMock(), window
+            )
+
+        assert popup._outline.show_around.call_count == 2
+
+    def test_thumb_enter_without_overlay_is_a_noop(self):
+        popup = _make_popup()
+        window = replace(_snapshot(1), geometry=Rect(0, 0, 10, 10))
+
+        handled = preview_mod.PreviewPopup._on_thumb_enter(
+            popup, MagicMock(), MagicMock(), window
+        )
+
+        assert handled is False
+
+    def test_thumb_leave_hides_outline_except_for_inferior_crossings(self):
+        popup = self._hover_popup()
+        inferior = SimpleNamespace(detail=preview_mod.Gdk.NotifyType.INFERIOR)
+        outside = SimpleNamespace(detail=object())
+
+        preview_mod.PreviewPopup._on_thumb_leave(popup, MagicMock(), inferior)
+        popup._outline.hide.assert_not_called()
+        preview_mod.PreviewPopup._on_thumb_leave(popup, MagicMock(), outside)
+
+        popup._outline.hide.assert_called_once()
+
+    def test_do_hide_hides_outline(self):
+        popup = self._hover_popup()
+        popup.hide = MagicMock()
+
+        preview_mod.PreviewPopup._do_hide(popup)
+
+        popup._outline.hide.assert_called_once()
+
+    def test_set_window_outline_stores_overlay_and_probe(self):
+        popup = _make_popup()
+        overlay = MagicMock()
+
+        preview_mod.PreviewPopup.set_window_outline(popup, overlay, lambda: True)
+
+        assert popup._outline is overlay
+        assert popup._outline_enabled() is True

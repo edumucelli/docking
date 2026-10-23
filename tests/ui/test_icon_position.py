@@ -16,12 +16,12 @@ MAIN = 500.0  # main-axis position
 
 class TestBottomPosition:
     def test_x_equals_main_pos(self):
-        x, y = map_icon_position(Position.BOTTOM, MAIN, CROSS, EDGE_PAD, ICON)
+        x, _y = map_icon_position(Position.BOTTOM, MAIN, CROSS, EDGE_PAD, ICON)
         assert x == MAIN
 
     def test_y_near_bottom(self):
         # Icon sits near bottom: cross_size - edge_padding - icon_size
-        x, y = map_icon_position(Position.BOTTOM, MAIN, CROSS, EDGE_PAD, ICON)
+        _x, y = map_icon_position(Position.BOTTOM, MAIN, CROSS, EDGE_PAD, ICON)
         assert y == CROSS - EDGE_PAD - ICON
 
     def test_hide_pushes_down(self):
@@ -41,11 +41,11 @@ class TestBottomPosition:
 
 class TestTopPosition:
     def test_x_equals_main_pos(self):
-        x, y = map_icon_position(Position.TOP, MAIN, CROSS, EDGE_PAD, ICON)
+        x, _y = map_icon_position(Position.TOP, MAIN, CROSS, EDGE_PAD, ICON)
         assert x == MAIN
 
     def test_y_near_top(self):
-        x, y = map_icon_position(Position.TOP, MAIN, CROSS, EDGE_PAD, ICON)
+        _x, y = map_icon_position(Position.TOP, MAIN, CROSS, EDGE_PAD, ICON)
         assert y == EDGE_PAD
 
     def test_hide_pushes_up(self):
@@ -65,11 +65,11 @@ class TestTopPosition:
 
 class TestLeftPosition:
     def test_y_equals_main_pos(self):
-        x, y = map_icon_position(Position.LEFT, MAIN, CROSS, EDGE_PAD, ICON)
+        _x, y = map_icon_position(Position.LEFT, MAIN, CROSS, EDGE_PAD, ICON)
         assert y == MAIN
 
     def test_x_near_left(self):
-        x, y = map_icon_position(Position.LEFT, MAIN, CROSS, EDGE_PAD, ICON)
+        x, _y = map_icon_position(Position.LEFT, MAIN, CROSS, EDGE_PAD, ICON)
         assert x == EDGE_PAD
 
     def test_hide_pushes_left(self):
@@ -89,11 +89,11 @@ class TestLeftPosition:
 
 class TestRightPosition:
     def test_y_equals_main_pos(self):
-        x, y = map_icon_position(Position.RIGHT, MAIN, CROSS, EDGE_PAD, ICON)
+        _x, y = map_icon_position(Position.RIGHT, MAIN, CROSS, EDGE_PAD, ICON)
         assert y == MAIN
 
     def test_x_near_right(self):
-        x, y = map_icon_position(Position.RIGHT, MAIN, CROSS, EDGE_PAD, ICON)
+        x, _y = map_icon_position(Position.RIGHT, MAIN, CROSS, EDGE_PAD, ICON)
         assert x == CROSS - EDGE_PAD - ICON
 
     def test_hide_pushes_right(self):

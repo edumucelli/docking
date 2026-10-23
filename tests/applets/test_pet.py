@@ -1,4 +1,4 @@
-"""Tests for pet applet — state, render, and lifecycle."""
+"""Tests for pet applet - state, render, and lifecycle."""
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ from docking.applets.pet.state import (
     tick,
     tooltip_text,
 )
+from docking.core.config import Config
 
 # ---------------------------------------------------------------------------
 # resolve_mood
@@ -123,7 +124,7 @@ class TestTick:
         state = PetState(smoothed_cpu=0.0)
         # When
         result = tick(state=state, raw_cpu=1.0)
-        # Then — smoothed should be between 0 and 1
+        # Then - smoothed should be between 0 and 1
         assert 0 < result.state.smoothed_cpu < 1.0
 
     def test_idle_ticks_increment_when_cpu_low(self):
@@ -145,9 +146,9 @@ class TestTick:
     def test_hysteresis_prevents_immediate_mood_change(self):
         # Given relaxed state, one tick of busy-range CPU
         state = PetState(mood=Mood.RELAXED, smoothed_cpu=0.65)
-        # When — single tick at busy CPU
+        # When - single tick at busy CPU
         result = tick(state=state, raw_cpu=0.75)
-        # Then — mood should NOT change yet
+        # Then - mood should NOT change yet
         assert result.state.mood == Mood.RELAXED
         assert not result.mood_changed
         assert result.state.pending_mood == Mood.BUSY
@@ -158,7 +159,7 @@ class TestTick:
         for _ in range(HYSTERESIS):
             result = tick(state=state, raw_cpu=0.75)
             state = result.state
-        # Then — mood should have changed
+        # Then - mood should have changed
         assert state.mood == Mood.BUSY
         assert result.mood_changed
 
@@ -170,9 +171,9 @@ class TestTick:
             pending_mood=Mood.BUSY,
             pending_count=HYSTERESIS - 1,
         )
-        # When — CPU stays in relaxed range (smoothed ~0.12)
+        # When - CPU stays in relaxed range (smoothed ~0.12)
         result = tick(state=state, raw_cpu=0.10)
-        # Then — pending busy should reset (target is RELAXED, matches mood)
+        # Then - pending busy should reset (target is RELAXED, matches mood)
         assert result.state.pending_mood is None
         assert result.state.pending_count == 0
 
@@ -278,20 +279,20 @@ class TestPetApplet:
     def test_creates_with_happy_mood(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         assert applet._state.mood == Mood.HAPPY
 
     def test_create_icon_returns_pixbuf(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         result = applet.create_icon(size=48)
         assert result is not None
 
     def test_refresh_tooltip_sets_name(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         applet.refresh_tooltip()
         assert applet.item.name
         assert "Happy" in applet.item.name
@@ -299,7 +300,7 @@ class TestPetApplet:
     def test_on_clicked_resets_to_happy(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         applet._state = PetState(mood=Mood.SLEEPING)
         applet.item.is_urgent = True
         applet.on_clicked()
@@ -316,7 +317,7 @@ class TestPetApplet:
             "timeout_add_seconds",
             lambda _s, _cb: next(timer_ids),
         )
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         applet.start(notify=MagicMock())
         assert applet._timer_id == 42
 
@@ -335,7 +336,7 @@ class TestPetApplet:
             "source_remove",
             lambda sid: removed.append(sid),
         )
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         applet.start(notify=MagicMock())
         applet.stop()
         assert removed == [42]
@@ -345,7 +346,7 @@ class TestPetApplet:
         from docking.applets.pet.applet import PetApplet
 
         proc_data = "cpu  100 0 50 800 10 5 3\n"
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         # First tick just records the sample
         with patch("builtins.open", mock_open(read_data=proc_data)):
             applet._tick()
@@ -357,7 +358,7 @@ class TestPetApplet:
     def test_tick_handles_proc_stat_error(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         with patch("builtins.open", side_effect=OSError("nope")):
             result = applet._tick()
         assert result is True
@@ -367,7 +368,7 @@ class TestPetApplet:
         from docking.applets.pet.applet import PetApplet
 
         monkeypatch.setattr(pet_mod.GLib, "get_monotonic_time", lambda: 999)
-        applet = PetApplet(icon_size=48)
+        applet = PetApplet(icon_size=48, config=Config())
         # Force state one tick away from committing EXCITED
         applet._state = PetState(
             mood=Mood.HAPPY,

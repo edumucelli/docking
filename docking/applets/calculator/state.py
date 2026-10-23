@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure expression evaluation for the Calculator applet.
 
 Why this module exists
@@ -24,12 +37,20 @@ not with the GTK event handlers.
 from __future__ import annotations
 
 import ast
+import math
 import operator
 from collections.abc import Callable
 from typing import Any
 
-BinaryOp = Callable[[float, float], float]
-UnaryOp = Callable[[float], float]
+from docking.log import get_logger
+
+log = get_logger("calculator.state")
+
+Number = int | float
+BinaryOp = Callable[[Number, Number], Number]
+UnaryOp = Callable[[Number], Number]
+_MAX_EXPRESSION_LENGTH = 1024
+_MAX_AST_NODES = 256
 
 _BINARY_OPS: dict[type[ast.operator], BinaryOp] = {
     ast.Add: operator.add,
@@ -44,22 +65,33 @@ _UNARY_OPS: dict[type[ast.unaryop], UnaryOp] = {
 }
 
 
-def _eval_node(node: ast.AST) -> float:
+def _finite(value: Number) -> Number:
+    """Preserve exact integers and reject non-finite floating-point results."""
+    if isinstance(value, float) and not math.isfinite(value):
+        raise OverflowError("Non-finite result")
+    return value
+
+
+def _eval_node(node: ast.AST) -> Number:
     """Recursively evaluate an AST node, allowing only basic arithmetic."""
     if isinstance(node, ast.Expression):
         return _eval_node(node.body)
-    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
-        return float(node.value)
+    if (
+        isinstance(node, ast.Constant)
+        and not isinstance(node.value, bool)
+        and isinstance(node.value, int | float)
+    ):
+        return _finite(node.value)
     if isinstance(node, ast.BinOp):
         op = _BINARY_OPS.get(type(node.op))
         if op is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
-        return op(_eval_node(node.left), _eval_node(node.right))
+        return _finite(op(_eval_node(node.left), _eval_node(node.right)))
     if isinstance(node, ast.UnaryOp):
         op = _UNARY_OPS.get(type(node.op))
         if op is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
-        return op(_eval_node(node.operand))
+        return _finite(op(_eval_node(node.operand)))
     raise ValueError("Invalid expression")
 
 
@@ -73,14 +105,27 @@ def evaluate(expression: str) -> str:
     if not expr:
         return ""
     try:
+        if len(expr) > _MAX_EXPRESSION_LENGTH:
+            raise ValueError("Expression is too long")
         tree = ast.parse(expr, mode="eval")
+        if sum(1 for _node in ast.walk(tree)) > _MAX_AST_NODES:
+            raise ValueError("Expression is too complex")
         result = _eval_node(tree)
+        if isinstance(result, int):
+            return str(result)
         if result == int(result):
             return str(int(result))
         return f"{result:.10g}"
-    except ZeroDivisionError:
+    except ZeroDivisionError as exc:
+        log.debug("Division by zero in calculator expression %r: %s", expr, exc)
         return "Error: division by zero"
-    except (ValueError, SyntaxError, TypeError):
+    except OverflowError as exc:
+        # An infinite operand cannot be rendered, and a raise here makes "="
+        # look broken.
+        log.debug("Overflow in calculator expression %r: %s", expr, exc)
+        return "Error: result too large"
+    except (ValueError, SyntaxError, TypeError, RecursionError) as exc:
+        log.debug("Failed to evaluate calculator expression %r: %s", expr, exc)
         return "Error"
 
 

@@ -1,7 +1,21 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure state and formatting logic for hydration applet."""
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any
@@ -64,6 +78,7 @@ def mouth_curvature(fill: float) -> float:
 
     1.0 = full smile, 0.0 = neutral, -1.0 = full frown.
     """
+    # Linear map: fill 0 -> -1 (frown), fill 0.5 -> 0 (neutral), fill 1 -> +1 (smile)
     clamped = _clamp_fill(fill)
     return clamped * 2.0 - 1.0
 
@@ -72,7 +87,18 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> HydrationState:
     """Build applet state from persisted preferences."""
     if not prefs:
         return HydrationState()
-    interval = int(prefs.get("interval", DEFAULT_INTERVAL))
+    raw_interval = prefs.get("interval", DEFAULT_INTERVAL)
+    try:
+        interval = (
+            int(raw_interval)
+            if not isinstance(raw_interval, bool)
+            and isinstance(raw_interval, str | int | float)
+            else DEFAULT_INTERVAL
+        )
+    except (ValueError, OverflowError):
+        interval = DEFAULT_INTERVAL
+    if interval <= 0:
+        interval = DEFAULT_INTERVAL
     show_timer = bool(prefs.get("show_timer", False))
     return HydrationState(interval_min=interval, show_timer=show_timer)
 
@@ -109,10 +135,16 @@ def tick(state: HydrationState) -> TickResult:
 
     total_secs = max(1, state.interval_min * 60)
     next_fill = _clamp_fill(state.fill - 1.0 / total_secs)
+    # Repeated subtraction leaves a tiny positive residue at several presets.
+    # Treat that rounding error as empty on the scheduled final tick.
+    if math.isclose(next_fill, 0.0, abs_tol=1e-12):
+        next_fill = 0.0
     next_tick = state.tick_count + 1
     next_state = replace(state, fill=next_fill, tick_count=next_tick)
 
     became_empty = state.fill > 0 and next_fill <= 0
+    # Lazy redraw: only refresh every REDRAW_EVERY ticks unless timer overlay
+    # is visible (which needs per-second updates) or fill just hit zero.
     should_refresh = (
         became_empty or next_state.show_timer or next_tick % REDRAW_EVERY == 0
     )

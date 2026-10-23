@@ -76,6 +76,7 @@ def test_bind_merges_context():
 def test_bind_ignores_none_values():
     logger = get_logger("test.log.bind.none")
     bound = with_context(logger, applet_id="clock").bind(action=None)
+    assert bound.extra is not None
     assert bound.extra["applet_id"] == "clock"
     assert "action" not in bound.extra
 

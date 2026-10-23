@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import http.client
+import io
 import urllib.error
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 import docking.applets.urlshortener.applet as urlshortener_applet_mod
 from docking.applets.urlshortener.applet import UrlShortenerApplet
@@ -12,7 +16,164 @@ from docking.core.config import Config
 
 
 def _make_applet(config: Config | None = None) -> UrlShortenerApplet:
-    return UrlShortenerApplet(48, config=config)
+    return UrlShortenerApplet(48, config=config or Config())
+
+
+class _FakeContentArea:
+    def __init__(self) -> None:
+        self.children: list[object] = []
+
+    def set_spacing(self, _value: int) -> None:
+        return
+
+    def set_margin_start(self, _value: int) -> None:
+        return
+
+    def set_margin_end(self, _value: int) -> None:
+        return
+
+    def set_margin_top(self, _value: int) -> None:
+        return
+
+    def set_margin_bottom(self, _value: int) -> None:
+        return
+
+    def pack_start(self, child, *_args) -> None:
+        self.children.append(child)
+
+    def show_all(self) -> None:
+        return
+
+
+class _FakeDialog:
+    def __init__(self, **_kwargs) -> None:
+        self.visible = False
+        self.destroyed = False
+        self._content_area = _FakeContentArea()
+        self._callbacks: dict[str, object] = {}
+
+    def set_default_size(self, *_args) -> None:
+        return
+
+    def set_skip_taskbar_hint(self, _value: bool) -> None:
+        return
+
+    def set_skip_pager_hint(self, _value: bool) -> None:
+        return
+
+    def set_position(self, *_args) -> None:
+        return
+
+    def set_resizable(self, _value: bool) -> None:
+        return
+
+    def get_content_area(self) -> _FakeContentArea:
+        return self._content_area
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def show_all(self) -> None:
+        self.visible = True
+
+    def hide(self) -> None:
+        self.visible = False
+
+    def get_visible(self) -> bool:
+        return self.visible
+
+    def destroy(self) -> None:
+        self.destroyed = True
+        self.visible = False
+
+    def emit(self, signal: str, *args) -> None:
+        callback = self._callbacks[signal]
+        callback(self, *args)
+
+
+class _FakeEntry:
+    def __init__(self) -> None:
+        self._text = ""
+        self._callbacks: dict[str, object] = {}
+
+    def set_placeholder_text(self, _text: str) -> None:
+        return
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def emit(self, signal: str) -> None:
+        callback = self._callbacks[signal]
+        callback(self)
+
+    def grab_focus(self) -> None:
+        return
+
+
+class _FakeButton:
+    def __init__(self, label: str = "") -> None:
+        self._label = label
+        self._sensitive = True
+        self._visible = True
+        self._callbacks: dict[str, object] = {}
+
+    def connect(self, signal: str, callback) -> None:
+        self._callbacks[signal] = callback
+
+    def emit(self, signal: str) -> None:
+        callback = self._callbacks[signal]
+        callback(self)
+
+    def set_sensitive(self, value: bool) -> None:
+        self._sensitive = value
+
+    def get_sensitive(self) -> bool:
+        return self._sensitive
+
+    def set_visible(self, value: bool) -> None:
+        self._visible = value
+
+    def get_visible(self) -> bool:
+        return self._visible
+
+    def set_label(self, label: str) -> None:
+        self._label = label
+
+    def get_label(self) -> str:
+        return self._label
+
+
+class _FakeLabel:
+    def __init__(self, label: str = "") -> None:
+        self._text = label
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+
+    def get_text(self) -> str:
+        return self._text
+
+    def set_selectable(self, _value: bool) -> None:
+        return
+
+    def set_line_wrap(self, _value: bool) -> None:
+        return
+
+    def set_max_width_chars(self, _value: int) -> None:
+        return
+
+
+def _patch_dialog_widgets(monkeypatch) -> None:
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Dialog", _FakeDialog)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Entry", _FakeEntry)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Button", _FakeButton)
+    monkeypatch.setattr(urlshortener_applet_mod.Gtk, "Label", _FakeLabel)
 
 
 # -- State tests ---------------------------------------------------------------
@@ -64,6 +225,85 @@ class TestShortenUrl:
             result = shorten_url("https://example.com")
         assert "timed out" in result.lower()
 
+    def test_non_utf8_success_body_returns_an_error(self):
+        portal = b"<html><body>Portal required. P\xe1gina bloqueada.</body></html>"
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__ = lambda s: s
+            mock.return_value.__exit__ = MagicMock(return_value=False)
+            mock.return_value.read.return_value = portal
+
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result.startswith("Error:")
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            b"<html><body>Sign in to this network</body></html>",
+            b"",
+            b"not a URL",
+            b"ftp://is.gd/abc",
+            b"https:///abc",
+            b"https://is.gd/abc extra text",
+            b"https://is.gd/ab\x00c",
+        ],
+    )
+    def test_non_url_success_response_returns_an_error(self, body):
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = body
+
+            result = shorten_url("https://example.com")
+
+        assert result.startswith("Error:")
+
+    def test_service_error_in_success_response_is_preserved(self):
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = (
+                b"Error: Invalid URL"
+            )
+
+            result = shorten_url("https://example.com")
+
+        assert result == "Error: Invalid URL"
+
+    def test_truncated_response_returns_an_error_message(self):
+        """Anything at all escaping here wedges the dialog, so nothing may."""
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__ = lambda s: s
+            mock.return_value.__exit__ = MagicMock(return_value=False)
+            mock.return_value.read.side_effect = http.client.IncompleteRead(
+                b"partial", 100
+            )
+
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result.startswith("Error:")
+
+    def test_truncated_http_error_body_returns_the_http_status(self):
+        sock = MagicMock()
+        sock.makefile.return_value = io.BytesIO(
+            b"HTTP/1.1 400 Bad Request\r\nContent-Length: 30\r\n\r\npartial"
+        )
+        response = http.client.HTTPResponse(sock)
+        response.begin()
+        error = urllib.error.HTTPError(
+            url="https://is.gd/create.php",
+            code=400,
+            msg="Bad Request",
+            hdrs=response.headers,
+            fp=response,
+        )
+        with (
+            error,
+            patch(
+                "docking.applets.urlshortener.state.urllib.request.urlopen",
+                side_effect=error,
+            ),
+        ):
+            result = shorten_url("https://example.com/very/long/url")
+
+        assert result == "Error: HTTP 400"
+
 
 class TestPrefsPayload:
     def test_round_trip(self):
@@ -86,7 +326,7 @@ class TestAppletCreation:
 
     def test_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = UrlShortenerApplet(size)
+            applet = UrlShortenerApplet(size, config=Config())
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
 
@@ -143,12 +383,13 @@ class TestAppletDialog:
         applet = _make_applet()
         applet.stop()  # should not raise
 
-    def test_show_dialog_builds_controls_and_cleans_up_on_response(self):
+    def test_show_dialog_builds_controls_and_cleans_up_on_response(self, monkeypatch):
         applet = _make_applet(
             config=Config(
                 applet_prefs={"urlshortener": {"last_url": "https://example.com"}}
             )
         )
+        _patch_dialog_widgets(monkeypatch)
 
         applet._show_dialog()
 
@@ -165,8 +406,9 @@ class TestAppletDialog:
 
         applet._do_shorten()
 
-    def test_do_shorten_is_noop_for_blank_url(self):
+    def test_do_shorten_is_noop_for_blank_url(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         assert applet._url_entry is not None
         assert applet._shorten_btn is not None
@@ -179,6 +421,7 @@ class TestAppletDialog:
 
     def test_do_shorten_starts_worker_and_dispatches_result(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         applet._ensure_result_row()
         assert applet._url_entry is not None
@@ -202,18 +445,28 @@ class TestAppletDialog:
 
         applet._do_shorten()
 
-        idle_add.assert_called_once()
+        assert any(
+            call.args
+            == (
+                applet._on_result,
+                "https://example.com",
+                "https://is.gd/abc",
+                applet._request_id,
+            )
+            for call in idle_add.call_args_list
+        )
         assert applet._last_result == "https://is.gd/abc"
         assert applet._shorten_btn.get_sensitive() is True
         applet.stop()
 
-    def test_on_result_error_hides_copy_and_skips_save(self):
+    def test_on_result_error_hides_copy_and_skips_save(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         save = MagicMock()
         applet.save_prefs = save
 
-        applet._on_result("https://example.com", "Error: bad url")
+        applet._on_result("https://example.com", "Error: bad url", applet._request_id)
 
         assert applet._result_label is not None
         assert applet._result_label.get_text() == "Error: bad url"
@@ -223,15 +476,43 @@ class TestAppletDialog:
         save.assert_not_called()
         applet.stop()
 
-    def test_on_result_success_persists_and_shows_copy(self, tmp_path):
+    def test_captive_portal_response_does_not_enter_success_flow(self, monkeypatch):
+        applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
+        applet._show_dialog()
+        applet._shorten_btn.set_sensitive(False)
+        save = MagicMock()
+        applet.save_prefs = save
+        with patch("docking.applets.urlshortener.state.urllib.request.urlopen") as mock:
+            mock.return_value.__enter__.return_value.read.return_value = (
+                b"<html><body>Sign in to this network</body></html>"
+            )
+            result = shorten_url("https://example.com")
+
+        applet._on_result("https://example.com", result, applet._request_id)
+
+        assert applet._shorten_btn.get_sensitive() is True
+        assert applet._copy_btn.get_visible() is False
+        assert applet._last_result == ""
+        assert applet._last_url == ""
+        save.assert_not_called()
+        applet.stop()
+
+    def test_on_result_success_persists_and_shows_copy(self, tmp_path, monkeypatch):
         path = tmp_path / "dock.json"
         config = Config()
         config.save(path)
         config = Config.load(path)
         applet = _make_applet(config=config)
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
 
-        assert applet._on_result("https://example.com", "https://is.gd/ok") is False
+        assert (
+            applet._on_result(
+                "https://example.com", "https://is.gd/ok", applet._request_id
+            )
+            is False
+        )
 
         assert applet._result_label is not None
         assert applet._result_label.get_text() == "https://is.gd/ok"
@@ -266,6 +547,7 @@ class TestAppletDialog:
 
     def test_do_copy_updates_clipboard_and_button_label(self, monkeypatch):
         applet = _make_applet()
+        _patch_dialog_widgets(monkeypatch)
         applet._show_dialog()
         applet._ensure_result_row()
         applet._last_result = "https://is.gd/copied"

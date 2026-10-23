@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Applet catalog and lazy class loading via auto-discovery.
 
 Docking ships many optional applets, but most sessions only instantiate a small
@@ -87,7 +100,12 @@ def load_applet_class(applet_id: str) -> type[Applet] | None:
     # a class name in AppletMeta. That keeps metadata minimal and avoids
     # duplicating another identifier that can drift during refactors.
     for obj in vars(module).values():
-        if inspect.isclass(obj) and issubclass(obj, _Base) and obj is not _Base:
+        if (
+            inspect.isclass(obj)
+            and obj.__module__ == module.__name__
+            and issubclass(obj, _Base)
+            and obj is not _Base
+        ):
             return obj
     log.warning("No Applet subclass found in %s", module_name)
     return None

@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Autohide controller for the dock's visible/hidden state and motion.
 
 Autohide from first principles
@@ -190,20 +203,19 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from docking.log import get_logger
-
-log = get_logger(name="autohide")
-
 import gi
+
+from docking.core.config import HideMode
+from docking.log import get_logger
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from docking.core.config import HideMode
-
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.ui.dock_window import DockWindow
+
+log = get_logger(name="autohide")
 
 FRAME_INTERVAL_MS = 16  # ~60fps
 MIN_HIDE_GRACE_MS = 60
@@ -232,7 +244,7 @@ def inverse_ease_in_cubic(value: float) -> float:
         return 0.0
     if value >= 1.0:
         return 1.0
-    return value ** (1.0 / 3.0)
+    return float(value ** (1.0 / 3.0))
 
 
 def inverse_ease_out_cubic(value: float) -> float:
@@ -241,7 +253,7 @@ def inverse_ease_out_cubic(value: float) -> float:
         return 0.0
     if value >= 1.0:
         return 1.0
-    return 1.0 - (1.0 - value) ** (1.0 / 3.0)
+    return float(1.0 - (1.0 - value) ** (1.0 / 3.0))
 
 
 def _source_exists(source_id: int) -> bool:
@@ -280,12 +292,13 @@ class AutoHideController:
         self._unhide_timer_id: int = 0
         self._anim_timer_id: int = 0
         self._anim_progress: float = 0.0
+        self._anim_last_tick_us: int = 0
         self._hide_after_show: bool = False
         self._window_should_hide: bool = False
 
     @property
     def enabled(self) -> bool:
-        return self._config.hide_mode != "none"
+        return self._config.hide_mode not in ("none", "always-on-top")
 
     def reset(self) -> None:
         """Force dock visible -- call when auto-hide is toggled off."""
@@ -347,8 +360,16 @@ class AutoHideController:
         self._window_should_hide = should_hide
         self._update_hidden()
 
+    def reconcile(self) -> None:
+        """Re-run hide/show policy without changing current inputs."""
+        if not self.enabled:
+            return
+        self._update_hidden()
+
     def _update_hidden(self) -> None:
         """Reconcile hover/disabled state into show-or-hide behavior."""
+        if not self.enabled:
+            return
         if self._disabled or self._hovered:
             self._show()
         elif (
@@ -366,8 +387,9 @@ class AutoHideController:
         if self.state in (HideState.HIDDEN, HideState.HIDING):
             delay = self._config.unhide_delay_ms
             if delay <= 0:
+                self._cancel_unhide_timer()
                 self._start_showing()
-            else:
+            elif not self._unhide_timer_id:
                 self._unhide_timer_id = GLib.timeout_add(delay, self._start_showing)
 
     def _hide(self) -> None:
@@ -396,7 +418,7 @@ class AutoHideController:
         """Begin show animation."""
         self._unhide_timer_id = 0
         if self.hide_offset <= 0.0:
-            # Already fully visible — skip animation entirely.
+            # Already fully visible - skip animation entirely.
             self.state = HideState.VISIBLE
             self.hide_offset = 0.0
             self.zoom_progress = 1.0
@@ -421,6 +443,7 @@ class AutoHideController:
         """Start the animation tick loop."""
         if self._anim_timer_id:
             self._anim_timer_id = _clear_source(source_id=self._anim_timer_id)
+        self._anim_last_tick_us = GLib.get_monotonic_time()
         self._anim_timer_id = GLib.timeout_add(FRAME_INTERVAL_MS, self._animation_tick)
 
     # Autohide state machine:
@@ -438,14 +461,20 @@ class AutoHideController:
     # SHOWING: hide_offset animates 1->0 using ease_out_cubic (decelerating)
     # VISIBLE/HIDDEN: stable states, no animation running
     #
-    # Each animation frame advances _anim_progress by a fixed step
-    # (FRAME_INTERVAL_MS / hide_time_ms), giving consistent timing
-    # regardless of how many frames actually render.
+    # Advance by elapsed monotonic time: GLib timeouts can be delayed and
+    # do not catch up missed frames. Restart the clock on reversal so the
+    # opposite animation continues from the current visual position.
 
     def _animation_tick(self) -> bool:
         """Single animation frame."""
+        if self.state not in (HideState.HIDING, HideState.SHOWING):
+            self._anim_timer_id = 0
+            return False
+        now_us = GLib.get_monotonic_time()
+        elapsed_ms = (now_us - self._anim_last_tick_us) / 1000
+        self._anim_last_tick_us = now_us
         duration = self._config.hide_time_ms
-        step = FRAME_INTERVAL_MS / duration if duration > 0 else 1.0
+        step = elapsed_ms / duration if duration > 0 else 1.0
         self._anim_progress = min(1.0, self._anim_progress + step)
 
         if self.state == HideState.HIDING:

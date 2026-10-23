@@ -1,3 +1,16 @@
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
 """Pure conversion rules and currency-rate support for the Unit Converter applet.
 
 This module carries the real semantic weight of the unit converter. The popup
@@ -28,6 +41,7 @@ its dynamic behavior explicit.
 from __future__ import annotations
 
 import json
+import math
 import urllib.request
 from enum import Enum
 from typing import Any, NamedTuple
@@ -156,17 +170,39 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
         return None
 
     # v2 response: [{"base": "EUR", "quote": "USD", "rate": 1.08}, ...]
-    rates: dict[str, float] = {}
     if isinstance(data, list):
-        for entry in data:
-            code = entry.get("quote", "")
-            rate = entry.get("rate")
-            if code and isinstance(rate, (int, float)) and rate > 0:
-                rates[code] = float(rate)
-    elif isinstance(data, dict) and "rates" in data:
-        rates = data["rates"]
+        entries = [
+            (entry.get("quote"), entry.get("rate"))
+            for entry in data
+            if isinstance(entry, dict)
+        ]
+    elif isinstance(data, dict) and isinstance(data.get("rates"), dict):
+        entries = list(data["rates"].items())
+    else:
+        entries = []
 
-    if not rates:
+    factors: dict[str, float] = {}
+    for code, raw_rate in entries:
+        if (
+            not isinstance(code, str)
+            or len(code) != 3
+            or not code.isascii()
+            or not code.isalpha()
+            or isinstance(raw_rate, bool)
+            or not isinstance(raw_rate, int | float)
+        ):
+            continue
+        try:
+            rate = float(raw_rate)
+            if rate <= 0 or not math.isfinite(rate):
+                continue
+            factor = 1.0 / rate
+        except (OverflowError, ValueError):
+            continue
+        if factor > 0 and math.isfinite(factor):
+            factors[code.upper()] = factor
+
+    if not factors:
         log.warning("No currency rates in response")
         return None
 
@@ -175,9 +211,8 @@ def fetch_currency_rates() -> tuple[Unit, ...] | None:
     # EUR is base, factor 1.0. For USD with rate 1.08 (1 EUR = 1.08 USD),
     # factor = 1/1.08 so that converting 100 EUR->USD = 100 * 1.0 / (1/1.08) = 108.
     units = [Unit("Euro", "EUR", 1.0)]
-    for code, rate in sorted(rates.items()):
-        if isinstance(rate, (int, float)) and rate > 0:
-            units.append(Unit(code, code, 1.0 / float(rate)))
+    for code, factor in sorted(factors.items()):
+        units.append(Unit(code, code, factor))
     return tuple(units)
 
 
@@ -187,9 +222,24 @@ def set_currency_units(units: tuple[Unit, ...]) -> None:
     _currency_units = units
 
 
+def scale_ratio(value: float, numerator: float, denominator: float) -> float:
+    """Scale a value without overflowing or underflowing an intermediate."""
+    if numerator == denominator and numerator != 0 and math.isfinite(numerator):
+        return value
+    value_mantissa, value_exponent = math.frexp(value)
+    numerator_mantissa, numerator_exponent = math.frexp(numerator)
+    denominator_mantissa, denominator_exponent = math.frexp(denominator)
+    mantissa = value_mantissa * numerator_mantissa / denominator_mantissa
+    exponent = value_exponent + numerator_exponent - denominator_exponent
+    try:
+        return math.ldexp(mantissa, exponent)
+    except OverflowError:
+        return math.copysign(math.inf, mantissa)
+
+
 def _to_celsius(value: float, unit: Unit) -> float:
     if unit.symbol == "F":
-        return (value - 32) * 5 / 9
+        return scale_ratio(value - 32, 5, 9)
     if unit.symbol == "K":
         return value - 273.15
     return value
@@ -197,7 +247,7 @@ def _to_celsius(value: float, unit: Unit) -> float:
 
 def _from_celsius(value: float, unit: Unit) -> float:
     if unit.symbol == "F":
-        return value * 9 / 5 + 32
+        return scale_ratio(value, 9, 5) + 32
     if unit.symbol == "K":
         return value + 273.15
     return value
@@ -216,10 +266,11 @@ def convert(
     Converting X from_unit to to_unit: X * from_factor / to_factor.
     """
     if category == Category.TEMPERATURE:
+        if from_unit.symbol == to_unit.symbol:
+            return value
         celsius = _to_celsius(value, from_unit)
         return _from_celsius(celsius, to_unit)
-    base = value * from_unit.factor
-    return base / to_unit.factor
+    return scale_ratio(value, from_unit.factor, to_unit.factor)
 
 
 def format_result(value: float) -> str:

@@ -1,0 +1,51 @@
+{
+  "case": "placement-left",
+  "compositor": "niri",
+  "config": {
+    "active_display": false,
+    "hide_mode": "none",
+    "icon_size": 48,
+    "pinned": [
+      "lab-alpha.desktop",
+      "lab-beta.desktop",
+      "lab-gamma.desktop"
+    ],
+    "position": "left",
+    "previews_enabled": false,
+    "recent_apps": [],
+    "show_window_count_numbers": false,
+    "theme": "default",
+    "zoom_enabled": false
+  },
+  "edge": "left",
+  "gap": 0,
+  "image_id": "sha256:cff5e1fa2bc2fca98249b41415a6ce602970cf268e5ebf1f72a1787045d374e6",
+  "image_ref": "docking-lab-arch:niri",
+  "output": {
+    "height": 720,
+    "name": "Smithay Winit Unknown",
+    "scale": 1.0,
+    "width": 1280,
+    "x": 0,
+    "y": 0
+  },
+  "scene": {
+    "case_panel": 0,
+    "crop": {
+      "height": 720,
+      "width": 320,
+      "x": 0,
+      "y": 0
+    },
+    "panel": {
+      "height": 0,
+      "position": "bottom"
+    },
+    "workarea": {
+      "height": 720,
+      "width": 1280,
+      "x": 0,
+      "y": 0
+    }
+  }
+}
