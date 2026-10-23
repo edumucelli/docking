@@ -32,6 +32,42 @@ ROOT = Path(__file__).resolve().parents[2]
 WIDTH, HEIGHT = 1280, 800
 
 
+def private_environment(directory: Path) -> dict[str, str]:
+    """Isolate service activation as well as direct children from host settings."""
+    env = dict(os.environ)
+    for key in (
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "SWAYSOCK",
+        "NIRI_SOCKET",
+        "HYPRLAND_INSTANCE_SIGNATURE",
+        "GAMESCOPE_WAYLAND_DISPLAY",
+        "XDG_SESSION_DESKTOP",
+        "DESKTOP_SESSION",
+        "SESSION_MANAGER",
+    ):
+        env.pop(key, None)
+    for kind in ("CONFIG", "CACHE", "DATA", "STATE", "RUNTIME"):
+        path = directory / kind.lower()
+        path.mkdir(mode=0o700)
+        env[f"XDG_{kind}_" + ("DIR" if kind == "RUNTIME" else "HOME")] = str(path)
+    env.update(
+        GDK_BACKEND="x11",
+        DOCKING_BACKEND="x11",
+        XDG_SESSION_TYPE="x11",
+        XDG_CURRENT_DESKTOP="XFCE",
+        GSETTINGS_BACKEND="memory",
+        GTK_THEME="Adwaita",
+        DOCKING_LOG_LEVEL="DEBUG",
+        LC_ALL="C",
+        GDK_SCALE="1",
+        GDK_DPI_SCALE="1",
+        NO_AT_BRIDGE="1",
+        GIO_USE_VFS="local",
+    )
+    return env
+
+
 def wait_for(check, message: str, timeout: float = 12):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -260,6 +296,46 @@ def fixture_client():
     Gtk.main()
 
 
+def desktop_client():
+    """Provide the desktop window present in a normal Xfce session.
+
+    Xfwm publishes its stacking property only after managing multiple clients.
+    A bare WM plus one dock omits it, preventing libwnck from enumerating any
+    windows. A real desktop window gives the lab the normal desktop lifecycle.
+    """
+    import gi
+
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk, Gtk
+
+    window = Gtk.Window(title="BSD visual desktop")
+    window.set_type_hint(Gdk.WindowTypeHint.DESKTOP)
+    window.set_decorated(False)
+    window.set_accept_focus(False)
+    window.set_skip_taskbar_hint(True)
+    window.set_skip_pager_hint(True)
+    window.stick()
+    window.set_default_size(WIDTH, HEIGHT)
+    window.move(0, 0)
+    area = Gtk.DrawingArea()
+
+    def draw(_widget, cr):
+        cr.set_source_rgb(32 / 255, 36 / 255, 40 / 255)
+        cr.paint()
+
+    def mapped(_widget, _event):
+        (Path(os.environ["XDG_RUNTIME_DIR"]) / "desktop-ready").touch()
+        return False
+
+    area.connect("draw", draw)
+    window.add(area)
+    window.connect("map-event", mapped)
+    window.connect("destroy", Gtk.main_quit)
+    window.show_all()
+    Gtk.main()
+
+
 @contextmanager
 def dock_case(observer: Observer, env: dict[str, str], name: str, overrides: dict):
     config = {
@@ -294,12 +370,27 @@ def ready(observer: Observer, child, count: int = 3):
     def dock_window():
         if child.poll() is not None:
             raise AssertionError(f"Dock exited during startup: {child.returncode}")
+        windows = observer.windows()
+        (observer.output / "observed-windows.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "pid": w.get_pid(),
+                        "name": w.get_name(),
+                        "type": int(w.get_window_type()),
+                    }
+                    for w in windows
+                ],
+                indent=2,
+            )
+        )
         return next(
             (
                 w
-                for w in observer.windows()
+                for w in windows
                 if w.get_pid() == child.pid
                 or w.get_window_type() == observer.Wnck.WindowType.DOCK
+                or w.get_name() == "Docking"
             ),
             None,
         )
@@ -634,39 +725,7 @@ def session(args):
     results = []
     try:
         with tempfile.TemporaryDirectory(prefix="docking-x11-") as temporary:
-            env = dict(os.environ)
-            for key in (
-                "DISPLAY",
-                "WAYLAND_DISPLAY",
-                "SWAYSOCK",
-                "NIRI_SOCKET",
-                "HYPRLAND_INSTANCE_SIGNATURE",
-                "GAMESCOPE_WAYLAND_DISPLAY",
-                "XDG_SESSION_DESKTOP",
-                "DESKTOP_SESSION",
-                "SESSION_MANAGER",
-            ):
-                env.pop(key, None)
-            for kind in ("CONFIG", "CACHE", "DATA", "STATE", "RUNTIME"):
-                path = Path(temporary) / kind.lower()
-                path.mkdir(mode=0o700)
-                env[f"XDG_{kind}_" + ("DIR" if kind == "RUNTIME" else "HOME")] = str(
-                    path
-                )
-            env.update(
-                GDK_BACKEND="x11",
-                DOCKING_BACKEND="x11",
-                XDG_SESSION_TYPE="x11",
-                XDG_CURRENT_DESKTOP="XFCE",
-                GSETTINGS_BACKEND="memory",
-                GTK_THEME="Adwaita",
-                DOCKING_LOG_LEVEL="DEBUG",
-                LC_ALL="C",
-                GDK_SCALE="1",
-                GDK_DPI_SCALE="1",
-                NO_AT_BRIDGE="1",
-                GIO_USE_VFS="local",
-            )
+            env = private_environment(Path(temporary))
             seed(env)
             display_number = next(
                 n
@@ -697,7 +756,23 @@ def session(args):
                     return Path(f"/tmp/.X11-unix/X{display_number}").exists()
 
                 wait_for(display_ready, "Private Xvfb never became ready")
-                with process(shlex.split(args.wm), output / "wm.log", env):
+                with (
+                    process(shlex.split(args.wm), output / "wm.log", env),
+                    process(
+                        [sys.executable, "-m", "tools.bsd_visual.run", "--background"],
+                        output / "desktop.log",
+                        env,
+                    ) as background,
+                ):
+
+                    def desktop_ready():
+                        if background.poll() is not None:
+                            raise RuntimeError(
+                                "Desktop fixture exited; inspect desktop.log"
+                            )
+                        return (Path(env["XDG_RUNTIME_DIR"]) / "desktop-ready").exists()
+
+                    wait_for(desktop_ready, "Desktop fixture never mapped")
                     with process(
                         [
                             sys.executable,
@@ -759,7 +834,9 @@ def main():
         type=Path,
         default=ROOT / "artifacts" / "bsd-visual" / str(time.time_ns()),
     )
-    parser.add_argument("--wm", default="xfwm4 --compositor=on --sm-client-disable")
+    parser.add_argument(
+        "--wm", default="xfwm4 --compositor=on --sm-client-disable --vblank=off"
+    )
     parser.add_argument(
         "--pytest",
         action="store_true",
@@ -774,9 +851,13 @@ def main():
     parser.add_argument("--observe", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.client:
         fixture_client()
+        return 0
+    if args.background:
+        desktop_client()
         return 0
     if args.observe:
         faulthandler.enable()
@@ -785,12 +866,11 @@ def main():
         faulthandler.enable()
         return session(args)
     if args.output.exists() and any(args.output.iterdir()):
-        parser.error(
-            "--output must be empty; use a new directory for each run"
-        )
+        parser.error("--output must be empty; use a new directory for each run")
     # Exclude the host's D-Bus activation directories: desktop portals, keyrings
     # and accessibility daemons belong to the host session, not this fixture.
     with tempfile.TemporaryDirectory(prefix="docking-test-bus-") as directory:
+        bus_env = private_environment(Path(directory))
         service_dir = Path(directory) / "services"
         service_dir.mkdir()
         # Xfwm needs its settings daemon. Permit this one service without
@@ -825,6 +905,7 @@ def main():
                 *[argument for name in args.case for argument in ("--case", name)],
             ],
             cwd=ROOT,
+            env=bus_env,
         )
         print(
             f"Visual report: {args.output / 'index.html'} (session exit {status})",

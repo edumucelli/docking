@@ -3,7 +3,7 @@
 import pytest
 
 from tools.bsd_visual.pixels import Frame, placement
-from tools.bsd_visual.run import report
+from tools.bsd_visual.run import private_environment, report
 
 
 def frame(width=200, height=160, rect=None, channels=3, padding=0):
@@ -49,3 +49,18 @@ def test_report_retains_failures_and_escapes_error_text(tmp_path):
     html = (tmp_path / "index.html").read_text()
     assert "&lt;failed&gt;" in html
     assert '"status": "fail"' in (tmp_path / "results.json").read_text()
+
+
+def test_service_environment_does_not_reuse_host_displays_or_settings(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_SESSION_DESKTOP", "host-desktop")
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/host/config")
+    env = private_environment(tmp_path)
+    assert "DISPLAY" not in env
+    assert "WAYLAND_DISPLAY" not in env
+    assert "XDG_SESSION_DESKTOP" not in env
+    assert env["XDG_CONFIG_HOME"] == str(tmp_path / "config")
+    assert (tmp_path / "config").stat().st_mode & 0o777 == 0o700

@@ -11,7 +11,7 @@ On FreeBSD, install the Python bindings matching the default Python version:
 ```sh
 pkg install python3 gtk3 libwnck3 libXtst
 python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
-pkg install "py${python_suffix}-gobject3" "py${python_suffix}-cairo" \
+pkg install "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
   "py${python_suffix}-psutil" "py${python_suffix}-pip"
 ```
 

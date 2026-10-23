@@ -208,7 +208,7 @@ def battery() -> Battery | None:
         minutes = command(["apm", "-m"])
         ac = command(["apm", "-a"])
         try:
-            if status in {None, "4", "255"} or percent is None:
+            if status not in {"0", "1", "2", "3"} or percent is None:
                 return None
             capacity = int(percent)
             if not 0 <= capacity <= 100:

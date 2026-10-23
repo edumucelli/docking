@@ -63,12 +63,11 @@ jobs:
           prepare: |
             pkg install -y python3
             python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
-            pkg install -y "py${python_suffix}-gobject3" "py${python_suffix}-cairo" \
+            pkg install -y "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
               "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
               gtk3 libwnck3 libXtst xfce4-wm xorg-vfbserver dbus dejavu
           run: |
-            sh tools/bsd_visual/install-python.sh
-            .venv-bsd/bin/python -m tools.bsd_visual.run --pytest --output artifacts/bsd-visual/freebsd
+            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/freebsd
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'
         uses: vmactions/openbsd-vm@v1
@@ -80,8 +79,24 @@ jobs:
             pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip gtk+3 libwnck3 xfwm4 dbus
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
-            sh tools/bsd_visual/install-python.sh
-            .venv-bsd/bin/python -m tools.bsd_visual.run --pytest --output artifacts/bsd-visual/openbsd
+            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/openbsd
+      - name: Check copied BSD results
+        env:
+          BSD_OS: ${{ matrix.os }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          directory = Path("artifacts/bsd-visual") / os.environ["BSD_OS"]
+          status = int((directory / "exit-status").read_text())
+          if status:
+              raise SystemExit(f"BSD tests exited with status {status}; see the visual artifact and install.log")
+          results = json.loads((directory / "results.json").read_text())["results"]
+          if not results or any(result["status"] != "pass" for result in results):
+              raise SystemExit("BSD checks failed; see results.json in the visual artifact")
+          PY
       - uses: actions/upload-artifact@v7
         if: always()
         with:
