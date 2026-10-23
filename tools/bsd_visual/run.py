@@ -458,7 +458,7 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             observer.pointer.escape()
             observer.hover()
             observer.pointer.click()
-            client = wait_for(observer.client, "Click did not launch the GTK fixture")
+            wait_for(observer.client, "Click did not launch the GTK fixture")
             wait_for(
                 lambda: observer.client().is_active(), "Launched client never focused"
             )
@@ -478,7 +478,9 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                 )
                 observer.pointer.move(WIDTH // 2, HEIGHT // 2)
                 observer.settled(f"interaction-{phase}")
-            client.close(0)
+            # Release the GI wrapper before libwnck processes DestroyNotify;
+            # retaining a closed WnckWindow can crash older libwnck versions.
+            observer.client().close(0)
             wait_for(lambda: observer.client() is None, "Fixture did not close")
             return {"launch": True, "minimize": True, "restore": True}
 

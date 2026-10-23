@@ -8,7 +8,18 @@ on:
       - "docking/**"
       - "tests/**"
       - "tools/bsd_visual/**"
+      - "pyproject.toml"
       - ".github/workflows/bsd.yml"
+  push:
+    branches: [master]
+    paths:
+      - "docking/**"
+      - "tests/**"
+      - "tools/bsd_visual/**"
+      - "pyproject.toml"
+      - ".github/workflows/bsd.yml"
+  schedule:
+    - cron: "43 4 * * 1"
 
 permissions:
   contents: read
@@ -57,7 +68,7 @@ jobs:
         if: matrix.os == 'freebsd'
         uses: vmactions/freebsd-vm@v1
         with:
-          release: "15.0"
+          release: "15.1"
           sync: rsync
           copyback: true
           prepare: |

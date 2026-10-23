@@ -170,9 +170,7 @@ class CamshieldApplet(Applet):
         return True
 
     def _helper_available(self) -> bool:
-        return shutil.which(_PKEXEC_BIN) is not None and (
-            shutil.which(_HELPER_BIN) is not None or _SOURCE_HELPER.exists()
-        )
+        return _helper_command(action="status") is not None
 
     def _run_helper_action(self, action: str) -> None:
         command = _helper_command(action=action)
@@ -209,6 +207,8 @@ class CamshieldApplet(Applet):
 
 
 def _helper_command(*, action: str) -> list[str] | None:
+    if not meta.available_on_host:
+        return None
     pkexec = shutil.which(_PKEXEC_BIN)
     if pkexec is None:
         return None

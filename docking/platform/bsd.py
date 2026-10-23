@@ -49,7 +49,14 @@ def command(argv: list[str]) -> str | None:
 
 def process_executable(pid: int) -> Path | None:
     try:
-        value = str(_psutil().Process(pid).exe())
+        process = _psutil().Process(pid)
+        if sys.platform.startswith("openbsd"):
+            # OpenBSD cannot query a kernel executable path. psutil.exe() guesses
+            # via the observer's PATH, which can misidentify another executable.
+            argv = process.cmdline()
+            value = str(argv[0]) if argv else ""
+        else:
+            value = str(process.exe())
         path = Path(value)
         return (
             path.resolve() if value and path.is_absolute() and path.is_file() else None
@@ -158,13 +165,33 @@ def network_interfaces() -> list[NetworkInterface]:
         return []
 
 
+_PSEUDO_FS_TYPES = {
+    "devfs",
+    "fdescfs",
+    "procfs",
+    "linprocfs",
+    "linsysfs",
+    "tmpfs",
+    "nullfs",
+    "mfs",
+    "kernfs",
+}
+
+
 def disk_usage() -> list[tuple[str, float]]:
     readings = []
     try:
         util = _psutil()
-    except ImportError:
+        partitions = util.disk_partitions(all=True)
+    except Exception as exc:
+        log.debug("Mount table unavailable: %s", exc)
         return readings
-    for path in mount_points():
+    seen: set[str] = set()
+    for partition in partitions:
+        path = str(partition.mountpoint)
+        if str(partition.fstype) in _PSEUDO_FS_TYPES or path in seen:
+            continue
+        seen.add(path)
         try:
             readings.append(
                 (str(path), float(util.disk_usage(str(path)).percent) / 100)
@@ -216,9 +243,11 @@ def battery() -> Battery | None:
             state = "Charging" if status == "3" else "Discharging"
             if ac == "1" and capacity == 100:
                 state = "Full"
-            remaining = (
-                int(minutes) * 60 if minutes is not None and int(minutes) >= 0 else None
-            )
+            remaining = None
+            if minutes not in {None, "unknown"}:
+                parsed_minutes = int(minutes)
+                if parsed_minutes >= 0:
+                    remaining = parsed_minutes * 60
             return Battery(capacity, state, remaining)
         except ValueError:
             return None

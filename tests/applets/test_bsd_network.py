@@ -27,3 +27,10 @@ def test_linux_only_applet_is_explicitly_unavailable_on_bsd(monkeypatch):
     assert not bluetooth_meta.available_on_host
     monkeypatch.setattr(bsd, "is_bsd", lambda: False)
     assert bluetooth_meta.available_on_host
+
+
+def test_camshield_cannot_invoke_linux_helper_from_a_saved_bsd_pin(monkeypatch):
+    from docking.applets.camshield.applet import _helper_command
+
+    monkeypatch.setattr(bsd, "is_bsd", lambda: True)
+    assert _helper_command(action="lock") is None

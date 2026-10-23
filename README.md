@@ -6,7 +6,7 @@
 [![Downloads](https://img.shields.io/github/downloads/edumucelli/docking/total)](https://github.com/edumucelli/docking/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![GTK 3](https://img.shields.io/badge/GTK-3-blue)](#requirements)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20BSD-lightgrey)](#requirements)
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 

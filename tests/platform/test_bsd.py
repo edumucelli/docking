@@ -42,6 +42,15 @@ def test_process_disappearing_does_not_abort_tracking(monkeypatch):
     assert bsd.process_script(42) is None
 
 
+def test_openbsd_does_not_guess_process_executable_from_its_own_path(monkeypatch):
+    monkeypatch.setattr(bsd.sys, "platform", "openbsd7")
+    process = SimpleNamespace(cmdline=lambda: ["editor"], exe=lambda: "/wrong/editor")
+    monkeypatch.setattr(
+        bsd, "_psutil", lambda: SimpleNamespace(Process=lambda pid: process)
+    )
+    assert bsd.process_executable(42) is None
+
+
 def test_identity_uses_native_process_readers_without_proc(monkeypatch, tmp_path):
     executable = tmp_path / "program"
     executable.touch()
@@ -76,7 +85,15 @@ def test_script_identity_only_returns_python_script_basename(
 
 
 def test_mount_table_keeps_zfs_and_deduplicates_mount_points(monkeypatch):
-    partitions = [SimpleNamespace(mountpoint=p) for p in ("/", "/home", "/home")]
+    partitions = [
+        SimpleNamespace(mountpoint=p, fstype=fs)
+        for p, fs in (
+            ("/", "ufs"),
+            ("/home", "zfs"),
+            ("/home", "zfs"),
+            ("/dev", "devfs"),
+        )
+    ]
     monkeypatch.setattr(
         bsd,
         "_psutil",
@@ -85,7 +102,7 @@ def test_mount_table_keeps_zfs_and_deduplicates_mount_points(monkeypatch):
             disk_usage=lambda path: SimpleNamespace(percent=25),
         ),
     )
-    assert bsd.mount_points() == (Path("/"), Path("/home"))
+    assert bsd.mount_points() == (Path("/"), Path("/home"), Path("/dev"))
     assert bsd.disk_usage() == [("/", 0.25), ("/home", 0.25)]
 
 
@@ -134,6 +151,14 @@ def test_freebsd_battery_unknown_time_stays_unknown(monkeypatch):
     monkeypatch.setattr(
         bsd, "_psutil", lambda: SimpleNamespace(sensors_battery=lambda: reading)
     )
+    assert bsd.battery() == bsd.Battery(75, "Discharging", None)
+
+
+@pytest.mark.parametrize("minutes", [None, "unknown", "-1"])
+def test_openbsd_battery_unknown_time_preserves_reading(monkeypatch, minutes):
+    monkeypatch.setattr(bsd.sys, "platform", "openbsd7")
+    values = {"-l": "75", "-b": "0", "-m": minutes, "-a": "0"}
+    monkeypatch.setattr(bsd, "command", lambda argv: values[argv[-1]])
     assert bsd.battery() == bsd.Battery(75, "Discharging", None)
 
 
