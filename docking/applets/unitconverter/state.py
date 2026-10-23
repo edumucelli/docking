@@ -222,9 +222,24 @@ def set_currency_units(units: tuple[Unit, ...]) -> None:
     _currency_units = units
 
 
+def scale_ratio(value: float, numerator: float, denominator: float) -> float:
+    """Scale a value without overflowing or underflowing an intermediate."""
+    if numerator == denominator and numerator != 0 and math.isfinite(numerator):
+        return value
+    value_mantissa, value_exponent = math.frexp(value)
+    numerator_mantissa, numerator_exponent = math.frexp(numerator)
+    denominator_mantissa, denominator_exponent = math.frexp(denominator)
+    mantissa = value_mantissa * numerator_mantissa / denominator_mantissa
+    exponent = value_exponent + numerator_exponent - denominator_exponent
+    try:
+        return math.ldexp(mantissa, exponent)
+    except OverflowError:
+        return math.copysign(math.inf, mantissa)
+
+
 def _to_celsius(value: float, unit: Unit) -> float:
     if unit.symbol == "F":
-        return (value - 32) * 5 / 9
+        return scale_ratio(value - 32, 5, 9)
     if unit.symbol == "K":
         return value - 273.15
     return value
@@ -232,7 +247,7 @@ def _to_celsius(value: float, unit: Unit) -> float:
 
 def _from_celsius(value: float, unit: Unit) -> float:
     if unit.symbol == "F":
-        return value * 9 / 5 + 32
+        return scale_ratio(value, 9, 5) + 32
     if unit.symbol == "K":
         return value + 273.15
     return value
@@ -251,10 +266,11 @@ def convert(
     Converting X from_unit to to_unit: X * from_factor / to_factor.
     """
     if category == Category.TEMPERATURE:
+        if from_unit.symbol == to_unit.symbol:
+            return value
         celsius = _to_celsius(value, from_unit)
         return _from_celsius(celsius, to_unit)
-    base = value * from_unit.factor
-    return base / to_unit.factor
+    return scale_ratio(value, from_unit.factor, to_unit.factor)
 
 
 def format_result(value: float) -> str:

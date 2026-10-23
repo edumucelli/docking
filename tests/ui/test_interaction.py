@@ -45,6 +45,7 @@ def _make_window(item: DockItem | None = None):
         tooltip=MagicMock(),
         hover=MagicMock(),
         preview=None,
+        surface_service=MagicMock(),
         autohide=_autohide(enabled=False),
         cursor_x=12.0,
         cursor_y=6.0,
@@ -132,9 +133,52 @@ class TestEffectiveLeavePolicy:
 
         assert window.dock_hovered is True
         window.autohide.on_mouse_enter.assert_called_once()
+        window.surface_service.set_pointer_leave_handler.assert_called_once_with(
+            coordinator._on_backend_pointer_leave
+        )
+
+    def test_native_exit_releases_hover_and_stops_the_observer(self):
+        window, _item = _make_window()
+        window.autohide.enabled = True
+        window.dock_hovered = False
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.on_effective_enter()
+
+        coordinator._on_backend_pointer_leave()
+
+        assert not window.dock_hovered
+        window.autohide.on_mouse_leave.assert_called_once()
+        assert window.surface_service.set_pointer_leave_handler.call_args.args == (
+            None,
+        )
+
+    def test_native_exit_after_reset_still_stops_the_observer(self):
+        window, _item = _make_window()
+        window.dock_hovered = False
+
+        DockInteractionCoordinator(window)._on_backend_pointer_leave()
+
+        window.surface_service.set_pointer_leave_handler.assert_called_once_with(None)
+        window.autohide.on_mouse_leave.assert_not_called()
 
 
 class TestMenuPopupPolicy:
+    def test_menu_close_inside_restores_native_hover_observation(self):
+        window, _item = _make_window()
+        window.autohide.enabled = True
+        coordinator = DockInteractionCoordinator(window)
+        coordinator.menu_popup_opened()
+        coordinator.on_effective_leave(window.drawing_area)
+        window.surface_service.set_pointer_leave_handler.reset_mock()
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=True)
+
+        coordinator.menu_popup_closed()
+
+        assert window.dock_hovered
+        window.surface_service.set_pointer_leave_handler.assert_called_once_with(
+            coordinator._on_backend_pointer_leave
+        )
+
     def test_menu_popup_opened_disables_autohide(self):
         window, _item = _make_window()
         window.autohide = _autohide()

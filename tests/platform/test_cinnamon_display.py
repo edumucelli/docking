@@ -94,3 +94,33 @@ def test_other_sessions_and_missing_xwayland_are_not_probed(
     assert not cinnamon.prepare_cinnamon_display()
     assert "GDK_BACKEND" not in os.environ
     display_probe.assert_not_called()
+
+
+def test_actual_display_probe_accepts_a_gtk3_x11_display():
+    if not os.environ.get("DISPLAY"):
+        pytest.skip("requires a private X11 test display")
+    result = subprocess.run(
+        [sys.executable, "-c", cinnamon._DISPLAY_PROBE],
+        env={**os.environ, "GDK_BACKEND": "x11"},
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 42, result.stderr
+
+
+def test_native_gdk_display_uses_a_separate_x11_verification(
+    monkeypatch, display_probe
+):
+    gtk = MagicMock()
+    repository = types.ModuleType("gi.repository")
+    repository.Gtk = gtk
+    monkeypatch.setitem(sys.modules, "gi.repository", repository)
+    gtk.init_check.return_value = (True, [])
+    display_probe.side_effect = [MagicMock(returncode=3), MagicMock(returncode=42)]
+
+    assert cinnamon.prepare_cinnamon_display()
+    assert [
+        call.kwargs["env"]["GDK_BACKEND"] for call in display_probe.call_args_list
+    ] == ["wayland,x11", "x11"]
+    assert "GDK_BACKEND" not in os.environ

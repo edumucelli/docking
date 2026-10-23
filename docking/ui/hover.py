@@ -329,21 +329,25 @@ class HoverManager:
     ) -> None:
         """Start a temporary 60fps redraw loop for time-based animations.
 
-        Used for click darken (300ms), launch bounce (600ms), and urgent
-        bounce. The pump self-terminates after duration_ms.
+        Used for click darken (300ms), launch effects (600ms), and urgent
+        bounce. The pump redraws through duration_ms, including its final tick.
         """
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
-        frames_left = duration_ms // ANIM_PUMP_FRAME_INTERVAL_MS
+        frames_left = max(
+            1,
+            (duration_ms + ANIM_PUMP_FRAME_INTERVAL_MS - 1)
+            // ANIM_PUMP_FRAME_INTERVAL_MS,
+        )
 
         def tick() -> bool:
             nonlocal frames_left
             frames_left -= 1
+            self._window.drawing_area.queue_draw()
             if frames_left <= 0:
                 self._anim_timer_id = 0
                 return False
-            self._window.drawing_area.queue_draw()
             return True
 
         self._anim_timer_id = GLib.timeout_add(ANIM_PUMP_FRAME_INTERVAL_MS, tick)

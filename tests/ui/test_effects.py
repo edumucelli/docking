@@ -1,12 +1,15 @@
 """Tests for animation effects: easing bounce, icon color extraction."""
 
 import math
+from itertools import pairwise
 from unittest.mock import MagicMock
 
 import pytest
 
 from docking.ui.effects import (
     average_icon_color,
+    click_effect_angle,
+    click_effect_scale,
     easing_bounce,
 )
 
@@ -60,7 +63,60 @@ class TestAverageIconColor:
         assert result == (0.5, 0.5, 0.5)
 
 
+class TestClickEffectAngle:
+    @pytest.mark.parametrize("effect", ["pulse", "wobble"])
+    @pytest.mark.parametrize(
+        ("t", "duration"),
+        [(-1, 600_000), (0, 600_000), (600_000, 600_000), (700_000, 600_000), (1, 0)],
+    )
+    def test_inactive_effect_is_at_rest(self, effect, t, duration):
+        assert click_effect_angle(effect, t, duration) == 0.0
+
+    def test_wobble_alternates_and_decays(self):
+        peaks = [
+            click_effect_angle("wobble", t, 600_000) for t in (50_000, 150_000, 250_000)
+        ]
+        assert peaks[0] > 0 > peaks[1]
+        assert peaks[2] > 0
+        assert abs(peaks[0]) > abs(peaks[1]) > abs(peaks[2])
+
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "", "unknown"])
+    def test_other_effects_do_not_rotate(self, effect):
+        assert click_effect_angle(effect, 50_000, 600_000) == 0.0
+
+
+class TestClickEffectScale:
+    @pytest.mark.parametrize(
+        ("t", "duration"),
+        [(-1, 600_000), (0, 600_000), (600_000, 600_000), (700_000, 600_000), (1, 0)],
+    )
+    def test_inactive_pulse_has_resting_size(self, t, duration):
+        assert click_effect_scale("pulse", t, duration) == 1.0
+
+    def test_pulse_grows_and_settles(self):
+        sizes = [
+            click_effect_scale("pulse", t, 600_000) for t in range(0, 600_001, 1000)
+        ]
+        assert sizes[0] == sizes[-1] == 1.0
+        assert max(sizes) == pytest.approx(1.18)
+        assert all(a < b for a, b in pairwise(sizes[:301]))
+        assert all(a > b for a, b in pairwise(sizes[300:]))
+
+    @pytest.mark.parametrize("effect", ["bounce", "wobble", "", "unknown"])
+    def test_other_effects_keep_resting_size(self, effect):
+        assert click_effect_scale(effect, 300_000, 600_000) == 1.0
+
+
 class TestEasingBounce:
+    @pytest.mark.parametrize("n", [1, 2])
+    @pytest.mark.parametrize("duration", [150_000, 600_000, 1_200_000])
+    def test_bounce_settles_at_its_configured_duration(self, n, duration):
+        assert easing_bounce(0, duration, n) == 0.0
+        assert easing_bounce(duration / (2 * n), duration, n) == pytest.approx(1.0)
+        assert easing_bounce(duration - 1, duration, n) == pytest.approx(0.0, abs=0.001)
+        assert easing_bounce(duration, duration, n) == 0.0
+        assert easing_bounce(duration + 100_000, duration, n) == 0.0
+
     def test_zero_at_start(self):
         # Given / When
         result = easing_bounce(t=0, duration=600_000, n=2)

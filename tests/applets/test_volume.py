@@ -32,6 +32,10 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, *, key, **kwargs):
+        self.run(**kwargs)
+        return True
+
 
 # -- Parsers ------------------------------------------------------------------
 
@@ -413,7 +417,9 @@ class TestVolumeAppletInternals:
         applet._backend.get_state.return_value = VolumeState(volume=70, muted=True)
         calls = []
         monkeypatch.setattr(
-            applet, "_on_poll_result", lambda state: calls.append(state) or False
+            applet,
+            "_on_poll_result",
+            lambda state, **_kwargs: calls.append(state) or False,
         )
         assert applet._tick() is True
         assert calls == [VolumeState(volume=70, muted=True)]
