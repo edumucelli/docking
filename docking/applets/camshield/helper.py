@@ -224,24 +224,34 @@ def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
     except (OSError, ValueError) as exc:
         raise OSError("Cannot read saved camera recovery data") from exc
 
-    if not isinstance(raw, dict) or raw.get("version") != _STATE_VERSION:
+    if (
+        not isinstance(raw, dict)
+        or type(raw.get("version")) is not int
+        or raw["version"] != _STATE_VERSION
+    ):
         raise OSError("Unsupported camera recovery data")
 
     result: dict[str, DeviceSnapshot] = {}
-    devices = raw.get("devices", {})
+    devices = raw.get("devices")
     if not isinstance(devices, dict):
         raise OSError("Invalid camera recovery data")
 
     for device_path, data in devices.items():
         if not isinstance(device_path, str) or not isinstance(data, dict):
-            continue
+            raise OSError("Invalid device snapshot in camera recovery data")
         device = Path(device_path)
         if not _is_allowed_device_path(device):
-            continue
+            raise OSError("Invalid device path in camera recovery data")
         mode = data.get("mode")
-        if not isinstance(mode, int):
-            continue
-        acl_raw = data.get("acl_file")
+        if type(mode) is not int or not 0 <= mode <= 0o7777:
+            raise OSError("Invalid device mode in camera recovery data")
+        if "acl_file" not in data:
+            raise OSError("Missing ACL snapshot in camera recovery data")
+        acl_raw = data["acl_file"]
+        if acl_raw is not None and (
+            not isinstance(acl_raw, str) or not Path(acl_raw).is_absolute()
+        ):
+            raise OSError("Invalid ACL snapshot in camera recovery data")
         acl_file = Path(acl_raw) if isinstance(acl_raw, str) else None
         result[str(device)] = DeviceSnapshot(
             path=device,

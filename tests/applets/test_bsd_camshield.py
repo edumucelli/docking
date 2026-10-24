@@ -227,6 +227,38 @@ def test_corrupt_recovery_record_is_not_overwritten_by_lock(monkeypatch, tmp_pat
     assert device.stat().st_mode & 0o777 == 0o640
 
 
+@pytest.mark.parametrize(
+    "snapshot",
+    [
+        {"mode": "0640", "acl_file": None},
+        {"mode": True, "acl_file": None},
+        {"mode": -1, "acl_file": None},
+        {"mode": 0o10000, "acl_file": None},
+        {"mode": 0o640},
+        {"mode": 0o640, "acl_file": False},
+        {"mode": 0o640, "acl_file": "relative"},
+        "invalid",
+    ],
+)
+def test_invalid_device_snapshot_cannot_replace_recovery_data(
+    monkeypatch, tmp_path, snapshot
+):
+    monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
+    device = tmp_path / "video0"
+    device.touch()
+    device.chmod(0)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    record = state_dir / helper.STATE_FILE.name
+    original = json.dumps({"version": 1, "devices": {str(device): snapshot}})
+    record.write_text(original)
+    with pytest.raises(OSError, match="recovery"):
+        helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+    assert record.read_text() == original
+    assert device.stat().st_mode & 0o777 == 0
+
+
 @pytest.mark.skipif(not environment.is_bsd(), reason="requires BSD kernel file tables")
 def test_actual_bsd_kernel_reports_open_camera_descriptor(tmp_path):
     device = tmp_path / "video0"

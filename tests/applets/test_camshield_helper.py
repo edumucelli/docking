@@ -87,7 +87,7 @@ def test_lock_preserves_original_snapshot_on_repeated_lock(tmp_path, monkeypatch
     assert _mode(video0) == 0o660
 
 
-def test_unlock_skips_missing_and_disallowed_devices(tmp_path, monkeypatch):
+def test_unlock_rejects_disallowed_recovery_entries(tmp_path, monkeypatch):
     dev = tmp_path / "dev"
     state_dir = tmp_path / "state"
     dev.mkdir()
@@ -111,8 +111,9 @@ def test_unlock_skips_missing_and_disallowed_devices(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    assert helper.unlock_devices(state_dir=state_dir) == 0
-    assert _mode(video0) == 0o660
+    with pytest.raises(OSError, match="recovery"):
+        helper.unlock_devices(state_dir=state_dir)
+    assert _mode(video0) == 0
 
 
 def test_status_reports_locked_devices(tmp_path, monkeypatch, capsys):
@@ -224,44 +225,22 @@ def test_acl_snapshot_failures_return_false_or_none(tmp_path, monkeypatch):
     assert helper._restore_acl(snapshot=snapshot) is False
 
 
-def test_read_state_filters_malformed_entries(tmp_path, monkeypatch):
-    dev = tmp_path / "dev"
-    state_dir = tmp_path / "state"
-    dev.mkdir()
-    state_dir.mkdir()
-    video0 = dev / "video0"
-    monkeypatch.setattr(helper, "DEV_ROOT", dev)
-    (state_dir / helper.STATE_FILE.name).write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "devices": {
-                    str(video0): {"mode": 0o660, "acl_file": str(tmp_path / "a")},
-                    "relative": {"mode": 0o660},
-                    str(dev / "videoX"): {"mode": 0o660},
-                    str(dev / "video1"): {"mode": "bad"},
-                    str(dev / "video2"): "bad",
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    state = helper._read_state(state_dir=state_dir)
-
-    assert state == {
-        str(video0): helper.DeviceSnapshot(
-            path=video0,
-            mode=0o660,
-            acl_file=tmp_path / "a",
-        )
-    }
+def test_read_state_accepts_complete_device_snapshots(tmp_path, monkeypatch):
+    device = tmp_path / "video0"
+    monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
+    snapshot = helper.DeviceSnapshot(device, 0o660, tmp_path / "acl/video0.acl")
+    helper._write_state(state={str(device): snapshot}, state_dir=tmp_path)
+    assert helper._read_state(state_dir=tmp_path) == {str(device): snapshot}
 
 
 def test_read_state_rejects_bad_json_version_and_shape(tmp_path):
     state_dir = tmp_path / "state"
     state_dir.mkdir()
     path = state_dir / helper.STATE_FILE.name
+
+    path.write_text(json.dumps({"version": 1}), encoding="utf-8")
+    with pytest.raises(OSError):
+        helper._read_state(state_dir=state_dir)
 
     path.write_text("{", encoding="utf-8")
     with pytest.raises(OSError):
