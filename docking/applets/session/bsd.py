@@ -5,6 +5,16 @@ import sys
 
 from docking.applets.session.backend import SessionBackend
 
+_LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
+    ("mate-screensaver-command", "-l"),
+    ("gnome-screensaver-command", "-l"),
+    ("xdg-screensaver", "lock"),
+    ("dm-tool", "lock"),
+    ("xfce4-screensaver-command", "--lock"),
+    ("xscreensaver-command", "-lock"),
+    ("xflock4",),
+)
+
 
 def command_for(action: str) -> list[str] | None:
     """Translate session actions; leave privilege decisions to the native OS."""
@@ -32,12 +42,4 @@ class BsdSessionBackend(SessionBackend):
         return command_for(action)
 
     def lock_commands(self) -> tuple[tuple[str, ...], ...]:
-        return (
-            ("mate-screensaver-command", "-l"),
-            ("gnome-screensaver-command", "-l"),
-            ("xdg-screensaver", "lock"),
-            ("dm-tool", "lock"),
-            ("xfce4-screensaver-command", "--lock"),
-            ("xscreensaver-command", "-lock"),
-            ("xflock4",),
-        )
+        return _LOCK_SCREEN_COMMAND_CANDIDATES
