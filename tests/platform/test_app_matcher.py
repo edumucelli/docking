@@ -35,6 +35,8 @@ def _registry(*, resolve_by_wm_class=None, resolve=None):
     """Build a registry fake with configurable canonical resolution."""
     registry = MagicMock()
     registry.generation = 0
+    registry.resolve_steam_app_id.return_value = None
+    registry.resolve_steam_executable.return_value = None
     if resolve_by_wm_class is not None:
 
         def resolve_all(alias):

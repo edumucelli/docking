@@ -277,6 +277,7 @@ class WindowMatcher:
                 else None,
                 sandbox_app_id=attempt.sandbox_app_id,
                 script_basename=attempt.script_basename,
+                steam_app_id=attempt.steam_app_id,
                 outcome="error" if class_failed else "unmatched",
                 reason=reason,
                 read_errors=tuple(self._identity_read_errors),

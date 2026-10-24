@@ -20,6 +20,12 @@ from docking.platform.applications.types import (
 
 
 class _Registry:
+    def resolve_steam_app_id(self, _app_id: str) -> ApplicationInfo | None:
+        return None
+
+    def resolve_steam_executable(self, _path: Path) -> ApplicationInfo | None:
+        return None
+
     def __init__(self) -> None:
         self.generation = 1
         self.records: dict[str, ApplicationInfo] = {}

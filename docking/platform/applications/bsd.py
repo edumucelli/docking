@@ -65,3 +65,7 @@ class BsdProcessBackend(ProcessBackend):
 
     def sandbox_app_id(self, pid: int) -> str | None:
         return None
+
+    def steam_app_id(self, pid: int) -> str | None:
+        # Steam's Linux process environment is not a native BSD identity source.
+        return None

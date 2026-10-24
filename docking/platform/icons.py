@@ -140,6 +140,7 @@ class IconLoader:
 
         candidates = [
             icon_name,
+            f"steam_icon_{info.steam_app_id}" if info.steam_app_id else "",
             desktop_entries.normalized_exec_basename(exec_line),
         ]
         for candidate in dict.fromkeys(value for value in candidates if value):

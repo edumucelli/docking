@@ -35,6 +35,7 @@ class ProcessIdentity:
     launch: LaunchProvenance | None = None
     sandbox_app_id: str | None = None
     script_basename: str | None = None
+    steam_app_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -161,6 +162,7 @@ class ProcessIdentityService:
             launch=self._provenance_store.provenance_for_pid(pid),
             sandbox_app_id=self._backend.sandbox_app_id(pid),
             script_basename=self._backend.script(pid),
+            steam_app_id=self._backend.steam_app_id(pid),
         )
 
 

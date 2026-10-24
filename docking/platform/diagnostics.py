@@ -363,6 +363,10 @@ def _application_diagnostic_lines(snapshot: DiagnosticsSnapshot) -> list[str]:
                 f"- Directory status: {_report_value(directory.path)}: "
                 f"{directory.status.value}"
             )
+        for directory in discovery.steam_directories:
+            lines.append(f"- Steam metadata directory: {_report_value(directory)}")
+        for issue in discovery.steam_issues:
+            lines.append(f"- Steam discovery issue: {_report_value(issue)}")
     tracking = snapshot.window_tracking
     lines.extend(
         [
@@ -425,6 +429,7 @@ def _application_diagnostic_lines(snapshot: DiagnosticsSnapshot) -> list[str]:
             ("Launcher executable basename", row.launcher_basename),
             ("Process sandbox application ID", row.sandbox_app_id),
             ("Process Python script basename", row.script_basename),
+            ("Steam application ID", row.steam_app_id),
         ):
             lines.append(f"- {label}: {_report_value(value)}")
         lines.append(f"- Registered aliases: {_report_value(', '.join(row.aliases))}")
@@ -469,6 +474,8 @@ def _application_inventory_report(
             ("Launcher executable basename", app.launcher_basename),
             ("Registered aliases", ", ".join(app.aliases)),
             ("Flatpak application ID", app.flatpak_app_id),
+            ("Steam application ID", app.steam_app_id),
+            ("Steam manifest", app.steam_manifest),
         ):
             lines.append(f"- {label}: {_report_value(value)}")
         lines.append(

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from docking.platform.applications.flatpak import valid_flatpak_app_id
 from docking.platform.applications.process_backend import ProcessBackend
+from docking.platform.applications.steam import valid_steam_app_id
 
 
 def _process_executable_path(
@@ -61,6 +62,24 @@ def _process_python_script(process_dir: Path) -> str | None:
     return Path(script).name
 
 
+def _process_steam_app_id(process_dir: Path) -> str | None:
+    """Retain only an allowlisted Steam ID, never the process environment."""
+    data = _bounded_process_file(process_dir / "environ", 131072)
+    if data is None:
+        return None
+    identities: set[str] = set()
+    for item in data.split(b"\0"):
+        key, separator, value = item.partition(b"=")
+        if separator and key in {b"SteamAppId", b"SteamGameId"}:
+            try:
+                app_id = valid_steam_app_id(value.decode("ascii"))
+            except UnicodeDecodeError:
+                continue
+            if app_id is not None:
+                identities.add(app_id)
+    return next(iter(identities)) if len(identities) == 1 else None
+
+
 class LinuxProcessBackend(ProcessBackend):
     def __init__(self, proc_root: Path) -> None:
         self._proc_root = proc_root
@@ -73,3 +92,6 @@ class LinuxProcessBackend(ProcessBackend):
 
     def sandbox_app_id(self, pid: int) -> str | None:
         return _process_sandbox_app_id(self._proc_root / str(pid))
+
+    def steam_app_id(self, pid: int) -> str | None:
+        return _process_steam_app_id(self._proc_root / str(pid))

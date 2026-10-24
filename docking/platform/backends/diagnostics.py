@@ -74,6 +74,7 @@ class WindowDiagnostic:
     identity_hints: tuple[WindowIdentityHint, ...] = ()
     sandbox_app_id: str | None = None
     script_basename: str | None = None
+    steam_app_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -114,4 +115,7 @@ def with_match(
         desktop_file=str(app.desktop_file) if app and app.desktop_file else None,
         launcher_basename=basename,
         aliases=app.aliases if app else (),
+        steam_app_id=(app.steam_app_id or record.steam_app_id)
+        if app
+        else record.steam_app_id,
     )
