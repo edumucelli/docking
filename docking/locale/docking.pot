@@ -5600,6 +5600,30 @@ msgstr ""
 msgid "Choose the effect played when launching an app."
 msgstr ""
 
+#: docking/ui/settings.py:734
+msgid "Alignment"
+msgstr ""
+
+#: docking/ui/settings.py:736
+msgid "Position the dock along the selected screen edge."
+msgstr ""
+
+#: docking/ui/settings.py:1853
+msgid "Left"
+msgstr ""
+
+#: docking/ui/settings.py:1853 docking/ui/settings.py:1855
+msgid "Center"
+msgstr ""
+
+#: docking/ui/settings.py:1853
+msgid "Right"
+msgstr ""
+
+#: docking/ui/settings.py:1855
+msgid "Bottom"
+msgstr ""
+
 #: docking/ui/settings.py:431
 msgid "Pulse"
 msgstr ""
