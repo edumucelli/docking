@@ -17,7 +17,6 @@ from docking.applets.trash.backend import (
     KdeTrashBackend,
     MateTrashBackend,
     TrashEmptyResult,
-    _decode_mountinfo_path,
     _empty_host_trash,
     _host_user_data_home,
     _kde_kiorc_file,
@@ -28,6 +27,7 @@ from docking.applets.trash.backend import (
     _visible_trash_info_directory,
     select_trash_backend,
 )
+from docking.applets.trash.linux import _decode_mountinfo_path
 from docking.core.config import Config
 from docking.platform.environment import Desktop
 

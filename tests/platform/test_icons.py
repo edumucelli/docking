@@ -126,6 +126,24 @@ def _application(**changes) -> ApplicationInfo:
     return ApplicationInfo(**values)
 
 
+def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
+    loader = IconLoader()
+    pixbuf = object()
+    load = MagicMock(side_effect=[None, pixbuf])
+    monkeypatch.setattr(loader, "_try_load_icon_without_fallback", load)
+    info = _application(
+        declared_icon="/missing/440_icon.jpg",
+        steam_app_id="440",
+        exec_line="steam steam://rungameid/440",
+        origin=ApplicationOrigin.STEAM,
+    )
+    assert loader.load_desktop_icon(info, 48) is pixbuf
+    assert load.call_args_list == [
+        call(icon_name="/missing/440_icon.jpg", size=48),
+        call(icon_name="steam_icon_440", size=48),
+    ]
+
+
 def test_default_file_normalizer_handles_only_local_targets(tmp_path):
     path = tmp_path / "photo one.png"
 

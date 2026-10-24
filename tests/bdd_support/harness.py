@@ -279,6 +279,7 @@ class DockHarness:
             )
         )
         self._folder_stub._cache.applied_input_frame = self._folder_frame
+        self._folder_stub.surface_service = MagicMock()
         self._folder_stub.interaction = DockInteractionCoordinator(self._folder_stub)
 
         self._dnd_frame = _dnd_frame()
@@ -1429,6 +1430,7 @@ class DockHarness:
         self._hover_manager.set_preview(self._preview_popup)
         self._hover_window.preview = self._preview_popup
         self._hover_window.hover = self._hover_manager
+        self._hover_window.surface_service = MagicMock()
         self._hover_interaction = DockInteractionCoordinator(self._hover_window)
 
     def _hover_item_by_desktop_id(self, desktop_id: str) -> DockItem:

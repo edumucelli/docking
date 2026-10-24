@@ -216,6 +216,8 @@ class CryptoApplet(Applet):
         self._ensure_pulse_timer()
 
     def stop(self) -> None:
+        self._fetch_request_id += 1
+        self._loading = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0

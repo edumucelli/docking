@@ -40,6 +40,7 @@ from docking.applets.camshield.state import (
     probe_camera_state,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -63,19 +64,24 @@ class CamshieldApplet(Applet):
     icon_name = "camera-web"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: CamshieldState = probe_camera_state()
+        self._state = CamshieldState(available=False, active=False)
+        self._worker = BackgroundWorker(logger=log)
+        self._generation = 0
+        self._stopped = False
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+        self._refresh_now()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
-        phase = self._pulse_phase if self._state.active else None
+        active = self._state.active
+        phase = self._pulse_phase if active else None
         return render_icon(
             size=size,
             available=self._state.available,
-            active=self._state.active,
+            active=active,
             pulse_phase=phase,
         )
 
@@ -83,6 +89,8 @@ class CamshieldApplet(Applet):
         self.item.name = build_tooltip(self._state)
 
     def start(self, notify: Callable[[], None]) -> None:
+        self._stopped = False
+        self._generation += 1
         super().start(notify=notify)
         GLib.idle_add(self._refresh_once)
         self._timer_id = GLib.timeout_add_seconds(
@@ -92,6 +100,8 @@ class CamshieldApplet(Applet):
         self._ensure_pulse_timer()
 
     def stop(self) -> None:
+        self._stopped = True
+        self._generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -110,6 +120,8 @@ class CamshieldApplet(Applet):
             status.append(disabled_menu_item(_("Camera active"), gtk=Gtk))
             for holder in self._state.holders:
                 status.append(disabled_menu_item(holder_label(holder), gtk=Gtk))
+        if self._state.available and self._state.locked:
+            status.insert(0, disabled_menu_item(_("Camera locked"), gtk=Gtk))
 
         lock = Gtk.MenuItem(label=_("Lock Camera"))
         lock.set_sensitive(self._helper_available())
@@ -138,7 +150,20 @@ class CamshieldApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
-        self._state = probe_camera_state()
+        if self._stopped:
+            return
+        generation = self._generation
+        self._worker.run_guarded(
+            key="camera-probe",
+            name="camera-probe",
+            fn=probe_camera_state,
+            on_result=lambda state: self._on_state_result(state, generation),
+        )
+
+    def _on_state_result(self, state: CamshieldState, generation: int) -> None:
+        if self._stopped or generation != self._generation:
+            return
+        self._state = state
         self._ensure_pulse_timer()
         self.present()
 
@@ -148,12 +173,13 @@ class CamshieldApplet(Applet):
 
     def _ensure_pulse_timer(self) -> None:
         """Run the red-dot pulse only while a camera device is active."""
-        if self._state.active and not self._pulse_timer_id:
+        should_pulse = self._notify is not None and self._state.active
+        if should_pulse and not self._pulse_timer_id:
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
                 self._pulse_tick,
             )
-        elif not self._state.active and self._pulse_timer_id:
+        elif not should_pulse and self._pulse_timer_id:
             GLib.source_remove(self._pulse_timer_id)
             self._pulse_timer_id = 0
             self._pulse_phase = 0.0
@@ -169,9 +195,7 @@ class CamshieldApplet(Applet):
         return True
 
     def _helper_available(self) -> bool:
-        return shutil.which(_PKEXEC_BIN) is not None and (
-            shutil.which(_HELPER_BIN) is not None or _SOURCE_HELPER.exists()
-        )
+        return _helper_command(action="status") is not None
 
     def _run_helper_action(self, action: str) -> None:
         command = _helper_command(action=action)

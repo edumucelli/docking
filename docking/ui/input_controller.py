@@ -26,7 +26,6 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.config import (
-    DockItemClickEffect,
     LeftClickAction,
     MiddleClickAction,
     StackUnfold,
@@ -57,7 +56,6 @@ log = get_logger(name="input_controller")
 CLICK_DRAG_THRESHOLD = 10
 REDRAW_FRAME_INTERVAL_MS = 16
 SHORT_ANIMATION_PUMP_MS = 350
-BOUNCE_ANIMATION_PUMP_MS = 700
 MOUSE_LEFT = 1
 MOUSE_MIDDLE = 2
 MOUSE_RIGHT = 3
@@ -260,8 +258,8 @@ class DockInputController:
         window.update_input_region(frame=frame)
         window._schedule_redraw()
         hovered_item = frame.item_at_point(event.x, event.y)
-        self._interactions.close_stack_unless_target(hovered_item)
         if frame.cursor_rect.contains(event.x, event.y):
+            self._interactions.close_stack_unless_target(hovered_item)
             window.interaction.on_effective_enter()
             cursor_main = (
                 window.cursor_x
@@ -483,19 +481,17 @@ class DockInputController:
             if not item.is_running and action != MiddleClickAction.NEW_WINDOW.value:
                 window.window_tracker.refresh()
             if action == MiddleClickAction.NEW_WINDOW.value or not item.is_running:
-                play_bounce = (
-                    window.config.dock_item_click_effects_enabled
-                    and window.config.dock_item_click_effect
-                    == DockItemClickEffect.BOUNCE.value
-                )
-                if play_bounce:
+                play_effect = window.config.dock_item_click_effects_enabled
+                if play_effect:
                     item.last_launched = now
                 if action == MiddleClickAction.NEW_WINDOW.value:
                     self._application_launcher.launch_new_window(item.desktop_id)
                 else:
                     self._application_launcher.launch(item.desktop_id)
                 window.hover.start_anim_pump(
-                    BOUNCE_ANIMATION_PUMP_MS if play_bounce else SHORT_ANIMATION_PUMP_MS
+                    max(SHORT_ANIMATION_PUMP_MS, window.theme.launch_bounce_time_ms)
+                    if play_effect
+                    else SHORT_ANIMATION_PUMP_MS
                 )
             elif action == LeftClickAction.CYCLE.value:
                 window.window_tracker.cycle(item.desktop_id)

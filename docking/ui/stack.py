@@ -531,6 +531,7 @@ class StackPopupController:
         window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
         window.set_app_paintable(True)
         window.connect("configure-event", self._on_stack_configure)
+        window.connect("scroll-event", self._on_stack_popup_scroll)
 
         # On Wayland popups need a transient parent so the compositor
         # positions them relative to the dock rather than at (0,0).
@@ -795,6 +796,18 @@ class StackPopupController:
         self._position_stack_window()
         window.show_all()
         return GLib.SOURCE_REMOVE
+
+    def _on_stack_popup_scroll(
+        self, widget: Gtk.Window, event: Gdk.EventScroll
+    ) -> bool:
+        # Muffin/XWayland may target a discrete wheel event at the popup itself.
+        if Gtk.get_event_widget(event) != widget:
+            return False
+        revealer = self._folder_stack_revealer
+        child = revealer.get_child() if revealer is not None else None
+        return isinstance(
+            child, Gtk.ScrolledWindow
+        ) and Gtk.ScrolledWindow.do_scroll_event(child, event)
 
     def _on_stack_scrolled(self, _adjustment: Gtk.Adjustment) -> None:
         self._folder_stack_pressed_target = None

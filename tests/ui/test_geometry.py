@@ -55,6 +55,41 @@ class TestRect:
 
 
 class TestDockAlignment:
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 1.0])
+    @pytest.mark.parametrize("insertion", [-1, 1])
+    @pytest.mark.parametrize("constrained", [False, True])
+    @pytest.mark.parametrize("index", [0, -1])
+    def test_fitted_alignment_preserves_cursor_mapping(
+        self, position, alignment, insertion, constrained, index
+    ):
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(12)]
+        horizontal = position in (Position.TOP, Position.BOTTOM)
+        local_cursors = []
+        for relative_alignment in (0.5, alignment):
+            config = Config(position=position.value, dock_alignment=relative_alignment)
+            kwargs = {
+                "items": items,
+                "config": config,
+                "theme": Theme.load("default", 48),
+                "window_w": 420 if horizontal else 187,
+                "window_h": 187 if horizontal else 420,
+                "autohide_state": None,
+                "zoom_progress": 0.0,
+                "constrain_main_axis": constrained,
+                "drop_insert_index": insertion,
+            }
+            resting = build_geometry_frame(cursor_main=-1, **kwargs)
+            rect = resting.item_geometries[index].draw_rect
+            cursor = rect.x + rect.w / 2 if horizontal else rect.y + rect.h / 2
+            hovered = build_geometry_frame(cursor_main=cursor, **kwargs)
+            local_cursors.append(hovered.local_cursor_main)
+            fitted_scale = (rect.w if horizontal else rect.h) / config.icon_size
+            assert fitted_scale < 1
+        # Moving an item along the edge must not change its local pointer
+        # position. Allow one screen pixel for integer rectangle rounding.
+        assert abs(local_cursors[0] - local_cursors[1]) * fitted_scale <= 1.0
+
     @pytest.mark.parametrize("alignment", [0.0, 0.25, 0.5, 0.75, 1.0])
     @pytest.mark.parametrize("constrained", [False, True])
     @pytest.mark.parametrize("index", [0, -1])
@@ -205,6 +240,28 @@ class TestDockAlignment:
 
 
 class TestDockCrossMetrics:
+    @pytest.mark.parametrize("insert_factor", [0.0, 0.5, 1.0])
+    def test_wide_item_reserves_full_pulse_extent_during_insertion(self, insert_factor):
+        theme = replace(
+            Theme.load("default", 48),
+            bottom_padding=0,
+            launch_bounce_height=0.0,
+            urgent_bounce_height=0.0,
+        )
+        items = [
+            DockItem(
+                desktop_id="wide.desktop", main_size=96, insert_factor=insert_factor
+            )
+        ]
+
+        metrics = compute_dock_cross_metrics(
+            icon_size=48, zoom=1.5, theme=theme, items=items
+        )
+
+        assert metrics.surface_extent == 170
+        assert metrics.animation_headroom == pytest.approx(25.92)
+        assert metrics.resting_extent == 48
+
     def test_default_theme_allocates_zoom_and_both_bounces(self):
         theme = Theme.load("default", 48)
 
@@ -233,10 +290,10 @@ class TestDockCrossMetrics:
             theme=theme,
         )
 
-        assert metrics.surface_extent == 48
+        assert metrics.surface_extent == 57
         assert metrics.resting_extent == 48
         assert metrics.edge_padding == 0.0
-        assert metrics.animation_headroom == 0.0
+        assert metrics.animation_headroom == pytest.approx(48 * 0.18)
         assert resting_dock_cross_extent(icon_size=48, theme=theme) == 48
 
 

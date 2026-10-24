@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import NamedTuple, cast
 
@@ -83,6 +84,10 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
     if path is None:
         return None
     try:
+        # Python 3.13's non-strict resolve tolerates symlink loops. A stat still
+        # rejects ELOOP while ordinary missing targets retain their cache keys.
+        with suppress(FileNotFoundError):
+            path.stat()
         return path.resolve().as_uri()
     except (OSError, RuntimeError, ValueError):
         return None
@@ -135,6 +140,7 @@ class IconLoader:
 
         candidates = [
             icon_name,
+            f"steam_icon_{info.steam_app_id}" if info.steam_app_id else "",
             desktop_entries.normalized_exec_basename(exec_line),
         ]
         for candidate in dict.fromkeys(value for value in candidates if value):

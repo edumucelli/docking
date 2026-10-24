@@ -23,6 +23,8 @@ from dataclasses import dataclass
 
 import gi
 
+from docking.platform.libraries import load_library
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkX11, GLib
@@ -241,7 +243,7 @@ class ExternalWorkareaTracker:
         """Start tracking reservations for an X11 display."""
         self.stop()
         try:
-            self._xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+            self._xlib = load_library("X11", "libX11.so.6")
             self._gdk_lib = _load_gdk_lib()
         except OSError as error:
             log.debug("external workarea unavailable: %s", error)
@@ -578,7 +580,7 @@ class ExternalWorkareaTracker:
 def _load_gdk_lib() -> ctypes.CDLL | None:
     for name in ("libgdk-3.so.0", "libgdk-3.so"):
         try:
-            return ctypes.cdll.LoadLibrary(name)
+            return load_library("gdk-3", name)
         except OSError:
             continue
     log.debug("libgdk-3 unavailable; external workarea tracking disabled")

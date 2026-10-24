@@ -185,6 +185,7 @@ from docking.platform.backends.diagnostics import (
     with_match,
 )
 from docking.platform.backends.x11.impl.identity_hints import X11IdentityHintReader
+from docking.platform.backends.x11.timestamps import activation_timestamp
 
 # GLib.Error is not a real exception subclass in some PyGObject builds,
 # so only add it to the catch tuple when it actually is one.
@@ -276,6 +277,7 @@ class WindowMatcher:
                 else None,
                 sandbox_app_id=attempt.sandbox_app_id,
                 script_basename=attempt.script_basename,
+                steam_app_id=attempt.steam_app_id,
                 outcome="error" if class_failed else "unmatched",
                 reason=reason,
                 read_errors=tuple(self._identity_read_errors),
@@ -940,8 +942,8 @@ class WindowTracker:
     @staticmethod
     def activate_window(window: Wnck.Window) -> None:
         """Activate a specific window."""
-        timestamp = Gtk.get_current_event_time() or 0
         try:
+            timestamp = activation_timestamp()
             # TODO: If this window belongs to another workspace, activate that
             # workspace before activating the window so dock clicks can reveal
             # already-running apps outside the current workspace.

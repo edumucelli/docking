@@ -35,9 +35,11 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from docking.log import get_logger
+from docking.platform.libraries import load_library
 
 log = get_logger(name="environment")
 
@@ -156,6 +158,11 @@ def detect_desktop() -> Desktop:
     return Desktop.UNKNOWN
 
 
+def is_bsd() -> bool:
+    """Return True on the supported FreeBSD and OpenBSD operating systems."""
+    return sys.platform.startswith(("freebsd", "openbsd"))
+
+
 def is_wayland_session() -> bool:
     """Return True when the desktop session itself is Wayland."""
     return os.environ.get("XDG_SESSION_TYPE", "").strip().lower() == "wayland"
@@ -256,7 +263,7 @@ def compositor_active(*, display: object | None = None) -> bool | None:
         if display is None or not is_x11_backend(display=display):
             return None
 
-        xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+        xlib = load_library("X11", "libX11.so.6")
         xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
 
         xlib.XDefaultScreen.restype = ctypes.c_int

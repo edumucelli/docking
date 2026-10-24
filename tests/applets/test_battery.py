@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import docking.applets.battery.applet as battery_applet_mod
+import docking.applets.battery.linux as battery_linux_mod
 import docking.applets.battery.state as battery_state_mod
 from docking.applets.battery.applet import BatteryApplet
 from docking.applets.battery.peripherals import (
@@ -64,7 +65,7 @@ class TestReadBattery:
         (bat / "status").write_text("Discharging\n")
 
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
@@ -100,7 +101,7 @@ class TestReadBattery:
         (bat / "energy_now").write_text("2000000\n")
         (bat / "power_now").write_text("1000000\n")
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
@@ -124,7 +125,7 @@ class TestReadBattery:
         (bat / "energy_full").write_text("3000000\n")
         (bat / "power_now").write_text("1000000\n")
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
@@ -143,7 +144,7 @@ class TestReadBattery:
         (bat / "charge_now").write_text("900000\n")
         (bat / "current_now").write_text("450000\n")
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: 5400,
         )
@@ -165,7 +166,7 @@ class TestReadBattery:
         (bat / "current_now").write_text("450000\n")
 
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
@@ -188,7 +189,7 @@ class TestReadBattery:
         (bat / "current_now").write_text("250000\n")
 
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
@@ -230,7 +231,7 @@ class TestUpowerParsing:
     def test_upower_seconds_remaining_edges(self, monkeypatch):
         monkeypatch.setattr(battery_state_mod.shutil, "which", lambda _cmd: None)
         assert (
-            battery_state_mod._upower_seconds_remaining(
+            battery_linux_mod._upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Discharging",
             )
@@ -241,7 +242,7 @@ class TestUpowerParsing:
             battery_state_mod.shutil, "which", lambda _cmd: "/bin/upower"
         )
         assert (
-            battery_state_mod._upower_seconds_remaining(bat_name="BAT0", status="Full")
+            battery_linux_mod._upower_seconds_remaining(bat_name="BAT0", status="Full")
             is None
         )
 
@@ -255,7 +256,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            battery_state_mod._upower_seconds_remaining(
+            battery_linux_mod._upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -270,7 +271,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            battery_state_mod._upower_seconds_remaining(
+            battery_linux_mod._upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -285,7 +286,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            battery_state_mod._upower_seconds_remaining(
+            battery_linux_mod._upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -650,7 +651,7 @@ class TestBatteryAppletRendering:
         (bat / "capacity_level").write_text("Normal\n")
         (bat / "status").write_text("Discharging\n")
         monkeypatch.setattr(
-            battery_state_mod,
+            battery_linux_mod,
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )

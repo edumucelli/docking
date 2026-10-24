@@ -238,7 +238,7 @@ from dataclasses import dataclass, replace
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
-from docking.core.config import effective_edge_gap
+from docking.core.config import PULSE_MAX_SCALE, effective_edge_gap
 from docking.core.layout import (
     NO_CURSOR_SENTINEL,
     LayoutItem,
@@ -282,15 +282,19 @@ def resting_dock_cross_extent(*, icon_size: int, theme: Theme) -> int:
 
 
 def compute_dock_cross_metrics(
-    *, icon_size: int, zoom: float, theme: Theme
+    *, icon_size: int, zoom: float, theme: Theme, items: Sequence[DockItem] = ()
 ) -> DockCrossMetrics:
     """Return the surface allocation required by every icon animation."""
     edge_padding = dock_edge_padding(theme=theme)
+    # Reserve each item's full slot width even while it is inserting/removing,
+    # so growing a wide item does not resize the surface on every frame.
+    max_item_width = max(icon_size, max((item.main_size for item in items), default=0))
+    max_item_extent = max_item_width * max(1.0, float(zoom))
     launch_headroom = icon_size * max(0.0, float(theme.launch_bounce_height))
+    pulse_headroom = max_item_extent * (PULSE_MAX_SCALE - 1.0)
     urgent_headroom = icon_size * max(0.0, float(theme.urgent_bounce_height))
-    animation_headroom = launch_headroom + urgent_headroom
-    max_icon_extent = icon_size * max(1.0, float(zoom))
-    surface_extent = math.ceil(max_icon_extent + edge_padding + animation_headroom)
+    animation_headroom = max(launch_headroom, pulse_headroom) + urgent_headroom
+    surface_extent = math.ceil(max_item_extent + edge_padding + animation_headroom)
     return DockCrossMetrics(
         surface_extent=max(1, surface_extent),
         resting_extent=resting_dock_cross_extent(
@@ -685,6 +689,7 @@ def _build_geometry_frame(
         theme=theme,
         main_size=main_size,
         cursor_main=cursor_main,
+        resting_layout=resting_layout,
         layout_scale=layout_scale,
         drop_gap=drop_gap,
         constrain_main_axis=constrain_main_axis,
@@ -702,15 +707,7 @@ def _build_geometry_frame(
     fit_scale = _main_axis_fit_scale(
         layout, main_size=main_size, theme=theme, drop_gap=drop_gap
     )
-    if fit_scale < 1.0:
-        layout = tuple(
-            LayoutItem(
-                x=item.x * fit_scale,
-                width=int(item.width * fit_scale),
-                scale=item.scale,
-            )
-            for item in layout
-        )
+    layout = _fit_layout(layout, fit_scale)
     left_edge, right_edge = content_bounds(
         layout=list(layout),
         icon_size=config.icon_size,
@@ -888,6 +885,60 @@ def _main_axis_fit_scale(
     return min(1.0, available / span) if span > 0 else 1.0
 
 
+def _fit_layout(layout: Sequence[LayoutItem], scale: float) -> tuple[LayoutItem, ...]:
+    """Fit positions and integer slot widths while retaining theme padding."""
+    if scale >= 1.0:
+        return tuple(layout)
+    return tuple(
+        LayoutItem(x=item.x * scale, width=int(item.width * scale), scale=item.scale)
+        for item in layout
+    )
+
+
+def _fitted_resting_shelf_bounds(
+    *,
+    layout: Sequence[LayoutItem],
+    scale: float,
+    config: Config,
+    theme: Theme,
+    main_size: int,
+    drop_gap: float,
+    constrain_main_axis: bool,
+) -> tuple[int, int]:
+    """Measure the fitted shelf using the same padding and rounding as paint."""
+    fitted = _fit_layout(layout, scale)
+    left, right = content_bounds(
+        layout=list(fitted),
+        icon_size=config.icon_size,
+        horizontal_padding=theme.horizontal_padding,
+        item_padding=theme.item_padding,
+    )
+    extent = right - left
+    start = (main_size - extent - (drop_gap if constrain_main_axis else 0)) / 2
+    icon_offset = start - left
+    # The shelf's main bounds are independent of orientation and cross-axis
+    # placement, so measure them in the canonical bottom-edge coordinates.
+    background = _compute_background_rect(
+        pos=Position.BOTTOM,
+        draw_rects=[
+            Rect(
+                math.floor(item.x + icon_offset),
+                0,
+                math.ceil(item.width * item.scale),
+                1,
+            )
+            for item in fitted
+            if item.width > 0
+        ],
+        static_dock_rect=Rect(int(start), 0, int(extent), 1),
+        theme=theme,
+        edge_gap=0,
+        hide_offset=0.0,
+        drop_gap=drop_gap,
+    )
+    return background.x, background.w
+
+
 def _local_cursor_main(
     *,
     items: list[DockItem],
@@ -895,6 +946,7 @@ def _local_cursor_main(
     theme: Theme,
     main_size: int,
     cursor_main: float,
+    resting_layout: Sequence[LayoutItem],
     layout_scale: float = 1.0,
     drop_gap: float = 0.0,
     constrain_main_axis: bool = False,
@@ -913,11 +965,23 @@ def _local_cursor_main(
         return NO_CURSOR_SENTINEL
     shelf_extent = base_w * layout_scale + 4 * max(0.0, theme.stroke_width)
     centered_insertion_shift = drop_gap / 2 if constrain_main_axis else 0.0
+    shelf_start = (main_size - shelf_extent) / 2 - centered_insertion_shift
+    shelf_extent += drop_gap
+    if layout_scale < 1.0:
+        shelf_start, shelf_extent = _fitted_resting_shelf_bounds(
+            layout=resting_layout,
+            scale=layout_scale,
+            config=config,
+            theme=theme,
+            main_size=main_size,
+            drop_gap=drop_gap,
+            constrain_main_axis=constrain_main_axis,
+        )
     cursor_main -= _main_axis_alignment_shift(
         config=config,
         main_size=main_size,
-        start=(main_size - shelf_extent) / 2 - centered_insertion_shift,
-        extent=shelf_extent + drop_gap,
+        start=shelf_start,
+        extent=shelf_extent,
     )
     cursor_main += centered_insertion_shift
     if layout_scale == 1.0:

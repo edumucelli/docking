@@ -957,16 +957,19 @@ class TestConfigSave:
         saved = json.loads(path.read_text())
         assert saved["window_list_sort"] == "alphabetical"
 
-    def test_dock_item_click_effect_settings_roundtrip(self, tmp_path):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_dock_item_click_effect_settings_roundtrip(self, tmp_path, effect):
         path = tmp_path / "dock.json"
-        Config(dock_item_click_effects_enabled=False).save(path)
+        Config(
+            dock_item_click_effects_enabled=False, dock_item_click_effect=effect
+        ).save(path)
 
         saved = json.loads(path.read_text())
         loaded = Config.load(path)
         assert saved["dock_item_click_effects_enabled"] is False
-        assert saved["dock_item_click_effect"] == "bounce"
+        assert saved["dock_item_click_effect"] == effect
         assert loaded.dock_item_click_effects_enabled is False
-        assert loaded.dock_item_click_effect == "bounce"
+        assert loaded.dock_item_click_effect == effect
 
     def test_save_persists_show_window_count_numbers(self, tmp_path):
         path = tmp_path / "dock.json"

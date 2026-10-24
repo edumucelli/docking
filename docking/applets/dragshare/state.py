@@ -25,6 +25,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
+from docking.applets.http import is_valid_http_url
 from docking.core.paths import local_path_from_uri_or_path as file_path_from_uri
 from docking.log import get_logger
 
@@ -146,6 +147,6 @@ def _url_from_response(payload: str) -> str:
     if not isinstance(data, dict):
         raise UploadError("Upload service returned an invalid response")
     url = data.get("url")
-    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+    if not isinstance(url, str) or not is_valid_http_url(url):
         raise UploadError("Upload service returned an invalid URL")
     return url

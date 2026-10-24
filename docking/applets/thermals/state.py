@@ -379,11 +379,14 @@ def read_thermal_snapshot(
     thermal_dir: Path = THERMAL_DIR,
 ) -> ThermalSnapshot:
     """Read current thermal state from lm-sensors or kernel sysfs."""
-    backend = FallbackThermalsBackend(
-        primary=SensorsThermalsBackend(which=which, run=run),
-        fallback=SysfsThermalsBackend(hwmon_dir=hwmon_dir, thermal_dir=thermal_dir),
-    )
-    return backend.get_snapshot()
+    from docking.applets.thermals.backend import create_backend
+
+    return create_backend(
+        which=which,
+        run=run,
+        hwmon_dir=hwmon_dir,
+        thermal_dir=thermal_dir,
+    ).get_snapshot()
 
 
 def read_sysfs_thermal_snapshot(

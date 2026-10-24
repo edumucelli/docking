@@ -21,7 +21,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import OrderedDict
+from http.client import HTTPException
 from pathlib import Path
+from threading import Lock
 from typing import NamedTuple
 
 import gi
@@ -73,7 +75,8 @@ class CoverArtResolver:
         self._max_bytes = max_bytes
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self._cache_bytes = 0
-        self._recent_misses: dict[str, float] = {}
+        self._cache_lock = Lock()
+        self._recent_misses: OrderedDict[str, float] = OrderedDict()
 
     def resolve(self, state: MusicState) -> GdkPixbuf.Pixbuf | None:
         """Resolve and cache artwork for a given music state."""
@@ -81,22 +84,35 @@ class CoverArtResolver:
         if not key:
             return None
 
-        cached = self._cache.get(key)
-        if cached is not None:
-            self._cache.move_to_end(key)
-            return cached.pixbuf
+        with self._cache_lock:
+            cached = self._cache.get(key)
+            if cached is not None:
+                self._cache.move_to_end(key)
+                return cached.pixbuf
 
-        miss_ts = self._recent_misses.get(key, 0.0)
-        if miss_ts and (time.monotonic() - miss_ts) < _MISS_RETRY_S:
-            return None
+            miss_ts = self._recent_misses.get(key, 0.0)
+            if miss_ts and (time.monotonic() - miss_ts) < _MISS_RETRY_S:
+                self._recent_misses.move_to_end(key)
+                return None
 
+        # Polling and UI actions share the caches; keep their I/O outside the lock.
         pixbuf = self._resolve_uncached(state=state)
-        if pixbuf is None:
-            self._recent_misses[key] = time.monotonic()
-            return None
+        with self._cache_lock:
+            cached = self._cache.get(key)
+            if cached is not None:
+                self._cache.move_to_end(key)
+                return cached.pixbuf
+            if pixbuf is None:
+                self._recent_misses[key] = time.monotonic()
+                self._recent_misses.move_to_end(key)
+                while (
+                    self._recent_misses and len(self._recent_misses) > self._max_entries
+                ):
+                    self._recent_misses.popitem(last=False)
+                return None
 
-        self._insert_cache(key=key, pixbuf=pixbuf)
-        self._recent_misses.pop(key, None)
+            self._insert_cache(key=key, pixbuf=pixbuf)
+            self._recent_misses.pop(key, None)
         return pixbuf
 
     def _cache_key(self, state: MusicState) -> str:
@@ -199,7 +215,7 @@ class CoverArtResolver:
             if not isinstance(art_url, str) or not art_url.strip():
                 return None
             return art_url.strip().replace("100x100bb", "600x600bb")
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError) as exc:
             log.debug("Failed to decode iTunes artwork lookup response: %s", exc)
             return None
 
@@ -256,7 +272,7 @@ class CoverArtResolver:
                         return None
                     chunks.append(chunk)
                 return b"".join(chunks)
-        except (OSError, ValueError, urllib.error.URLError) as exc:
+        except (OSError, ValueError, urllib.error.URLError, HTTPException) as exc:
             log.debug("Failed to download artwork from %s: %s", uri, exc)
             return None
 

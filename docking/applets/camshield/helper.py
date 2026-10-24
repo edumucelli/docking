@@ -27,10 +27,12 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
+from docking.applets.camshield.backend import create_backend
 from docking.core.paths import ensure_dir
 
 STATE_DIR = Path("/var/lib/docking/camshield")
@@ -84,6 +86,8 @@ def lock_devices(
         device_key = str(device)
         if device_key not in state:
             state[device_key] = _snapshot_device(device=device, state_dir=state_dir)
+        # Persist recovery data before removing access, including after a crash.
+        _write_state(state=state, state_dir=state_dir)
         device.chmod(0)
         changed += 1
 
@@ -101,16 +105,28 @@ def unlock_devices(*, state_dir: Path = STATE_DIR) -> int:
         return 1
 
     restored = 0
+    failed: dict[str, DeviceSnapshot] = {}
     for device_path, snapshot in state.items():
         device = Path(device_path)
         if not _is_allowed_device_path(device) or not device.exists():
             continue
+        device.chmod(snapshot.mode)
         if _restore_acl(snapshot=snapshot):
             restored += 1
+            continue
+        if (
+            create_backend().requires_acl_backup(device)
+            and snapshot.acl_file is not None
+        ):
+            failed[device_path] = snapshot
             continue
         device.chmod(snapshot.mode)
         restored += 1
 
+    if failed:
+        _write_state(state=failed, state_dir=state_dir)
+        print("Camera ACL restoration failed; recovery data retained.", file=sys.stderr)
+        return 1
     _clear_state(state_dir=state_dir)
     print(f"Unlocked {restored} camera device(s).")
     return 0
@@ -150,6 +166,8 @@ def _require_root() -> None:
 def _snapshot_device(*, device: Path, state_dir: Path) -> DeviceSnapshot:
     mode = stat.S_IMODE(device.stat().st_mode)
     acl_file = _save_acl_snapshot(device=device, state_dir=state_dir)
+    if acl_file is None and create_backend().requires_acl_backup(device):
+        raise OSError(f"Cannot save the camera ACL: {device}")
     return DeviceSnapshot(path=device, mode=mode, acl_file=acl_file)
 
 
@@ -164,7 +182,7 @@ def _save_acl_snapshot(*, device: Path, state_dir: Path) -> Path | None:
     try:
         with acl_file.open("w", encoding="utf-8") as handle:
             subprocess.run(
-                [getfacl, "--absolute-names", str(device)],
+                [getfacl, *create_backend().acl_commands(device, acl_file)[0][1:]],
                 check=True,
                 stdout=handle,
                 stderr=subprocess.DEVNULL,
@@ -184,13 +202,14 @@ def _restore_acl(*, snapshot: DeviceSnapshot) -> bool:
     if setfacl is None:
         return False
     try:
-        subprocess.run(
-            [setfacl, "--restore", str(snapshot.acl_file)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
+        for argv in create_backend().acl_commands(snapshot.path, snapshot.acl_file)[1]:
+            subprocess.run(
+                [setfacl, *argv[1:]],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
     except (OSError, subprocess.CalledProcessError):
         return False
     return True
@@ -200,27 +219,39 @@ def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
     path = state_dir / STATE_FILE.name
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except FileNotFoundError:
         return {}
+    except (OSError, ValueError) as exc:
+        raise OSError("Cannot read saved camera recovery data") from exc
 
-    if raw.get("version") != _STATE_VERSION:
-        return {}
+    if (
+        not isinstance(raw, dict)
+        or type(raw.get("version")) is not int
+        or raw["version"] != _STATE_VERSION
+    ):
+        raise OSError("Unsupported camera recovery data")
 
     result: dict[str, DeviceSnapshot] = {}
-    devices = raw.get("devices", {})
+    devices = raw.get("devices")
     if not isinstance(devices, dict):
-        return result
+        raise OSError("Invalid camera recovery data")
 
     for device_path, data in devices.items():
         if not isinstance(device_path, str) or not isinstance(data, dict):
-            continue
+            raise OSError("Invalid device snapshot in camera recovery data")
         device = Path(device_path)
         if not _is_allowed_device_path(device):
-            continue
+            raise OSError("Invalid device path in camera recovery data")
         mode = data.get("mode")
-        if not isinstance(mode, int):
-            continue
-        acl_raw = data.get("acl_file")
+        if type(mode) is not int or not 0 <= mode <= 0o7777:
+            raise OSError("Invalid device mode in camera recovery data")
+        if "acl_file" not in data:
+            raise OSError("Missing ACL snapshot in camera recovery data")
+        acl_raw = data["acl_file"]
+        if acl_raw is not None and (
+            not isinstance(acl_raw, str) or not Path(acl_raw).is_absolute()
+        ):
+            raise OSError("Invalid ACL snapshot in camera recovery data")
         acl_file = Path(acl_raw) if isinstance(acl_raw, str) else None
         result[str(device)] = DeviceSnapshot(
             path=device,
@@ -231,7 +262,7 @@ def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
 
 
 def _write_state(*, state: dict[str, DeviceSnapshot], state_dir: Path) -> None:
-    payload = {
+    payload: dict[str, object] = {
         "version": _STATE_VERSION,
         "devices": {
             device_path: {
@@ -241,9 +272,28 @@ def _write_state(*, state: dict[str, DeviceSnapshot], state_dir: Path) -> None:
             for device_path, snapshot in sorted(state.items())
         },
     }
-    path = state_dir / STATE_FILE.name
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    path.chmod(0o644)
+    _atomic_write_json(state_dir / STATE_FILE.name, payload)
+
+
+def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            json.dump(payload, stream, indent=2, sort_keys=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            with suppress(FileNotFoundError):
+                temporary.unlink()
 
 
 def _clear_state(*, state_dir: Path) -> None:
@@ -276,11 +326,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        backend = create_backend()
         if args.command == "lock":
-            return lock_devices()
+            return backend.lock()
         if args.command == "unlock":
-            return unlock_devices()
-        return status_devices()
+            return backend.unlock()
+        return backend.status()
     except PermissionError as exc:
         print(str(exc), file=sys.stderr)
         return 77

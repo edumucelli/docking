@@ -144,6 +144,12 @@ class ApplicationRegistryStub:
 
     generation = 1
 
+    def resolve_steam_app_id(self, _app_id: str) -> ApplicationInfo | None:
+        return None
+
+    def resolve_steam_executable(self, _path) -> ApplicationInfo | None:
+        return None
+
     def diagnostic_snapshot(self) -> ApplicationDiscoveryDiagnostic:
         return ApplicationDiscoveryDiagnostic(
             self.generation,

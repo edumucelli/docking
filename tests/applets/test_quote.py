@@ -176,8 +176,8 @@ class TestQuoteAppletBranches:
         monkeypatch.setattr(
             quote_mod.GLib,
             "idle_add",
-            lambda cb, source, quotes, show_first: calls.append(
-                (cb, source, quotes, show_first)
+            lambda cb, source, quotes, show_first, request_id: calls.append(
+                (cb, source, quotes, show_first, request_id)
             ),
         )
 
@@ -201,7 +201,12 @@ class TestQuoteAppletBranches:
         applet._source = "qdb"
         applet._loading = True
         assert (
-            applet._on_fetch_result("other", [QuoteEntry(text="x")], show_first=True)
+            applet._on_fetch_result(
+                "other",
+                [QuoteEntry(text="x")],
+                show_first=True,
+                request_id=applet._request_id,
+            )
             is False
         )
 
@@ -212,14 +217,24 @@ class TestQuoteAppletBranches:
         applet.present = MagicMock()
 
         quotes = [QuoteEntry(text="one"), QuoteEntry(text="two")]
-        assert applet._on_fetch_result("qdb", quotes, show_first=True) is False
+        assert (
+            applet._on_fetch_result(
+                "qdb", quotes, show_first=True, request_id=applet._request_id
+            )
+            is False
+        )
         assert applet._current == QuoteEntry(text="one")
 
         applet._current = None
         monkeypatch.setattr(
             quote_mod, "source_fallback", lambda source: [QuoteEntry(text="fallback")]
         )
-        assert applet._on_fetch_result("qdb", [], show_first=False) is False
+        assert (
+            applet._on_fetch_result(
+                "qdb", [], show_first=False, request_id=applet._request_id
+            )
+            is False
+        )
         assert applet._current == QuoteEntry(text="fallback")
 
     def test_refresh_tooltip_loading_state(self):

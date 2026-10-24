@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.23.0}
+Version:        %{?pkg_version}%{!?pkg_version:2.27.0}
 # One artifact serves every RPM distribution, so a build-host dist tag would
 # misrepresent it on Fedora and openSUSE alike.
 Release:        1
@@ -147,6 +147,18 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Sat Oct 24 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.27.0-1
+- Release 2.27.0.
+
+* Fri Oct 23 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.26.0-1
+- Release 2.26.0.
+
+* Wed Oct 21 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.25.0-1
+- Release 2.25.0.
+
+* Mon Oct 19 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.24.0-1
+- Release 2.24.0.
+
 * Fri Oct 16 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.23.0-1
 - Release 2.23.0.
 

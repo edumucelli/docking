@@ -133,6 +133,7 @@ from typing import NamedTuple
 from gi.repository import Gdk, GdkX11
 
 from docking.core.position import Position
+from docking.platform.libraries import load_library
 
 _IDX_EDGE = {
     Position.LEFT: 0,
@@ -161,7 +162,7 @@ class BlurRect(NamedTuple):
 
 
 def _xlib_display() -> tuple[object, ctypes.c_void_p]:
-    xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+    xlib = load_library("X11", "libX11.so.6")
     xdisplay = ctypes.c_void_p(hash(GdkX11.X11Display.get_default().get_xdisplay()))
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]

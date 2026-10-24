@@ -31,12 +31,11 @@ from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
+from .backend import create_backend
 from .render import create_volume_icon
 from .state import (
-    _BACKENDS,
     STEP,
     VolumeState,
-    _detect_backend,
     _volume_icon_name,
     open_volume_settings,
     volume_settings_command,
@@ -56,16 +55,16 @@ class VolumeApplet(Applet):
     icon_name = "audio-volume-medium"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = _detect_backend()
+        self._backend = create_backend()
         if not self._backend:
             log.bind(action="detect_backend").warning(
-                "No audio backend found (%s)",
-                ", ".join(b.command for b in _BACKENDS),
+                "No audio backend found",
             )
         self._volume = 0
         self._muted = False
         self._show_level = False
         self._timer_id: int = 0
+        self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_level = bool(prefs.get("show_level", False))
@@ -95,6 +94,7 @@ class VolumeApplet(Applet):
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
+        self._poll_generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -103,6 +103,7 @@ class VolumeApplet(Applet):
     def on_clicked(self) -> None:
         """Toggle mute on left-click."""
         if self._backend:
+            self._poll_generation += 1
             self._backend.toggle_mute()
             self._poll()
             self._update_tooltip()
@@ -112,6 +113,7 @@ class VolumeApplet(Applet):
         """Adjust volume ±5% on scroll."""
         if not self._backend:
             return
+        self._poll_generation += 1
         if direction_up:
             new = min(100, self._volume + STEP)
         else:
@@ -152,16 +154,22 @@ class VolumeApplet(Applet):
         """Periodic poll - fetch state in background thread."""
         if not self._backend:
             return True
-        self._worker.run(
+        generation = self._poll_generation
+        self._worker.run_guarded(
+            key="volume-poll",
             name="volume-poll",
             fn=self._backend.get_state,
-            on_result=self._on_poll_result,
+            on_result=lambda state: self._on_poll_result(state, generation=generation),
         )
         return True
 
-    def _on_poll_result(self, state: VolumeState | None) -> bool:
+    def _on_poll_result(
+        self, state: VolumeState | None, *, generation: int | None = None
+    ) -> bool:
         """Apply polled state on main thread, refresh if changed."""
-        if state is None:
+        if state is None or (
+            generation is not None and generation != self._poll_generation
+        ):
             return False
         if (state.volume, state.muted) != (self._volume, self._muted):
             self._volume = state.volume

@@ -1588,7 +1588,8 @@ class TestSettingsWindowController:
         assert config.save.call_count == 2
         assert actions.refresh_launcher_overlay_visibility.call_count == 2
 
-    def test_dock_item_click_effect_switch_controls_selector(self, monkeypatch):
+    @pytest.mark.parametrize("effect", ["bounce", "pulse", "wobble"])
+    def test_dock_item_click_effect_switch_controls_selector(self, monkeypatch, effect):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "load_catalog_icon", lambda **_kwargs: None)
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
@@ -1604,21 +1605,31 @@ class TestSettingsWindowController:
         controller.show()
         selector = controller._dock_item_click_effect_combo
         switch = controller._dock_item_click_effects_enabled_switch
-        assert selector.items == [("bounce", "Bounce")]
+        assert selector.items == [
+            ("bounce", "Bounce"),
+            ("pulse", "Pulse"),
+            ("wobble", "Wobble"),
+        ]
         assert selector.get_active_id() == "bounce"
         assert selector.sensitive is True
+
+        selector.set_active_id(effect)
+        selector.emit_changed()
+        assert config.dock_item_click_effect == effect
+        config.save.reset_mock()
+        actions.queue_draw.reset_mock()
 
         switch.set_active(False)
         switch.emit_notify_active()
         assert config.dock_item_click_effects_enabled is False
         assert selector.sensitive is False
-        assert selector.get_active_id() == "bounce"
+        assert selector.get_active_id() == effect
 
         switch.set_active(True)
         switch.emit_notify_active()
         assert config.dock_item_click_effects_enabled is True
         assert selector.sensitive is True
-        assert selector.get_active_id() == "bounce"
+        assert selector.get_active_id() == effect
         assert config.save.call_count == 2
         assert actions.queue_draw.call_count == 2
 

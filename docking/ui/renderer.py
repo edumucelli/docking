@@ -188,7 +188,12 @@ from docking.core.theme import (
 )
 from docking.log import get_logger
 from docking.ui.autohide import HideState
-from docking.ui.effects import average_icon_color, easing_bounce
+from docking.ui.effects import (
+    average_icon_color,
+    click_effect_angle,
+    click_effect_scale,
+    easing_bounce,
+)
 from docking.ui.geometry import DockGeometryFrame, dock_edge_padding, map_icon_position
 from docking.ui.overlays import draw_count_badge, draw_progress_bar
 from docking.ui.shelf import clip_shelf_background, draw_shelf_background, rounded_rect
@@ -936,13 +941,12 @@ class DockRenderer:
 
         # Hide offset: distance to push content toward the screen edge
         hide_cross = icon_hide * cross_size
-        play_launch_bounce = (
-            getattr(config, "dock_item_click_effects_enabled", True)
-            and getattr(
-                config, "dock_item_click_effect", DockItemClickEffect.BOUNCE.value
-            )
-            == DockItemClickEffect.BOUNCE.value
+        click_effect = (
+            getattr(config, "dock_item_click_effect", DockItemClickEffect.BOUNCE.value)
+            if getattr(config, "dock_item_click_effects_enabled", True)
+            else ""
         )
+        play_launch_bounce = click_effect == DockItemClickEffect.BOUNCE.value
 
         now = GLib.get_monotonic_time()
         for i, (item, li) in enumerate(zip(items, layout, strict=True)):
@@ -979,8 +983,19 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            scaled_size = item_w * li.scale
+            effect_scale = (
+                click_effect_scale(
+                    click_effect, now - item.last_launched, launch_duration_us
+                )
+                if item.last_launched > 0
+                else 1.0
+            )
+            scaled_size = item_w * li.scale * effect_scale
             main_pos = li.x + icon_offset + slide + drop_shift
+            if effect_scale != 1.0:
+                main_pos += (item_w * li.scale - scaled_size) / 2
+                main_extent = width if is_horizontal(pos) else height
+                main_pos = max(0.0, min(main_pos, main_extent - scaled_size))
             if _is_separator_item(item):
                 self._draw_separator(
                     cr=cr,
@@ -1046,6 +1061,16 @@ class DockRenderer:
                 y=iy,
                 lighten=lighten,
                 darken=darken,
+                effect_scale=effect_scale,
+                angle=(
+                    click_effect_angle(
+                        effect=click_effect,
+                        t=now - item.last_launched,
+                        duration=launch_duration_us,
+                    )
+                    if item.last_launched > 0
+                    else 0.0
+                ),
             )
 
         # --- Draw indicators ---
@@ -1114,8 +1139,19 @@ class DockRenderer:
                     * theme.urgent_bounce_height
                 )
 
-            scaled_size = item_w * li.scale
+            effect_scale = (
+                click_effect_scale(
+                    click_effect, now - item.last_launched, launch_duration_us
+                )
+                if item.last_launched > 0
+                else 1.0
+            )
+            scaled_size = item_w * li.scale * effect_scale
             main_pos = li.x + icon_offset + slide + drop_shift
+            if effect_scale != 1.0:
+                main_pos += (item_w * li.scale - scaled_size) / 2
+                main_extent = width if is_horizontal(pos) else height
+                main_pos = max(0.0, min(main_pos, main_extent - scaled_size))
             ix, iy = map_icon_position(
                 pos=pos,
                 main_pos=main_pos,
@@ -1322,6 +1358,8 @@ class DockRenderer:
         y: float,
         lighten: float = 0.0,
         darken: float = 0.0,
+        effect_scale: float = 1.0,
+        angle: float = 0.0,
     ) -> None:
         """Draw a single dock icon at (x, y) with hover/click effects."""
         # The common path is "same icon object as last frame". Reuse the cached
@@ -1330,7 +1368,7 @@ class DockRenderer:
         if source_surface is None:
             return
 
-        scaled_size = base_size * li.scale
+        scaled_size = base_size * li.scale * effect_scale
         icon_width = source_surface.get_width()
         icon_height = source_surface.get_height()
 
@@ -1344,6 +1382,7 @@ class DockRenderer:
             # and copy work for frames that actually apply hover/click effects.
             cr.save()
             cr.translate(x, y)
+            self._rotate_icon(cr=cr, size=scaled_size, angle=angle)
             cr.scale(scaled_size / icon_width, scaled_size / icon_height)
             cr.set_source_surface(source_surface, 0, 0)
             cr.paint()
@@ -1366,10 +1405,26 @@ class DockRenderer:
 
         cr.save()
         cr.translate(x, y)
+        self._rotate_icon(cr=cr, size=scaled_size, angle=angle)
         cr.scale(scaled_size / icon_width, scaled_size / icon_height)
         cr.set_source_surface(icon_surface, 0, 0)
         cr.paint_with_alpha(recent_opacity)
         cr.restore()
+
+    @staticmethod
+    def _rotate_icon(cr: cairo.Context, size: float, angle: float) -> None:
+        """Rotate around the center, fitting the icon inside its original bounds.
+
+        Keeping the painted bounds stable avoids clipping at any dock edge and
+        leaves launcher badges and progress bars anchored to the same square.
+        """
+        if angle == 0.0:
+            return
+        fit = 1.0 / (abs(math.cos(angle)) + abs(math.sin(angle)))
+        cr.translate(size / 2, size / 2)
+        cr.rotate(angle)
+        cr.scale(fit, fit)
+        cr.translate(-size / 2, -size / 2)
 
     def _draw_separator(
         self,

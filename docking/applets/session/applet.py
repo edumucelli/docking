@@ -57,15 +57,14 @@ class SessionApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
         destructive: list[Gtk.MenuItem] = []
-        for label, cmd in _ACTIONS:
+        for label, action in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
-            action = label.lower().replace(" ", "_")
             if label == LOCK_SCREEN_LABEL:
                 mi.connect("activate", lambda _w: lock_screen())
             else:
                 mi.connect(
                     "activate",
-                    lambda _w, c=cmd, a=action: _run(cmd=c, action=a),
+                    lambda _w, a=action: _run(action=a),
                 )
             if label in (LOCK_SCREEN_LABEL, _("Suspend")):
                 primary.append(mi)

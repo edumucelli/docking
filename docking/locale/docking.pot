@@ -5623,3 +5623,15 @@ msgstr ""
 #: docking/ui/settings.py:1855
 msgid "Bottom"
 msgstr ""
+
+#: docking/ui/settings.py:431
+msgid "Pulse"
+msgstr ""
+
+#: docking/ui/settings.py:432
+msgid "Wobble"
+msgstr ""
+
+#: docking/applets/camshield/applet.py docking/applets/camshield/state.py
+msgid "Camera locked"
+msgstr ""

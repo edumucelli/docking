@@ -62,6 +62,7 @@ class QuoteApplet(Applet):
         self._index = -1
         self._current: QuoteEntry | None = None
         self._loading = False
+        self._request_id = 0
         self._clipboard: Gtk.Clipboard | None = None
 
         prefs = config.applet_prefs.get("quote", {})
@@ -137,6 +138,7 @@ class QuoteApplet(Applet):
         if source_id not in SOURCE_LABELS or source_id == self._source:
             return
         self._source = source_id
+        self._loading = False
         self.save_prefs({"source": self._source})
         self._quotes = source_fallback(source=self._source)
         self._index = -1
@@ -171,10 +173,12 @@ class QuoteApplet(Applet):
             self.present()
 
         source = self._source
+        self._request_id += 1
+        request_id = self._request_id
 
         def worker() -> None:
             quotes = fetch_quotes(source=source, limit=DEFAULT_FETCH_LIMIT)
-            GLib.idle_add(self._on_fetch_result, source, quotes, show_first)
+            GLib.idle_add(self._on_fetch_result, source, quotes, show_first, request_id)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -183,11 +187,11 @@ class QuoteApplet(Applet):
         source_id: str,
         quotes: list[QuoteEntry],
         show_first: bool,
+        request_id: int,
     ) -> bool:
-        self._loading = False
-        # Ignore stale async results if source changed in the meantime.
-        if source_id != self._source:
+        if request_id != self._request_id or source_id != self._source:
             return False
+        self._loading = False
 
         if quotes:
             self._quotes = quotes
