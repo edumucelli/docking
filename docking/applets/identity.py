@@ -39,10 +39,9 @@ that make that work.
 from __future__ import annotations
 
 import logging
+import sys
 from dataclasses import dataclass
 from enum import Enum
-
-from docking.platform import environment
 
 AppletId = str
 """Type alias for applet identifiers (e.g. ``"clock"``, ``"separator"``)."""
@@ -78,11 +77,11 @@ class AppletMeta:
     id: AppletId
     name: str
     category: AppletCategory
-    bsd_supported: bool = True
+    unsupported_platforms: tuple[str, ...] = ()
 
     @property
     def available_on_host(self) -> bool:
-        return self.bsd_supported or not environment.is_bsd()
+        return not sys.platform.startswith(self.unsupported_platforms)
 
 
 def parse_applet_id(desktop_id: str) -> str | None:

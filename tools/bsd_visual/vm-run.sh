@@ -13,6 +13,7 @@ if [ "$status" -eq 0 ]; then
     .venv-bsd/bin/python packaging/bsd/build.py --output "artifacts/bsd-packages/$package_os" >"$package_log" 2>&1 || status=$?
 fi
 if [ "$status" -eq 0 ]; then
+    export DOCKING_BSD_VM_TEST=1
     .venv-bsd/bin/python -m tools.bsd_visual.run --pytest --dock-command /usr/local/bin/docking --output "$output" || status=$?
 fi
 mkdir -p "$output"

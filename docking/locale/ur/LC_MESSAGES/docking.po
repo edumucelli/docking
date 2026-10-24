@@ -5661,3 +5661,7 @@ msgstr "بعد میں"
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "نظر انداز کریں"
+
+#: docking/applets/camshield/applet.py docking/applets/camshield/state.py
+msgid "Camera locked"
+msgstr ""

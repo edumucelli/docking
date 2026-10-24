@@ -21,7 +21,6 @@ meta = AppletMeta(
     id="camshield",
     name="Cam Shield",
     category=AppletCategory.SYSTEM,
-    bsd_supported=False,
 )
 
 __all__ = ["meta"]

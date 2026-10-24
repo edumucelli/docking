@@ -41,12 +41,12 @@ from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
+from .backend import create_backend
 from .render import create_bluetooth_icon
 from .state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
-    BluezBackend,
     adapter_from_state,
     adapters_command,
     build_tooltip,
@@ -82,7 +82,7 @@ class BluetoothApplet(Applet):
     icon_name = "bluetooth-active-symbolic"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = BluezBackend()
+        self._backend = create_backend()
         self._state: BluetoothState = unavailable_state()
         self._poll_id: int = 0
         self._discovery_id: int = 0
@@ -160,6 +160,7 @@ class BluetoothApplet(Applet):
         # Only try to stop discovery if we own a local discovery session.
         # This avoids noisy NotReady calls when scanning is externally owned.
         self._stop_local_discovery(quiet=True)
+        self._backend.close()
         if self._poll_id:
             GLib.source_remove(self._poll_id)
             self._poll_id = 0
@@ -402,7 +403,7 @@ class BluetoothApplet(Applet):
                 )
                 submenu.append(pair)
 
-            if device.paired:
+            if device.paired and self._backend.capabilities.remove_pairing:
                 remove = Gtk.MenuItem(label=_("Remove Pairing"))
                 remove.connect(
                     "activate",
@@ -415,18 +416,19 @@ class BluetoothApplet(Applet):
                 )
                 submenu.append(remove)
 
-            trust = Gtk.CheckMenuItem(label=_("Trusted"))
-            trust.set_active(device.trusted)
-            trust.connect(
-                "toggled",
-                lambda w, p=device.path: self._run_async(
-                    lambda: self._backend.set_trusted(
-                        p,
-                        trusted=w.get_active(),
-                    )
-                ),
-            )
-            submenu.append(trust)
+            if self._backend.capabilities.trust:
+                trust = Gtk.CheckMenuItem(label=_("Trusted"))
+                trust.set_active(device.trusted)
+                trust.connect(
+                    "toggled",
+                    lambda w, p=device.path: self._run_async(
+                        lambda: self._backend.set_trusted(
+                            p,
+                            trusted=w.get_active(),
+                        )
+                    ),
+                )
+                submenu.append(trust)
 
             if device.battery_percent is not None:
                 battery = Gtk.MenuItem(

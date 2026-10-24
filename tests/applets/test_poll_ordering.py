@@ -192,7 +192,7 @@ def test_bluetooth_old_poll_does_not_undo_power_off(monkeypatch):
     )
     backend = MagicMock()
     backend.get_state.return_value = initial
-    monkeypatch.setattr(bluetooth, "BluezBackend", lambda: backend)
+    monkeypatch.setattr(bluetooth, "create_backend", lambda: backend)
     applet = bluetooth.BluetoothApplet(
         48, Config(applet_prefs={"bluetooth": {"continuous_discovery": False}})
     )

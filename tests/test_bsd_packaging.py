@@ -29,6 +29,9 @@ def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_p
         root / "packaging/deb/icons/hicolor/48x48/apps/org.docking.Docking.png"
     ).write_bytes(b"icon")
     (root / "LICENSE").write_text("GPL")
+    (root / "packaging/shared/org.docking.camshield.policy").write_text(
+        "<annotate>/usr/bin/docking-camshield-helper</annotate>"
+    )
     venv = tmp_path / "venv"
     site = (
         venv
@@ -70,3 +73,11 @@ def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_p
     assert launcher.stat().st_mode & 0o111
     assert "/usr/local/lib/docking/python" in launcher.read_text()
     assert str(venv) not in launcher.read_text()
+    helper = destination / "usr/local/bin/docking-camshield-helper"
+    assert helper.stat().st_mode & 0o111
+    assert " -I -c " in helper.read_text()
+    assert '"$@"' in helper.read_text()
+    policy = (
+        destination / "usr/local/share/polkit-1/actions/org.docking.camshield.policy"
+    )
+    assert "/usr/local/bin/docking-camshield-helper" in policy.read_text()

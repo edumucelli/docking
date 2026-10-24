@@ -6,8 +6,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.camshield.applet as camshield_applet_mod
-import docking.applets.camshield.state as camshield_state_mod
+import docking.applets.camshield.linux as camshield_linux_mod
 from docking.applets.camshield.applet import CamshieldApplet
 from docking.applets.camshield.render import render_icon
 from docking.applets.camshield.state import (
@@ -143,7 +145,7 @@ class TestProbeCameraState:
                 return f"{video0} (deleted)"
 
         assert (
-            camshield_state_mod._fd_video_device_name(
+            camshield_linux_mod._fd_video_device_name(
                 _Fd(),
                 {"video0": video0.resolve(strict=False)},
             )
@@ -155,11 +157,11 @@ class TestProbeCameraState:
         proc.mkdir()
         (proc / "cmdline").write_text("/usr/bin/browser\0--camera", encoding="utf-8")
 
-        assert camshield_state_mod._process_command(proc) == "browser"
+        assert camshield_linux_mod._process_command(proc) == "browser"
 
         empty_proc = tmp_path / "124"
         empty_proc.mkdir()
-        assert camshield_state_mod._process_command(empty_proc) == "Unknown"
+        assert camshield_linux_mod._process_command(empty_proc) == "Unknown"
 
     def test_probe_handles_unreadable_roots(self, monkeypatch, tmp_path):
         monkeypatch.setattr(
@@ -217,6 +219,12 @@ class TestRender:
 
 
 class TestApplet:
+    @pytest.fixture(autouse=True)
+    def immediate_worker(self, monkeypatch):
+        from tests.applets.test_bluetooth import _ImmediateWorker
+
+        monkeypatch.setattr(camshield_applet_mod, "BackgroundWorker", _ImmediateWorker)
+
     def test_applet_presents_state(self, monkeypatch):
         state = CamshieldState(
             available=True,

@@ -9,14 +9,16 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
+import docking.applets.bluetooth.linux as bluetooth_linux_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
 from docking.applets.bluetooth.applet import BluetoothApplet
+from docking.applets.bluetooth.backend import BluetoothCapabilities
+from docking.applets.bluetooth.linux import LinuxBluetoothBackend
 from docking.applets.bluetooth.render import create_bluetooth_icon
 from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
-    BluezBackend,
     adapter_from_state,
     build_tooltip,
     connected_count,
@@ -267,9 +269,9 @@ class TestBluetoothStateHelpers:
         ]
 
 
-class TestBluezBackend:
+class TestLinuxBluetoothBackend:
     def test_pair_device_uses_bluetoothctl_fallback_on_failure(self):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         backend._call_method = lambda **kwargs: False  # type: ignore[attr-defined]
         backend._pair_with_bluetoothctl = (  # type: ignore[attr-defined]
             lambda **kwargs: True
@@ -277,7 +279,7 @@ class TestBluezBackend:
         assert backend.pair_device("/org/bluez/hci0/dev_x", address="AA:BB") is True
 
     def test_set_adapter_power_off_stops_discovery_and_retries(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         calls: list[str] = []
         attempts = [False, True]
         backend.stop_discovery = (  # type: ignore[attr-defined]
@@ -296,7 +298,7 @@ class TestBluezBackend:
             "Discovering": False
         }
         backend._set_property = lambda **kwargs: calls.append("set") or attempts.pop(0)  # type: ignore[attr-defined]
-        monkeypatch.setattr(bluetooth_state_mod.time, "sleep", lambda _s: None)
+        monkeypatch.setattr(bluetooth_linux_mod.time, "sleep", lambda _s: None)
 
         assert backend.set_adapter_power("/org/bluez/hci0", False) is True
         assert calls[0] == "stop:/org/bluez/hci0:True"
@@ -306,7 +308,7 @@ class TestBluezBackend:
         assert "fallback" not in calls
 
     def test_set_adapter_power_off_disconnects_on_repeated_failure(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         calls: list[str] = []
         attempts = [False, False, False, False, False, False, False, False]
         backend.stop_discovery = (  # type: ignore[attr-defined]
@@ -325,7 +327,7 @@ class TestBluezBackend:
             "Discovering": False
         }
         backend._set_property = lambda **kwargs: calls.append("set") or attempts.pop(0)  # type: ignore[attr-defined]
-        monkeypatch.setattr(bluetooth_state_mod.time, "sleep", lambda _s: None)
+        monkeypatch.setattr(bluetooth_linux_mod.time, "sleep", lambda _s: None)
 
         assert backend.set_adapter_power("/org/bluez/hci0", False) is True
         assert "disconnect:/org/bluez/hci0" in calls
@@ -334,7 +336,7 @@ class TestBluezBackend:
         assert "fallback" in calls
 
     def test_set_adapter_power_on_uses_fallback_when_needed(self):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         backend._set_property = lambda **kwargs: False  # type: ignore[attr-defined]
         backend._set_power_with_bluetoothctl = lambda **kwargs: True  # type: ignore[attr-defined]
         assert backend.set_adapter_power("/org/bluez/hci0", True) is True
@@ -342,7 +344,7 @@ class TestBluezBackend:
     def test_set_adapter_power_off_fails_fast_when_discovery_is_external(
         self, monkeypatch
     ):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         calls: list[str] = []
         backend.stop_discovery = (  # type: ignore[attr-defined]
             lambda path, quiet=False: calls.append(f"stop:{path}:{quiet}") or True
@@ -360,7 +362,7 @@ class TestBluezBackend:
         backend._disconnect_connected_devices = lambda **kwargs: calls.append(
             "disconnect"
         )  # type: ignore[attr-defined]
-        monkeypatch.setattr(bluetooth_state_mod.time, "sleep", lambda _s: None)
+        monkeypatch.setattr(bluetooth_linux_mod.time, "sleep", lambda _s: None)
 
         assert backend.set_adapter_power("/org/bluez/hci0", False) is False
         assert calls.count("set") == 1
@@ -368,7 +370,7 @@ class TestBluezBackend:
         assert "fallback" in calls
 
     def test_get_state_unavailable_and_success_paths(self):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         backend._has_bluez_owner = lambda: False  # type: ignore[attr-defined]
         state = backend.get_state()
         assert state.available is False
@@ -387,7 +389,7 @@ class TestBluezBackend:
 
         backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
             "/org/bluez/hci0": {
-                bluetooth_state_mod.ADAPTER_IFACE: {
+                bluetooth_linux_mod.ADAPTER_IFACE: {
                     "Name": "hci0",
                     "Alias": "Adapter 0",
                     "Powered": True,
@@ -399,7 +401,7 @@ class TestBluezBackend:
         assert state.active_adapter_path == "/org/bluez/hci0"
 
     def test_backend_wrapper_methods_call_internal_helpers(self):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         calls: list[tuple[str, str]] = []
         backend._call_method = lambda **kwargs: (
             calls.append(  # type: ignore[attr-defined]
@@ -419,15 +421,15 @@ class TestBluezBackend:
         assert backend.disconnect_device("/d") is True
         assert backend.remove_device("/a", "/d") is True
         assert backend.set_trusted("/d", True) is True
-        assert (bluetooth_state_mod.ADAPTER_IFACE, "StartDiscovery") in calls
-        assert (bluetooth_state_mod.ADAPTER_IFACE, "StopDiscovery") in calls
-        assert (bluetooth_state_mod.DEVICE_IFACE, "Connect") in calls
-        assert (bluetooth_state_mod.DEVICE_IFACE, "Disconnect") in calls
-        assert (bluetooth_state_mod.ADAPTER_IFACE, "RemoveDevice") in calls
-        assert (bluetooth_state_mod.DEVICE_IFACE, "Trusted") in calls
+        assert (bluetooth_linux_mod.ADAPTER_IFACE, "StartDiscovery") in calls
+        assert (bluetooth_linux_mod.ADAPTER_IFACE, "StopDiscovery") in calls
+        assert (bluetooth_linux_mod.DEVICE_IFACE, "Connect") in calls
+        assert (bluetooth_linux_mod.DEVICE_IFACE, "Disconnect") in calls
+        assert (bluetooth_linux_mod.ADAPTER_IFACE, "RemoveDevice") in calls
+        assert (bluetooth_linux_mod.DEVICE_IFACE, "Trusted") in calls
 
     def test_has_owner_and_get_managed_objects_branches(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         backend._dbus_proxy = None
         assert backend._has_bluez_owner() is False
 
@@ -450,7 +452,7 @@ class TestBluezBackend:
                 raise Exception("dbus")
 
         backend._dbus_proxy = _ProxyFail()
-        monkeypatch.setattr(bluetooth_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(bluetooth_linux_mod.GLib, "Error", Exception)
         assert backend._has_bluez_owner() is False
 
         backend._bus = None
@@ -471,7 +473,7 @@ class TestBluezBackend:
         assert backend._get_managed_objects() == {}
 
     def test_call_method_and_set_property_branches(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         backend._bus = None
         assert (
             backend._call_method(path="/x", interface="i", method="M", parameters=None)
@@ -497,7 +499,7 @@ class TestBluezBackend:
                     raise Exception(self.error_text)
                 return object()
 
-        monkeypatch.setattr(bluetooth_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(bluetooth_linux_mod.GLib, "Error", Exception)
         backend._bus = _Bus()
         assert (
             backend._call_method(path="/x", interface="i", method="M", parameters=None)
@@ -531,17 +533,17 @@ class TestBluezBackend:
         )
 
     def test_bluetoothctl_helpers(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
-        monkeypatch.setattr(bluetooth_state_mod.shutil, "which", lambda cmd: None)
+        backend = object.__new__(LinuxBluetoothBackend)
+        monkeypatch.setattr(bluetooth_linux_mod.shutil, "which", lambda cmd: None)
         assert backend._pair_with_bluetoothctl(address="", timeout_s=1) is False
         assert backend._set_power_with_bluetoothctl(powered=True) is False
 
-        monkeypatch.setattr(bluetooth_state_mod.shutil, "which", lambda cmd: "/bin/bt")
+        monkeypatch.setattr(bluetooth_linux_mod.shutil, "which", lambda cmd: "/bin/bt")
 
         def timeout_run(*_args, **_kwargs):
             raise subprocess.TimeoutExpired(cmd="bluetoothctl", timeout=1)
 
-        monkeypatch.setattr(bluetooth_state_mod.subprocess, "run", timeout_run)
+        monkeypatch.setattr(bluetooth_linux_mod.subprocess, "run", timeout_run)
         assert backend._pair_with_bluetoothctl(address="AA:BB", timeout_s=1) is False
         assert backend._set_power_with_bluetoothctl(powered=False) is False
 
@@ -552,7 +554,7 @@ class TestBluezBackend:
                 self.stderr = stderr
 
         monkeypatch.setattr(
-            bluetooth_state_mod.subprocess,
+            bluetooth_linux_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Result(returncode=0, stdout="Failed"),
         )
@@ -560,7 +562,7 @@ class TestBluezBackend:
         assert backend._set_power_with_bluetoothctl(powered=False) is False
 
         monkeypatch.setattr(
-            bluetooth_state_mod.subprocess,
+            bluetooth_linux_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Result(returncode=0, stdout="ok"),
         )
@@ -568,26 +570,26 @@ class TestBluezBackend:
         assert backend._set_power_with_bluetoothctl(powered=True) is True
 
     def test_disconnect_wait_and_adapter_props_helpers(self, monkeypatch):
-        backend = object.__new__(BluezBackend)
+        backend = object.__new__(LinuxBluetoothBackend)
         disconnected: list[str] = []
         backend._call_method = lambda **kwargs: (
             disconnected.append(kwargs["path"]) or True
         )  # type: ignore[attr-defined]
         backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
             "/d1": {
-                bluetooth_state_mod.DEVICE_IFACE: {
+                bluetooth_linux_mod.DEVICE_IFACE: {
                     "Adapter": "/a0",
                     "Connected": True,
                 }
             },
             "/d2": {
-                bluetooth_state_mod.DEVICE_IFACE: {
+                bluetooth_linux_mod.DEVICE_IFACE: {
                     "Adapter": "/a1",
                     "Connected": True,
                 }
             },
             "/d3": {
-                bluetooth_state_mod.DEVICE_IFACE: {
+                bluetooth_linux_mod.DEVICE_IFACE: {
                     "Adapter": "/a0",
                     "Connected": False,
                 }
@@ -603,14 +605,14 @@ class TestBluezBackend:
         assert backend._get_adapter_props(adapter_path="/a0") is None
 
         backend._get_managed_objects = lambda: {  # type: ignore[attr-defined]
-            "/a0": {bluetooth_state_mod.ADAPTER_IFACE: {"Discovering": True}}
+            "/a0": {bluetooth_linux_mod.ADAPTER_IFACE: {"Discovering": True}}
         }
         assert backend._get_adapter_props(adapter_path="/a0") == {"Discovering": True}
 
         backend._get_adapter_props = lambda **kwargs: {"Discovering": False}  # type: ignore[attr-defined]
-        monkeypatch.setattr(bluetooth_state_mod.time, "sleep", lambda _s: None)
+        monkeypatch.setattr(bluetooth_linux_mod.time, "sleep", lambda _s: None)
         times = iter([0.0, 0.01])
-        monkeypatch.setattr(bluetooth_state_mod.time, "monotonic", lambda: next(times))
+        monkeypatch.setattr(bluetooth_linux_mod.time, "monotonic", lambda: next(times))
         assert (
             backend._wait_for_discovery_state(
                 adapter_path="/a0",
@@ -622,7 +624,7 @@ class TestBluezBackend:
 
         backend._get_adapter_props = lambda **kwargs: None  # type: ignore[attr-defined]
         times = iter([0.0, 0.01])
-        monkeypatch.setattr(bluetooth_state_mod.time, "monotonic", lambda: next(times))
+        monkeypatch.setattr(bluetooth_linux_mod.time, "monotonic", lambda: next(times))
         assert (
             backend._wait_for_discovery_state(
                 adapter_path="/a0",
@@ -635,7 +637,7 @@ class TestBluezBackend:
     def test_parse_objects_and_helper_conversions(self):
         objects = {
             "/org/bluez/hci1": {
-                bluetooth_state_mod.ADAPTER_IFACE: {
+                bluetooth_linux_mod.ADAPTER_IFACE: {
                     "Name": "hci1",
                     "Alias": "",
                     "Powered": True,
@@ -644,7 +646,7 @@ class TestBluezBackend:
                 }
             },
             "/org/bluez/hci0": {
-                bluetooth_state_mod.ADAPTER_IFACE: {
+                bluetooth_linux_mod.ADAPTER_IFACE: {
                     "Name": "",
                     "Alias": "",
                     "Powered": False,
@@ -653,7 +655,7 @@ class TestBluezBackend:
                 }
             },
             "/dev/a": {
-                bluetooth_state_mod.DEVICE_IFACE: {
+                bluetooth_linux_mod.DEVICE_IFACE: {
                     "Adapter": "/org/bluez/hci0",
                     "Name": "A",
                     "Alias": "A",
@@ -664,10 +666,10 @@ class TestBluezBackend:
                     "Connected": True,
                     "RSSI": "-20",
                 },
-                bluetooth_state_mod.BATTERY_IFACE: {"Percentage": 88},
+                bluetooth_linux_mod.BATTERY_IFACE: {"Percentage": 88},
             },
             "/dev/b": {
-                bluetooth_state_mod.DEVICE_IFACE: {
+                bluetooth_linux_mod.DEVICE_IFACE: {
                     "Adapter": "/org/bluez/hci0",
                     "Name": "B",
                     "Alias": "B",
@@ -681,7 +683,7 @@ class TestBluezBackend:
             },
             "/bad": "bad",
         }
-        adapters, devices = bluetooth_state_mod._parse_objects(objects=objects)
+        adapters, devices = bluetooth_linux_mod._parse_objects(objects=objects)
         assert [a.path for a in adapters] == ["/org/bluez/hci0", "/org/bluez/hci1"]
         assert devices[0].path == "/dev/a"
         assert devices[0].battery_percent == 88
@@ -708,27 +710,32 @@ class TestBluezBackend:
             def unpack(self):
                 raise RuntimeError("bad")
 
-        assert bluetooth_state_mod._unpack({"k": _Variant([1, _Variant(2)])}) == {
+        assert bluetooth_linux_mod._unpack({"k": _Variant([1, _Variant(2)])}) == {
             "k": [1, 2]
         }
         broken = _BrokenVariant()
-        assert bluetooth_state_mod._unpack(broken) is broken
-        assert bluetooth_state_mod._as_str(None) == ""
-        assert bluetooth_state_mod._as_str(_Variant("x")) == "x"
-        assert bluetooth_state_mod._as_bool(_Variant(True)) is True
-        assert bluetooth_state_mod._as_bool("true") is False
-        assert bluetooth_state_mod._as_int(_Variant("7")) == 7
-        assert bluetooth_state_mod._as_int("bad", default=None) is None
+        assert bluetooth_linux_mod._unpack(broken) is broken
+        assert bluetooth_linux_mod._as_str(None) == ""
+        assert bluetooth_linux_mod._as_str(_Variant("x")) == "x"
+        assert bluetooth_linux_mod._as_bool(_Variant(True)) is True
+        assert bluetooth_linux_mod._as_bool("true") is False
+        assert bluetooth_linux_mod._as_int(_Variant("7")) == 7
+        assert bluetooth_linux_mod._as_int("bad", default=None) is None
 
     def test_as_int_skips_debug_log_for_absent_optional_values(self, caplog):
         with caplog.at_level(logging.DEBUG, logger="docking.bluetooth"):
-            assert bluetooth_state_mod._as_int(None, default=None) is None
-            assert bluetooth_state_mod._as_int("  ", default=None) is None
+            assert bluetooth_linux_mod._as_int(None, default=None) is None
+            assert bluetooth_linux_mod._as_int("  ", default=None) is None
 
         assert "Failed to coerce Bluetooth value" not in caplog.text
 
 
 class _StubBackend:
+    def close(self):
+        pass
+
+    capabilities = BluetoothCapabilities()
+
     def __init__(self, initial_state: BluetoothState) -> None:
         self.state = initial_state
         self.power_calls: list[tuple[str, bool]] = []
@@ -786,7 +793,7 @@ def _make_applet(
     state: BluetoothState,
 ) -> tuple[BluetoothApplet, _StubBackend]:
     backend = _StubBackend(initial_state=state)
-    monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
+    monkeypatch.setattr(bluetooth_applet_mod, "create_backend", lambda: backend)
     monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
     applet = BluetoothApplet(48, config=Config())
     applet._on_poll_result(
@@ -866,7 +873,7 @@ class TestBluetoothApplet:
                 return _state()
 
         backend = _Backend()
-        monkeypatch.setattr(bluetooth_applet_mod, "BluezBackend", lambda: backend)
+        monkeypatch.setattr(bluetooth_applet_mod, "create_backend", lambda: backend)
         monkeypatch.setattr(bluetooth_applet_mod, "BackgroundWorker", _ImmediateWorker)
 
         applet = BluetoothApplet(48, config=Config())

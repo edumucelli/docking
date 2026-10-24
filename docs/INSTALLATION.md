@@ -160,7 +160,7 @@ On FreeBSD 15.1/amd64:
 
 ```sh
 pkg install python312 py312-pygobject py312-pycairo py312-psutil \
-  gtk3 libwnck3 dbus libXScrnSaver
+  gtk3 libwnck3 dbus libXScrnSaver polkit xterm
 FILE=docking-latest-freebsd-15.1-amd64.pkg
 BASE=https://github.com/edumucelli/docking/releases/latest/download
 fetch "$BASE/$FILE"
@@ -170,7 +170,7 @@ fetch "$BASE/$FILE.json"
 On OpenBSD 7.9/amd64:
 
 ```sh
-pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus
+pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus polkit
 FILE=docking-latest-openbsd-7.9-amd64.tgz
 BASE=https://github.com/edumucelli/docking/releases/latest/download
 ftp -o "$FILE" "$BASE/$FILE"
@@ -207,6 +207,26 @@ new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
 OpenBSD. These are direct release downloads; no third-party package repository
 is configured. The release also includes versioned filenames and
 `SHA256SUMS-bsd`.
+
+Cam Shield uses BSD kernel file tables to identify camera holders. Its packaged
+helper requests administrator authentication for lock/unlock. FreeBSD restores
+device permissions and ACLs; OpenBSD saves and restores `kern.video.record`,
+which controls recording for all cameras. A previously disabled recording policy
+stays disabled after unlocking. Device visibility depends on camera drivers and
+the current user's permission to inspect other processes.
+Permission-based locking prevents new camera opens; processes already holding
+a device remain visible until they close it. OpenBSD's kernel switch blanks
+recording even for existing users.
+
+FreeBSD Bluetooth uses the native controller stack. Enable the appropriate
+Bluetooth driver/service as described in the
+[FreeBSD handbook](https://docs.freebsd.org/en/books/handbook/advanced-networking/#network-bluetooth).
+Docking shows controllers and Classic Bluetooth connections, performs discovery,
+and opens `bluetooth-config` in a terminal for PIN entry and pairing/profile
+configuration. Power and connection changes request administrator authentication.
+FreeBSD has no BlueZ trust property; trust and pairing removal are left to native
+system configuration. OpenBSD has no native Bluetooth stack, so its Bluetooth
+applet remains unavailable.
 
 ## Release downloads
 

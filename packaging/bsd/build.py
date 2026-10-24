@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -73,6 +74,32 @@ def stage(destination: Path) -> None:
         f'exec {executable} -P -m docking.launcher "$@"\n'
     )
     launcher.chmod(0o755)
+    # Privileged helpers use only the root-owned installed payload. Python -I
+    # excludes the caller's environment, current directory, and user site.
+    helper = destination / "usr/local/bin/docking-camshield-helper"
+    helper.write_text(
+        "#!/bin/sh\nset -eu\n"
+        f"exec {shlex.quote(str(executable))} -I -c "
+        + shlex.quote(
+            'import sys; sys.path.insert(0, "/usr/local/lib/docking/python"); '
+            "from docking.applets.camshield.helper import main; "
+            "raise SystemExit(main())"
+        )
+        + ' "$@"\n'
+    )
+    helper.chmod(0o755)
+    policy = (
+        destination / "usr/local/share/polkit-1/actions/org.docking.camshield.policy"
+    )
+    policy.parent.mkdir(parents=True)
+    policy.write_text(
+        (ROOT / "packaging/shared/org.docking.camshield.policy")
+        .read_text()
+        .replace(
+            "/usr/bin/docking-camshield-helper",
+            "/usr/local/bin/docking-camshield-helper",
+        )
+    )
     desktop = destination / "usr/local/share/applications/org.docking.Docking.desktop"
     desktop.parent.mkdir(parents=True)
     shutil.copy2(ROOT / "packaging/shared/org.docking.Docking.desktop", desktop)
@@ -96,6 +123,8 @@ def freebsd_package(stage_dir: Path, work: Path, version: str) -> Path:
         "libwnck3",
         "dbus",
         "libXScrnSaver",
+        "polkit",
+        "xterm",
     ):
         name, dep_version, origin = output("pkg", "query", "%n\t%v\t%o", spec).split(
             "\t"
@@ -142,6 +171,7 @@ def openbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
         "gtk+3-",
         "libwnck3-",
         "dbus-",
+        "polkit-",
     )
     dependencies = []
     for prefix in prefixes:

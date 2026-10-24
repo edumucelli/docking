@@ -609,8 +609,11 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                 "volume",
                 "pet",
                 "thermals",
+                "camshield",
             )
         ]
+        if sys.platform.startswith(("linux", "freebsd")):
+            pinned.append("applet://bluetooth")
         with dock_case(observer, env, "applets", {"pinned": pinned}) as child:
             ready(observer, child, count=len(pinned))
             time.sleep(2.5)
@@ -624,6 +627,18 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             time.sleep(0.5)
             observer.capture("applets-network-menu")
             observer.pointer.escape()
+            for applet_id in ("camshield", "bluetooth"):
+                if f"applet://{applet_id}" not in pinned:
+                    continue
+                found, x, y, _ = observer.remote(
+                    "GetHoverAnchor", "(s)", (f"applet://{applet_id}",)
+                )
+                assert found, f"{applet_id} applet did not load"
+                observer.pointer.move(x + 24, y + 24)
+                observer.pointer.click(3)
+                time.sleep(0.5)
+                observer.capture(f"applets-{applet_id}-menu")
+                observer.pointer.escape()
             return {"pinned": pinned}
 
     record("applets", applets)

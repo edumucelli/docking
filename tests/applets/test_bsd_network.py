@@ -29,18 +29,16 @@ def test_native_interface_change_resets_traffic_baseline(monkeypatch):
     assert applet._prev_counters is None
 
 
-def test_linux_only_applet_is_explicitly_unavailable_on_bsd(monkeypatch):
-    monkeypatch.setattr(environment, "is_bsd", lambda: True)
-    assert not bluetooth_meta.available_on_host
-    monkeypatch.setattr(environment, "is_bsd", lambda: False)
+def test_bluetooth_available_on_freebsd_but_not_openbsd(monkeypatch):
+    from docking.applets import identity
+    from docking.applets.camshield import meta as camera_meta
+
+    monkeypatch.setattr(identity.sys, "platform", "freebsd15")
     assert bluetooth_meta.available_on_host
-
-
-def test_camshield_cannot_invoke_linux_helper_from_a_saved_bsd_pin(monkeypatch):
-    from docking.applets.camshield.applet import _helper_command
-
-    monkeypatch.setattr(environment, "is_bsd", lambda: True)
-    assert _helper_command(action="lock") is None
+    assert camera_meta.available_on_host
+    monkeypatch.setattr(identity.sys, "platform", "openbsd7")
+    assert not bluetooth_meta.available_on_host
+    assert camera_meta.available_on_host
 
 
 def test_shared_applet_starts_without_networkmanager_and_keeps_preferences(monkeypatch):
