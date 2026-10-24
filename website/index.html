@@ -1245,6 +1245,9 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
           });
         } catch {
           // The installation guide and release listing also work without the API.
+        } finally {
+          requested = [...section.querySelectorAll("[data-bsd-asset]")]
+            .every((link) => !link.hidden);
         }
       });
     })();
