@@ -121,7 +121,9 @@ def build_tooltip(state: BluetoothState, active_adapter_path: str) -> str:
 
     powered = _("On") if adapter.powered else _("Off")
     paired = [d for d in state.devices if d.adapter_path == adapter.path and d.paired]
-    connected = [d for d in paired if d.connected]
+    connected = [
+        d for d in state.devices if d.adapter_path == adapter.path and d.connected
+    ]
 
     lines = [
         _("Bluetooth: {state}").format(state=powered),

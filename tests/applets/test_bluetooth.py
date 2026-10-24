@@ -166,6 +166,12 @@ class TestBluetoothStateHelpers:
     def test_build_tooltip_unavailable(self):
         assert "No adapter" in build_tooltip(unavailable_state(), "")
 
+    def test_tooltip_counts_connections_without_a_known_pairing(self):
+        state = _state(devices=(_device(path="/d/1", paired=False, connected=True),))
+        tooltip = build_tooltip(state, "/org/bluez/hci0")
+        assert "Connected: 1" in tooltip
+        assert "Paired: 0" in tooltip
+
     def test_device_menu_label(self):
         label = device_menu_label(
             _device(path="/d", connected=True, paired=True, battery_percent=77)
