@@ -74,7 +74,8 @@ class TestIdleProbe:
 
         assert idle_time._load_libraries() is False
         assert idle_time._load_libraries() is False
-        assert calls == ["libX11.so.6"]
+        assert len(calls) == 1
+        assert "X11" in calls[0]
 
     def test_load_libraries_success_configures_functions(self, monkeypatch):
         xlib = _FakeXlib()

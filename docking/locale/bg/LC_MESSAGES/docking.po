@@ -5686,3 +5686,7 @@ msgstr "По-късно"
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "Игнорирай"
+
+#: docking/applets/camshield/applet.py docking/applets/camshield/state.py
+msgid "Camera locked"
+msgstr ""

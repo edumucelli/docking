@@ -9,6 +9,7 @@ build/
 *.so
 .idea/
 .venv/
+.venv-bsd/
 .coverage
 coverage.xml
 htmlcov/

@@ -243,3 +243,20 @@ def _remove_desktop_field_codes(command: str) -> str:
     # by a letter is left alone.
     text = re.sub(r"%[A-Za-z]", "", text)
     return text.replace(literal_percent, "%")
+
+
+def read_command(argv: list[str]) -> str | None:
+    """Read a bounded native command in a predictable locale."""
+    try:
+        result = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=0.5,
+            env={**os.environ, "LC_ALL": "C"},
+            check=False,
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log.debug("Native command unavailable: %s: %s", argv[0], exc)
+        return None

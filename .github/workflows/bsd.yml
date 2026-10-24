@@ -1,0 +1,111 @@
+name: BSD desktops
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bsd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-control:
+    name: X11 visual control (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-gi python3-gi-cairo python3-cairo python3-pytest python3-venv python3-pip \
+            gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu librsvg2-common
+      - name: Check visual assertions
+        run: python3 -m pytest -q tests/test_bsd_visual.py
+      - name: Install runtime dependencies
+        run: sh tools/bsd_visual/install-python.sh
+      - name: Exercise the complete dock
+        run: .venv-bsd/bin/python -m tools.bsd_visual.run --output artifacts/bsd-visual/linux
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bsd-visual-linux
+          path: artifacts/bsd-visual/linux/
+          retention-days: 14
+
+  bsd:
+    name: X11 desktop (${{ matrix.os }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [freebsd, openbsd]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: FreeBSD desktop checks
+        if: matrix.os == 'freebsd'
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          sync: rsync
+          copyback: true
+          prepare: |
+            pkg install -y python3
+            python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
+            pkg install -y "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
+              "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
+              gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm
+          run: |
+            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/freebsd
+      - name: OpenBSD desktop checks
+        if: matrix.os == 'openbsd'
+        uses: vmactions/openbsd-vm@v1
+        with:
+          release: "7.9"
+          sync: rsync
+          copyback: true
+          prepare: |
+            pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip gtk+3 libwnck3 xfwm4 dbus gettext-tools polkit
+          run: |
+            export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
+            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/openbsd
+      - name: Check copied BSD results
+        env:
+          BSD_OS: ${{ matrix.os }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          directory = Path("artifacts/bsd-visual") / os.environ["BSD_OS"]
+          status = int((directory / "exit-status").read_text())
+          if status:
+              raise SystemExit(f"BSD tests exited with status {status}; see the visual artifact and install.log")
+          results = json.loads((directory / "results.json").read_text())["results"]
+          if not results or any(result["status"] != "pass" for result in results):
+              raise SystemExit("BSD checks failed; see results.json in the visual artifact")
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bsd-visual-${{ matrix.os }}
+          path: artifacts/bsd-visual/${{ matrix.os }}/
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: docking-bsd-${{ matrix.os }}
+          path: artifacts/bsd-packages/${{ matrix.os }}/
+          retention-days: 14

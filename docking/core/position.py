@@ -35,3 +35,11 @@ class Position(str, enum.Enum):
 def is_horizontal(pos: Position) -> bool:
     """True for bottom/top (icons laid out left-to-right)."""
     return pos in (Position.BOTTOM, Position.TOP)
+
+
+def aligned_main_axis_start(
+    *, available: float, extent: float, alignment: float
+) -> float:
+    """Position an extent along an edge without moving it outside the surface."""
+    free_space = max(0.0, available - extent)
+    return min(free_space, max(0.0, free_space * alignment))

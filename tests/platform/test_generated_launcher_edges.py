@@ -62,7 +62,9 @@ def test_generated_launcher_executes_selected_file(
         launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
         assert launcher.launch(generated.desktop_id)
     deadline = time.monotonic() + 3
-    while not marker.exists() and time.monotonic() < deadline:
+    while time.monotonic() < deadline:
+        if marker.exists() and marker.read_text() == "launched":
+            break
         time.sleep(0.01)
 
     assert marker.read_text() == "launched"

@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import gi
 
+from docking.platform.libraries import load_library
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkX11
@@ -61,7 +63,7 @@ class X11IdentityHintReader:
         if not isinstance(display, GdkX11.X11Display):
             return None
         try:
-            xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+            xlib = load_library("X11", "libX11.so.6")
             xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
         except (OSError, TypeError, ValueError):
             return None

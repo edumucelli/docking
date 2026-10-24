@@ -3,11 +3,14 @@
 from unittest.mock import MagicMock, patch
 
 import docking.applets.volume.applet as volume_applet_mod
+import docking.applets.volume.command as volume_command_mod
+import docking.applets.volume.linux as linux_mod
+import docking.applets.volume.pulseaudio as pulseaudio_mod
 import docking.applets.volume.state as volume_state_mod
 from docking.applets.volume.applet import VolumeApplet
+from docking.applets.volume.backend import create_backend
 from docking.applets.volume.state import (
     VolumeState,
-    _detect_backend,
     _parse_amixer,
     _parse_pactl_mute,
     _parse_pactl_volume,
@@ -130,16 +133,16 @@ class TestVolumeIconName:
 class TestDetectBackend:
     def test_returns_first_available(self):
         with patch(
-            "docking.applets.volume.state.shutil.which",
+            "docking.applets.volume.linux.shutil.which",
             side_effect=[None, "/usr/bin/amixer"],
         ):
-            result = _detect_backend()
+            result = create_backend()
         assert result is not None
         assert result.command == "amixer"
 
     def test_returns_none_when_nothing_found(self):
-        with patch("docking.applets.volume.state.shutil.which", return_value=None):
-            assert _detect_backend() is None
+        with patch("docking.applets.volume.linux.shutil.which", return_value=None):
+            assert create_backend() is None
 
 
 class TestVolumeSettingsLauncher:
@@ -191,7 +194,7 @@ def _make_applet(
     """Create applet with mocked backend."""
     with (
         patch("docking.applets.volume.applet.BackgroundWorker", _ImmediateWorker),
-        patch("docking.applets.volume.applet._detect_backend") as mock_detect,
+        patch("docking.applets.volume.applet.create_backend") as mock_detect,
     ):
         mock_backend = mock_detect.return_value
         mock_backend.command = "pactl"
@@ -298,73 +301,75 @@ class TestVolumeApplet:
 
 
 def _make_applet_no_backend() -> VolumeApplet:
-    with patch("docking.applets.volume.applet._detect_backend", return_value=None):
+    with patch("docking.applets.volume.applet.create_backend", return_value=None):
         return VolumeApplet(48, config=Config())
 
 
 class TestVolumeStateBackendHelpers:
     def test_run_returns_stdout_on_success(self, monkeypatch):
         result = MagicMock(returncode=0, stdout="ok")
-        monkeypatch.setattr(volume_state_mod.subprocess, "run", lambda *a, **k: result)
-        assert volume_state_mod._run(["echo", "ok"], "test") == "ok"
+        monkeypatch.setattr(
+            volume_command_mod.subprocess, "run", lambda *a, **k: result
+        )
+        assert volume_command_mod._run(["echo", "ok"], "test") == "ok"
 
     def test_run_returns_none_on_nonzero_exit(self, monkeypatch):
         result = MagicMock(returncode=1, stdout="")
-        monkeypatch.setattr(volume_state_mod.subprocess, "run", lambda *a, **k: result)
-        assert volume_state_mod._run(["bad"], "test") is None
+        monkeypatch.setattr(
+            volume_command_mod.subprocess, "run", lambda *a, **k: result
+        )
+        assert volume_command_mod._run(["bad"], "test") is None
 
     def test_run_returns_none_on_oserror(self, monkeypatch):
         def boom(*_a, **_k):
             raise OSError("boom")
 
-        monkeypatch.setattr(volume_state_mod.subprocess, "run", boom)
-        assert volume_state_mod._run(["bad"], "test") is None
+        monkeypatch.setattr(volume_command_mod.subprocess, "run", boom)
+        assert volume_command_mod._run(["bad"], "test") is None
 
     def test_pactl_get_state_success(self, monkeypatch):
         calls = [
             "Volume: mono: 12345 / 70% / 0.00 dB",
             "Mute: no",
         ]
-        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
-        assert volume_state_mod._pactl_get_state() == VolumeState(
-            volume=70, muted=False
-        )
+        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert pulseaudio_mod._pactl_get_state() == VolumeState(volume=70, muted=False)
 
     def test_pactl_get_state_returns_none_on_invalid_parse(self, monkeypatch):
         calls = ["no volume", "Mute: ???"]
-        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
-        assert volume_state_mod._pactl_get_state() is None
+        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert pulseaudio_mod._pactl_get_state() is None
 
     def test_pactl_get_state_returns_none_on_missing_command_output(self, monkeypatch):
         calls = [None, "Mute: yes"]
-        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: calls.pop(0))
-        assert volume_state_mod._pactl_get_state() is None
+        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        assert pulseaudio_mod._pactl_get_state() is None
 
     def test_pactl_set_and_toggle_call_run(self, monkeypatch):
         seen = []
         monkeypatch.setattr(
-            volume_state_mod,
+            pulseaudio_mod,
             "_run",
             lambda cmd, action: seen.append((cmd, action)),
         )
-        volume_state_mod._pactl_set_volume(33)
-        volume_state_mod._pactl_toggle_mute()
+        pulseaudio_mod._pactl_set_volume(33)
+        pulseaudio_mod._pactl_toggle_mute()
         assert seen[0][0] == ["pactl", "set-sink-volume", "@DEFAULT_SINK@", "33%"]
         assert seen[1][0] == ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"]
 
     def test_amixer_get_state_none_when_run_fails(self, monkeypatch):
-        monkeypatch.setattr(volume_state_mod, "_run", lambda *a, **k: None)
-        assert volume_state_mod._amixer_get_state() is None
+        monkeypatch.setattr(linux_mod, "_run", lambda *a, **k: None)
+        assert linux_mod._amixer_get_state() is None
 
     def test_amixer_set_and_toggle_call_run(self, monkeypatch):
         seen = []
         monkeypatch.setattr(
-            volume_state_mod,
+            linux_mod,
             "_run",
             lambda cmd, action: seen.append((cmd, action)),
         )
-        volume_state_mod._amixer_set_volume(55)
-        volume_state_mod._amixer_toggle_mute()
+        linux_mod._amixer_set_volume(55)
+        linux_mod._amixer_toggle_mute()
         assert seen[0][0] == ["amixer", "set", "Master", "55%"]
         assert seen[1][0] == ["amixer", "set", "Master", "toggle"]
 

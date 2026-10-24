@@ -111,3 +111,20 @@ every package format live in the [packaging guide](../packaging/README.md).
 
 See also [custom applet development](APPLET_DEVELOPMENT.md),
 [translations](TRANSLATIONS.md), and [visual compositor testing](VISUAL_COMPOSITOR_TESTING.md).
+
+
+## BSD package and desktop checks
+
+CI builds and installs packages in actual FreeBSD and OpenBSD VMs, then runs
+core/platform and BSD applet tests plus 13 X11 visual scenarios. Download the
+`bsd-visual-freebsd` or `bsd-visual-openbsd` artifact and open `index.html` to
+review screenshots, per-case settings, package logs, JUnit, and JSON results
+without a BSD machine. The weekly/manual **BSD desktops** workflow runs the
+same checks. Hardware readings, audio devices and power actions need physical
+hardware validation; the reference desktop is compositing Xfce.
+
+For a local Linux/BSD X11 control, install GTK3/Cairo/Wnck GI bindings, Xvfb,
+Xfwm, D-Bus and XTest, then run `python3 -m tools.bsd_visual.run --pytest`.
+`--case placement-bottom` selects one scenario, and `--dock-command` can point
+at an installed executable. The default output is a timestamped directory under
+`artifacts/bsd-visual/`; an explicit `--output` must be empty.

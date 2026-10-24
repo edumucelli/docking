@@ -263,6 +263,7 @@ DEFAULT_ZOOM_ENABLED = True
 DEFAULT_ZOOM_PERCENT = 1.5
 DEFAULT_ZOOM_RANGE = 3
 DEFAULT_POSITION = Position.BOTTOM.value
+DEFAULT_DOCK_ALIGNMENT = 0.5
 DEFAULT_MONITOR_INDEX = -1
 DEFAULT_HIDE_DELAY_MS = 0
 DEFAULT_UNHIDE_DELAY_MS = 0
@@ -818,6 +819,8 @@ class Config:
     zoom_range: int = DEFAULT_ZOOM_RANGE
     # Screen edge where the dock is placed
     position: str = DEFAULT_POSITION
+    # Relative position along the edge: left/top (0), center (0.5), right/bottom (1)
+    dock_alignment: float = DEFAULT_DOCK_ALIGNMENT
     # Target monitor index (-1 means "primary monitor")
     monitor_index: int = DEFAULT_MONITOR_INDEX
     # Stable monitor connector/output name when the backend can expose one.
@@ -957,6 +960,12 @@ class Config:
             minimum=0,
         )
         self.position = _normalize_position(self.position)
+        self.dock_alignment = _normalize_float(
+            self.dock_alignment,
+            default=DEFAULT_DOCK_ALIGNMENT,
+            minimum=0.0,
+            maximum=1.0,
+        )
         self.monitor_index = max(
             DEFAULT_MONITOR_INDEX,
             _normalize_int(

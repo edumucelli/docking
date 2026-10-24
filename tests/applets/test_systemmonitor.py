@@ -6,6 +6,7 @@ import pytest
 
 import docking.applets.systemmonitor.applet as systemmonitor_mod
 import docking.applets.systemmonitor.gpu as gpu_mod
+import docking.applets.systemmonitor.linux as linux_mod
 import docking.applets.systemmonitor.temperature as temperature_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.gpu import (
@@ -13,6 +14,9 @@ from docking.applets.systemmonitor.gpu import (
     GpuStats,
     gpu_summary,
     parse_nvidia_smi_output,
+)
+from docking.applets.systemmonitor.linux import (
+    LinuxTemperatureReader as TemperatureReader,
 )
 from docking.applets.systemmonitor.state import (
     CpuSample,
@@ -28,7 +32,6 @@ from docking.applets.systemmonitor.state import (
 )
 from docking.applets.systemmonitor.temperature import (
     CommandBackend,
-    TemperatureReader,
     discover_available_commands,
     discover_sysfs_temperature_path,
     parse_acpi_output,
@@ -642,8 +645,8 @@ class TestSystemMonitorLifecycle:
 
         applet = SystemMonitorApplet(48, config=Config())
         start_polling(applet)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", proc_meminfo)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 55.2)
         refresh = []
         monkeypatch.setattr(applet, "present", lambda: refresh.append(True))
@@ -658,7 +661,7 @@ class TestSystemMonitorLifecycle:
     ):
         applet = SystemMonitorApplet(48, config=Config())
         start_polling(applet)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", tmp_path / "missing-stat")
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", tmp_path / "missing-stat")
         assert applet._tick() is True
 
     def test_tick_handles_meminfo_read_error(
@@ -669,9 +672,9 @@ class TestSystemMonitorLifecycle:
 
         applet = SystemMonitorApplet(48, config=Config())
         start_polling(applet)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
         monkeypatch.setattr(
-            systemmonitor_mod,
+            linux_mod,
             "_PROC_MEMINFO",
             tmp_path / "missing-meminfo",
         )
@@ -698,10 +701,10 @@ class TestSystemMonitorLifecycle:
         applet._last_drawn_mem = 0.25
         applet._prev_sample = CpuSample(total=100, idle=50)
 
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", proc_meminfo)
         monkeypatch.setattr(systemmonitor_mod, "cpu_percent", lambda prev, curr: 0.5)
-        monkeypatch.setattr(systemmonitor_mod, "parse_proc_meminfo", lambda text: 0.25)
+        monkeypatch.setattr(linux_mod, "parse_proc_meminfo", lambda text: 0.25)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 55.0)
         refresh = []
         monkeypatch.setattr(applet, "present", lambda: refresh.append(True))
@@ -732,10 +735,10 @@ class TestSystemMonitorLifecycle:
         applet._last_drawn_mem = 0.25
         applet._prev_sample = CpuSample(total=100, idle=50)
 
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", proc_meminfo)
         monkeypatch.setattr(systemmonitor_mod, "cpu_percent", lambda prev, curr: 0.5)
-        monkeypatch.setattr(systemmonitor_mod, "parse_proc_meminfo", lambda text: 0.25)
+        monkeypatch.setattr(linux_mod, "parse_proc_meminfo", lambda text: 0.25)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 56.2)
         monkeypatch.setattr(applet._gpu_reader, "read", lambda: None)
         notified = []
@@ -768,10 +771,10 @@ class TestSystemMonitorLifecycle:
         applet._last_drawn_mem = 0.25
         applet._prev_sample = CpuSample(total=100, idle=50)
 
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_STAT", proc_stat)
-        monkeypatch.setattr(systemmonitor_mod, "_PROC_MEMINFO", proc_meminfo)
+        monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
+        monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", proc_meminfo)
         monkeypatch.setattr(systemmonitor_mod, "cpu_percent", lambda prev, curr: 0.5)
-        monkeypatch.setattr(systemmonitor_mod, "parse_proc_meminfo", lambda text: 0.25)
+        monkeypatch.setattr(linux_mod, "parse_proc_meminfo", lambda text: 0.25)
         monkeypatch.setattr(applet._temperature_reader, "read", lambda: 55.0)
         monkeypatch.setattr(
             applet._gpu_reader,

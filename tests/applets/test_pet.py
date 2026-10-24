@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
+import docking.applets.systemmonitor.linux as linux_mod
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -384,7 +386,7 @@ class TestPetApplet:
         # curr_sample: still 100% busy (2618 total, 0 idle)
         proc_data = "cpu  2000 0 500 0 10 5 3\n"
         with patch.object(
-            type(pet_mod._PROC_STAT), "open", mock_open(read_data=proc_data)
+            type(linux_mod._PROC_STAT), "open", mock_open(read_data=proc_data)
         ):
             applet._tick()
         assert applet.item.is_urgent is True

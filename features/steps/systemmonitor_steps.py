@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from behave import given, then, when
 
 import docking.applets.systemmonitor.applet as applet_mod
+import docking.applets.systemmonitor.linux as linux_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.gpu import GpuStats
 from docking.core.config import Config
@@ -25,8 +26,8 @@ def deferred_monitor(context):
     folder = Path(temporary.name)
     (folder / "stat").write_text("cpu  200 0 100 100 0 0 0\n")
     (folder / "meminfo").write_text("MemTotal: 1000 kB\nMemAvailable: 750 kB\n")
-    patches.enter_context(patch.object(applet_mod, "_PROC_STAT", folder / "stat"))
-    patches.enter_context(patch.object(applet_mod, "_PROC_MEMINFO", folder / "meminfo"))
+    patches.enter_context(patch.object(linux_mod, "_PROC_STAT", folder / "stat"))
+    patches.enter_context(patch.object(linux_mod, "_PROC_MEMINFO", folder / "meminfo"))
     patches.enter_context(
         patch.object(applet_mod.GLib, "timeout_add_seconds", return_value=7)
     )

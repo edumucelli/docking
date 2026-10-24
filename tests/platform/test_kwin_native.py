@@ -160,14 +160,22 @@ def test_capture_setup_failure_does_not_leak_fds(monkeypatch):
     service = KWinPreviewService()
     service._bus = MagicMock()
     service._bus.call_with_unix_fd_list.side_effect = GLib.Error("closed bus")
-    before = len(list(Path("/proc/self/fd").iterdir()))
+    fd_root = Path("/proc/self/fd")
+    if fd_root.exists():
+
+        def fd_count():
+            return len(list(fd_root.iterdir()))
+    else:
+        psutil = pytest.importorskip("psutil")
+        fd_count = psutil.Process().num_fds
+    before = fd_count()
     assert (
         service.capture(
             WindowId(DisplayServer.WAYLAND, f"kwin:{IDENTIFIER}"), width=100, height=100
         )
         is None
     )
-    assert len(list(Path("/proc/self/fd").iterdir())) == before
+    assert fd_count() == before
     assert service._capture is None
 
 

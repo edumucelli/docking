@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docking"
-version = "2.26.0"
-description = "A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
+version = "2.27.0"
+description = "A lightweight, feature-rich dock for Linux and BSD written in Python with GTK 3 and Cairo"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 dependencies = [
+    "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD'",
     "openmeteo-requests>=1.2",
     "requests-cache>=1.0",
     "retry-requests>=2.0",
@@ -27,7 +28,7 @@ dev = [
     "Pillow>=11.0",
     "pytest>=7.0",
     "pytest-cov",
-    "ruff==0.16.9",
+    "ruff==0.17.1",
     "scikit-image>=0.25",
     "ty==0.0.84",
     "vulture>=2.16",

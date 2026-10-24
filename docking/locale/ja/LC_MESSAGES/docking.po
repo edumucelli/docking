@@ -5649,3 +5649,7 @@ msgstr "後で"
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr "無視"
+
+#: docking/applets/camshield/applet.py docking/applets/camshield/state.py
+msgid "Camera locked"
+msgstr ""

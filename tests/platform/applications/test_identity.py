@@ -90,7 +90,9 @@ def test_identity_reads_current_process_executable():
     )
 
     assert identity is not None
-    assert identity.executable_path == Path("/proc/self/exe").resolve()
+    import sys
+
+    assert identity.executable_path == Path(sys.executable).resolve()
 
 
 def test_process_metadata_survives_unavailable_executable(tmp_path):
