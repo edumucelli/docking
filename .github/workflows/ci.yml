@@ -265,13 +265,14 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Full tests
+        timeout-minutes: 20
         if: matrix.python != '3.14'
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
           COVERAGE_MIN: "55"
         run: |
-          xvfb-run -a .venv/bin/python -m pytest tests/ -v \
+          xvfb-run -a .venv/bin/python -m pytest tests/ -v -o faulthandler_timeout=60 \
             --cov=docking \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
@@ -359,11 +360,12 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Full tests
+        timeout-minutes: 20
         if: matrix.python != '3.14'
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
-        run: xvfb-run -a python -m pytest tests/ -v
+        run: xvfb-run -a python -m pytest tests/ -v -o faulthandler_timeout=60
 
       - name: Python 3.14 smoke tests
         if: matrix.python == '3.14'
@@ -415,11 +417,12 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Full tests
+        timeout-minutes: 20
         env:
           GSETTINGS_BACKEND: memory
           GTK_THEME: Adwaita
         run: |
-          xvfb-run -a .venv/bin/python -m pytest tests/ -v
+          xvfb-run -a .venv/bin/python -m pytest tests/ -v -o faulthandler_timeout=60
 
   test-fedora-smoke:
     name: Smoke (Fedora 41)
