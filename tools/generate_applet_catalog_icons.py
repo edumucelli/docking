@@ -79,6 +79,7 @@ from docking.applets.devices.render import create_devices_icon
 from docking.applets.docker.render import render_icon as render_docker
 from docking.applets.dragshare.render import render_icon as render_dragshare
 from docking.applets.dragshare.state import DragshareStatus
+from docking.applets.gmail.render import render_icon as render_gmail
 from docking.applets.hackernews.render import render_icon as render_hackernews
 from docking.applets.hackernews.state import HackerNewsStory
 from docking.applets.hydration.render import render_icon as render_hydration
@@ -340,6 +341,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             status=DragshareStatus.IDLE,
         ),
         AppletId.HYDRATION: render_hydration(size=size, state=HydrationState()),
+        AppletId.GMAIL: render_gmail(size=size),
         AppletId.KEYBOARDLAYOUT: render_keyboardlayout(size=size, label="US"),
         AppletId.LASTFM: render_lastfm(size=size),
         AppletId.MICSHIELD: render_micshield(

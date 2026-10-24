@@ -21,6 +21,7 @@ Requires:       (gobject-introspection or girepository-1_0)
 Requires:       (gtk3 or typelib-1_0-Gtk-3_0)
 Requires:       (gdk-pixbuf2 or typelib-1_0-GdkPixbuf-2_0)
 Requires:       (pango or typelib-1_0-Pango-1_0)
+Requires:       (libsecret or typelib-1_0-Secret-1)
 Requires:       (gtk-layer-shell or typelib-1_0-GtkLayerShell-0_1)
 Requires:       (libwnck3 or typelib-1_0-Wnck-3_0)
 Requires:       (NetworkManager-libnm or typelib-1_0-NM-1_0)
@@ -60,7 +61,8 @@ rm -rf %{buildroot}/usr/lib/docking/python/bin
 
 mkdir -p %{buildroot}/usr/lib/docking/vendor
 python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor \
-  openmeteo-requests requests-cache retry-requests
+  openmeteo-requests requests-cache retry-requests \
+  "google-auth[requests]>=2.49.1,<3" "google-auth-oauthlib>=1.3.1,<2"
 rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/vendor/bin
 

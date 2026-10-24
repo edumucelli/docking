@@ -29,12 +29,15 @@ pyPkgs.buildPythonApplication rec {
     gst_all_1.gstreamer
     webkitgtk_4_1
     librsvg
+    libsecret
   ];
 
   propagatedBuildInputs = with pyPkgs; [
     pycairo
     pygobject3
     pywayland
+    google-auth
+    google-auth-oauthlib
   ];
 
   # Weather client deps are not consistently available in nixpkgs channels.
