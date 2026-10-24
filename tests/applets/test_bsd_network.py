@@ -4,6 +4,8 @@ import socket
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.applets.bluetooth import meta as bluetooth_meta
 from docking.applets.network import bsd
 from docking.applets.network.applet import NetworkApplet
@@ -82,3 +84,33 @@ def test_network_uses_native_counters_and_ignores_loopback(monkeypatch):
     assert bsd.network_interfaces() == [
         bsd.NetworkInterface("vio0", "192.0.2.5", True, 1000, 2000)
     ]
+
+
+@pytest.mark.parametrize(
+    "addresses,expected",
+    [
+        ([(socket.AF_INET6, "2001:db8::5")], "2001:db8::5"),
+        (
+            [(socket.AF_INET6, "2001:db8::5"), (socket.AF_INET, "192.0.2.5")],
+            "192.0.2.5",
+        ),
+        ([], ""),
+    ],
+    ids=("ipv6-only", "dual-stack", "no-address"),
+)
+def test_network_connection_accepts_both_ip_families(monkeypatch, addresses, expected):
+    counter = SimpleNamespace(bytes_recv=1000, bytes_sent=2000)
+    util = SimpleNamespace(
+        net_io_counters=lambda **kwargs: {"vio0": counter},
+        net_if_addrs=lambda: {
+            "vio0": [
+                SimpleNamespace(family=family, address=address)
+                for family, address in addresses
+            ]
+        },
+        net_if_stats=lambda: {"vio0": SimpleNamespace(isup=True)},
+    )
+    monkeypatch.setattr(bsd, "_psutil", lambda: util)
+    state = bsd.BsdNetworkBackend().state()
+    assert state.ip_address == expected
+    assert state.is_connected is bool(expected)

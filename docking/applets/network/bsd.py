@@ -74,8 +74,9 @@ def network_interfaces() -> list[NetworkInterface]:
             address = next(
                 (
                     str(a.address)
+                    for family in (socket.AF_INET, socket.AF_INET6)
                     for a in addresses.get(name, ())
-                    if a.family == socket.AF_INET
+                    if a.family == family
                 ),
                 "",
             )

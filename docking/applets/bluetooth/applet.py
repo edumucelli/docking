@@ -63,6 +63,7 @@ from .state import (
 )
 
 if TYPE_CHECKING:
+    from docking.applets.bluetooth.backend import BluetoothBackend
     from docking.core.config import Config
 
 log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
@@ -95,6 +96,7 @@ class BluetoothApplet(Applet):
         # Serializes power transitions. Prevents repeated calls when users click
         # quickly or when menu toggle events fire while the backend is busy.
         self._power_transition_in_progress = False
+        self._power_transition_adapter_path = ""
         self._poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         # Optional user-facing line appended to tooltip when an action fails.
@@ -148,7 +150,9 @@ class BluetoothApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         if self._stopped:
             self._backend = create_backend()
+            self._local_discovery_paths = set()
             self._power_transition_in_progress = False
+            self._power_transition_adapter_path = ""
         self._poll_generation += 1
         self._stopped = False
         super().start(notify=notify)
@@ -456,16 +460,15 @@ class BluetoothApplet(Applet):
         return menu_item
 
     def _tick(self) -> bool:
+        backend = self._backend
         generation = self._poll_generation
         self._worker.run_guarded(
             key="poll",
             name="bluetooth-poll",
-            fn=lambda: self._backend.get_state(
-                active_adapter_path=self._active_adapter_path
-            ),
+            fn=lambda: backend.get_state(active_adapter_path=self._active_adapter_path),
             on_result=lambda state: (
                 self._on_poll_result(state)
-                if generation == self._poll_generation
+                if self._request_is_current(backend, generation)
                 else False
             ),
         )
@@ -494,16 +497,15 @@ class BluetoothApplet(Applet):
         return False
 
     def _refresh_now(self) -> None:
+        backend = self._backend
         generation = self._poll_generation
         self._worker.run_guarded(
             key="refresh",
             name="bluetooth-refresh",
-            fn=lambda: self._backend.get_state(
-                active_adapter_path=self._active_adapter_path
-            ),
+            fn=lambda: backend.get_state(active_adapter_path=self._active_adapter_path),
             on_result=lambda state: (
                 self._on_refresh_result(state)
-                if generation == self._poll_generation
+                if self._request_is_current(backend, generation)
                 else False
             ),
         )
@@ -536,23 +538,51 @@ class BluetoothApplet(Applet):
         adapter = self._active_adapter()
         if adapter is None or not adapter.powered or adapter.discovering:
             return
+        if (
+            self._power_transition_in_progress
+            and adapter.path == self._power_transition_adapter_path
+        ):
+            return
         if time.monotonic() < self._suppress_discovery_until:
             return
         backend = self._backend
         generation = self._poll_generation
+
+        def completed(started: bool) -> bool:
+            if not self._request_is_current(backend, generation):
+                if started:
+                    self._worker.run(
+                        name="bluetooth-discovery-cleanup",
+                        fn=lambda: backend.stop_discovery(adapter.path, quiet=True),
+                    )
+                return False
+            return self._on_discovery_result(adapter.path, started)
+
         self._worker.run_guarded(
             key="discovery",
             name="bluetooth-discovery",
             fn=lambda: (
                 backend.start_discovery(adapter_path=adapter.path)
-                if not self._stopped and generation == self._poll_generation
+                if self._request_is_current(backend, generation)
                 else False
             ),
-            on_result=lambda started: self._on_discovery_result(adapter.path, started),
+            on_result=completed,
+        )
+
+    def _request_is_current(self, backend: BluetoothBackend, generation: int) -> bool:
+        return (
+            not self._stopped
+            and backend is self._backend
+            and generation == self._poll_generation
         )
 
     def _run_async(self, action: Callable[[], bool]) -> None:
-        def task() -> BluetoothState:
+        backend = self._backend
+        generation = self._poll_generation
+
+        def task() -> BluetoothState | None:
+            if not self._request_is_current(backend, generation):
+                return None
             try:
                 action()
             except Exception as exc:
@@ -560,14 +590,16 @@ class BluetoothApplet(Applet):
                     "Bluetooth action failed: %s",
                     exc,
                 )
-            return self._backend.get_state(
-                active_adapter_path=self._active_adapter_path
-            )
+            return backend.get_state(active_adapter_path=self._active_adapter_path)
 
         self._worker.run(
             name="bluetooth-action",
             fn=task,
-            on_result=self._on_poll_result,
+            on_result=lambda state: (
+                self._on_poll_result(state)
+                if state is not None and self._request_is_current(backend, generation)
+                else False
+            ),
         )
 
     def _on_refresh_result(self, state: BluetoothState) -> bool:
@@ -590,16 +622,17 @@ class BluetoothApplet(Applet):
         return False
 
     def _connect_device(self, device: BluetoothDeviceState) -> bool:
+        backend = self._backend
         if device.paired:
-            return self._backend.connect_device(device_path=device.path)
-        paired = self._backend.pair_device(
+            return backend.connect_device(device_path=device.path)
+        paired = backend.pair_device(
             device_path=device.path,
             address=device.address,
             timeout_s=PAIR_TIMEOUT_S,
         )
-        if not paired:
+        if not paired or self._stopped or backend is not self._backend:
             return False
-        return self._backend.connect_device(device_path=device.path)
+        return backend.connect_device(device_path=device.path)
 
     def _on_select_adapter(self, widget: Gtk.RadioMenuItem, adapter_path: str) -> None:
         if not widget.get_active():
@@ -642,29 +675,40 @@ class BluetoothApplet(Applet):
         if adapter is None:
             return
         adapter_path = adapter.path
+        backend = self._backend
+        generation = self._poll_generation
+        discovery_paths = self._local_discovery_paths
         self._power_transition_in_progress = True
+        self._power_transition_adapter_path = adapter_path
         if not target:
             # Prevent immediate keepalive restart while powering off.
             self._suppress_discovery_until = (
                 time.monotonic() + DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S
             )
 
-        def task() -> tuple[str, bool, bool, BluetoothState]:
+        def task() -> tuple[str, bool, bool, BluetoothState] | None:
+            if not self._request_is_current(backend, generation):
+                return None
             if not target:
-                self._stop_local_discovery(quiet=True)
-            ok = self._backend.set_adapter_power(
+                for path in tuple(discovery_paths):
+                    if backend.stop_discovery(path, quiet=True):
+                        discovery_paths.discard(path)
+            ok = backend.set_adapter_power(
                 adapter_path=adapter_path,
                 powered=target,
             )
-            state = self._backend.get_state(
-                active_adapter_path=self._active_adapter_path
-            )
+            state = backend.get_state(active_adapter_path=self._active_adapter_path)
             return adapter_path, target, ok, state
+
+        def completed(payload: tuple[str, bool, bool, BluetoothState] | None) -> bool:
+            if payload is None or not self._request_is_current(backend, generation):
+                return False
+            return self._on_power_result(*payload)
 
         self._worker.run(
             name="bluetooth-power",
             fn=task,
-            on_result=lambda payload: self._on_power_result(*payload),
+            on_result=completed,
         )
 
     def _on_power_result(
@@ -675,6 +719,7 @@ class BluetoothApplet(Applet):
         state: BluetoothState,
     ) -> bool:
         self._power_transition_in_progress = False
+        self._power_transition_adapter_path = ""
         self._poll_generation += 1
         self._state = state
         self._sync_selected_adapter()

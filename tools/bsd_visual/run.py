@@ -444,9 +444,9 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             ) as child:
                 window = ready(observer, child)
                 bounds = placement(observer.settled(name), edge, gap)
-                if gap:
+                if gap and edge in distances:
                     assert abs(bounds["distance"] - distances[edge] - gap) <= 2, bounds
-                else:
+                elif not gap:
                     distances[edge] = bounds["distance"]
                 return {"pixels": bounds, "window": list(window.get_geometry())}
 

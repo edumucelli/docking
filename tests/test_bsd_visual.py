@@ -1,7 +1,12 @@
 """Reject blank, misplaced and incomplete screenshots in the BSD visual lab."""
 
+from contextlib import contextmanager
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
 
+from tools.bsd_visual import run
 from tools.bsd_visual.pixels import Frame, placement
 from tools.bsd_visual.run import private_environment, report
 
@@ -64,3 +69,28 @@ def test_service_environment_does_not_reuse_host_displays_or_settings(
     assert "XDG_SESSION_DESKTOP" not in env
     assert env["XDG_CONFIG_HOME"] == str(tmp_path / "config")
     assert (tmp_path / "config").stat().st_mode & 0o777 == 0o700
+
+
+def test_gap_scenario_can_run_without_other_placement_cases(monkeypatch):
+    @contextmanager
+    def dock_case(*args, **kwargs):
+        yield None
+
+    monkeypatch.setattr(run, "dock_case", dock_case)
+    monkeypatch.setattr(
+        run,
+        "ready",
+        lambda *args: SimpleNamespace(get_geometry=lambda: (0, 0, 200, 160)),
+    )
+    observer = SimpleNamespace(
+        pointer=MagicMock(),
+        settled=lambda name: frame(rect=(80, 104, 120, 134)),
+    )
+    results = []
+
+    def record(name, check):
+        if name == "placement-bottom-gap":
+            results.append(check())
+
+    run.run_checks(observer, {}, record)
+    assert results[0]["pixels"]["distance"] == 26

@@ -250,3 +250,86 @@ def test_queued_discovery_is_rejected_after_stop_and_restart(monkeypatch):
     current["on_result"](True)
     applet.stop()
     assert not replacement.sessions
+
+
+@pytest.mark.parametrize("action", ["power", "device", "discovery"])
+def test_old_backend_reply_cannot_change_restarted_applet(monkeypatch, action):
+    applet, old_backend, replies = _applet(monkeypatch)
+    if action == "power":
+        applet._set_power_async(target=False)
+    elif action == "device":
+        applet._run_async(lambda: True)
+    else:
+        applet._ensure_discovery()
+    late_reply = replies.next()
+    applet.stop()
+    replacement = _DiscoveryBackend()
+    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
+    monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
+    try:
+        applet.start(lambda: None)
+        replies.drain()
+        state = applet._state
+        generation = applet._poll_generation
+        sessions = applet._local_discovery_paths.copy()
+        applet._power_transition_in_progress = True
+
+        late_reply()
+        replies.drain()
+
+        assert applet._state is state
+        assert applet._poll_generation == generation
+        assert applet._power_transition_in_progress
+        assert applet._local_discovery_paths == sessions
+        assert not old_backend.sessions
+        assert not replacement.stop_calls
+    finally:
+        applet.stop()
+        replies.drain()
+
+
+@pytest.mark.parametrize("action", ["power", "device"])
+def test_queued_action_cannot_operate_on_replacement_backend(monkeypatch, action):
+    applet, old_backend, _ = _applet(monkeypatch)
+    tasks = []
+    calls = []
+
+    class PendingWorker:
+        def run(self, **task):
+            tasks.append(task)
+
+        def run_guarded(self, **task):
+            tasks.append(task)
+            return True
+
+    applet._worker = PendingWorker()
+    if action == "power":
+        applet._set_power_async(target=False)
+    else:
+        applet._run_async(lambda: calls.append(True) or True)
+    queued = tasks.pop()
+    applet.stop()
+    replacement = _DiscoveryBackend()
+    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
+    monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
+    try:
+        applet.start(lambda: None)
+        queued["on_result"](queued["fn"]())
+        assert not calls
+        assert old_backend.powered == replacement.powered == {FIRST, SECOND}
+        assert not applet._power_transition_in_progress
+    finally:
+        applet.stop()
+
+
+def test_discovery_waits_for_pending_power_authorization(monkeypatch):
+    applet, backend, replies = _applet(monkeypatch)
+    applet._power_transition_in_progress = True
+    applet._power_transition_adapter_path = FIRST
+    applet._suppress_discovery_until = 0
+    applet._ensure_discovery()
+    replies.drain()
+    assert not backend.start_calls
+    applet.stop()
