@@ -201,7 +201,7 @@ def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
     original = (state_dir / helper.STATE_FILE.name).read_bytes()
     with monkeypatch.context() as failure:
         failure.setattr(
-            helper.os,
+            Path,
             "replace",
             lambda *args: (_ for _ in ()).throw(OSError("interrupted")),
         )
