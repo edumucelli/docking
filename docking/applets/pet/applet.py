@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -32,11 +31,11 @@ from docking.applets.pet.state import (
     Mood,
     PetState,
     cpu_percent,
-    parse_proc_stat,
     reset_to_happy,
     tick,
     tooltip_text,
 )
+from docking.applets.systemmonitor.backend import create_backend
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -44,7 +43,6 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 log = with_context(get_logger(name="pet"), applet_id=meta.id)
-_PROC_STAT = Path("/proc/stat")
 
 
 class PetApplet(Applet):
@@ -56,6 +54,7 @@ class PetApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config) -> None:
         self._state = PetState()
+        self._backend = create_backend()
         self._prev_sample: CpuSample | None = None
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)
@@ -86,14 +85,8 @@ class PetApplet(Applet):
 
     def _tick(self) -> bool:
         """Poll /proc/stat, update mood, redraw if needed."""
-        try:
-            with _PROC_STAT.open() as fh:
-                curr = parse_proc_stat(text=fh.read())
-        except OSError as exc:
-            log.bind(action="read_proc_stat").debug(
-                "Could not read /proc/stat: %s",
-                exc,
-            )
+        curr = self._backend.cpu_sample()
+        if curr is None:
             return True
 
         if self._prev_sample is None:

@@ -1,11 +1,15 @@
 """Tests for desktop environment detection and tweaks."""
 
 import logging
+import sys
 from unittest.mock import patch
+
+import pytest
 
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
+    is_bsd,
     is_flatpak,
     is_gamescope_session,
     is_gnome_session,
@@ -19,6 +23,17 @@ from docking.platform.environment.environment import (
     _parse_desktop,
     compositor_active,
 )
+
+
+@pytest.mark.parametrize(
+    "platform,expected",
+    [("freebsd15", True), ("openbsd7", True), ("linux", False), ("netbsd10", False)],
+)
+def test_bsd_detection_keeps_desktop_identity(monkeypatch, platform, expected):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setenv("XDG_SESSION_DESKTOP", "xfce")
+    assert is_bsd() is expected
+    assert detect_desktop() == Desktop.XFCE
 
 
 class TestParseDesktop:

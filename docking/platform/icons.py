@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import NamedTuple, cast
 
@@ -83,6 +84,10 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
     if path is None:
         return None
     try:
+        # Python 3.13's non-strict resolve tolerates symlink loops. A stat still
+        # rejects ELOOP while ordinary missing targets retain their cache keys.
+        with suppress(FileNotFoundError):
+            path.stat()
         return path.resolve().as_uri()
     except (OSError, RuntimeError, ValueError):
         return None

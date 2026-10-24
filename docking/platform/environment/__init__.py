@@ -11,11 +11,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Desktop environment detection and DE-specific tweaks (public API).
+"""Host, desktop and session detection with DE-specific tweaks (public API).
 
 Implementations live in:
 
-- ``environment.py`` -- desktop detection, backend probing, apply_tweaks.
+- ``environment.py`` -- OS/desktop detection, backend probing, apply_tweaks.
 - ``xdg.py`` -- XDG Base Directory resolution.
 - ``flatpak.py`` -- Flatpak host helpers.
 
@@ -29,6 +29,7 @@ from docking.platform.environment.environment import (
     backend_name,
     compositor_active,
     detect_desktop,
+    is_bsd,
     is_flatpak,
     is_gamescope_session,
     is_gnome_session,
@@ -60,6 +61,7 @@ __all__ = [
     "docking_config_dir",
     "docking_data_dir",
     "docking_state_dir",
+    "is_bsd",
     "is_flatpak",
     "is_gamescope_session",
     "is_gnome_session",

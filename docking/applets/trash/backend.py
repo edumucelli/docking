@@ -34,7 +34,7 @@ from gi.repository import Gio, GLib
 
 from docking.applets.trash import meta
 from docking.log import get_logger, with_context
-from docking.platform import targets
+from docking.platform import environment, targets
 from docking.platform.environment import (
     Desktop,
     detect_desktop,
@@ -141,42 +141,12 @@ def _visible_trash_info_directory() -> Path:
     return _visible_trash_directory() / "info"
 
 
-def _decode_mountinfo_path(value: str) -> str:
-    decoded = ""
-    index = 0
-    while index < len(value):
-        if (
-            value[index] == "\\"
-            and index + 3 < len(value)
-            and all(char in "01234567" for char in value[index + 1 : index + 4])
-        ):
-            decoded += chr(int(value[index + 1 : index + 4], 8))
-            index += 4
-            continue
-        decoded += value[index]
-        index += 1
-    return decoded
-
-
 def _mount_points() -> tuple[Path, ...]:
-    try:
-        lines = Path("/proc/self/mountinfo").read_bytes().split(b"\n")
-    except OSError as exc:
-        log.bind(action="discover_trash_roots").debug(
-            "Could not read mountinfo: %s",
-            exc,
-        )
-        return ()
-
-    mount_points: list[Path] = []
-    for line in lines:
-        fields = line.split(b" ")
-        if len(fields) < 5:
-            continue
-        mount_point = Path(_decode_mountinfo_path(os.fsdecode(fields[4])))
-        if mount_point not in mount_points:
-            mount_points.append(mount_point)
-    return tuple(mount_points)
+    if environment.is_bsd():
+        from docking.applets.trash.bsd import mount_points
+    else:
+        from docking.applets.trash.linux import mount_points
+    return mount_points()
 
 
 def _is_trash_directory(path: Path, *, shared: bool = False) -> bool:

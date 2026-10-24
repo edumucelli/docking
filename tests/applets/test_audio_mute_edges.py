@@ -6,7 +6,8 @@ import os
 import pytest
 
 from docking.applets.micshield import state as mic
-from docking.applets.volume import state as volume
+from docking.applets.volume import pulseaudio as volume
+from docking.applets.volume.state import VolumeState
 
 
 @pytest.fixture
@@ -60,7 +61,7 @@ p.write_text(json.dumps(state))
 @pytest.mark.parametrize("kind", ["volume", "mic_mute", "capture"])
 def test_localized_pactl_output_is_parsed(pactl, kind):
     if kind == "volume":
-        assert volume._pactl_get_state() == volume.VolumeState(volume=50, muted=True)
+        assert volume._pactl_get_state() == VolumeState(volume=50, muted=True)
     elif kind == "mic_mute":
         state = mic.probe_mic_state()
         assert state.available

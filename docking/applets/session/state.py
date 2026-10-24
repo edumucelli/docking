@@ -18,10 +18,10 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.applets.session import meta
+from docking.applets.session.backend import create_backend
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak
@@ -33,25 +33,18 @@ class SessionAction(NamedTuple):
     """A session/power action with its shell command."""
 
     label: str
-    command: list[str]
+    action: str
 
 
 LOCK_SCREEN_LABEL = _("Lock Screen")
 _ACTIONS: list[SessionAction] = [
-    SessionAction(LOCK_SCREEN_LABEL, ["loginctl", "lock-session"]),
-    SessionAction(_("Log Out"), ["loginctl", "terminate-session", ""]),
-    SessionAction(_("Suspend"), ["systemctl", "suspend"]),
-    SessionAction(_("Restart"), ["systemctl", "reboot"]),
-    SessionAction(_("Shut Down"), ["systemctl", "poweroff"]),
+    SessionAction(LOCK_SCREEN_LABEL, "lock"),
+    SessionAction(_("Log Out"), "logout"),
+    SessionAction(_("Suspend"), "suspend"),
+    SessionAction(_("Restart"), "reboot"),
+    SessionAction(_("Shut Down"), "poweroff"),
 ]
 
-_LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
-    ("mate-screensaver-command", "-l"),
-    ("gnome-screensaver-command", "-l"),
-    ("xdg-screensaver", "lock"),
-    ("dm-tool", "lock"),
-    ("loginctl", "lock-session"),
-)
 _LOCK_SCREEN_DBUS_CANDIDATES: tuple[tuple[str, str, str], ...] = (
     (
         "org.mate.ScreenSaver",
@@ -99,42 +92,18 @@ def lock_screen() -> bool:
     return False
 
 
-def _run(*, cmd: list[str], action: str) -> None:
-    """Run a session/power command, logging failures."""
-    resolved_cmd = list(cmd)
-    if resolved_cmd[0:2] == ["loginctl", "terminate-session"] and resolved_cmd[2] == "":
-        # On GNOME, loginctl may not have the session-id available through
-        # XDG_SESSION_ID.  Prefer gnome-session-quit which shows the native
-        # logout dialog; fall back to loginctl with /proc/self/sessionid.
-        if shutil.which("gnome-session-quit"):
-            subprocess.Popen(["gnome-session-quit", "--logout"])
-            return
-        session_id = _current_session_id()
-        resolved_cmd[2] = session_id
+def _run(*, action: str) -> None:
+    """Run a semantic session action through the selected OS backend."""
+    resolved_cmd = create_backend().command_for(action)
+    if not resolved_cmd:
+        log.bind(action=action).warning("Session action unavailable: %s", action)
+        return
     resolved_cmd = flatpak.host_command(resolved_cmd) or resolved_cmd
     resolved_cmd = [a for a in resolved_cmd if a != ""]
     try:
         subprocess.Popen(resolved_cmd)
     except OSError as exc:
-        log.bind(action=action).warning(f"Failed to run {cmd}: {exc}")
-
-
-def _current_session_id() -> str:
-    """Return the logind session ID for the current process.
-
-    Tries ``XDG_SESSION_ID`` first, then ``/proc/self/sessionid``.
-    Returns an empty string when neither source is available.
-    """
-    env_id = (os.environ.get("XDG_SESSION_ID") or "").strip()
-    if env_id:
-        return env_id
-    try:
-        proc_id = Path("/proc/self/sessionid").read_text().strip()
-        if proc_id:
-            return proc_id
-    except (OSError, PermissionError):
-        pass
-    return ""
+        log.bind(action=action).warning(f"Failed to run {resolved_cmd}: {exc}")
 
 
 def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
@@ -156,7 +125,8 @@ def _lock_screen_commands(*, session_id: str) -> list[list[str]]:
                 ]
             )
     flatpak_spawn = flatpak.spawn_path()
-    for cmd in _LOCK_SCREEN_COMMAND_CANDIDATES:
+    candidates = create_backend().lock_commands()
+    for cmd in candidates:
         if flatpak_spawn is None and shutil.which(cmd[0]) is None:
             continue
         if cmd[0] == "loginctl" and session_id:

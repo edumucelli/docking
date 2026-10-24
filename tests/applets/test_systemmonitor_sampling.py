@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.systemmonitor.applet as applet_mod
+import docking.applets.systemmonitor.linux as linux_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.gpu import GpuStats
 from docking.applets.worker import BackgroundWorker
@@ -19,8 +20,8 @@ def sampling(tmp_path, monkeypatch):
     stat.write_text("cpu  200 0 100 100 0 0 0\n")
     memory = tmp_path / "meminfo"
     memory.write_text("MemTotal: 1000 kB\nMemAvailable: 750 kB\n")
-    monkeypatch.setattr(applet_mod, "_PROC_STAT", stat)
-    monkeypatch.setattr(applet_mod, "_PROC_MEMINFO", memory)
+    monkeypatch.setattr(linux_mod, "_PROC_STAT", stat)
+    monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", memory)
     monkeypatch.setattr(applet_mod.GLib, "timeout_add_seconds", lambda *_: 7)
     monkeypatch.setattr(applet_mod.GLib, "source_remove", lambda *_: True)
     applet = SystemMonitorApplet(48, config=Config())
