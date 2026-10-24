@@ -11,7 +11,7 @@ import pytest
 from docking.core.config import Config
 from docking.core.layout import content_bounds
 from docking.core.position import Position
-from docking.core.theme import Theme, list_theme_names
+from docking.core.theme import Theme
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
@@ -19,6 +19,22 @@ from docking.ui.geometry import (
     build_geometry_frame,
     compute_dock_cross_metrics,
     resting_dock_cross_extent,
+)
+
+BUILTIN_THEME_NAMES = (
+    "candy",
+    "default",
+    "ember",
+    "glass",
+    "gruvbox",
+    "nord",
+    "olive",
+    "onyx",
+    "paper",
+    "pill",
+    "slate",
+    "solarized",
+    "transparent",
 )
 
 
@@ -117,7 +133,7 @@ class TestDockAlignment:
             local_cursors.append(hovered.local_cursor_main)
         assert local_cursors[0] == pytest.approx(local_cursors[1], abs=1)
 
-    @pytest.mark.parametrize("theme_name", list_theme_names())
+    @pytest.mark.parametrize("theme_name", BUILTIN_THEME_NAMES)
     @pytest.mark.parametrize("alignment", [0.0, 1.0])
     @pytest.mark.parametrize("main_size", [253, 410, 1810])
     def test_allocated_surface_and_theme_determine_actual_bounds(
