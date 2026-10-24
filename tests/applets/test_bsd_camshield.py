@@ -116,6 +116,22 @@ def test_freebsd_lock_refuses_to_destroy_an_unsaved_acl(monkeypatch, tmp_path):
     assert device.stat().st_mode & 0o777 == 0o660
 
 
+def test_freebsd_device_filesystem_without_acls_uses_mode_recovery(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(environment, "is_bsd", lambda: True)
+    monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
+    monkeypatch.setattr(helper.shutil, "which", lambda name: None)
+    monkeypatch.setattr(bsd, "read_command", lambda argv: "0")
+    device = tmp_path / "video0"
+    device.touch()
+    device.chmod(0o640)
+    assert helper.lock_devices(dev_root=tmp_path, state_dir=tmp_path / "state") == 0
+    assert helper.unlock_devices(state_dir=tmp_path / "state") == 0
+    assert device.stat().st_mode & 0o777 == 0o640
+
+
 def test_freebsd_failed_acl_restore_retains_recovery_data(monkeypatch, tmp_path):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
@@ -225,3 +241,10 @@ def test_actual_freebsd_permission_and_acl_roundtrip(monkeypatch, tmp_path):
     assert device.stat().st_mode & 0o777 == 0
     assert helper.unlock_devices(state_dir=state_dir) == 0
     assert device.stat().st_mode & 0o777 == 0o640
+
+
+@pytest.mark.skipif(
+    not bsd.sys.platform.startswith("freebsd"), reason="requires FreeBSD devfs"
+)
+def test_actual_freebsd_device_filesystem_has_no_extended_acl():
+    assert not bsd.BsdCamshieldBackend().requires_acl_backup(Path("/dev/null"))

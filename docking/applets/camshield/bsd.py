@@ -76,7 +76,13 @@ def _set_recording(value: int) -> None:
 
 
 class BsdCamshieldBackend(CamshieldBackend):
-    requires_acl_backup = True
+    def requires_acl_backup(self, device: Path) -> bool:
+        # devfs camera nodes have mode permissions but no extended ACLs. Refuse
+        # a failed backup only where ACLs exist, or their support is unknown.
+        return any(
+            read_command(["/usr/bin/getconf", kind, str(device)]) != "0"
+            for kind in ("ACL_EXTENDED", "ACL_NFS4")
+        )
 
     def probe(self, *, dev_root: Path, proc_root: Path) -> CamshieldState:
         devices = _devices(dev_root)

@@ -113,7 +113,10 @@ def unlock_devices(*, state_dir: Path = STATE_DIR) -> int:
         if _restore_acl(snapshot=snapshot):
             restored += 1
             continue
-        if create_backend().requires_acl_backup and snapshot.acl_file is not None:
+        if (
+            create_backend().requires_acl_backup(device)
+            and snapshot.acl_file is not None
+        ):
             failed[device_path] = snapshot
             continue
         device.chmod(snapshot.mode)
@@ -162,7 +165,7 @@ def _require_root() -> None:
 def _snapshot_device(*, device: Path, state_dir: Path) -> DeviceSnapshot:
     mode = stat.S_IMODE(device.stat().st_mode)
     acl_file = _save_acl_snapshot(device=device, state_dir=state_dir)
-    if acl_file is None and create_backend().requires_acl_backup:
+    if acl_file is None and create_backend().requires_acl_backup(device):
         raise OSError(f"Cannot save the camera ACL: {device}")
     return DeviceSnapshot(path=device, mode=mode, acl_file=acl_file)
 

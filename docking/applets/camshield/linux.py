@@ -124,6 +124,9 @@ def _read_text(path: Path) -> str:
 
 
 class LinuxCamshieldBackend(CamshieldBackend):
+    def requires_acl_backup(self, device: Path) -> bool:
+        return False
+
     def probe(self, *, dev_root: Path, proc_root: Path) -> CamshieldState:
         return _probe_camera_state(dev_root=dev_root, proc_root=proc_root)
 

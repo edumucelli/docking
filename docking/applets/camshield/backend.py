@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 
 
 class CamshieldBackend(ABC):
-    requires_acl_backup = False
+    @abstractmethod
+    def requires_acl_backup(self, device: Path) -> bool: ...
 
     @abstractmethod
     def probe(self, *, dev_root: Path, proc_root: Path) -> CamshieldState: ...
