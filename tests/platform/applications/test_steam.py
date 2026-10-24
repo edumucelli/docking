@@ -344,6 +344,16 @@ def test_game_launcher_recognition(command, expected):
         '"x" {' * 20 + "}" * 20,
         "x" * (MAX_VDF_BYTES + 1),
     ],
+    ids=(
+        "missing-value",
+        "unclosed-object",
+        "unexpected-close",
+        "unterminated-string",
+        "unexpected-open",
+        "missing-nested-value",
+        "excessive-depth",
+        "oversized-input",
+    ),
 )
 def test_invalid_vdf_is_rejected(text):
     with pytest.raises(ValueError):
