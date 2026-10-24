@@ -316,6 +316,10 @@ class FakeSpinButton:
 
 
 class FakeScale(FakeSpinButton):
+    def __init__(self):
+        super().__init__()
+        self.marks = []
+
     @classmethod
     def new_with_range(cls, *_args):
         return cls()
@@ -328,6 +332,12 @@ class FakeScale(FakeSpinButton):
 
     def set_hexpand(self, value: bool) -> None:
         self.hexpand = value
+
+    def clear_marks(self) -> None:
+        self.marks.clear()
+
+    def add_mark(self, value, position, label) -> None:
+        self.marks.append((value, position, label))
 
 
 class FakeSwitch:
@@ -616,6 +626,7 @@ class FakeIconSize:
 
 class FakePositionType:
     TOP = 0
+    BOTTOM = 1
 
 
 class FakeEventMask:
@@ -761,6 +772,7 @@ def _config():
         theme="default",
         transparency=1.0,
         position="bottom",
+        dock_alignment=0.5,
         icon_size=48,
         zoom_percent=1.5,
         hide_delay_ms=0,
@@ -1194,6 +1206,7 @@ class TestSettingsWindowController:
             "Application Badges",
             "Application Progress",
             "Position",
+            "Alignment",
             "Follow Cursor",
             "Current Workspace Only",
             "Lock Positions",
@@ -1356,6 +1369,35 @@ class TestSettingsWindowController:
         assert popover.popup_count == 1
         controller._pressure_threshold_info.emit_leave()
         assert popover.popdown_count == 1
+
+    def test_alignment_controls_save_and_follow_orientation(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "load_catalog_icon", lambda **_kwargs: None)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        controller.show()
+        scale = controller._dock_alignment_scale
+        assert scale.get_value() == 50
+        assert [mark[2] for mark in scale.marks] == ["Left", "Center", "Right"]
+
+        scale.set_value(25)
+        scale.emit_value_changed()
+        controller._position_combo.set_active_id("left")
+        controller._position_combo.emit_changed()
+
+        assert config.dock_alignment == 0.25
+        assert [mark[2] for mark in scale.marks] == ["Top", "Center", "Bottom"]
+        assert config.save.call_count == 2
+        assert actions.reposition.call_count == 2
+        controller.show()
+        assert scale.get_value() == 25
 
     def test_theme_change_updates_config_and_runtime(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

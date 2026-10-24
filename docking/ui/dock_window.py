@@ -503,9 +503,11 @@ class DockWindow(Gtk.Window):
         autohide_zoom = self.autohide.zoom_progress if autohide_enabled else 1.0
         zoom_progress = self.zoom_animator.progress * autohide_zoom
         hide_offset = self.autohide.hide_offset if autohide_enabled else 0.0
+        config = getattr(self, "config", None)
         return (
             window_w,
             window_h,
+            getattr(config, "dock_alignment", 0.5),
             resolved_x,
             resolved_y,
             drop_insert_index,

@@ -144,6 +144,90 @@ fi
 For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
 `.rpm` installations can upgrade directly through the repository.
 
+## FreeBSD and OpenBSD
+
+
+BSD packages are published as GitHub Release assets, starting with the first
+release containing BSD support. Current build targets are FreeBSD 15.1/amd64
+(Python 3.12) and OpenBSD 7.9/amd64 (Python 3.13). Use a package matching the OS
+release and architecture. The package includes Docking, translations, icons, and
+its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+
+Run the dependency installation and package-manager commands as root. Downloads
+and checksum verification can run as an ordinary user.
+
+On FreeBSD 15.1/amd64:
+
+```sh
+pkg install python312 py312-pygobject py312-pycairo py312-psutil \
+  gtk3 libwnck3 dbus libXScrnSaver polkit xterm
+FILE=docking-latest-freebsd-15.1-amd64.pkg
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+fetch "$BASE/$FILE"
+fetch "$BASE/$FILE.json"
+```
+
+On OpenBSD 7.9/amd64:
+
+```sh
+pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus polkit
+FILE=docking-latest-openbsd-7.9-amd64.tgz
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+ftp -o "$FILE" "$BASE/$FILE"
+ftp -o "$FILE.json" "$BASE/$FILE.json"
+```
+
+Verify the downloaded bytes against the release manifest before installing:
+
+```sh
+python3 - "$FILE" <<'PYTHON'
+import hashlib, json, sys
+from pathlib import Path
+package = Path(sys.argv[1])
+manifest = json.loads(Path(str(package) + ".json").read_text())
+assert hashlib.sha256(package.read_bytes()).hexdigest() == manifest["sha256"], "Checksum mismatch"
+print("Verified Docking", manifest["version"], manifest["os"], manifest["release"])
+PYTHON
+```
+
+Install the verified package as root:
+
+```sh
+# FreeBSD
+pkg add "./$FILE"
+
+# OpenBSD: GitHub artifacts are unsigned; this exception applies to this file.
+VERSION=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$FILE.json")
+mv "$FILE" "docking-${VERSION}.tgz"
+pkg_add -D unsigned "./docking-${VERSION}.tgz"
+```
+
+Start `docking` inside the desktop session. For updates, download and verify the
+new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
+OpenBSD. These are direct release downloads; no third-party package repository
+is configured. The release also includes versioned filenames and
+`SHA256SUMS-bsd`.
+
+Cam Shield uses BSD kernel file tables to identify camera holders. Its packaged
+helper requests administrator authentication for lock/unlock. FreeBSD restores
+device permissions and ACLs; OpenBSD saves and restores `kern.video.record`,
+which controls recording for all cameras. A previously disabled recording policy
+stays disabled after unlocking. Device visibility depends on camera drivers and
+the current user's permission to inspect other processes.
+Permission-based locking prevents new camera opens; processes already holding
+a device remain visible until they close it. OpenBSD's kernel switch blanks
+recording even for existing users.
+
+FreeBSD Bluetooth uses the native controller stack. Enable the appropriate
+Bluetooth driver/service as described in the
+[FreeBSD handbook](https://docs.freebsd.org/en/books/handbook/advanced-networking/#network-bluetooth).
+Docking shows controllers and Classic Bluetooth connections, performs discovery,
+and opens `bluetooth-config` in a terminal for PIN entry and pairing/profile
+configuration. Power and connection changes request administrator authentication.
+FreeBSD has no BlueZ trust property; trust and pairing removal are left to native
+system configuration. OpenBSD has no native Bluetooth stack, so its Bluetooth
+applet remains unavailable.
+
 ## Release downloads
 
 The latest prebuilt packages are available on
@@ -188,7 +272,8 @@ tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 
 ## Source Requirements
 
-- Linux desktop with X11 (full support) or Wayland (backend-specific support)
+- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD with X11.
+- BSD native packages: [FreeBSD and OpenBSD](#freebsd-and-openbsd).
 - Python 3.10+
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension

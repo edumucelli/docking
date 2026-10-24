@@ -316,6 +316,7 @@ class AppIdMatcher:
             executable_path=process.executable_path if process is not None else None,
             sandbox_app_id=process.sandbox_app_id if process is not None else None,
             script_basename=process.script_basename if process is not None else None,
+            steam_app_id=process.steam_app_id if process is not None else None,
             failure_reason=(
                 None
                 if match is not None
@@ -351,6 +352,39 @@ class AppIdMatcher:
                 process=process,
                 process_id=process_id,
             )
+
+        if process is not None:
+            steam_id = (
+                self._registry.resolve_steam_app_id(process.steam_app_id)
+                if process.steam_app_id
+                else None
+            )
+            steam_executable = (
+                self._registry.resolve_steam_executable(process.executable_path)
+                if process.executable_path is not None
+                else None
+            )
+            conflict = (
+                process.steam_app_id is not None
+                and steam_executable is not None
+                and (
+                    steam_id is None
+                    or steam_id.desktop_id != steam_executable.desktop_id
+                )
+            )
+            steam = steam_id or steam_executable
+            if steam is not None and not conflict:
+                return self._application_match(
+                    desktop_id=steam.desktop_id,
+                    application=steam,
+                    method=MatchMethod.STEAM_APP_ID
+                    if steam_id
+                    else MatchMethod.STEAM_EXECUTABLE,
+                    raw_app_id=process.steam_app_id or raw_app_id,
+                    instance_hint=instance_hint,
+                    process=process,
+                    process_id=process_id,
+                )
 
         for identity in application_ids:
             result = self._match_known_application_id(

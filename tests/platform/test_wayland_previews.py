@@ -222,7 +222,7 @@ def test_phoc_preview_service_copies_thumbnail_frame_immediately(monkeypatch):
 def test_capture_allocation_failure_releases_partial_resources(monkeypatch) -> None:
     mmap_obj = SimpleNamespace(close=MagicMock())
     close = MagicMock()
-    monkeypatch.setattr(preview_mod.os, "memfd_create", MagicMock(return_value=51))
+    monkeypatch.setattr(preview_mod, "_create_shm_fd", MagicMock(return_value=51))
     monkeypatch.setattr(preview_mod.os, "ftruncate", MagicMock())
     monkeypatch.setattr(preview_mod.mmap, "mmap", MagicMock(return_value=mmap_obj))
     monkeypatch.setattr(preview_mod.os, "close", close)
@@ -254,6 +254,19 @@ def test_capture_allocation_failure_releases_partial_resources(monkeypatch) -> N
     close.assert_called_once_with(51)
     assert request.fd is None
     assert request.mmap_obj is None
+
+
+def test_anonymous_capture_storage_without_linux_memfd(monkeypatch) -> None:
+    monkeypatch.delattr(preview_mod.os, "memfd_create", raising=False)
+    fd = preview_mod._create_shm_fd("portable-preview")
+    try:
+        preview_mod.os.ftruncate(fd, 4096)
+        with preview_mod.mmap.mmap(fd, 4096) as mapping:
+            mapping[:4] = b"test"
+            assert mapping[:4] == b"test"
+        assert preview_mod.os.fstat(fd).st_size == 4096
+    finally:
+        preview_mod.os.close(fd)
 
 
 def test_wayland_session_creation_failure_releases_source() -> None:

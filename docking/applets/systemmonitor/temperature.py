@@ -16,11 +16,11 @@
 from __future__ import annotations
 
 import re
-import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from docking.log import get_logger
 
@@ -99,59 +99,15 @@ def parse_sysfs_temperature(text: str) -> float | None:
 
 
 class TemperatureReader:
-    """Discover and read CPU temperature from sysfs and common CLI tools."""
+    """Read CPU temperature through the selected OS backend."""
 
-    def __init__(
-        self,
-        *,
-        thermal_root: Path = _THERMAL_ROOT,
-        hwmon_root: Path = _HWMON_ROOT,
-        which: Callable[[str], str | None] = shutil.which,
-        run_command: Callable[[list[str], float], str | None] | None = None,
-    ) -> None:
-        self._thermal_root = thermal_root
-        self._hwmon_root = hwmon_root
-        self._which = which
-        self._run_command = run_command or _run_command
-        self._sysfs_path: Path | None = None
-        self._sysfs_probed = False
-        self._command_backends: tuple[CommandBackend, ...] = ()
-        self._commands_probed = False
+    def __init__(self, **kwargs: Any) -> None:
+        from docking.applets.systemmonitor.backend import create_backend
+
+        self._reader = create_backend().temperature_reader(**kwargs)
 
     def read(self) -> float | None:
-        """Return current CPU temperature in celsius if one can be found."""
-        temperature = self._read_from_sysfs()
-        if temperature is not None:
-            return temperature
-        return self._read_from_commands()
-
-    def _read_from_sysfs(self) -> float | None:
-        if self._sysfs_path is None and not self._sysfs_probed:
-            self._sysfs_path = discover_sysfs_temperature_path(
-                thermal_root=self._thermal_root,
-                hwmon_root=self._hwmon_root,
-            )
-            self._sysfs_probed = True
-        if self._sysfs_path is None:
-            return None
-        temperature = read_temperature_file(self._sysfs_path)
-        if temperature is None:
-            self._sysfs_path = None
-            self._sysfs_probed = False
-        return temperature
-
-    def _read_from_commands(self) -> float | None:
-        if not self._commands_probed:
-            self._command_backends = discover_available_commands(which=self._which)
-            self._commands_probed = True
-        for backend in self._command_backends:
-            temperature = read_command_temperature(
-                backend=backend,
-                run_command=self._run_command,
-            )
-            if temperature is not None:
-                return temperature
-        return None
+        return self._reader.read()
 
 
 def discover_sysfs_temperature_path(

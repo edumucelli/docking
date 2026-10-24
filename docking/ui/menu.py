@@ -675,6 +675,9 @@ class MenuHandler:
                     grouped[category], key=lambda item: item[1].name.lower()
                 ):
                     item = Gtk.MenuItem(label=entry.name)
+                    if not entry.available_on_host:
+                        item.set_sensitive(False)
+                        item.set_tooltip_text(_("Unavailable on this desktop"))
                     pixbuf: GdkPixbuf.Pixbuf | None = load_catalog_icon(
                         applet_id=did,
                         size=APPLET_MENU_ICON_PX,

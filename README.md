@@ -6,11 +6,11 @@
 [![Downloads](https://img.shields.io/github/downloads/edumucelli/docking/total)](https://github.com/edumucelli/docking/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![GTK 3](https://img.shields.io/badge/GTK-3-blue)](#requirements)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20BSD-lightgrey)](#requirements)
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
-A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
+A lightweight, feature-rich dock for Linux, FreeBSD, and OpenBSD written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
 ![Docking in action](images/all.gif)
 
@@ -31,7 +31,7 @@ A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cair
 
 ## Requirements
 
-- Linux desktop with X11 (full support) or Wayland (backend-specific support).
+- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD with X11.
 - Python 3.10+, GTK 3, and Cairo.
 
 Release packages include or depend on the required runtime libraries. See the
@@ -47,6 +47,7 @@ Choose the instructions for your system:
 - [Release downloads and local installation](docs/INSTALLATION.md#release-downloads)
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.
 - [Run from source](docs/DEVELOPMENT.md#source-setup) using pip or uv.
+- [FreeBSD and OpenBSD](docs/INSTALLATION.md#freebsd-and-openbsd) package installation instructions.
 
 The [website](https://docking.cc/#install) also provides APT and RPM instructions.
 
@@ -136,6 +137,7 @@ preferences, update intervals, and integration requirements.
 |---|---|
 | [Installation](docs/INSTALLATION.md) | Package repositories, downloads, and source dependencies |
 | [Wayland](docs/WAYLAND_SUPPORT.md) | Backend support matrix and compositor setup |
+| [BSD](docs/INSTALLATION.md#freebsd-and-openbsd) | FreeBSD/OpenBSD package installation |
 | [Configuration](docs/CONFIGURATION.md) | First use, preferences, and saved settings |
 | [Global Search](docs/SEARCH.md) | Providers, examples, and keyboard controls |
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |

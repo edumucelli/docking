@@ -1,0 +1,5 @@
+reviews:
+  path_filters:
+    # Each locale receives the same empty message when a UI string is added.
+    # Keep the POT and all source files in review without counting every catalog.
+    - "!docking/locale/*/LC_MESSAGES/docking.po"

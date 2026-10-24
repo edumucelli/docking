@@ -269,7 +269,7 @@ class TestSessionState:
             "Popen",
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
-        session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
+        session_state_mod._run(action="suspend")
         assert launched == [["systemctl", "suspend"]]
 
         monkeypatch.setattr(
@@ -277,7 +277,7 @@ class TestSessionState:
             "Popen",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
-        session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
+        session_state_mod._run(action="suspend")
 
     def test_run_uses_host_command_in_flatpak(self, monkeypatch):
         launched: list[list[str]] = []
@@ -292,7 +292,7 @@ class TestSessionState:
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
-        session_state_mod._run(cmd=["systemctl", "suspend"], action="suspend")
+        session_state_mod._run(action="suspend")
 
         assert launched == [
             [

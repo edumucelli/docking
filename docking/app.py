@@ -104,6 +104,7 @@ from docking.platform.applications.recents import (
     RecentApplicationsPersistence,
 )
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.steam import SteamDiscovery
 from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.icons import IconLoader
@@ -159,7 +160,7 @@ def main() -> None:
     apply_tweaks(desktop=detect_desktop())
 
     with ExitStack() as cleanup:
-        registry = ApplicationRegistry()
+        registry = ApplicationRegistry(steam_source=SteamDiscovery())
         cleanup.callback(_safe_stop, "registry", registry.stop)
 
         provenance_store = LaunchProvenanceStore()

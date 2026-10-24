@@ -91,6 +91,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.applications.registry": {
             "ApplicationRegistry": type("ApplicationRegistry", (), {}),
         },
+        "docking.platform.applications.steam": {
+            "SteamDiscovery": type("SteamDiscovery", (), {}),
+        },
         "docking.platform.applications.identity": {
             "LaunchProvenanceStore": type("LaunchProvenanceStore", (), {}),
             "ProcessIdentityService": type(
@@ -384,7 +387,7 @@ def test_app_main_smoke(monkeypatch):
 
     ui.start.assert_called_once()
     ui.stop.assert_called_once()
-    registry_cls.assert_called_once_with()
+    registry_cls.assert_called_once_with(steam_source=ANY)
     registry.refresh.assert_called_once_with()
     registry.start.assert_called_once_with()
     registry.stop.assert_called_once_with()

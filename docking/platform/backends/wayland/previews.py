@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import mmap
 import os
+import tempfile
 import time
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -756,6 +757,15 @@ def _drop_window(
         del cache[key]
 
 
+def _create_shm_fd(label: str) -> int:
+    """Create anonymous capture storage on Linux and other Unix kernels."""
+    memfd_create = getattr(os, "memfd_create", None)
+    if memfd_create is not None:
+        return int(memfd_create(label))
+    with tempfile.TemporaryFile(prefix=label) as file:
+        return os.dup(file.fileno())
+
+
 def _allocate_shm_buffer(
     request: _CaptureRequest | _HyprlandCaptureRequest | _PhocCaptureRequest,
     *,
@@ -768,7 +778,7 @@ def _allocate_shm_buffer(
 ) -> _CaptureResource:
     """Allocate capture storage while recording each resource immediately."""
     size = stride * height
-    request.fd = os.memfd_create(label)
+    request.fd = _create_shm_fd(label)
     os.ftruncate(request.fd, size)
     request.mmap_obj = mmap.mmap(request.fd, size)
     pool = protocol.create_shm_pool(request.fd, size)

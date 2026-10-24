@@ -365,3 +365,13 @@ def test_desktop_exec_field_code_regex_and_percent_semantics_are_preserved():
         "example --url=http://x/?a=%20"
     )
     assert clean_desktop_exec("example 100%") == "example 100%"
+
+
+def test_native_command_has_timeout_and_locale(monkeypatch):
+    def run(argv, **kwargs):
+        assert kwargs["timeout"] <= 0.5
+        assert kwargs["env"]["LC_ALL"] == "C"
+        return SimpleNamespace(returncode=0, stdout="42\n")
+
+    monkeypatch.setattr(commands_mod.subprocess, "run", run)
+    assert commands_mod.read_command(["sysctl", "-n", "hw.ncpu"]) == "42"
