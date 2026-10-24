@@ -81,6 +81,7 @@ class BsdBluetoothBackend(BluetoothBackend):
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
+        self._closed = False
         self._adapters: dict[str, BluetoothAdapterState] = {}
         self._discovered: dict[str, set[str]] = {}
         self._scans: dict[str, subprocess.Popen[str]] = {}
@@ -138,7 +139,7 @@ class BsdBluetoothBackend(BluetoothBackend):
             powered = node in nodes
             local_name = self._hci(node, "read_local_name") if powered else None
             name = (local_name or "").partition(":")[2].strip() or node
-            local_addr = self._hci(node, "read_node_bdaddr") if powered else None
+            local_addr = self._hci(node, "read_node_bd_addr") if powered else None
             match = _ADDRESS.search(local_addr or "")
             adapters.append(
                 BluetoothAdapterState(
@@ -210,6 +211,8 @@ class BsdBluetoothBackend(BluetoothBackend):
         if not _NODE.fullmatch(adapter_path):
             return False
         with self._lock:
+            if self._closed:
+                return False
             if adapter_path in self._scans:
                 return True
             try:
@@ -250,6 +253,7 @@ class BsdBluetoothBackend(BluetoothBackend):
 
     def close(self) -> None:
         with self._lock:
+            self._closed = True
             for node in tuple(self._scans):
                 self.stop_discovery(node)
 

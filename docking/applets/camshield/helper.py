@@ -27,6 +27,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -218,16 +219,18 @@ def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
     path = state_dir / STATE_FILE.name
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except FileNotFoundError:
         return {}
+    except (OSError, ValueError) as exc:
+        raise OSError("Cannot read saved camera recovery data") from exc
 
-    if raw.get("version") != _STATE_VERSION:
-        return {}
+    if not isinstance(raw, dict) or raw.get("version") != _STATE_VERSION:
+        raise OSError("Unsupported camera recovery data")
 
     result: dict[str, DeviceSnapshot] = {}
     devices = raw.get("devices", {})
     if not isinstance(devices, dict):
-        return result
+        raise OSError("Invalid camera recovery data")
 
     for device_path, data in devices.items():
         if not isinstance(device_path, str) or not isinstance(data, dict):
@@ -249,7 +252,7 @@ def _read_state(*, state_dir: Path) -> dict[str, DeviceSnapshot]:
 
 
 def _write_state(*, state: dict[str, DeviceSnapshot], state_dir: Path) -> None:
-    payload = {
+    payload: dict[str, object] = {
         "version": _STATE_VERSION,
         "devices": {
             device_path: {
@@ -259,9 +262,28 @@ def _write_state(*, state: dict[str, DeviceSnapshot], state_dir: Path) -> None:
             for device_path, snapshot in sorted(state.items())
         },
     }
-    path = state_dir / STATE_FILE.name
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    path.chmod(0o644)
+    _atomic_write_json(state_dir / STATE_FILE.name, payload)
+
+
+def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            json.dump(payload, stream, indent=2, sort_keys=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            with suppress(FileNotFoundError):
+                temporary.unlink()
 
 
 def _clear_state(*, state_dir: Path) -> None:

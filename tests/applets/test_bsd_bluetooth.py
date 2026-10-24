@@ -38,7 +38,7 @@ def test_controller_discovery_and_open_acl_connections(backend, monkeypatch):
             return "dev.ubt.0.%desc\ndev.ubt.1.%desc"
         return {
             "read_local_name": "Local name: Desktop",
-            "read_node_bdaddr": "BD_ADDR: aa:bb:cc:dd:ee:ff",
+            "read_node_bd_addr": "BD_ADDR: aa:bb:cc:dd:ee:ff",
             "read_connection_list": CONNECTIONS,
         }.get(argv[-1])
 
@@ -46,6 +46,7 @@ def test_controller_discovery_and_open_acl_connections(backend, monkeypatch):
     backend._paired.add(DEVICE)
     state = backend.get_state()
     assert state.available and state.active_adapter_path == NODE
+    assert state.adapters[0].address == "aa:bb:cc:dd:ee:ff"
     assert [(a.path, a.powered) for a in state.adapters] == [
         (NODE, True),
         ("ubt1hci", False),
@@ -138,6 +139,16 @@ def test_discovery_updates_only_its_own_scan(backend, monkeypatch):
     assert results == [False]
     assert not backend._discovered
     assert not backend._scans
+
+
+def test_pending_scan_cannot_start_after_backend_close(backend, monkeypatch):
+    monkeypatch.setattr(
+        bsd.subprocess,
+        "Popen",
+        lambda *args, **kwargs: pytest.fail("scan started after close"),
+    )
+    backend.close()
+    assert not backend.start_discovery(NODE)
 
 
 @pytest.mark.parametrize("exit_status", ["0", "1", None])

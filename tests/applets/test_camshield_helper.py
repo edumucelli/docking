@@ -6,6 +6,8 @@ import json
 import stat
 import subprocess
 
+import pytest
+
 import docking.applets.camshield.helper as helper
 
 
@@ -262,13 +264,16 @@ def test_read_state_rejects_bad_json_version_and_shape(tmp_path):
     path = state_dir / helper.STATE_FILE.name
 
     path.write_text("{", encoding="utf-8")
-    assert helper._read_state(state_dir=state_dir) == {}
+    with pytest.raises(OSError):
+        helper._read_state(state_dir=state_dir)
 
     path.write_text(json.dumps({"version": 999, "devices": {}}), encoding="utf-8")
-    assert helper._read_state(state_dir=state_dir) == {}
+    with pytest.raises(OSError):
+        helper._read_state(state_dir=state_dir)
 
     path.write_text(json.dumps({"version": 1, "devices": []}), encoding="utf-8")
-    assert helper._read_state(state_dir=state_dir) == {}
+    with pytest.raises(OSError):
+        helper._read_state(state_dir=state_dir)
 
 
 def test_device_locked_handles_stat_error(tmp_path):

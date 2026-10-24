@@ -121,11 +121,13 @@ class BsdCamshieldBackend(CamshieldBackend):
             raise OSError("Cannot read the kernel video recording policy")
         _STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
         state = _STATE_DIR / "recording.json"
-        if not state.exists():
+        if state.exists():
+            _saved_recording(state)
+        else:
             # Save before changing policy; repeated locks preserve the original.
-            descriptor = os.open(state, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "w") as stream:
-                json.dump({"previous": int(previous)}, stream)
+            from docking.applets.camshield.helper import _atomic_write_json
+
+            _atomic_write_json(state, {"previous": int(previous)})
         _set_recording(0)
         return 0
 
@@ -142,12 +144,7 @@ class BsdCamshieldBackend(CamshieldBackend):
 
         _require_root()
         state = _STATE_DIR / "recording.json"
-        try:
-            previous = json.loads(state.read_text())["previous"]
-        except (OSError, ValueError, KeyError, TypeError) as exc:
-            raise OSError("No saved video recording policy to restore") from exc
-        if type(previous) is not int or previous not in {0, 1}:
-            raise OSError("Invalid saved video recording policy")
+        previous = _saved_recording(state)
         _set_recording(previous)
         state.unlink()
         return 0
@@ -181,3 +178,13 @@ class BsdCamshieldBackend(CamshieldBackend):
                 ["setfacl", "-M", str(acl_file), str(device)],
             ],
         )
+
+
+def _saved_recording(state: Path) -> int:
+    try:
+        previous = json.loads(state.read_text())["previous"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise OSError("No saved video recording policy to restore") from exc
+    if type(previous) is not int or previous not in {0, 1}:
+        raise OSError("Invalid saved video recording policy")
+    return previous

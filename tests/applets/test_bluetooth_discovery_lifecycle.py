@@ -218,3 +218,35 @@ def test_late_power_reply_preserves_new_adapter_discovery(monkeypatch):
 
     assert backend.sessions == set()
     assert backend.stop_calls == [FIRST, SECOND]
+
+
+def test_queued_discovery_is_rejected_after_stop_and_restart(monkeypatch):
+    applet, old_backend, _ = _applet(monkeypatch)
+    tasks = []
+
+    class PendingWorker:
+        def run_guarded(self, **task):
+            tasks.append(task)
+            return True
+
+    applet._worker = PendingWorker()
+    applet._ensure_discovery()
+    old_task = tasks.pop()
+    applet.stop()
+    assert not old_task["fn"]()
+    assert old_backend.start_calls == []
+
+    replacement = _DiscoveryBackend()
+    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
+    monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
+    applet.start(lambda: None)
+    assert applet._backend is replacement
+    assert not old_task["fn"]()
+    tasks.clear()  # Ignore the queued state refresh.
+    applet._ensure_discovery()
+    current = tasks.pop()
+    assert current["fn"]()
+    current["on_result"](True)
+    applet.stop()
+    assert not replacement.sessions

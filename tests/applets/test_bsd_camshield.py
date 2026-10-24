@@ -184,6 +184,49 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
     assert not applet._state.available
 
 
+def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
+    monkeypatch, tmp_path
+):
+    from docking.applets.camshield.linux import LinuxCamshieldBackend
+
+    monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
+    monkeypatch.setattr(helper, "create_backend", LinuxCamshieldBackend)
+    monkeypatch.setattr(helper.shutil, "which", lambda name: None)
+    device = tmp_path / "video0"
+    device.touch()
+    device.chmod(0o640)
+    state_dir = tmp_path / "state"
+    assert helper.lock_devices(dev_root=tmp_path, state_dir=state_dir) == 0
+    original = (state_dir / helper.STATE_FILE.name).read_bytes()
+    with monkeypatch.context() as failure:
+        failure.setattr(
+            helper.os,
+            "replace",
+            lambda *args: (_ for _ in ()).throw(OSError("interrupted")),
+        )
+        with pytest.raises(OSError):
+            helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+    assert (state_dir / helper.STATE_FILE.name).read_bytes() == original
+    assert helper.unlock_devices(state_dir=state_dir) == 0
+    assert device.stat().st_mode & 0o777 == 0o640
+
+
+def test_corrupt_recovery_record_is_not_overwritten_by_lock(monkeypatch, tmp_path):
+    monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
+    device = tmp_path / "video0"
+    device.touch()
+    device.chmod(0o640)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    record = state_dir / helper.STATE_FILE.name
+    record.write_text("{")
+    with pytest.raises(OSError, match="recovery"):
+        helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+    assert record.read_text() == "{"
+    assert device.stat().st_mode & 0o777 == 0o640
+
+
 @pytest.mark.skipif(not environment.is_bsd(), reason="requires BSD kernel file tables")
 def test_actual_bsd_kernel_reports_open_camera_descriptor(tmp_path):
     device = tmp_path / "video0"

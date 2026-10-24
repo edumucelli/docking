@@ -146,6 +146,10 @@ class BluetoothApplet(Applet):
         self.item.name = text
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._stopped:
+            self._backend = create_backend()
+            self._power_transition_in_progress = False
+        self._poll_generation += 1
         self._stopped = False
         super().start(notify=notify)
         self._refresh_now()
@@ -157,6 +161,7 @@ class BluetoothApplet(Applet):
 
     def stop(self) -> None:
         self._stopped = True
+        self._poll_generation += 1
         # Only try to stop discovery if we own a local discovery session.
         # This avoids noisy NotReady calls when scanning is externally owned.
         self._stop_local_discovery(quiet=True)
@@ -533,10 +538,16 @@ class BluetoothApplet(Applet):
             return
         if time.monotonic() < self._suppress_discovery_until:
             return
+        backend = self._backend
+        generation = self._poll_generation
         self._worker.run_guarded(
             key="discovery",
             name="bluetooth-discovery",
-            fn=lambda: self._backend.start_discovery(adapter_path=adapter.path),
+            fn=lambda: (
+                backend.start_discovery(adapter_path=adapter.path)
+                if not self._stopped and generation == self._poll_generation
+                else False
+            ),
             on_result=lambda started: self._on_discovery_result(adapter.path, started),
         )
 
