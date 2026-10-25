@@ -27,15 +27,14 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.micshield import meta
+from docking.applets.micshield.backend import create_backend
 from docking.applets.micshield.render import render_icon
 from docking.applets.micshield.state import (
     DEFAULT_POLL_INTERVAL_S,
     MicShieldState,
     build_tooltip,
-    probe_mic_state,
-    set_mic_muted,
+    mute_status,
     stream_label,
-    toggle_mic_mute,
 )
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -58,12 +57,14 @@ class MicShieldApplet(Applet):
     icon_name = "audio-input-microphone"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: MicShieldState = probe_mic_state()
+        self._backend = create_backend()
+        self._state = MicShieldState(False, False, False)
+        self._stopped = False
+        self._action_in_progress = False
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
         self._poll_generation = 0
-        self._applied_poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -73,8 +74,8 @@ class MicShieldApplet(Applet):
         return render_icon(
             size=size,
             available=self._state.available,
-            muted=self._state.muted,
-            active=self._state.active,
+            muted=bool(self._state.muted),
+            active=bool(self._state.active),
             pulse_phase=phase,
         )
 
@@ -82,6 +83,12 @@ class MicShieldApplet(Applet):
         self.item.name = build_tooltip(self._state)
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._stopped:
+            self._backend = create_backend()
+            self._state = MicShieldState(False, False, False)
+            self._action_in_progress = False
+        self._stopped = False
+        self._poll_generation += 1
         super().start(notify=notify)
         GLib.idle_add(self._refresh_once)
         self._timer_id = GLib.timeout_add_seconds(
@@ -91,6 +98,9 @@ class MicShieldApplet(Applet):
         self._ensure_pulse_timer()
 
     def stop(self) -> None:
+        self._stopped = True
+        self._poll_generation += 1
+        self._backend.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -105,13 +115,18 @@ class MicShieldApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            status.append(disabled_menu_item(_("No microphone source found"), gtk=Gtk))
+            status.append(
+                disabled_menu_item(
+                    _("Microphone state unavailable")
+                    if self._state.error
+                    else _("No microphone source found"),
+                    gtk=Gtk,
+                )
+            )
         else:
             status.append(
                 disabled_menu_item(
-                    _("Microphone muted")
-                    if self._state.muted
-                    else _("Microphone unmuted"),
+                    mute_status(self._state),
                     gtk=Gtk,
                 )
             )
@@ -120,6 +135,10 @@ class MicShieldApplet(Applet):
                 status.append(disabled_menu_item(_("Microphone active"), gtk=Gtk))
                 for stream in self._state.streams:
                     status.append(disabled_menu_item(stream_label(stream), gtk=Gtk))
+            elif self._state.active is None:
+                status.append(
+                    disabled_menu_item(_("Microphone activity unknown"), gtk=Gtk)
+                )
             else:
                 status.append(disabled_menu_item(_("Microphone idle"), gtk=Gtk))
 
@@ -128,14 +147,22 @@ class MicShieldApplet(Applet):
         )
         mute = Gtk.MenuItem(label=mute_label)
         mute.set_sensitive(self._state.available)
-        mute.connect("activate", lambda _w: self._set_muted(not self._state.muted))
+        mute.connect(
+            "activate", lambda _w, value=not self._state.muted: self._set_muted(value)
+        )
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
+        settings = []
+        if self._backend.settings_available():
+            item = Gtk.MenuItem(label=_("Microphone Settings"))
+            item.connect("activate", lambda _w: self._backend.open_settings())
+            settings.append(item)
         return menu_sections(
             status=status,
             primary=[mute],
             refresh=[refresh],
+            settings=settings,
             gtk=Gtk,
         )
 
@@ -143,58 +170,96 @@ class MicShieldApplet(Applet):
         self._refresh_now()
         return False
 
+    def _request_is_current(self, backend, generation: int) -> bool:
+        return (
+            not self._stopped
+            and backend is self._backend
+            and generation == self._poll_generation
+        )
+
     def _refresh_now(self) -> None:
-        self._poll_generation += 1
-        generation = self._poll_generation
-
-        def apply_result(state: MicShieldState) -> bool:
-            if generation < self._applied_poll_generation:
-                return False
-            self._applied_poll_generation = generation
-            return self._on_probe_result(state)
-
-        self._worker.run(
+        if self._stopped or self._action_in_progress:
+            return
+        backend, generation = self._backend, self._poll_generation
+        self._worker.run_guarded(
+            key="micshield-poll",
             name="micshield-poll",
-            fn=probe_mic_state,
-            on_result=apply_result,
+            fn=lambda: (
+                backend.get_state()
+                if self._request_is_current(backend, generation)
+                else MicShieldState(False, False, False)
+            ),
+            on_result=lambda state: (
+                self._on_probe_result(state)
+                if self._request_is_current(backend, generation)
+                else False
+            ),
+            on_error=lambda _error: (
+                self._on_probe_result(MicShieldState(False, None, None, error=True))
+                if self._request_is_current(backend, generation)
+                else False
+            ),
         )
 
     def _tick(self) -> bool:
+        if self._stopped:
+            return False
         self._refresh_now()
         return True
 
     def _on_probe_result(self, state: MicShieldState) -> bool:
+        if self._stopped:
+            return False
         self._state = state
         self._ensure_pulse_timer()
         self.present()
         return False
 
     def _toggle_mute(self) -> None:
-        if not self._state.available:
-            return
-        self._worker.run(
-            name="micshield-toggle",
-            fn=toggle_mic_mute,
-            on_result=lambda _ok: self._refresh_after_action(),
-        )
+        self._perform_mute(None)
 
     def _set_muted(self, muted: bool) -> None:
-        if not self._state.available:
-            return
-        self._worker.run(
-            name="micshield-set-mute",
-            fn=lambda: set_mic_muted(muted=muted),
-            on_result=lambda _ok: self._refresh_after_action(),
-        )
+        self._perform_mute(muted)
 
-    def _refresh_after_action(self) -> bool:
-        self._applied_poll_generation = self._poll_generation + 1
-        self._refresh_now()
-        return False
+    def _perform_mute(self, muted: bool | None) -> None:
+        if self._stopped or not self._state.available or self._action_in_progress:
+            return
+        self._poll_generation += 1
+        backend, generation = self._backend, self._poll_generation
+        self._action_in_progress = True
+
+        def task():
+            if not self._request_is_current(backend, generation):
+                return None
+            if muted is None:
+                backend.toggle_muted()
+            else:
+                backend.set_muted(muted)
+            return backend.get_state()
+
+        def completed(state):
+            if not self._request_is_current(backend, generation):
+                return False
+            self._action_in_progress = False
+            self._poll_generation += 1
+            if state is not None:
+                self._on_probe_result(state)
+            return False
+
+        self._worker.run(
+            name="micshield-mute",
+            fn=task,
+            on_result=completed,
+            on_error=lambda _error: completed(
+                MicShieldState(False, None, None, error=True)
+            ),
+        )
 
     def _ensure_pulse_timer(self) -> None:
         """Run the red-dot ripple only while a mic capture stream is active."""
-        should_pulse = self._notify is not None and self._state.active
+        should_pulse = (
+            not self._stopped and self._notify is not None and self._state.active
+        )
         if should_pulse and not self._pulse_timer_id:
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
@@ -206,6 +271,8 @@ class MicShieldApplet(Applet):
             self._pulse_phase = 0.0
 
     def _pulse_tick(self) -> bool:
+        if self._stopped:
+            return False
         self._pulse_phase = (
             self._pulse_phase + _PULSE_INTERVAL_MS / _PULSE_PERIOD_MS
         ) % 1.0

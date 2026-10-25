@@ -949,6 +949,81 @@ References: [lock request semantics](https://learn.microsoft.com/en-us/windows/w
 [token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
 [WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
 
+## Windows Mic Shield
+
+Mic Shield follows one `MicShieldBackend` contract for state, explicit mute,
+toggle, settings and shutdown. Shared state, tooltip/icon rendering, GTK menus
+and lifecycle contain no audio-server commands or native API calls. Linux owns
+PulseAudio/PipeWire source enumeration, monitor-source filtering, corked capture
+streams, locale-stable `pactl` parsing and commands in `micshield/linux.py`.
+Windows selects `micshield/windows.py` with Core Audio in `windows_audio.py`.
+
+Windows enumerates every active **capture** endpoint rather than selecting only
+the default microphone. The aggregate is muted only when all readable inputs
+are muted. A known unmuted input disproves aggregate mute; otherwise unreadable
+mute state stays unknown. Active session enumeration supplies capture process
+IDs and names. Metadata failures retain known active capture; unreadable session
+state stays unknown instead of becoming idle. A multi-process session is not
+attributed to one PID. Interfaces, endpoint/session strings and process handles
+are scoped to their acquisition thread. Capture queries use an MTA worker.
+
+Native mute/unmute applies to all current input endpoints, continues protecting
+other inputs after one fails and requires actual readback for success. An
+unknown-state toggle chooses mute. Periodic reads are guarded, user transitions
+are serialized and readback determines presentation. Construction performs no
+provider query on GTK. Old polls cannot undo a completed action, and shutdown or
+restart invalidates queued work, replies and the activity pulse. The applet's
+Microphone Settings action opens **Privacy & security > Microphone**.
+
+Native acceptance uses two emulated HDA inputs fed a generated 440 Hz tone
+through an isolated ALSA file source. It opens neither a host microphone nor
+physical audio hardware. Two separate Windows WASAPI recorder processes report
+real PCM statistics; an independent C#/.NET Core Audio oracle reads and changes
+endpoint mute and identifies the default input. Real mouse/menu input muted
+both streams (RMS about 5,800 to below 1), restored both on unmute, and detected
+an external change that left only the **non-default input unmuted**. Each
+recorder's actual PID appeared in the menu. Stopping capture returned to idle
+and stopped the red pulse. Native privacy Settings, accessibility metadata,
+inspected screenshots, original mute restoration and normal close passed.
+Unknown metadata uses an explicitly injected API fixture.
+
+![Active native capture processes in Mic Shield](../images/windows-micshield-active.png)
+
+![Both native inputs muted while clients remain active](../images/windows-micshield-muted.png)
+
+The optional fixture is separate from the normal lab. Generate its input, then
+recreate only the owned lab with the microphone overlay:
+
+```sh
+python tools/windows_microphone_fixture.py --share /path/to/shared/artifacts
+docker compose --env-file /path/to/lab.env -p lab \
+  -f packaging/windows/lab/compose.yaml \
+  -f packaging/windows/lab/compose.microphone.yaml up -d --force-recreate --pull never
+python tools/windows_lab.py --share /path/to/shared/artifacts configure-share
+```
+
+Record the two newly created capture endpoint IDs and original mute state. Run
+`tools/windows_micshield_smoke.py --output ... --device ID1 --device ID2` in the
+interactive Windows lab. It restores mute state and closes its owned recorders.
+After acceptance, recreate the lab with **only** `compose.yaml`, reconnect its
+share, verify the capture endpoints are gone, and remove the generated
+`lab/microphone-fixture/tone.raw` and `alsa.conf`. The verifier's
+`--expect-absent` mode checks the regular lab's real no-input UI and Settings.
+Keep screenshots and result journals. The regular demo's pins and recent
+history remain separate from all acceptance configurations.
+
+This controls capture endpoint mute. Hardware-supported controls also affect
+exclusive streams; software controls can be bypassed by exclusive access.
+Physical/USB/Bluetooth/RDP inputs, hotplug/default changes during capture,
+exclusive-mode behavior, protected or multi-process sessions and broader
+permission/policy cases remain acceptance work.
+
+References: [capture endpoint enumeration](https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdeviceenumerator-enumaudioendpoints),
+[endpoint mute and shared/exclusive behavior](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolume),
+[active session state](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol-getstate),
+[process attribution](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol2-getprocessid),
+[synthetic ALSA file input](https://www.alsa-project.org/alsa-doc/alsa-lib/pcm_plugins.html).
+
 ## Windows Bluetooth
 
 Bluetooth uses the shared `BluetoothBackend` contract for snapshots, radio
@@ -1419,7 +1494,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings and Bluetooth radio/classic-inventory backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Bluetooth native absence/settings and labeled radio/device fixtures verified; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory and Mic Shield capture backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

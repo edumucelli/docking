@@ -39,10 +39,10 @@ def release(pointer: ctypes.c_void_p) -> None:
 
 
 @contextmanager
-def apartment() -> Iterator[Any]:
+def apartment(*, multithreaded: bool = False) -> Iterator[Any]:
     ole = ctypes.WinDLL("ole32", use_last_error=True)
     initialize = _bind(ole, "CoInitializeEx", HRESULT, ctypes.c_void_p, ctypes.c_uint32)
-    status = initialize(None, 2)
+    status = initialize(None, 0 if multithreaded else 2)
     # GTK/Gio may already own a different COM apartment on the UI thread.
     if status < 0 and status & 0xFFFFFFFF != 0x80010106:
         raise OSError(f"CoInitializeEx failed: 0x{status & 0xFFFFFFFF:08x}")

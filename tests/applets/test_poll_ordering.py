@@ -79,9 +79,11 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
 def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
     initial = MicShieldState(available=True, muted=False, active=False)
     probe = MagicMock(return_value=initial)
-    monkeypatch.setattr(micshield, "probe_mic_state", probe)
-    monkeypatch.setattr(micshield, "set_mic_muted", lambda **_kwargs: True)
+    backend = MagicMock()
+    backend.get_state = probe
+    monkeypatch.setattr(micshield, "create_backend", lambda: backend)
     applet = micshield.MicShieldApplet(48, Config())
+    applet._on_probe_result(initial)
     replies = _UIReplies()
     applet._worker = replies.worker
     try:
@@ -90,8 +92,7 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         expected = replace(initial, muted=True)
         probe.return_value = expected
         applet._set_muted(True)
-        replies.next()()  # Mute completion schedules its fresh state read.
-        replies.next()()
+        replies.next()()  # Action reply contains actual state readback.
         assert applet._state == expected
 
         old_reply()
@@ -101,11 +102,11 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         probe.return_value = initial
         applet._tick()
         completed_reply = replies.next()
-        applet._tick()
-        pending_reply = replies.next()
+        applet._tick()  # Guarded duplicate does not starve the completed read.
         completed_reply()
         assert applet._state == initial
-        pending_reply()
+        applet._tick()
+        replies.next()()
     finally:
         applet.stop()
 
@@ -114,10 +115,11 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
 def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, action):
     initial = MicShieldState(available=True, muted=False, active=False)
     probe = MagicMock(return_value=initial)
-    monkeypatch.setattr(micshield, "probe_mic_state", probe)
-    monkeypatch.setattr(micshield, "set_mic_muted", lambda **_kwargs: True)
-    monkeypatch.setattr(micshield, "toggle_mic_mute", lambda: True)
+    backend = MagicMock()
+    backend.get_state = probe
+    monkeypatch.setattr(micshield, "create_backend", lambda: backend)
     applet = micshield.MicShieldApplet(48, Config())
+    applet._on_probe_result(initial)
     replies = _UIReplies()
     applet._worker = replies.worker
     try:
@@ -130,12 +132,12 @@ def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, a
             applet._set_muted(True)
         else:
             applet.on_clicked()
-        replies.next()()  # Action completed; its fresh probe is still queued.
+        action_reply = replies.next()  # Hold the action and readback reply.
 
         old_reply()
 
         assert applet._state == initial
-        replies.next()()
+        action_reply()
         assert applet._state == expected
     finally:
         applet.stop()

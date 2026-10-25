@@ -5636,3 +5636,21 @@ msgstr ""
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
 msgstr ""
+
+#: docking/applets/micshield/applet.py:120
+#: docking/applets/micshield/state.py:52
+msgid "Microphone state unavailable"
+msgstr ""
+
+#: docking/applets/micshield/state.py:87
+msgid "Microphone mute state unknown"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:140
+#: docking/applets/micshield/state.py:60
+msgid "Microphone activity unknown"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:158
+msgid "Microphone Settings"
+msgstr ""
