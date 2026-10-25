@@ -54,6 +54,14 @@ class PopupAnchor:
     parent: Gtk.Window | None = None
 
 
+def prepare_menu_popup(menu: Gtk.Menu, anchor: PopupAnchor | None) -> None:
+    """Give an applet menu its dock's native focus and close handling."""
+    parent = anchor.parent if anchor is not None else None
+    surface = getattr(parent, "surface_service", None)
+    if surface is not None:
+        surface.prepare_menu_popup(menu)
+
+
 def entry_completion_combo(
     *,
     matches: Callable[[str, str], bool] | None = None,

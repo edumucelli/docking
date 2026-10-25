@@ -9,7 +9,9 @@ import docking.applets.applications.applet as applications_applet_mod
 import docking.applets.applications.render as applications_render_mod
 from docking.applets.applications.applet import ApplicationsApplet
 from docking.applets.applications.state import build_app_categories
+from docking.applets.popup import PopupAnchor
 from docking.core.config import Config
+from docking.core.position import Position
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -143,6 +145,32 @@ class TestBuildAppCategories:
 
 
 class TestApplicationsApplet:
+    def test_fileless_canonical_row_exports_its_exact_application_id(self, monkeypatch):
+        self._fake_gtk(monkeypatch)
+        app = _application("Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "Notepad")
+        item = applications_applet_mod._application_menu_item(
+            app_info=app, config=Config(), registry=MagicMock(), launcher=MagicMock()
+        )
+        assert item.drag_source_args is not None
+        target = item.drag_source_args[1][0]
+        assert target.target == "application/x-docking-application-id"
+        assert int(target.flags) == 1  # Gtk.TargetFlags.SAME_APP
+        callback, args = item._signals["drag-data-get"][0]
+        selection = MagicMock()
+        callback(item, None, selection, 2, 0, *args)
+        selection.set.assert_called_once_with(
+            selection.get_target(), 8, app.desktop_id.encode("utf-8")
+        )
+        selection.set_uris.assert_not_called()
+
+    def test_stop_closes_an_owned_application_menu(self):
+        applet = _make_applet()
+        menu = MagicMock()
+        applet._popup_menu = menu
+        applet.stop()
+        menu.popdown.assert_called_once_with()
+        assert applet._popup_menu is None
+
     def _fake_gtk(self, monkeypatch):
         class _FakeMenu:
             def __init__(self) -> None:
@@ -280,11 +308,14 @@ class TestApplicationsApplet:
     def test_left_click_opens_launcher_menu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         d = _make_applet()
+        parent = MagicMock()
+        d.set_popup_anchor(PopupAnchor(0, 0, Position.BOTTOM, parent))
         d.on_clicked()
 
         assert d._popup_menu is not None
         assert d._popup_menu.shown is True
         assert d._popup_menu.popup_event is None
+        parent.surface_service.prepare_menu_popup.assert_called_once_with(d._popup_menu)
 
     def test_launcher_menu_contains_search_entry(self, monkeypatch):
         self._fake_gtk(monkeypatch)

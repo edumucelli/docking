@@ -24,6 +24,10 @@ from docking.core.config import Config, PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.core.theme import Theme
+from docking.platform.applications.drag import (
+    APPLICATION_DRAG_INFO,
+    APPLICATION_DRAG_MIME,
+)
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.types import (
@@ -77,6 +81,76 @@ def _application(
         visible=True,
         has_gio_source=True,
     )
+
+
+@pytest.mark.parametrize(
+    "identifier", ["Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "windows:résumé"]
+)
+def test_application_id_drop_pins_registry_identity_and_never_opens_or_generates_files(
+    monkeypatch, identifier
+):
+    handler = _make_handler(monkeypatch)
+    application = _application(identifier)
+    handler._application_registry.get.return_value = application
+    handler._try_drop_on_applet = MagicMock()
+    handler._try_open_with_launcher = MagicMock()
+    handler.drop_insert_index = 2
+    selection = MagicMock()
+    selection.get_data.return_value = identifier.encode("utf-8")
+    finish = MagicMock()
+    monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+    handler._on_drag_data_received(
+        handler._drawing_area, MagicMock(), 20, 8, selection, APPLICATION_DRAG_INFO, 1
+    )
+    handler._model.insert_pinned_application.assert_called_once_with(
+        desktop_id=identifier, index=2
+    )
+    handler._try_drop_on_applet.assert_not_called()
+    handler._try_open_with_launcher.assert_not_called()
+    selection.get_uris.assert_not_called()
+    assert handler.drop_insert_index == -1 and not handler._drop_committed
+    assert finish.call_args.args[1] is True
+
+
+@pytest.mark.parametrize("state", ["missing", "hidden", "invalid"])
+def test_unavailable_or_invalid_application_id_drop_is_rejected(monkeypatch, state):
+    handler = _make_handler(monkeypatch)
+    application = _application("app")
+    if state == "hidden":
+        from dataclasses import replace
+
+        application = replace(application, visible=False)
+    handler._application_registry.get.return_value = (
+        None if state == "missing" else application
+    )
+    selection = MagicMock()
+    selection.get_data.return_value = b"\xff" if state == "invalid" else b"app"
+    finish = MagicMock()
+    monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+    handler._on_drag_data_received(
+        handler._drawing_area, MagicMock(), 20, 8, selection, APPLICATION_DRAG_INFO, 1
+    )
+    handler._model.insert_pinned_application.assert_not_called()
+    assert finish.call_args.args[1] is False
+
+
+def test_application_id_motion_does_not_offer_file_open_or_trash_target(monkeypatch):
+    handler = _make_handler(monkeypatch)
+    handler._model.get_applet.return_value = SimpleNamespace(
+        accepts_drop_uris=lambda: True
+    )
+    applet = DockItem("applet://trash", kind=APPLET_KIND)
+    frame = _frame()
+    frame.item_geometries[0].item = applet
+    frame.insertion_index_for_main.return_value = -1
+    handler._geometry_builder = SimpleNamespace(build_frame=lambda **_kwargs: frame)
+    context = MagicMock()
+    context.list_targets.return_value = [
+        SimpleNamespace(name=lambda: APPLICATION_DRAG_MIME)
+    ]
+    monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args: None)
+    handler._on_drag_motion(handler._drawing_area, context, 20, 8, 1)
+    assert handler.drop_target_id == ""
 
 
 def _make_handler(
@@ -207,6 +281,7 @@ def test_selected_app_uri_drop_uses_shared_application_launcher(monkeypatch):
 
 
 @pytest.mark.parametrize("launch_fails", [False, True], ids=["success", "failure"])
+@pytest.mark.skipif(sys.platform == "win32", reason="Flatpak uses POSIX host paths")
 def test_host_uri_drop_flows_through_real_launcher_without_pinning(
     monkeypatch, tmp_path, launch_fails
 ):
@@ -942,6 +1017,9 @@ class TestDropAndReceive:
         )
         handler._icon_loader.load_desktop_icon.assert_not_called()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="AppImage requires POSIX mode bits"
+    )
     def test_insert_pinned_uri_confirms_chmod_for_non_executable_appimage(
         self, monkeypatch, tmp_path
     ):
@@ -981,6 +1059,9 @@ class TestDropAndReceive:
         assert dialog.destroyed
         handler._application_registry.refresh.assert_called_once_with()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="AppImage requires POSIX mode bits"
+    )
     def test_insert_pinned_uri_cancelled_appimage_permission_does_not_pin_file(
         self, monkeypatch, tmp_path
     ):

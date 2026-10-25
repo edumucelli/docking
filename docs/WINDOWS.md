@@ -721,11 +721,49 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 
 ![Native OLE2 target feedback during an Explorer folder drag](../images/windows-ole2-drag.png)
 
-The acceptance baseline remains one display at 96 DPI. Other drop sources,
-cross-monitor drags and native application-menu dragging still need acceptance.
-Windows application listings have no desktop-entry file URI, so their menu
-rows need a native transfer representation before that Linux workflow has
-parity. See the [GTK Win32 drag implementation](https://gitlab.gnome.org/GNOME/gtk/-/blob/3.24.52/gdk/win32/gdkdnd-win32.c).
+The acceptance baseline remains one display at 96 DPI. Other drop sources and
+cross-monitor drags still need acceptance. See the
+[GTK Win32 drag implementation](https://gitlab.gnome.org/GNOME/gtk/-/blob/3.24.52/gdk/win32/gdkdnd-win32.c).
+
+## Applications menu pinning
+
+Windows application listings have no desktop-entry file URI. Their menu rows
+now offer the canonical application ID through a private GTK target restricted
+to Docking's own process. On drop, the dock resolves the ID against its current
+registry and pins the visible application at the insertion position. It does
+not interpret the ID as a path or launch command. Existing desktop-file URI
+transfers on Linux are preserved, and locked rows remain nondraggable.
+
+`windows_applications_smoke.py` runs the complete application with native mouse
+and keyboard input. It types Notepad into the Applications filter, drags the
+actual result row onto an exposed part of the dock, and records the OLE2 target
+and exact packaged application ID at the receiver. It checks persisted pinning,
+verifies that the gesture did not launch the app, then clicks the new pin and
+independently checks Notepad's native window and foreground ownership. After
+closing its newly opened Notepad window, it reopens the menu and sends the dock
+a native close request. Normal shutdown restores the original work area and
+releases the Search hotkey. The final desktop PNGs were visually inspected.
+Focused drag, menu and popup checks passed 137 tests on Windows, with five
+POSIX-only cases skipped; all 142 passed on Linux. URI fixtures use native
+file paths on each platform, while Snap, Flatpak and AppImage permission cases
+remain explicitly scoped to their POSIX semantics.
+
+The drag/reopen sequence exposed a close request lost during the applet menu's
+GTK grab. Applications now prepares its menu through the dock surface's
+existing Windows menu session, so native close dismisses the owned menu before
+closing the dock. Applet shutdown also pops down its own menu.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_applications_smoke.py' \
+  --output '\\host.lan\Data\lab\applications'
+```
+
+![Notepad pinned by dragging its Applications menu row](../images/windows-applications-pin.png)
+
+Exporting native application shortcuts to Explorer and cross-monitor gestures
+remain follow-up work.
 
 ## Keyboard menus and close handling
 
@@ -787,7 +825,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
-| Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence and drag-off immediately after an external applet drop verified; application-menu transfer and broader display/source cases pending |
+| Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |

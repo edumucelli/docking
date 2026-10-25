@@ -31,8 +31,13 @@ from docking.applets.applications.state import (
     build_app_categories,
 )
 from docking.applets.base import ApplicationServicesApplet
+from docking.applets.popup import prepare_menu_popup
 from docking.core.icons import IconSource
 from docking.i18n import _
+from docking.platform.applications.drag import (
+    APPLICATION_DRAG_INFO,
+    APPLICATION_DRAG_MIME,
+)
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
     activate_listing,
@@ -40,13 +45,16 @@ from docking.platform.applications.listing import (
     listing_gicon,
 )
 from docking.platform.applications.registry import ApplicationRegistry
-from docking.platform.applications.types import ApplicationListing
+from docking.platform.applications.types import ApplicationInfo, ApplicationListing
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
+_APPLICATION_TARGET = Gtk.TargetEntry.new(
+    APPLICATION_DRAG_MIME, Gtk.TargetFlags.SAME_APP, APPLICATION_DRAG_INFO
+)
 
 
 class ApplicationsApplet(ApplicationServicesApplet):
@@ -91,7 +99,14 @@ class ApplicationsApplet(ApplicationServicesApplet):
         menu.connect("hide", clear_popup)
         menu.connect("deactivate", clear_popup)
         menu.show_all()
+        prepare_menu_popup(menu, self.popup_anchor)
         menu.popup_at_pointer(None)
+
+    def stop(self) -> None:
+        if self._popup_menu is not None:
+            self._popup_menu.popdown()
+            self._popup_menu = None
+        super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Use left-click for the launcher menu; keep right-click minimal."""
@@ -242,19 +257,24 @@ def _configure_drag_source(
     config: Config,
     registry: ApplicationRegistry,
 ) -> None:
-    """Make a launchable menu row draggable to the dock as a desktop URI."""
+    """Offer a desktop URI or a canonical ID for listings without a file."""
     if config.lock_icons:
         return
     uri = listing_desktop_file_uri(app_info)
-    if uri is None:
+    if uri is None and not isinstance(app_info, ApplicationInfo):
         return
     menu_item.drag_source_set(
         Gdk.ModifierType.BUTTON1_MASK,
-        [_URI_TARGET],
+        [_URI_TARGET] if uri is not None else [_APPLICATION_TARGET],
         Gdk.DragAction.COPY,
     )
     menu_item.connect("drag-begin", _on_drag_begin, app_info, registry)
-    menu_item.connect("drag-data-get", _on_drag_data_get, uri)
+    if uri is not None:
+        menu_item.connect("drag-data-get", _on_drag_data_get, uri)
+    else:
+        menu_item.connect(
+            "drag-data-get", _on_application_drag_data_get, app_info.desktop_id
+        )
 
 
 def _on_drag_begin(
@@ -279,6 +299,17 @@ def _on_drag_data_get(
 ) -> None:
     """Provide the selected application's desktop-entry URI to the dock."""
     selection.set_uris([uri])
+
+
+def _on_application_drag_data_get(
+    _menu_item: Gtk.MenuItem,
+    _context: Gdk.DragContext,
+    selection: Gtk.SelectionData,
+    _info: int,
+    _time: int,
+    desktop_id: str,
+) -> None:
+    selection.set(selection.get_target(), 8, desktop_id.encode("utf-8"))
 
 
 def _filter_apps(

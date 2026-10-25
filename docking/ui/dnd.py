@@ -163,6 +163,11 @@ from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, Do
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
 from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.drag import (
+    APPLICATION_DRAG_INFO,
+    APPLICATION_DRAG_MIME,
+    application_id_from_drag,
+)
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.poof import show_poof
@@ -196,6 +201,9 @@ _DOCK_ITEM_TARGET = Gtk.TargetEntry.new(
     "dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0
 )
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 1)
+_APPLICATION_TARGET = Gtk.TargetEntry.new(
+    APPLICATION_DRAG_MIME, Gtk.TargetFlags.SAME_APP, APPLICATION_DRAG_INFO
+)
 
 
 class DnDHandler:
@@ -290,7 +298,7 @@ class DnDHandler:
         )
         da.drag_dest_set(
             Gtk.DestDefaults(0),
-            [_DOCK_ITEM_TARGET, _URI_TARGET],
+            [_DOCK_ITEM_TARGET, _APPLICATION_TARGET, _URI_TARGET],
             Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
         )
 
@@ -413,6 +421,13 @@ class DnDHandler:
                 y=float(y),
                 accepted_kinds=(APP_KIND, APPLET_KIND),
             )
+            # An application ID pins a launcher; it is not a file to open or
+            # send to a drop-aware applet such as Trash.
+            if any(
+                target.name() == APPLICATION_DRAG_MIME
+                for target in context.list_targets()
+            ):
+                item = None
             if item is not None and item.kind == APPLET_KIND:
                 applet = self._model.get_applet(item.desktop_id)
                 if applet is None or not applet.accepts_drop_uris():
@@ -507,6 +522,27 @@ class DnDHandler:
 
         # External drop -- process URIs
         insert_at = max(0, self.drop_insert_index)
+        if _info == APPLICATION_DRAG_INFO:
+            desktop_id = application_id_from_drag(selection.get_data())
+            application = (
+                self._application_registry.get(desktop_id) if desktop_id else None
+            )
+            added = bool(
+                application is not None
+                and application.visible
+                and self._model.insert_pinned_application(
+                    desktop_id=application.desktop_id, index=insert_at
+                )
+            )
+            if added:
+                self._renderer.slide_offsets.clear()
+                self._renderer.prev_positions.clear()
+            self.drop_insert_index = -1
+            self.drop_target_id = ""
+            self._drop_committed = False
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, added, False, time)
+            return
         log.debug(f"drag-data-received: external drop, insert_at={insert_at}")
         uris = selection.get_uris()
         if not uris:
