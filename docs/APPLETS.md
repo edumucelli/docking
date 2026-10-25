@@ -2,7 +2,7 @@
 
 Docking includes 66 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
-show live information, control desktop services, or provide small tools
+show live information, adjust system settings, or provide small tools
 without opening a full application.
 
 ## Add and Manage Applets
@@ -19,9 +19,9 @@ without opening a full application.
 Separators are added through the separate **Add Separator** action because
 multiple independently sized separators can be used at once.
 
-Some applets depend on a desktop service, command-line utility, hardware
-interface, or internet connection. When an integration is unavailable,
-the applet keeps a safe unavailable state or hides unsupported actions.
+Some applets need an internet connection, compatible desktop software, or a
+connected device. Features that are unavailable show a status message or stay
+hidden from the menu.
 
 ## Catalog
 
@@ -57,8 +57,8 @@ the applet keeps a safe unavailable state or hides unsupported actions.
 
 ### Applications
 
-Categorized application launcher. Groups installed `.desktop` applications by
-FreeDesktop category, such as Multimedia, Development, and Internet.
+Browse installed applications by category, such as Multimedia, Development,
+and Internet.
 
 **Click:** Open the categorized launcher menu. Its search field filters
 applications as you type.
@@ -68,17 +68,15 @@ The application icon remains beside the pointer during the drag.
 
 ### Search
 
-Optional launcher for Docking's process-wide global search palette.
+Search for applications, files, open windows, and more from the dock.
 
-**Click:** Open the focusable search window. Search applications, dock items,
-open windows, recent files, calculations, unit/currency conversions, dates,
-time zones, URLs, web fallback, and direct paths. Type naturally and results
-from all relevant local sources are ranked together. Press `Ctrl+Right` to
-refine a result into app actions, windows, and recent documents. Use `Ctrl+P`
-for previews or `Ctrl+J` for standard contextual actions.
+**Click:** Open the search window. Find applications, dock items, open windows,
+recent files, calculations, unit/currency conversions, dates, time zones,
+websites, and file or folder paths. Press `Ctrl+Right` to explore an app's
+actions, windows, and recent documents. Use `Ctrl+P` for previews or `Ctrl+J`
+for more actions.
 
-The applet only opens the shared search service; removing it does not disable
-the configured global shortcut or D-Bus activation.
+Removing the applet leaves your global search keyboard shortcut available.
 
 ### Desktop
 
@@ -94,14 +92,14 @@ command and description.
 
 **Click:** Open the Run Application dialog
 
+Recent commands remain available to run again.
+
 **Dialog options:**
 
 - Type a command or select a known application
 - **Run in terminal** -- launch the command in an available terminal emulator
 - **Run with file...** -- append a selected file to the command
 - **Show list of known applications** -- browse installed desktop applications
-
-**Preferences stored:** up to 20 recently launched commands in `history`
 
 ### Workspaces
 
@@ -115,69 +113,49 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 
 ### Telegram
 
-Runs the official Telegram WebK client in one persistent Docking window. Sign
-in using Telegram's QR code or phone-number flow. Closing the window hides it;
-the session continues in the background and is restored after Docking restarts.
+Use Telegram in its own Docking window. Sign in with a QR code or your phone
+number. Closing the window hides it while messages and notifications continue
+to arrive. Your sign-in is remembered when Docking restarts.
 
 **Click:** Show or hide the Telegram window.
 
 **Right-click:** Open Telegram / Hide Telegram, Reload, Open in Browser, and
-Disconnect Telegram. Disconnect clears only Docking's Telegram website data;
-it does not sign out other Telegram applications or Docking's WhatsApp session.
+Disconnect Telegram. Disconnect signs you out of Telegram inside Docking;
+Telegram on your other devices stays signed in.
 
-**Badge:** Telegram's standard browser Badging API reports unread **unmuted
-chats**. This count takes priority over Telegram's blinking page title. When an
-exact count is unavailable, recent desktop notifications supply a clearly
-labelled activity count that clears when the window opens.
+**Badge:** Number of unread unmuted chats. When an unread count is unavailable,
+the badge shows recent notifications and clears when you open the window.
 
-**Notifications:** Appear as Telegram in Docking through the desktop notification
-service. Activating one presents the Telegram window and activates the original
-web notification. Camera and microphone access always require confirmation.
+**Status:** The icon and tooltip show loading, sign-in, synchronization, offline,
+ready, and error states.
 
-**Session storage:** Dedicated `telegram` directories under Docking's XDG data
-and cache locations hold Telegram's website data. Login remains inside Telegram
-Web; Docking does not request separate credentials, bot tokens, or Telegram API
-keys, and does not inspect private Telegram modules, chats, or contacts.
-
-**Integration requirement:** WebKitGTK 4.1 or 4.0 with GObject introspection.
-Telegram requires animation frames during initialization, even in an initially
-hidden window. Docking provides a slow background frame fallback while keeping
-the real document visibility state and native scheduling when visible.
+**Notifications:** Click a notification to open the Telegram window. You will
+be asked before Telegram can use the camera or microphone.
 
 ### WhatsApp
 
-Runs a single persistent WhatsApp Web session in a Docking window. The session
-starts in the background shortly after Docking, so the applet can keep its
-unread badge and desktop notifications current. Closing the window hides it
-without signing out or stopping the session.
+Use WhatsApp in its own Docking window. Scan the QR code to sign in. Closing
+the window hides it while messages and notifications continue to arrive.
+Your sign-in is remembered when Docking restarts.
 
-**Click:** Show or hide the WhatsApp window
+**Click:** Show or hide the WhatsApp window.
 
 **Right-click options:**
 
 - **Open WhatsApp** / **Hide WhatsApp**
-- **Reload** -- reload the embedded WhatsApp Web session
-- **Open in Browser** -- open WhatsApp Web in the default browser
-- **Disconnect WhatsApp** -- clear Docking's dedicated session and return to
+- **Reload** -- refresh the WhatsApp window
+- **Open in Browser** -- open WhatsApp Web in your default browser
+- **Disconnect WhatsApp** -- sign out of WhatsApp inside Docking and return to
   the QR login page
 
-**Badge:** unread message count reported through WhatsApp Web's page title or
-standard browser Badging API. If neither provides an exact count, recent
-desktop notifications provide a temporary activity count that clears when the
-WhatsApp window opens.
+**Badge:** Unread message count. When an unread count is unavailable, the badge
+shows recent notifications and clears when you open the window.
 
-**Status:** the icon and tooltip distinguish loading, QR login, synchronization,
-offline, ready, and error states without reading chats or message content.
+**Status:** The icon and tooltip show loading, QR sign-in, synchronization,
+offline, ready, and error states.
 
-**Notifications:** WhatsApp notifications appear through the desktop
-notification service. Activating one presents the Docking WhatsApp window.
-
-**Session storage:** cookies and website data use dedicated `whatsapp`
-directories under Docking's XDG data and cache locations. Login stays inside
-WhatsApp Web; Docking does not request or store separate WhatsApp credentials.
-
-**Integration requirement:** WebKitGTK 4.1 or 4.0 with GObject introspection.
-Camera and microphone requests always require confirmation.
+**Notifications:** Click a notification to open the WhatsApp window. You will
+be asked before WhatsApp can use the camera or microphone.
 
 
 ## Time & Productivity
@@ -194,10 +172,6 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 **Tooltip:** Today/week cost summary plus per-model usage for the selected provider
 
-**Update interval:** Updates when usage changes, plus a periodic refresh for providers that need polling
-
-**Preferences stored:** rolling `days` usage history in `applet_prefs.aiusage`
-
 ### Alarm
 
 Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.
@@ -212,10 +186,6 @@ Multiple alarm presets with local-time scheduling, weekday repeats, one-shot ala
 - **Edit {label}...** -- edit or remove a saved preset
 
 **Tooltip:** Next enabled alarm with local time, or the currently ringing alarm label.
-
-**Preferences stored:** `presets` with `label`, `hour`, `minute`, `enabled`, `repeat_days`, `snooze_minutes`, `last_triggered`, and `snoozed_until`
-
-**Update interval:** 30 seconds normally, 1 second while ringing
 
 ### Bookmarks
 
@@ -237,16 +207,12 @@ Basic four-function calculator with a popup interface. Supports +, -, *, /, pare
 **Click:** Toggle calculator popup
 **Keyboard:** Type expression, press Enter to evaluate
 
-**Preferences stored:** `last_expression`
-
 ### Calendar
 
 Shows today's date as a calendar page icon with red header (weekday) and day number.
 
 **Click:** Toggle a calendar popup
 **Tooltip:** Full date (e.g. "Tuesday, February 25")
-
-**Update interval:** 30 seconds (refreshes icon at midnight)
 
 ### Clippy
 
@@ -256,25 +222,22 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 **Scroll:** Cycle through clipboard history (tooltip updates instantly)
 **Right-click:** List of all clips (newest first), click to copy. "Clear" to empty history.
 
-**Preferences stored:** `max_entries`
-
 ### Clock
 
-Analog or digital clock face. Optional seconds display adds a red seconds hand in analog mode and `HH:MM:SS` in digital mode, and the applet can keep a simple one-shot alarm reminder.
+Choose an analog or digital clock, optionally show seconds, and set a one-time
+alarm reminder.
 
-**Click:** Toggle the same calendar popup used by the Calendar applet. A ringing
-alarm is acknowledged before the calendar opens.
+**Click:** Open or close the calendar. A ringing alarm is acknowledged before
+the calendar opens.
 **Right-click options:**
 
 - **Digital Clock** -- switch between analog and digital display
 - **24-Hour Clock** -- toggle 12/24-hour format
 - **Show Date** -- show date below time (digital mode only)
-- **Show Seconds** -- refresh every second and show seconds on the icon
+- **Show Seconds** -- show seconds on the icon
 - **Set Alarm...** -- choose an hour/minute for the next one-shot reminder
 - **Clear Alarm** -- remove a pending alarm
 - **Acknowledge Alarm** -- clear the urgent reminder after it fires
-
-**Preferences stored:** `show_digital`, `show_military`, `show_date`, `show_seconds`, `alarm_target`
 
 ### Color Picker
 
@@ -288,8 +251,6 @@ Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel colo
 
 **Tooltip:** Current sampled hex value
 
-**Preferences stored:** `show_hex`, `r`, `g`, `b`, `hex`
-
 ### Drag Share
 
 Drop a local file onto the applet to upload it to tmpfiles.org and copy the returned URL to the clipboard. Files are temporary and expire automatically.
@@ -297,11 +258,10 @@ Drop a local file onto the applet to upload it to tmpfiles.org and copy the retu
 **Drop:** Upload file and copy URL
 **Click:** Copy last uploaded URL again
 
-**Preferences stored:** `last_url`
-
 ### Pomodoro
 
-Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases with configurable durations. Triggers urgent bounce+glow on phase transitions.
+Alternate between timed work and breaks. Choose the duration of each phase;
+the tomato icon bounces and glows when it is time to switch.
 
 **Click:** Start/pause toggle
 **Right-click options:**
@@ -310,8 +270,6 @@ Pomodoro timer with a flat tomato icon. Auto-cycles through work/break phases wi
 - **Work duration** -- 15/25/30/45 min presets
 - **Break duration** -- 5/10 min presets
 - **Long break duration** -- 15/20/30 min presets
-
-**Preferences stored:** `work`, `break_`, `long_break`
 
 ### Quick Note
 
@@ -323,7 +281,7 @@ Sticky note applet for a single quick text note.
 - **Edit Note** -- open the editor
 - **Clear Note** -- empty the note
 
-**Tooltip:** note preview or empty-note fallback
+**Tooltip:** Note preview, or a message when the note is empty
 
 ### Recent Files
 
@@ -335,7 +293,7 @@ Launcher for the most recently opened files.
 - recent file entries -- open the selected file
 - **Clear Recent Files** -- purge the recent-files list
 
-**Tooltip:** most recent file name or empty-state fallback
+**Tooltip:** Most recent file name, or a message when there are no recent files
 
 ### Unit Converter
 
@@ -343,16 +301,12 @@ Convert between units directly from the dock popup. Supports length, weight, tem
 
 **Click:** Toggle converter popup
 
-**Preferences stored:** `last_category`
-
 ### URL Shortener
 
 Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to the clipboard.
 
 **Click:** Toggle URL shortener dialog
 **Keyboard:** Paste URL, press Enter to shorten
-
-**Preferences stored:** `last_url`
 
 
 ## System & Power
@@ -365,9 +319,8 @@ Shows battery charge level using standard icons. The icon changes based on charg
 
 - **Power Settings** -- open the desktop power settings or power management screen when available
 
-**Tooltip:** Shows percentage and, when the system exposes a battery rate, the estimated time left or time until full. If no estimate is available, it keeps the tooltip simple.
-
-**Update interval:** 60 seconds
+**Tooltip:** Battery percentage, with estimated time left or time until full
+when available.
 
 ### Bluetooth
 
@@ -391,8 +344,6 @@ Bluetooth manager applet for quick adapter and device control from the dock.
 **Tooltip:** adapter state, connected/paired counts, discovery status, optional battery line
 **Badge:** connected device count
 
-**Update interval:** 2 seconds
-
 ### Brightness
 
 Screen brightness control with a live level indicator.
@@ -405,13 +356,11 @@ Screen brightness control with a live level indicator.
 
 **Tooltip:** `Brightness: N%`
 
-**Update interval:** 5 seconds
-
 ### Caffeine
 
-Keeps the session awake for a selected duration or indefinitely.
+Keeps the computer awake for a selected duration or indefinitely.
 
-**Click:** Toggle inhibit on/off
+**Click:** Toggle keeping the computer awake
 **Right-click:** Duration presets and status
 
 ### Cam Shield
@@ -424,11 +373,10 @@ Camera privacy indicator. The icon shows a red dot while an app is using a camer
 - Lock Camera / Unlock Camera
 - Refresh Now
 
-**Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
+**Tooltip:** Whether the camera is idle, active, or unavailable, plus the apps
+using it when they can be identified
 
-Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
-
-**Update interval:** 2 seconds
+Locking blocks new camera access. Apps that are already using the camera may need to be closed first.
 
 ### Caps Lock
 
@@ -440,9 +388,7 @@ Caps Lock and Num Lock indicators for keyboards without physical lights. The ico
 - Current Caps Lock and Num Lock states
 - Refresh Now
 
-**Tooltip:** Caps Lock and Num Lock on/off state, or an unavailable-state fallback
-
-**Update interval:** 1 second
+**Tooltip:** Whether Caps Lock and Num Lock are on, off, or unavailable
 
 ### Cert Watch
 
@@ -457,22 +403,17 @@ Monitor certificate expiry for a list of domains. The shield color highlights th
 - Remove submenu
 - Refresh Now
 
-**Update interval:** 1 hour. Failed certificate checks retry after 5 minutes.
-
-**Preferences stored:** `domains` list (host, port)
-
 ### Devices
 
-Shows local devices and mounted network filesystems in a live stack, including
-desktop mounts such as SMB, SFTP, and WebDAV plus native CIFS, NFS, SSHFS, and
-rclone mounts. Selecting a device opens its mounted location. The stack updates
-automatically when devices are mounted or unmounted.
+Browse drives and network folders that are available in your file manager.
+Selecting a device opens it. The list updates as devices are connected or
+removed.
 
-**Open:** Show the mounted-devices stack on hover or click, according to the
-global stack setting under **Preferences** -> **Behavior**.
+**Open:** Show devices on hover or click. Choose which under **Preferences**
+-> **Behavior**.
 **Right-click option:**
 
-- **Refresh Devices** -- reload the current mounted-device list
+- **Refresh Devices** -- update the device list
 
 ### Docker
 
@@ -493,7 +434,7 @@ Keyboard layout switcher with a compact keyboard icon and active layout code ove
 - **Show Current Layout** -- open the current keyboard layout dialog when available
 - direct selection of each detected layout
 
-**Tooltip:** active layout code or no-layout fallback
+**Tooltip:** Current keyboard layout, or a message when none is available
 
 ### Mic Shield
 
@@ -506,13 +447,12 @@ Microphone privacy indicator and mute toggle. The icon shows a red dot while an 
 - Mute Microphone / Unmute Microphone
 - Refresh Now
 
-**Tooltip:** Shows mute state, idle/active state, and active capture streams when detected
-
-**Update interval:** 2 seconds
+**Tooltip:** Whether the microphone is muted, idle, or active, plus the apps
+using it when they can be identified
 
 ### Music
 
-Media controller applet with album-art icon rendering.
+Control music playback from an icon that shows the current album art.
 
 **Click:** Play/pause
 **Scroll:** Player volume ±5%
@@ -538,17 +478,15 @@ down-arrow 1.2 MB/s  up-arrow 350 KB/s
 
 **Right-click options:**
 
-- **Available Networks** -- open a submenu of visible Wi-Fi networks; clicking one asks NetworkManager to connect to it
+- **Available Networks** -- choose a visible Wi-Fi network to connect to
 - **Connect to Hidden Wi-Fi Network...** -- open the desktop network editor/settings flow for hidden Wi-Fi setup
 - **Create New Wi-Fi Network...** -- open the desktop network editor/settings flow for creating a new Wi-Fi network
 - **VPN Connections** -- open a submenu of saved VPN profiles and toggle them on or off
 - **Connection Information** -- open the desktop network settings or information screen when available
 - **Edit Connections...** -- open the connection editor when available
-- **Enable Networking** -- toggle NetworkManager networking on/off
+- **Enable Networking** -- turn network connections on or off
 - **Enable Wi-Fi** -- toggle Wi-Fi radio on/off when a wireless device is present
 - **Show Download / Show Upload / Hide Speeds** -- control the speed overlay on the icon
-
-**Update interval:** 2 seconds
 
 ### Notifications
 
@@ -560,8 +498,6 @@ Notification center applet with a compact status icon, Do Not Disturb toggle, an
 - **Do Not Disturb** -- toggle notification pause state
 - **Pending: N** -- pending notifications (when available)
 - **Clear Notifications** -- clear notification history (when available)
-
-**Update interval:** 2 seconds
 
 ### Power Profiles
 
@@ -602,9 +538,12 @@ Lock, log out, suspend, restart, or shut down from the dock.
 
 ### Speedtest
 
-One-click internet speed test. The dial is painted as a classic four-band speedometer (red, orange, yellow, green from left to right); the needle points at the last download speed and takes its color from the current tier. The badge shows Mbps (e.g. `250Mb`, `1.2Gb`). Tooltip shows download, upload, ping, jitter, server, and timestamp.
+Check your internet connection's speed. The gauge and badge show the last
+download speed; the tooltip includes upload speed, connection quality, test
+server, and the time of the test.
 
-**Click:** Run one test (~20 seconds: ping + 10s download + 10s upload)
+**Click:** Run a speed test (about 20 seconds). Results stay visible until you
+run another test.
 
 **Right-click menu:**
 
@@ -612,46 +551,33 @@ One-click internet speed test. The dial is painted as a classic four-band speedo
 - Run Test (disabled while running)
 - Copy Last Result (to clipboard)
 
-**Update interval:** Manual. Results update only when you run a test.
-
-**Preferences stored:** `last_result` (download_mbps, upload_mbps, ping_ms, jitter_ms, server, timestamp)
-
 ### System Monitor
 
 Circular gauge showing real-time CPU and memory usage. The fill color shifts from green (idle) to red (busy). A white arc around the edge shows memory usage.
 
 **Tooltip:** `CPU: 23.5% | Mem: 67.2% | Temp: 54.0°C` when CPU temperature is available
 
-**Update interval:** 1 second
-
 ### System Tray
 
-StatusNotifier/AppIndicator host for tray applications such as chat clients, sync tools, background utilities, and desktop services.
+Access tray icons for chat clients, sync tools, and other background apps.
 
-**Click:** Show registered tray applications
+**Click:** Show tray applications
 **Right-click options:**
 
-- Registered tray app actions
-- Context menus exposed through DBusMenu when available
+- Actions and menus provided by each app, when available
 - Refresh Now
-
-The applet uses an existing desktop StatusNotifier watcher when one is available. In sessions without a watcher, Docking can provide the watcher service so tray apps started afterward can register with the dock.
-
-**Update interval:** 3 seconds
 
 ### Thermals
 
-Hottest lm-sensors temperature plus fastest fan RPM. The icon is a thermometer with a degree-only bottom label for the current temperature, and the tooltip includes the lm-sensors chip and label for both readings.
+Shows the highest available temperature and fastest fan speed. The thermometer
+icon displays the temperature; the tooltip identifies the readings.
 
-**Click:** No-op
 **Right-click options:**
 
 - **Temperature Unit** -- Celsius or Fahrenheit
 - **Refresh Now**
 
-**Tooltip:** `Hot: coretemp Package 72.4C` and `Fan: thinkpad fan1 2987 RPM`
-
-**Update interval:** 5 seconds
+**Tooltip:** Highest temperature, fastest fan speed, and sensor names
 
 ### Trash
 
@@ -665,12 +591,12 @@ Shows the current state of the system trash. Icon switches between empty and ful
 
 ### USB Watch
 
-Shows mounted removable USB storage devices and provides safe-remove actions without opening a file manager.
+View USB storage devices and safely remove them without opening a file manager.
 
-**Tooltip:** mounted device count and mount paths
+**Tooltip:** Connected storage-device count and folder locations
 **Right-click options:**
 
-- **Safely Remove _device_** -- unmount and eject a removable USB device when supported
+- **Safely Remove _device_** -- prepare a USB drive for unplugging
 
 ### Volume
 
@@ -682,8 +608,6 @@ System volume control. The icon switches between muted, low, medium, and high ba
 
 - **Volume Settings** -- open the desktop volume or sound settings screen when available
 **Tooltip:** `Volume: 75%` or `Muted`
-
-**Update interval:** 1 second (refreshes only on change)
 
 ### Window Killer
 
@@ -702,8 +626,6 @@ Looping ambient soundscape player with 7 bundled nature sounds plus white and pi
 **Scroll:** Adjust volume ±10%
 **Right-click:** Sound selection (Birds, Boat, Coffee Shop, Fireplace, Stream, Summer Night, Wind, White Noise, Pink Noise)
 
-**Preferences stored:** `sound`, `volume`
-
 ### Desk Presence
 
 Tracks time at your desk versus away. The icon shows whether you are currently active or away, the bottom label shows today's at-desk hours, and the tooltip summarizes the recent daily breakdown.
@@ -714,20 +636,16 @@ Tracks time at your desk versus away. The icon shows whether you are currently a
 - Idle Threshold submenu (1 / 2 / 5 / 10 min presets)
 - Reset Today
 
-**Preferences stored:** `today` (ISO date), `at_desk_seconds`, `away_seconds`, `idle_threshold_s`, `history` (last 6 days)
-
 ### Hydration
 
-Water drop icon that drains over a configurable interval, reminding you to drink water. Click to refill. Triggers urgent bounce when empty.
+The water drop drains as your next drink reminder approaches and bounces when
+it is time to drink. Click to refill it.
 
 **Click:** Refill (log a drink)
-**Scroll:** No-op
 **Right-click options:**
 
 - **Show Timer** -- toggle countdown overlay on icon
 - **Interval presets** -- 15/30/45/60/90 min
-
-**Preferences stored:** `interval`, `show_timer`
 
 ### Pet
 
@@ -750,29 +668,21 @@ attention.
 - **Manage Plants...** -- review, edit, or remove configured plants
 - **Refresh Now**
 
-Supported schedules include watering, fertilizing, misting, rotating, pruning,
-repotting, and pest checks. Schedules use local calendar dates and act as
-reminders rather than measurements of actual plant or soil conditions.
-
-**Preferences stored:** plant names, optional species labels, enabled care
-tasks, intervals, last-completed dates, and snooze dates
-
-**Update interval:** 15 minutes
+Set reminders for watering, fertilizing, misting, rotating, pruning, repotting,
+and pest checks. Reminders follow your local calendar and do not measure the
+plant or soil.
 
 ### Stretch Coach
 
 Periodic micro-break reminder applet with offline stretch cards. Reminders stay inside the dock: the icon becomes urgent when a break is due, and clicking acknowledges the reminder and restarts the timer.
 
 **Click:** Trigger a break immediately when idle, or acknowledge the active reminder
-**Scroll:** No-op
 **Right-click options:**
 
 - **Take Break Now** / **Acknowledge Break**
 - **Show Random Stretch**
-- **Random Stretch Cards** -- toggle offline card attachment on reminders
+- **Random Stretch Cards** -- include a stretch card with each reminder
 - **Interval presets** -- 15/30/45/60/90 min
-
-**Preferences stored:** `interval`, `cards_enabled`
 
 
 ## Information and Environment
@@ -790,10 +700,6 @@ Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip inclu
 - Copy Explanation
 - Refresh Now
 
-**Update interval:** 1 hour. The applet fetches again when the APOD date changes and retries errors after 10 minutes.
-
-**Preferences stored:** `last_result` (date, title, explanation, media_type, image_url, page_url, copyright, cached_path)
-
 ### Crypto
 
 Tracks selected cryptocurrency prices with compact dock display and refresh actions.
@@ -810,13 +716,10 @@ Live currency pair monitor with a sparkline icon. Add the pairs you care about, 
 **Scroll:** Cycle added pairs
 **Right-click:** Refresh, swap pair, add pair, chart interval, switch/remove added pair
 
-**Update interval:** 15 minutes. Day charts use local samples collected on each successful refresh; week and month charts use remote daily history plus the current rate.
-
-**Preferences stored:** `pairs`, `active_index`, `chart_interval`, `sample_source`, `samples`
-
 ### Hacker News
 
-Hacker News headline viewer. It fetches HN top stories, keeps a cached list for startup, lazy-loads more when you land on the last loaded item, and shows the selected title plus points/comments in the tooltip. Paging continues up to 100 loaded headlines.
+Browse up to 100 top Hacker News stories. The tooltip shows the selected
+title, points, and comment count.
 
 **Click:** Open the current story
 **Scroll:** Cycle headlines
@@ -827,10 +730,6 @@ Hacker News headline viewer. It fetches HN top stories, keeps a cached list for 
 - **Next Headline**
 - **Refresh Now**
 
-**Update interval:** 10 minutes. Additional pages load on demand when you reach the last loaded headline, up to 100 stories.
-
-**Preferences stored:** cached `stories`, `active_index`, `fetched_at`
-
 ### Last.fm
 
 Shows recent Last.fm listening activity for a configured user.
@@ -840,9 +739,9 @@ Shows recent Last.fm listening activity for a configured user.
 
 ### Moon
 
-Moon phase applet with a rendered moon disc and illumination shading.
+Shows the current moon phase and how much of the moon is illuminated.
 
-**Click:** Refresh moon data now
+**Click:** Update the moon display
 **Right-click options:**
 
 - **Show Phase Name** -- toggle phase label overlay on icon
@@ -850,18 +749,11 @@ Moon phase applet with a rendered moon disc and illumination shading.
 
 **Tooltip:** Multi-line phase summary with illumination percentage and description
 
-**Update interval:** 6 hours
-
 ### News
 
-Country-based RSS news reader. Choose a country and publication from a
-searchable source catalog, add up to 20 sources, and switch between their
-headline feeds. Publications with several editions or sections appear as
-separate choices with language and feed details.
-
-The source catalog is downloaded when the picker opens and cached for seven
-days. Existing configured feeds continue to work without the catalog, and a
-failed catalog update leaves the last valid list available.
+Choose a country and publication, add up to 20 news sources, and switch
+between their headlines. Publications with several editions or sections appear
+as separate choices with language and section details.
 
 **Click:** Choose a source, refresh an empty configured feed, or open the
 current headline
@@ -876,18 +768,10 @@ current headline
 - **Add News Source...** / **Remove Current News Source**
 - **Refresh Now**
 
-**Update interval:** 10 minutes
-
-**Preferences stored:** configured sources, active source and headline,
-cached headlines, and last successful fetch time
-
-The publication list comes from the
-[News feed list of countries](https://github.com/yavuz/news-feed-list-of-countries)
-project and is cached locally rather than included with Docking.
-
 ### Quote
 
-Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with local fallback quotes and supports online refresh from active sources.
+Read quotes and jokes, copy a favorite, or refresh from an online source.
+A selection of quotes is also available without an internet connection.
 
 **Click:** Show next quote
 **Right-click options:**
@@ -897,14 +781,11 @@ Quote/joke applet inspired by the original Cairo-Dock Quote plugin. Ships with l
 - **Refresh from Web**
 - **Source** -- switch source (Quotationspage, Qdb, Danstonchat, Viedemerde, Fmylife, Vitadimerda, Chucknorrisfactsfr)
 
-**Preferences stored:** `source`
-
 ### Random Trivia
 
 Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
 
 **Click:** Show the next trivia question
-**Scroll:** No-op
 **Right-click options:**
 
 - **Answer choices** -- pick an answer from the current question
@@ -929,14 +810,10 @@ the default browser.
 - **Add Subreddit...** / **Remove r/{subreddit}**
 - **Refresh Now**
 
-**Update interval:** 10 minutes
-
-**Preferences stored:** subreddits, active source and post, sort settings,
-cached posts, and last successful fetch time
-
 ### Sunrise
 
-Sunrise, sunset, and twilight countdown applet for a selected city. The icon is a rendered 24-hour solar dial with night, astronomical, nautical, civil, and daylight bands plus a current-time marker.
+Count down to sunrise, sunset, and twilight for a selected city. The 24-hour
+dial shows daylight, twilight, and night, with a marker for the current time.
 
 **Click:** Open city search and add/switch the active city
 **Right-click options:**
@@ -946,18 +823,15 @@ Sunrise, sunset, and twilight countdown applet for a selected city. The icon is 
 
 **Scroll:** Cycle through configured cities
 
-**Tooltip:** Selected city, current solar phase, next solar event countdown, and today's solar event times. Times are calculated locally from the city coordinates and shown in the system timezone.
-
-**Preferences stored:** `cities`, `active_index`, `label_mode`
-
-**Update interval:** 60 seconds
+**Tooltip:** Selected city, current solar phase, next event countdown, and
+today's sunrise and sunset times, shown in your system timezone.
 
 ### Today in History
 
-One-event-at-a-time history applet with online refresh and offline fallback data. It keeps the current event compact in the tooltip/menu, refreshes for the local date, and lets you step through notable events without leaving the dock.
+Browse notable historical events for today in the tooltip and menu. A
+selection is available without an internet connection.
 
 **Click:** Show the next historical event for today
-**Scroll:** No-op
 **Right-click options:**
 
 - **Next Event**
@@ -985,10 +859,6 @@ Air: Good
 Mon: 25/29°C, Partly cloudy
 Tue: 28/32°C, Rain
 ```
-
-**Preferences stored:** `city_display`, `lat`, `lng`, `show_temperature`, `temperature_unit`
-
-**Update interval:** 5 minutes
 
 
 ## Other
