@@ -398,11 +398,15 @@ Camera privacy indicator. The icon shows a red dot while an app is using a camer
 
 Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
 
-Windows currently provides passive Media Foundation camera inventory and process
-activity, plus the camera privacy Settings page. Lock/unlock controls are
-unavailable on Windows. Unreadable or missing activity reports show unknown
-activity rather than idle. This indicator never opens the camera for a test
-capture.
+Windows provides Media Foundation camera inventory and process activity, plus
+the camera privacy Settings page. On Windows Pro, Enterprise and Education,
+Lock Camera requests administrator permission to block new sessions through
+the machine camera policy. Unlock restores the policy value Docking saved;
+it cannot remove a restriction that was already set elsewhere. Recovery stays
+available after cameras disconnect or Docking restarts. Existing capture apps
+can remain active while locked and continue to appear in the indicator.
+Unreadable or missing activity reports show unknown activity rather than idle.
+This indicator never opens the camera for a test capture.
 
 **Update interval:** 2 seconds
 

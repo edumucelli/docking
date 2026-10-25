@@ -284,6 +284,16 @@ class TestApplet:
         assert not items["Lock Camera"].get_sensitive()
         assert items["Unlock Camera"].get_sensitive()
 
+    def test_policy_recovery_remains_available_after_all_cameras_disconnect(self):
+        self.backend.get_state.return_value = CamshieldState(False, False, locked=True)
+        self.backend.unlock_available.return_value = True
+        applet = CamshieldApplet(icon_size=48, config=Config())
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+        assert "Camera locked" in items and "Camera locked" in applet.item.name
+        assert "No camera devices found" in items
+        assert not items["Lock Camera"].get_sensitive()
+        assert items["Unlock Camera"].get_sensitive()
+
     def test_start_stop_refresh_and_tick(self, monkeypatch):
         state = CamshieldState(available=True, active=False, devices=("video0",))
         self.backend.get_state.side_effect = lambda: state

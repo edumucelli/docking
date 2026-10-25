@@ -47,6 +47,9 @@ class CamshieldState:
 def build_tooltip(state: CamshieldState) -> str:
     """Build a compact user-facing tooltip."""
     lines = [_("Cam Shield")]
+    if state.locked:
+        lines.append(_("Camera locked"))
+
     if not state.available:
         lines.append(
             _("Camera state unavailable")
@@ -54,9 +57,6 @@ def build_tooltip(state: CamshieldState) -> str:
             else _("No camera devices found")
         )
         return "\n".join(lines)
-
-    if state.locked:
-        lines.append(_("Camera locked"))
 
     if state.active is None:
         lines.append(_("Camera activity unknown"))

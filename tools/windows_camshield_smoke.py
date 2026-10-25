@@ -24,9 +24,12 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--expect-absent", action="store_true")
     mode.add_argument("--device")
+    parser.add_argument("--verify-policy", action="store_true")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test VM")
+    if args.verify_policy and not args.device:
+        parser.error("Policy control acceptance requires the explicit generated camera")
     output = args.output.resolve()
     if (output / "result.json").exists():
         parser.error("Use a fresh output directory")
@@ -75,6 +78,12 @@ def main():
         CameraReport,
         CameraSnapshot,
     )
+    from docking.applets.camshield.windows_control import (
+        CameraControlState,
+        WindowsCameraControl,
+    )
+    from docking.applets.camshield.windows_journal import WindowsCameraJournal
+    from docking.applets.camshield.windows_policy import WindowsCameraPolicy
     from tools.windows_desktop_driver import WindowsDesktop
     from tools.windows_powerprofiles_smoke import powershell
 
@@ -143,6 +152,8 @@ def main():
         settings = None
         sensor_processes = []
         captures = []
+        policy_baseline = None
+        policy_test_started = False
         try:
             assert ready.wait(90)
             applet = call(lambda: shared["model"].get_applet("applet://camshield"))
@@ -181,7 +192,7 @@ def main():
                     1
                 ] + rect.y + rect.h / 2
 
-            def menu():
+            def menu(*, locked=False):
                 native.click(*call(point), right=True)
                 popup = native.wait_for(
                     lambda: call(Gtk.grab_get_current), "Camera menu did not map"
@@ -193,9 +204,29 @@ def main():
                         if row.get_label()
                     ]
                 )
-                for label in ("Lock Camera", "Unlock Camera"):
-                    assert any(r["label"] == label and not r["enabled"] for r in rows)
+                for label, enabled in (
+                    (
+                        "Lock Camera",
+                        bool(args.device)
+                        and not locked
+                        and applet._backend._control_state.policy.supported,
+                    ),
+                    ("Unlock Camera", locked),
+                ):
+                    assert any(
+                        r["label"] == label and r["enabled"] == enabled for r in rows
+                    )
                 return popup, rows
+
+            def choose(popup, label):
+                native.key(0x24)
+                for _ in range(30):
+                    selected = call(popup.get_selected_item)
+                    if selected and call(selected.get_label) == label:
+                        native.key(0x0D)
+                        return
+                    native.key(0x28)
+                raise AssertionError(f"Camera menu selection failed: {label}")
 
             def dismiss():
                 native.key(0x1B)
@@ -241,6 +272,11 @@ def main():
                 assert inventory[0].identifier == args.device
                 assert inventory[0].name.startswith("Docking Generated Camera Fixture")
                 assert state().available and state().active is False
+                if args.verify_policy:
+                    policy_baseline = WindowsCameraPolicy().snapshot()
+                    assert policy_baseline.supported and not policy_baseline.blocked
+                    assert WindowsCameraJournal().read() is None
+                    report["policy_baseline"] = asdict(policy_baseline)
             call(remember_sensor)
             popup, rows = menu()
             expected = (
@@ -400,6 +436,90 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 assert any(r["label"] == "Camera idle" for r in rows)
                 snapshot("native-stopped-idle-menu")
                 dismiss()
+                if args.verify_policy:
+                    live = start_capture(3)
+                    policy_test_started = True
+                    popup, _rows = menu()
+                    choose(popup, "Lock Camera")
+                    native.wait_for(
+                        lambda: idle() and state().locked,
+                        "Camera policy lock did not reach the UI",
+                        30,
+                    )
+                    assert state().active and live[0].pid in {
+                        h.pid for h in state().holders
+                    }
+                    frames = read_capture(live)["frames"]
+                    native.wait_for(
+                        lambda: read_capture(live).get("frames", 0) > frames + 20,
+                        "Existing reader stopped unexpectedly",
+                    )
+                    blocked = output / "capture-policy-blocked"
+                    blocked.mkdir()
+                    denied = subprocess.Popen(
+                        [
+                            sys.executable,
+                            str(
+                                Path(__file__).with_name("windows_camshield_capture.py")
+                            ),
+                            "--device",
+                            args.device,
+                            "--output",
+                            str(blocked),
+                            "--seconds",
+                            "2",
+                        ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+                    captures.append((denied, blocked))
+                    assert denied.wait(20) == 1
+                    failure = read_capture((denied, blocked))
+                    assert failure["frames"] == 0 and "0x80070005" in failure["error"]
+                    report["policy_denied_capture"] = failure
+                    popup, rows = menu(locked=True)
+                    assert any(r["label"] == "Camera locked" for r in rows)
+                    report["locked_menu"] = rows
+                    snapshot("native-policy-locked-menu")
+                    dismiss()
+
+                    def restart_backend():
+                        applet._backend.stop()
+                        applet._generation += 1
+                        applet._backend = WindowsCamshieldBackend()
+                        applet._refresh_now()
+
+                    call(restart_backend)
+                    native.wait_for(
+                        lambda: idle() and state().locked and state().active,
+                        "Policy recovery did not survive backend restart",
+                        30,
+                    )
+                    call(remember_sensor)
+                    popup, _rows = menu(locked=True)
+                    choose(popup, "Unlock Camera")
+                    native.wait_for(
+                        lambda: idle() and not state().locked,
+                        "Camera policy unlock did not reach the UI",
+                        30,
+                    )
+                    assert WindowsCameraJournal().read() is None
+                    assert WindowsCameraPolicy().snapshot() == policy_baseline
+                    restored = start_capture(4)
+                    popup, rows = menu()
+                    assert not any(r["label"] == "Camera locked" for r in rows)
+                    snapshot("native-policy-restored-menu")
+                    dismiss()
+                    for entry in (live, restored):
+                        (entry[1] / "stop").touch()
+                        assert entry[0].wait(15) == 0
+                    native.wait_for(
+                        lambda: idle() and state().active is False,
+                        "Restored readers did not return to idle",
+                        20,
+                    )
+                    report["native_policy_verified"] = True
                 report.update(
                     ok=True, native_capture_verified=True, native_absence=False
                 )
@@ -430,10 +550,27 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
 
             fixture = Fixture()
 
+            class FixtureControl:
+                def snapshot(self):
+                    return CameraControlState()
+
+                def available(self):
+                    return False
+
+                def perform(self, action):
+                    raise AssertionError(
+                        "Rendering fixtures cannot change camera policy"
+                    )
+
+                def stop(self):
+                    pass
+
             def install():
                 applet._backend.stop()
                 applet._generation += 1
-                applet._backend = WindowsCamshieldBackend(api=fixture)
+                applet._backend = WindowsCamshieldBackend(
+                    api=fixture, control=FixtureControl()
+                )
                 applet._refresh_now()
 
             call(install)
@@ -512,6 +649,21 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
             report.update(ok=False, error=repr(exc))
             capture("failure")
         finally:
+            if policy_test_started:
+                try:
+                    recovery = WindowsCameraControl()
+                    current = recovery.snapshot()
+                    if current.recorded is not None:
+                        assert recovery.perform("unlock"), (
+                            "Policy recovery helper failed"
+                        )
+                    recovery.stop()
+                    assert WindowsCameraJournal().read() is None
+                    assert WindowsCameraPolicy().snapshot() == policy_baseline
+                    report["policy_restored"] = True
+                except Exception as exc:
+                    errors.append(exc)
+                    report.update(ok=False, policy_restore_error=repr(exc))
             for process, folder in captures:
                 if process.poll() is None:
                     (folder / "stop").write_text("stop")

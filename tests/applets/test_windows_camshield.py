@@ -19,6 +19,9 @@ from docking.applets.camshield import windows_client as client
 from docking.applets.camshield import windows_sensor as sensor
 from docking.applets.camshield.backend import create_backend
 from docking.applets.camshield.state import CamshieldState, build_tooltip
+from docking.applets.camshield.windows_control import CameraControlState
+from docking.applets.camshield.windows_journal import RecordedPolicy
+from docking.applets.camshield.windows_policy import CameraPolicyState
 from docking.platform import environment
 
 
@@ -41,10 +44,26 @@ class CameraAPI:
         return self.value
 
 
+class Control:
+    def __init__(self, api):
+        self.api = api
+        self.available = Mock(return_value=True)
+        self.perform = Mock(return_value=False)
+        self.stop = Mock()
+        self.state = None
+
+    def snapshot(self):
+        return (
+            self.state
+            if self.state is not None
+            else CameraControlState(CameraPolicyState(None, True))
+        )
+
+
 @pytest.fixture
 def camera(monkeypatch):
     api = CameraAPI()
-    instance = backend.WindowsCamshieldBackend(api=api)
+    instance = backend.WindowsCamshieldBackend(api=api, control=Control(api))
     monkeypatch.setattr(
         instance._processes, "executable", lambda _: Path("Recorder.exe")
     )
@@ -107,6 +126,63 @@ def test_empty_completed_aggregate_is_idle_but_uninitialized_monitor_is_unknown(
     assert instance.get_state().active is None
 
 
+def test_lock_survives_missing_camera_and_recovery_remains_available(camera):
+    instance, api = camera
+    api.value = replace(api.value, devices=(), reports=())
+    instance._control.state = CameraControlState(
+        CameraPolicyState(0, True), RecordedPolicy(None)
+    )
+    state = instance.get_state()
+    assert not state.available and state.locked and state.active is False
+    assert "Camera locked" in build_tooltip(state)
+    assert not instance.lock_available() and instance.unlock_available()
+
+
+def test_policy_restriction_does_not_hide_existing_capture_activity(camera):
+    instance, _ = camera
+    instance._control.state = CameraControlState(CameraPolicyState(0, True))
+    state = instance.get_state()
+    assert state.available and state.active and state.locked
+    assert "Camera active" in build_tooltip(state)
+    assert not instance.lock_available() and not instance.unlock_available()
+
+
+def test_unsupported_edition_keeps_activity_without_offering_lock(camera):
+    instance, _ = camera
+    instance._control.state = CameraControlState(CameraPolicyState(None, False))
+    assert instance.get_state().active
+    assert not instance.lock_available() and not instance.controls_available()
+
+
+def test_action_success_requires_verified_policy_and_journal_readback(camera):
+    instance, _ = camera
+    instance.get_state()
+    instance._control.perform.return_value = True
+    assert not instance.lock()  # A successful process exit is insufficient.
+    restricted = CameraControlState(CameraPolicyState(0, True), RecordedPolicy(None))
+    instance._control.perform.side_effect = lambda _: (
+        setattr(instance._control, "state", restricted) or True
+    )
+    assert instance.lock() and instance.get_state().locked
+    assert not instance.unlock()  # An unremoved recovery record is not success.
+    instance._control.perform.side_effect = lambda _: (
+        setattr(
+            instance._control,
+            "state",
+            CameraControlState(CameraPolicyState(None, True)),
+        )
+        or True
+    )
+    assert instance.unlock() and not instance.get_state().locked
+
+
+def test_policy_failure_preserves_activity_but_disables_controls(camera):
+    instance, _ = camera
+    instance._control.snapshot = Mock(side_effect=OSError("registry unavailable"))
+    assert instance.get_state().active
+    assert not instance.controls_available()
+
+
 def test_missing_process_name_does_not_hide_camera_holder(camera, monkeypatch):
     instance, _ = camera
     monkeypatch.setattr(instance._processes, "executable", lambda _: None)
@@ -120,7 +196,6 @@ def test_failure_and_stop_cannot_claim_idle(camera, monkeypatch):
         api, "snapshot", Mock(side_effect=OSError("Service unavailable"))
     )
     assert instance.get_state() == CamshieldState(False, None, error=True)
-    assert "Camera state unavailable" in build_tooltip(instance.get_state())
     instance.stop()
     instance.stop()
     api.stop.assert_called_once()

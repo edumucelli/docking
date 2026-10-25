@@ -128,7 +128,7 @@ class CamshieldApplet(Applet):
             status.append(disabled_menu_item(_("Camera active"), gtk=Gtk))
             for holder in self._state.holders:
                 status.append(disabled_menu_item(holder_label(holder), gtk=Gtk))
-        if self._state.available and self._state.locked:
+        if self._state.locked:
             status.insert(0, disabled_menu_item(_("Camera locked"), gtk=Gtk))
 
         lock = Gtk.MenuItem(label=_("Lock Camera"))
@@ -136,7 +136,7 @@ class CamshieldApplet(Applet):
         lock.connect("activate", lambda _w: self._run_action("lock"))
 
         unlock = Gtk.MenuItem(label=_("Unlock Camera"))
-        unlock.set_sensitive(self._state.available and self._backend.unlock_available())
+        unlock.set_sensitive(self._backend.unlock_available())
         unlock.connect("activate", lambda _w: self._run_action("unlock"))
 
         if not self._backend.controls_available():

@@ -1053,11 +1053,38 @@ does no native work; guarded background queries, action serialization and
 lifecycle generations reject stale reads and queued operations after stop or
 restart. The activity pulse stops when activity ends or the applet stops.
 
-**Windows lock/unlock is not implemented.** The menu leaves both controls
-unavailable. Device disabling needs elevation and durable restoration of only
-the camera devices Docking changed; opening Settings does not provide that
-behavior. The current native inventory covers available Media Foundation video
-capture sources, not disabled PnP devices or every proprietary camera stack.
+Windows controls use the documented machine `AllowCamera` policy on Pro,
+Enterprise, Education and IoT Enterprise. `windows_control.py` separates policy
+state and explicit action dispatch from activity reporting. Policy and recovery
+registry operations live in Windows implementations. The shared applet only
+asks its backend for capabilities and actions.
+
+Lock blocks **new sessions** across the machine. Already-open readers can keep
+receiving frames; their activity and PIDs remain visible alongside **Camera
+locked**. No camera is opened by the applet to test enforcement. The current
+inventory covers available Media Foundation video sources, not every disabled
+PnP device or proprietary camera stack. PnP disabling is deliberately not used:
+the lab's generated software camera kept delivering real frames to a new reader
+with a cached symbolic link even after its node reported disabled.
+
+An explicit action launches the fixed `windows_helper.py lock|unlock` command,
+using `ShellExecuteExW` with `runas` when the dock is not elevated. Cancellation,
+helper failure, timeouts and failed readback do not report successful actions.
+An elevated dock still uses a separate bounded helper. Background polling never
+requests elevation. The helper serializes changes with a named mutex and writes
+and flushes the original policy value before restricting access. Recovery data
+lives in a fixed HKLM key with a protected administrator/SYSTEM writable DACL
+and read-only access for users; every read verifies the key's owner and DACL.
+The helper accepts no device ID, registry path or recovery-file arguments.
+
+Unlock restores the original DWORD `1` or removes only the value when it was
+previously absent. A restriction already set by another tool is never adopted.
+If an administrator has replaced or removed Docking's restriction, recovery
+preserves their current value and clears the stale record. Recovery survives
+dock/backend restart and remains available with no cameras present. The camera
+device enablement and per-app privacy permissions are independent of this
+policy. Home and unrecognized editions keep monitoring and Settings without
+advertising this policy control.
 
 On the Windows 11 lab, two independent monitor start/stop cycles and repeated
 queries returned an empty camera inventory, agreeing with a separate PnP camera
@@ -1077,8 +1104,18 @@ the menu to idle and stops the pulse. Reader and sensor-process exit, privacy
 Settings, normal dock close and work-area restoration are verified. The test
 opens no physical camera and uses no injected activity data.
 
-**Physical/IR/proprietary devices, device hotplug/removal during capture, and
-Windows device lock/recovery acceptance remain open.**
+Native policy acceptance uses the real GTK menu and elevated helper: a fresh
+reader fails with `0x80070005` and zero frames while an existing reader keeps
+capturing. A new backend recovers the saved policy and offers Unlock; after
+Unlock, a fresh reader receives generated frames again. The exact policy
+baseline and empty recovery journal are checked in final cleanup, alongside
+all reader/sensor exits and normal dock shutdown.
+
+**Physical/IR/proprietary devices and device hotplug/removal during capture
+remain open.** Native `ShellExecuteExW`/`runas` dispatch and recovery with no
+cameras present also passed. The lab has UAC disabled (`EnableLUA=0`), so actual
+consent and cancellation on a standard-user desktop remain unverified;
+cancellation and process-handle cleanup have focused API tests.
 
 ![Native Cam Shield absence with unavailable lock controls](../images/windows-camshield-absent.png)
 
@@ -1092,6 +1129,10 @@ generated frames:
 ![Two real Windows camera clients reported by Cam Shield](../images/windows-camshield-native-active.png)
 
 ![Native camera idle after the last capture client exits](../images/windows-camshield-native-idle.png)
+
+![Camera policy locked while an existing reader remains active](../images/windows-camshield-policy-locked.png)
+
+![Camera policy restored and new capture working](../images/windows-camshield-policy-restored.png)
 
 Run `tools/windows_camshield_smoke.py --output ... --expect-absent` in the
 interactive owned Windows lab after preparing its GStreamer registry. Keep
@@ -1111,14 +1152,18 @@ and releases Windows' initial registration activity, establishing an idle
 baseline for the desktop verifier.
 Use the exact symbolic link from the ready journal with
 `tools/windows_camshield_smoke.py --output ... --device SYMBOLIC_LINK`.
-The verifier owns and normally stops both capture processes. Write `stop` in
+Add `--verify-policy` to exercise actual menu Lock/Unlock, denied fresh capture,
+continued existing capture, backend restart/recovery and restored capture. This
+option requires the sole generated camera, a supported edition and an initially
+unrestricted policy with no recovery pending. Its finalizer restores the saved
+policy through the same helper even after a test failure. The verifier owns
+and normally stops its capture processes. Write `stop` in
 the fixture journal's directory to remove the camera and its owned COM class.
 After an owner crash, `tools/windows_camera_fixture.py --recover PATH\session.json`
 checks process identity, DLL hash and registry ownership before cleanup. Both
 normal removal and recovery after terminating only the owned fixture process
-have passed in the lab. Keep the result journals and screenshots; this fixture
-recovery is separate from
-the still-unimplemented applet camera lock/recovery feature.
+have passed in the lab. Keep the result journals and screenshots; fixture COM
+registration recovery is separate from applet camera policy recovery.
 
 References: [sensor activity monitoring](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-mfcreatesensoractivitymonitor),
 [activity report callbacks](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-imfsensoractivitiesreportcallback-onactivitiesreport),
@@ -1127,7 +1172,8 @@ References: [sensor activity monitoring](https://learn.microsoft.com/en-us/windo
 [camera privacy guidelines](https://learn.microsoft.com/en-us/windows/apps/develop/camera/camera-privacy-guidelines),
 [session-scoped virtual cameras](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera),
 [custom media source requirements](https://learn.microsoft.com/en-us/windows-hardware/drivers/stream/frame-server-custom-media-source),
-[shared camera sources](https://learn.microsoft.com/en-us/windows/win32/medfound/mf-devsource-attribute-frameserver-share-mode).
+[shared camera sources](https://learn.microsoft.com/en-us/windows/win32/medfound/mf-devsource-attribute-frameserver-share-mode),
+[machine camera policy and supported editions](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-camera).
 
 ## Windows Bluetooth
 
@@ -1599,7 +1645,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield passive camera backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings/helper lifetime and labeled error fixtures verified, with physical camera and device lock/recovery pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield activity/policy backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
