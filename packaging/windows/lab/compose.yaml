@@ -28,6 +28,5 @@ services:
       - ${DOCKING_WINDOWS_STORAGE:?Set a persistent storage directory}:/storage
       - ${DOCKING_WINDOWS_SHARE:?Set a shared artifacts directory}:/shared
       - ${DOCKING_WINDOWS_SOURCE:?Set the Windows worktree path}:/shared/repo:ro
-      - ${DOCKING_WINDOWS_ISO:?Set the official Windows 11 x64 ISO path}:/custom.iso:ro
       - .:/oem:ro
     stop_grace_period: 2m

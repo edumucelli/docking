@@ -65,7 +65,9 @@ DOCKING_WINDOWS_PASSWORD=choose-a-local-lab-password
 ```
 
 ```sh
-docker compose --env-file /path/to/lab.env -f packaging/windows/lab/compose.yaml up -d
+docker compose --env-file /path/to/lab.env \
+  -f packaging/windows/lab/compose.yaml \
+  -f packaging/windows/lab/compose.install.yaml up -d
 python tools/windows_lab.py --share /path/to/shared/artifacts configure-share
 python tools/windows_lab.py --share /path/to/shared/artifacts ready
 python tools/windows_lab.py --share /path/to/shared/artifacts --wait 5 run \
@@ -84,6 +86,17 @@ It disables SMB leases for this dedicated lab and reconnects the lab clients,
 so host edits and new job files reach Windows promptly. It leaves Windows
 running. The agent retries temporary SMB publication errors while retaining
 the completed result.
+
+After the installed Windows desktop has completed setup, stop the container
+gracefully and confirm `storage/windows.boot` exists. Subsequent starts use only
+`compose.yaml`, without the install overlay. After verifying that boot, the
+original ISO can be deleted. Keep the installed disk and firmware files.
+The desktop and lab agent were checked after an ISO-free restart. A source
+launch immediately after login exceeded the smoke test's 40-second startup
+limit; a subsequent import probe took 19.5 seconds over SMB. Packaging and
+startup performance remain acceptance work.
+Once login settled, the same 40-second smoke check passed again, including
+Preferences, persisted resizing, taskbar-safe placement and normal Quit.
 
 The smoke test runs the complete application and records desktop PNGs, native
 Win32 window geometry, focus observations, input results and application logs.

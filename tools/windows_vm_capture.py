@@ -42,15 +42,17 @@ def main() -> None:
     source = args.share / "lab" / f"{args.name}.ppm"
     from PIL import Image
 
-    image = Image.open(source)
     output = source.with_suffix(".png")
-    image.save(output)
+    with Image.open(source) as image:
+        size = image.size
+        image.save(output)
+    source.unlink()
     print(
         json.dumps(
             {
                 "vm_status": status.group(1) if status else None,
                 "capture": str(output),
-                "size": image.size,
+                "size": size,
             }
         )
     )
