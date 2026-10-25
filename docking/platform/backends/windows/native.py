@@ -25,6 +25,15 @@ from docking.platform.backends.base import (
 log = get_logger("windows.native")
 
 
+class MonitorInfo(ctypes.Structure):
+    _fields_ = [
+        ("size", wintypes.DWORD),
+        ("monitor", wintypes.RECT),
+        ("workarea", wintypes.RECT),
+        ("flags", wintypes.DWORD),
+    ]
+
+
 def _bind(library: Any, name: str, result: Any, *arguments: Any) -> Any:
     function = getattr(library, name)
     function.restype = result
@@ -50,6 +59,16 @@ class WindowsNativeAPI:
         self._exists = _bind(user, "IsWindow", wintypes.BOOL, wintypes.HWND)
         self._iconic = _bind(user, "IsIconic", wintypes.BOOL, wintypes.HWND)
         self._zoomed = _bind(user, "IsZoomed", wintypes.BOOL, wintypes.HWND)
+        self._monitor_from_window = _bind(
+            user, "MonitorFromWindow", wintypes.HMONITOR, wintypes.HWND, wintypes.DWORD
+        )
+        self._monitor_info = _bind(
+            user,
+            "GetMonitorInfoW",
+            wintypes.BOOL,
+            wintypes.HMONITOR,
+            ctypes.POINTER(MonitorInfo),
+        )
         self._owner = _bind(
             user, "GetWindow", wintypes.HWND, wintypes.HWND, wintypes.UINT
         )
@@ -196,14 +215,12 @@ class WindowsNativeAPI:
         if not pid.value or pid.value == os.getpid():
             return None
         extended_style = self._style(hwnd, -20)
-        # Explorer's normal taskbar candidates are unowned application windows.
-        # Exclude tool palettes and passive shell surfaces unless explicitly
-        # marked APPWINDOW. Minimized windows remain IsWindowVisible.
+        # Keep owned dialogs for overlap policy, but never give them a separate
+        # taskbar entry. Tool palettes and passive shell surfaces are excluded.
         app_window = bool(extended_style & 0x00040000)
-        if not app_window and (
-            extended_style & (0x00000080 | 0x08000000) or self._owner(hwnd, 4)
-        ):
+        if not app_window and extended_style & (0x00000080 | 0x08000000):
             return None
+        dialog = not app_window and bool(self._owner(hwnd, 4))
         class_name = ctypes.create_unicode_buffer(256)
         self._class(hwnd, class_name, len(class_name))
         if class_name.value in {
@@ -229,6 +246,7 @@ class WindowsNativeAPI:
         app_id, executable = identities[pid.value]
         rectangle = wintypes.RECT()
         geometry = None
+        fullscreen = None
         if self._rect(hwnd, ctypes.byref(rectangle)):
             geometry = Rect(
                 rectangle.left,
@@ -236,6 +254,17 @@ class WindowsNativeAPI:
                 max(0, rectangle.right - rectangle.left),
                 max(0, rectangle.bottom - rectangle.top),
             )
+            monitor = MonitorInfo(size=ctypes.sizeof(MonitorInfo))
+            handle = self._monitor_from_window(hwnd, 2)
+            if self._monitor_info(handle, ctypes.byref(monitor)):
+                bounds = monitor.monitor
+                fullscreen = bool(
+                    not self._iconic(hwnd)
+                    and rectangle.left <= bounds.left
+                    and rectangle.top <= bounds.top
+                    and rectangle.right >= bounds.right
+                    and rectangle.bottom >= bounds.bottom
+                )
         return WindowSnapshot(
             id=WindowId(DisplayServer.WINDOWS, hwnd),
             desktop_id="",
@@ -247,6 +276,9 @@ class WindowsNativeAPI:
             visible=True,
             minimized=bool(self._iconic(hwnd)),
             maximized=bool(self._zoomed(hwnd)),
+            fullscreen=fullscreen,
+            dialog=dialog,
+            skip_taskbar=dialog,
             geometry=geometry,
             can_activate=True,
             can_minimize=True,

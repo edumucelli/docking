@@ -150,9 +150,72 @@ python tools/windows_lab.py --share /path/to/shared/artifacts run \
 ![Native Notepad icon and window menu on Windows 11](../images/windows-window-controls.png)
 
 The smoke tool's mouse row coordinates assume that baseline theme and DPI.
-Keyboard navigation of the context menu and a native WM_CLOSE request to the
-dock did not pass the initial checks. These remain explicit follow-up items;
-the successful shutdown check uses the actual menu's Quit action.
+Keyboard navigation of the context menu did not pass the initial check.
+A native WM_CLOSE request also failed while a menu grab was active. Subsequent
+screen-integration checks close the dock normally with WM_CLOSE when no menu is
+open and verify restoration of the original desktop work area. Keyboard menu
+navigation and shutdown during a menu grab remain follow-up items.
+
+## Desktop reservation and overlap
+
+The Windows surface now uses the native shell AppBar protocol. A transparent,
+non-interactive proxy window reserves only the resting shelf; the GTK window
+retains its larger animation area. Explorer's taskbar stays at the outer edge.
+Shell position/display notifications schedule a coalesced placement refresh,
+and shutdown unregisters the AppBar before destroying its proxy.
+
+The reservation phase of `windows-desktop-acceptance` ran the complete dock at
+all four edges. At the
+baseline 48-pixel icon size each edge reserves 53 pixels, while its animation
+surface extends 187 pixels. Independent GetMonitorInfo observations verify the
+reserved work area, and a maximized blank Notepad follows it. The test records
+Notepad's existing native resize margins before comparing its client geometry;
+those invisible margins differ from the visible content boundary. Every normal
+dock shutdown restores the original `[0, 0, 1280, 752]` work area exactly.
+The captured top, bottom, left and right desktops were visually inspected.
+
+![Docking reserving the left desktop edge on Windows 11](../images/windows-screen-reservation.png)
+
+`windows-visibility-native-pointer` passed all six non-reserving modes:
+always-on-top, autohide, dodge-active, window-dodge, intelligent and
+dodge-maximized. Independent screenshot crops establish hidden/visible states;
+all hidden crops matched the covered desktop exactly. In each mode, edge hover
+revealed the dock without taking foreground focus from Notepad. Minimizing
+Notepad exposed the dock in the overlap modes, while autohide remained hidden.
+Closing every test dock left Explorer's original work area intact.
+
+The checks found and fixed startup autohide when the pointer was already
+outside the dock. They also established that GTK's input-shape method is a no-op
+on Windows. The surface observes the native pointer to reveal a fully transparent
+hidden edge, using the renderer's current input rectangle. This fallback does
+not confine the pointer or implement pressure barriers; those capabilities
+remain disabled. See the [GTK input-shape documentation](https://docs.gtk.org/gdk3/method.Window.input_shape_combine_region.html).
+
+Fifty-two focused tests passed under native Windows Python. The Notepad
+launch/minimize/restore/Close desktop check also passed again with reservation
+enabled and normal dock shutdown. The baseline remains one display at 96 DPI;
+A separate native full-screen GTK fixture was tracked as fullscreen (and not
+maximized), with independent Win32 bounds of `[0, 0, 1280, 800]`. Fullscreen
+stacking, Explorer restart recovery and broader application/dialog behavior
+still need desktop acceptance.
+
+Window overlap is evaluated in the dock monitor's GTK coordinate space. Raw
+Win32 geometry is projected relative to the native monitor origin and scale;
+owned dialogs participate in overlap without receiving a separate taskbar icon.
+Negative-origin and scaled geometry have unit coverage. Actual mixed-DPI and
+multiple-monitor acceptance remains pending.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 600 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_desktop_smoke.py' \
+  --output '\\host.lan\Data\lab\windows-desktop'
+```
+
+The desktop tool owns a blank Notepad fixture, uses isolated dock settings, and
+stops before running if an existing dock or Notepad window is open. Its pixel
+comparisons target the documented single-display baseline. It records actual
+screenshots, native work areas and independent foreground-window observations.
 
 ## Implementation and acceptance ledger
 
@@ -162,7 +225,7 @@ the successful shutdown check uses the actual menu's Quit action.
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter | Startup, transparency, hover, mouse menu, Preferences and Quit verified on the baseline desktop; keyboard menu follow-up pending |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
-| Desktop integration | Pending | AppBar reservation, taskbar coexistence, all four edges and hide modes |
+| Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Pending | Real application pixels, focus preservation and click behavior |
 | Search and file workflows | Pending | Applications, windows, files, folders, drag/drop and global shortcut |

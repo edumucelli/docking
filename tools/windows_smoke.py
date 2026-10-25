@@ -179,6 +179,7 @@ def main() -> None:
             w
             for w in windows(pid)
             if w["hwnd"] != dock["hwnd"]
+            and w["title"] == "Docking"
             and w["rect"][0] >= 0
             and w["rect"][2] - w["rect"][0] > 100
         )
@@ -211,6 +212,17 @@ def main() -> None:
         "platform": str(sys.getwindowsversion()),
         "input_size": ctypes.sizeof(Input),
     }
+    desktop_before = MonitorInfo(size=ctypes.sizeof(MonitorInfo))
+    if not user32.GetMonitorInfoW(
+        user32.MonitorFromWindow(None, 1), ctypes.byref(desktop_before)
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    report["desktop_before_dock"] = [
+        desktop_before.work.left,
+        desktop_before.work.top,
+        desktop_before.work.right,
+        desktop_before.work.bottom,
+    ]
     executable = Path(sys.executable).with_name("pythonw.exe")
     report["executable"] = str(executable)
     env = {
@@ -251,6 +263,7 @@ def main() -> None:
         time.sleep(2)
         resting = ImageGrab.grab(all_screens=True)
         resting.save(output / "startup.png")
+        dock = next(w for w in windows(child.pid) if w["hwnd"] == dock["hwnd"])
         report["window"] = dock
         left, top, right, bottom = dock["rect"]
         if right <= left or bottom <= top:
@@ -311,10 +324,10 @@ def main() -> None:
         report["window_after_resize"] = dock
         report["workarea"] = [work.left, work.top, work.right, work.bottom]
         if not (
-            left >= work.left
-            and top >= work.top
-            and right <= work.right
-            and bottom <= work.bottom
+            left >= desktop_before.work.left
+            and top >= desktop_before.work.top
+            and right <= desktop_before.work.right
+            and bottom <= desktop_before.work.bottom
         ):
             raise AssertionError(
                 "Resizing the dock placed it behind Explorer's taskbar"

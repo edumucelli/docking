@@ -82,3 +82,46 @@ def test_windows_grouping_actions_and_disappearing_windows(monkeypatch):
     finally:
         service.stop()
     assert removed == [91]
+
+
+def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar():
+    from ctypes import wintypes
+
+    from docking.platform.backends.windows.native import WindowsNativeAPI
+
+    native = object.__new__(WindowsNativeAPI)
+    native._visible = lambda _hwnd: True
+    native._pid = lambda _hwnd, output: setattr(output._obj, "value", 101)
+    native._style = lambda *_args: 0
+    native._owner = lambda *_args: 900
+    native._class = lambda _hwnd, output, _size: setattr(output, "value", "#32770")
+    native._dwm_attribute = lambda *_args: 0
+    native._title = lambda _hwnd, output, _size: setattr(output, "value", "Open file")
+    native._process_identity = lambda _pid: ("Example.App", "example")
+    native._rect = lambda _hwnd, output: (
+        setattr(output._obj, "left", -1920),
+        setattr(output._obj, "right", 0),
+        setattr(output._obj, "bottom", 1080),
+    )
+    native._monitor_from_window = lambda *_args: 1
+
+    def monitor_info(_monitor, output):
+        output._obj.monitor = wintypes.RECT(-1920, 0, 0, 1080)
+        return True
+
+    native._monitor_info = monitor_info
+    native._iconic = lambda _hwnd: False
+    native._zoomed = lambda _hwnd: False
+    row = native._snapshot(100, 100, {})
+    assert row is not None
+    assert row.dialog and row.skip_taskbar and row.fullscreen
+    assert row.active and row.app_id == "Example.App"
+    native._iconic = lambda _hwnd: True
+    minimized = native._snapshot(100, 100, {})
+    assert minimized is not None and not minimized.fullscreen
+    native._style = lambda *_args: 0x00000080  # Passive tool palette.
+    assert native._snapshot(100, 100, {}) is None
+    native._style = lambda *_args: 0x00040000  # Explicit taskbar entry.
+    independent = native._snapshot(100, 100, {})
+    assert independent is not None and not independent.skip_taskbar
+    assert not independent.dialog

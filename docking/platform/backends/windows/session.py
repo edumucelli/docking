@@ -21,8 +21,8 @@ class WindowsSessionBackend(ReducedSessionBackend):
     """Run the shared GTK dock on Windows with native surface positioning.
 
     Native tracking and taskbar actions share the same immutable window model
-    as other backends. Reservation, workspace and preview services follow as
-    their native implementations are verified.
+    as other backends. AppBar reservation and overlap policy use native monitor
+    geometry. Workspace and preview services follow as they are verified.
     """
 
     def __init__(
@@ -35,18 +35,23 @@ class WindowsSessionBackend(ReducedSessionBackend):
     ) -> None:
         super().__init__()
         from .surface import WindowsSurfaceService
+        from .visibility import WindowsVisibilityService
         from .windows import WindowsWindowService
 
+        windows = WindowsWindowService(
+            model=model,
+            config=config,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
+        surface = WindowsSurfaceService()
         self._services = ReducedRuntimeServices(
-            windows=WindowsWindowService(
-                model=model,
-                config=config,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-            ),
+            windows=windows,
             previews=self._services.previews,
-            surface=WindowsSurfaceService(),
-            visibility=self._services.visibility,
+            surface=surface,
+            visibility=WindowsVisibilityService(
+                windows=windows, surface=surface, config=config
+            ),
         )
 
     @property
@@ -63,8 +68,14 @@ class WindowsSessionBackend(ReducedSessionBackend):
             tracks_windows=True,
             tracks_active_window=True,
             tracks_minimized=True,
+            tracks_maximized=True,
+            tracks_fullscreen=True,
             supports_activate=True,
             supports_minimize=True,
             supports_close=True,
             supports_window_pid=True,
+            supports_screen_reservation=True,
+            supports_overlap_active=True,
+            supports_overlap_any=True,
+            supports_overlap_maximized=True,
         )

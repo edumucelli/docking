@@ -150,6 +150,7 @@ def main() -> None:
                     w
                     for w in windows()
                     if w["pid"] == child.pid
+                    and w["title"] == "Docking"
                     and w["hwnd"] != dock["hwnd"]
                     and w["rect"][0] >= 0
                     and w["rect"][2] - w["rect"][0] > 100
@@ -212,9 +213,10 @@ def main() -> None:
             "No native Docking window appeared",
             40,
         )
+        time.sleep(2)
+        dock = next(w for w in windows() if w["hwnd"] == dock["hwnd"])
         x1, _y1, x2, y2 = dock["rect"]
         x, y = (x1 + x2) // 2, y2 - 25
-        time.sleep(2)
         ImageGrab.grab(all_screens=True).save(output / "startup.png")
         click(x, y)
         notepad = wait_for(

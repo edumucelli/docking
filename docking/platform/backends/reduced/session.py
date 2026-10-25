@@ -46,7 +46,7 @@ class ReducedRuntimeServices:
     windows: WindowService
     previews: ReducedPreviewService
     surface: ReducedSurfaceService
-    visibility: ReducedVisibilityService
+    visibility: VisibilityService
 
 
 class ReducedSessionBackend(SessionBackend):

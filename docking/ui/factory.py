@@ -93,6 +93,9 @@ class DockUi:
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
         self.input_controller.start()
+        # Startup may occur with the pointer already outside the dock, so no
+        # crossing event will arrive to initialize autohide.
+        self.window.on_hide_mode_changed()
         self.search.start()
         self.startup_popups.start()
 
