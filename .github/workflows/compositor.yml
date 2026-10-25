@@ -111,7 +111,7 @@ jobs:
           fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compositor-${{ matrix.compositor }}
           path: tools/visual_compositor/evidence/
