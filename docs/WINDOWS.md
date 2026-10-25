@@ -398,6 +398,47 @@ References: [RegisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api
 [keyboard-layout translation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscanexw),
 [UnregisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey).
 
+## Search artwork
+
+Search resolves application and window icons through canonical application
+metadata and the shared icon loader, including its background Windows shell
+extraction. Pinned items borrow their current dock artwork, preserving painted
+applets, custom icons and image aspect ratios. Providers continue to publish
+immutable descriptors without GTK objects.
+
+Native completion, model changes and applet presentation notifications update
+the images of current visible rows. They do not rebuild rows, rerun providers,
+change selection or disturb entry focus. Destroying Search unsubscribes all
+three sources; late notifications cannot touch destroyed widgets. Canonical
+icon file URIs use the existing platform path decoder, including Unicode and
+escaped literal characters. Windows paths do not use Flatpak's host-root map.
+
+`windows_search_icon_smoke.py` runs the full application with isolated settings.
+It briefly holds one real shell extraction until Search displays its fallback,
+then releases the extraction and verifies the published native pixels in the
+same row. It checks the unchanged query, selection, row generation and typing
+focus, launches Notepad with Enter, verifies artwork for its application and
+live-window results, and compares the pinned Clock artwork with the dock's
+painted icon. The `windows-search-icons-desktop` run passed all stages and
+normal shutdown. The Notepad, live-window and Clock PNGs were inspected.
+The focused Search/icon selection passed 87 native Windows tests, with two
+platform-specific cases skipped.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_search_icon_smoke.py' \
+  --output '\\host.lan\Data\lab\search-icons'
+```
+
+![Native Windows application artwork in Search](../images/windows-search-icons.png)
+
+The baseline verifies activation from the focused desktop background and
+Notepad. An earlier run opened Search without foreground focus after dismissing
+the Start menu; that shell-focus transition remains follow-up work. Some internal
+system applications expose flat shell tiles rather than useful artwork; their
+visibility and artwork belong to the broader application-inventory acceptance.
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -461,7 +502,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
-| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI and native global hotkey | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
+| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native and painted applet artwork verified; shell-focus transitions, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
 | Portable applets | Pending | Exercise the full applet catalog on Windows |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |

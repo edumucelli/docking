@@ -43,6 +43,7 @@ from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
 )
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
+from docking.search.icons import SearchResultIcons
 from docking.search.intents import (
     QueryIntent,
     QueryIntentKind,
@@ -186,6 +187,11 @@ class GlobalSearchController:
         self._coordinator = self._new_coordinator()
         self.window = SearchWindow(
             icon_loader=self._icon_loader,
+            result_icons=SearchResultIcons(
+                model=self._model,
+                registry=self._application_registry,
+                loader=self._icon_loader,
+            ),
             on_query_changed=self._search,
             on_result_selected=self._select,
             on_result_activated=self._activate_primary,

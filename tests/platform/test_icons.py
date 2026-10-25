@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call
@@ -126,6 +127,23 @@ def _application(**changes) -> ApplicationInfo:
     return ApplicationInfo(**values)
 
 
+def test_canonical_application_file_uri_artwork_keeps_unicode_and_literal_uri_characters(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "résumé # 100% + icon.png"
+    source = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 48, 48
+    )
+    source.fill(0x32A864FF)
+    source.savev(str(path), "png", [], [])
+    loader = IconLoader()
+    monkeypatch.setattr(loader, "_windows_desktop_icon", lambda *_args: None)
+    actual = loader.load_desktop_icon(_application(declared_icon=path.as_uri()), 32)
+    assert actual is not None
+    assert (actual.get_width(), actual.get_height()) == (32, 32)
+    assert bytes(actual.get_pixels())[:4] == bytes(source.get_pixels())[:4]
+
+
 def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
     loader = IconLoader()
     pixbuf = object()
@@ -194,13 +212,18 @@ def test_host_icon_candidates_and_theme_search_paths(tmp_path, monkeypatch):
         (str(existing), str(pixmaps), str(tmp_path / "missing")),
     )
 
-    assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
-        Path("/opt/example/icon.png"),
-        Path("/run/host/opt/example/icon.png"),
-    ]
-    assert icons_mod._host_icon_file_candidates("/run/host/opt/example/icon.png") == [
-        Path("/run/host/opt/example/icon.png")
-    ]
+    if os.name == "nt":
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == []
+        native_icon = tmp_path / "icon.png"
+        assert icons_mod._host_icon_file_candidates(str(native_icon)) == [native_icon]
+    else:
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
+            Path("/opt/example/icon.png"),
+            Path("/run/host/opt/example/icon.png"),
+        ]
+        assert icons_mod._host_icon_file_candidates(
+            "/run/host/opt/example/icon.png"
+        ) == [Path("/run/host/opt/example/icon.png")]
     assert icons_mod._host_icon_file_candidates("example") == []
     assert icons_mod._create_icon_theme() is theme
     theme.append_search_path.assert_called_once_with(str(pixmaps))

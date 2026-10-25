@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import Future
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -12,6 +13,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 
 import docking.search.ui.window as window_mod
 from docking.search.coordinator import SearchSnapshot
+from docking.search.icons import SearchResultIcons
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -151,6 +153,73 @@ def test_activation_timestamp_is_used_for_window_manager_focus() -> None:
     window.window.set_startup_id.assert_called_once_with("token")
     window.window.present_with_time.assert_called_once_with(4321)
     window.window.present.assert_not_called()
+
+
+def test_icon_completion_updates_current_rows_without_changing_query_selection_or_focus():
+    def image(color):
+        pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 32, 32)
+        pixbuf.fill(color)
+        return pixbuf
+
+    item = SimpleNamespace(icon=image(0x2288CCFF))
+    model = MagicMock()
+    model.find_by_desktop_id.return_value = item
+    loader = MagicMock()
+    resolver = SearchResultIcons(model=model, registry=MagicMock(), loader=loader)
+    window = SearchWindow(
+        icon_loader=loader,
+        result_icons=resolver,
+        on_query_changed=MagicMock(),
+        on_result_selected=MagicMock(),
+        on_result_activated=MagicMock(),
+        on_action_activated=MagicMock(),
+        on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        dynamic_preview_loader=MagicMock(return_value=None),
+        preview_resolver=MagicMock(return_value=None),
+    )
+    snapshot = _snapshot()
+    result = replace(snapshot.results[0], metadata=(("desktop_id", "firefox.desktop"),))
+    snapshot = replace(snapshot, results=(result,))
+    window.update(snapshot)
+    window.present(initial_query="unfinished query")
+    window.window.set_focus(window.search_entry)
+    row = window.results_list.get_children()[0]
+    generation = window._result_generation
+    assert row.image.get_pixbuf() is item.icon
+    changed = loader.subscribe.call_args.args[0]
+    previous = item.icon
+    item.icon = image(0xCC4422FF)
+    changed("unrelated.desktop")
+    assert row.image.get_pixbuf() is previous
+    changed("firefox.desktop")
+    assert row.image.get_pixbuf() is item.icon
+    assert window.results_list.get_children()[0] is row
+    assert window.results_list.get_selected_row() is row
+    assert window._result_generation == generation
+    assert window.search_entry.get_text() == "unfinished query"
+    assert window.window.get_focus() is window.search_entry
+    replacement = replace(
+        result,
+        identity=SearchIdentity("applications", "other.desktop"),
+        metadata=(("desktop_id", "other.desktop"),),
+    )
+    window.update(
+        replace(
+            snapshot, results=(replacement,), selected_identity=replacement.identity
+        )
+    )
+    current_row = window.results_list.get_children()[0]
+    previous = current_row.image.get_pixbuf()
+    item.icon = image(0x33CC22FF)
+    changed("firefox.desktop")
+    assert current_row.image.get_pixbuf() is previous
+    assert row.get_parent() is None
+    window.destroy()
+    loader.subscribe.return_value.assert_called_once()
+    model.remove_change_listener.assert_called_once()
+    model.remove_applet_change_listener.assert_called_once()
+    changed("firefox.desktop")  # A late notification cannot touch destroyed rows.
 
 
 @pytest.mark.parametrize("menu_grab", [True, False])

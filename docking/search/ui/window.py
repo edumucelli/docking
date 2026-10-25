@@ -30,11 +30,12 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from docking.i18n import _
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
+from docking.search.icons import SearchResultIcons
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -73,14 +74,19 @@ class _ResultRow(Gtk.ListBoxRow):
         result: SearchResult,
         *,
         icon_loader: IconLoader,
+        resolve_icon: Callable[[SearchResult, int], GdkPixbuf.Pixbuf | None]
+        | None = None,
     ) -> None:
         super().__init__()
         self.result = result
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         box.set_border_width(8)
-        icon = icon_loader.load_icon(
-            icon_name=result.icon_name or "system-search",
-            size=SEARCH_ICON_SIZE,
+        icon = (
+            resolve_icon(result, SEARCH_ICON_SIZE)
+            if resolve_icon is not None
+            else icon_loader.load_icon(
+                icon_name=result.icon_name or "system-search", size=SEARCH_ICON_SIZE
+            )
         )
         image = Gtk.Image.new_from_pixbuf(icon) if icon is not None else Gtk.Image()
         image.set_pixel_size(SEARCH_ICON_SIZE)
@@ -154,9 +160,13 @@ class SearchWindow:
         ),
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
         refresh_dynamic_previews: bool = False,
+        result_icons: SearchResultIcons | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
+        self._result_icons = result_icons
+        self._destroyed = False
+        self._unsubscribe_icons: Callable[[], None] | None = None
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -311,6 +321,8 @@ class SearchWindow:
         outer.pack_end(footer, False, False, 0)
         self.surface = wrap_startup_popup_content(outer)
         window.add(self.surface)
+        if result_icons is not None:
+            self._unsubscribe_icons = result_icons.subscribe(self.refresh_result_icons)
 
     @property
     def visible(self) -> bool:
@@ -361,6 +373,10 @@ class SearchWindow:
 
     def destroy(self) -> None:
         """Invalidate async image work, stop its executor, and destroy GTK state."""
+        self._destroyed = True
+        if self._unsubscribe_icons is not None:
+            self._unsubscribe_icons()
+            self._unsubscribe_icons = None
         self._stop_dynamic_preview()
         self._result_generation += 1
         self._thumbnail_executor.shutdown(wait=False, cancel_futures=True)
@@ -395,6 +411,9 @@ class SearchWindow:
                 row = _ResultRow(
                     result,
                     icon_loader=self._icon_loader,
+                    resolve_icon=self._result_icons.load
+                    if self._result_icons is not None
+                    else None,
                 )
                 self.results_list.add(row)
                 if (
@@ -422,6 +441,17 @@ class SearchWindow:
             snapshot.errors,
             query_empty=snapshot.query.is_empty,
         )
+
+    def refresh_result_icons(self, desktop_id: str | None = None) -> None:
+        """Update current images without rebuilding rows or disturbing typing."""
+        if self._destroyed or not self.visible or self._result_icons is None:
+            return
+        for row in self.results_list.get_children():
+            identity = dict(row.result.metadata).get("desktop_id", "")
+            if identity and (desktop_id is None or identity == desktop_id):
+                row.image.set_from_pixbuf(
+                    self._result_icons.load(row.result, SEARCH_ICON_SIZE)
+                )
 
     def _request_row_thumbnail(
         self,

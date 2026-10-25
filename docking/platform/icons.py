@@ -47,9 +47,15 @@ def fallback_file_icon_name(*, is_dir: bool) -> str:
 
 
 def _host_icon_file_candidates(icon_name: str) -> list[Path]:
-    icon_path = Path(icon_name)
-    if not icon_path.is_absolute():
+    icon_path = (
+        local_path_from_uri_or_path(icon_name)
+        if icon_name.lower().startswith("file:")
+        else Path(icon_name)
+    )
+    if icon_path is None or not icon_path.is_absolute():
         return []
+    if is_windows():
+        return [icon_path]
 
     candidates = [icon_path]
     host_root = str(HOST_FILESYSTEM_ROOT)
