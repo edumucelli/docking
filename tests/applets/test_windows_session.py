@@ -315,8 +315,10 @@ def test_native_capability_reads_do_not_leak_token_handles():
 
 
 def test_native_existing_shutdown_privilege_is_restored_without_an_os_action():
+    import os
     import subprocess
     import sys
+    from pathlib import Path
 
     if sys.platform != "win32":
         pytest.skip("Native Windows token API")
@@ -326,7 +328,14 @@ def test_native_existing_shutdown_privilege_is_restored_without_an_os_action():
 
     def privilege():
         result = subprocess.run(
-            ["whoami.exe", "/priv", "/fo", "csv", "/nh"],
+            [
+                str(Path(os.environ["SYSTEMROOT"]) / "System32/whoami.exe"),
+                "/priv",
+                "/fo",
+                "csv",
+                "/nh",
+            ],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=True,

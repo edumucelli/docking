@@ -11,23 +11,11 @@ from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind as _bind
+from docking.platform.backends.windows.power import SystemPowerStatus
 
 log = get_logger("battery.windows")
 _UNKNOWN_TIME = 0xFFFFFFFF
 _UNKNOWN_RATE = -0x80000000
-
-
-class SystemPowerStatus(ctypes.Structure):
-    """SYSTEM_POWER_STATUS uses 32-bit DWORDs on both Windows ABIs."""
-
-    _fields_ = [
-        ("ACLineStatus", ctypes.c_ubyte),
-        ("BatteryFlag", ctypes.c_ubyte),
-        ("BatteryLifePercent", ctypes.c_ubyte),
-        ("SystemStatusFlag", ctypes.c_ubyte),
-        ("BatteryLifeTime", ctypes.c_uint32),
-        ("BatteryFullLifeTime", ctypes.c_uint32),
-    ]
 
 
 class SystemBatteryState(ctypes.Structure):

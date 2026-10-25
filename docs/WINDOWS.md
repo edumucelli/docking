@@ -949,6 +949,78 @@ References: [lock request semantics](https://learn.microsoft.com/en-us/windows/w
 [token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
 [WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
 
+## Native Windows Power Profiles
+
+Power Profiles has one `PowerProfilesControlBackend` contract for state, profile
+selection and cleanup. The shared state/presentation module contains no D-Bus or
+command execution. The existing PPD, tuned and TLP detection/parsing lives in
+`powerprofiles/linux.py`; Windows is selected independently in `backend.py`.
+Battery and Power Profiles share the native `SYSTEM_POWER_STATUS` ABI in
+`platform/backends/windows/power.py`.
+
+The Windows implementation uses the documented Windows 11
+`PowerGetUserConfiguredACPowerMode`/`DCPowerMode` and corresponding setters.
+The shared Power Saver/Balanced/Performance choices map to Windows' Best power
+efficiency/Balanced/Best performance user preferences. It resolves the active
+supply at execution time and writes only that supply's preference. Unknown
+supply status or an unsupported mode is unavailable, with no fabricated
+Balanced value. Readback verifies a successful write. Bounded snapshot reads
+retry source/plan changes, and the user's base power plan is preserved.
+
+The backend reads the active plan's personality, including Balanced-derived
+custom plans, through `PowerGetActiveScheme` and `PowerReadACValue`. Every
+allocated active-plan GUID is copied and freed with `LocalFree`. Other plan
+personalities disable mode selection and explain that a Balanced plan is
+needed. The dock never replaces a user's plan to make a mode request succeed.
+
+A version-two effective-power-mode subscription observes system overrides.
+The menu continues to check the user's configured preference while a limitation
+line reports an overridden effective mode, Energy Saver, Game Mode or Mixed
+Reality. No callback touches GTK. Backend shutdown waits for native writes,
+unregisters the callback without holding its data lock, and stops future work.
+The shared applet also rejects stale poll/set replies and queued writes after
+removal. Normal dock Quit removes the applet timer and releases the dock's
+global shortcut.
+
+The desktop verifier uses native mouse/keyboard input and an independent C#
+P/Invoke oracle through PowerShell. It exercises all three AC modes and effective
+readback, radio checkmarks, left-click cycling, external changes reaching the
+polling UI, a temporary Balanced-derived plan, a non-Balanced plan and recovery.
+Temporary plans and both AC/DC preferences are restored by the verifier.
+An actual Energy Saver switch is located/read through UI Automation and toggled
+with real mouse input. On this VM, Energy Saver Standard changes effective mode
+to the efficiency state while the older `SYSTEM_POWER_STATUS.SystemStatusFlag`
+battery-saver flag stays zero. That older flag is not used as proof of Energy
+Saver being off. The user's selected preference remains distinct from the
+effective-mode limitation.
+
+![Native Windows power-mode selector](../images/windows-powerprofiles-menu.png)
+
+![Configured Performance retained during an effective Power Saver override](../images/windows-powerprofiles-override.png)
+
+![Unavailable controls under a non-Balanced power plan](../images/windows-powerprofiles-unavailable.png)
+
+The actual Settings **System > Power** page was inspected. This VM does not
+expose Settings' Power mode selector, so no selector acceptance is claimed.
+Configured/effective state is verified through the independent native APIs.
+Physical battery/AC transitions, OEM power management, policy restrictions and
+additional Windows versions remain broader acceptance work.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_powerprofiles_smoke.py' \
+  --output '\\host.lan\Data\lab\powerprofiles-acceptance'
+```
+
+References: [configured AC mode](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-powergetuserconfiguredacpowermode),
+[configured DC mode](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-powergetuserconfigureddcpowermode),
+[setting a mode and user/system intent](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-powersetuserconfiguredacpowermode),
+[effective-mode notifications](https://learn.microsoft.com/en-us/windows/win32/api/powersetting/nf-powersetting-powerregisterforeffectivepowermodenotifications),
+[callback cleanup](https://learn.microsoft.com/en-us/windows/win32/api/powersetting/nf-powersetting-powerunregisterfromeffectivepowermodenotifications),
+[power-plan selection](https://support.microsoft.com/en-us/windows/change-the-power-mode-for-your-windows-pc-c2aff038-22c9-f46d-5ca0-78696fdf2de8),
+[power status and legacy battery saver](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-system_power_status).
+
 ## Native Recycle Bin
 
 Trash selects a Windows shell backend. `SHQueryRecycleBinW` reads the current
@@ -1148,7 +1220,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/VPN/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
-| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session actions; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; full catalog, other audio devices and live provider sessions pending |
+| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session and Power Profiles controls; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 
