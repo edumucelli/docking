@@ -949,6 +949,69 @@ References: [lock request semantics](https://learn.microsoft.com/en-us/windows/w
 [token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
 [WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
 
+## Windows Brightness
+
+Brightness follows one `BrightnessBackend` interface for reading state, applying
+changes to a named display and stopping work. Shared state and GTK code contain
+no OS discovery, subprocesses or sysfs paths. Existing xrandr, brightnessctl and
+backlight access live in `brightness/linux.py`; `brightness/windows.py` implements
+the same interface for Windows.
+
+The Windows backend identifies the primary monitor by its device interface,
+uses the high-level DDC/CI brightness API when the monitor advertises support,
+and otherwise matches the WMI backlight instance to that same display. WMI uses
+the built-in Windows PowerShell CIM provider in a hidden process with a bounded
+timeout. It never chooses the first unrelated laptop panel. Ambiguous cloned
+displays and monitors without a usable provider are unavailable. Each DDC request
+acquires fresh physical-monitor handles and releases them on every exit path.
+Windows hardware control does not overwrite the user's gamma calibration.
+
+The shared applet discovers devices in its background worker, observes external
+changes and hotplug through polling, and renders unavailable state without a
+fabricated percentage. Discrete hardware levels let wheel input advance on
+panels with coarse brightness steps. Writes read back the actual device value,
+including denied or rounded requests. Requests remain bound to their original
+display, coalesce rapid input, reject stale polls and stop after applet removal.
+
+The independent read-only `tools/windows_brightness_probe.py` finds one QEMU
+monitor on the baseline VM. DDC capabilities/brightness return not supported
+(Win32 error 50), and `WmiMonitorBrightness` has no supported instances. The live
+dock correctly displays **Brightness: Unavailable**. Physical laptop panels,
+DDC/CI monitors, OEM behavior, HDR and multi-display changes still require real
+hardware acceptance; this VM cannot prove physical brightness changes.
+
+![Actual unavailable hardware on the Windows VM](../images/windows-brightness-unavailable.png)
+
+`tools/windows_brightness_smoke.py` first verifies that real unavailable state,
+then injects explicitly labeled DDC and WMI provider fixtures behind the Windows
+backend. Real desktop wheel/click/menu input verifies scrolling, reset, denied
+write readback, five-second external updates, display replacement/removal and
+Show Level persistence. The fixture scenarios never write native monitor
+settings. Normal dock shutdown removes its timer and restores the work area.
+Native tests also execute the real WMI script under Windows PowerShell with
+explicit CIM fixtures to verify instance matching, method arguments, discrete
+levels and error handling. Read-only provider cycles check handle ownership.
+
+![Explicit WMI provider fixture after native wheel input](../images/windows-brightness-panel-fixture.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_brightness_probe.py' \
+  --output '\\host.lan\Data\lab\brightness-capabilities.json'
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_brightness_smoke.py' \
+  --output '\\host.lan\Data\lab\brightness-acceptance'
+```
+
+References: [monitor device identity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdisplaydevicesw),
+[monitor capabilities](https://learn.microsoft.com/en-us/windows/win32/api/highlevelmonitorconfigurationapi/nf-highlevelmonitorconfigurationapi-getmonitorcapabilities),
+[DDC brightness readback](https://learn.microsoft.com/en-us/windows/win32/api/highlevelmonitorconfigurationapi/nf-highlevelmonitorconfigurationapi-getmonitorbrightness),
+[WMI panel levels](https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmimonitorbrightness),
+[panel brightness method](https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmisetbrightness-method-in-class-wmimonitorbrightnessmethods),
+[gamma API limitations](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setdevicegammaramp).
+
 ## Native Windows Power Profiles
 
 Power Profiles has one `PowerProfilesControlBackend` contract for state, profile
@@ -1220,7 +1283,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/VPN/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
-| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session and Power Profiles controls; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; full catalog, other audio devices and live provider sessions pending |
+| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 

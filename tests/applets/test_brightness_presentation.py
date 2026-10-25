@@ -2,10 +2,11 @@
 
 import pytest
 
-import docking.applets.brightness.state as state_mod
+import docking.applets.brightness.linux as state_mod
 from docking.applets.brightness.applet import BrightnessApplet
 from docking.applets.brightness.render import create_icon
 from docking.core.config import Config
+from tests.applets.test_brightness import _ImmediateWorker
 
 
 @pytest.mark.parametrize(
@@ -14,6 +15,13 @@ from docking.core.config import Config
 def test_selected_display_brightness_is_presented(
     monkeypatch, tmp_path, setup, percent
 ):
+    monkeypatch.setattr(
+        "docking.applets.brightness.applet.BackgroundWorker", _ImmediateWorker
+    )
+    monkeypatch.setattr(
+        "docking.applets.brightness.applet.create_backend",
+        state_mod.LinuxBrightnessBackend,
+    )
     monkeypatch.setattr(state_mod, "_BACKLIGHT_DIR", tmp_path)
     monkeypatch.setattr(state_mod.shutil, "which", lambda _: None)
     monkeypatch.setattr(state_mod, "is_wayland_session", lambda: setup == "wayland")

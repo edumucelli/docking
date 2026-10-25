@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.applets.brightness.applet as brightness_mod
+from docking.applets.brightness.state import BrightnessState
 from docking.applets.powerprofiles.state import PowerProfilesState, profile_label
 from docking.applets.volume.state import VolumeState
 from tests.applets.deferred_worker import DeferredWorker
@@ -19,9 +19,11 @@ def test_rapid_brightness_scroll_applies_the_last_requested_value(monkeypatch):
     applet._worker = queue.worker
     written = []
     monkeypatch.setattr(
-        brightness_mod,
+        applet._backend,
         "set_brightness",
-        lambda *, backend, value: written.append(value),
+        lambda *, target, value: (
+            written.append(value) or BrightnessState(value, target)
+        ),
     )
 
     for _ in range(5):
@@ -39,9 +41,11 @@ def test_brightness_reset_is_ordered_after_pending_scroll(monkeypatch):
     applet._worker = queue.worker
     written = []
     monkeypatch.setattr(
-        brightness_mod,
+        applet._backend,
         "set_brightness",
-        lambda *, backend, value: written.append(value),
+        lambda *, target, value: (
+            written.append(value) or BrightnessState(value, target)
+        ),
     )
     applet.on_scroll(direction_up=True)
     applet.on_clicked()
@@ -112,8 +116,14 @@ def test_old_brightness_poll_cannot_restore_a_value_before_the_last_write(monkey
     applet = brightness_applet(brightness=0.5)
     queue = DeferredWorker()
     applet._worker = queue.worker
-    monkeypatch.setattr(brightness_mod, "get_brightness", lambda **_kwargs: 0.5)
-    monkeypatch.setattr(brightness_mod, "set_brightness", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        applet._backend, "get_state", lambda: BrightnessState(0.5, "test-panel")
+    )
+    monkeypatch.setattr(
+        applet._backend,
+        "set_brightness",
+        lambda *, target, value: BrightnessState(value, target),
+    )
     applet._tick()
     queue.read()
     applet.on_scroll(direction_up=True)
@@ -129,12 +139,13 @@ def test_brightness_write_failure_does_not_drop_pending_target(monkeypatch):
     applet._worker = queue.worker
     values = []
 
-    def write(*, backend, value):
+    def write(*, target, value):
         values.append(value)
         if len(values) == 1:
             raise OSError("temporary backend failure")
+        return BrightnessState(value, target)
 
-    monkeypatch.setattr(brightness_mod, "set_brightness", write)
+    monkeypatch.setattr(applet._backend, "set_brightness", write)
     applet.on_scroll(direction_up=True)
     applet.on_scroll(direction_up=True)
     queue.drain()
@@ -169,15 +180,21 @@ def test_slow_volume_polls_do_not_overlap_or_arrive_out_of_order():
 def test_denied_sysfs_write_restores_the_actual_brightness(monkeypatch, tmp_path):
     from pathlib import Path
 
-    from docking.applets.brightness import state as brightness_state
+    from docking.applets.brightness import linux as brightness_state
 
     (tmp_path / "brightness").write_text("500")
     (tmp_path / "max_brightness").write_text("1000")
     applet = brightness_applet(brightness=0.5)
-    applet._backend = brightness_state.Backend("eDP-1", sysfs=tmp_path)
+    applet._backend = brightness_state.LinuxBrightnessBackend()
+    monkeypatch.setattr(
+        brightness_state,
+        "detect_output",
+        lambda: brightness_state.Display("eDP-1", sysfs=tmp_path),
+    )
     queue = DeferredWorker()
     applet._worker = queue.worker
     monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+    applet._state = applet._backend.get_state()
     write_text = Path.write_text
 
     def denied(path, *args, **kwargs):
@@ -193,3 +210,73 @@ def test_denied_sysfs_write_restores_the_actual_brightness(monkeypatch, tmp_path
     assert (tmp_path / "brightness").read_text() == "500"
     assert applet._brightness == pytest.approx(0.5)
     assert applet.item.name == "Brightness: 50%"
+
+
+def test_slow_brightness_polls_do_not_overlap():
+    applet = brightness_applet(0.5)
+    queue = DeferredWorker()
+    applet._worker = queue.worker
+    applet._tick()
+    applet._tick()
+    assert len(queue.tasks) == 1
+    queue.drain()
+    applet._tick()
+    assert len(queue.tasks) == 1
+
+
+def test_stopped_brightness_ignores_poll_reply_and_queued_writes():
+    applet = brightness_applet(0.5)
+    queue = DeferredWorker()
+    applet._worker = queue.worker
+    applet._tick()
+    queue.read()
+    applet.on_scroll(direction_up=True)
+    applet.on_scroll(direction_up=True)
+    applet.stop()
+    queue.drain()
+    assert applet._backend.writes == []
+    assert applet._brightness == pytest.approx(0.54)
+    assert applet._pending_brightness is None
+
+
+def test_changed_primary_cancels_coalesced_brightness_requests(monkeypatch):
+    applet = brightness_applet(0.5)
+    queue = DeferredWorker()
+    applet._worker = queue.worker
+    writes = []
+
+    def replaced(*, value, target):
+        writes.append(target)
+        return BrightnessState(0.3, "replacement-panel")
+
+    monkeypatch.setattr(applet._backend, "set_brightness", replaced)
+    applet.on_scroll(direction_up=True)
+    applet.on_scroll(direction_up=True)
+    queue.drain()
+    assert writes == ["test-panel"]
+    assert applet._pending_brightness is None
+    assert applet.item.name == "Brightness: 30%"
+
+
+def test_discrete_panel_scrolls_advance_and_coalesce_in_the_requested_direction(
+    monkeypatch,
+):
+    applet = brightness_applet(0.4)
+    levels = (0.2, 0.4, 0.6, 1.0)
+    applet._state = BrightnessState(0.4, "test-panel", levels)
+    queue = DeferredWorker()
+    applet._worker = queue.worker
+    written = []
+
+    def write(*, value, target):
+        written.append(value)
+        return BrightnessState(value, target, levels)
+
+    monkeypatch.setattr(applet._backend, "set_brightness", write)
+    applet.on_scroll(direction_up=True)
+    applet.on_scroll(direction_up=True)
+    queue.drain()
+    assert written == [0.6, 1.0]
+    applet.on_scroll(direction_up=False)
+    queue.drain()
+    assert applet._brightness == 0.6
