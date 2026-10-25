@@ -18,6 +18,7 @@ from docking.platform.backends.reduced.services import ReducedSurfaceService
 
 if TYPE_CHECKING:
     from .appbar import ScreenMapping, WindowsAppBar
+    from .menus import WindowsMenuSession
 
 
 class _CursorCoordinates(Protocol):
@@ -41,6 +42,7 @@ class WindowsSurfaceService(ReducedSurfaceService):
         self._map_source = 0
         self._map_handler = 0
         self._placement: PlacementRequest | None = None
+        self._menus: WindowsMenuSession | None = None
 
     def on_realize(self, window: object) -> None:
         super().on_realize(window)
@@ -53,8 +55,24 @@ class WindowsSurfaceService(ReducedSurfaceService):
 
         if not self._map_handler:
             self._map_handler = window.connect("map-event", self._mapped)
+        if self._menus is None:
+            from .menus import WindowsMenuSession
+
+            self._menus = WindowsMenuSession(window)
+
+    def prepare_menu_popup(self, menu: object) -> None:
+        if self._window is None:
+            return
+        if self._menus is None:
+            from .menus import WindowsMenuSession
+
+            self._menus = WindowsMenuSession(self._window)
+        self._menus.prepare(menu)
 
     def stop(self) -> None:
+        if self._menus is not None:
+            self._menus.stop()
+            self._menus = None
         self._changed = None
         self._reservation = None
         if self._pointer_source:

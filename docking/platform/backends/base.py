@@ -343,6 +343,9 @@ class WindowService(Service):
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
+    def prepare_menu_popup(self, menu: object) -> None:
+        """Prepare any platform-specific keyboard focus for a root menu."""
+
     def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
         """Register an optional compositor fallback for missing GTK exit events."""
 

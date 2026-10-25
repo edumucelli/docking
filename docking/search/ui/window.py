@@ -324,6 +324,9 @@ class SearchWindow:
         activation_context: dict[str, object] | None = None,
     ) -> None:
         """Show the palette with correct activation metadata and search focus."""
+        grab = Gtk.grab_get_current()
+        if isinstance(grab, Gtk.MenuShell):
+            grab.cancel()
         context = activation_context or {}
         startup_id = str(
             context.get("XDG_ACTIVATION_TOKEN")

@@ -354,15 +354,15 @@ class MenuHandler:
         """
         item = None if force_background else frame.item_at_point(event.x, event.y)
 
+        menu = self._new_popup_menu()
         if item:
-            menu = self._new_popup_menu()
             self._build_item_menu(menu=menu, item=item)
         else:
-            menu = self._new_popup_menu()
             insert_idx = self._insert_index(cursor_main=cursor_main, frame=frame)
             self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
         menu.show_all()
+        self._runtime.prepare_menu_popup(menu)
         menu.popup_at_pointer(event)
 
     def _invalidate_folder_target_cache(self, target: str) -> None:
@@ -964,6 +964,8 @@ class MenuHandler:
         parent.check_resize()
         parent.queue_draw()
         if refresh_popup:
+            self._runtime.menu_popup_opened()
+            self._runtime.prepare_menu_popup(parent)
             parent.popup_at_pointer(event)
 
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:

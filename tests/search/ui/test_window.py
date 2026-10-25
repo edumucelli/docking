@@ -153,6 +153,25 @@ def test_activation_timestamp_is_used_for_window_manager_focus() -> None:
     window.window.present.assert_not_called()
 
 
+@pytest.mark.parametrize("menu_grab", [True, False])
+def test_present_cancels_menu_grab_before_showing_search(monkeypatch, menu_grab):
+    window = SearchWindow.__new__(SearchWindow)
+    window.window = MagicMock()
+    window.action_frame = MagicMock()
+    window.preview_frame = MagicMock()
+    window.search_entry = MagicMock()
+    window.search_entry.get_text.return_value = ""
+    grab = MagicMock(spec=Gtk.MenuShell if menu_grab else Gtk.Dialog)
+    monkeypatch.setattr(Gtk, "grab_get_current", lambda: grab)
+    window.window.show_all.side_effect = lambda: (
+        grab.cancel.assert_called_once() if menu_grab else None
+    )
+    window.present()
+    window.window.present.assert_called_once()
+    if not menu_grab:
+        assert not hasattr(grab, "cancel")
+
+
 @pytest.mark.parametrize(
     "filename",
     [

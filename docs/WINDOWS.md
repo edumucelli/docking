@@ -150,11 +150,9 @@ python tools/windows_lab.py --share /path/to/shared/artifacts run \
 ![Native Notepad icon and window menu on Windows 11](../images/windows-window-controls.png)
 
 The smoke tool's mouse row coordinates assume that baseline theme and DPI.
-Keyboard navigation of the context menu did not pass the initial check.
-A native WM_CLOSE request also failed while a menu grab was active. Subsequent
-screen-integration checks close the dock normally with WM_CLOSE when no menu is
-open and verify restoration of the original desktop work area. Keyboard menu
-navigation and shutdown during a menu grab remain follow-up items.
+The initial checks exposed keyboard navigation and native WM_CLOSE failures
+while a menu grab was active. The scoped menu integration described below
+addresses those failures; the initial mouse-only evidence did not cover them.
 
 ## Desktop reservation and overlap
 
@@ -400,13 +398,65 @@ References: [RegisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api
 [keyboard-layout translation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscanexw),
 [UnregisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey).
 
+## Keyboard menus and close handling
+
+GDK Win32 records keyboard grabs without transferring native focus. The Windows
+surface temporarily makes the dock focusable and presents it before a root menu
+opens. When the menu closes, it restores the original focus policy. An
+out-of-context `EVENT_SYSTEM_FOREGROUND` observer retains the preceding window:
+a non-activating right click can clear `GetForegroundWindow` before GTK delivers
+the button event. Deferred restoration checks both HWND and process identity,
+and only runs while the dock still owns foreground focus. Search, Preferences
+and an outside-click target keep their newly acquired focus.
+
+GTK suppresses a parent's delete event while another toplevel has a menu grab.
+A `SetWindowSubclass` callback on the dock queues dismissal of its owned menus
+before requesting the normal GTK close. It forwards other native messages.
+The surface removes both native hooks and pending callbacks during shutdown;
+the GDK event dispatcher remains unchanged. Search presentation also cancels
+an existing GTK menu grab before showing its typing surface.
+
+`windows_menu_smoke.py` drives the complete application with native keyboard and
+mouse input. Run its two shutdown modes in separate fresh jobs. The baseline
+checks navigate three menu levels, return to a parent with Left, dismiss with
+Escape and restore Notepad focus, open Search by its hotkey while a submenu is
+active, type into Search, invoke Search with a mouse menu action, invoke
+Preferences with Enter, repeat open/dismiss cycles, and check outside-click and
+hover focus. Keyboard Quit and native WM_CLOSE with an active menu must both
+exit normally, restore the exact desktop work area and release the Search
+hotkey. GTK observations run on the main loop, and native HWND observations
+independently verify focus and destruction. The lab still uses one display,
+96 DPI and the US keyboard layout.
+
+Both `windows-menus-keyboard-verified` and `windows-menus-native-verified` passed
+these stages and exited with code 0. The nested-menu, Search and close-menu
+PNGs were inspected. The focused menu, runtime and Search selection also passed
+102 tests under native Windows Python, with one POSIX filename case skipped.
+
+![Keyboard selection in a nested Windows menu](../images/windows-menu-keyboard.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_menu_smoke.py' \
+  --output '\\host.lan\Data\lab\menus-keyboard' --shutdown keyboard
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_menu_smoke.py' \
+  --output '\\host.lan\Data\lab\menus-native-close' --shutdown native
+```
+
+References: [window subclass callbacks](https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-setwindowsubclass),
+[removing a subclass](https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-removewindowsubclass),
+[foreground event observation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook).
+
 ## Implementation and acceptance ledger
 
 | Area | Implementation | Required Windows evidence |
 | --- | --- | --- |
 | Runtime/bootstrap | Windows signals, paths, DLL bootstrap and backend selection | Native source launch and focused Windows tests passed |
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
-| Basic dock | Shared GTK/Cairo UI with Windows surface adapter | Startup, transparency, hover, mouse menu, Preferences and Quit verified on the baseline desktop; keyboard menu follow-up pending |
+| Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |

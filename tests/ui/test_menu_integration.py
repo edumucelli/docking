@@ -1550,6 +1550,7 @@ class TestDockMenu:
         assert captured_menu.shown is True
         assert captured_menu.popup_event is event
         handler._runtime.menu_popup_opened.assert_called_once()
+        handler._runtime.prepare_menu_popup.assert_called_once_with(captured_menu)
         captured_menu.emit("deactivate")
         handler._runtime.menu_popup_closed.assert_called_once()
 
