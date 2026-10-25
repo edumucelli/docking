@@ -36,6 +36,9 @@ def session(monkeypatch):
         return source
 
     monkeypatch.setattr(menus.GLib, "idle_add", idle)
+    monkeypatch.setattr(
+        menus.GLib, "timeout_add", lambda _delay, callback: idle(callback)
+    )
     monkeypatch.setattr(menus.GLib, "source_remove", sources.pop)
     parent = MagicMock()
     parent.get_accept_focus.return_value = False
@@ -63,6 +66,35 @@ def test_menu_focus_restores_once_after_activation_can_present_its_window(sessio
     session.native.restore.assert_called_once_with((10, 99), (20, 101))
 
 
+def test_menu_foreground_restoration_retries_pending_native_activation(session):
+    session.native.restore.side_effect = [False, False, True]
+    menu = Menu()
+    session.value.prepare(menu)
+    menu.popdown()
+    for expected in (1, 2, 3):
+        session.sources.pop(session.value._finish_source)()
+        assert session.native.restore.call_count == expected
+        assert len(session.sources) == int(expected < 3)
+    assert not session.value._in_session and session.value._previous is None
+
+
+def test_menu_foreground_retries_are_bounded_and_stop_cancels_pending_work(session):
+    session.native.restore.return_value = False
+    menu = Menu()
+    session.value.prepare(menu)
+    menu.popdown()
+    for _ in range(5):
+        session.sources.pop(session.value._finish_source)()
+    assert session.native.restore.call_count == 5 and session.sources == {}
+    menu = Menu()
+    session.value.prepare(menu)
+    menu.popdown()
+    session.sources.pop(session.value._finish_source)()
+    assert session.sources
+    session.value.stop()
+    assert session.sources == {} and not session.value._in_session
+
+
 def test_reopening_before_idle_retains_original_foreground_and_focus_policy(session):
     first, second = Menu(), Menu()
     session.value.prepare(first)
@@ -72,9 +104,23 @@ def test_reopening_before_idle_retains_original_foreground_and_focus_policy(sess
     assert session.sources == {}
     second.popdown()
     session.sources.pop(session.value._finish_source)()
-    session.native.foreground.assert_called_once()
+    assert session.native.foreground.call_count == 2
     session.parent.get_accept_focus.assert_called_once()
     session.native.restore.assert_called_once_with((10, 99), (20, 101))
+
+
+def test_new_menu_during_pending_restore_tracks_the_new_foreground_owner(session):
+    first, second = Menu(), Menu()
+    session.value.prepare(first)
+    first.popdown()
+    session.native.restore.return_value = False
+    session.sources.pop(session.value._finish_source)()
+    session.native.foreground.return_value = (30, 102)
+    session.value.prepare(second)
+    second.popdown()
+    session.native.restore.return_value = True
+    session.sources.pop(session.value._finish_source)()
+    assert session.native.restore.call_args.args == ((30, 102), (20, 101))
 
 
 def test_only_last_owned_root_menu_ends_focus_session(session):
@@ -173,6 +219,15 @@ def test_restore_never_takes_focus_from_new_window_or_reused_identity(
     native._set_foreground = MagicMock()
     native.restore(previous, (20, 101))
     assert native._set_foreground.call_count == int(restored)
+
+
+def test_restore_waits_for_a_foreground_gap_without_activating_another_window():
+    native = menus.WindowsMenuFocus.__new__(menus.WindowsMenuFocus)
+    native.foreground = MagicMock(return_value=None)
+    native.identity = MagicMock(return_value=(10, 99))
+    native._set_foreground = MagicMock()
+    assert native.restore((10, 99), (20, 101)) is False
+    native._set_foreground.assert_not_called()
 
 
 @pytest.fixture

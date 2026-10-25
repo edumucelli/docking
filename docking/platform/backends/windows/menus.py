@@ -105,10 +105,20 @@ class WindowsMenuFocus:
             previous
             and parent
             and previous != parent
-            and self.foreground() == parent
             and self.identity(previous[0]) == previous
         ):
+            current = self.foreground()
+            if current is None:
+                return False
+            if current != parent:
+                return True
             self._set_foreground(previous[0])
+            # Cross-queue activation can still be pending while a GTK menu is
+            # releasing its native grab. The caller may retry only while the
+            # dock continues to own foreground and the original HWND/PID lives.
+            current = self.foreground()
+            return bool(current) and current != parent
+        return True
 
 
 class WindowsMenuSession:
@@ -134,6 +144,7 @@ class WindowsMenuSession:
         self._parent_identity = None
         self._last_foreground = None
         self._finish_source = 0
+        self._restore_attempts = 0
         self._stopped = False
         self._native.start(self._observe_foreground)
 
@@ -147,8 +158,16 @@ class WindowsMenuSession:
         if self._finish_source:
             GLib.source_remove(self._finish_source)
             self._finish_source = 0
+            if self._in_session and not self._active:
+                foreground = self._native.foreground() or self._last_foreground
+                if foreground and foreground not in (
+                    self._previous,
+                    self._parent_identity,
+                ):
+                    self._in_session = False
         if not self._in_session:
             self._in_session = True
+            self._restore_attempts = 0
             self._saved_accept_focus = self._parent.get_accept_focus()
             foreground = self._native.foreground()
             self._previous = (
@@ -182,8 +201,12 @@ class WindowsMenuSession:
         self._finish_source = 0
         if not self._in_session or self._active:
             return False
+        self._restore_attempts += 1
+        restored = self._native.restore(self._previous, self._parent_identity)
+        if restored is False and not self._stopped and self._restore_attempts < 5:
+            self._finish_source = GLib.timeout_add(50, self._finish)
+            return False
         self._in_session = False
-        self._native.restore(self._previous, self._parent_identity)
         self._previous = None
         return False
 

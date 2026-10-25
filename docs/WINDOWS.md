@@ -949,6 +949,75 @@ References: [lock request semantics](https://learn.microsoft.com/en-us/windows/w
 [token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
 [WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
 
+## Windows keyboard layouts
+
+Keyboard Layout uses the shared `LayoutBackend` contract. Input-source state,
+labels, GTK presentation, polling and queued selection are shared. Linux daemon
+and command integrations (GNOME, IBus, Fcitx5, MATE and XKB), Flatpak launching,
+settings and layout viewers live in `keyboardlayout/linux.py`. Windows selects
+`keyboardlayout/windows.py` independently and never falls back to Linux tools.
+Discovery and switching run through the background worker; repeated requests
+coalesce, stale polls cannot undo newer choices, and removal invalidates pending
+work and replies.
+
+Windows enumerates loaded input locales with `GetKeyboardLayoutList` and reads
+the typing application's input thread with `GetKeyboardLayout`. Session-only
+locale identities keep US and US Dvorak distinct even though both display EN.
+Windows supplies the localized language, layout and variant descriptions. A
+worker resolves the exact KLID on its own thread and restores its previous
+locale before returning; the GTK interaction snapshot does not activate layouts.
+No locale handles or window identities are saved in applet preferences.
+
+Selection remains bound to the original application HWND/PID/thread identity.
+The backend resolves the current focused control, including WinUI editors on a
+separate thread. It retains a verified editor across the dock's temporary
+foreground gap only while the same desktop is receiving input. Input-desktop
+handles are always closed. A user selection restores and settles that typing
+window before posting `WM_INPUTLANGCHANGEREQUEST` to its current input window.
+A different foreground application, a reused/closed window, an unloaded locale
+or an inactive/secure desktop prevents the old request. Readback determines the
+selected source; a rejected change does not become a permanent checked choice.
+
+The native menu service also accounts for asynchronous foreground restoration:
+`SetForegroundWindow` can return success before foreground ownership changes.
+Its bounded GTK retries preserve the original HWND/PID, stop when another
+window takes focus, and are cancelled during shutdown. A new menu opened during
+a pending restore captures a new foreground owner instead of restoring an old
+application afterward.
+
+Show Current Layout opens Windows' On-Screen Keyboard; Keyboard Settings opens
+**Time & language > Typing**. Native desktop acceptance uses real menu keys,
+mouse clicks and wheel input, an independent C#/Windows Forms input-locale oracle
+and Notepad documents saved from physical scan-code input. The US Q key position
+produces `q` with US, `a` with French and `'` with US Dvorak. The verifier loads
+only its owned runtime layouts, preserves the configured preload/substitute and
+default preferences, closes its saved test tabs/windows and unloads its handles.
+External changes are observed through the normal two-second poll.
+
+![Windows source menu keeps both English variants distinct](../images/windows-keyboardlayout-menu.png)
+
+![Native French AZERTY layout viewer](../images/windows-keyboardlayout-viewer.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_keyboardlayout_smoke.py' \
+  --output '\\host.lan\Data\lab\keyboardlayout-acceptance'
+```
+
+This implements Win32 input locales. Broader TSF input-processor profiles that
+share an HKL, transient language identifiers, IME composition and profile-change
+notifications, additional layouts, application refusals, remote sessions and
+multi-user/policy cases still require further implementation or acceptance.
+Those remain part of the Windows parity goal.
+
+References: [input locale enumeration](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist),
+[per-thread active input locale](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout),
+[layout descriptions](https://learn.microsoft.com/en-us/windows/win32/intl/using-registry-string-redirection),
+[layout request semantics](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchangerequest),
+[child notifications and TSF/transient ID limitations](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchange),
+[input-desktop ownership](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-openinputdesktop).
+
 ## Windows Brightness
 
 Brightness follows one `BrightnessBackend` interface for reading state, applying

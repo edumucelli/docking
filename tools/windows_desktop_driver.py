@@ -70,6 +70,10 @@ class WindowsDesktop:
         self.user.IsWindowVisible.argtypes = (wintypes.HWND,)
         self.user.IsWindow.argtypes = (wintypes.HWND,)
         self.user.GetForegroundWindow.restype = wintypes.HWND
+        self.user.WindowFromPoint.argtypes = (wintypes.POINT,)
+        self.user.WindowFromPoint.restype = wintypes.HWND
+        self.user.GetAncestor.argtypes = (wintypes.HWND, wintypes.UINT)
+        self.user.GetAncestor.restype = wintypes.HWND
         self.user.SetCursorPos.argtypes = (ctypes.c_int, ctypes.c_int)
         self.user.PostMessageW.argtypes = (
             wintypes.HWND,
@@ -202,8 +206,25 @@ class WindowsDesktop:
         assert self.user.SystemParametersInfoW(0x30, 0, ctypes.byref(rect), 0)
         return [rect.left, rect.top, rect.right, rect.bottom]
 
+    def window_at(self, x, y):
+        handle = self.user.WindowFromPoint(wintypes.POINT(int(x), int(y)))
+        return self.user.GetAncestor(handle, 2) if handle else None
+
     def scroll(self, amount=120):
         self._send([_Input(type=0, data=_Data(mouse=_Mouse(data=amount, flags=0x800)))])
+        time.sleep(0.2)
+
+    def scan(self, code, *, extended=False):
+        """Press a physical key position, allowing the active layout to map it."""
+        flags = 8 | int(extended)  # KEYEVENTF_SCANCODE, optional extended key.
+        self._send(
+            [
+                _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags))),
+                _Input(
+                    type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags | 2))
+                ),
+            ]
+        )
         time.sleep(0.2)
 
     @staticmethod
