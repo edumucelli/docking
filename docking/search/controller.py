@@ -10,8 +10,8 @@ Every query starts a coordinator generation. A callback, preview, action, or
 provider batch is accepted only while it still belongs to the active
 generation. This rule is what makes rapid typing safe even when catalog work,
 currency loading, or image decoding completes later. The controller also owns
-the XDG portal shortcut and starts the X11 helper only when the portal is
-unavailable on an X11 session.
+a native shortcut on Windows. Other desktops use the XDG portal, with the X11
+helper started only when the portal is unavailable on an X11 session.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.environment import is_windows
 from docking.platform.icons import IconLoader
 from docking.platform.targets import TargetService
 from docking.search.app_identity import application_id
@@ -66,6 +67,7 @@ from docking.search.services.global_shortcuts import (
     GlobalShortcutsService,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
+    SearchShortcutService,
 )
 from docking.search.services.recent_files import RecentFilesCatalog
 from docking.search.services.x11_shortcuts import (
@@ -205,7 +207,7 @@ class GlobalSearchController:
 
     @property
     def shortcut_status(self) -> GlobalShortcutsStatus | None:
-        """Return the latest portal status, if the portal has reported one."""
+        """Return the latest shortcut backend status, if available."""
         return self._shortcut_status
 
     def shortcut_status_text(self) -> str:
@@ -221,6 +223,11 @@ class GlobalSearchController:
         status = self._shortcut_status
         if status is None:
             return _("Not active")
+        if (
+            status.state is GlobalShortcutsState.ERROR
+            and status.message == "shortcut is already in use"
+        ):
+            return _("Shortcut already in use")
         trigger = status.binding.trigger_description if status.binding else None
         if status.state in {
             GlobalShortcutsState.STARTING,
@@ -257,6 +264,11 @@ class GlobalSearchController:
         status = self._shortcut_status
         if status is None:
             return _("Inactive")
+        if (
+            status.state is GlobalShortcutsState.ERROR
+            and status.message == "shortcut is already in use"
+        ):
+            return _("Conflict")
         if status.state in {
             GlobalShortcutsState.STARTING,
             GlobalShortcutsState.CREATING,
@@ -391,7 +403,20 @@ class GlobalSearchController:
         if self.visible:
             self._search(self._current_query)
 
-    def _new_shortcut_service(self) -> GlobalShortcutsService:
+    def _new_shortcut_service(self) -> SearchShortcutService:
+        if is_windows():
+            from docking.search.services.windows_shortcuts import (
+                WindowsGlobalShortcutsService,
+            )
+
+            return WindowsGlobalShortcutsService(
+                preferred_trigger=self._config.global_search_shortcut,
+                trigger_description=shortcut_label(self._config.global_search_shortcut),
+                on_activated=self._on_global_shortcut,
+                on_status_changed=self._on_shortcut_status,
+                schedule_idle=self._schedule_idle,
+                remove_source=GLib.source_remove,
+            )
         return GlobalShortcutsService(
             app_id=application_id(),
             preferred_trigger=self._config.global_search_shortcut,
@@ -400,7 +425,7 @@ class GlobalSearchController:
         )
 
     def _new_shortcut_fallback(self) -> ShortcutFallback | None:
-        if not is_x11_session():
+        if is_windows() or not is_x11_session():
             return None
         return X11GlobalShortcutService(
             shortcut=self._config.global_search_shortcut,

@@ -338,14 +338,67 @@ policy.
 ![File dragged from Explorer and pinned to Docking](../images/windows-file-drop.png)
 
 Native application identity/grouping for arbitrary dropped executables and
-shortcuts remains separate acceptance work. The global Search shortcut,
-network disconnect/reconnect behavior and broader folder-monitor scenarios
+shortcuts remains separate acceptance work. Network disconnect/reconnect
+behavior and broader folder-monitor scenarios
 also remain pending.
 
 References: [Python file-URL conversion](https://docs.python.org/3.14/library/urllib.request.html#urllib.request.url2pathname),
 [Gio native file paths](https://docs.gtk.org/gio/type_func.File.new_for_path.html),
 [Gio platform content types](https://docs.gtk.org/gio/content-types.html),
 [Windows shell file associations](https://docs.python.org/3.14/library/os.html#os.startfile).
+
+## Native Search shortcut
+
+Windows uses `RegisterHotKey` for the configured Search shortcut, starting with
+`Ctrl+Alt+Space`. A dedicated thread owns registration, native messages and
+release. The thread posts activation and status callbacks to GTK; stopping or
+replacing the service discards older generations and cancels their pending
+callbacks. Repeated activation notifications are bounded while GTK is busy.
+Windows' `MOD_NOREPEAT` flag suppresses held-key repeat.
+
+The existing Preferences capture lifecycle suspends the registration before
+capturing a new key, restores it on cancellation, and rebinds after a change.
+A competing registration reports the existing **Conflict** status, with no
+binding advertised. Disabling Search and normal Quit release the owned hotkey.
+The Windows path does not attempt the XDG portal or X11 fallback.
+
+Captured GDK key names map to native virtual keys or characters translated in
+the foreground keyboard layout. F12 is reserved by Windows for debuggers and
+is rejected. The XDG `NUM` modifier has no Win32 registration equivalent.
+The desktop acceptance uses the lab's US keyboard layout; broader keyboard
+layouts, dead keys, remote sessions and Windows-reserved combinations still
+need acceptance.
+
+`windows_shortcut_smoke.py` runs the complete application composition and GTK
+main loop with isolated settings. Its driver sends native `SendInput` events
+and independently observes HWNDs and foreground focus. GTK state observations
+and Preferences actions are marshalled to the application's main loop.
+The `windows-shortcuts-visual-verified` run verified activation from Notepad,
+Search typing focus, toggle-to-hide and return to Notepad, held-key suppression,
+and activation with Caps Lock and Num Lock toggled. It captured and persisted
+`Ctrl+Alt+K`, released the previous binding, created a real competing registration
+and showed Conflict in Preferences, recovered after that owner released the
+key, completed five capture/cancel cycles with one worker, and passed disable/
+reenable. After normal application shutdown an independent registration could
+acquire both old and new combinations again. The Search and Preferences PNGs
+were inspected. Sixty-one focused shortcut/controller checks also passed under
+native Windows Python.
+
+![Search opened by the native Windows hotkey](../images/windows-search-hotkey.png)
+
+![Windows shortcut conflict in Preferences](../images/windows-shortcut-conflict.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_shortcut_smoke.py' \
+  --output '\\host.lan\Data\lab\shortcuts'
+```
+
+References: [RegisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey),
+[native hotkey messages](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-hotkey),
+[keyboard-layout translation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscanexw),
+[UnregisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey).
 
 ## Implementation and acceptance ledger
 
@@ -358,7 +411,7 @@ References: [Python file-URL conversion](https://docs.python.org/3.14/library/ur
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
-| Search and file workflows | Native drive/UNC targets, shell associations, path Search and shared folder UI | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; global shortcut, arbitrary executable/shortcut identity and broader file/network acceptance pending |
+| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI and native global hotkey | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
 | Portable applets | Pending | Exercise the full applet catalog on Windows |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |

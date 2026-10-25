@@ -803,3 +803,40 @@ def test_window_preview_cache_rejects_closed_and_reused_process_identity(monkeyp
     windows.list_all_windows.return_value = (replace(snapshot, pid=202),)
     controller._preview_service.capture.return_value = PreviewImage(second, 28, 20)
     assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is second
+
+
+def test_windows_shortcut_conflict_uses_existing_actionable_feedback(monkeypatch):
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller._shortcut_status = GlobalShortcutsStatus(
+        state=GlobalShortcutsState.ERROR, message="shortcut is already in use"
+    )
+    assert controller.shortcut_status_text() == "Shortcut already in use"
+    assert controller.shortcut_status_summary() == "Conflict"
+
+
+def test_windows_shortcut_factory_uses_native_service_without_portal_or_x11(
+    monkeypatch,
+):
+    import docking.search.services.windows_shortcuts as native
+
+    factory = MagicMock()
+    monkeypatch.setattr(controller_mod, "is_windows", lambda: True)
+    monkeypatch.setattr(controller_mod, "is_x11_session", lambda: True)
+    monkeypatch.setattr(native, "WindowsGlobalShortcutsService", factory)
+    portal = MagicMock(
+        side_effect=AssertionError("Windows must not contact the portal")
+    )
+    monkeypatch.setattr(controller_mod, "GlobalShortcutsService", portal)
+    controller = SimpleNamespace(
+        _config=Config(),
+        _on_global_shortcut=MagicMock(),
+        _on_shortcut_status=MagicMock(),
+        _schedule_idle=MagicMock(),
+    )
+    assert (
+        GlobalSearchController._new_shortcut_service(controller) is factory.return_value
+    )
+    assert GlobalSearchController._new_shortcut_fallback(controller) is None
+    assert factory.call_args.kwargs["preferred_trigger"] == "CTRL+ALT+space"
+    assert factory.call_args.kwargs["trigger_description"] == "Ctrl+Alt+Space"
+    portal.assert_not_called()
