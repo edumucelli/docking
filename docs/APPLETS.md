@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 65 built-in applets that live alongside
+Docking includes 66 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -30,7 +30,7 @@ the applet keeps a safe unavailable state or hides unsupported actions.
   [Workspaces](#workspaces)
 - **Time & Productivity:** [AI Usage](#ai-usage), [Alarm](#alarm),
   [Bookmarks](#bookmarks), [Calculator](#calculator), [Calendar](#calendar),
-  [Clippy](#clippy), [Clock](#clock), [Color Picker](#color-picker),
+  [Clippy](#clippy), [Clock](#clock), [Color Picker](#color-picker), [Gmail](#gmail),
   [Drag Share](#drag-share), [Pomodoro](#pomodoro), [Quick Note](#quick-note),
   [Recent Files](#recent-files), [Unit Converter](#unit-converter),
   [URL Shortener](#url-shortener)
@@ -226,6 +226,33 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 **Right-click:** List of all clips (newest first), click to copy. "Clear" to empty history.
 
 **Preferences stored:** `max_entries`
+
+### Gmail
+
+Unread inbox conversation counts for multiple Gmail and Google Workspace
+accounts. One badge shows the combined count; hover over the icon or open the
+menu to see each account separately. Several unread messages in one conversation
+count once. Updates appear on the badge without desktop alerts.
+
+**Click:** Sign in with Google when no account is connected; otherwise open the
+selected account's inbox in your default browser. Opening another account from
+the menu selects it for future clicks. Gmail may ask you to sign in separately
+in the browser.
+
+**Right-click:** Open an account's inbox, Add Account, Refresh Now, Reconnect, or
+Disconnect. Choose Cancel Sign-in to stop a sign-in already in progress.
+
+**Sign-in:** Follow Google's prompts in your browser. A working desktop keyring
+is required. Work accounts may need administrator approval.
+
+**Connection issues:** The tooltip and menu show the affected account's status
+and its last known count when available. If your keyring is locked, unlock it
+and try sign-in or Refresh Now again. Choose Reconnect when prompted to sign in
+again.
+
+**Disconnect:** Removes the chosen account from Docking. If prompted, choose
+Manage Google Account Access to finish removing Docking's access. Removing the
+applet keeps your connections for when you add it again.
 
 ### Clock
 

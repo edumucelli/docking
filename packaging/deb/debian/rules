@@ -38,7 +38,8 @@ override_dh_auto_install:
 	# The docking entrypoint adds /usr/lib/docking/vendor to sys.path.
 	python3 -m pip install --no-compile \
 		--target=debian/docking/usr/lib/docking/vendor \
-		openmeteo-requests requests-cache retry-requests exceptiongroup
+		openmeteo-requests requests-cache retry-requests exceptiongroup \
+		"google-auth[requests]>=2.49.1,<3" "google-auth-oauthlib>=1.3.1,<2"
 	# Newer builders omit cattrs' conditional exceptiongroup dependency, but
 	# the same package must also support hosts running Python 3.10.
 	# Remove .dist-info so dh_python3 won't auto-add vendored

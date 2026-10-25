@@ -43,6 +43,7 @@ AppDir:
       - gir1.2-gdkpixbuf-2.0
       - gir1.2-wnck-3.0
       - gir1.2-pango-1.0
+      - gir1.2-secret-1
       - gir1.2-nm-1.0
       - gir1.2-gstreamer-1.0
       - gir1.2-webkit2-4.0
