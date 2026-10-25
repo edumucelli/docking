@@ -30,13 +30,20 @@ try {
     # use a fresh shell for the package transaction.
     Start-Sleep -Seconds 3
     for ($attempt = 0; $attempt -lt 2; $attempt++) {
-        & C:\msys64\usr\bin\bash.exe --login -c "pacman --noconfirm -Syu --needed mingw-w64-ucrt-x86_64-gtk3 mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-gobject mingw-w64-ucrt-x86_64-python-cairo mingw-w64-ucrt-x86_64-python-pip mingw-w64-ucrt-x86_64-python-pillow mingw-w64-ucrt-x86_64-python-psutil mingw-w64-ucrt-x86_64-python-pytest mingw-w64-ucrt-x86_64-python-numpy"
+        # GStreamer supplies Ambient's GI namespace, OGG/noise sources and the
+        # Windows WASAPI audio sink used by autoaudiosink.
+        & C:\msys64\usr\bin\bash.exe --login -c "pacman --noconfirm -Syu --needed mingw-w64-ucrt-x86_64-gtk3 mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-gobject mingw-w64-ucrt-x86_64-python-cairo mingw-w64-ucrt-x86_64-python-pip mingw-w64-ucrt-x86_64-python-pillow mingw-w64-ucrt-x86_64-python-psutil mingw-w64-ucrt-x86_64-python-pytest mingw-w64-ucrt-x86_64-python-numpy mingw-w64-ucrt-x86_64-gstreamer mingw-w64-ucrt-x86_64-gst-plugins-base mingw-w64-ucrt-x86_64-gst-plugins-good mingw-w64-ucrt-x86_64-gst-plugins-bad"
         if ($LASTEXITCODE -eq 0) { break }
         if ($attempt -eq 1) { throw "GTK/Python dependency installation failed" }
         Start-Sleep -Seconds 5
     }
     & C:\msys64\ucrt64\bin\python.exe -m pip install --break-system-packages "openmeteo-requests>=1.2,<1.5" requests-cache retry-requests
     if ($LASTEXITCODE -ne 0) { throw "Docking Python dependency installation failed" }
+    # Build the complete registry during setup. The first native plugin scan
+    # can take several minutes; subsequent Ambient imports use the cache.
+    Write-Output "Preparing the native GStreamer registry..."
+    & C:\msys64\ucrt64\bin\python.exe -c "import gi; gi.require_version('Gst', '1.0'); from gi.repository import Gst; Gst.init(None)"
+    if ($LASTEXITCODE -ne 0) { throw "GStreamer registry preparation failed" }
     # The runner must live in the interactive user's session, rather than a service.
     $agentFolder = Join-Path $env:LOCALAPPDATA "DockingLab"
     New-Item -ItemType Directory -Force -Path $agentFolder | Out-Null

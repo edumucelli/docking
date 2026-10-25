@@ -15,6 +15,7 @@ services:
       PASSWORD: ${DOCKING_WINDOWS_PASSWORD:?Set a lab password}
       AUTOLOGIN: "Y"
       BALLOONING: "Y"
+      AUDIO: "Y"
     devices:
       - /dev/kvm
       - /dev/net/tun

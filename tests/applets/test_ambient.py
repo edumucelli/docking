@@ -1,5 +1,6 @@
 """Tests for the ambient sound applet."""
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -243,6 +244,16 @@ class TestAmbientPlaybackBranches:
 
 
 class TestAmbientLifecycleAndPipelines:
+    @pytest.mark.parametrize("sound", ["white-noise", "pink-noise"])
+    def test_noise_selection_matches_gstreamers_named_waveform(self, sound):
+        source = ambient_mod.Gst.ElementFactory.make("audiotestsrc", "waveform-check")
+        if source is None:
+            pytest.skip("GStreamer audiotestsrc plugin is unavailable")
+        source.set_property("wave", ambient_mod.NOISE_WAVES[sound])
+        # Query GStreamer's real enum rather than repeating numeric constants:
+        # the former white-noise value selected a 440 Hz sine tone.
+        assert source.get_property("wave").value_nick == sound
+
     def test_build_file_pipeline_returns_none_when_factory_missing(self, monkeypatch):
         monkeypatch.setattr(
             ambient_mod.Gst.ElementFactory, "make", lambda *_a, **_k: None
@@ -252,16 +263,24 @@ class TestAmbientLifecycleAndPipelines:
             is None
         )
 
-    def test_build_file_pipeline_sets_uri_and_volume(self, monkeypatch):
+    def test_build_file_pipeline_sets_uri_and_volume(self, monkeypatch, tmp_path):
         playbin = MagicMock()
         monkeypatch.setattr(
             ambient_mod.Gst.ElementFactory, "make", lambda *_a, **_k: playbin
         )
-        sound_path = Path("/tmp/sound.ogg")
+        sound_path = tmp_path / "sound.ogg"
         result = ambient_mod._build_file_pipeline(path=sound_path, volume=0.7)
         assert result is playbin
         playbin.set_property.assert_any_call("uri", sound_path.as_uri())
         playbin.set_property.assert_any_call("volume", 0.7)
+
+    @pytest.mark.skipif(os.name != "nt", reason="Native Windows UNC URI contract")
+    def test_unc_sound_uri_preserves_server_and_unicode_filename(self):
+        path = Path(r"\\server\share") / "sound résumé #100% +.ogg"
+        pipeline = ambient_mod._build_file_pipeline(path=path, volume=0.5)
+        source = ambient_mod.Gst.ElementFactory.make("filesrc", "unc-uri-check")
+        assert ambient_mod.Gst.URIHandler.set_uri(source, pipeline.get_property("uri"))
+        assert Path(source.get_property("location")) == path
 
     def test_build_noise_pipeline_delegates_to_parse_launch(self, monkeypatch):
         pipeline = MagicMock()
@@ -317,6 +336,24 @@ class TestAmbientLifecycleAndPipelines:
         bus.connect.assert_called_once()
         pipeline.set_state.assert_called_once_with(ambient_mod.Gst.State.PLAYING)
         assert applet._bus_watching is True
+
+    def test_playback_state_failure_releases_pipeline_and_bus_watch(
+        self, monkeypatch, tmp_path
+    ):
+        applet = _make_applet()
+        (tmp_path / f"{applet._current}.ogg").write_bytes(b"fixture")
+        monkeypatch.setattr(ambient_mod, "SOUNDS_DIR", tmp_path)
+        pipeline = MagicMock()
+        pipeline.set_state.return_value = ambient_mod.Gst.StateChangeReturn.FAILURE
+        monkeypatch.setattr(ambient_mod, "_build_file_pipeline", lambda **_k: pipeline)
+
+        applet._start_playback()
+
+        assert applet._pipeline is None
+        assert applet._playing is False
+        assert applet._bus_watching is False
+        pipeline.set_state.assert_any_call(ambient_mod.Gst.State.NULL)
+        pipeline.get_bus.return_value.remove_signal_watch.assert_called_once()
 
     def test_start_playback_warns_when_pipeline_creation_fails(self, monkeypatch):
         applet = _make_applet()

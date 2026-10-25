@@ -31,8 +31,12 @@ pacman -Syu
 pacman -S --needed mingw-w64-ucrt-x86_64-gtk3 \
   mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-gobject \
   mingw-w64-ucrt-x86_64-python-cairo mingw-w64-ucrt-x86_64-python-pip \
-  mingw-w64-ucrt-x86_64-python-psutil mingw-w64-ucrt-x86_64-python-numpy
+  mingw-w64-ucrt-x86_64-python-psutil mingw-w64-ucrt-x86_64-python-numpy \
+  mingw-w64-ucrt-x86_64-python-pillow mingw-w64-ucrt-x86_64-gstreamer \
+  mingw-w64-ucrt-x86_64-gst-plugins-base \
+  mingw-w64-ucrt-x86_64-gst-plugins-good mingw-w64-ucrt-x86_64-gst-plugins-bad
 python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
+python -c "import gi; gi.require_version('Gst', '1.0'); from gi.repository import Gst; Gst.init(None)"
 python run.py
 ```
 
@@ -135,9 +139,8 @@ native icon and running indicator. The baseline remains the same single display.
 Fourteen focused tests also passed under native Windows Python. Repeating shell
 icon extraction 26 times left the process's GDI handle count unchanged at 40.
 
-The initial catalog import audit loaded 62 of 65 applet classes. With native
-AI Usage support, a subsequent audit loads 63 of 65. The remaining import issues
-are Ambient's missing GStreamer runtime and System Tray's eager XEmbed import.
+The native catalog import audit currently loads 64 of 65 applet classes.
+System Tray remains blocked by its eager XEmbed/GdkX11 import.
 Importing a class does not verify its controls or native system backend; the
 catalog acceptance work remains open.
 
@@ -527,6 +530,63 @@ References: [Windows mutex ownership](https://learn.microsoft.com/en-us/windows/
 [kernel object namespaces](https://learn.microsoft.com/en-us/windows/win32/termserv/kernel-object-namespaces),
 [Claude command hook fields](https://code.claude.com/docs/en/hooks#command-hook-fields).
 
+## Ambient playback and audio capture
+
+The lab now installs GStreamer and its base, good and bad plugin packages,
+including the native WASAPI output. `AUDIO=Y` exposes an emulated sound device
+and the browser audio stream. Enable Audio under Settings → Advanced in the
+web viewer to listen. The verified console-session baseline has one Windows
+output device; physical devices, Bluetooth, RDP redirection and device changes
+remain broader acceptance.
+
+Ambient uses `Gst.filename_to_uri()` for sound files. On this Windows runtime,
+`Path.as_uri()` produced a UNC URI that GStreamer's GIO source opened without
+the server name. The GStreamer conversion preserves the share and reaches
+PLAYING. A native URI-handler test also checks a UNC filename containing
+Unicode, spaces, percent, hash and plus characters. Playback that fails its
+initial state change now releases the pipeline and bus watch and stays stopped.
+
+Native validation also found that White Noise selected GStreamer's sine mode.
+The shared mapping now selects white noise; both noise modes are checked
+against GStreamer's real named enum on Linux and Windows.
+
+The first complete plugin-registry scan measured about 584 seconds on the VM;
+a cached `Gst.init()` measured about 65 ms. Bootstrap prepares the full registry
+during setup. The isolated desktop smoke copies this installed dependency
+metadata into its own cache, while keeping app preferences and runtime files
+separate. This verifies playback after setup; it does not measure cold scanning
+as application startup.
+
+`windows_ambient_smoke.py` runs the normal dock and uses native clicks, menu
+navigation and wheel events. `windows_vm_audio.py` records the actual QEMU audio
+relay as 48 kHz stereo PCM and WAV files. The successful run verified all seven
+bundled OGG sounds through `wasapi2sink`, white and pink noise, volume changes,
+muting, and stop. Muted output remained at the 16-bit quantization floor; after
+stop the relay supplied no frames. A separate short OGG fixture under a Unicode
+share path completed four real end-of-stream repeats while audio continued.
+Normal shutdown restored the work area and released the hotkey. Playing and
+menu captures were inspected. Ambient's focused suite passed 45 native Windows
+tests and 44 Linux tests, with the Windows-only UNC case skipped on Linux.
+
+Use a fresh output directory for each run. Start the guest job, then service its
+audio requests from the host:
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_ambient_smoke.py' \
+  --output '\\host.lan\Data\lab\ambient-acceptance'
+python tools/windows_vm_audio.py --share /path/to/shared/artifacts \
+  --name ambient-acceptance --timeout 300
+```
+
+![Ambient playing White Noise on the native Windows desktop](../images/windows-ambient.png)
+
+References: [GStreamer filename conversion](https://gstreamer.freedesktop.org/documentation/gstreamer/gsturihandler.html#gst_filename_to_uri),
+[noise modes](https://gstreamer.freedesktop.org/documentation/audiotestsrc/index.html),
+[native WASAPI output](https://gstreamer.freedesktop.org/documentation/wasapi2/wasapi2sink.html),
+[Dockur audio](https://github.com/dockur/windows#how-do-i-enable-audio).
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -592,7 +652,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
-| Portable applets | AI Usage native update lock and hook transport; shared applet rendering | AI Usage fixture hook, polling, artwork, tooltip, wheel and context menu verified; full catalog and live provider sessions pending |
+| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 
