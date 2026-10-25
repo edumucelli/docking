@@ -9,7 +9,7 @@ message and disable device actions.
 
 ## Set up a phone
 
-1. Install your distribution's `kdeconnect` package on the computer and the
+1. Install the desktop package for your distribution (listed below) and the
    [KDE Connect app](https://kdeconnect.kde.org/download.html) on your phone.
 2. Open KDE Connect on both devices, connect them to the same network, and pair
    them. Accept the pairing request on the other device. Follow KDE Connect's
@@ -20,6 +20,19 @@ message and disable device actions.
 4. Enable the phone's battery, find-my-phone, and file-sharing plugins as needed.
    Docking enables each action only when the selected device is online and its
    corresponding KDE Connect plugin is loaded.
+
+Desktop package names differ by distribution:
+
+| Distribution | Desktop package | Install command |
+| --- | --- | --- |
+| Debian / Ubuntu | `kdeconnect` | `sudo apt install kdeconnect` |
+| Arch Linux | `kdeconnect` | `sudo pacman -S kdeconnect` |
+| Fedora [44](https://packages.fedoraproject.org/pkgs/kde-connect/kde-connect/fedora-44.html) / [45](https://packages.fedoraproject.org/pkgs/kde-connect/kde-connect/fedora-45.html) | `kde-connect` | `sudo dnf install kde-connect` |
+| openSUSE [Tumbleweed](https://doc.opensuse.org/documentation/tumbleweed/kdeconnect/) / [Leap 16.0](https://packagehub.suse.com/packages/kdeconnect-kde/) | `kdeconnect-kde` | `sudo zypper install kdeconnect-kde` |
+
+Docking's shared RPM suggests `kdeconnect-kde`: Fedora's `kde-connect` provides
+that capability, and openSUSE uses it as the package name. KDE Connect remains
+optional; install the package explicitly when using this applet.
 
 The applet lists paired devices, including offline ones. Selecting a phone saves
 its identifier. If that phone disconnects or is unpaired, Docking does not switch
