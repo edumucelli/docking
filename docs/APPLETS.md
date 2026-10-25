@@ -454,34 +454,23 @@ Shows Docker availability and container status when Docker is installed.
 ### KDE Connect
 
 Connect a paired phone or another KDE Connect device to the dock. The icon shows
-the selected device's battery percentage, including 0% and 100%, and indicates
-charging. Unknown battery values are hidden; offline devices remain listed.
+the selected device's battery percentage and charging status. Paired devices
+remain in the menu when they go offline.
 
 **Click:** Open KDE Connect's device settings and pairing interface.
 
 **Right-click:** Choose a paired device, Ring Phone, Send Files, Refresh Now, or
 Open KDE Connect / Pair Device. Actions are enabled only when the selected
-device is online and the matching KDE Connect plugin is loaded.
+device is online and the corresponding feature is enabled in KDE Connect.
 
-**Drop files:** Send local regular files to the selected paired device. Files
-are handed to the host KDE Connect daemon; its own transfer interface handles
-progress and completion. The applet never silently switches the destination
-when a selected device goes offline or is unpaired.
+**Drop files:** Drop one or more local files onto the icon to send them to the
+selected device. The destination stays the same if that device goes offline or
+is unpaired; choose another device explicitly to send files elsewhere. Use KDE
+Connect to check transfer progress and confirm receipt.
 
-**Updates:** Device, connection, plugin, and battery D-Bus signals refresh the
-display, with a 30-second fallback refresh. Removing the applet cancels pending
-requests and unsubscribes without unpairing devices or stopping KDE Connect.
-
-**Integration requirement:** Install KDE Connect on the computer and phone,
-pair them through KDE Connect, and enable its battery, find-phone, and sharing
-plugins as desired. KDE Connect works outside the KDE Plasma desktop; the
-applet displays setup instructions if its session-bus service is unavailable.
-Flatpak connects to the host daemon and requires its D-Bus permission.
-
-**Preferences stored:** `selected_device` in `applet_prefs.kdeconnect`.
-
-See [KDE Connect development checks](KDECONNECT.md) for isolated D-Bus tests and
-the real-daemon container validation.
+**Requires:** Install KDE Connect on the computer and phone, pair the devices,
+and enable the battery, find-phone, and file-sharing features you want to use in
+KDE Connect's settings. A KDE Plasma desktop is not required.
 
 ### Keyboard Layout
 
