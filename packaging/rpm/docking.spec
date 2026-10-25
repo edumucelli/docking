@@ -26,6 +26,7 @@ Requires:       (libwnck3 or typelib-1_0-Wnck-3_0)
 Requires:       (NetworkManager-libnm or typelib-1_0-NM-1_0)
 Requires:       (webkit2gtk4.1 or typelib-1_0-WebKit2-4_1)
 Recommends:     python3-pywayland
+Suggests:       kdeconnect
 BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  python3-devel

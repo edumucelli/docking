@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 65 built-in applets that live alongside
+Docking includes 66 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -37,7 +37,8 @@ the applet keeps a safe unavailable state or hides unsupported actions.
 - **System & Power:** [Battery](#battery), [Bluetooth](#bluetooth),
   [Brightness](#brightness), [Caffeine](#caffeine), [Cam Shield](#cam-shield),
   [Caps Lock](#caps-lock), [Cert Watch](#cert-watch), [Devices](#devices),
-  [Docker](#docker), [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
+  [Docker](#docker), [KDE Connect](#kde-connect),
+  [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
   [Music](#music), [Network](#network), [Notifications](#notifications),
   [Power Profiles](#power-profiles), [Screenshot](#screenshot), [Session](#session),
   [Speedtest](#speedtest), [System Monitor](#system-monitor),
@@ -449,6 +450,38 @@ Shows Docker availability and container status when Docker is installed.
 
 **Click:** Refresh container state
 **Right-click:** Container actions when available
+
+### KDE Connect
+
+Connect a paired phone or another KDE Connect device to the dock. The icon shows
+the selected device's battery percentage, including 0% and 100%, and indicates
+charging. Unknown battery values are hidden; offline devices remain listed.
+
+**Click:** Open KDE Connect's device settings and pairing interface.
+
+**Right-click:** Choose a paired device, Ring Phone, Send Files, Refresh Now, or
+Open KDE Connect / Pair Device. Actions are enabled only when the selected
+device is online and the matching KDE Connect plugin is loaded.
+
+**Drop files:** Send local regular files to the selected paired device. Files
+are handed to the host KDE Connect daemon; its own transfer interface handles
+progress and completion. The applet never silently switches the destination
+when a selected device goes offline or is unpaired.
+
+**Updates:** Device, connection, plugin, and battery D-Bus signals refresh the
+display, with a 30-second fallback refresh. Removing the applet cancels pending
+requests and unsubscribes without unpairing devices or stopping KDE Connect.
+
+**Integration requirement:** Install KDE Connect on the computer and phone,
+pair them through KDE Connect, and enable its battery, find-phone, and sharing
+plugins as desired. KDE Connect works outside the KDE Plasma desktop; the
+applet displays setup instructions if its session-bus service is unavailable.
+Flatpak connects to the host daemon and requires its D-Bus permission.
+
+**Preferences stored:** `selected_device` in `applet_prefs.kdeconnect`.
+
+See [KDE Connect development checks](KDECONNECT.md) for isolated D-Bus tests and
+the real-daemon container validation.
 
 ### Keyboard Layout
 
