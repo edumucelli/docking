@@ -2,6 +2,35 @@
 
 let
   pyPkgs = pkgs.python3Packages;
+  # The CI channel predates the authentication SDKs required by Gmail. Package
+  # the same upstream pure-Python wheels used by the other release formats,
+  # retaining runtime dependency and import checks instead of relaxing bounds.
+  googleAuth = pyPkgs.buildPythonPackage {
+    pname = "google-auth";
+    version = "2.49.1";
+    format = "wheel";
+    src = pkgs.fetchurl {
+      url = "https://files.pythonhosted.org/packages/e9/eb/c6c2478d8a8d633460be40e2a8a6f8f429171997a35a96f81d3b680dec83/google_auth-2.49.1-py3-none-any.whl";
+      sha256 = "195ebe3dca18eddd1b3db5edc5189b76c13e96f29e73043b923ebcf3f1a860f7";
+    };
+    propagatedBuildInputs = with pyPkgs; [
+      cryptography
+      pyasn1-modules
+      requests
+    ];
+    pythonImportsCheck = [ "google.auth" ];
+  };
+  googleAuthOauthlib = pyPkgs.buildPythonPackage {
+    pname = "google-auth-oauthlib";
+    version = "1.3.1";
+    format = "wheel";
+    src = pkgs.fetchurl {
+      url = "https://files.pythonhosted.org/packages/2a/e0/cb454a95f460903e39f101e950038ec24a072ca69d0a294a6df625cc1627/google_auth_oauthlib-1.3.1-py3-none-any.whl";
+      sha256 = "1a139ef23f1318756805b0e95f655c238bffd29655329a2978218248da4ee7f8";
+    };
+    propagatedBuildInputs = [ googleAuth pyPkgs.requests-oauthlib ];
+    pythonImportsCheck = [ "google_auth_oauthlib.flow" ];
+  };
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
@@ -36,8 +65,8 @@ pyPkgs.buildPythonApplication rec {
     pycairo
     pygobject3
     pywayland
-    google-auth
-    google-auth-oauthlib
+    googleAuth
+    googleAuthOauthlib
   ];
 
   # Weather client deps are not consistently available in nixpkgs channels.

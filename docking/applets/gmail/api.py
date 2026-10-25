@@ -171,18 +171,23 @@ class GmailClient:
                 client_secret=self.config.client_secret,
                 scopes=SCOPES,
             )
-        data = self._get(credentials, INBOX_ENDPOINT, operation)
+        try:
+            data = self._get(credentials, INBOX_ENDPOINT, operation)
+        finally:
+            # The SDK can rotate credentials before a later inbox request fails.
+            # Preserve authentication independently of the count result. Keeping
+            # the object in memory also allows retrying a failed keyring write.
+            operation.check()
+            self._credentials[account.credential_id] = credentials
+            if (
+                credentials.refresh_token
+                and credentials.refresh_token != record.refresh_token
+            ):
+                self.store.save(account, credentials.refresh_token, operation)
+            operation.check()
         unread = data.get("threadsUnread")
         if isinstance(unread, bool) or not isinstance(unread, int) or unread < 0:
             raise GmailError(_("Gmail returned an invalid unread count"))
-        operation.check()
-        if (
-            credentials.refresh_token
-            and credentials.refresh_token != record.refresh_token
-        ):
-            self.store.save(account, credentials.refresh_token, operation)
-        operation.check()
-        self._credentials[account.credential_id] = credentials
         return unread
 
     def forget(self, account: Account) -> None:

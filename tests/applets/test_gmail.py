@@ -384,3 +384,41 @@ def test_cancelled_poll_never_writes_rotated_credentials(monkeypatch):
     with pytest.raises(GmailError, match="cancelled"):
         client.poll(A, operation)
     client.store.save.assert_not_called()
+
+
+def test_rotated_credentials_survive_a_later_inbox_failure(monkeypatch):
+    client = GmailClient(CLIENT, lambda _url: True)
+    client.store = Mock()
+    client.store.load.return_value = RefreshCredential(CLIENT.client_id, "old-token")
+
+    def refresh_then_fail(credentials, _url, _operation):
+        # Simulate the SDK rotating its credential before the inbox GET fails.
+        credentials._refresh_token = "rotated-token"
+        raise GmailError("inbox temporarily unavailable")
+
+    monkeypatch.setattr(client, "_get", refresh_then_fail)
+    with pytest.raises(GmailError, match="temporarily unavailable"):
+        client.poll(A, Operation())
+
+    assert client.store.save.call_args.args[:2] == (A, "rotated-token")
+    assert client._credentials[A.credential_id].refresh_token == "rotated-token"
+
+
+def test_rotation_remains_in_memory_when_keyring_write_needs_retry(monkeypatch):
+    client = GmailClient(CLIENT, lambda _url: True)
+    client.store = Mock()
+    client.store.load.return_value = RefreshCredential(CLIENT.client_id, "old-token")
+    client.store.save.side_effect = GmailError("keyring locked", paused=True)
+
+    def refresh_then_read(credentials, _url, _operation):
+        credentials._refresh_token = "rotated-token"
+        return {"threadsUnread": 3}
+
+    monkeypatch.setattr(client, "_get", refresh_then_read)
+    with pytest.raises(GmailError, match="keyring locked"):
+        client.poll(A, Operation())
+    assert client._credentials[A.credential_id].refresh_token == "rotated-token"
+
+    client.store.save.side_effect = None
+    assert client.poll(A, Operation()) == 3
+    assert client.store.save.call_count == 2

@@ -29,6 +29,22 @@ References: [desktop OAuth](https://developers.google.com/identity/protocols/oau
 [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [label endpoint](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.labels/get).
 
+## Managed-project quota monitoring
+
+Google's [Gmail usage limits](https://developers.google.com/workspace/gmail/api/reference/quota),
+checked on October 25, 2026, assign `labels.get` one quota unit. The published
+limits for new projects are 1,200,000 units per minute per project and 6,000 per
+minute per user/project, with a daily project threshold of 80,000,000 units.
+One account instance polling continuously every 60 seconds uses approximately
+1,440 units per day, excluding startup and manual refreshes. Aggregate usage
+across all installations shares the managed project's quota.
+
+Maintain quota monitoring in the project's Google Cloud Console and review
+Google's current thresholds before a larger release. Google describes possible
+over-threshold billing later in 2026 with advance notice; do not assume a price
+or the project's billing state from these figures. Docking does not change
+Cloud billing settings or require end users to configure quota management.
+
 ## Developer testing
 
 Download a Desktop OAuth client JSON from your Google Cloud project, add the
