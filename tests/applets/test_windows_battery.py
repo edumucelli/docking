@@ -2,14 +2,13 @@
 
 import ctypes
 import sys
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-from docking.applets.battery import backend, peripherals, render, state, windows
-from docking.applets.battery.state import BAT_BASE, BatteryState
+from docking.applets.battery import backend, render, state, upower, windows
+from docking.applets.battery.state import BatteryState
 from docking.platform import environment
 
 
@@ -52,7 +51,7 @@ def test_charge_direction_comes_from_reported_flags_not_ac_alone(
     value, _api = _backend(
         power=_status(ACLineStatus=ac, BatteryFlag=flags, BatteryLifePercent=percent)
     )
-    reading = value.read_battery("BAT0", BAT_BASE)
+    reading = value.read_battery()
     assert reading is not None
     assert (reading.capacity, reading.status, reading.seconds_remaining) == (
         percent,
@@ -65,29 +64,27 @@ def test_charge_direction_comes_from_reported_flags_not_ac_alone(
 @pytest.mark.parametrize("percent", [101, 254, 255])
 def test_unknown_percentage_never_becomes_zero_or_a_fabricated_percent(percent):
     value, _api = _backend(power=_status(BatteryLifePercent=percent))
-    reading = value.read_battery("BAT0", BAT_BASE)
+    reading = value.read_battery()
     assert reading is not None and reading.capacity is None
     assert state.tooltip_text(reading).startswith("Battery: Unknown")
 
 
 def test_unknown_flags_are_not_interpreted_as_no_battery_or_charging():
     value, _api = _backend(power=_status(BatteryFlag=255, BatteryLifePercent=255))
-    assert value.read_battery("BAT0", BAT_BASE) == BatteryState(
-        "battery-empty", None, "Unknown", None
-    )
+    assert value.read_battery() == BatteryState("battery-empty", None, "Unknown", None)
 
 
 @pytest.mark.parametrize("flags", [128, 129])
 def test_explicit_absent_battery_has_no_state_or_rate_query(flags):
     value, api = _backend(power=_status(BatteryFlag=flags, BatteryLifePercent=255))
-    assert value.read_battery("BAT0", BAT_BASE) is None
+    assert value.read_battery() is None
     api.battery_state.assert_not_called()
 
 
 @pytest.mark.parametrize("seconds", [0, 0xFFFFFFFF])
 def test_unknown_or_zero_estimate_is_omitted(seconds):
     value, _api = _backend(power=_status(BatteryLifeTime=seconds))
-    assert value.read_battery("BAT0", BAT_BASE).seconds_remaining is None
+    assert value.read_battery().seconds_remaining is None
 
 
 @pytest.mark.parametrize("rate,expected", [(-7600, 7.6), (12500, 12.5), (0, 0.0)])
@@ -95,8 +92,8 @@ def test_signed_milliwatts_become_power_magnitude_in_watts(rate, expected):
     value, _api = _backend(
         power=_status(), battery=windows.SystemBatteryState(BatteryPresent=1, Rate=rate)
     )
-    assert value.read_power_watts("BAT0", BAT_BASE) == expected
-    assert value.read_battery("BAT0", BAT_BASE).power_watts == expected
+    assert value.read_power_watts() == expected
+    assert value.read_battery().power_watts == expected
 
 
 @pytest.mark.parametrize(
@@ -109,18 +106,18 @@ def test_signed_milliwatts_become_power_magnitude_in_watts(rate, expected):
 )
 def test_missing_or_unknown_rate_is_not_reported_as_power(battery):
     value, _api = _backend(power=_status(), battery=battery)
-    reading = value.read_battery("BAT0", BAT_BASE)
+    reading = value.read_battery()
     assert reading.capacity == 75 and reading.power_watts is None
 
 
 def test_failed_read_recovers_on_next_poll_without_caching_absence():
     value, api = _backend()
-    unknown = value.read_battery("BAT0", BAT_BASE)
+    unknown = value.read_battery()
     assert unknown.capacity is None and unknown.status == "Unknown"
     api.power_status.return_value = _status(BatteryLifePercent=55)
-    assert value.read_battery("BAT0", BAT_BASE).capacity == 55
+    assert value.read_battery().capacity == 55
     api.power_status.return_value = _status(BatteryFlag=128)
-    assert value.read_battery("BAT0", BAT_BASE) is None
+    assert value.read_battery() is None
 
 
 def test_unknown_capacity_has_a_distinct_glyph_from_zero_and_absence():
@@ -142,12 +139,9 @@ def test_charging_marker_is_visible_above_a_low_battery_fill(capacity):
     )
 
 
-def test_windows_selection_preserves_explicit_sysfs_fixture_backend(monkeypatch):
-    from docking.applets.battery.linux import LinuxBatteryBackend
-
+def test_factory_selects_windows_without_linux_specific_arguments(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     assert isinstance(backend.create_backend(), windows.WindowsBatteryBackend)
-    assert isinstance(backend.create_backend(base=Path("fixture")), LinuxBatteryBackend)
 
 
 def test_windows_settings_uses_native_uri_association(monkeypatch):
@@ -156,18 +150,19 @@ def test_windows_settings_uses_native_uri_association(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     launch = Mock(return_value=True)
     monkeypatch.setattr(shell, "open_default_target", launch)
-    assert state.power_settings_command() == ["ms-settings:powersleep"]
-    assert state.open_power_settings()
+    value = backend.create_backend()
+    assert value.settings_available()
+    assert value.open_settings()
     launch.assert_called_once_with("ms-settings:powersleep")
     launch.return_value = False
-    assert not state.open_power_settings()
+    assert not value.open_settings()
 
 
 def test_windows_does_not_attempt_upower_peripheral_discovery(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     bus = Mock()
-    monkeypatch.setattr(peripherals.Gio, "bus_get_sync", bus)
-    assert peripherals.read_peripheral_batteries() == []
+    monkeypatch.setattr(upower.Gio, "bus_get_sync", bus)
+    assert backend.create_backend().read_peripherals() == []
     bus.assert_not_called()
 
 
@@ -223,6 +218,6 @@ def test_native_status_and_rate_are_readable_without_modifying_power_policy():
     assert status.ACLineStatus in {0, 1, 255}
     assert status.BatteryLifePercent in {*range(101), 255}
     assert battery.BatteryPresent in {0, 1}
-    reading = windows.WindowsBatteryBackend(api=api).read_battery("BAT0", BAT_BASE)
+    reading = windows.WindowsBatteryBackend(api=api).read_battery()
     if status.BatteryFlag != 255 and status.BatteryFlag & 128:
         assert reading is None

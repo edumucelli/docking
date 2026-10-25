@@ -173,7 +173,7 @@ def main():
             volume = call(lambda: model.get_applet("applet://volume"))
             ambient = call(lambda: model.get_applet("applet://ambient"))
             assert volume is not None and ambient is not None
-            assert volume._backend.command == "Core Audio"
+            assert volume._backend.controls.command == "Core Audio"
             dock = native.wait_for(
                 lambda: next(
                     (w for w in native.windows(os.getpid()) if w["title"] == "Docking"),

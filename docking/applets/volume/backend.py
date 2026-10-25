@@ -7,8 +7,8 @@ from docking.applets.volume.state import VolumeState
 from docking.platform import environment
 
 
-class VolumeBackend(NamedTuple):
-    """Audio backend with commands for reading/setting volume."""
+class VolumeControls(NamedTuple):
+    """Optional audio controls; settings remain available without a mixer."""
 
     command: str
     get_state: Callable[[], VolumeState | None]
@@ -16,7 +16,19 @@ class VolumeBackend(NamedTuple):
     toggle_mute: Callable[[], None]
 
 
-def create_backend() -> VolumeBackend | None:
+class VolumeSettings(NamedTuple):
+    available: Callable[[], bool]
+    open: Callable[[], bool]
+
+
+class VolumeBackend(NamedTuple):
+    """System integration with optional audio controls and settings actions."""
+
+    controls: VolumeControls | None
+    settings: VolumeSettings
+
+
+def create_backend() -> VolumeBackend:
     if environment.is_windows():
         from docking.applets.volume.windows import create_backend
     elif environment.is_bsd():

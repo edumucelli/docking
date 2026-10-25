@@ -7,17 +7,23 @@ import subprocess
 from pathlib import Path
 
 from docking.applets.battery.backend import BatteryBackend
+from docking.applets.battery.desktop_settings import (
+    open_power_settings,
+    power_settings_command,
+)
+from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import (
-    BAT_BASE,
     BatteryState,
-    _parse_upower_duration_seconds,
-    _positive_delta,
-    _seconds_from_rate,
     resolve_battery_icon,
+)
+from docking.applets.battery.upower import (
+    _parse_upower_duration_seconds,
+    read_peripheral_batteries,
 )
 from docking.log import get_logger
 
 log = get_logger("battery.linux")
+BAT_BASE = Path("/sys/class/power_supply")
 
 
 def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:
@@ -147,8 +153,36 @@ def _read_int(*, path: Path) -> int | None:
 
 
 class LinuxBatteryBackend(BatteryBackend):
-    def read_battery(self, bat_name: str, base: Path) -> BatteryState | None:
-        return read_battery(bat_name, base)
+    def __init__(self, bat_name: str = "BAT0", base: Path = BAT_BASE) -> None:
+        self._bat_name = bat_name
+        self._base = base
 
-    def read_power_watts(self, bat_name: str, base: Path) -> float | None:
-        return read_power_watts(bat_name, base)
+    def read_battery(self) -> BatteryState | None:
+        return read_battery(self._bat_name, self._base)
+
+    def read_power_watts(self) -> float | None:
+        return read_power_watts(self._bat_name, self._base)
+
+    def read_peripherals(self) -> list[PeripheralBattery]:
+        return read_peripheral_batteries()
+
+    def settings_available(self) -> bool:
+        return power_settings_command() is not None
+
+    def open_settings(self) -> bool:
+        return open_power_settings()
+
+
+def _seconds_from_rate(*, remaining: int | None, rate: int | None) -> int | None:
+    if remaining is None or rate is None or remaining <= 0 or rate <= 0:
+        return None
+    return max(1, int((remaining / rate) * 3600))
+
+
+def _positive_delta(full: int | None, now: int | None) -> int | None:
+    if full is None or now is None:
+        return None
+    delta = full - now
+    if delta <= 0:
+        return None
+    return delta

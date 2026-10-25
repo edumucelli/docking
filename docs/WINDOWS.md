@@ -67,6 +67,19 @@ application matching live in `window_projection.py`, used by KWin, Sway and
 Windows. `windows/ffi.py` contains only small Win32 ABI
 primitives needed by several Windows implementations.
 
+Battery follows `BatteryBackend` for aggregate readings, power, peripherals and
+Power Settings. The shared UI keeps one backend instance and passes no sysfs
+paths to it. Linux owns its device/path configuration; Linux and BSD use the
+UPower implementation for accessories. Windows uses its power APIs and native
+Settings action; accessory discovery remains incomplete. Shared battery state
+and tooltip formatting contain no OS access.
+
+Volume's `VolumeBackend` supplies optional audio controls and settings actions.
+Linux, BSD and Windows construct the same contract, so Sound Settings remain
+available when no mixer tool is installed. CLI parsing belongs to the ALSA or
+PulseAudio implementation; native Core Audio and the Windows Settings action
+belong to `volume/windows.py`.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.

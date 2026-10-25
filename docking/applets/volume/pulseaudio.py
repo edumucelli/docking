@@ -1,12 +1,12 @@
 """PulseAudio volume controls, available on Linux and BSD."""
 
-from docking.applets.volume.backend import VolumeBackend
+import re
+
+from docking.applets.volume.backend import VolumeControls
 from docking.applets.volume.command import _run
-from docking.applets.volume.state import (
-    VolumeState,
-    _parse_pactl_mute,
-    _parse_pactl_volume,
-)
+from docking.applets.volume.state import VolumeState
+
+_PACTL_VOL_RE = re.compile(r"(\d+)%")
 
 
 def _pactl_get_state() -> VolumeState | None:
@@ -41,6 +41,21 @@ def _pactl_toggle_mute() -> None:
     )
 
 
-BACKEND = VolumeBackend(
+BACKEND = VolumeControls(
     "pactl", _pactl_get_state, _pactl_set_volume, _pactl_toggle_mute
 )
+
+
+def _parse_pactl_volume(output: str) -> int | None:
+    """Extract first percentage from pactl get-sink-volume output."""
+    m = _PACTL_VOL_RE.search(output)
+    return int(m.group(1)) if m else None
+
+
+def _parse_pactl_mute(output: str) -> bool | None:
+    """Parse 'Mute: yes/no' from pactl get-sink-mute output."""
+    if "yes" in output.lower():
+        return True
+    if "no" in output.lower():
+        return False
+    return None

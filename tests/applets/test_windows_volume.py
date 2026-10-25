@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from docking.applets.volume import state, windows
+from docking.applets.volume import windows
 from docking.applets.volume.backend import create_backend
 from docking.applets.volume.state import VolumeState
 from docking.platform import environment
@@ -146,9 +146,9 @@ def test_windows_backend_is_available_before_an_output_is_connected(monkeypatch)
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     monkeypatch.setattr(windows, "get_state", Mock(return_value=None))
     backend = create_backend()
-    assert backend is not None and backend.command == "Core Audio"
+    assert backend.controls is not None and backend.controls.command == "Core Audio"
     windows.get_state.assert_not_called()
-    assert backend.get_state() is None
+    assert backend.controls.get_state() is None
 
 
 def test_windows_settings_uses_native_uri_association(monkeypatch):
@@ -157,8 +157,9 @@ def test_windows_settings_uses_native_uri_association(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     launch = Mock(return_value=True)
     monkeypatch.setattr(shell, "open_default_target", launch)
-    assert state.volume_settings_command() == ["ms-settings:sound"]
-    assert state.open_volume_settings()
+    value = create_backend()
+    assert value.settings.available()
+    assert value.settings.open()
     launch.assert_called_once_with("ms-settings:sound")
 
 

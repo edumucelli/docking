@@ -26,9 +26,9 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.battery import meta
+from docking.applets.battery.backend import create_backend
 from docking.applets.battery.peripherals import (
     PeripheralBattery,
-    read_peripheral_batteries,
     tooltip_lines,
 )
 from docking.applets.battery.render import render_icon
@@ -37,11 +37,7 @@ from docking.applets.battery.state import (
     OVERLAY_PERCENT,
     OVERLAY_POWER,
     BatteryState,
-    open_power_settings,
     overlay_from_prefs,
-    power_settings_command,
-    read_battery,
-    read_power_watts,
     tooltip_text,
 )
 from docking.applets.menu import menu_sections, radio_menu_items
@@ -69,8 +65,9 @@ class BatteryApplet(Applet):
         self._overlay = OVERLAY_NONE
         prefs = config.applet_prefs.get(meta.id, {})
         self._overlay = overlay_from_prefs(prefs)
-        self._state: BatteryState | None = read_battery()
-        self._peripherals: list[PeripheralBattery] = read_peripheral_batteries()
+        self._backend = create_backend()
+        self._state: BatteryState | None = self._backend.read_battery()
+        self._peripherals: list[PeripheralBattery] = self._backend.read_peripherals()
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -87,7 +84,7 @@ class BatteryApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start the slow full-state poll plus the power overlay poll if needed."""
         super().start(notify=notify)
-        self._peripherals = read_peripheral_batteries()
+        self._peripherals = self._backend.read_peripherals()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
         self.present()
@@ -115,10 +112,11 @@ class BatteryApplet(Applet):
         )
 
         settings: list[Gtk.MenuItem] = []
-        cmd = power_settings_command()
-        if cmd is not None:
+        if self._backend.settings_available():
             power_settings = Gtk.MenuItem(label=_("Power Settings"))
-            power_settings.connect("activate", lambda _widget: open_power_settings())
+            power_settings.connect(
+                "activate", lambda _widget: self._backend.open_settings()
+            )
             settings.append(power_settings)
         return menu_sections(display=overlay, settings=settings, gtk=Gtk)
 
@@ -142,14 +140,16 @@ class BatteryApplet(Applet):
 
     def _tick(self) -> bool:
         """Re-read system battery and peripherals and refresh the icon."""
-        self._state = read_battery()
-        self._peripherals = read_peripheral_batteries()
+        self._state = self._backend.read_battery()
+        self._peripherals = self._backend.read_peripherals()
         self.present()
         return True
 
     def _power_tick(self) -> bool:
         """Refresh the live power reading without a subprocess."""
         if self._state is not None:
-            self._state = self._state._replace(power_watts=read_power_watts())
+            self._state = self._state._replace(
+                power_watts=self._backend.read_power_watts()
+            )
             self.present()
         return True

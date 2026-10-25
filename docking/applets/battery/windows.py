@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import ctypes
 from functools import lru_cache
-from pathlib import Path
 from typing import Protocol
 
 from docking.applets.battery.backend import BatteryBackend
+from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind as _bind
@@ -100,7 +100,7 @@ class WindowsBatteryBackend(BatteryBackend):
     def __init__(self, *, api: PowerAPI | None = None) -> None:
         self._api = api
 
-    def read_battery(self, bat_name: str, base: Path) -> BatteryState | None:
+    def read_battery(self) -> BatteryState | None:
         api = self._api if self._api is not None else _native_api()
         reading = api.power_status()
         if reading is None:
@@ -144,10 +144,10 @@ class WindowsBatteryBackend(BatteryBackend):
             capacity,
             status,
             seconds,
-            self.read_power_watts(bat_name, base),
+            self.read_power_watts(),
         )
 
-    def read_power_watts(self, bat_name: str, base: Path) -> float | None:
+    def read_power_watts(self) -> float | None:
         api = self._api if self._api is not None else _native_api()
         reading = api.battery_state()
         if (
@@ -157,3 +157,15 @@ class WindowsBatteryBackend(BatteryBackend):
         ):
             return None
         return abs(int(reading.Rate)) / 1000.0
+
+    def read_peripherals(self) -> list[PeripheralBattery]:
+        # Native accessory discovery remains a separate Windows parity task.
+        return []
+
+    def settings_available(self) -> bool:
+        return True
+
+    def open_settings(self) -> bool:
+        from docking.platform.backends.windows.shell import open_default_target
+
+        return open_default_target("ms-settings:powersleep")

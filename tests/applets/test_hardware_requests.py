@@ -60,11 +60,11 @@ def test_old_volume_poll_does_not_undo_user_input(action):
     queue.read()  # The old backend state is already waiting for GTK.
     if action == "scroll":
         updated = VolumeState(volume=50, muted=False)
-        applet._backend.get_state.return_value = updated
+        applet._backend.controls.get_state.return_value = updated
         applet.on_scroll(direction_up=True)
     else:
         updated = VolumeState(volume=45, muted=True)
-        applet._backend.get_state.return_value = updated
+        applet._backend.controls.get_state.return_value = updated
         applet.on_clicked()
     queue.publish()
     assert (applet._volume, applet._muted) == (updated.volume, updated.muted)
@@ -146,7 +146,7 @@ def test_stopped_volume_applet_ignores_queued_poll_reply():
     applet = volume_applet(VolumeState(45, False))
     queue = DeferredWorker()
     applet._worker = queue.worker
-    applet._backend.get_state.return_value = VolumeState(75, True)
+    applet._backend.controls.get_state.return_value = VolumeState(75, True)
     applet._tick()
     queue.read()
     applet.stop()

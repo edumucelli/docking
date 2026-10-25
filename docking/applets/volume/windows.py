@@ -12,8 +12,9 @@ import ctypes
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from docking.applets.volume.backend import VolumeBackend
-from docking.applets.volume.state import VolumeState, log
+from docking.applets.volume.backend import VolumeBackend, VolumeControls, VolumeSettings
+from docking.applets.volume.state import VolumeState
+from docking.log import get_logger
 from docking.platform.backends.windows.com import (
     GUID,
     HRESULT,
@@ -22,6 +23,8 @@ from docking.platform.backends.windows.com import (
     release,
 )
 from docking.platform.backends.windows.ffi import bind as _bind
+
+log = get_logger("volume.windows")
 
 _ENUMERATOR_CLASS = GUID.parse("bcde0395-e52f-467c-8e3d-c4579291692e")
 _ENUMERATOR_INTERFACE = GUID.parse("a95664d2-9614-4f35-a746-de8db63617e6")
@@ -132,4 +135,9 @@ def toggle_mute() -> None:
 
 
 def create_backend() -> VolumeBackend:
-    return VolumeBackend("Core Audio", get_state, set_volume, toggle_mute)
+    from docking.platform.backends.windows.shell import open_default_target
+
+    return VolumeBackend(
+        VolumeControls("Core Audio", get_state, set_volume, toggle_mute),
+        VolumeSettings(lambda: True, lambda: open_default_target("ms-settings:sound")),
+    )
