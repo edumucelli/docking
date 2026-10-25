@@ -33,7 +33,7 @@ from gi.repository import GLib
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 from docking.platform.commands import desktop_exec_argv
-from docking.platform.environment import is_flatpak, xdg_data_home
+from docking.platform.environment import is_flatpak, is_windows, xdg_data_home
 
 from .constants import DESKTOP_SUFFIX, FALLBACK_ICON
 from .flatpak import flatpak_app_id_from_exec
@@ -324,7 +324,13 @@ def create_desktop_entry_for_executable(
     *,
     startup_wm_class: str = "",
 ) -> GeneratedDesktopEntry | None:
-    """Create or update a generated desktop entry for a launchable local file."""
+    """Create a Unix desktop entry for a launchable local file.
+
+    Windows reports X_OK for ordinary documents too. Its shell opens dropped
+    files directly; a generated Unix shell launcher is neither needed nor valid.
+    """
+    if is_windows():
+        return None
     path = _local_executable_path(target)
     if path is None:
         return None

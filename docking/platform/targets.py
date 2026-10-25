@@ -14,7 +14,8 @@ from gi.repository import GdkPixbuf, Gio, GLib
 
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
-from docking.platform.environment import flatpak, is_flatpak
+from docking.platform.environment import flatpak, is_flatpak, is_windows
+from docking.platform.files import file_for_uri
 from docking.platform.icons import IconLoader, fallback_file_icon_name
 
 log = with_context(get_logger(name="targets"))
@@ -65,12 +66,20 @@ def open_target(target: str) -> bool:
         return False
     if parsed.scheme in ALLOWED_URI_SCHEMES:
         uri = target
-    elif parsed.scheme and parsed.scheme != "file":
-        return False
     else:
         uri = normalize_file_target(target)
     if uri is None:
         return False
+    if is_windows():
+        from docking.platform.backends.windows.shell import open_default_target
+
+        native_target = uri
+        if urlparse(uri).scheme == "file":
+            path = local_path_from_uri_or_path(uri)
+            if path is None:
+                return False
+            native_target = str(path)
+        return open_default_target(native_target)
     if is_flatpak() and urlparse(uri).scheme == "file":
         # Local files may be host-visible but not sandbox-openable; ask the
         # host desktop's gio to choose the default application.
@@ -138,7 +147,7 @@ class TargetService:
         if uri is None:
             return None
         try:
-            gfile = Gio.File.new_for_uri(uri)
+            gfile = file_for_uri(uri)
             info = gfile.query_info(
                 "standard::display-name,standard::icon,standard::type,standard::content-type",
                 Gio.FileQueryInfoFlags.NONE,

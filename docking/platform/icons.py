@@ -270,7 +270,11 @@ class IconLoader:
         thumbnail_size: int | None = None,
     ) -> FileIconInfo:
         """Resolve an icon while preserving successful thumbnail provenance."""
-        if not is_dir and content_type.lower().startswith("image/"):
+        # Gio reports MIME types on Unix and registry extension types on Win32.
+        mime_type = content_type
+        if mime_type and "/" not in mime_type:
+            mime_type = Gio.content_type_get_mime_type(mime_type) or ""
+        if not is_dir and mime_type.lower().startswith("image/"):
             uri = _normalize_file_target_for_icon(target)
             if uri is not None:
                 path = local_path_from_uri_or_path(uri)

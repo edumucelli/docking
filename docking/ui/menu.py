@@ -185,6 +185,7 @@ from docking.log import get_logger
 from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
 from docking.platform.backends.base import DisplayServer
+from docking.platform.files import file_for_uri
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -1039,7 +1040,7 @@ class MenuHandler:
         if uri is None:
             return
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
             monitor.connect("changed", self._on_folder_menu_changed, menu_id)
             self._folder_menu_monitors[menu_id] = monitor

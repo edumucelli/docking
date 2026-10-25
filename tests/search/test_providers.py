@@ -673,7 +673,11 @@ def test_recent_file_provider_searches_and_opens() -> None:
     [
         ("notes.txt", False),
         ("résumé.txt", False),
-        (os.fsdecode(b"notes-\xff.txt"), True),
+        pytest.param(
+            b"notes-\xff.txt".decode("utf-8", errors="surrogateescape"),
+            True,
+            marks=pytest.mark.skipif(os.name == "nt", reason="POSIX byte filenames"),
+        ),
     ],
 )
 def test_direct_path_provider_uses_existing_path(tmp_path, filename, copy_uri) -> None:

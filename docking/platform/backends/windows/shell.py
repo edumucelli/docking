@@ -1,8 +1,9 @@
-"""Activate packaged applications with Windows foreground permission."""
+"""Activate packaged applications and open native shell targets."""
 
 from __future__ import annotations
 
 import ctypes
+import os
 from ctypes import wintypes
 
 from docking.log import get_logger
@@ -62,4 +63,17 @@ def activate_packaged_application(application_id: str) -> bool:
                 release(manager)
     except OSError as exc:
         log.warning("Packaged application activation failed: %s", exc)
+        return False
+
+
+def open_default_target(target: str) -> bool:
+    """Open a native filename or allowed web URI using its shell association."""
+    startfile = getattr(os, "startfile", None)
+    if startfile is None:
+        return False
+    try:
+        startfile(target, "open")
+        return True
+    except (OSError, NotImplementedError) as exc:
+        log.warning("Windows shell could not open %s: %s", target, exc)
         return False

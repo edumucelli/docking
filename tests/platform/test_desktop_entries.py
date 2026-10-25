@@ -453,3 +453,18 @@ class TestGeneratedEntryNaming:
 
         assert generated is not None
         assert generated.desktop_id.startswith("docking-generated-launcher-")
+
+
+def test_windows_document_drop_never_generates_a_unix_shell_launcher(
+    tmp_path, monkeypatch
+):
+    document = tmp_path / "notes.txt"
+    document.write_text("Windows reports X_OK for existing ordinary files")
+    monkeypatch.setattr(desktop_entries, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        desktop_entries, "user_applications_dir", lambda: tmp_path / "launchers"
+    )
+    assert (
+        desktop_entries.create_desktop_entry_for_executable(document.as_uri()) is None
+    )
+    assert not (tmp_path / "launchers").exists()

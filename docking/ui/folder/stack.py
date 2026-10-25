@@ -25,6 +25,7 @@ from docking.core.items import FOLDER_KIND
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.files import file_for_uri
 from docking.platform.targets import TargetService
 from docking.ui.folder._browser import (
     FOLDER_SMALL_ICON_PX,
@@ -457,7 +458,7 @@ class FolderStackController(StackPopupController):
             self._folder_stack_monitor.cancel()
             self._folder_stack_monitor = None
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
             monitor.connect("changed", self._on_folder_stack_changed)
             self._folder_stack_monitor = monitor

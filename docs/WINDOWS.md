@@ -281,6 +281,72 @@ API references: [window capture interop](https://learn.microsoft.com/en-us/windo
 [Microsoft WinRT interface definitions](https://github.com/microsoft/windows-rs/blob/master/crates/libs/windows/src/Windows/Graphics/Capture/mod.rs),
 [Direct3D11 SDK interfaces](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/d3d11.h).
 
+## Files, folders and Search
+
+Filesystem targets now recognize native drive paths before URL parsing treats
+`C:` as a scheme. File URLs decode into native drive or UNC paths, retaining a
+network server rather than opening a same-named local file. The shared decoder
+also feeds file previews, image loading and drag/drop. POSIX authority and
+filename-byte handling retain their existing behavior.
+
+Search recognizes Windows drive, UNC, home and relative path syntax and routes
+it to the Path provider. Copy Path returns a native filename with its drive or
+server intact. Text previews normalize Windows line endings for display.
+
+Gio's Win32 file-URL parser drops the authority from a standard UNC URL in the
+lab runtime. The file adapter constructs Windows filesystem objects from their
+decoded native paths. Metadata, folder browsing/monitoring and recorded icon
+files use that boundary. Image thumbnails also convert Gio's Windows extension
+content types (such as `.png`) to MIME types before selecting the image loader.
+Default-handler opening uses the native Windows shell association; the lab's
+Gio URI-launch path opened a blank Notepad instead of the requested document.
+Ordinary Windows documents no longer trigger Unix executable-launcher creation.
+
+`windows_file_smoke.py` creates isolated drive and SMB-share fixtures with
+spaces, accents, `#`, `+` and `%` in their filenames. It checks canonical targets,
+Search results and copy actions, real image thumbnails, directory enumeration
+and text previews. Desktop stages open documents through their native default
+handler, read back the actual Notepad text, open Explorer, inspect a pinned
+folder stack and a Search preview, copy a path through Search, and drag a real
+Explorer item onto the dock. The drop must persist in the dock configuration.
+The tool records PNGs and closes only its own fixtures. Its desktop input
+assumes the documented baseline, with no other dock, editor or Explorer window
+open.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_file_smoke.py' \
+  --output '\\host.lan\Data\lab\files'
+```
+
+The `windows-file-geometry-verified` desktop run passed every stage and exited
+normally. Independent native window observations and clipboard readback confirm
+that both default-opened documents contained their expected text, and Search
+copied the exact Unicode drive path. The Explorer drop persisted the canonical
+file URI. The folder, Search and drop PNGs were visually inspected. Directory
+metadata and previews also passed against the actual `host.lan` SMB share.
+The file, folder, icon, menu and Search regression selection passed 286 tests
+under native Windows Python, with 18 platform-specific cases skipped. Native
+folder checks use the Windows hidden attribute as well as the visible-file
+policy.
+
+![Windows folder stack with image thumbnail](../images/windows-folder-stack.png)
+
+![Windows drive path and text preview in Search](../images/windows-file-search.png)
+
+![File dragged from Explorer and pinned to Docking](../images/windows-file-drop.png)
+
+Native application identity/grouping for arbitrary dropped executables and
+shortcuts remains separate acceptance work. The global Search shortcut,
+network disconnect/reconnect behavior and broader folder-monitor scenarios
+also remain pending.
+
+References: [Python file-URL conversion](https://docs.python.org/3.14/library/urllib.request.html#urllib.request.url2pathname),
+[Gio native file paths](https://docs.gtk.org/gio/type_func.File.new_for_path.html),
+[Gio platform content types](https://docs.gtk.org/gio/content-types.html),
+[Windows shell file associations](https://docs.python.org/3.14/library/os.html#os.startfile).
+
 ## Implementation and acceptance ledger
 
 | Area | Implementation | Required Windows evidence |
@@ -292,7 +358,7 @@ API references: [window capture interop](https://learn.microsoft.com/en-us/windo
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
-| Search and file workflows | Pending | Applications, windows, files, folders, drag/drop and global shortcut |
+| Search and file workflows | Native drive/UNC targets, shell associations, path Search and shared folder UI | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; global shortcut, arbitrary executable/shortcut identity and broader file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
 | Portable applets | Pending | Exercise the full applet catalog on Windows |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |

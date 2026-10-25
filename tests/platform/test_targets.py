@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +29,12 @@ from docking.platform.targets import (
     normalize_file_target,
     open_target,
 )
+
+
+@pytest.fixture(autouse=True)
+def use_gio_default_handler(monkeypatch):
+    """These shared tests exercise the non-Windows Gio/Flatpak launch path."""
+    monkeypatch.setattr(targets_mod, "is_windows", lambda: False)
 
 
 def test_default_uri_launch_ownership_is_centralized():
@@ -75,6 +82,7 @@ def test_file_uri_localhost_authority_keeps_local_target(tmp_path, authority):
     assert normalize_file_target(f"file://{authority}{uri_path}") == path.as_uri()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows file authorities are UNC paths")
 @pytest.mark.parametrize("authority", ["server.example", "127.0.0.1"])
 def test_remote_file_uri_never_opens_same_local_path(tmp_path, monkeypatch, authority):
     path = tmp_path / "report.txt"
@@ -289,7 +297,7 @@ def test_resolve_file_preserves_target_metadata(
     info.get_content_type.return_value = content_type
     gfile = MagicMock()
     gfile.query_info.return_value = info
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
     icon_loader = MagicMock()
     icon_loader.resolve_file_icon_info.return_value = FileIconInfo("pixbuf")
     service = TargetService(icon_loader=icon_loader)
@@ -324,7 +332,7 @@ def test_resolve_file_returns_none_for_query_error(monkeypatch):
     monkeypatch.setattr(targets_mod.GLib, "Error", RuntimeError)
     gfile = MagicMock()
     gfile.query_info.side_effect = RuntimeError("missing")
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
 
     assert (
         TargetService(icon_loader=MagicMock()).resolve_file("/tmp/missing", 48) is None
@@ -350,7 +358,7 @@ def test_resolve_file_uses_image_thumbnail(tmp_path, monkeypatch):
     info.get_content_type.return_value = "image/png"
     gfile = MagicMock()
     gfile.query_info.return_value = info
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
 
     result = TargetService(icon_loader=IconLoader()).resolve_file(str(path), 48)
 
@@ -382,3 +390,29 @@ def test_default_directory_handler_name_and_error(monkeypatch):
         MagicMock(side_effect=RuntimeError("lookup failed")),
     )
     assert service.default_directory_app_name() is None
+
+
+def test_windows_default_handler_receives_the_decoded_native_path(
+    tmp_path, monkeypatch
+):
+    from docking.platform.backends.windows import shell
+
+    path = tmp_path / "report # résumé 100%.txt"
+    path.write_text("document")
+    launch = MagicMock(return_value=True)
+    monkeypatch.setattr(targets_mod, "is_windows", lambda: True)
+    monkeypatch.setattr(shell, "open_default_target", launch)
+    assert open_target(path.as_uri())
+    launch.assert_called_once_with(str(path.resolve()))
+
+
+def test_windows_default_handler_receives_allowed_web_uri_and_reports_failure(
+    monkeypatch,
+):
+    from docking.platform.backends.windows import shell
+
+    launch = MagicMock(return_value=False)
+    monkeypatch.setattr(targets_mod, "is_windows", lambda: True)
+    monkeypatch.setattr(shell, "open_default_target", launch)
+    assert not open_target("https://example.com/docs")
+    launch.assert_called_once_with("https://example.com/docs")
