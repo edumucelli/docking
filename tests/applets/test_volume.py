@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.volume.applet as volume_applet_mod
 import docking.applets.volume.command as volume_command_mod
 import docking.applets.volume.linux as linux_mod
@@ -19,6 +21,7 @@ from docking.applets.volume.state import (
     volume_settings_command,
 )
 from docking.core.config import Config
+from docking.platform import environment
 
 
 class _ImmediateWorker:
@@ -131,6 +134,11 @@ class TestVolumeIconName:
 
 
 class TestDetectBackend:
+    @pytest.fixture(autouse=True)
+    def unix_environment(self, monkeypatch):
+        monkeypatch.setattr(environment, "is_windows", lambda: False)
+        monkeypatch.setattr(environment, "is_bsd", lambda: False)
+
     def test_returns_first_available(self):
         with patch(
             "docking.applets.volume.linux.shutil.which",
@@ -146,6 +154,10 @@ class TestDetectBackend:
 
 
 class TestVolumeSettingsLauncher:
+    @pytest.fixture(autouse=True)
+    def unix_environment(self, monkeypatch):
+        monkeypatch.setattr(environment, "is_windows", lambda: False)
+
     def test_prefers_first_available_volume_settings_command(self, monkeypatch):
         monkeypatch.setattr(
             volume_state_mod.shutil,

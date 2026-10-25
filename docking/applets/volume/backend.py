@@ -17,7 +17,9 @@ class VolumeBackend(NamedTuple):
 
 
 def create_backend() -> VolumeBackend | None:
-    if environment.is_bsd():
+    if environment.is_windows():
+        from docking.applets.volume.windows import create_backend
+    elif environment.is_bsd():
         from docking.applets.volume.bsd import create_backend
     else:
         from docking.applets.volume.linux import create_backend

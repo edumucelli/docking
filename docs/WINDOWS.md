@@ -587,6 +587,51 @@ References: [GStreamer filename conversion](https://gstreamer.freedesktop.org/do
 [native WASAPI output](https://gstreamer.freedesktop.org/documentation/wasapi2/wasapi2sink.html),
 [Dockur audio](https://github.com/dockur/windows#how-do-i-enable-audio).
 
+## Native master volume
+
+The Volume applet uses the public Core Audio `IAudioEndpointVolume` interface
+on Windows. It controls the default multimedia output device, including master
+level and mute, and opens the native Sound page with `ms-settings:sound`.
+The existing one-second background poll follows changes from other controls.
+Each operation resolves the current default endpoint and releases its COM
+interfaces on the calling thread. A missing device leaves polling available
+for recovery instead of permanently disabling the backend.
+
+`windows_volume_smoke.py` runs the complete dock with Ambient as a real audio
+source. Native wheel input checks five-point changes and both limits; native
+clicks toggle mute. With Explorer foreground, Windows' own volume and mute
+keys change the endpoint and the applet follows through its ordinary poll.
+The host audio capture verifies sound at 50% and 100%, silence at zero and
+under both external and applet mute, and sound after unmuting. The endpoint's
+scalar uses a driver-dependent audio curve, so the measurement checks a real
+increase rather than assuming that 50% means half the amplitude.
+
+The desktop check also enables Show Level through the menu, verifies its saved
+preference, and opens the Windows Sound settings page from that menu. It
+restores the original endpoint scalar and mute state, then quits the dock
+normally and checks work-area restoration and hotkey release. Menu, tooltip,
+level and Settings captures accompany the result. The focused suite passed
+70 tests on native Windows and 69 on Linux, with the native apartment read
+check skipped on Linux. Fault-injection tests cover missing/default-device
+changes and cleanup after partial COM acquisition. Physical devices, role
+differences, Bluetooth and RDP routing still need desktop acceptance.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_volume_smoke.py' \
+  --output '\\host.lan\Data\lab\volume-acceptance'
+python tools/windows_vm_audio.py --share /path/to/shared/artifacts \
+  --name volume-acceptance --timeout 240
+```
+
+![Volume applet and native Windows Sound settings](../images/windows-volume-settings.png)
+
+References: [default audio endpoint](https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdeviceenumerator-getdefaultaudioendpoint),
+[master volume scalar](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmastervolumelevelscalar),
+[endpoint mute](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmute),
+[Windows Settings URIs](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -651,7 +696,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Pending | Native Windows backends for each applicable applet |
+| System applets | Native Core Audio master volume | Volume wheel/click controls, limits, external Windows keys, persisted level display, native Sound settings and actual audio verified on the baseline; device routing and other native applet backends pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

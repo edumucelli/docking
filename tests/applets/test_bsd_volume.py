@@ -8,6 +8,11 @@ from docking.applets.volume.state import VolumeState
 from docking.platform import environment
 
 
+@pytest.fixture(autouse=True)
+def bsd_environment(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+
+
 @pytest.mark.parametrize(
     "system,volume,mute",
     [("openbsd7", "0.65", "1"), ("freebsd15", "vol.volume=0.65:0.65", "vol.mute=on")],

@@ -22,6 +22,7 @@ from typing import NamedTuple
 
 from docking.applets.volume import meta
 from docking.log import get_logger, with_context
+from docking.platform import environment
 
 log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
@@ -83,6 +84,8 @@ def _volume_icon_name(volume: int, muted: bool) -> str:
 
 def volume_settings_command() -> list[str] | None:
     """Return the first available desktop volume-settings command."""
+    if environment.is_windows():
+        return ["ms-settings:sound"]
     for cmd in _VOLUME_SETTINGS_COMMANDS:
         if shutil.which(cmd[0]):
             return list(cmd)
@@ -91,6 +94,10 @@ def volume_settings_command() -> list[str] | None:
 
 def open_volume_settings() -> bool:
     """Launch the desktop volume-settings tool when one is available."""
+    if environment.is_windows():
+        from docking.platform.backends.windows.shell import open_default_target
+
+        return open_default_target("ms-settings:sound")
     cmd = volume_settings_command()
     if cmd is None:
         return False
