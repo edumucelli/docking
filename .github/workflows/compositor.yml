@@ -28,7 +28,7 @@ jobs:
       matrix:
         compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","phoc","phosh","weston","cage","gnome"]' || '["sway","cinnamon","niri","cosmic","kwin","wayfire","phoc","phosh","weston","gnome"]') }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install comparison dependencies
         run: |
           sudo apt-get update
