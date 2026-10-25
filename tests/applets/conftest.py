@@ -45,6 +45,9 @@ class _FakeMenuItem:
     def get_sensitive(self) -> bool:
         return self._sensitive
 
+    def set_tooltip_text(self, text: str) -> None:
+        self._tooltip_text = text
+
     def connect(self, signal: str, callback, *args) -> None:
         self._signals.setdefault(signal, []).append((callback, args))
 

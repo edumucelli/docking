@@ -59,6 +59,8 @@ The applet uses the contract for state, traffic, adapter choices and settings.
 Unix desktop command
 discovery is shared by Linux and BSD in `desktop_settings.py`; IP Helper bindings
 and adapter selection belong to the Windows implementation.
+`windows_connections.py` implements the shared `ConnectionManager`, delegating
+WLAN calls to `windows_wifi.py` and VPN actions to `windows_vpn.py`/`windows_ras.py`.
 
 Window tracking follows the common `WindowService` contract in
 `platform/backends/base.py`. Win32 enumeration and actions are implemented in
@@ -773,8 +775,8 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 ```
 
 The Windows connection manager implements the shared `ConnectionManager`
-contract. `windows_wifi.py` owns WLAN discovery, saved-profile connections and
-software radio changes; `windows_profiles.py` owns WinRT connection metadata.
+contract in `windows_connections.py`. `windows_wifi.py` owns WLAN bindings and
+network/radio values; `windows_profiles.py` owns WinRT connection metadata.
 Routine polls read `GetConnectedSsid` and `GetSignalBars` through WinRT and match
 profiles to the selected adapter GUID. Signal bars map to 20-percent steps;
 missing signal data stays unknown and has a question-mark glyph. A Wi-Fi link
@@ -790,7 +792,7 @@ profile open Windows Wi-Fi Settings for native credential setup. The menu also
 opens native Wi-Fi/hidden-network and Mobile hotspot settings. Unusable networks
 are disabled; software radio state is refreshed after writes and hardware-blocked
 radios cannot be toggled. Shared capabilities omit the unsupported global
-network switch. RAS/VPN control remains unimplemented.
+network switch. Native RAS/VPN control is described below.
 
 The native no-adapter probe covered stopped and running WLAN service states,
 then restored the original stopped state. Native enumeration agreed with an
@@ -813,7 +815,8 @@ association, authentication, signal accuracy, hardware switching or hotplug.
 
 The baseline has one wired adapter on one display at 96 DPI. Physical Wi-Fi and
 other adapter changes, multiple-route desktop acceptance, global networking
-control, VPN management and broader network hardware remain required parity work.
+control and broader network hardware remain required parity work. VPN methods
+beyond the verified IKEv2/password configuration also need acceptance.
 
 References: [adapter addresses and interface metrics](https://learn.microsoft.com/en-us/windows/win32/api/iptypes/ns-iptypes-ip_adapter_addresses_lh),
 [interface byte counters](https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2),
@@ -826,6 +829,67 @@ References: [adapter addresses and interface metrics](https://learn.microsoft.co
 [WLAN radio state](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/ns-wlanapi-wlan_phy_radio_state),
 [WinRT ABI declarations](https://github.com/microsoft/windows-rs/blob/master/crates/libs/windows/src/Windows/Networking/Connectivity/mod.rs),
 [Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
+
+## Native Windows VPN connections
+
+The Windows connection manager lists native VPN entries from both the current
+user and all-user phonebooks using `RasEnumEntriesW` and `RasGetEntryPropertiesW`.
+Entries are identified by GUID and normalized phonebook path; names can change
+without retargeting an old menu item. Non-VPN entries and inaccessible/deleted
+profiles are omitted. Connection state comes from `RasEnumConnectionsW` and
+`RasGetConnectStatusW`, rather than the existence of a dialer window. The shared
+VPN submenu now checks connected entries and disables pending or non-owned
+actions; the phonebook path is available as a tooltip when scope matters.
+
+Connecting opens Windows' `rasphone.exe` for the exact phonebook and current
+entry name. Its absolute path comes from `GetSystemDirectoryW`, arguments are
+quoted without a shell, and Windows owns credential prompts, cancellation and
+errors. The dock does not read or save credentials. Disconnect runs off the GTK
+thread, revalidates session identity and ownership, calls `RasHangUpW`, then
+waits for the connection handle to disappear. Both invalid-handle and not-found
+responses are expected during teardown. Duplicate disconnects are suppressed,
+and shutdown waits for the bounded native teardown before discarding callbacks.
+Existing OS-owned connections and dialer windows remain independent of the dock.
+
+The acceptance endpoint used strongSwan 5.9.8 in a temporary container on the
+private VM bridge, with a temporary trusted test CA and EAP-MSCHAPv2 credentials.
+The profile used split tunneling and one route to an owned HTTP test address;
+normal traffic did not use the test VPN. Native user/system profile dialogs
+were opened and cancelled with keyboard input. The real connection was then
+established from the dock, checked against PowerShell's VPN GUID/status, and
+used to exchange an expected HTTP token through the tunnel. The menu's connected
+checkmark and dock disconnect were verified. A second real connection exercised
+an external Windows disconnect and the resulting menu state.
+
+![Connected native VPN in the shared Network submenu](../images/windows-vpn-connected.png)
+
+![Windows-owned VPN credential dialog, before credential entry](../images/windows-vpn-dialog.png)
+
+`windows_vpn_smoke.py` requires an owned fixture JSON file containing `address`,
+`port`, expected HTTP `token`, and the IKEv2 `username`/`password`. A sibling
+`profiles.json` lists the two provisioned user/system VPN profiles by GUID and
+phonebook. The tool checks their ownership markers, uses actual input for menu
+and credential actions, omits credentials from reports, and restores the work
+area, timer and Search hotkey through normal shutdown. Profile/certificate and
+endpoint provisioning/cleanup are separate lab steps. The test CA, both owned
+profiles, endpoint container and generated credentials must be removed after
+acceptance. Other authentication methods, server policies, vendor clients,
+resume, reconnect and multi-user sessions remain broader acceptance work.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_vpn_smoke.py' \
+  --fixture '\\host.lan\Data\lab\vpn-endpoint\fixture.json' \
+  --output '\\host.lan\Data\lab\vpn-acceptance'
+```
+
+References: [RAS enumeration](https://learn.microsoft.com/en-us/windows/win32/api/ras/nf-ras-rasenumentriesw),
+[entry properties](https://learn.microsoft.com/en-us/windows/win32/api/ras/nf-ras-rasgetentrypropertiesw),
+[connection status](https://learn.microsoft.com/en-us/windows/win32/api/ras/nf-ras-rasgetconnectstatusw),
+[disconnect and teardown](https://learn.microsoft.com/en-us/windows/win32/api/ras/nf-ras-rashangupw),
+[SDK ABI definitions](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/Ras.h),
+[strongSwan Windows interoperability](https://docs.strongswan.org/docs/latest/interop/windowsClients.html).
 
 ## Native Recycle Bin
 
@@ -1025,7 +1089,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; physical wireless, global networking/VPN controls, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/VPN/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

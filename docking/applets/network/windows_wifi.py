@@ -1,35 +1,25 @@
-"""Windows ConnectionManager implementation using WLAN profiles and radio APIs.
+"""Windows WLAN bindings and Wi-Fi network/radio values.
 
-Discovery runs only when the user opens the network menu. Routine status uses
-windows_profiles, avoiding location-sensitive current-connection/BSSID calls.
-The bindings here own and close one WLAN client handle per operation.
+Connection management implements the shared contract in windows_connections.
+These bindings own one client handle per operation and never read credentials.
 """
 
 from __future__ import annotations
 
 import ctypes
 import json
-import time
 import uuid
-from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 
-from docking.applets.network.backend import (
-    ConnectionManager,
-    NetworkCapabilities,
-    VpnConnection,
-)
-from docking.applets.network.state import AvailableNetwork, dedupe_networks
-from docking.i18n import _
+from docking.applets.network.state import AvailableNetwork
 from docking.log import get_logger
 from docking.platform.backends.windows.com import GUID
 from docking.platform.backends.windows.ffi import bind
 
 log = get_logger("network.windows_wifi")
 _RADIO_STATE = 4
-_SCAN_INTERVAL_S = 15.0
 
 
 class _Interface(ctypes.Structure):
@@ -413,117 +403,3 @@ class _Wlan:
 @lru_cache(maxsize=1)
 def _wlan() -> _Wlan:
     return _Wlan()
-
-
-class WindowsWifiManager(ConnectionManager):
-    def __init__(self, *, api: _Wlan | None = None):
-        self._api = api
-        self._identifiers: list[str] = []
-        self._radios: list[_RadioState] = []
-        self._choices: dict[str, _Candidate] = {}
-        self._last_scan = float("-inf")
-        self._reason = ""
-        self.changed: Callable[[], None] = lambda: None
-
-    def _native(self) -> _Wlan:
-        return self._api if self._api is not None else _wlan()
-
-    def refresh(self) -> None:
-        try:
-            self._identifiers, self._radios = self._native().radios()
-        except OSError as exc:
-            log.debug("WLAN service unavailable: %s", exc)
-            self._identifiers, self._radios, self._choices = [], [], {}
-
-    @property
-    def capabilities(self) -> NetworkCapabilities:
-        # Windows has no nonprivileged NetworkManager-style global network switch.
-        return NetworkCapabilities(
-            networking_toggle=False, wireless_toggle=bool(self._radios)
-        )
-
-    @property
-    def networks_unavailable_reason(self) -> str:
-        return self._reason
-
-    @property
-    def networking_enabled(self) -> bool:
-        raise NotImplementedError("Global network switch is not supported")
-
-    @property
-    def wireless_enabled(self) -> bool:
-        return any(r.software for r in self._radios)
-
-    @property
-    def wireless_hardware_enabled(self) -> bool:
-        return any(r.hardware for r in self._radios)
-
-    def has_wifi_device(self) -> bool:
-        return bool(self._identifiers)
-
-    def available_networks(self) -> list[AvailableNetwork]:
-        now = time.monotonic()
-        try:
-            scan = now - self._last_scan >= _SCAN_INTERVAL_S
-            if scan:
-                self._last_scan = now
-            values = self._native().available(scan=scan)
-        except OSError as exc:
-            log.debug("Wi-Fi discovery unavailable: %s", exc)
-            self._reason = (
-                _("Permission denied") if exc.errno == 5 else _("Unavailable")
-            )
-            self._choices = {}
-            return []
-        self._reason = ""
-        self._choices = {v.key: v for v in values}
-        return dedupe_networks([v.visible() for v in values])
-
-    def connect_network(self, *, network: AvailableNetwork) -> None:
-        choice = self._choices.get(network.access_point_path)
-        if choice is None or choice.visible().ssid != network.ssid:
-            return
-        try:
-            # Revalidate exact adapter/raw SSID/profile before an old menu acts.
-            fresh = next(
-                (
-                    c
-                    for c in self._native().available(scan=False)
-                    if c.key == choice.key
-                ),
-                None,
-            )
-            if fresh is None or not fresh.connectable:
-                return
-            if fresh.profile:
-                self._native().connect(fresh)
-            else:
-                from docking.platform.backends.windows.shell import open_default_target
-
-                open_default_target("ms-settings:network-wifi")
-        except OSError as exc:
-            log.warning("Could not connect Wi-Fi profile: %s", exc)
-        self.changed()
-
-    def set_networking_enabled(self, *, enabled: bool) -> None:
-        raise NotImplementedError("Global network switch is not supported")
-
-    def set_wireless_enabled(self, *, enabled: bool) -> None:
-        try:
-            self._native().set_radio(enabled=enabled)
-        except OSError as exc:
-            log.warning("Could not change Wi-Fi radio: %s", exc)
-        self.refresh()
-        self.changed()
-
-    def vpn_connections(self) -> list[VpnConnection]:
-        return []  # RAS/VPN management remains separate Windows parity work.
-
-    def toggle_vpn(self, uuid: str) -> None:
-        raise NotImplementedError("RAS/VPN management is not implemented")
-
-    def stop(self) -> None:
-        self._identifiers, self._radios, self._choices = [], [], {}
-        self._reason = ""
-        self._last_scan = float("-inf")
-        self.changed = lambda: None

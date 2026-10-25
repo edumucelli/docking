@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from docking.applets.network import windows_connections as connections
 from docking.applets.network import windows_profiles as profiles
 from docking.applets.network import windows_wifi as wifi
 from docking.applets.network.applet import NetworkApplet
@@ -265,7 +266,10 @@ def _manager(values=()):
         connect=Mock(),
         set_radio=Mock(),
     )
-    manager = wifi.WindowsWifiManager(api=api)
+    from docking.applets.network.windows_vpn import WindowsVpn
+
+    vpn = WindowsVpn(api=SimpleNamespace(profiles=list, sessions=list))
+    manager = connections.WindowsConnectionManager(api=api, vpn=vpn)
     manager.refresh()
     return manager, api
 
@@ -289,7 +293,7 @@ def test_discovery_is_user_driven_throttled_and_reports_denial_then_recovers(
 ):
     manager, api = _manager([_candidate()])
     now = [100.0]
-    monkeypatch.setattr(wifi.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(connections.time, "monotonic", lambda: now[0])
     api.available.assert_not_called()
     assert len(manager.available_networks()) == 1
     api.available.assert_called_with(scan=True)
@@ -369,7 +373,7 @@ def test_shared_menu_hides_unsupported_global_toggle_and_shows_denial(monkeypatc
 
     manager, api = _manager()
     api.available.side_effect = OSError(5, "denied")
-    backend = WindowsNetworkBackend(wifi=manager)
+    backend = WindowsNetworkBackend(manager=manager)
     monkeypatch.setattr(applet_module, "create_backend", lambda _interface: backend)
     applet = NetworkApplet(48, Config())
     applet._state = NetworkState(True, True, "Cafe", None, "Wi-Fi")

@@ -17,6 +17,9 @@ class VpnConnection(NamedTuple):
     uuid: str
     label: str
     is_active: bool
+    is_pending: bool = False
+    description: str = ""
+    can_toggle: bool = True
 
 
 class NetworkSettings(NamedTuple):

@@ -20,7 +20,7 @@ from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind as _bind
 
 if TYPE_CHECKING:
-    from docking.applets.network.windows_wifi import WindowsWifiManager
+    from docking.applets.network.windows_connections import WindowsConnectionManager
 
 log = get_logger("network.windows")
 
@@ -377,13 +377,13 @@ class WindowsNetworkBackend(NetworkBackend):
         interface: str = "",
         *,
         api: _IPHelper | None = None,
-        wifi: WindowsWifiManager | None = None,
+        manager: WindowsConnectionManager | None = None,
     ):
         self.interface = interface
         self._api = api
         self._adapters: list[_Adapter] = []
         self._counters: dict[str, TrafficCounters] | None = None
-        self._wifi = wifi
+        self._manager = manager
         self._changed: Callable[[], None] = lambda: None
 
     @property
@@ -401,13 +401,15 @@ class WindowsNetworkBackend(NetworkBackend):
 
     @property
     def connection_manager(self) -> ConnectionManager:
-        if self._wifi is None:
-            from docking.applets.network.windows_wifi import WindowsWifiManager
+        if self._manager is None:
+            from docking.applets.network.windows_connections import (
+                WindowsConnectionManager,
+            )
 
-            self._wifi = WindowsWifiManager()
-        self._wifi.changed = self._changed
-        self._wifi.refresh()
-        return self._wifi
+            self._manager = WindowsConnectionManager()
+        self._manager.changed = self._changed
+        self._manager.refresh()
+        return self._manager
 
     def start(self, changed: Callable[[], None]) -> None:
         """The applet's two-second timer samples native state and counters."""
@@ -417,8 +419,9 @@ class WindowsNetworkBackend(NetworkBackend):
         self._adapters = []
         self._counters = None
         self._changed = lambda: None
-        if self._wifi is not None:
-            self._wifi.stop()
+        if self._manager is not None:
+            self._manager.stop()
+            self._manager = None
 
     def interface_choices(self) -> tuple[tuple[str, str], ...]:
         return (

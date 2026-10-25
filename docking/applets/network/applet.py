@@ -266,7 +266,11 @@ class NetworkApplet(Applet):
         item = Gtk.MenuItem(label=_("VPN Connections"))
         submenu = Gtk.Menu()
         for connection in connections:
-            child = Gtk.MenuItem(label=connection.label or _("Unnamed VPN"))
+            child = Gtk.CheckMenuItem(label=connection.label or _("Unnamed VPN"))
+            child.set_active(connection.is_active)
+            child.set_sensitive(not connection.is_pending and connection.can_toggle)
+            if connection.description:
+                child.set_tooltip_text(connection.description)
             child.connect(
                 "activate",
                 lambda _widget, uuid=connection.uuid: manager.toggle_vpn(uuid),

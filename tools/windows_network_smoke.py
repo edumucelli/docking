@@ -29,9 +29,9 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
         _Adapter,
         _DefaultRoute,
     )
+    from docking.applets.network.windows_connections import WindowsConnectionManager
     from docking.applets.network.windows_profiles import ConnectionProfile
     from docking.applets.network.windows_wifi import (
-        WindowsWifiManager,
         _Candidate,
         _RadioState,
     )
@@ -74,7 +74,7 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
         connect=connect,
         set_radio=set_radio,
     )
-    wifi = WindowsWifiManager(api=wifi_api)
+    wifi = WindowsConnectionManager(api=wifi_api)
     ip_api = SimpleNamespace(
         adapters=lambda: [
             _Adapter(
@@ -88,7 +88,7 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
         ],
         routes=lambda: [_DefaultRoute(51, 2, 0)],
     )
-    backend = WindowsNetworkBackend(api=ip_api, wifi=wifi)
+    backend = WindowsNetworkBackend(api=ip_api, manager=wifi)
     real_backend, real_read = (
         call(lambda: network._backend),
         windows_profiles.read_connections,
