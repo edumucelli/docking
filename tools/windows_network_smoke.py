@@ -17,9 +17,226 @@ import time
 from pathlib import Path
 
 
+def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report):
+    """Actual desktop input over the production backend with labeled API fixtures."""
+    from types import SimpleNamespace
+
+    from gi.repository import Gtk
+
+    from docking.applets.network import windows_profiles
+    from docking.applets.network.windows import (
+        WindowsNetworkBackend,
+        _Adapter,
+        _DefaultRoute,
+    )
+    from docking.applets.network.windows_profiles import ConnectionProfile
+    from docking.applets.network.windows_wifi import (
+        WindowsWifiManager,
+        _Candidate,
+        _RadioState,
+    )
+
+    identifier = "{14d539ed-5de1-4da7-aed5-410f5d3ddfd9}"
+    values = {
+        "ssid": "Fixture Café 🛜",
+        "strength": 80,
+        "software": True,
+        "hardware": True,
+        "denied": False,
+    }
+    connections, radio_writes = [], []
+    current = _Candidate(
+        identifier, values["ssid"].encode(), "Fixture saved", 1, 80, True, True
+    )
+    guest = _Candidate(
+        identifier, b"Fixture Guest", "Fixture guest profile", 1, 60, False, True
+    )
+
+    def available(*, scan):
+        if values["denied"]:
+            raise OSError(5, "Injected location consent denial")
+        return [current, guest]
+
+    def connect(candidate):
+        connections.append(candidate.profile)
+        values["ssid"] = candidate.ssid.decode()
+
+    def set_radio(*, enabled):
+        radio_writes.append(enabled)
+        values["software"] = enabled
+
+    wifi_api = SimpleNamespace(
+        radios=lambda: (
+            [identifier],
+            [_RadioState(identifier, 0, values["software"], values["hardware"])],
+        ),
+        available=available,
+        connect=connect,
+        set_radio=set_radio,
+    )
+    wifi = WindowsWifiManager(api=wifi_api)
+    ip_api = SimpleNamespace(
+        adapters=lambda: [
+            _Adapter(
+                identifier,
+                "Wi-Fi fixture",
+                51,
+                71,
+                values["software"] and values["hardware"],
+                ("192.0.2.15",),
+            )
+        ],
+        routes=lambda: [_DefaultRoute(51, 2, 0)],
+    )
+    backend = WindowsNetworkBackend(api=ip_api, wifi=wifi)
+    real_backend, real_read = (
+        call(lambda: network._backend),
+        windows_profiles.read_connections,
+    )
+    evidence = {
+        "source": "Injected Wi-Fi API fixtures; not physical wireless hardware",
+        "connections": connections,
+        "radio_writes": radio_writes,
+    }
+    report["wifi_fixtures"] = evidence
+
+    def install():
+        windows_profiles.read_connections = lambda: [
+            ConnectionProfile(identifier, True, values["ssid"], values["strength"])
+        ]
+        network._backend = backend
+        backend.start(network._refresh_state)
+        network._prev_counters = None
+        network._refresh_state()
+
+    def dismiss():
+        native.key(0x1B)
+        native.key(0x1B)
+        native.click(1100, 100)
+
+    def submenu(menu):
+        return next(
+            r.get_submenu()
+            for r in menu.get_children()
+            if r.get_label() == "Available Networks"
+        )
+
+    try:
+        call(install)
+        hover("wifi-fixture-connected")
+        assert call(lambda: network._state.ssid) == values["ssid"]
+        menu = choose("Available Networks")
+        native.key(0x27)
+        time.sleep(0.5)
+        rows = call(lambda: [r.get_label() for r in submenu(menu).get_children()])
+        assert rows == ["Connected: Fixture Café 🛜 (80%)", "Fixture Guest (60%)"]
+        assert "Enable Networking" not in call(
+            lambda: [r.get_label() for r in menu.get_children()]
+        )
+        capture("wifi-fixture-network-menu")
+        native.key(0x24)
+        native.key(0x28)
+        native.key(0x0D)
+        native.wait_for(
+            lambda: connections == ["Fixture guest profile"],
+            "Native menu did not request the exact fixture profile",
+        )
+        native.wait_for(
+            lambda: call(lambda: network._state.ssid) == "Fixture Guest",
+            "Fixture profile state did not refresh",
+        )
+        evidence["profile_connection"] = True
+        choose("Enable Wi-Fi")
+        native.wait_for(
+            lambda: call(lambda: not network._state.is_connected),
+            "Fixture radio did not turn off",
+        )
+        hover("wifi-fixture-radio-off")
+        choose("Enable Wi-Fi")
+        native.wait_for(
+            lambda: call(lambda: network._state.is_connected),
+            "Fixture radio did not turn on",
+        )
+        assert radio_writes == [False, True]
+        values["hardware"] = False
+        menu = choose("Available Networks")
+        native.key(0x27)
+        assert not call(
+            lambda: next(
+                r for r in menu.get_children() if r.get_label() == "Enable Wi-Fi"
+            ).get_sensitive()
+        )
+        evidence["hardware_switch_blocks_toggle"] = True
+        dismiss()
+        values.update(hardware=True, strength=None, denied=True)
+        call(network._refresh_state)
+        hover("wifi-fixture-unknown-signal")
+        assert "%" not in call(lambda: network.item.name)
+        menu = choose("Available Networks")
+        native.key(0x27)
+        time.sleep(0.5)
+        assert call(
+            lambda: [
+                (r.get_label(), r.get_sensitive()) for r in submenu(menu).get_children()
+            ]
+        ) == [("Permission denied", False)]
+        capture("wifi-fixture-permission-denied")
+        evidence["denial_distinct_from_empty_scan"] = True
+        dismiss()
+        values["denied"] = False
+        menu = choose("Available Networks")
+        assert len(call(lambda: submenu(menu).get_children())) == 2
+        evidence["permission_recovery"] = True
+        dismiss()
+        choose("Connect to Hidden Wi-Fi Network...")
+        settings = native.wait_for(
+            lambda: next(
+                (w for w in native.windows() if w["title"] == "Settings"), None
+            ),
+            "Native Wi-Fi Settings did not open",
+            60,
+        )
+        time.sleep(5)
+        capture("wifi-native-settings-from-fixture-menu")
+        choose("Create New Wi-Fi Network...")
+        time.sleep(4)
+        capture("wifi-native-hotspot-settings-from-fixture-menu")
+        evidence["native_settings_launches_observed"] = True
+        evidence["wireless_settings_pages_verified"] = False
+        evidence["settings_page_scope"] = (
+            "Window launches only; inspect screenshots for the destination page. "
+            "The no-Wi-Fi VM can redirect to Settings Home."
+        )
+        native.user.PostMessageW(settings["hwnd"], 0x10, 0, 0)
+        native.wait_for(
+            lambda: not any(w["hwnd"] == settings["hwnd"] for w in native.windows()),
+            "Owned Settings page did not close",
+        )
+        evidence["ok"] = True
+    finally:
+
+        def restore():
+            grab = Gtk.grab_get_current()
+            if isinstance(grab, Gtk.MenuShell):
+                grab.cancel()
+            backend.stop()
+            windows_profiles.read_connections = real_read
+            network._backend = real_backend
+            network._prev_counters = None
+            network._refresh_state()
+
+        call(restore)
+    hover("network-restored-after-wifi-fixtures")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--exercise-wifi-fixtures",
+        action="store_true",
+        help="Exercise explicitly injected Wi-Fi API snapshots, not physical hardware",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python")
@@ -241,6 +458,7 @@ def main():
                 for _ in range(labels.index(label)):
                     native.key(0x28)
                 native.key(0x0D)
+                return menu
 
             hover("network-connected")
             choice = call(
@@ -328,6 +546,10 @@ def main():
                 "speed_overlay": "none",
             }
             hover("network-auto")
+            if args.exercise_wifi_fixtures:
+                exercise_wifi_fixtures(
+                    network, call, native, choose, hover, capture, report
+                )
             choose("Connection Information")
             settings = native.wait_for(
                 lambda: next(

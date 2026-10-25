@@ -47,6 +47,7 @@ class AvailableNetwork(NamedTuple):
     strength: int
     access_point_path: str
     is_active: bool
+    is_connectable: bool = True
 
 
 @dataclass(frozen=True)
@@ -60,7 +61,7 @@ class NetworkState:
     is_connected: bool = False
     is_wifi: bool = False
     ssid: str = ""
-    signal_strength: int = 0
+    signal_strength: int | None = 0
     iface: str = ""
     ip_address: str = ""
     rx_speed: float = 0.0
@@ -141,10 +142,10 @@ def dedupe_networks(networks: list[AvailableNetwork]) -> list[AvailableNetwork]:
         if network.is_active and not current.is_active:
             best_by_ssid[network.ssid] = network
             continue
-        if (
-            network.is_active == current.is_active
-            and network.strength > current.strength
-        ):
+        if network.is_active == current.is_active and (
+            network.is_connectable,
+            network.strength,
+        ) > (current.is_connectable, current.strength):
             best_by_ssid[network.ssid] = network
     return sorted(
         best_by_ssid.values(),
@@ -156,12 +157,14 @@ def dedupe_networks(networks: list[AvailableNetwork]) -> list[AvailableNetwork]:
     )
 
 
-def signal_to_icon(strength: int, is_connected: bool, is_wifi: bool) -> str:
+def signal_to_icon(strength: int | None, is_connected: bool, is_wifi: bool) -> str:
     """Map network state to GTK icon name."""
     if not is_connected:
         return "network-offline-symbolic"
     if not is_wifi:
         return "network-wired-symbolic"
+    if strength is None:
+        return "network-wireless-symbolic"
     if strength >= 80:
         return "network-wireless-signal-excellent-symbolic"
     if strength >= 60:
@@ -174,7 +177,7 @@ def signal_to_icon(strength: int, is_connected: bool, is_wifi: bool) -> str:
 def build_tooltip(
     is_connected: bool,
     ssid: str,
-    signal_strength: int,
+    signal_strength: int | None,
     iface: str,
     ip_address: str,
     rx_speed: float,
@@ -188,7 +191,8 @@ def build_tooltip(
             primary=_("Not connected"),
         )
     primary = (
-        f"WiFi: {ssid} ({signal_strength}%)"
+        f"WiFi: {ssid}"
+        + (f" ({signal_strength}%)" if signal_strength is not None else "")
         if ssid
         else f"{_('Network')}: {iface}"
         if is_wifi

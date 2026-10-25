@@ -722,7 +722,7 @@ References: [system power status](https://learn.microsoft.com/en-us/windows/win3
 [power information query](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-callntpowerinformation),
 [Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
-## Native Network monitoring and settings
+## Native Network monitoring, Wi-Fi and settings
 
 The Windows Network backend reads transport-bound adapters and IPv4/IPv6
 addresses with `GetAdaptersAddresses`, cumulative 64-bit byte counters with
@@ -758,7 +758,7 @@ The payload files are removed, and the desktop captures were inspected.
 
 ![Network backend opening Windows Advanced network settings](../images/windows-network-settings.png)
 
-Focused checks passed 269 cases on Linux, with six native-only cases skipped,
+The initial monitoring milestone passed 269 focused cases on Linux, with six native-only cases skipped,
 and 137 selected cases on Windows. The window backend layout change also passed
 the real Notepad launch/minimize/restore/Close check without forced shutdown.
 
@@ -772,15 +772,60 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
   --output '\\host.lan\Data\lab\network'
 ```
 
-The baseline has one wired adapter on one display at 96 DPI. Wi-Fi SSID/signal,
-profile/radio/networking/VPN controls, physical adapter changes, multiple-route
-desktop acceptance and broader network hardware remain required parity work.
-A Wi-Fi link with no accessible SSID is not labeled as Ethernet.
+The Windows connection manager implements the shared `ConnectionManager`
+contract. `windows_wifi.py` owns WLAN discovery, saved-profile connections and
+software radio changes; `windows_profiles.py` owns WinRT connection metadata.
+Routine polls read `GetConnectedSsid` and `GetSignalBars` through WinRT and match
+profiles to the selected adapter GUID. Signal bars map to 20-percent steps;
+missing signal data stays unknown and has a question-mark glyph. A Wi-Fi link
+with no accessible SSID is not labeled as Ethernet.
+
+Discovery runs only when the user opens the Network menu, with scans throttled
+to fifteen seconds. Location-sensitive WLAN current-connection and BSSID queries
+are not used for routine monitoring. A denied discovery request appears as
+“Permission denied” rather than an empty scan. Available networks retain the
+exact adapter, raw SSID, case-sensitive profile and BSS type; a connection action
+revalidates that identity before calling `WlanConnect`. Networks without a saved
+profile open Windows Wi-Fi Settings for native credential setup. The menu also
+opens native Wi-Fi/hidden-network and Mobile hotspot settings. Unusable networks
+are disabled; software radio state is refreshed after writes and hardware-blocked
+radios cannot be toggled. Shared capabilities omit the unsupported global
+network switch. RAS/VPN control remains unimplemented.
+
+The native no-adapter probe covered stopped and running WLAN service states,
+then restored the original stopped state. Native enumeration agreed with an
+independent `Get-NetAdapter` query. Forty repeated WLAN/WinRT reads kept the
+process handle count at 159. Tests cover allocation and handle cleanup, partial
+COM/HSTRING acquisition, existing STA and concurrent MTA calls, Unicode names,
+raw SSID identity, stale menu entries, access denial and recovery.
+
+Add `--exercise-wifi-fixtures` to the desktop command above to exercise labeled
+Wi-Fi API snapshots through the complete application. Real keyboard/mouse input
+selects a saved-profile fixture, turns its software radio off/on, verifies a
+hardware-blocked toggle, unknown signal and permission-denied recovery, and
+launches the actual Windows Settings application. On this no-Wi-Fi VM, the
+wireless links redirected to Settings Home; the Wi-Fi and Mobile hotspot pages
+remain unverified. The same run verifies real wired metadata and SMB traffic
+before injection and restores the real backend before shutdown. The wireless snapshots do **not** prove physical Wi-Fi
+association, authentication, signal accuracy, hardware switching or hotplug.
+
+![Wi-Fi menu driven on Windows with explicitly injected API fixtures](../images/windows-wifi-fixture.png)
+
+The baseline has one wired adapter on one display at 96 DPI. Physical Wi-Fi and
+other adapter changes, multiple-route desktop acceptance, global networking
+control, VPN management and broader network hardware remain required parity work.
 
 References: [adapter addresses and interface metrics](https://learn.microsoft.com/en-us/windows/win32/api/iptypes/ns-iptypes-ip_adapter_addresses_lh),
 [interface byte counters](https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2),
 [route metrics](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/mib-ipforward-row2),
-[route table ownership](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/getipforwardtable2).
+[route table ownership](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/getipforwardtable2),
+[Wi-Fi location-access changes](https://learn.microsoft.com/en-us/windows/win32/nativewifi/wi-fi-access-location-changes),
+[connected SSID](https://learn.microsoft.com/en-us/uwp/api/windows.networking.connectivity.wlanconnectionprofiledetails.getconnectedssid),
+[signal bars](https://learn.microsoft.com/en-us/uwp/api/windows.networking.connectivity.connectionprofile.getsignalbars),
+[WLAN connection parameters](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/ns-wlanapi-wlan_connection_parameters),
+[WLAN radio state](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/ns-wlanapi-wlan_phy_radio_state),
+[WinRT ABI declarations](https://github.com/microsoft/windows-rs/blob/master/crates/libs/windows/src/Windows/Networking/Connectivity/mod.rs),
+[Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
 ## Native Recycle Bin
 
@@ -980,7 +1025,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; wireless/management controls, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; physical wireless, global networking/VPN controls, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

@@ -16,6 +16,15 @@ from docking.core.config import Config
 from docking.platform import environment
 
 
+@pytest.fixture(autouse=True)
+def profile_metadata(monkeypatch):
+    from docking.applets.network import windows_profiles
+
+    read = Mock(return_value=[])
+    monkeypatch.setattr(windows_profiles, "read_connections", read)
+    return read
+
+
 def _adapter(identifier="{a}", name="Ethernet", index=6, **values):
     return windows._Adapter(
         identifier,
@@ -122,7 +131,7 @@ def test_windows_settings_actions_use_shell_associations_behind_the_contract(
         "ms-settings:network-status",
         "ms-settings:network-advancedsettings",
         "ms-settings:network-wifisettings",
-        "ms-settings:network-wifisettings",
+        "ms-settings:network-mobilehotspot",
     ]
     launch.return_value = False
     assert not settings.open_connection_info()
@@ -315,3 +324,28 @@ def test_native_read_only_snapshot_and_counters():
         assert any(
             key == state.interface_id for _label, key in value.interface_choices()
         )
+
+
+def test_wifi_profile_metadata_matches_persistent_adapter_identity(profile_metadata):
+    from docking.applets.network.windows_profiles import ConnectionProfile
+
+    profile_metadata.return_value = [
+        ConnectionProfile("{other}", True, "Wrong network", 100),
+        ConnectionProfile("{A}", True, " Café ", 80),
+    ]
+    api = _api([_adapter(kind=71)])
+    value = windows.WindowsNetworkBackend(api=api)
+    state = value.state()
+    assert (state.ssid, state.signal_strength) == (" Café ", 80)
+    assert state.interface_id == "{a}" and state.is_connected
+    api.adapters.return_value[0] = replace(api.adapters.return_value[0], up=False)
+    assert not value.state().ssid
+    assert profile_metadata.call_count == 1
+
+
+def test_wifi_metadata_failure_preserves_link_without_fake_signal(profile_metadata):
+    profile_metadata.side_effect = OSError("Network profile changed")
+    value = windows.WindowsNetworkBackend(api=_api([_adapter(kind=71)]))
+    state = value.state()
+    assert state.is_connected and state.ip_address == "192.0.2.2"
+    assert not state.ssid and state.signal_strength is None

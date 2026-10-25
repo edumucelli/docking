@@ -423,7 +423,7 @@ class LinuxNetworkBackend(NetworkBackend, ConnectionManager):
             return 1
         return 0
 
-    def _refresh_wifi_signal(self, *, state: NetworkState) -> int:
+    def _refresh_wifi_signal(self, *, state: NetworkState) -> int | None:
         """Return the current wifi signal strength, or ``state.signal_strength``."""
         if not self._nm_client or not state.is_wifi:
             return state.signal_strength

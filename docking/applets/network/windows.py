@@ -7,7 +7,7 @@ import ipaddress
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from docking.applets.network.backend import (
     ConnectionManager,
@@ -18,6 +18,9 @@ from docking.applets.network.state import NetworkState, TrafficCounters
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind as _bind
+
+if TYPE_CHECKING:
+    from docking.applets.network.windows_wifi import WindowsWifiManager
 
 log = get_logger("network.windows")
 
@@ -369,11 +372,19 @@ def _address(adapter: _Adapter) -> str:
 
 
 class WindowsNetworkBackend(NetworkBackend):
-    def __init__(self, interface: str = "", *, api: _IPHelper | None = None):
+    def __init__(
+        self,
+        interface: str = "",
+        *,
+        api: _IPHelper | None = None,
+        wifi: WindowsWifiManager | None = None,
+    ):
         self.interface = interface
         self._api = api
         self._adapters: list[_Adapter] = []
         self._counters: dict[str, TrafficCounters] | None = None
+        self._wifi = wifi
+        self._changed: Callable[[], None] = lambda: None
 
     @property
     def settings(self) -> NetworkSettings:
@@ -385,19 +396,29 @@ class WindowsNetworkBackend(NetworkBackend):
             lambda: open_default_target("ms-settings:network-status"),
             lambda: open_default_target("ms-settings:network-advancedsettings"),
             lambda: open_default_target("ms-settings:network-wifisettings"),
-            lambda: open_default_target("ms-settings:network-wifisettings"),
+            lambda: open_default_target("ms-settings:network-mobilehotspot"),
         )
 
     @property
-    def connection_manager(self) -> ConnectionManager | None:
-        return None  # Native Wi-Fi/radio/VPN management is a separate capability.
+    def connection_manager(self) -> ConnectionManager:
+        if self._wifi is None:
+            from docking.applets.network.windows_wifi import WindowsWifiManager
+
+            self._wifi = WindowsWifiManager()
+        self._wifi.changed = self._changed
+        self._wifi.refresh()
+        return self._wifi
 
     def start(self, changed: Callable[[], None]) -> None:
         """The applet's two-second timer samples native state and counters."""
+        self._changed = changed
 
     def stop(self) -> None:
         self._adapters = []
         self._counters = None
+        self._changed = lambda: None
+        if self._wifi is not None:
+            self._wifi.stop()
 
     def interface_choices(self) -> tuple[tuple[str, str], ...]:
         return (
@@ -462,12 +483,33 @@ class WindowsNetworkBackend(NetworkBackend):
         if selected is None:
             return NetworkState()
         address = _address(selected) if selected.up else ""
+        ssid = ""
+        strength = None if selected.kind == IF_TYPE_WIFI else 0
+        if selected.kind == IF_TYPE_WIFI and address:
+            from docking.applets.network.windows_profiles import read_connections
+
+            try:
+                profile = next(
+                    (
+                        p
+                        for p in read_connections()
+                        if p.is_wifi
+                        and p.identifier.casefold() == selected.identifier.casefold()
+                    ),
+                    None,
+                )
+                if profile is not None:
+                    ssid, strength = profile.ssid, profile.strength
+            except OSError as exc:
+                log.debug("Wi-Fi profile metadata unavailable: %s", exc)
         return NetworkState(
             is_connected=selected.up and bool(address),
             is_wifi=selected.kind == IF_TYPE_WIFI,
             iface=selected.name,
             interface_id=selected.identifier,
             ip_address=address,
+            ssid=ssid,
+            signal_strength=strength,
         )
 
     def counters(self) -> dict[str, TrafficCounters] | None:

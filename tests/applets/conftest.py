@@ -21,6 +21,9 @@ class _FakeMenu:
     def append(self, item) -> None:
         self.children.append(item)
 
+    def get_children(self) -> list[object]:
+        return list(self.children)
+
     def destroy(self) -> None:
         self.destroyed = True
 

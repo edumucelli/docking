@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import NamedTuple
 
 from docking.applets.network.state import (
@@ -29,8 +30,22 @@ class NetworkSettings(NamedTuple):
     open_new_wifi_settings: Callable[[], bool]
 
 
+@dataclass(frozen=True)
+class NetworkCapabilities:
+    networking_toggle: bool = True
+    wireless_toggle: bool = True
+
+
 class ConnectionManager(ABC):
     """Optional connection-management capability, independent of rendering."""
+
+    @property
+    def capabilities(self) -> NetworkCapabilities:
+        return NetworkCapabilities()
+
+    @property
+    def networks_unavailable_reason(self) -> str:
+        return ""
 
     @property
     @abstractmethod

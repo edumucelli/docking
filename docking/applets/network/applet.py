@@ -84,7 +84,7 @@ class NetworkApplet(Applet):
         """Show connection info and common network actions."""
         state = self._state
         status: list[Gtk.MenuItem] = []
-        if state.ssid:
+        if state.ssid and state.signal_strength is not None:
             status.append(
                 disabled_menu_item(
                     _("WiFi: {ssid} ({pct}%)").format(
@@ -93,6 +93,8 @@ class NetworkApplet(Applet):
                     gtk=Gtk,
                 )
             )
+        elif state.ssid:
+            status.append(disabled_menu_item(f"{_('Network')}: {state.ssid}", gtk=Gtk))
         elif state.is_connected:
             status.append(
                 disabled_menu_item(
@@ -165,16 +167,17 @@ class NetworkApplet(Applet):
                 )
                 manage.append(new_item)
 
-            networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
-            networking_item.set_active(manager.networking_enabled)
-            networking_item.connect(
-                "toggled",
-                lambda widget: manager.set_networking_enabled(
-                    enabled=widget.get_active()
-                ),
-            )
-            manage.append(networking_item)
-            if manager.has_wifi_device():
+            if manager.capabilities.networking_toggle:
+                networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
+                networking_item.set_active(manager.networking_enabled)
+                networking_item.connect(
+                    "toggled",
+                    lambda widget: manager.set_networking_enabled(
+                        enabled=widget.get_active()
+                    ),
+                )
+                manage.append(networking_item)
+            if manager.has_wifi_device() and manager.capabilities.wireless_toggle:
                 wifi_item = Gtk.CheckMenuItem(label=_("Enable Wi-Fi"))
                 wifi_item.set_active(manager.wireless_enabled)
                 wifi_item.set_sensitive(manager.wireless_hardware_enabled)
@@ -237,6 +240,7 @@ class NetworkApplet(Applet):
             if network.is_active:
                 label = _("Connected: {label}").format(label=label)
             child = Gtk.MenuItem(label=label)
+            child.set_sensitive(network.is_connectable)
             child.connect(
                 "activate",
                 lambda _widget, n=network: manager.connect_network(network=n),
@@ -244,7 +248,9 @@ class NetworkApplet(Applet):
             submenu.append(child)
 
         if not submenu.get_children():
-            empty = Gtk.MenuItem(label=_("No networks found"))
+            empty = Gtk.MenuItem(
+                label=manager.networks_unavailable_reason or _("No networks found")
+            )
             empty.set_sensitive(False)
             submenu.append(empty)
 
