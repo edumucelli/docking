@@ -632,6 +632,64 @@ References: [default audio endpoint](https://learn.microsoft.com/en-us/windows/w
 [endpoint mute](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmute),
 [Windows Settings URIs](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
+## Native Recycle Bin
+
+Trash selects a Windows shell backend. `SHQueryRecycleBinW` reads the current
+user's bin across drives, and Open Trash launches `shell:RecycleBinFolder`.
+Confirmed Empty uses `SHEmptyRecycleBinW`, then checks the remaining count.
+The shared confirmation keeps Cancel as its default. Query failures retain
+the last observed count; failed empty requests retain the applet's error badge.
+The native structure follows the SDK's different 32-bit and 64-bit alignment.
+
+A hidden window subscribes to the virtual Recycle Bin folder with
+`SHChangeNotifyRegister`. Shared notification packets are locked and unlocked
+before a coalesced GTK idle refresh. The observer also schedules reconnection
+on `TaskbarCreated`; actual Explorer restart recovery remains broader desktop
+acceptance. Stop removes queued work, deregisters the subscription, destroys
+the window and frees its folder identifier. Gio monitoring on other platforms
+continues through the existing file and volume monitors.
+
+Dropped files use `IFileOperation` with recycling and undo enabled. Windows'
+warning is retained if an item cannot be recycled. Network shares and mapped
+network drives are rejected because they have no client-side Recycle Bin.
+Drop URI decoding preserves native drives, UNC authority and literal filename
+characters before the backend chooses whether it can recycle the item.
+
+`windows_trash_smoke.py` runs the complete dock in a lab with an initially empty
+bin. It verifies external document recycling, native notifications, Open Trash
+and restoration with the original contents. It drags a Unicode-named folder
+from Explorer onto Trash using real mouse input, verifies the shell's recycled
+folder and child contents, checks default Cancel, then confirms Empty. The
+entire shell inventory must belong to the fixture before an empty request.
+Normal Quit checks native observer cleanup, work-area restoration and hotkey
+release. The focused suite passed 62 native Windows tests and 215 Linux tests;
+three Windows-only path/ABI cases are skipped on Linux. Shared drag routing
+also uses real geometry tests at all four edges.
+
+The captured drag protocol is **`win32-dropfiles`**. GTK 3's default Windows
+file-drop path delivers the file on release; this evidence does not establish
+OLE hover feedback. GTK's opt-in OLE2 path and broader drag feedback remain
+acceptance work. The driver follows current icon geometry while running
+applications can reflow the dock. Its PowerShell queries create no console
+windows, and captures wait for native opening animations.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_trash_smoke.py' \
+  --output '\\host.lan\Data\lab\trash-acceptance'
+```
+
+![Native Recycle Bin and the Trash applet](../images/windows-recycle-bin.png)
+
+![Empty confirmation with Cancel as the default](../images/windows-trash-confirmation.png)
+
+References: [Recycle Bin query](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shqueryrecyclebinw),
+[empty request](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shemptyrecyclebinw),
+[shell change notifications](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotifyregister),
+[file operation flags](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperation-setoperationflags),
+[GTK 3.24.52 Win32 drag implementation](https://gitlab.gnome.org/GNOME/gtk/-/blob/3.24.52/gdk/win32/gdkdnd-win32.c).
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -696,7 +754,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio master volume | Volume wheel/click controls, limits, external Windows keys, persisted level display, native Sound settings and actual audio verified on the baseline; device routing and other native applet backends pending |
+| System applets | Native Core Audio master volume and shell Recycle Bin | Volume controls, Windows keys, Sound settings and audio verified; Trash notifications, open/restore, native Explorer folder drop, default Cancel, confirmed empty and observer cleanup verified on the baseline; other native applet backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

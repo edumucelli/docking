@@ -8,6 +8,8 @@ from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from docking.applets.trash import applet as trash_applet_mod
 from docking.applets.trash.applet import TrashApplet
 from docking.applets.trash.backend import (
@@ -30,6 +32,13 @@ from docking.applets.trash.backend import (
 from docking.applets.trash.linux import _decode_mountinfo_path
 from docking.core.config import Config
 from docking.platform.environment import Desktop
+
+
+@pytest.fixture(autouse=True)
+def unix_trash_environment(monkeypatch):
+    monkeypatch.setattr(
+        "docking.applets.trash.backend.environment.is_windows", lambda: False
+    )
 
 
 class TestHelperFunctions:
@@ -234,6 +243,7 @@ class TestTrashAppletDrops:
         file = MagicMock()
         file.trash.return_value = True
         backend = MagicMock()
+        backend.trash_file.side_effect = lambda file: file.trash(None)
         backend.count_items.return_value = 3
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = backend
@@ -252,6 +262,7 @@ class TestTrashAppletDrops:
         file.trash.return_value = False
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = MagicMock()
+        applet._backend.trash_file.side_effect = lambda file: file.trash(None)
         applet._item_count = 0
         applet.present = MagicMock()
 
@@ -1280,6 +1291,9 @@ class _StubBackend:
 
     def monitor_files(self):
         return self.monitor_files_mock
+
+    def watch_changes(self, changed):
+        return None
 
     def open(self) -> None:
         self.open_calls += 1

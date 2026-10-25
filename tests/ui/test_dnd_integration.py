@@ -20,9 +20,10 @@ except ModuleNotFoundError:  # pragma: no cover
 
 import docking.platform.applications.launcher as launcher_mod
 import docking.ui.dnd as dnd_mod
-from docking.core.config import PinnedEntry
+from docking.core.config import Config, PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
+from docking.core.theme import Theme
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.types import (
@@ -31,7 +32,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem
-from docking.ui.geometry import Rect
+from docking.ui.geometry import Rect, build_geometry_frame
 from tests.platform.application_fakes import ApplicationRegistryStub
 
 
@@ -328,6 +329,62 @@ class TestSetupAndToggle:
 
 
 class TestDragBeginMotion:
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("kind", [APP_KIND, APPLET_KIND])
+    def test_external_drop_stays_on_first_compatible_icon_with_real_geometry(
+        self, monkeypatch, position, kind
+    ):
+        handler = _make_handler(monkeypatch)
+        config = Config(position=position.value, icon_size=48)
+        handler._application_launcher.launch_app_uris.return_value = True
+        theme = Theme.load("default", 48)
+        target = DockItem(
+            "applet://trash" if kind == APPLET_KIND else "editor.desktop", kind=kind
+        )
+        items = [target, DockItem("applet://clock", kind=APPLET_KIND)]
+        handler._config, handler._theme = config, theme
+        handler._model.visible_items.return_value = items
+        applet = SimpleNamespace(
+            accepts_drop_uris=lambda: True, on_drop_uris=MagicMock(return_value=True)
+        )
+        handler._model.get_applet.return_value = applet
+
+        def frame(*, main_cursor=-1.0, drop_insert_index=-1):
+            horizontal = position in (Position.TOP, Position.BOTTOM)
+            return build_geometry_frame(
+                items=items,
+                config=config,
+                theme=theme,
+                window_w=1280 if horizontal else 187,
+                window_h=187 if horizontal else 800,
+                cursor_main=main_cursor,
+                autohide_state=None,
+                drop_insert_index=drop_insert_index,
+            )
+
+        handler._geometry_builder = SimpleNamespace(build_frame=frame)
+        rect = frame().item_geometries[0].draw_rect
+        x, y = int(rect.x + rect.w / 2), int(rect.y + rect.h / 2)
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args: None)
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+        for _ in range(3):
+            handler._on_drag_motion(handler._drawing_area, MagicMock(), x, y, 1)
+            assert handler.drop_target_id == target.desktop_id
+        selection = MagicMock()
+        selection.get_uris.return_value = ["file:///tmp/owned.txt"]
+        handler._on_drag_data_received(
+            handler._drawing_area, MagicMock(), x, y, selection, 0, 1
+        )
+        handler._model.insert_pinned_item.assert_not_called()
+        if kind == APPLET_KIND:
+            applet.on_drop_uris.assert_called_once_with(["file:///tmp/owned.txt"])
+        else:
+            handler._application_launcher.launch_app_uris.assert_called_once_with(
+                "editor.desktop", ["file:///tmp/owned.txt"]
+            )
+        assert finish.call_args.args[1] is True
+
     def test_drag_begin_sets_drag_index_and_icon(self, monkeypatch):
         # Given
         handler = _make_handler(monkeypatch)

@@ -101,9 +101,25 @@ class TrashBackend(Protocol):
 
     def monitor_files(self) -> tuple[Gio.File, ...]: ...
 
+    def watch_changes(
+        self, changed: Callable[[], None]
+    ) -> Callable[[], None] | None: ...
+
+    def trash_file(self, file: Gio.File) -> bool: ...
+
     def open(self) -> None: ...
 
     def empty(self, confirm: Callable[[], bool]) -> TrashEmptyResult: ...
+
+
+class TrashFileOperations:
+    """Shared file drops; native shell observers are optional supplements."""
+
+    def watch_changes(self, changed: Callable[[], None]) -> Callable[[], None] | None:
+        return None
+
+    def trash_file(self, file: Gio.File) -> bool:
+        return bool(file.trash(None))
 
 
 class _CaseSensitiveConfigParser(configparser.ConfigParser):
@@ -316,7 +332,7 @@ def _empty_host_trash() -> bool:
     return False
 
 
-class GioTrashBackend:
+class GioTrashBackend(TrashFileOperations):
     """Generic trash backend using Gio trash:/// behavior."""
 
     name = "gio"
@@ -604,7 +620,7 @@ class CinnamonTrashBackend(GioTrashBackend):
     )
 
 
-class KdeTrashBackend:
+class KdeTrashBackend(TrashFileOperations):
     """Trash backend for KDE's trash:/ KIO behavior."""
 
     name = "kde"
@@ -795,6 +811,10 @@ class KdeTrashBackend:
 
 def select_trash_backend(*, desktop: Desktop | None = None) -> TrashBackend:
     """Select the trash backend for the current desktop session."""
+    if environment.is_windows():
+        from docking.applets.trash.windows import WindowsTrashBackend
+
+        return WindowsTrashBackend()
     resolved = desktop if desktop is not None else detect_desktop()
     if is_kde_session(desktop=resolved):
         return KdeTrashBackend()

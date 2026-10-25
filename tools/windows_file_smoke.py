@@ -404,7 +404,7 @@ def main() -> None:
             key(0x1B)
             key(0x1B)
         # Native UI Automation locates the actual Explorer item; no file drop is
-        # injected into GTK or its model. Win32 mouse input exercises OLE DnD.
+        # injected into GTK or its model. Win32 mouse input exercises native DnD.
         ex1, ey1, ex2, _ey2 = explorer["rect"]
         click((ex1 + ex2) // 2, ey1 + 20)
         key(0x32, control=True, shift=True)
@@ -436,6 +436,7 @@ foreach ($item in $items) {{
             encoding="utf-8-sig",
             timeout=30,
             check=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         source = json.loads(found.stdout)
         report["explorer_drag_source"] = source
