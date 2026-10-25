@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from docking.platform import environment
@@ -16,10 +17,28 @@ if TYPE_CHECKING:
 class BluetoothCapabilities:
     trust: bool = True
     remove_pairing: bool = True
+    power: bool = True
+    discovery: bool = True
+    connect: bool = True
+    disconnect: bool = True
+    pair: bool = True
+
+
+class BluetoothAction(Enum):
+    SEND_FILES = "send_files"
+    DEVICES = "devices"
+    ADAPTERS = "adapters"
+    LOCAL_SERVICES = "local_services"
 
 
 class BluetoothBackend(ABC):
     capabilities = BluetoothCapabilities()
+
+    def desktop_actions(self) -> tuple[BluetoothAction, ...]:
+        return ()
+
+    def open_desktop_action(self, action: BluetoothAction) -> bool:
+        return False
 
     @abstractmethod
     def close(self) -> None:
@@ -48,6 +67,10 @@ class BluetoothBackend(ABC):
 
 
 def create_backend() -> BluetoothBackend:
+    if environment.is_windows():
+        from docking.applets.bluetooth.windows import WindowsBluetoothBackend
+
+        return WindowsBluetoothBackend()
     if environment.is_bsd():
         from docking.applets.bluetooth.bsd import BsdBluetoothBackend
 

@@ -7,6 +7,7 @@ import pytest
 from gi.repository import Gtk
 
 import docking.applets.bluetooth.applet as bluetooth
+from docking.applets.bluetooth.backend import BluetoothCapabilities
 from docking.applets.bluetooth.state import BluetoothAdapterState, BluetoothState
 from docking.applets.worker import BackgroundWorker
 from docking.core.config import Config
@@ -16,6 +17,8 @@ SECOND = "/org/bluez/hci1"
 
 
 class _DiscoveryBackend:
+    capabilities = BluetoothCapabilities()
+
     def close(self):
         pass
 

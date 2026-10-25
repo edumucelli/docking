@@ -949,6 +949,62 @@ References: [lock request semantics](https://learn.microsoft.com/en-us/windows/w
 [token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
 [WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
 
+## Windows Bluetooth
+
+Bluetooth uses the shared `BluetoothBackend` contract for snapshots, radio
+changes, capabilities and desktop actions. Shared state contains values and
+presentation helpers. Linux/BSD desktop commands live in `unix_desktop.py` and
+are selected by their implementations. Windows selects `windows.py` and its
+radio implementation without loading BlueZ or Unix desktop tools.
+
+WinRT enumerates Bluetooth adapters by their device IDs and reads their actual
+radio state. Off, unknown and policy-disabled states are distinct; unknown or
+disabled radios cannot be toggled. The Windows implementation runs its WinRT
+requests in a hidden, bounded PowerShell process. Only an explicit user radio
+change requests access. It revalidates the exact adapter ID/address, checks the
+access result and reads state again before reporting success. No adapter index
+is used as a persistent identity. Closing the backend rejects queued work and
+stale replies cannot repaint a removed applet.
+
+Win32 cached enumeration supplies paired/connected **classic Bluetooth** devices
+for each local radio address. It does not issue inquiries. Radio, enumeration
+and device-search handles are closed on success, failure and removal. Device
+battery and signal strength stay unknown when the provider cannot supply them.
+Windows does not expose BlueZ trust semantics. Generic connect/disconnect,
+in-app pairing/removal and discovery controls are omitted by backend capability;
+read-only device rows have no empty submenus. **Devices...** opens the native
+**Bluetooth & devices > Devices** page, including when no radio is installed.
+
+The owned Windows VM has no Bluetooth adapter. Native WinRT/Win32 queries and an
+independent PnP oracle agree on that absence. Actual menu input, the Devices
+settings page, accessibility metadata, inspected desktop captures, normal close
+and work-area restoration passed. The subsequent connected/paired, on/off,
+denied-change, external-change, policy-disabled and removal scenarios are
+**explicit injected API fixtures**. No physical radio was changed.
+
+![Actual unavailable Bluetooth hardware and native settings handoff](../images/windows-bluetooth-unavailable.png)
+
+![Injected Bluetooth device fixture with capability-aware controls](../images/windows-bluetooth-fixture.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_bluetooth_smoke.py' \
+  --output '\\host.lan\Data\lab\bluetooth-acceptance'
+```
+
+Physical radio/policy/permission behavior, multiple adapters and hotplug, BLE
+inventory, active discovery, pairing, device-specific connection management,
+file transfer and accessories remain part of Windows parity acceptance or
+implementation. The VM fixtures do not establish hardware support.
+
+References: [adapter enumeration](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter.getdeviceselector),
+[radio state](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radiostate),
+[radio access](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.requestaccessasync),
+[radio changes](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.setstateasync),
+[classic device enumeration and LE limitation](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
+[device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params).
+
 ## Windows keyboard layouts
 
 Keyboard Layout uses the shared `LayoutBackend` contract. Input-source state,
@@ -1010,6 +1066,18 @@ share an HKL, transient language identifiers, IME composition and profile-change
 notifications, additional layouts, application refusals, remote sessions and
 multi-user/policy cases still require further implementation or acceptance.
 Those remain part of the Windows parity goal.
+
+A native TSF investigation enabled two owned Vietnamese text-service fixtures.
+The language-bar broker returned the requested thread identity and successful
+activation HRESULTs, but Notepad kept US input and produced plain `aa` for both
+profiles. Cleanup restored both profiles to disabled and preserved the original
+input preferences. That experimental path is excluded: Microsoft marks
+[`GetInputProcessorProfiles`](https://learn.microsoft.com/en-us/windows/win32/api/ctfutb/nf-ctfutb-itflangbarmgr-getinputprocessorprofiles)
+as unsupported for use. The documented
+[`ActivateProfile`](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-activateprofile)
+flags cover the caller, process or desktop; desktop-wide activation would change
+the scope of the current per-input-context selection. Per-target TSF support
+remains open; API success alone was not accepted as native composition evidence.
 
 References: [input locale enumeration](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist),
 [per-thread active input locale](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout),
@@ -1351,7 +1419,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/VPN/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings and Bluetooth radio/classic-inventory backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Bluetooth native absence/settings and labeled radio/device fixtures verified; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

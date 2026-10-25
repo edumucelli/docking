@@ -11,8 +11,9 @@ from unittest.mock import MagicMock
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.linux as bluetooth_linux_mod
 import docking.applets.bluetooth.state as bluetooth_state_mod
+import docking.applets.bluetooth.unix_desktop as bluetooth_desktop_mod
 from docking.applets.bluetooth.applet import BluetoothApplet
-from docking.applets.bluetooth.backend import BluetoothCapabilities
+from docking.applets.bluetooth.backend import BluetoothAction, BluetoothCapabilities
 from docking.applets.bluetooth.linux import LinuxBluetoothBackend
 from docking.applets.bluetooth.render import create_bluetooth_icon
 from docking.applets.bluetooth.state import (
@@ -218,55 +219,55 @@ class TestBluetoothStateHelpers:
         }
 
         monkeypatch.setattr(
-            bluetooth_state_mod.shutil,
+            bluetooth_desktop_mod.shutil,
             "which",
             lambda cmd: commands.get(cmd),
         )
 
-        assert bluetooth_state_mod.send_files_command() == ["bluetooth-sendto"]
-        assert bluetooth_state_mod.devices_command() == [
+        assert bluetooth_desktop_mod.send_files_command() == ["bluetooth-sendto"]
+        assert bluetooth_desktop_mod.devices_command() == [
             "gnome-control-center",
             "bluetooth",
         ]
-        assert bluetooth_state_mod.adapters_command() == [
+        assert bluetooth_desktop_mod.adapters_command() == [
             "gnome-control-center",
             "bluetooth",
         ]
-        assert bluetooth_state_mod.local_services_command() == ["blueman-services"]
+        assert bluetooth_desktop_mod.local_services_command() == ["blueman-services"]
 
     def test_open_command_helpers(self, monkeypatch):
         launched: list[list[str]] = []
 
         monkeypatch.setattr(
-            bluetooth_state_mod,
+            bluetooth_desktop_mod,
             "send_files_command",
             lambda: ["bluetooth-sendto"],
         )
         monkeypatch.setattr(
-            bluetooth_state_mod,
+            bluetooth_desktop_mod,
             "devices_command",
             lambda: ["gnome-control-center", "bluetooth"],
         )
         monkeypatch.setattr(
-            bluetooth_state_mod,
+            bluetooth_desktop_mod,
             "adapters_command",
             lambda: ["blueman-adapters"],
         )
         monkeypatch.setattr(
-            bluetooth_state_mod,
+            bluetooth_desktop_mod,
             "local_services_command",
             lambda: ["blueman-services"],
         )
         monkeypatch.setattr(
-            bluetooth_state_mod.subprocess,
+            bluetooth_desktop_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
-        assert bluetooth_state_mod.open_send_files() is True
-        assert bluetooth_state_mod.open_devices() is True
-        assert bluetooth_state_mod.open_adapters() is True
-        assert bluetooth_state_mod.open_local_services() is True
+        assert bluetooth_desktop_mod.open_send_files() is True
+        assert bluetooth_desktop_mod.open_devices() is True
+        assert bluetooth_desktop_mod.open_adapters() is True
+        assert bluetooth_desktop_mod.open_local_services() is True
         assert launched == [
             ["bluetooth-sendto"],
             ["gnome-control-center", "bluetooth"],
@@ -742,6 +743,12 @@ class _StubBackend:
 
     capabilities = BluetoothCapabilities()
 
+    def desktop_actions(self):
+        return tuple(BluetoothAction)
+
+    def open_desktop_action(self, action):
+        return True
+
     def __init__(self, initial_state: BluetoothState) -> None:
         self.state = initial_state
         self.power_calls: list[tuple[str, bool]] = []
@@ -938,22 +945,6 @@ class TestBluetoothApplet:
 
     def test_menu_contains_expected_sections(self, monkeypatch):
         self._fake_gtk(monkeypatch)
-        monkeypatch.setattr(
-            bluetooth_applet_mod, "send_files_command", lambda: ["bluetooth-sendto"]
-        )
-        monkeypatch.setattr(
-            bluetooth_applet_mod,
-            "devices_command",
-            lambda: ["gnome-control-center", "bluetooth"],
-        )
-        monkeypatch.setattr(
-            bluetooth_applet_mod,
-            "adapters_command",
-            lambda: ["gnome-control-center", "bluetooth"],
-        )
-        monkeypatch.setattr(
-            bluetooth_applet_mod, "local_services_command", lambda: ["blueman-services"]
-        )
         state = _state(
             adapters=(
                 _adapter(path="/org/bluez/hci0", alias="A0"),

@@ -15,36 +15,9 @@
 
 from __future__ import annotations
 
-import shutil
-import subprocess
 from dataclasses import dataclass
 
-from docking.applets.bluetooth import meta
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
-
-_SEND_FILES_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-sendto",),
-    ("bluetooth-sendto",),
-    ("gnome-bluetooth-sendto",),
-)
-_DEVICES_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-manager",),
-    ("gnome-control-center", "bluetooth"),
-    ("mate-bluetooth-properties",),
-    ("kcmshell6", "kcm_bluetooth"),
-    ("kcmshell5", "kcm_bluetooth"),
-)
-_ADAPTERS_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-adapters",),
-    ("gnome-control-center", "bluetooth"),
-    ("mate-bluetooth-properties",),
-    ("kcmshell6", "kcm_bluetooth"),
-    ("kcmshell5", "kcm_bluetooth"),
-)
-_LOCAL_SERVICES_COMMANDS: tuple[tuple[str, ...], ...] = (("blueman-services",),)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,9 +25,10 @@ class BluetoothAdapterState:
     path: str
     name: str
     alias: str
-    powered: bool
+    powered: bool | None
     discovering: bool
     address: str
+    power_controllable: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +93,13 @@ def build_tooltip(state: BluetoothState, active_adapter_path: str) -> str:
     if adapter is None:
         return _("Bluetooth: No adapter/service")
 
-    powered = _("On") if adapter.powered else _("Off")
+    powered = (
+        _("Unknown")
+        if adapter.powered is None
+        else _("On")
+        if adapter.powered
+        else _("Off")
+    )
     paired = [d for d in state.devices if d.adapter_path == adapter.path and d.paired]
     connected = [
         d for d in state.devices if d.adapter_path == adapter.path and d.connected
@@ -161,49 +141,6 @@ def device_menu_label(device: BluetoothDeviceState) -> str:
     return f"{base} ({', '.join(tags)})"
 
 
-def send_files_command() -> list[str] | None:
-    """Return the first available Bluetooth file-sender command."""
-    return _first_available_command(_SEND_FILES_COMMANDS)
-
-
-def devices_command() -> list[str] | None:
-    """Return the first available Bluetooth devices/settings command."""
-    return _first_available_command(_DEVICES_COMMANDS)
-
-
-def adapters_command() -> list[str] | None:
-    """Return the first available Bluetooth adapters/settings command."""
-    return _first_available_command(_ADAPTERS_COMMANDS)
-
-
-def local_services_command() -> list[str] | None:
-    """Return the first available Bluetooth local-services command."""
-    return _first_available_command(_LOCAL_SERVICES_COMMANDS)
-
-
-def open_send_files() -> bool:
-    """Launch the desktop Bluetooth file sender when available."""
-    return _open_command(cmd=send_files_command(), action="open_send_files")
-
-
-def open_devices() -> bool:
-    """Launch the desktop Bluetooth devices/settings screen when available."""
-    return _open_command(cmd=devices_command(), action="open_devices")
-
-
-def open_adapters() -> bool:
-    """Launch the desktop Bluetooth adapters/settings screen when available."""
-    return _open_command(cmd=adapters_command(), action="open_adapters")
-
-
-def open_local_services() -> bool:
-    """Launch the desktop Bluetooth local-services screen when available."""
-    return _open_command(
-        cmd=local_services_command(),
-        action="open_local_services",
-    )
-
-
 def _device_sort_key(device: BluetoothDeviceState) -> tuple[int, int, str]:
     return (
         0 if device.connected else 1,
@@ -220,23 +157,3 @@ def _device_display_name(device: BluetoothDeviceState) -> str:
     return (
         device.alias or device.name or device.address or device.path.rsplit("/", 1)[-1]
     )
-
-
-def _first_available_command(
-    candidates: tuple[tuple[str, ...], ...],
-) -> list[str] | None:
-    for cmd in candidates:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
-
-
-def _open_command(*, cmd: list[str] | None, action: str) -> bool:
-    if cmd is None:
-        return False
-    try:
-        subprocess.Popen(cmd, start_new_session=True)
-    except OSError as exc:
-        log.bind(action=action).warning("Failed to run %s: %s", cmd, exc)
-        return False
-    return True
