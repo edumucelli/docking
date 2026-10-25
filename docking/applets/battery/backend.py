@@ -20,6 +20,10 @@ class BatteryBackend(ABC):
 
 
 def create_backend(*, base: Path = Path("/sys/class/power_supply")) -> BatteryBackend:
+    if environment.is_windows() and base == Path("/sys/class/power_supply"):
+        from docking.applets.battery.windows import WindowsBatteryBackend
+
+        return WindowsBatteryBackend()
     if environment.is_bsd() and base == Path("/sys/class/power_supply"):
         from docking.applets.battery.bsd import BsdBatteryBackend
 

@@ -33,6 +33,7 @@ from gi.repository import Gio, GLib
 
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform import environment
 
 log = get_logger("battery.peripherals")
 
@@ -133,6 +134,9 @@ def _charge_text(*, peripheral: PeripheralBattery) -> str:
 
 def read_peripheral_batteries() -> list[PeripheralBattery]:
     """Enumerate accessory batteries via UPower, sorted lowest charge first."""
+    if environment.is_windows():
+        # Windows peripherals need their own native device discovery backend.
+        return []
     try:
         bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
         paths = bus.call_sync(

@@ -632,6 +632,66 @@ References: [default audio endpoint](https://learn.microsoft.com/en-us/windows/w
 [endpoint mute](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmute),
 [Windows Settings URIs](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
+## Native Battery and Power Settings
+
+The Battery applet now selects a native Windows backend for its normal system
+readings. `GetSystemPowerStatus` supplies the aggregate percentage, charge flag
+and time remaining. `CallNtPowerInformation(SystemBatteryState)` supplies the
+instantaneous rate, interpreted as a signed 32-bit value in milliwatts and
+displayed as a magnitude in watts. The frequent power poll does not spawn a
+subprocess. Only DLL bindings are cached; every poll reads current data.
+
+AC power alone does not imply charging. A plugged-in battery can be idle,
+and an unknown percentage remains distinct from zero and from no battery.
+Unknown readings show a question mark and an unknown tooltip. Unknown time
+and rate sentinels are omitted; the discharge-time estimate is not reused as
+a time-to-full estimate. Power Settings opens `ms-settings:powersleep` through
+the native shell association. Windows does not attempt UPower peripheral
+discovery; native accessory battery discovery remains pending.
+
+`windows_battery_smoke.py` runs the full dock and compares the native readings
+with Windows Forms' power-status interface and `Win32_Battery` enumeration.
+On the lab VM both report AC power with no system battery, and the applet shows
+the disabled glyph and “No battery” tooltip. Native keyboard input changes
+and persists the overlay preference and opens the actual System > Power page.
+Normal shutdown restores the exact work area, releases the Search shortcut,
+and removes both Battery timers.
+Focused battery, hover, tooltip and interaction tests passed 215 cases on
+native Windows and 214 on Linux, with the native API case skipped on Linux.
+
+![Native Battery applet opening Windows Power Settings](../images/windows-battery-settings.png)
+
+The optional `--exercise-fixtures` mode then injects clearly labeled PowerAPI
+snapshots through the real backend and applet pipeline. Desktop captures check
+discharge/remaining time, charging, plugged-in idle, watts and unknown readings.
+These are rendering and control acceptance, not physical battery evidence.
+Physical batteries, multiple batteries, UPS behavior, unplug/replug, resume and
+wireless accessory charge readings still need hardware acceptance.
+
+![Injected charging fixture rendered by the Windows dock](../images/windows-battery-fixture.png)
+
+The captures exposed two shared UI regressions. The white charging bolt was
+invisible above a low green fill; an outline now keeps it legible. Also, a
+native enter event without a subsequent motion event left hover identity and
+the tooltip unset. The enter handler now resolves hover immediately. Regression
+tests failed before these fixes, including entry at all four dock edges, and
+the final Windows desktop check confirms visible tooltips for every state.
+
+The native desktop observer now excludes DWM-cloaked retained application
+frames, so a suspended UWP Settings frame is not mistaken for a visible window.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_battery_smoke.py' \
+  --output '\\host.lan\Data\lab\battery' --exercise-fixtures
+```
+
+References: [system power status](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-system_power_status),
+[native battery rate](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_battery_state),
+[power information query](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-callntpowerinformation),
+[Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
+
 ## Native Recycle Bin
 
 Trash selects a Windows shell backend. `SHQueryRecycleBinW` reads the current
@@ -830,7 +890,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio master volume and shell Recycle Bin | Volume controls, Windows keys, Sound settings and audio verified; Trash notifications, open/restore, native Explorer folder drop, default Cancel, confirmed empty and observer cleanup verified on the baseline; other native applet backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin and aggregate Battery/power readings | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; physical batteries/accessories, other applet backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

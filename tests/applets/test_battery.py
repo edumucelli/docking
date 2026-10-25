@@ -515,6 +515,10 @@ class TestPeripheralTooltip:
 
 
 class TestPowerSettingsLauncher:
+    @pytest.fixture(autouse=True)
+    def posix_settings(self, monkeypatch):
+        monkeypatch.setattr(battery_state_mod.environment, "is_windows", lambda: False)
+
     def test_prefers_first_available_power_settings_command(self, monkeypatch):
         monkeypatch.setattr(
             battery_state_mod.shutil,

@@ -51,13 +51,13 @@ if TYPE_CHECKING:
     from docking.core.config import Config
 
 # Battery charge/status changes slowly; power draw changes by the second, so the
-# live power overlay refreshes on a separate, faster sysfs-only timer.
+# live power overlay refreshes on a separate, faster native-reading timer.
 _FULL_POLL_SECONDS = 60
 _POWER_POLL_SECONDS = 5
 
 
 class BatteryApplet(Applet):
-    """Shows a battery icon from sysfs, with an optional percent/power overlay."""
+    """Shows the system battery, with an optional percent/power overlay."""
 
     id = meta.id
     name = _("Battery")
@@ -141,14 +141,14 @@ class BatteryApplet(Applet):
             self._power_timer_id = 0
 
     def _tick(self) -> bool:
-        """Re-read sysfs + peripherals and refresh icon."""
+        """Re-read system battery and peripherals and refresh the icon."""
         self._state = read_battery()
         self._peripherals = read_peripheral_batteries()
         self.present()
         return True
 
     def _power_tick(self) -> bool:
-        """Cheap sysfs-only refresh of the live power reading."""
+        """Refresh the live power reading without a subprocess."""
         if self._state is not None:
             self._state = self._state._replace(power_watts=read_power_watts())
             self.present()

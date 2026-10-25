@@ -569,6 +569,10 @@ class DockInputController:
         )
         if frame.cursor_rect.contains(event.x, event.y):
             window.interaction.on_effective_enter()
+            # A native crossing can arrive without a following motion event.
+            # Resolve the item now, so a stationary pointer gets its tooltip.
+            cursor_main = event.x if is_horizontal(pos=window.config.pos) else event.y
+            window.hover.update(cursor_main, frame=frame)
         return True
 
     def _on_model_changed(self) -> None:

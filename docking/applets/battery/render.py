@@ -129,11 +129,17 @@ def _draw_battery(
         cr.line_to(cx + bolt * 0.05, cy + bolt * 0.10)
         cr.close_path()
         cr.set_source_rgb(*_BG)
-        cr.fill()
+        cr.fill_preserve()
+        # Keep the white bolt legible on both the green fill and empty body.
+        cr.set_source_rgb(*_GREEN_DARK)
+        cr.set_line_width(max(1.0, size * 0.025))
+        cr.stroke()
 
 
 def _overlay_label(*, state: BatteryState, overlay: str) -> str | None:
     """Bottom-center overlay text for the selected mode, or None."""
+    if state.capacity is None:
+        return "?"
     if overlay == OVERLAY_PERCENT:
         return f"{state.capacity}%"
     if overlay == OVERLAY_POWER and state.power_watts is not None:
@@ -158,7 +164,7 @@ def render_icon(
         _draw_battery(
             cr=cr,
             size=size,
-            capacity=state.capacity,
+            capacity=state.capacity if state.capacity is not None else 0,
             charging=state.icon_name.endswith("-charging"),
         )
         label = _overlay_label(state=state, overlay=overlay)

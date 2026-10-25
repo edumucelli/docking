@@ -83,13 +83,32 @@ class WindowsDesktop:
             ctypes.c_int,
         )
         self.user.SendInput.restype = wintypes.UINT
+        self._dwm = ctypes.WinDLL("dwmapi")
+        self._dwm.DwmGetWindowAttribute.argtypes = (
+            wintypes.HWND,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        )
+        self._dwm.DwmGetWindowAttribute.restype = ctypes.c_int32
 
-    def windows(self, pid=None):
+    def windows(self, pid=None, *, include_cloaked=False):
+        """Exclude DWM-cloaked retained UWP frames from desktop observations."""
         rows = []
 
         @self._callback
         def visit(hwnd, _data):
             if self.user.IsWindowVisible(hwnd):
+                cloaked = ctypes.c_uint32()
+                if (
+                    not include_cloaked
+                    and self._dwm.DwmGetWindowAttribute(
+                        hwnd, 14, ctypes.byref(cloaked), ctypes.sizeof(cloaked)
+                    )
+                    == 0
+                    and cloaked.value
+                ):
+                    return True
                 owner = wintypes.DWORD()
                 self.user.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
                 if pid is None or owner.value == pid:

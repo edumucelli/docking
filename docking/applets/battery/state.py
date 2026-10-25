@@ -23,6 +23,7 @@ from typing import NamedTuple
 
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform import environment
 
 BAT_BASE = Path("/sys/class/power_supply")
 log = with_context(get_logger("battery.state"))
@@ -35,10 +36,10 @@ OVERLAY_MODES = (OVERLAY_NONE, OVERLAY_PERCENT, OVERLAY_POWER)
 
 
 class BatteryState(NamedTuple):
-    """Resolved battery info from sysfs."""
+    """Resolved battery status; an unknown percentage is distinct from zero."""
 
     icon_name: str  # FDO icon name (e.g. "battery-good-charging")
-    capacity: int  # 0-100 percent
+    capacity: int | None  # 0-100 percent, or unknown
     status: str  # Kernel battery status (e.g. Charging / Discharging / Full)
     seconds_remaining: int | None  # Time estimate until empty/full when known
     power_watts: float | None = None  # Instantaneous battery power draw/input
@@ -87,6 +88,8 @@ def format_power(watts: float, *, compact: bool = False) -> str:
 
 def power_settings_command() -> list[str] | None:
     """Return the first available desktop power-settings command."""
+    if environment.is_windows():
+        return ["ms-settings:powersleep"]
     for cmd in _POWER_SETTINGS_COMMANDS:
         if shutil.which(cmd[0]):
             return list(cmd)
@@ -95,6 +98,10 @@ def power_settings_command() -> list[str] | None:
 
 def open_power_settings() -> bool:
     """Launch the desktop power-settings tool when one is available."""
+    if environment.is_windows():
+        from docking.platform.backends.windows.shell import open_default_target
+
+        return open_default_target("ms-settings:powersleep")
     cmd = power_settings_command()
     if cmd is None:
         return False
@@ -110,7 +117,11 @@ def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
         return _("No battery")
-    parts = [_("Battery: {pct}%").format(pct=state.capacity)]
+    parts = [
+        _("Battery: {pct}%").format(pct=state.capacity)
+        if state.capacity is not None
+        else f"{_('Battery')}: {_('Unknown')}"
+    ]
     estimate = _estimate_suffix(state=state)
     if estimate is not None:
         parts.append(estimate)

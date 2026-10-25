@@ -5,8 +5,49 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
+from docking.core.position import Position
+from docking.platform.model import DockItem
 from docking.ui.geometry import Rect
+from docking.ui.hover import HoverManager
 from docking.ui.input_controller import DockInputController
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_enter_alone_sets_hover_and_tooltip_without_a_following_motion(position):
+    item = DockItem("applet://battery", name="No battery")
+    frame = SimpleNamespace(
+        cursor_rect=Rect(0, 0, 100, 100),
+        hover_item_at_point=MagicMock(return_value=item),
+    )
+    tooltip = MagicMock()
+    window = SimpleNamespace(
+        cursor_x=-1.0,
+        cursor_y=-1.0,
+        dock_hovered=False,
+        config=SimpleNamespace(pos=position),
+        autohide=SimpleNamespace(enabled=False),
+        interaction=MagicMock(),
+        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+    )
+    window.interaction.on_effective_enter.side_effect = lambda: setattr(
+        window, "dock_hovered", True
+    )
+    window.hover = HoverManager(
+        window, window.config, MagicMock(), MagicMock(), tooltip, MagicMock()
+    )
+    controller = DockInputController(
+        window=window,
+        interactions=MagicMock(),
+        dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
+    )
+    controller._on_enter(MagicMock(), SimpleNamespace(x=25, y=60))
+    assert window.hover.hovered_item is item
+    tooltip.update.assert_called_once_with(item, frame)
+    assert (window.cursor_x, window.cursor_y) == (25, 60)
 
 
 def test_motion_outside_dock_keeps_stack_open_for_pointer_transit():
