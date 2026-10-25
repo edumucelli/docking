@@ -160,6 +160,41 @@ class TestAppletCatalog:
         assert "missing meta declaration" in caplog.text
         get_applet_catalog.cache_clear()
 
+    def test_shared_webapp_package_is_not_imported_during_discovery(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        fake_applets = tmp_path / "applets"
+        package = fake_applets / "webapp"
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("", encoding="utf-8")
+        monkeypatch.setattr(applets_mod, "__file__", str(fake_applets / "__init__.py"))
+        imports = []
+        monkeypatch.setattr(applets_mod, "import_module", imports.append)
+
+        with caplog.at_level(logging.WARNING, logger=applets_mod.__name__):
+            catalog = get_applet_catalog()
+
+        assert catalog == {}
+        assert imports == []
+        assert "missing meta declaration" not in caplog.text
+
+    def test_shared_webapp_package_does_not_load_gtk_or_its_runtime(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys; import docking.applets.webapp; "
+                    "assert 'gi' not in sys.modules; "
+                    "assert not any(name.startswith('docking.applets.webapp.') "
+                    "for name in sys.modules)"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
     def test_catalog_discovery_does_not_import_applet_modules(self):
         script = """
 import json

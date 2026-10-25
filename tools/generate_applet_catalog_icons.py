@@ -116,6 +116,7 @@ from docking.applets.sunrise.state import CityPref as SunriseCityPref
 from docking.applets.sunrise.state import build_snapshot as build_sunrise_snapshot
 from docking.applets.systemmonitor.render import render_icon as render_systemmonitor
 from docking.applets.systemtray.render import create_status_tray_icon
+from docking.applets.telegram.render import render_icon as render_telegram
 from docking.applets.thermals.render import render_icon as render_thermals
 from docking.applets.thermals.state import FanReading, ThermalReading, ThermalSnapshot
 from docking.applets.todayinhistory.render import render_icon as render_todayinhistory
@@ -445,6 +446,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
                 now=dt.datetime(2026, 6, 21, 7, 30, tzinfo=dt.timezone.utc),
             ),
         ),
+        AppletId.TELEGRAM: render_telegram(size=size),
         AppletId.THERMALS: render_thermals(
             size=size,
             snapshot=ThermalSnapshot(
