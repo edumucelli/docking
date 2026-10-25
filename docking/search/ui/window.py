@@ -153,6 +153,7 @@ class SearchWindow:
             Callable[[SearchPreview, int, int], LoadedSearchImage | None]
         ),
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
+        refresh_dynamic_previews: bool = False,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
@@ -164,6 +165,10 @@ class SearchWindow:
         self._on_refine_requested = on_refine_requested
         self._dynamic_preview_loader = dynamic_preview_loader
         self._preview_resolver = preview_resolver
+        self._refresh_dynamic_previews = refresh_dynamic_previews
+        self._dynamic_preview_source = 0
+        self._dynamic_preview: SearchPreview | None = None
+        self._shown_dynamic_image: LoadedSearchImage | None = None
         self._results: tuple[SearchResult, ...] = ()
         self._selected_identity: SearchIdentity | None = None
         self._syncing_query = False
@@ -348,10 +353,12 @@ class SearchWindow:
 
     def hide(self) -> None:
         """Hide the toplevel while preserving reusable widget state."""
+        self._stop_dynamic_preview()
         self.window.hide()
 
     def destroy(self) -> None:
         """Invalidate async image work, stop its executor, and destroy GTK state."""
+        self._stop_dynamic_preview()
         self._result_generation += 1
         self._thumbnail_executor.shutdown(wait=False, cancel_futures=True)
         self._image_cache.clear()
@@ -508,10 +515,12 @@ class SearchWindow:
         self.search_entry.grab_focus()
 
     def _hide_preview(self) -> None:
+        self._stop_dynamic_preview()
         self.preview_frame.hide()
 
     def _sync_preview(self) -> None:
         """Resolve cheap or lazy preview data for the current stable selection."""
+        self._stop_dynamic_preview()
         result = self.selected_result()
         if result is None:
             self.preview_title.set_label("")
@@ -551,6 +560,32 @@ class SearchWindow:
             )
             if loaded is not None:
                 self._show_loaded_preview(loaded)
+                self._shown_dynamic_image = loaded
+            if self._refresh_dynamic_previews and preview.kind == "window":
+                self._dynamic_preview = preview
+                self._dynamic_preview_source = GLib.timeout_add(
+                    200, self._refresh_dynamic_preview
+                )
+
+    def _stop_dynamic_preview(self) -> None:
+        if self._dynamic_preview_source:
+            GLib.source_remove(self._dynamic_preview_source)
+            self._dynamic_preview_source = 0
+        self._dynamic_preview = None
+        self._shown_dynamic_image = None
+
+    def _refresh_dynamic_preview(self) -> bool:
+        preview = self._dynamic_preview
+        if preview is None or not self.visible or not self.preview_frame.get_visible():
+            self._dynamic_preview_source = 0
+            return False
+        loaded = self._dynamic_preview_loader(
+            preview, PREVIEW_IMAGE_MAX_WIDTH, PREVIEW_IMAGE_MAX_HEIGHT
+        )
+        if loaded is not None and loaded is not self._shown_dynamic_image:
+            self._show_loaded_preview(loaded)
+            self._shown_dynamic_image = loaded
+        return True
 
     def _sync_image_preview(self, path: str) -> None:
         loaded = self._image_cache.load(

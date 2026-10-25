@@ -138,7 +138,7 @@ class GlobalSearchController:
         self._currency_rates = CurrencyRatesCatalog(schedule_idle=self._schedule_idle)
         self._usage_store = SearchUsageStore()
         self._window_preview_cache: dict[
-            tuple[str, int, int],
+            tuple[str, int | None, int, int],
             tuple[float, LoadedSearchImage],
         ] = {}
 
@@ -159,7 +159,7 @@ class GlobalSearchController:
                 model=model,
                 target_service=self._target_service,
             ),
-            WindowSearchProvider(windows=windows),
+            WindowSearchProvider(windows=windows, registry=self._application_registry),
             CalculatorSearchProvider(copy_text=copy_text),
             ConverterSearchProvider(
                 copy_text=copy_text,
@@ -192,6 +192,7 @@ class GlobalSearchController:
             on_refine_requested=self._refine_result,
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
+            refresh_dynamic_previews=self._preview_service.asynchronous is True,
         )
         self._global_shortcuts = self._new_shortcut_service()
         self._shortcut_fallback = self._new_shortcut_fallback()
@@ -705,11 +706,6 @@ class GlobalSearchController:
         service = self._preview_service
         if preview.kind != "window":
             return None
-        cache_key = (preview.target, width, height)
-        cached = self._window_preview_cache.get(cache_key)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] <= 1.0:
-            return cached[1]
         window = next(
             (
                 candidate
@@ -720,6 +716,11 @@ class GlobalSearchController:
         )
         if window is None:
             return None
+        cache_key = (preview.target, window.pid, width, height)
+        cached = self._window_preview_cache.get(cache_key)
+        now = time.monotonic()
+        if cached is not None and now - cached[0] <= 1.0:
+            return cached[1]
         try:
             captured = service.capture(window.id, width=width, height=height)
         except Exception as exc:
@@ -735,6 +736,12 @@ class GlobalSearchController:
             file_size=-1,
         )
         self._window_preview_cache[cache_key] = (now, loaded)
+        while len(self._window_preview_cache) > 32:
+            oldest = min(
+                self._window_preview_cache,
+                key=lambda key: self._window_preview_cache[key][0],
+            )
+            self._window_preview_cache.pop(oldest)
         return loaded
 
     def _resolve_result_preview(

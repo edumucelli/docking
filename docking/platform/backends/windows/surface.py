@@ -152,6 +152,13 @@ class WindowsSurfaceService(ReducedSurfaceService):
         """Project a foreign window into this dock monitor's GTK coordinates."""
         return self._mapping.to_logical(physical) if self._mapping is not None else None
 
+    @property
+    def input_region_alpha(self) -> float:
+        # Win32 layered-window hit testing ignores zero-alpha pixels, including
+        # holes inside an icon. One alpha byte keeps the shared input rectangle
+        # interactive while the rest of the animation surface stays click-through.
+        return 1.0 / 255.0
+
     def update_input_region(self, rect: Rect) -> None:
         # GDK Win32 input_shape_combine_region is a no-op. Layered windows use
         # pixel alpha for normal hit testing; retain shared geometry to reveal

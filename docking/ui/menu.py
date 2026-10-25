@@ -865,12 +865,42 @@ class MenuHandler:
             row.remove(child)
         row.add(box)
         row._window_row = True
+        if self._preview_service.asynchronous is True:
+            self._watch_window_thumbnail(row, image, window.id, thumbnail)
         row.connect("button-press-event", self._on_window_row_button_press, window.id)
         row.connect(
             "button-release-event", self._on_window_row_button_release, window.id
         )
         row.connect("activate", lambda *_a: self._tracker.activate(window.id))
         return row
+
+    def _watch_window_thumbnail(self, row, image, window_id, previous) -> None:
+        source = 0
+
+        def refresh() -> bool:
+            nonlocal previous
+            thumbnail = self._preview_service.thumbnail(
+                window_id, width=WINDOW_MENU_THUMB_W, height=WINDOW_MENU_THUMB_H
+            )
+            if thumbnail is not None and thumbnail is not previous:
+                image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
+                previous = thumbnail
+            return True
+
+        def mapped(*_args) -> None:
+            nonlocal source
+            if not source:
+                source = GLib.timeout_add(200, refresh)
+
+        def unmapped(*_args) -> None:
+            nonlocal source
+            if source:
+                GLib.source_remove(source)
+                source = 0
+
+        row.connect("map", mapped)
+        row.connect("unmap", unmapped)
+        row.connect("destroy", unmapped)
 
     def _window_close_zone_hit(
         self, widget: Gtk.Widget, event: Gdk.EventButton

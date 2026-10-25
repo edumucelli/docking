@@ -165,8 +165,7 @@ Shell position/display notifications schedule a coalesced placement refresh,
 and shutdown unregisters the AppBar before destroying its proxy.
 
 The reservation phase of `windows-desktop-acceptance` ran the complete dock at
-all four edges. At the
-baseline 48-pixel icon size each edge reserves 53 pixels, while its animation
+all four edges. At the baseline 48-pixel icon size each edge reserves 53 pixels, while its animation
 surface extends 187 pixels. Independent GetMonitorInfo observations verify the
 reserved work area, and a maximized blank Notepad follows it. The test records
 Notepad's existing native resize margins before comparing its client geometry;
@@ -193,7 +192,7 @@ remain disabled. See the [GTK input-shape documentation](https://docs.gtk.org/gd
 
 Fifty-two focused tests passed under native Windows Python. The Notepad
 launch/minimize/restore/Close desktop check also passed again with reservation
-enabled and normal dock shutdown. The baseline remains one display at 96 DPI;
+enabled and normal dock shutdown. The baseline remains one display at 96 DPI.
 A separate native full-screen GTK fixture was tracked as fullscreen (and not
 maximized), with independent Win32 bounds of `[0, 0, 1280, 800]`. Fullscreen
 stacking, Explorer restart recovery and broader application/dialog behavior
@@ -217,6 +216,71 @@ stops before running if an existing dock or Notepad window is open. Its pixel
 comparisons target the documented single-display baseline. It records actual
 screenshots, native work areas and independent foreground-window observations.
 
+## Native window previews
+
+Windows previews use `Windows.Graphics.Capture` with an HWND capture item and
+a free-threaded frame pool. One worker owns the WinRT apartment, Direct3D11
+device, capture sessions, GPU textures and mapped readback memory. GTK receives
+copied RGBA pixels through its main loop; hovering never calls another
+application's paint handler or waits for capture on the UI thread.
+
+The service keeps at most four native streams, expires unused streams after
+1.5 seconds, and bounds the image cache to 32 MiB and 64 entries. Window IDs are
+paired with process IDs so reused handles and late results cannot inherit
+another process's preview. Resizing recreates the frame pool after releasing
+the previous frame, including transitions where content outgrows an old buffer.
+A minimized window retains its last captured image. Menu rows and Search panels
+refresh asynchronously, as the hover popup already does.
+
+`windows_capture_smoke.py` verifies known colors from an animated native GTK
+window while a magenta window covers it on the desktop. Captures retained all
+four source colors and an updating frame counter. It also verified resizing
+from 642×392 to 806×473 and rejection of a closed source. The actual desktop,
+captured source and resized image were inspected.
+
+`windows_preview_smoke.py` runs the complete application with Notepad and Search
+pinned. Native input verified that a real hover thumbnail replaced the icon
+fallback, kept foreground focus in Notepad, retained the image while minimized,
+and restored and activated Notepad on click. Native hit testing also verifies
+the hollow Search icon and click-through animation space. The Search palette
+opened from its dock applet, found the selected Notepad window, displayed its
+280×153 live preview, and retained typing focus. Its captured menu thumbnail
+and Search panel were inspected. The renderer applies
+one alpha byte within the dock's input rectangle for Win32 layered-window hit
+testing; other platforms retain their existing rendering.
+
+![Native Windows hover preview](../images/windows-hover-previews.png)
+
+![Native window preview in Docking Search](../images/windows-search-previews.png)
+
+The preview/UI regression selection passed 126 tests under native Windows
+Python, with 11 platform-specific cases skipped. All six visibility modes and
+the existing Notepad launch/minimize/restore/Close desktop checks passed again
+with preview capture and the input-alpha rendering enabled. The baseline
+remains a single 1280×800 display at 96 DPI.
+
+Windows draws its capture indicator around actively captured windows. Sessions
+expire when no preview requests them. Indicator-free previews, a first capture
+of an already minimized window, HDR/protected content, window outlines and
+broader application coverage remain acceptance work. Multiple monitors and DPI
+changes still require a real Windows display test.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 150 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_capture_smoke.py' \
+  --output '\\host.lan\Data\lab\capture'
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_preview_smoke.py' \
+  --output '\\host.lan\Data\lab\previews'
+```
+
+API references: [window capture interop](https://learn.microsoft.com/en-us/windows/win32/api/windows.graphics.capture.interop/nf-windows-graphics-capture-interop-igraphicscaptureiteminterop-createforwindow),
+[frame capture and resizing](https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/screen-capture),
+[Microsoft WinRT interface definitions](https://github.com/microsoft/windows-rs/blob/master/crates/libs/windows/src/Windows/Graphics/Capture/mod.rs),
+[Direct3D11 SDK interfaces](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/d3d11.h).
+
 ## Implementation and acceptance ledger
 
 | Area | Implementation | Required Windows evidence |
@@ -227,7 +291,7 @@ screenshots, native work areas and independent foreground-window observations.
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
-| Previews and overlays | Pending | Real application pixels, focus preservation and click behavior |
+| Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Pending | Applications, windows, files, folders, drag/drop and global shortcut |
 | System applets | Pending | Native Windows backends for each applicable applet |
 | Portable applets | Pending | Exercise the full applet catalog on Windows |

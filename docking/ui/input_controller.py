@@ -199,6 +199,7 @@ class DockInputController:
             hovered_id=hovered_id,
             drop_target_id=drop_target,
             cursor_main=cursor_main_axis,
+            input_region_alpha=window.surface_service.input_region_alpha,
         )
         window.renderer.draw(
             cr,

@@ -22,7 +22,8 @@ class WindowsSessionBackend(ReducedSessionBackend):
 
     Native tracking and taskbar actions share the same immutable window model
     as other backends. AppBar reservation and overlap policy use native monitor
-    geometry. Workspace and preview services follow as they are verified.
+    geometry. Previews use worker-owned Windows graphics capture. Workspace
+    services follow as their native implementation is verified.
     """
 
     def __init__(
@@ -34,6 +35,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         process_identity_service: ProcessIdentityService,
     ) -> None:
         super().__init__()
+        from .previews import WindowsPreviewService
         from .surface import WindowsSurfaceService
         from .visibility import WindowsVisibilityService
         from .windows import WindowsWindowService
@@ -47,7 +49,9 @@ class WindowsSessionBackend(ReducedSessionBackend):
         surface = WindowsSurfaceService()
         self._services = ReducedRuntimeServices(
             windows=windows,
-            previews=self._services.previews,
+            previews=WindowsPreviewService(
+                windows=windows, availability_changed=windows.set_previews_available
+            ),
             surface=surface,
             visibility=WindowsVisibilityService(
                 windows=windows, surface=surface, config=config

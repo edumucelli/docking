@@ -44,7 +44,7 @@ class ReducedRuntimeServices:
     """Concrete mandatory services for reduced mode."""
 
     windows: WindowService
-    previews: ReducedPreviewService
+    previews: PreviewService
     surface: ReducedSurfaceService
     visibility: VisibilityService
 

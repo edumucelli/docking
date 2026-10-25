@@ -154,7 +154,16 @@ def test_activation_timestamp_is_used_for_window_manager_focus() -> None:
 
 
 @pytest.mark.parametrize(
-    "filename", ["screenshot.png", os.fsdecode(b"screenshot-\xff.png")]
+    "filename",
+    [
+        "screenshot.png",
+        pytest.param(
+            b"screenshot-\xff.png".decode("utf-8", errors="surrogateescape"),
+            marks=pytest.mark.skipif(
+                os.name == "nt", reason="Non-UTF8 byte filenames are POSIX-only"
+            ),
+        ),
+    ],
 )
 def test_image_preview_shows_thumbnail_and_metadata(
     tmp_path, monkeypatch, filename
@@ -318,3 +327,50 @@ def test_partial_results_do_not_override_waiting_selection() -> None:
 
     assert window.selected_result() is None
     window.destroy()
+
+
+def test_asynchronous_window_preview_arrives_after_initial_miss_and_stops_on_hide():
+    from dataclasses import replace
+
+    from gi.repository import GLib
+
+    loader = MagicMock(return_value=None)
+    window = SearchWindow(
+        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        on_query_changed=MagicMock(),
+        on_result_selected=MagicMock(),
+        on_result_activated=MagicMock(),
+        on_action_activated=MagicMock(),
+        on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        dynamic_preview_loader=loader,
+        preview_resolver=MagicMock(return_value=None),
+        refresh_dynamic_previews=True,
+    )
+    snapshot = _snapshot()
+    preview = SearchPreview(
+        title="Native window", body="Fixture", kind="window", target="windows:100"
+    )
+    snapshot = replace(
+        snapshot, results=(replace(snapshot.results[0], preview=preview),)
+    )
+    try:
+        window.update(snapshot)
+        window.present()
+        window.toggle_preview()
+        source = window._dynamic_preview_source
+        assert source and not window.preview_image.get_visible()
+        pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 28, 20)
+        loader.return_value = LoadedSearchImage(
+            pixbuf=pixbuf, width=28, height=20, format_name="Live Window", file_size=-1
+        )
+        assert window._refresh_dynamic_preview()
+        assert (
+            window.preview_image.get_visible()
+            and window.preview_image.get_pixbuf() is pixbuf
+        )
+        window.hide()
+        assert window._dynamic_preview_source == 0
+        assert GLib.MainContext.default().find_source_by_id(source) is None
+    finally:
+        window.destroy()

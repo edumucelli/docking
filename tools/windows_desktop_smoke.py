@@ -201,6 +201,14 @@ def main() -> None:
         user.ShowWindowAsync(notepad["hwnd"], 6)
         wait_for(lambda: user.IsIconic(notepad["hwnd"]), "Notepad did not minimize")
         user.SetCursorPos(900, 400)
+        # Dismiss shell tooltips left by an earlier desktop interaction before
+        # recording the bare-desktop reference. Pointer movement alone can
+        # leave an Explorer tooltip visible after the foreground app minimizes.
+        events = (Input * 2)(
+            Input(type=0, data=Data(mouse=Mouse(flags=2))),
+            Input(type=0, data=Data(mouse=Mouse(flags=4))),
+        )
+        assert user.SendInput(2, events, ctypes.sizeof(Input)) == 2
         time.sleep(1)
 
     def launch(position, mode):

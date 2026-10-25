@@ -1999,8 +1999,10 @@ class TestMenuCallbacks:
             target="file:///tmp/docs",
         )
         handler._folder_stack._folder_stack_item = item
+        canonical_uri = handler._target_service.normalize_file_target(item.target)
+        assert canonical_uri is not None
         handler._folder_stack._folder_stack_cache.layouts[
-            ("file:///tmp/docs", 0, "name", False, 48, None)
+            (canonical_uri, 0, "name", False, 48, None)
         ] = folder_stack_mod.FolderStackLayout(
             cards=(),
             popup_w=1,
@@ -2781,3 +2783,36 @@ class TestMenuCallbacks:
         handler._on_folder_sort_changed(active, item, "modified")
 
         update_pref.assert_called_once_with(item, "sort", "modified")
+
+
+def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
+    handler, monkeypatch
+):
+    row, image = FakeMenuItem(), MagicMock()
+    previous = None
+    captured = []
+    removed = []
+
+    def schedule(_delay, callback):
+        captured.append(callback)
+        return 100 + len(captured)
+
+    monkeypatch.setattr(menu_mod.GLib, "timeout_add", schedule)
+    monkeypatch.setattr(menu_mod.GLib, "source_remove", removed.append)
+    handler._watch_window_thumbnail(
+        row, image, WindowId(DisplayServer.WINDOWS, 100), previous
+    )
+    assert not captured
+    row.emit("map")
+    row.emit("map")
+    assert len(captured) == 1
+    handler._preview_service.thumbnail.return_value = None
+    assert captured[0]()
+    image.set_from_pixbuf.assert_not_called()
+    pixbuf = object()
+    handler._preview_service.thumbnail.return_value = PreviewImage(pixbuf, 28, 20)
+    assert captured[0]() and captured[0]()
+    image.set_from_pixbuf.assert_called_once_with(pixbuf)
+    row.emit("unmap")
+    row.emit("destroy")
+    assert removed == [101]

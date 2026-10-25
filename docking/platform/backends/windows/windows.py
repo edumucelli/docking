@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from gi.repository import GLib
@@ -39,6 +40,7 @@ class WindowsWindowService(NativeWindowService):
         )
         self._native = native
         self._timer = 0
+        self._previews_available = False
 
     def start(self) -> None:
         if self._timer:
@@ -64,9 +66,19 @@ class WindowsWindowService(NativeWindowService):
         if self._native is None:
             return
         try:
-            self.replace_windows(self._native.windows())
+            self.replace_windows(
+                tuple(
+                    replace(window, can_preview=self._previews_available)
+                    for window in self._native.windows()
+                )
+            )
         except OSError:
             log.exception("Could not refresh native Windows application windows")
+
+    def set_previews_available(self, available: bool) -> None:
+        if self._previews_available != available:
+            self._previews_available = available
+            self.refresh()
 
     def _taskbar_window(self, window: WindowSnapshot) -> bool:
         # Virtual desktop membership is not implemented yet. An unsupported

@@ -777,3 +777,29 @@ def test_shortcut_status_notifications_do_not_leak_a_slow_listener(
     controller._notify_shortcut_status()
 
     assert seen == ["first", "second"]
+
+
+def test_window_preview_cache_rejects_closed_and_reused_process_identity(monkeypatch):
+    from dataclasses import replace
+
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    window_id = WindowId(DisplayServer.WINDOWS, 100)
+    snapshot = WindowSnapshot(
+        id=window_id, desktop_id="fixture", pid=101, can_preview=True
+    )
+    windows = MagicMock(list_all_windows=MagicMock(return_value=(snapshot,)))
+    controller._windows = windows
+    first = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 28, 20)
+    second = first.copy()
+    controller._preview_service = MagicMock(
+        capture=MagicMock(return_value=PreviewImage(first, 28, 20))
+    )
+    preview = SearchPreview(
+        title="Fixture", body="Native window", kind="window", target=str(window_id)
+    )
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is first
+    windows.list_all_windows.return_value = ()
+    assert controller._load_dynamic_preview(preview, 28, 20) is None
+    windows.list_all_windows.return_value = (replace(snapshot, pid=202),)
+    controller._preview_service.capture.return_value = PreviewImage(second, 28, 20)
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is second

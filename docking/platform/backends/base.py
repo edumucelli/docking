@@ -396,6 +396,11 @@ class SurfaceService(Service):
         """Set or clear a compositor blur hint, if supported."""
 
     @property
+    def input_region_alpha(self) -> float:
+        """Minimum rendered alpha needed where hit testing follows pixel alpha."""
+        return 0.0
+
+    @property
     def compositor_sizes_main_axis(self) -> bool:
         """Whether content must fit the compositor-assigned stretched axis."""
         return False
