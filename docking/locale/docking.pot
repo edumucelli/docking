@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 02:18+0200\n"
+"POT-Creation-Date: 2026-10-25 15:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -118,7 +118,7 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:147
 #: docking/applets/runcommand/applet.py:368
 #: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:264
-#: docking/applets/weather/applet.py:278 docking/applets/whatsapp/applet.py:175
+#: docking/applets/weather/applet.py:278 docking/applets/webapp/applet.py:169
 #: docking/ui/diagnostics.py:391 docking/ui/menu.py:449
 msgid "Cancel"
 msgstr ""
@@ -330,7 +330,7 @@ msgstr ""
 msgid "Error: {msg}"
 msgstr ""
 
-#: docking/applets/apod/applet.py:134 docking/applets/whatsapp/applet.py:101
+#: docking/applets/apod/applet.py:134 docking/applets/webapp/applet.py:100
 msgid "Open in Browser"
 msgstr ""
 
@@ -586,8 +586,7 @@ msgstr ""
 msgid "Discovered Devices"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:383
-#: docking/applets/whatsapp/applet.py:176
+#: docking/applets/bluetooth/applet.py:383 docking/applets/webapp/applet.py:170
 msgid "Disconnect"
 msgstr ""
 
@@ -3702,6 +3701,87 @@ msgstr ""
 msgid "and {n} more"
 msgstr ""
 
+#: docking/applets/telegram/applet.py:18
+msgid "Telegram"
+msgstr ""
+
+#: docking/applets/telegram/applet.py:23
+msgid "Open Telegram"
+msgstr ""
+
+#: docking/applets/telegram/applet.py:24
+msgid "Hide Telegram"
+msgstr ""
+
+#: docking/applets/telegram/applet.py:25
+msgid "Disconnect Telegram"
+msgstr ""
+
+#: docking/applets/telegram/applet.py:26
+msgid "Disconnect Telegram?"
+msgstr ""
+
+#: docking/applets/telegram/applet.py:28
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+
+#: docking/applets/telegram/applet.py:31
+msgid "Could not disconnect Telegram"
+msgstr ""
+
+#: docking/applets/telegram/state.py:42
+msgid "Telegram: WebKitGTK is not installed"
+msgstr ""
+
+#: docking/applets/telegram/state.py:44
+msgid "Telegram: loading..."
+msgstr ""
+
+#: docking/applets/telegram/state.py:46
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr ""
+
+#: docking/applets/telegram/state.py:48
+msgid "Telegram: synchronizing..."
+msgstr ""
+
+#: docking/applets/telegram/state.py:50
+msgid "Telegram: offline"
+msgstr ""
+
+#: docking/applets/telegram/state.py:52
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr ""
+
+#: docking/applets/telegram/state.py:53
+msgid "could not load Telegram Web"
+msgstr ""
+
+#: docking/applets/telegram/state.py:58
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/telegram/state.py:68
+msgid "Telegram: no unread chats"
+msgstr ""
+
+#: docking/applets/telegram/state.py:69
+msgid "Telegram: click to open"
+msgstr ""
+
 #: docking/applets/temperature.py:44
 msgid "Fahrenheit"
 msgstr ""
@@ -3974,152 +4054,152 @@ msgstr ""
 msgid "{city}: {temp}"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:40
-#: docking/applets/whatsapp/browser.py:268
-#: docking/applets/whatsapp/browser.py:278
-msgid "WhatsApp"
-msgstr ""
-
-#: docking/applets/whatsapp/applet.py:90
-msgid "Hide WhatsApp"
-msgstr ""
-
-#: docking/applets/whatsapp/applet.py:90
-msgid "Open WhatsApp"
-msgstr ""
-
-#: docking/applets/whatsapp/applet.py:95
+#: docking/applets/webapp/applet.py:94
 msgid "Reload"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:104
+#: docking/applets/webapp/applet.py:190
+msgid "Unknown WebKit error"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:176
+msgid "WebKitGTK is unavailable"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:310
+msgid "Docking applet"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:317
+#, python-brace-format
+msgid "Reload {service}"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:431
+msgid "browser process stopped"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:515
+msgid "camera and microphone"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:517
+msgid "camera"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:519
+msgid "microphone"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:525
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:529
+msgid "Deny"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:530
+msgid "Allow"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:605
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:609
+msgid ""
+"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr ""
+
+#: docking/applets/webapp/browser.py:651
+msgid "unknown browser error"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:21
+msgid "WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:26
+msgid "Open WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:27
+msgid "Hide WhatsApp"
+msgstr ""
+
+#: docking/applets/whatsapp/applet.py:28
 msgid "Disconnect WhatsApp"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:167
+#: docking/applets/whatsapp/applet.py:29
 msgid "Disconnect WhatsApp?"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:171
+#: docking/applets/whatsapp/applet.py:31
 msgid ""
 "This clears the WhatsApp Web session stored by Docking. You will need to "
 "scan the QR code again."
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:192
+#: docking/applets/whatsapp/applet.py:34
 msgid "Could not disconnect WhatsApp"
 msgstr ""
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:154
-msgid "WebKitGTK is unavailable"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:279
-msgid "Docking applet"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:389
-msgid "browser process stopped"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:473
-msgid "camera and microphone"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:475
-msgid "camera"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:477
-msgid "microphone"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:485
-msgid "Deny"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:486
-msgid "Allow"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:545
-msgid "WhatsApp requires WebKitGTK"
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:549
-msgid ""
-"Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
-msgstr ""
-
-#: docking/applets/whatsapp/browser.py:591
-msgid "unknown browser error"
-msgstr ""
-
-#: docking/applets/whatsapp/state.py:152
+#: docking/applets/whatsapp/state.py:43
 msgid "WhatsApp: WebKitGTK is not installed"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:154
+#: docking/applets/whatsapp/state.py:45
 msgid "WhatsApp: loading..."
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:156
+#: docking/applets/whatsapp/state.py:47
 msgid "WhatsApp: scan the QR code to connect"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:158
+#: docking/applets/whatsapp/state.py:49
 msgid "WhatsApp: synchronizing..."
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:160
+#: docking/applets/whatsapp/state.py:51
 msgid "WhatsApp: offline"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:163
+#: docking/applets/whatsapp/state.py:54
 #, python-brace-format
 msgid "WhatsApp: {error}"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:164
+#: docking/applets/whatsapp/state.py:55
 msgid "WhatsApp: could not load WhatsApp Web"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:168
+#: docking/applets/whatsapp/state.py:59
 msgid "WhatsApp: 1 new notification"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:169
+#: docking/applets/whatsapp/state.py:60
 #, python-brace-format
 msgid "WhatsApp: {count} new notifications"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:173
+#: docking/applets/whatsapp/state.py:64
 msgid "WhatsApp: 1 unread message"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:175
+#: docking/applets/whatsapp/state.py:66
 #, python-brace-format
 msgid "WhatsApp: {count} unread messages"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:178
+#: docking/applets/whatsapp/state.py:69
 msgid "WhatsApp: no unread messages"
 msgstr ""
 
-#: docking/applets/whatsapp/state.py:179
+#: docking/applets/whatsapp/state.py:70
 msgid "WhatsApp: click to open"
 msgstr ""
 
