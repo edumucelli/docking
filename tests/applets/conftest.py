@@ -4,11 +4,13 @@ import gi
 import pytest
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Wnck", "3.0")
-from gi.repository import (
-    Gtk,
-    Wnck,
-)
+from gi.repository import Gtk
+
+try:
+    gi.require_version("Wnck", "3.0")
+    from gi.repository import Wnck
+except (ValueError, ImportError):
+    Wnck = None
 
 
 class _FakeMenu:
@@ -87,5 +89,6 @@ def _fake_gtk_menu_widgets(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _default_no_wnck_screen(monkeypatch):
-    monkeypatch.setattr(Wnck.Screen, "get_default", lambda: None, raising=False)
+    if Wnck is not None:
+        monkeypatch.setattr(Wnck.Screen, "get_default", lambda: None, raising=False)
     yield

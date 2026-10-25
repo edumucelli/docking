@@ -36,6 +36,7 @@ from docking.i18n import _
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
 from docking.search.icons import SearchResultIcons
+from docking.search.services.window_focus import WindowFocus
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -161,12 +162,16 @@ class SearchWindow:
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
         refresh_dynamic_previews: bool = False,
         result_icons: SearchResultIcons | None = None,
+        window_focus_factory: Callable[[], WindowFocus] | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
         self._result_icons = result_icons
         self._destroyed = False
         self._unsubscribe_icons: Callable[[], None] | None = None
+        self._window_focus = (
+            window_focus_factory() if window_focus_factory is not None else None
+        )
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -339,6 +344,9 @@ class SearchWindow:
         grab = Gtk.grab_get_current()
         if isinstance(grab, Gtk.MenuShell):
             grab.cancel()
+        focus = getattr(self, "_window_focus", None)
+        if focus is not None:
+            focus.before_present()
         context = activation_context or {}
         startup_id = str(
             context.get("XDG_ACTIVATION_TOKEN")
@@ -365,15 +373,23 @@ class SearchWindow:
             self.window.present_with_time(timestamp)
         else:
             self.window.present()
+        if focus is not None:
+            focus.after_present(
+                title=self.window.get_title(), visible=lambda: self.visible
+            )
 
     def hide(self) -> None:
         """Hide the toplevel while preserving reusable widget state."""
+        if self._window_focus is not None:
+            self._window_focus.cancel()
         self._stop_dynamic_preview()
         self.window.hide()
 
     def destroy(self) -> None:
         """Invalidate async image work, stop its executor, and destroy GTK state."""
         self._destroyed = True
+        if self._window_focus is not None:
+            self._window_focus.cancel()
         if self._unsubscribe_icons is not None:
             self._unsubscribe_icons()
             self._unsubscribe_icons = None

@@ -185,6 +185,11 @@ class GlobalSearchController:
         }
         self._enabled_provider_ids: tuple[str, ...] = ()
         self._coordinator = self._new_coordinator()
+        window_focus_factory = None
+        if is_windows():
+            from docking.search.services.windows_focus import WindowsSearchFocus
+
+            window_focus_factory = WindowsSearchFocus
         self.window = SearchWindow(
             icon_loader=self._icon_loader,
             result_icons=SearchResultIcons(
@@ -201,6 +206,7 @@ class GlobalSearchController:
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
             refresh_dynamic_previews=self._preview_service.asynchronous is True,
+            window_focus_factory=window_focus_factory,
         )
         self._global_shortcuts = self._new_shortcut_service()
         self._shortcut_fallback = self._new_shortcut_fallback()

@@ -15,13 +15,13 @@
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 from pathlib import Path
 from typing import Any
 
 from docking.applets.aiusage import state as aiusage_state
+from docking.applets.aiusage.locking import exclusive_update
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
@@ -60,41 +60,43 @@ def replace_session(
     session_id: str,
     model_usage: dict[str, aiusage_state.ModelUsage],
 ) -> None:
-    """Atomically replace a session's usage in Docking preferences."""
+    """Replace one session while serializing concurrent hook writers."""
     if not model_usage:
         return
 
     path = config_path()
     ensure_parent_dir(path)
 
-    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
+    fd = os.open(str(path), os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        with os.fdopen(os.dup(fd), "r") as handle:
-            try:
-                config = json.load(handle)
-            except (json.JSONDecodeError, ValueError) as exc:
-                log.debug(
-                    "Failed to parse %s while updating AI usage config: %s",
-                    path,
-                    exc,
-                )
-                config = {}
+        with exclusive_update(fd, path):
+            with os.fdopen(os.dup(fd), "r", encoding="utf-8") as handle:
+                try:
+                    config = json.load(handle)
+                except (json.JSONDecodeError, ValueError) as exc:
+                    log.debug(
+                        "Failed to parse %s while updating AI usage config: %s",
+                        path,
+                        exc,
+                    )
+                    config = {}
 
-        applet_prefs = config.setdefault("applet_prefs", {})
-        prefs = applet_prefs.get(PREFS_KEY) or applet_prefs.get(PREFS_KEY_LEGACY, {})
-        current = aiusage_state.state_from_prefs(prefs=prefs)
-        updated = aiusage_state.set_session(
-            state=current,
-            session_id=session_id,
-            model_usage=model_usage,
-        )
-        applet_prefs[PREFS_KEY] = aiusage_state.prefs_from_state(state=updated)
+            applet_prefs = config.setdefault("applet_prefs", {})
+            prefs = applet_prefs.get(PREFS_KEY) or applet_prefs.get(
+                PREFS_KEY_LEGACY, {}
+            )
+            current = aiusage_state.state_from_prefs(prefs=prefs)
+            updated = aiusage_state.set_session(
+                state=current,
+                session_id=session_id,
+                model_usage=model_usage,
+            )
+            applet_prefs[PREFS_KEY] = aiusage_state.prefs_from_state(state=updated)
 
-        data = json.dumps(config, indent=2) + "\n"
-        os.lseek(fd, 0, os.SEEK_SET)
-        os.ftruncate(fd, 0)
-        os.write(fd, data.encode("utf-8"))
+            data = json.dumps(config, indent=2) + "\n"
+            os.lseek(fd, 0, os.SEEK_SET)
+            os.ftruncate(fd, 0)
+            with os.fdopen(os.dup(fd), "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(data)
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)

@@ -183,6 +183,10 @@ class WindowsDesktop:
         assert self.user.SystemParametersInfoW(0x30, 0, ctypes.byref(rect), 0)
         return [rect.left, rect.top, rect.right, rect.bottom]
 
+    def scroll(self, amount=120):
+        self._send([_Input(type=0, data=_Data(mouse=_Mouse(data=amount, flags=0x800)))])
+        time.sleep(0.2)
+
     @staticmethod
     def wait_for(predicate, message, seconds=15):
         deadline = time.monotonic() + seconds

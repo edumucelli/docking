@@ -135,10 +135,11 @@ native icon and running indicator. The baseline remains the same single display.
 Fourteen focused tests also passed under native Windows Python. Repeating shell
 icon extraction 26 times left the process's GDI handle count unchanged at 40.
 
-A catalog import audit loaded 62 of 65 applet classes. The remaining import
-issues are AI Usage's Unix file lock, Ambient's missing GStreamer runtime, and
-System Tray's eager XEmbed import. Importing a class does not verify its controls
-or native system backend; the catalog acceptance work remains open.
+The initial catalog import audit loaded 62 of 65 applet classes. With native
+AI Usage support, a subsequent audit loads 63 of 65. The remaining import issues
+are Ambient's missing GStreamer runtime and System Tray's eager XEmbed import.
+Importing a class does not verify its controls or native system backend; the
+catalog acceptance work remains open.
 
 ```sh
 python tools/windows_lab.py --share /path/to/shared/artifacts run \
@@ -434,10 +435,83 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run 
 ![Native Windows application artwork in Search](../images/windows-search-icons.png)
 
 The baseline verifies activation from the focused desktop background and
-Notepad. An earlier run opened Search without foreground focus after dismissing
-the Start menu; that shell-focus transition remains follow-up work. Some internal
-system applications expose flat shell tiles rather than useful artwork; their
-visibility and artwork belong to the broader application-inventory acceptance.
+Notepad. The Start-menu focus failure found during these checks is addressed
+by the shell handoff integration below. Some internal system applications expose
+flat shell tiles rather than useful artwork; their visibility and artwork belong
+to the broader application-inventory acceptance.
+
+## Search activation during shell handoff
+
+Native tracing reproduced the startup failure: GTK had focused Search while
+Windows still considered the Start menu foreground, and the shell then returned
+foreground ownership to the taskbar. Search now observes that pending handoff
+from verified Explorer/Start/Search processes and completes the original
+activation on GTK's idle loop. The target must belong to Docking's process and
+match the requested Search window. An unrelated application taking focus,
+hiding/destroying Search, successful activation or a 750 ms expiry cancels the
+request. Foreground changes after success remain under user control.
+
+`windows_focus_smoke.py` runs the complete application and activates Search as
+soon as the native shortcut reports Bound. It records foreground HWNDs, native
+GUI-thread focus, GTK map/focus events and typing. The Start, taskbar and desktop
+runs passed, including an outside click that retained its new foreground,
+normal shutdown, work-area restoration and independent hotkey reacquisition.
+The same instrumented Start-menu case failed before the handoff integration
+and passed afterward. The baseline remains the documented single display and
+English Windows shell; broader keyboard layouts and remote-session behavior
+still need acceptance.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_focus_smoke.py' \
+  --output '\\host.lan\Data\lab\focus-start' --origin start
+```
+
+Use `--origin taskbar` and `--origin desktop` for the other startup cases.
+
+References: [foreground activation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow),
+[GUI-thread observations](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getguithreadinfo).
+
+## AI Usage applet and headless hooks
+
+AI Usage now imports and runs on native Windows. Its hook writers use a
+path-derived Windows named mutex; POSIX keeps its existing `flock` contract.
+This serializes concurrent writers without Windows byte-range locks blocking
+ordinary preference readers. Reads and writes explicitly use UTF-8. Four real
+concurrent hook subprocesses repeatedly replaced their own sessions and retained
+every final session and unrelated Unicode preference.
+
+Windows hook registration uses a headless Python runner with native arguments.
+A dock launched by `pythonw.exe` selects the adjacent `python.exe` for hooks
+that consume stdin. Claude's documented exec form uses `command` plus `args`;
+Codex receives a native notify argv encoded as valid TOML, including backslashes,
+spaces and bracket characters. Registration is idempotent and preserves
+unrelated Claude hooks when replacing old Docking commands.
+
+`windows_aiusage_smoke.py` runs the full application with AI Usage pinned and
+isolated provider settings. The applet registers its real Windows commands;
+the generated Claude hook imports a Unicode-path transcript fixture through
+stdin while Docking runs, preserving foreground ownership. Its normal poll
+method is then invoked without waiting for the 60-second interval. The check verifies 1,500 tokens,
+repainted artwork, native wheel selection of Claude, tooltip and context menu,
+and normal shutdown. The tooltip and menu PNGs were inspected. The combined
+AI Usage, Search, focus and shortcut selection passed 208 native Windows tests
+with one POSIX-only filename case skipped, and 209 tests on Linux. Live provider
+CLI installations and real sessions remain broader integration acceptance.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_aiusage_smoke.py' \
+  --output '\\host.lan\Data\lab\aiusage'
+```
+
+![AI Usage consuming a fixture through its native Windows hook](../images/windows-aiusage.png)
+
+References: [Windows mutex ownership](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexw),
+[kernel object namespaces](https://learn.microsoft.com/en-us/windows/win32/termserv/kernel-object-namespaces),
+[Claude command hook fields](https://code.claude.com/docs/en/hooks#command-hook-fields).
 
 ## Keyboard menus and close handling
 
@@ -502,9 +576,9 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
-| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native and painted applet artwork verified; shell-focus transitions, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
+| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and startup Start/taskbar/desktop focus handoff verified; arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
-| Portable applets | Pending | Exercise the full applet catalog on Windows |
+| Portable applets | AI Usage native update lock and hook transport; shared applet rendering | AI Usage fixture hook, polling, artwork, tooltip, wheel and context menu verified; full catalog and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 
