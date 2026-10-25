@@ -891,6 +891,64 @@ References: [RAS enumeration](https://learn.microsoft.com/en-us/windows/win32/ap
 [SDK ABI definitions](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/Ras.h),
 [strongSwan Windows interoperability](https://docs.strongswan.org/docs/latest/interop/windowsClients.html).
 
+## Native Session actions
+
+Session uses a semantic `SessionBackend` contract: list available actions,
+request an action, and stop applet-owned work. The shared state contains labels,
+and the GTK applet handles icons, menu ordering and disabled actions. Linux and
+BSD implement the contract through their existing session commands; Unix lock
+fallbacks, D-Bus calls and Flatpak host execution live in `session/unix.py`.
+Windows does not construct Unix commands.
+
+`session/windows.py` uses `LockWorkStation` for lock, `ExitWindowsEx` for sign
+out/restart/power off, and `SetSuspendState` for suspend. Power actions require
+an existing `SeShutdownPrivilege` in the process token. Menu probes only read
+the token; requests enable that right temporarily and restore its exact prior
+state before closing the token handle. No rights are added or elevation
+requested. Power capability reads use the SDK's 76-byte
+`SYSTEM_POWER_CAPABILITIES`; Suspend requires an actual S1/S2/S3 or S0 low-power
+idle capability, and power off requires S5. Availability is rechecked when an
+action executes. Requests run on one owned worker to keep the GTK loop responsive
+and suppress duplicates. Shutdown does not force applications closed; Windows
+owns unsaved-work prompts and may reject or cancel a transition. An accepted
+request is distinct from an observed completed transition.
+
+On the baseline VM, native capabilities and independent `powercfg /a` agree that
+no sleep state is available, so Suspend is disabled. Real left-click lock was
+verified with WTS session flags changing from unlocked to locked, an independent
+QEMU capture of the secure lock desktop, and external credential input to
+unlock. The logon identity was unchanged after unlock, and normal dock shutdown
+restored the work area and released the global shortcut.
+
+Sign out, restart and power off were selected through the actual dock menu.
+After sign out, WTS reported a new session/logon identity with the same boot
+time, and Winlogon recorded the sign-out/sign-in events. Restart produced a new
+boot time and a User32 planned-restart event from `pythonw.exe`. Power off
+cleanly stopped the VM container; after starting that same persistent VM,
+Windows reported another new boot and a User32 planned-power-off event from
+`pythonw.exe`. Automatic login and the interactive lab agent recovered after
+both boots. These transitions end the dock process and were verified externally;
+they are distinct from the inspection/lock runs' normal GTK shutdown checks.
+
+![Native Session menu with unavailable Suspend disabled](../images/windows-session-menu.png)
+
+![Secure Windows lock desktop after clicking the Session applet](../images/windows-session-locked.png)
+
+`tools/windows_session_smoke.py` uses real mouse/keyboard input and independent
+WTS state. Its default mode inspects the menu and quits normally. `--action lock`
+waits for an external unlock. `--action logout`, `reboot` or `poweroff` terminates
+the guest session; a host observer must prove the transition and recover the
+owned VM. The tool's pre-transition record alone is not proof of success.
+Physical sleep/resume, Modern Standby, remote/multi-user sessions and domain
+policies need broader acceptance.
+
+References: [lock request semantics](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-lockworkstation),
+[graceful exit and shutdown rights](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-exitwindowsex),
+[suspend and wake events](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-setsuspendstate),
+[power capabilities](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-getpwrcapabilities),
+[token privilege changes and restoration](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges),
+[WTS lock state](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/ns-wtsapi32-wtsinfoex_level1_w).
+
 ## Native Recycle Bin
 
 Trash selects a Windows shell backend. `SHQueryRecycleBinW` reads the current
@@ -1090,7 +1148,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/Wi-Fi/VPN/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
-| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
+| Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session actions; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 

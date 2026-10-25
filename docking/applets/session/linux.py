@@ -4,7 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-from docking.applets.session.backend import SessionBackend
+from docking.applets.session.unix import CommandSessionBackend
 
 _LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("mate-screensaver-command", "-l"),
@@ -45,7 +45,7 @@ def command_for(action: str) -> list[str] | None:
     }.get(action)
 
 
-class LinuxSessionBackend(SessionBackend):
+class LinuxSessionBackend(CommandSessionBackend):
     def command_for(self, action: str) -> list[str] | None:
         return command_for(action)
 

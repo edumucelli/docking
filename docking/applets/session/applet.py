@@ -25,11 +25,12 @@ from gi.repository import Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections
 from docking.applets.session import meta
+from docking.applets.session.backend import create_backend
 from docking.core.icons import IconSource
 from docking.i18n import _
 
 from .render import create_session_icon
-from .state import _ACTIONS, LOCK_SCREEN_LABEL, _run, lock_screen
+from .state import _ACTIONS
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -45,6 +46,7 @@ class SessionApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config) -> None:
         super().__init__(icon_size, config)
+        self._backend = create_backend()
         self.present()
 
     def create_docking_icon(self, size: int):
@@ -52,21 +54,21 @@ class SessionApplet(Applet):
 
     def on_clicked(self) -> None:
         """Lock screen on left-click."""
-        lock_screen()
+        self._backend.perform("lock")
+
+    def stop(self) -> None:
+        self._backend.stop()
+        super().stop()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
         destructive: list[Gtk.MenuItem] = []
+        available = self._backend.available_actions()
         for label, action in _ACTIONS:
             mi = Gtk.MenuItem(label=label)
-            if label == LOCK_SCREEN_LABEL:
-                mi.connect("activate", lambda _w: lock_screen())
-            else:
-                mi.connect(
-                    "activate",
-                    lambda _w, a=action: _run(action=a),
-                )
-            if label in (LOCK_SCREEN_LABEL, _("Suspend")):
+            mi.set_sensitive(action in available)
+            mi.connect("activate", lambda _w, a=action: self._backend.perform(a))
+            if action in ("lock", "suspend"):
                 primary.append(mi)
             else:
                 destructive.append(mi)

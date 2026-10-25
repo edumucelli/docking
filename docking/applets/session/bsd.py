@@ -3,7 +3,7 @@
 import shutil
 import sys
 
-from docking.applets.session.backend import SessionBackend
+from docking.applets.session.unix import CommandSessionBackend
 
 _LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("mate-screensaver-command", "-l"),
@@ -37,7 +37,7 @@ def command_for(action: str) -> list[str] | None:
     return result if result and shutil.which(result[0]) else None
 
 
-class BsdSessionBackend(SessionBackend):
+class BsdSessionBackend(CommandSessionBackend):
     def command_for(self, action: str) -> list[str] | None:
         return command_for(action)
 
