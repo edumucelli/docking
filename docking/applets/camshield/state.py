@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from docking.i18n import _
 
@@ -38,31 +37,30 @@ class CamshieldState:
     """Current camera privacy state."""
 
     available: bool
-    active: bool
+    active: bool | None
     devices: tuple[str, ...] = ()
     holders: tuple[CameraHolder, ...] = ()
     locked: bool = False
-
-
-def probe_camera_state(
-    *,
-    dev_root: Path | str = "/dev",
-    proc_root: Path | str = "/proc",
-) -> CamshieldState:
-    from docking.applets.camshield.backend import create_backend
-
-    return create_backend().probe(dev_root=Path(dev_root), proc_root=Path(proc_root))
+    error: bool = False
 
 
 def build_tooltip(state: CamshieldState) -> str:
     """Build a compact user-facing tooltip."""
     lines = [_("Cam Shield")]
     if not state.available:
-        lines.append(_("No camera devices found"))
+        lines.append(
+            _("Camera state unavailable")
+            if state.error
+            else _("No camera devices found")
+        )
         return "\n".join(lines)
 
     if state.locked:
         lines.append(_("Camera locked"))
+
+    if state.active is None:
+        lines.append(_("Camera activity unknown"))
+        return "\n".join(lines)
 
     if not state.active:
         lines.append(_("Camera idle"))
@@ -90,22 +88,3 @@ def holder_label(holder: CameraHolder) -> str:
         pid=holder.pid,
         devices=", ".join(holder.devices),
     )
-
-
-def _video_devices(dev_root: Path) -> dict[str, Path]:
-    try:
-        entries = dev_root.glob("video*")
-        return {
-            entry.name: _normalized_path(entry)
-            for entry in entries
-            if entry.name.startswith("video") and entry.name[5:].isdigit()
-        }
-    except OSError:
-        return {}
-
-
-def _normalized_path(path: Path) -> Path:
-    try:
-        return path.resolve(strict=False)
-    except OSError:
-        return path.absolute()

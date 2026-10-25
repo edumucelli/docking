@@ -777,10 +777,6 @@ msgstr ""
 msgid "Unlock Camera"
 msgstr ""
 
-#: docking/applets/camshield/applet.py:136
-msgid "Camera lock helper unavailable"
-msgstr ""
-
 #: docking/applets/camshield/linux.py:109
 #: docking/applets/deskpresence/state.py:185
 #: docking/applets/micshield/state.py:200
@@ -5653,4 +5649,22 @@ msgstr ""
 
 #: docking/applets/micshield/applet.py:158
 msgid "Microphone Settings"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:117
+#: docking/applets/camshield/state.py:52
+msgid "Camera state unavailable"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:124
+#: docking/applets/camshield/state.py:62
+msgid "Camera activity unknown"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:143
+msgid "Camera locking unavailable"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:149
+msgid "Camera Settings"
 msgstr ""

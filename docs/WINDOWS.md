@@ -1024,6 +1024,66 @@ References: [capture endpoint enumeration](https://learn.microsoft.com/en-us/win
 [process attribution](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol2-getprocessid),
 [synthetic ALSA file input](https://www.alsa-project.org/alsa-doc/alsa-lib/pcm_plugins.html).
 
+## Windows Cam Shield
+
+Cam Shield uses one `CamshieldBackend` for state, lock/unlock capabilities,
+explicit actions, settings and shutdown. Shared GTK, rendering and state have
+no `/dev`, procfs, ACL, `pkexec` or Windows API operations. Linux and BSD own
+their camera discovery and privileged policies. Their shared Unix client
+launches the existing permission helper only after a user action.
+
+Windows selects `camshield/windows.py`. It aggregates Media Foundation capture
+source metadata and sensor activity reports, grouping multiple devices held
+by one PID. A reported process still counts as a holder when it is not currently
+streaming, consistent with an open Linux video file descriptor. Process names
+use the Windows process backend, retaining the PID when its executable cannot
+be read. Missing reports or a reporting failure produce **Camera activity
+unknown**, not idle. Enumeration failure produces **Camera state unavailable**.
+Reports for cameras no longer in the current inventory cannot keep them active.
+The backend never activates a capture source or requests video frames.
+
+Native callbacks live in an owned sensor process. That process owns its MTA,
+Media Foundation lifetime, callback thunks, report interfaces and allocated
+strings. The dock serializes small requests, validates replies and applies a
+four-second request deadline. Failure reaps the owned process before replacing
+it. Shutdown runs a bounded process reaper without blocking GTK. Construction
+does no native work; guarded background queries, action serialization and
+lifecycle generations reject stale reads and queued operations after stop or
+restart. The activity pulse stops when activity ends or the applet stops.
+
+**Windows lock/unlock is not implemented.** The menu leaves both controls
+unavailable. Device disabling needs elevation and durable restoration of only
+the camera devices Docking changed; opening Settings does not provide that
+behavior. The current native inventory covers available Media Foundation video
+capture sources, not disabled PnP devices or every proprietary camera stack.
+
+On the Windows 11 lab, two independent monitor start/stop cycles and repeated
+queries returned an empty camera inventory, agreeing with a separate PnP camera
+enumeration. The native desktop verifier checks this real absence state, both
+unavailable controls, the Camera Settings menu handoff, accessibility metadata,
+inspected screenshots, sensor-process exit and normal dock shutdown/work-area
+restoration. Its active, idle, unknown and provider-error states are explicitly
+injected API rendering fixtures. **Native capture/holder transitions, physical
+devices, hotplug, concurrent clients and lock/recovery acceptance remain open.**
+
+![Native Cam Shield absence with unavailable lock controls](../images/windows-camshield-absent.png)
+
+The following active state is an **API rendering fixture**, not native capture:
+
+![Cam Shield active-holder rendering fixture](../images/windows-camshield-fixture-active.png)
+
+Run `tools/windows_camshield_smoke.py --output ... --expect-absent` in the
+interactive owned Windows lab after preparing its GStreamer registry. Keep
+the regular dock closed during acceptance and restore its normal configuration
+afterward. The verifier uses an isolated configuration and leaves pin/recent
+history intact.
+
+References: [sensor activity monitoring](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-mfcreatesensoractivitymonitor),
+[activity report callbacks](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-imfsensoractivitiesreportcallback-onactivitiesreport),
+[sensor process reports](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nn-mfidl-imfsensorprocessactivity),
+[camera source enumeration](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-mfenumdevicesources),
+[camera privacy guidelines](https://learn.microsoft.com/en-us/windows/apps/develop/camera/camera-privacy-guidelines).
+
 ## Windows Bluetooth
 
 Bluetooth uses the shared `BluetoothBackend` contract for snapshots, radio
@@ -1494,7 +1554,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory and Mic Shield capture backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield passive camera backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native camera absence/privacy Settings/helper exit and labeled activity/error fixtures verified, with native capture and lock/recovery pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

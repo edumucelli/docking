@@ -392,10 +392,17 @@ Camera privacy indicator. The icon shows a red dot while an app is using a camer
 - Active app list when available
 - Lock Camera / Unlock Camera
 - Refresh Now
+- Camera Settings on Windows
 
 **Tooltip:** Shows whether the camera is idle, active, or unavailable, plus active holders when detected
 
 Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
+
+Windows currently provides passive Media Foundation camera inventory and process
+activity, plus the camera privacy Settings page. Lock/unlock controls are
+unavailable on Windows. Unreadable or missing activity reports show unknown
+activity rather than idle. This indicator never opens the camera for a test
+capture.
 
 **Update interval:** 2 seconds
 

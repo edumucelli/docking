@@ -5,13 +5,13 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
-from docking.applets.camshield.backend import CamshieldBackend
 from docking.applets.camshield.state import (
     CameraHolder,
     CamshieldState,
-    _normalized_path,
-    _video_devices,
 )
+from docking.applets.camshield.unix_client import UnixCamshieldBackend
+from docking.applets.camshield.unix_control import UnixCameraControl
+from docking.applets.camshield.unix_devices import _normalized_path, _video_devices
 from docking.i18n import _
 
 
@@ -123,7 +123,7 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-class LinuxCamshieldBackend(CamshieldBackend):
+class LinuxCameraControl(UnixCameraControl):
     def requires_acl_backup(self, device: Path) -> bool:
         return False
 
@@ -151,4 +151,15 @@ class LinuxCamshieldBackend(CamshieldBackend):
         return (
             ["getfacl", "--absolute-names", str(device)],
             [["setfacl", "--restore", str(acl_file)]],
+        )
+
+
+class LinuxCamshieldBackend(UnixCamshieldBackend):
+    def __init__(
+        self, *, dev_root: Path | str = "/dev", proc_root: Path | str = "/proc"
+    ) -> None:
+        super().__init__(
+            control=LinuxCameraControl(),
+            dev_root=Path(dev_root),
+            proc_root=Path(proc_root),
         )

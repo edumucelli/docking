@@ -5665,3 +5665,15 @@ msgstr ""
 
 msgid "Microphone Settings"
 msgstr ""
+
+msgid "Camera state unavailable"
+msgstr ""
+
+msgid "Camera activity unknown"
+msgstr ""
+
+msgid "Camera locking unavailable"
+msgstr ""
+
+msgid "Camera Settings"
+msgstr ""

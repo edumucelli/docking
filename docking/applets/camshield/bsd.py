@@ -13,8 +13,10 @@ from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
 
-from docking.applets.camshield.backend import CamshieldBackend
-from docking.applets.camshield.state import CameraHolder, CamshieldState, _video_devices
+from docking.applets.camshield.state import CameraHolder, CamshieldState
+from docking.applets.camshield.unix_client import UnixCamshieldBackend
+from docking.applets.camshield.unix_control import UnixCameraControl
+from docking.applets.camshield.unix_devices import _video_devices
 from docking.platform.commands import read_command
 
 _STATE_DIR = Path("/var/db/docking/camshield")
@@ -75,7 +77,7 @@ def _set_recording(value: int) -> None:
     )
 
 
-class BsdCamshieldBackend(CamshieldBackend):
+class BsdCameraControl(UnixCameraControl):
     def requires_acl_backup(self, device: Path) -> bool:
         # devfs camera nodes have mode permissions but no extended ACLs. Refuse
         # a failed backup only where ACLs exist, or their support is unknown.
@@ -188,3 +190,14 @@ def _saved_recording(state: Path) -> int:
     if type(previous) is not int or previous not in {0, 1}:
         raise OSError("Invalid saved video recording policy")
     return previous
+
+
+class BsdCamshieldBackend(UnixCamshieldBackend):
+    def __init__(
+        self, *, dev_root: Path | str = "/dev", proc_root: Path | str = "/proc"
+    ) -> None:
+        super().__init__(
+            control=BsdCameraControl(),
+            dev_root=Path(dev_root),
+            proc_root=Path(proc_root),
+        )

@@ -32,7 +32,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
-from docking.applets.camshield.backend import create_backend
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from docking.applets.camshield.unix_control import create_control
 from docking.core.paths import ensure_dir
 
 STATE_DIR = Path("/var/lib/docking/camshield")
@@ -115,7 +118,7 @@ def unlock_devices(*, state_dir: Path = STATE_DIR) -> int:
             restored += 1
             continue
         if (
-            create_backend().requires_acl_backup(device)
+            create_control().requires_acl_backup(device)
             and snapshot.acl_file is not None
         ):
             failed[device_path] = snapshot
@@ -166,7 +169,7 @@ def _require_root() -> None:
 def _snapshot_device(*, device: Path, state_dir: Path) -> DeviceSnapshot:
     mode = stat.S_IMODE(device.stat().st_mode)
     acl_file = _save_acl_snapshot(device=device, state_dir=state_dir)
-    if acl_file is None and create_backend().requires_acl_backup(device):
+    if acl_file is None and create_control().requires_acl_backup(device):
         raise OSError(f"Cannot save the camera ACL: {device}")
     return DeviceSnapshot(path=device, mode=mode, acl_file=acl_file)
 
@@ -182,7 +185,7 @@ def _save_acl_snapshot(*, device: Path, state_dir: Path) -> Path | None:
     try:
         with acl_file.open("w", encoding="utf-8") as handle:
             subprocess.run(
-                [getfacl, *create_backend().acl_commands(device, acl_file)[0][1:]],
+                [getfacl, *create_control().acl_commands(device, acl_file)[0][1:]],
                 check=True,
                 stdout=handle,
                 stderr=subprocess.DEVNULL,
@@ -202,7 +205,7 @@ def _restore_acl(*, snapshot: DeviceSnapshot) -> bool:
     if setfacl is None:
         return False
     try:
-        for argv in create_backend().acl_commands(snapshot.path, snapshot.acl_file)[1]:
+        for argv in create_control().acl_commands(snapshot.path, snapshot.acl_file)[1]:
             subprocess.run(
                 [setfacl, *argv[1:]],
                 check=True,
@@ -326,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        backend = create_backend()
+        backend = create_control()
         if args.command == "lock":
             return backend.lock()
         if args.command == "unlock":

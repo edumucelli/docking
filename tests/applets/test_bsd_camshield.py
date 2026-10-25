@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -33,9 +34,7 @@ def test_camera_probe_uses_kernel_file_table(monkeypatch, tmp_path, platform):
         return output if argv[0] == "fstat" else "1"
 
     monkeypatch.setattr(bsd, "read_command", read)
-    state = bsd.BsdCamshieldBackend().probe(
-        dev_root=tmp_path, proc_root=Path("/absent")
-    )
+    state = bsd.BsdCameraControl().probe(dev_root=tmp_path, proc_root=Path("/absent"))
     assert state.available and state.active and not state.locked
     assert state.holders == (CameraHolder(42, "browser", (str(device),)),)
     assert calls[0] == ["fstat", str(device)]
@@ -44,7 +43,7 @@ def test_camera_probe_uses_kernel_file_table(monkeypatch, tmp_path, platform):
 def test_failed_file_table_does_not_report_camera_idle(monkeypatch, tmp_path):
     (tmp_path / "video0").touch()
     monkeypatch.setattr(bsd, "read_command", lambda argv: None)
-    state = bsd.BsdCamshieldBackend().probe(dev_root=tmp_path, proc_root=tmp_path)
+    state = bsd.BsdCameraControl().probe(dev_root=tmp_path, proc_root=tmp_path)
     assert not state.available
 
 
@@ -71,7 +70,7 @@ def test_openbsd_lock_restores_original_policy_after_repeated_locks(
     monkeypatch.setattr(
         bsd, "_set_recording", lambda value: current.__setitem__(0, value)
     )
-    backend = bsd.BsdCamshieldBackend()
+    backend = bsd.BsdCameraControl()
     assert backend.lock() == 0 and current[0] == 0
     assert backend.lock() == 0
     assert backend.unlock() == 0 and current[0] == previous
@@ -90,7 +89,7 @@ def test_openbsd_failed_unlock_keeps_recovery_record(monkeypatch, tmp_path):
         lambda value: (_ for _ in ()).throw(OSError("sysctl failed")),
     )
     with pytest.raises(OSError):
-        bsd.BsdCamshieldBackend().unlock()
+        bsd.BsdCameraControl().unlock()
     assert record.exists()
 
 
@@ -101,7 +100,7 @@ def test_openbsd_unlock_requires_a_valid_recovery_record(monkeypatch, tmp_path):
     for invalid in (None, True, 2, "1"):
         (tmp_path / "recording.json").write_text(json.dumps({"previous": invalid}))
         with pytest.raises(OSError):
-            bsd.BsdCamshieldBackend().unlock()
+            bsd.BsdCameraControl().unlock()
 
 
 def test_freebsd_lock_refuses_to_destroy_an_unsaved_acl(monkeypatch, tmp_path):
@@ -166,16 +165,16 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
         def __init__(self, **kwargs):
             pass
 
-        def run_guarded(self, *, key, name, fn, on_result):
+        def run_guarded(self, *, key, name, fn, on_result, **kwargs):
             tasks.append((fn, on_result))
             return True
 
     monkeypatch.setattr(camera, "BackgroundWorker", Worker)
-    monkeypatch.setattr(
-        camera,
-        "probe_camera_state",
-        lambda: reads.append(True) or CamshieldState(True, True),
+    backend = SimpleNamespace(
+        get_state=lambda: reads.append(True) or CamshieldState(True, True),
+        stop=lambda: None,
     )
+    monkeypatch.setattr(camera, "create_backend", lambda: backend)
     applet = camera.CamshieldApplet(48, Config())
     assert not reads
     applet.stop()
@@ -187,11 +186,11 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
 def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
     monkeypatch, tmp_path
 ):
-    from docking.applets.camshield.linux import LinuxCamshieldBackend
+    from docking.applets.camshield.linux import LinuxCameraControl
 
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
-    monkeypatch.setattr(helper, "create_backend", LinuxCamshieldBackend)
+    monkeypatch.setattr(helper, "create_control", LinuxCameraControl)
     monkeypatch.setattr(helper.shutil, "which", lambda name: None)
     device = tmp_path / "video0"
     device.touch()
@@ -263,7 +262,7 @@ def test_invalid_device_snapshot_cannot_replace_recovery_data(
 def test_actual_bsd_kernel_reports_open_camera_descriptor(tmp_path):
     device = tmp_path / "video0"
     device.touch()
-    backend = bsd.BsdCamshieldBackend()
+    backend = bsd.BsdCameraControl()
     with device.open("rb"):
         state = backend.probe(dev_root=tmp_path, proc_root=Path("/nonexistent"))
         assert state.active
@@ -291,7 +290,7 @@ def test_installed_camera_helper_status_is_usable():
 def test_actual_openbsd_lock_and_unlock_restore_kernel_policy(monkeypatch, tmp_path):
     previous = int(bsd.read_command(["/sbin/sysctl", "-n", "kern.video.record"]))
     monkeypatch.setattr(bsd, "_STATE_DIR", tmp_path)
-    backend = bsd.BsdCamshieldBackend()
+    backend = bsd.BsdCameraControl()
     try:
         bsd._set_recording(1)
         assert backend.lock() == 0
@@ -322,4 +321,4 @@ def test_actual_freebsd_permission_and_acl_roundtrip(monkeypatch, tmp_path):
     not bsd.sys.platform.startswith("freebsd"), reason="requires FreeBSD devfs"
 )
 def test_actual_freebsd_device_filesystem_has_no_extended_acl():
-    assert not bsd.BsdCamshieldBackend().requires_acl_backup(Path("/dev/null"))
+    assert not bsd.BsdCameraControl().requires_acl_backup(Path("/dev/null"))
