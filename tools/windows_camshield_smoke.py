@@ -1,7 +1,7 @@
-"""Native Cam Shield absence/Settings acceptance and labeled rendering fixtures.
+"""Native Cam Shield capture/absence/Settings and labeled rendering fixtures.
 
-This verifier never opens a camera. Active, idle and unknown screenshots use
-explicit API fixtures; they do not establish native camera-capture coverage.
+The device mode opens only an explicitly named generated SWD virtual camera.
+The absence mode's active/idle/unknown screenshots use API rendering fixtures.
 """
 
 from __future__ import annotations
@@ -21,7 +21,9 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--expect-absent", action="store_true", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--expect-absent", action="store_true")
+    mode.add_argument("--device")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test VM")
@@ -140,6 +142,7 @@ def main():
     def drive():
         settings = None
         sensor_processes = []
+        captures = []
         try:
             assert ready.wait(90)
             applet = call(lambda: shared["model"].get_applet("applet://camshield"))
@@ -213,12 +216,39 @@ def main():
                 report.setdefault("sensor_pids", []).append(process.pid)
 
             native.wait_for(idle, "Native camera query did not finish", 20)
-            assert not state().available and not state().error
+            # Construction can finish a read from before start() advanced the
+            # lifecycle generation. Require a fresh delivered query here.
+            call(applet._refresh_now)
+            native.wait_for(
+                lambda: (
+                    idle()
+                    and not state().error
+                    and (
+                        not state().available
+                        if args.expect_absent
+                        else state().available and state().active is False
+                    )
+                ),
+                "Initial camera state did not reach the UI",
+                20,
+            )
+            assert not state().error
+            if args.expect_absent:
+                assert not state().available
+            else:
+                inventory = applet._backend._api.snapshot().devices
+                assert len(inventory) == 1
+                assert inventory[0].identifier == args.device
+                assert inventory[0].name.startswith("Docking Generated Camera Fixture")
+                assert state().available and state().active is False
             call(remember_sensor)
             popup, rows = menu()
-            assert any(r["label"] == "No camera devices found" for r in rows)
+            expected = (
+                "No camera devices found" if args.expect_absent else "Camera idle"
+            )
+            assert any(r["label"] == expected for r in rows)
             report["native_menu"] = rows
-            snapshot("native-absent-menu")
+            snapshot("native-absent-menu" if args.expect_absent else "native-idle-menu")
 
             assert not any(w["title"] == "Settings" for w in native.windows())
             assert any(r["label"] == "Camera Settings" and r["enabled"] for r in rows)
@@ -265,6 +295,115 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 "Owned Camera Settings did not close",
             )
             settings = None
+
+            if args.device:
+
+                def read_capture(entry):
+                    try:
+                        return json.loads((entry[1] / "capture.json").read_text())
+                    except (OSError, ValueError):
+                        return {}
+
+                def start_capture(index):
+                    folder = output / f"capture-{index}"
+                    folder.mkdir()
+                    with (folder / "capture.log").open("w") as log:
+                        process = subprocess.Popen(
+                            [
+                                sys.executable,
+                                str(
+                                    Path(__file__).with_name(
+                                        "windows_camshield_capture.py"
+                                    )
+                                ),
+                                "--device",
+                                args.device,
+                                "--output",
+                                str(folder),
+                                "--seconds",
+                                "120",
+                            ],
+                            stdout=log,
+                            stderr=subprocess.STDOUT,
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                        )
+                    entry = process, folder
+                    captures.append(entry)
+                    native.wait_for(
+                        lambda: (
+                            process.poll() is None
+                            and read_capture(entry).get("frames", 0) > 30
+                        ),
+                        "Owned camera reader did not receive generated frames",
+                        25,
+                    )
+                    stats = read_capture(entry)
+                    assert (
+                        stats["bytes"] == 320 * 240 * 3 // 2
+                        and len(stats["checksums"]) > 5
+                    )
+                    report.setdefault("captures", []).append(stats)
+                    native.wait_for(
+                        lambda: (
+                            idle()
+                            and state().active
+                            and process.pid in {h.pid for h in state().holders}
+                        ),
+                        "Actual capture PID did not reach Cam Shield",
+                        20,
+                    )
+                    return entry
+
+                first = start_capture(1)
+                second = start_capture(2)
+                expected_pids = {first[0].pid, second[0].pid}
+                assert expected_pids <= {h.pid for h in state().holders}
+                assert call(lambda: bool(applet._pulse_timer_id))
+                phase = call(lambda: applet._pulse_phase)
+                native.wait_for(
+                    lambda: call(lambda: applet._pulse_phase) != phase,
+                    "Native camera activity pulse did not advance",
+                )
+                native.user.SetCursorPos(1100, 100)
+                snapshot("native-two-capture-active")
+                popup, rows = menu()
+                assert all(
+                    any(str(pid) in row["label"] for row in rows)
+                    for pid in expected_pids
+                )
+                report["active_menu"] = rows
+                snapshot("native-two-capture-menu")
+                dismiss()
+
+                (first[1] / "stop").write_text("stop")
+                assert first[0].wait(15) == 0
+                native.wait_for(
+                    lambda: (
+                        idle()
+                        and state().active
+                        and first[0].pid not in {h.pid for h in state().holders}
+                        and second[0].pid in {h.pid for h in state().holders}
+                    ),
+                    "Remaining camera client did not remain active",
+                    20,
+                )
+                snapshot("native-one-capture-active")
+                (second[1] / "stop").write_text("stop")
+                assert second[0].wait(15) == 0
+                native.wait_for(
+                    lambda: idle() and state().active is False,
+                    "Final capture stop did not reach idle",
+                    20,
+                )
+                assert call(lambda: applet._pulse_timer_id) == 0
+                popup, rows = menu()
+                assert any(r["label"] == "Camera idle" for r in rows)
+                snapshot("native-stopped-idle-menu")
+                dismiss()
+                report.update(
+                    ok=True, native_capture_verified=True, native_absence=False
+                )
+                return
 
             class Fixture:
                 def __init__(self):
@@ -373,6 +512,16 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
             report.update(ok=False, error=repr(exc))
             capture("failure")
         finally:
+            for process, folder in captures:
+                if process.poll() is None:
+                    (folder / "stop").write_text("stop")
+                    try:
+                        process.wait(15)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(10)
+                        report.update(ok=False, forced_capture_cleanup=True)
+                report.setdefault("capture_exits", []).append(process.poll())
             if settings is not None:
                 native.user.PostMessageW(settings["hwnd"], 0x10, 0, 0)
             if ready.is_set():

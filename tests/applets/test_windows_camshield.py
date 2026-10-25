@@ -98,6 +98,15 @@ def test_absence_explicit_idle_and_removed_camera_reports(camera):
     assert instance.get_state() == CamshieldState(False, False)
 
 
+def test_empty_completed_aggregate_is_idle_but_uninitialized_monitor_is_unknown(camera):
+    instance, api = camera
+    assert instance.get_state().active is True
+    api.value = replace(api.value, reports=())
+    assert instance.get_state().active is False
+    api.value = replace(api.value, activity_known=False)
+    assert instance.get_state().active is None
+
+
 def test_missing_process_name_does_not_hide_camera_holder(camera, monkeypatch):
     instance, _ = camera
     monkeypatch.setattr(instance._processes, "executable", lambda _: None)

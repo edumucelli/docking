@@ -51,7 +51,12 @@ class WindowsCamshieldBackend(CamshieldBackend):
                 for device in snapshot.devices:
                     activity = reports.get(device.identifier.casefold())
                     if activity is None:
-                        known = False
+                        # A successfully delivered empty aggregate is Windows'
+                        # idle notification (also sent after the last client
+                        # stops). A missing entry in a nonempty/failed report
+                        # cannot establish this camera's activity.
+                        if reports or not snapshot.activity_known:
+                            known = False
                         continue
                     for pid in activity.pids:
                         owners.setdefault(pid, set()).add(device.name)

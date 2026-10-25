@@ -1037,8 +1037,10 @@ source metadata and sensor activity reports, grouping multiple devices held
 by one PID. A reported process still counts as a holder when it is not currently
 streaming, consistent with an open Linux video file descriptor. Process names
 use the Windows process backend, retaining the PID when its executable cannot
-be read. Missing reports or a reporting failure produce **Camera activity
-unknown**, not idle. Enumeration failure produces **Camera state unavailable**.
+be read. An uninitialized or failed monitor, or a missing device in a nonempty
+report, produces **Camera activity unknown**. A successfully delivered empty
+aggregate is the native idle notification, including after the last client
+stops. Enumeration failure produces **Camera state unavailable**.
 Reports for cameras no longer in the current inventory cannot keep them active.
 The backend never activates a capture source or requests video frames.
 
@@ -1062,9 +1064,21 @@ queries returned an empty camera inventory, agreeing with a separate PnP camera
 enumeration. The native desktop verifier checks this real absence state, both
 unavailable controls, the Camera Settings menu handoff, accessibility metadata,
 inspected screenshots, sensor-process exit and normal dock shutdown/work-area
-restoration. Its active, idle, unknown and provider-error states are explicitly
-injected API rendering fixtures. **Native capture/holder transitions, physical
-devices, hotplug, concurrent clients and lock/recovery acceptance remain open.**
+restoration. Unknown and provider-error rendering also use explicitly injected
+API fixtures.
+
+Native capture acceptance uses a generated-frame Windows virtual camera. Two
+independent Media Foundation reader processes receive real 320x240 NV12 frames
+with advancing timestamps and changing pixel checksums. Shared mode permits
+both clients to stream simultaneously; both actual PIDs appear in Cam Shield.
+The activity pulse advances while they capture. Closing one reader keeps the
+other active; closing the last reader yields the native empty report, returns
+the menu to idle and stops the pulse. Reader and sensor-process exit, privacy
+Settings, normal dock close and work-area restoration are verified. The test
+opens no physical camera and uses no injected activity data.
+
+**Physical/IR/proprietary devices, device hotplug/removal during capture, and
+Windows device lock/recovery acceptance remain open.**
 
 ![Native Cam Shield absence with unavailable lock controls](../images/windows-camshield-absent.png)
 
@@ -1072,17 +1086,48 @@ The following active state is an **API rendering fixture**, not native capture:
 
 ![Cam Shield active-holder rendering fixture](../images/windows-camshield-fixture-active.png)
 
+The following captures show **actual native capture clients** using only
+generated frames:
+
+![Two real Windows camera clients reported by Cam Shield](../images/windows-camshield-native-active.png)
+
+![Native camera idle after the last capture client exits](../images/windows-camshield-native-idle.png)
+
 Run `tools/windows_camshield_smoke.py --output ... --expect-absent` in the
 interactive owned Windows lab after preparing its GStreamer registry. Keep
 the regular dock closed during acceptance and restore its normal configuration
 afterward. The verifier uses an isolated configuration and leaves pin/recent
 history intact.
 
+For capture acceptance, use an elevated Windows 11 24H2-or-newer lab without
+existing cameras, MSYS2 UCRT64 GCC (`mingw-w64-ucrt-x86_64-gcc`), Python/GTK and
+Pillow. Run `tools/windows_camera_fixture.py --output C:\DockingLab\camera-test
+--journal PATH\session.json --seconds 300` with a fresh local output directory
+and journal directory. It compiles `windows_camera_source.cpp` with warnings as
+errors and records ownership before registering its unique COM class. The
+camera is current-user/session scoped and generates frames entirely in memory.
+Before declaring readiness, a short native read/stop cycle verifies the frames
+and releases Windows' initial registration activity, establishing an idle
+baseline for the desktop verifier.
+Use the exact symbolic link from the ready journal with
+`tools/windows_camshield_smoke.py --output ... --device SYMBOLIC_LINK`.
+The verifier owns and normally stops both capture processes. Write `stop` in
+the fixture journal's directory to remove the camera and its owned COM class.
+After an owner crash, `tools/windows_camera_fixture.py --recover PATH\session.json`
+checks process identity, DLL hash and registry ownership before cleanup. Both
+normal removal and recovery after terminating only the owned fixture process
+have passed in the lab. Keep the result journals and screenshots; this fixture
+recovery is separate from
+the still-unimplemented applet camera lock/recovery feature.
+
 References: [sensor activity monitoring](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-mfcreatesensoractivitymonitor),
 [activity report callbacks](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-imfsensoractivitiesreportcallback-onactivitiesreport),
 [sensor process reports](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nn-mfidl-imfsensorprocessactivity),
 [camera source enumeration](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-mfenumdevicesources),
-[camera privacy guidelines](https://learn.microsoft.com/en-us/windows/apps/develop/camera/camera-privacy-guidelines).
+[camera privacy guidelines](https://learn.microsoft.com/en-us/windows/apps/develop/camera/camera-privacy-guidelines),
+[session-scoped virtual cameras](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera),
+[custom media source requirements](https://learn.microsoft.com/en-us/windows-hardware/drivers/stream/frame-server-custom-media-source),
+[shared camera sources](https://learn.microsoft.com/en-us/windows/win32/medfound/mf-devsource-attribute-frameserver-share-mode).
 
 ## Windows Bluetooth
 
@@ -1554,7 +1599,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield passive camera backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native camera absence/privacy Settings/helper exit and labeled activity/error fixtures verified, with native capture and lock/recovery pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield passive camera backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings/helper lifetime and labeled error fixtures verified, with physical camera and device lock/recovery pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
