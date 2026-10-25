@@ -15,6 +15,10 @@ def prepare_windows_runtime() -> bool:
     MSYS2 stores DLLs beside Python; Conda-style installations use Library/bin.
     An explicit PYGI_DLL_PATH supplied by the user continues to take priority.
     """
+    # GTK's legacy Win32 file-drop path has no drag-motion feedback. Select
+    # its OLE2 implementation before GDK opens the display; it also carries
+    # same-widget reorder drags through the native Windows drag loop.
+    os.environ.setdefault("GDK_WIN32_USE_EXPERIMENTAL_OLE2_DND", "1")
     candidates = (
         Path(sys.executable).parent,
         Path(sys.prefix) / "bin",

@@ -317,6 +317,9 @@ class DnDHandler:
         frame = self._geometry_builder.build_frame()
         self._drag_from = self.drag_index = -1
         self._dragged_item = None
+        # A preceding external applet drop has no source drag-end callback.
+        # Its successful drop must not suppress this new drag-off gesture.
+        self._drop_committed = False
         self._begin_drag_autohide()
         # Each internal reorder starts inside the dock. The drag-off removal
         # path must earn this flag through drag-leave during this drag cycle.

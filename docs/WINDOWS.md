@@ -666,12 +666,11 @@ release. The focused suite passed 62 native Windows tests and 215 Linux tests;
 three Windows-only path/ABI cases are skipped on Linux. Shared drag routing
 also uses real geometry tests at all four edges.
 
-The captured drag protocol is **`win32-dropfiles`**. GTK 3's default Windows
-file-drop path delivers the file on release; this evidence does not establish
-OLE hover feedback. GTK's opt-in OLE2 path and broader drag feedback remain
-acceptance work. The driver follows current icon geometry while running
-applications can reflow the dock. Its PowerShell queries create no console
-windows, and captures wait for native opening animations.
+The initial captured protocol was **`win32-dropfiles`**, GTK 3's legacy Windows
+path that delivers the file on release. The OLE2 milestone below now enables
+drag-motion feedback as well. The driver follows current icon geometry while
+running applications can reflow the dock. Its PowerShell queries create no
+console windows, and captures wait for native opening animations.
 
 ```sh
 python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
@@ -689,6 +688,44 @@ References: [Recycle Bin query](https://learn.microsoft.com/en-us/windows/win32/
 [shell change notifications](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotifyregister),
 [file operation flags](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperation-setoperationflags),
 [GTK 3.24.52 Win32 drag implementation](https://gitlab.gnome.org/GNOME/gtk/-/blob/3.24.52/gdk/win32/gdkdnd-win32.c).
+
+## Native drag feedback and internal gestures
+
+Windows runtime preparation now enables GTK's OLE2 implementation before GDK
+opens its display, using `GDK_WIN32_USE_EXPERIMENTAL_OLE2_DND`. This is the flag
+provided by the verified GTK 3.24.52 runtime. The initial environment-only lab
+probe and the subsequent normal runtime both reported **`ole2`** and delivered
+drag-motion events. The desktop capture shows Trash's green target feedback
+and the insertion space while an Explorer folder is held over the dock.
+
+The same full application check also exercises internal gestures. Immediately
+after the external applet drop, Calendar is dragged off and unpinned; Clock is
+then moved before Trash, persisted, and dragged off as well. The check waits
+for each actual GTK drag-end callback before starting another gesture, and
+inspects the settled desktop images. Normal Quit restores the work area and
+releases the hotkey. A separate native nested-menu/focus/close regression passed
+with OLE2 enabled, as did 38 native drag/menu/hotkey tests and 81 focused Linux
+drag/pointer tests.
+
+This sequence exposed a shared state bug: an external applet drop can leave a
+successful-drop flag without a source drag-end callback to clear it. Every new
+internal drag now starts with a fresh flag, so a prior drop cannot suppress
+drag-off removal. A regression test reproduces that complete event history.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_trash_smoke.py' \
+  --output '\\host.lan\Data\lab\ole2-gestures' --exercise-internal
+```
+
+![Native OLE2 target feedback during an Explorer folder drag](../images/windows-ole2-drag.png)
+
+The acceptance baseline remains one display at 96 DPI. Other drop sources,
+cross-monitor drags and native application-menu dragging still need acceptance.
+Windows application listings have no desktop-entry file URI, so their menu
+rows need a native transfer representation before that Linux workflow has
+parity. See the [GTK Win32 drag implementation](https://gitlab.gnome.org/GNOME/gtk/-/blob/3.24.52/gdk/win32/gdkdnd-win32.c).
 
 ## Keyboard menus and close handling
 
@@ -750,6 +787,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
+| Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence and drag-off immediately after an external applet drop verified; application-menu transfer and broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |

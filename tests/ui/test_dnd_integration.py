@@ -329,6 +329,32 @@ class TestSetupAndToggle:
 
 
 class TestDragBeginMotion:
+    def test_drag_off_after_external_applet_drop_does_not_inherit_its_commit(
+        self, monkeypatch
+    ):
+        handler = _make_handler(monkeypatch)
+        context = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", MagicMock())
+        handler._try_drop_on_applet = MagicMock(return_value=True)
+        handler._on_drag_drop(handler._drawing_area, context, 20, 8, 1)
+        selection = MagicMock()
+        selection.get_uris.return_value = ["file:///tmp/owned.txt"]
+        handler._on_drag_data_received(
+            handler._drawing_area, context, 20, 8, selection, 0, 1
+        )
+        item = DockItem("applet://clock", kind=APPLET_KIND, is_pinned=True)
+        handler._model.visible_items.return_value = [item]
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: _frame(item_index=0, count=1)
+        )
+        handler._window.get_position.return_value = (0, 500)
+        pointer = handler._window.get_display().get_default_seat().get_pointer()
+        pointer.get_position.return_value = (None, 20, 100)
+        handler._on_drag_begin(handler._drawing_area, context)
+        handler._on_drag_leave(handler._drawing_area, context, 2)
+        handler._on_drag_end(handler._drawing_area, context)
+        handler._model.unpin_item.assert_called_once_with("applet://clock")
+
     @pytest.mark.parametrize("position", list(Position))
     @pytest.mark.parametrize("kind", [APP_KIND, APPLET_KIND])
     def test_external_drop_stays_on_first_compatible_icon_with_real_geometry(

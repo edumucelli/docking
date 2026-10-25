@@ -24,6 +24,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--exercise-internal", action="store_true")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python")
@@ -66,13 +67,16 @@ def main():
     (folder / "keep.txt").write_text("owned recyclable folder", encoding="utf-8")
     config = output / "config/docking/dock.json"
     config.parent.mkdir(parents=True, exist_ok=True)
+    pinned = [
+        {"kind": "applet", "target": "applet://trash"},
+        {"kind": "applet", "target": "applet://clock"},
+    ]
+    if args.exercise_internal:
+        pinned.append({"kind": "applet", "target": "applet://calendar"})
     config.write_text(
         json.dumps(
             {
-                "pinned": [
-                    {"kind": "applet", "target": "applet://trash"},
-                    {"kind": "applet", "target": "applet://clock"},
-                ],
+                "pinned": pinned,
                 "icon_size": 48,
                 "hide_mode": "none",
                 "show_recent_apps": False,
@@ -86,6 +90,39 @@ def main():
     original_motion = DnDHandler._on_drag_motion
     original_target = DnDHandler._drop_target_item_at_point
     original_received = DnDHandler._on_drag_data_received
+    original_begin = DnDHandler._on_drag_begin
+    original_end = DnDHandler._on_drag_end
+    original_leave = DnDHandler._on_drag_leave
+
+    def drag_state(handler):
+        position = wintypes.POINT()
+        native.user.GetCursorPos(ctypes.byref(position))
+        return {
+            "from": handler._drag_from,
+            "index": handler.drag_index,
+            "item": handler._dragged_item.desktop_id if handler._dragged_item else None,
+            "left": handler._internal_drag_left_dock,
+            "committed": handler._drop_committed,
+            "native_pointer": [position.x, position.y],
+        }
+
+    def observe_begin(handler, widget, context):
+        shared["dnd"] = handler
+        original_begin(handler, widget, context)
+        report.setdefault("drag_begin", []).append(drag_state(handler))
+
+    def observe_end(handler, widget, context):
+        from docking.ui.display import get_pointer_position
+
+        before = drag_state(handler)
+        original_end(handler, widget, context)
+        after = drag_state(handler)
+        after["gdk_pointer"] = get_pointer_position(handler._window.get_display())
+        report.setdefault("drag_end", []).append({"before": before, "after": after})
+
+    def observe_leave(handler, widget, context, time):
+        original_leave(handler, widget, context, time)
+        report.setdefault("drag_leave", []).append(drag_state(handler))
 
     def observe_received(handler, widget, context, x, y, selection, info, time):
         report.setdefault("drop_protocols", []).append(
@@ -140,6 +177,9 @@ def main():
     DnDHandler._drop_target_item_at_point = observe_target
     DnDHandler._on_drag_motion = observe_motion
     DnDHandler._on_drag_data_received = observe_received
+    DnDHandler._on_drag_begin = observe_begin
+    DnDHandler._on_drag_end = observe_end
+    DnDHandler._on_drag_leave = observe_leave
     shared, errors, owned = {}, [], []
     ready = threading.Event()
     original_build = app.build_dock_window
@@ -240,7 +280,7 @@ $rows=@($s.NameSpace(10).Items() | ForEach-Object {
                 "Dock did not map",
             )
 
-            def point(*, fresh=True):
+            def point(*, fresh=True, target_id="applet://trash"):
                 frame = (
                     ui.window.geometry.build_frame(main_cursor=-1.0)
                     if fresh
@@ -249,7 +289,7 @@ $rows=@($s.NameSpace(10).Items() | ForEach-Object {
                 rect = next(
                     g.draw_rect
                     for g in frame.item_geometries
-                    if g.item.desktop_id == "applet://trash"
+                    if g.item.desktop_id == target_id
                 )
                 current = next(
                     w for w in native.windows(os.getpid()) if w["hwnd"] == dock["hwnd"]
@@ -477,6 +517,83 @@ foreach($i in $w.FindAll($scope,$condition)){{
             report.update(confirmed_empty=True, ok=True)
             file.unlink()
             root.rmdir()
+            if args.exercise_internal:
+                assert report["drop_protocols"] == ["ole2"], report["drop_protocols"]
+                time.sleep(1)
+
+                def drag_icon(source, target):
+                    previous_ends = len(report.get("drag_end", []))
+                    native.user.SetCursorPos(int(source[0]), int(source[1]))
+                    time.sleep(0.3)
+                    native.user.mouse_event(2, 0, 0, 0, 0)
+                    try:
+                        for step in range(1, 31):
+                            native.user.SetCursorPos(
+                                int(source[0] + (target[0] - source[0]) * step / 30),
+                                int(source[1] + (target[1] - source[1]) * step / 30),
+                            )
+                            time.sleep(0.05)
+                        time.sleep(0.5)
+                    finally:
+                        native.user.mouse_event(4, 0, 0, 0, 0)
+                    native.wait_for(
+                        lambda: len(report.get("drag_end", [])) > previous_ends,
+                        "Native drag did not finish after releasing the mouse",
+                    )
+
+                # Exercise drag-off immediately after the external applet drop;
+                # a previous successful drop must not suppress this new gesture.
+                calendar = call(lambda: point(target_id="applet://calendar"))
+                drag_icon(calendar, (calendar[0], 200))
+                native.wait_for(
+                    lambda: (
+                        [
+                            p["target"]
+                            for p in json.loads(config.read_text(encoding="utf-8"))[
+                                "pinned"
+                            ]
+                        ]
+                        == ["applet://trash", "applet://clock"]
+                    ),
+                    "Drag-off inherited the preceding external drop's commit",
+                )
+                report["unpin_after_external_drop"] = True
+                time.sleep(0.5)
+                source = call(lambda: point(target_id="applet://clock"))
+                destination = call(point)
+                drag_icon(source, (destination[0] - 15, destination[1]))
+                native.wait_for(
+                    lambda: (
+                        [
+                            p["target"]
+                            for p in json.loads(config.read_text(encoding="utf-8"))[
+                                "pinned"
+                            ]
+                        ]
+                        == ["applet://clock", "applet://trash"]
+                    ),
+                    "Native same-widget drag did not persist a reordered dock",
+                )
+                report["internal_reorder"] = True
+                time.sleep(0.5)
+                capture("internal-reordered")
+                source = call(lambda: point(target_id="applet://clock"))
+                drag_icon(source, (source[0], 200))
+                native.wait_for(
+                    lambda: (
+                        [
+                            p["target"]
+                            for p in json.loads(config.read_text(encoding="utf-8"))[
+                                "pinned"
+                            ]
+                        ]
+                        == ["applet://trash"]
+                    ),
+                    "Native drag-off did not unpin Clock",
+                )
+                report["internal_unpin"] = True
+                time.sleep(0.5)
+                capture("internal-unpinned")
         except Exception as exc:
             errors.append(exc)
             report.update(ok=False, error=repr(exc))
