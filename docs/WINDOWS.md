@@ -100,13 +100,41 @@ the context menu open, and with Preferences open. Native input opened those
 surfaces and selected Quit; the process exited with code 0 without termination.
 Hover did not change the foreground window. Ten focused Windows tests passed,
 including configuration save/backup and native application metadata contracts.
-Gio discovered 184 application records; their launch behavior still needs its
-own acceptance check. A subsequent `smoke-workarea` run edited icon size from
+Gio discovered 184 application records. A subsequent `smoke-workarea` run edited icon size from
 48 to 64 through Preferences, verified the persisted JSON value, and checked
 the resized native window against Explorer's work area before quitting cleanly.
 The larger dock remained fully above the taskbar.
 
 ![Docking with 64-pixel icons on Windows 11](../images/windows-first-run.png)
+
+The next desktop milestone adds native `EnumWindows` snapshots, packaged-app
+identity through `GetApplicationUserModelId`, normal executable identity,
+running indicators, and activate/minimize/close actions. Packaged launches use
+the Windows activation manager and pass the user's foreground privilege to it.
+Shell icons are extracted on two background workers, then published to GTK.
+
+`windows-native-verified` launched Notepad by clicking its pinned icon, checked
+that its window became foreground, clicked the running icon to minimize it,
+clicked again to restore and activate it, and selected Close in the item menu.
+Independent Win32 observations confirmed every transition. The dock then quit
+through its own menu without process termination. Captures also show Notepad's
+native icon and running indicator. The baseline remains the same single display.
+Fourteen focused tests also passed under native Windows Python. Repeating shell
+icon extraction 26 times left the process's GDI handle count unchanged at 40.
+
+A catalog import audit loaded 62 of 65 applet classes. The remaining import
+issues are AI Usage's Unix file lock, Ambient's missing GStreamer runtime, and
+System Tray's eager XEmbed import. Importing a class does not verify its controls
+or native system backend; the catalog acceptance work remains open.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts run \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_window_smoke.py' \
+  --output '\\host.lan\Data\lab\windows-native'
+```
+
+![Native Notepad icon and window menu on Windows 11](../images/windows-window-controls.png)
 
 The smoke tool's mouse row coordinates assume that baseline theme and DPI.
 Keyboard navigation of the context menu and a native WM_CLOSE request to the
@@ -118,9 +146,9 @@ the successful shutdown check uses the actual menu's Quit action.
 | Area | Implementation | Required Windows evidence |
 | --- | --- | --- |
 | Runtime/bootstrap | Windows signals, paths, DLL bootstrap and backend selection | Native source launch and focused Windows tests passed |
-| Application metadata | Native Gio Win32 AppInfo discovery and launching | Discover, launch and pin ordinary and packaged applications |
+| Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter | Startup, transparency, hover, mouse menu, Preferences and Quit verified on the baseline desktop; keyboard menu follow-up pending |
-| Running applications | Pending | Grouping, indicators, activate, minimize, restore and close |
+| Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Desktop integration | Pending | AppBar reservation, taskbar coexistence, all four edges and hide modes |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Pending | Real application pixels, focus preservation and click behavior |

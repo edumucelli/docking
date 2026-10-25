@@ -86,7 +86,11 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.provenance_store = provenance_store
 
     class _IconLoader:
-        pass
+        def stop(self):
+            pass
+
+        def subscribe(self, _callback):
+            return lambda: None
 
     class _TargetService:
         def __init__(self, *, icon_loader):

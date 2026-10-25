@@ -114,7 +114,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "RecentApplicationsPersistence": _RecentApplicationsPersistence,
         },
         "docking.platform.icons": {
-            "IconLoader": type("IconLoader", (), {}),
+            "IconLoader": type(
+                "IconLoader",
+                (),
+                {
+                    "stop": lambda self: None,
+                    "subscribe": lambda self, _callback: lambda: None,
+                },
+            ),
         },
         "docking.platform.targets": {
             "TargetService": type(

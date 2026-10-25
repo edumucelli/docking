@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 import gi
 
@@ -19,6 +20,10 @@ from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PREFIX
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
+from docking.platform.environment import is_windows
+
+if TYPE_CHECKING:
+    from docking.platform.backends.windows.icons import WindowsIconCache
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
 HOST_XDG_DATA_DIRS = desktop_entries.HOST_XDG_DATA_DIRS
@@ -101,6 +106,56 @@ class IconLoader:
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
         ] = {}
+        self._windows_icons: WindowsIconCache | None = None
+        self._listeners: list[Callable[[str], None]] = []
+
+    def subscribe(self, callback: Callable[[str], None]) -> Callable[[], None]:
+        """Notify GTK consumers when a native application icon becomes ready."""
+        self._listeners.append(callback)
+
+        def unsubscribe() -> None:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
+
+        return unsubscribe
+
+    def stop(self) -> None:
+        self._listeners.clear()
+        if self._windows_icons is not None:
+            self._windows_icons.stop()
+
+    def _native_icon_ready(self, desktop_id: str) -> None:
+        for key in tuple(self._icon_cache):
+            if key[0].startswith(f"desktop:{desktop_id}:"):
+                del self._icon_cache[key]
+        for callback in tuple(self._listeners):
+            callback(desktop_id)
+
+    def _windows_desktop_icon(
+        self, info: ApplicationInfo, size: int
+    ) -> GdkPixbuf.Pixbuf | None:
+        from docking.platform.backends.windows.icons import WindowsIconCache
+
+        if self._windows_icons is None:
+            self._windows_icons = WindowsIconCache(self._native_icon_ready)
+        image = self._windows_icons.get(info, size)
+        if image is None:
+            return None
+        key = (f"native:{info.desktop_id}", size)
+        if key not in self._icon_cache:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+                GLib.Bytes.new(image.pixels),
+                GdkPixbuf.Colorspace.RGB,
+                True,
+                8,
+                image.width,
+                image.height,
+                image.width * 4,
+            )
+            if image.width != size or image.height != size:
+                pixbuf = pixbuf.scale_simple(size, size, GdkPixbuf.InterpType.BILINEAR)
+            self._icon_cache[key] = pixbuf
+        return self._icon_cache[key]
 
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
@@ -131,6 +186,10 @@ class IconLoader:
         size: int,
     ) -> GdkPixbuf.Pixbuf | None:
         """Load an application icon from canonical metadata with fallbacks."""
+        if is_windows():
+            native_icon = self._windows_desktop_icon(info, size)
+            if native_icon is not None:
+                return native_icon
         desktop_id = info.desktop_id
         icon_name = dock_icon_name(info)
         exec_line = info.exec_line

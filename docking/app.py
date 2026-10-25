@@ -157,6 +157,12 @@ def _safe_stop(name: str, callback: Callable[[], object]) -> None:
         log.exception("Failed to stop runtime stage: %s", name)
 
 
+def _refresh_application_icon(model: DockModel, desktop_id: str) -> None:
+    item = model.find_by_desktop_id(desktop_id)
+    if item is not None:
+        model.refresh_item_icons(item)
+
+
 def main() -> None:
     """Entry point for the docking application."""
     apply_tweaks(desktop=detect_desktop())
@@ -169,6 +175,7 @@ def main() -> None:
         process_identity_service = ProcessIdentityService(provenance_store)
         application_launcher = ApplicationLauncher(registry, provenance_store)
         icon_loader = IconLoader()
+        cleanup.callback(_safe_stop, "icons", icon_loader.stop)
         target_service = TargetService(icon_loader=icon_loader)
 
         _refresh_initial_registry(registry)
@@ -194,6 +201,11 @@ def main() -> None:
             recent_applications=recent_applications,
         )
         cleanup.callback(_safe_stop, "applets", model.stop_applets)
+        cleanup.callback(
+            icon_loader.subscribe(
+                lambda desktop_id: _refresh_application_icon(model, desktop_id)
+            )
+        )
 
         renderer = DockRenderer()
         backend = create_session_backend(

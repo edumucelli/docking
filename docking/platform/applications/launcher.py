@@ -12,7 +12,7 @@ import gi
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import GLib
+from gi.repository import Gio, GLib
 
 from docking.log import get_logger, with_context
 from docking.platform import commands
@@ -67,7 +67,16 @@ class ApplicationLauncher:
             if handle is None:
                 return False
             try:
-                return bool(handle.launch([], None))
+                if (
+                    "!" in application.desktop_id
+                    and application.executable_path is None
+                ):
+                    from docking.platform.backends.windows.shell import (
+                        activate_packaged_application,
+                    )
+
+                    return activate_packaged_application(application.desktop_id)
+                return bool(handle.launch([], Gio.AppLaunchContext()))
             except GLib.Error as exc:
                 log.bind(desktop_id=desktop_id, action="launch").warning(
                     "Failed to launch Windows application: %s", exc

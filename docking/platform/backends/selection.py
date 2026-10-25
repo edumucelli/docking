@@ -75,7 +75,7 @@ def create_session_backend(
     if is_windows() and requested in {"", "windows", "win32"}:
         from docking.platform.backends.windows.session import WindowsSessionBackend
 
-        return WindowsSessionBackend()
+        return WindowsSessionBackend(config=config, model=model, **identity_arguments)
     if requested == "x11":
         return _create_x11_backend(
             config=config,

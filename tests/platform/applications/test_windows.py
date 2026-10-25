@@ -1,5 +1,6 @@
 """Windows application metadata and native launching contracts."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -68,8 +69,33 @@ def test_windows_launch_uses_native_handle_instead_of_posix_exec(monkeypatch):
     launcher = ApplicationLauncher(registry, LaunchProvenanceStore(), popen=popen)
     monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
     assert launcher.launch(app.desktop_id)
-    handle.launch.assert_called_once_with([], None)
+    handle.launch.assert_called_once()
+    files, context = handle.launch.call_args.args
+    assert files == []
+    assert isinstance(context, launcher_module.Gio.AppLaunchContext)
     popen.assert_not_called()
+
+
+def test_packaged_launch_delegates_foreground_permission_without_double_launch(
+    monkeypatch,
+):
+    from docking.platform.backends.windows import shell
+
+    handle = native_app()
+    app = replace(
+        discover_windows_applications([handle]).applications[0],
+        desktop_id="Example.Package!App",
+        executable_path=None,
+    )
+    registry = SimpleNamespace(get=lambda _id: app, _gio_handle_for=lambda _id: handle)
+    native = MagicMock(return_value=False)
+    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(shell, "activate_packaged_application", native)
+    launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
+
+    assert not launcher.launch(app.desktop_id)
+    native.assert_called_once_with(app.desktop_id)
+    handle.launch.assert_not_called()
 
 
 def test_windows_process_identity_handles_inaccessible_processes(monkeypatch):
