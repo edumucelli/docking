@@ -453,13 +453,27 @@ request. Foreground changes after success remain under user control.
 
 `windows_focus_smoke.py` runs the complete application and activates Search as
 soon as the native shortcut reports Bound. It records foreground HWNDs, native
-GUI-thread focus, GTK map/focus events and typing. The Start, taskbar and desktop
-runs passed, including an outside click that retained its new foreground,
-normal shutdown, work-area restoration and independent hotkey reacquisition.
-The same instrumented Start-menu case failed before the handoff integration
-and passed afterward. The baseline remains the documented single display and
-English Windows shell; broader keyboard layouts and remote-session behavior
-still need acceptance.
+GUI-thread focus, GTK map/focus events and typing. Earlier Start, taskbar and
+desktop runs injected input from Docking's own process and passed, including
+outside-click focus, normal shutdown, work-area restoration and independent
+hotkey reacquisition. The same instrumented Start-menu case failed before the
+handoff integration and passed afterward.
+
+A subsequent regular `run.py` launch exposed a remaining failure when a
+separate process sent Start, Escape and the shortcut: Search mapped and had
+GTK-thread focus, while Explorer retained native foreground ownership. QEMU's
+virtual keyboard reproduced the failure. Same-process input can therefore
+overstate foreground acceptance. The smoke tool now uses a separate injector
+by default; `--same-process-input` retains the earlier diagnostic comparison.
+Regular shell activation remains open, along with broader keyboard layouts,
+remote sessions and display configurations. No manual click is counted as a
+successful hotkey activation.
+
+With the independent injector, the desktop and settled-taskbar cases pass
+foreground ownership, typing, outside-click focus and normal-shutdown checks.
+The immediate Start-close case fails. `--delay` controls the interval between
+dismissing Start and pressing the shortcut, allowing that transition to be
+investigated separately from normal desktop activation.
 
 ```sh
 python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
@@ -576,7 +590,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
-| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native activation/focus, capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and startup Start/taskbar/desktop focus handoff verified; arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
+| Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Pending | Native Windows backends for each applicable applet |
 | Portable applets | AI Usage native update lock and hook transport; shared applet rendering | AI Usage fixture hook, polling, artwork, tooltip, wheel and context menu verified; full catalog and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |

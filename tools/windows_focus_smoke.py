@@ -2,6 +2,8 @@
 
 Runs the complete application. Native HWND and GUI-thread observations must
 confirm foreground ownership and typing; GTK focus-in alone is insufficient.
+Input comes from a separate process so the dock cannot inherit its injector's
+foreground permission. Use --same-process-input only to compare diagnostics.
 The Start menu's English native window is named Start or Search on this lab.
 """
 
@@ -13,6 +15,7 @@ def main():
     import ctypes
     import json
     import os
+    import subprocess
     import sys
     import threading
     import time
@@ -23,6 +26,7 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--origin", choices=("desktop", "taskbar", "start"), required=True)
     p.add_argument("--delay", type=float, default=0)
+    p.add_argument("--same-process-input", action="store_true")
     a = p.parse_args()
     if sys.platform != "win32":
         p.error("Requires native Windows Python")
@@ -72,6 +76,7 @@ def main():
         "delay": a.delay,
         "pid": os.getpid(),
         "gtk_thread": gtk_thread,
+        "input_process": "same" if a.same_process_input else "separate",
     }
     shared = {}
     bound = threading.Event()
@@ -234,12 +239,35 @@ def main():
     def drive():
         try:
             assert bound.wait(90)
-            if a.origin == "start":
-                native.key(0x1B)
-            if a.delay:
-                time.sleep(a.delay)
             record("activate.before")
-            native.key(0x20, control=True, alt=True)
+            if a.same_process_input:
+                if a.origin == "start":
+                    native.key(0x1B)
+                if a.delay:
+                    time.sleep(a.delay)
+                native.key(0x20, control=True, alt=True)
+            else:
+                repository = str(Path(__file__).resolve().parent.parent)
+                program = (
+                    "import os,sys,time\n"
+                    f"sys.path.insert(0, {repository!r})\n"
+                    "from tools.windows_desktop_driver import WindowsDesktop\n"
+                    "native=WindowsDesktop()\n"
+                    + ("native.key(0x1B)\n" if a.origin == "start" else "")
+                    + f"time.sleep({a.delay!r})\n"
+                    + "native.key(0x20, control=True, alt=True)\n"
+                    "print(os.getpid())\n"
+                )
+                injected = subprocess.run(
+                    [sys.executable, "-c", program],
+                    capture_output=True,
+                    text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    timeout=15,
+                )
+                assert injected.returncode == 0, injected.stderr
+                report["injector_pid"] = int(injected.stdout.strip())
+                assert report["injector_pid"] != os.getpid()
             record("activate.after")
             search = native.wait_for(
                 lambda: next(
