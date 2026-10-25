@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 65 built-in applets that live alongside
+Docking includes 66 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, control desktop services, or provide small tools
 without opening a full application.
@@ -26,7 +26,7 @@ the applet keeps a safe unavailable state or hides unsupported actions.
 ## Catalog
 
 - **Launcher & Navigation:** [Applications](#applications), [Desktop](#desktop),
-  [Run Application](#run-application), [Search](#search), [WhatsApp](#whatsapp),
+  [Run Application](#run-application), [Search](#search), [Telegram](#telegram), [WhatsApp](#whatsapp),
   [Workspaces](#workspaces)
 - **Time & Productivity:** [AI Usage](#ai-usage), [Alarm](#alarm),
   [Bookmarks](#bookmarks), [Calculator](#calculator), [Calendar](#calendar),
@@ -112,6 +112,40 @@ Workspace switcher with a visual grid icon. Active workspace is highlighted in b
 **Right-click options:** Radio list of all workspaces
 
 **Tooltip:** Active workspace name
+
+### Telegram
+
+Runs the official Telegram WebK client in one persistent Docking window. Sign
+in using Telegram's QR code or phone-number flow. Closing the window hides it;
+the session continues in the background and is restored after Docking restarts.
+
+**Click:** Show or hide the Telegram window.
+
+**Right-click:** Open Telegram / Hide Telegram, Reload, Open in Browser, and
+Disconnect Telegram. Disconnect clears only Docking's Telegram website data;
+it does not sign out other Telegram applications or Docking's WhatsApp session.
+
+**Badge:** Telegram's standard browser Badging API reports unread **unmuted
+chats**. This count takes priority over Telegram's blinking page title. When an
+exact count is unavailable, recent desktop notifications supply a clearly
+labelled activity count that clears when the window opens.
+
+**Notifications:** Appear as Telegram in Docking through the desktop notification
+service. Activating one presents the Telegram window and activates the original
+web notification. Camera and microphone access always require confirmation.
+
+**Session storage:** Dedicated `telegram` directories under Docking's XDG data
+and cache locations hold Telegram's website data. Login remains inside Telegram
+Web; Docking does not request separate credentials, bot tokens, or Telegram API
+keys, and does not inspect private Telegram modules, chats, or contacts.
+
+**Integration requirement:** WebKitGTK 4.1 or 4.0 with GObject introspection.
+Telegram requires animation frames during initialization, even in an initially
+hidden window. Docking provides a slow background frame fallback while keeping
+the real document visibility state and native scheduling when visible.
+
+See [Telegram integration verification](TELEGRAM.md) for reproducible offline
+and anonymous live browser checks, and the remaining account-level checks.
 
 ### WhatsApp
 
