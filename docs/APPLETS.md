@@ -229,42 +229,30 @@ Clipboard history manager. Monitors the system clipboard and stores the last 15 
 
 ### Gmail
 
-Unread **inbox conversation** counts for multiple Gmail and Google Workspace
-accounts. One badge shows the combined count; the tooltip and menu show each
-account separately. No messages, subjects, or attachments are read.
+Unread inbox conversation counts for multiple Gmail and Google Workspace
+accounts. One badge shows the combined count; hover over the icon or open the
+menu to see each account separately. Several unread messages in one conversation
+count once. Updates appear on the badge without desktop alerts.
 
 **Click:** Sign in with Google when no account is connected; otherwise open the
-selected account's inbox in the default browser. Opening another account from
-the menu remembers that account for future clicks. Browser sign-in is separate
-from the authorization held by Docking.
+selected account's inbox in your default browser. Opening another account from
+the menu selects it for future clicks. Gmail may ask you to sign in separately
+in the browser.
 
-**Right-click:** account inboxes, Add Account, Refresh Now, Reconnect, Disconnect,
-and Cancel Sign-in while authorization is pending. There are no desktop alerts.
+**Right-click:** Open an account's inbox, Add Account, Refresh Now, Reconnect, or
+Disconnect. Choose Cancel Sign-in to stop a sign-in already in progress.
 
-**Freshness:** Refreshes every 60 seconds. Failed accounts retain their last
-known count and are marked stale; unknown counts are never treated as verified
-zero. Quota and network failures use exponential backoff, honoring Google's
-retry instructions. Refresh Now also respects that backoff. Revoked credentials
-require Reconnect; other paused failures can be retried with Refresh Now.
+**Sign-in:** Follow Google's prompts in your browser. A working desktop keyring
+is required. Work accounts may need administrator approval.
 
-**Credentials:** Refresh credentials use libsecret and the desktop keyring
-(or its Flatpak portal backend); access tokens stay in memory. No tokens are
-saved in `dock.json`. A missing or locked keyring shows a retry message and
-never falls back to a plaintext credential file. Disconnect deletes local
-credentials and attempts Google revocation. If revocation fails, use Manage
-Google Account Access. Removing the applet keeps connections for later use.
+**Connection issues:** The tooltip and menu show the affected account's status
+and its last known count when available. If your keyring is locked, unlock it
+and try sign-in or Refresh Now again. Choose Reconnect when prompted to sign in
+again.
 
-**Integration requirements:** Google authentication Python libraries, libsecret
-introspection, and a working desktop secret service or portal. Google sign-in
-opens the system browser. Workspace administrators may restrict authorization.
-
-**Release setup:** The Docking-managed Google OAuth desktop client must be
-provisioned before sign-in works. Unconfigured builds display a clear setup
-status. See [Gmail maintainer setup](GMAIL.md); ordinary users do not create a
-Google Cloud project.
-
-**Preferences stored:** account subject identifiers, email addresses, opaque
-credential references, and the selected account in `applet_prefs.gmail`.
+**Disconnect:** Removes the chosen account from Docking. If prompted, choose
+Manage Google Account Access to finish removing Docking's access. Removing the
+applet keeps your connections for when you add it again.
 
 ### Clock
 
