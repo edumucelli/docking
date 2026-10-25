@@ -84,7 +84,7 @@ def main() -> None:
             WindowsCaptureDevice,
             WindowsCaptureStream,
         )
-        from docking.platform.backends.windows.native import WindowsNativeAPI
+        from docking.platform.backends.windows.windows import Win32WindowAPI
 
         output = args.output.resolve()
         output.mkdir(parents=True, exist_ok=True)
@@ -109,7 +109,7 @@ def main() -> None:
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         cover = None
-        native = WindowsNativeAPI()
+        native = Win32WindowAPI()
         device = stream = None
         handles = []
         report = {}

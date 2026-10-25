@@ -16,9 +16,9 @@ from tests.platform.application_fakes import application, identity_services
 
 
 def test_reused_native_handle_cannot_act_on_another_process():
-    from docking.platform.backends.windows.native import WindowsNativeAPI
+    from docking.platform.backends.windows.windows import Win32WindowAPI
 
-    native = object.__new__(WindowsNativeAPI)
+    native = object.__new__(Win32WindowAPI)
     native._exists = lambda _hwnd: True
     native._post = MagicMock()
 
@@ -87,9 +87,9 @@ def test_windows_grouping_actions_and_disappearing_windows(monkeypatch):
 def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar():
     from ctypes import wintypes
 
-    from docking.platform.backends.windows.native import WindowsNativeAPI
+    from docking.platform.backends.windows.windows import Win32WindowAPI
 
-    native = object.__new__(WindowsNativeAPI)
+    native = object.__new__(Win32WindowAPI)
     native._visible = lambda _hwnd: True
     native._pid = lambda _hwnd, output: setattr(output._obj, "value", 101)
     native._style = lambda *_args: 0

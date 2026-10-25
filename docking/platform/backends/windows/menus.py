@@ -11,7 +11,7 @@ from gi.repository import GLib, Gtk
 from docking.log import get_logger
 
 from .close_hook import WindowsCloseHook
-from .native import _bind
+from .ffi import bind as _bind
 
 log = get_logger("windows.menus")
 

@@ -21,7 +21,7 @@ from docking.platform.backends.windows.com import (
     method,
     release,
 )
-from docking.platform.backends.windows.native import _bind
+from docking.platform.backends.windows.ffi import bind as _bind
 
 _ENUMERATOR_CLASS = GUID.parse("bcde0395-e52f-467c-8e3d-c4579291692e")
 _ENUMERATOR_INTERFACE = GUID.parse("a95664d2-9614-4f35-a746-de8db63617e6")

@@ -21,7 +21,7 @@ from docking.log import get_logger
 from docking.platform.applications.types import ApplicationInfo
 
 from .com import GUID, HRESULT, apartment, method, release
-from .native import _bind
+from .ffi import bind as _bind
 
 log = get_logger("windows.icons")
 

@@ -16,7 +16,7 @@ from docking.platform.backends.windows.com import (
     method,
     release,
 )
-from docking.platform.backends.windows.native import _bind
+from docking.platform.backends.windows.ffi import bind as _bind
 from docking.platform.backends.windows.shell import open_default_target
 
 

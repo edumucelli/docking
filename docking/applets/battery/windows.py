@@ -10,7 +10,7 @@ from typing import Protocol
 from docking.applets.battery.backend import BatteryBackend
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
 from docking.log import get_logger
-from docking.platform.backends.windows.native import _bind
+from docking.platform.backends.windows.ffi import bind as _bind
 
 log = get_logger("battery.windows")
 _UNKNOWN_TIME = 0xFFFFFFFF

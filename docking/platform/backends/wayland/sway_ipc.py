@@ -21,8 +21,8 @@ from docking.platform.backends.base import (
     WorkspaceService,
     WorkspaceSnapshot,
 )
-from docking.platform.backends.native_windows import NativeWindowService
 from docking.platform.backends.wayland.previews import WaylandPreviewHandleTracker
+from docking.platform.backends.window_projection import SnapshotWindowService
 
 log = get_logger(name="sway_ipc")
 _HEADER = struct.Struct("<6sII")
@@ -130,7 +130,7 @@ def windows_from_tree(
     return tuple(windows)
 
 
-class SwayWindowService(NativeWindowService):
+class SwayWindowService(SnapshotWindowService):
     def __init__(
         self,
         *,

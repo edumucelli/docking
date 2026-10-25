@@ -8,7 +8,7 @@ from ctypes import wintypes
 
 from docking.log import get_logger
 
-from .native import _bind
+from .ffi import bind as _bind
 
 log = get_logger("windows.close_hook")
 

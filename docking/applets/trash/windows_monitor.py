@@ -9,7 +9,7 @@ from gi.repository import GLib
 
 from docking.applets.trash.backend import log
 from docking.platform.backends.windows.com import GUID, HRESULT
-from docking.platform.backends.windows.native import _bind
+from docking.platform.backends.windows.ffi import bind as _bind
 
 
 class _Entry(ctypes.Structure):

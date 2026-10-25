@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from .native import _bind
+from .ffi import bind as _bind
 
 HRESULT = ctypes.c_int32
 

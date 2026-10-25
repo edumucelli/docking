@@ -18,7 +18,8 @@ from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.backends.base import MonitorSnapshot, Rect
 
-from .native import MonitorInfo, _bind
+from .ffi import MonitorInfo
+from .ffi import bind as _bind
 
 if TYPE_CHECKING:
     from gi.repository import Gdk

@@ -18,6 +18,17 @@ class VpnConnection(NamedTuple):
     is_active: bool
 
 
+class NetworkSettings(NamedTuple):
+    """Platform settings availability and actions used by the shared menu."""
+
+    connection_info_available: Callable[[], bool]
+    edit_connections_available: Callable[[], bool]
+    open_connection_info: Callable[[], bool]
+    open_edit_connections: Callable[[], bool]
+    open_hidden_wifi_settings: Callable[[], bool]
+    open_new_wifi_settings: Callable[[], bool]
+
+
 class ConnectionManager(ABC):
     """Optional connection-management capability, independent of rendering."""
 
@@ -51,6 +62,10 @@ class NetworkBackend(ABC):
 
     @property
     @abstractmethod
+    def settings(self) -> NetworkSettings: ...
+
+    @property
+    @abstractmethod
     def connection_manager(self) -> ConnectionManager | None: ...
     @abstractmethod
     def start(self, changed: Callable[[], None]) -> None: ...
@@ -65,6 +80,10 @@ class NetworkBackend(ABC):
 
 
 def create_backend(interface: str = "") -> NetworkBackend:
+    if environment.is_windows():
+        from docking.applets.network.windows import WindowsNetworkBackend
+
+        return WindowsNetworkBackend(interface)
     if environment.is_bsd():
         from docking.applets.network.bsd import BsdNetworkBackend
 

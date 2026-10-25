@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 from ctypes import wintypes
 
-from .native import _bind
+from .ffi import bind as _bind
 
 MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002

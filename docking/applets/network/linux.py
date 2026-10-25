@@ -16,6 +16,7 @@ from docking.applets.network import meta
 from docking.applets.network.backend import (
     ConnectionManager,
     NetworkBackend,
+    NetworkSettings,
     VpnConnection,
 )
 from docking.applets.network.state import (
@@ -50,6 +51,12 @@ class LinuxNetworkBackend(NetworkBackend, ConnectionManager):
         self._nm_state_handler_id = 0
         self._last_wifi_scan_request_time = 0.0
         self._changed: Callable[[], None] = lambda: None
+
+    @property
+    def settings(self) -> NetworkSettings:
+        from docking.applets.network.desktop_settings import create_settings
+
+        return create_settings()
 
     @property
     def connection_manager(self) -> ConnectionManager | None:

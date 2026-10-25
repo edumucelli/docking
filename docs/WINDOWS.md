@@ -50,6 +50,23 @@ dependency; the forecast API remains the same. See
 [MSYS2 Python compatibility](https://www.msys2.org/docs/python/) and
 [Open-Meteo 1.4 dependency metadata](https://pypi.org/project/openmeteo-requests/1.4.0/).
 
+## Backend boundaries
+
+Shared UI and state use backend contracts with platform implementations.
+For Network, `applets/network/backend.py` defines `NetworkBackend` and its
+settings actions; `linux.py`, `bsd.py` and `windows.py` implement that contract.
+The applet uses the contract for state, traffic, adapter choices and settings.
+Unix desktop command
+discovery is shared by Linux and BSD in `desktop_settings.py`; IP Helper bindings
+and adapter selection belong to the Windows implementation.
+
+Window tracking follows the common `WindowService` contract in
+`platform/backends/base.py`. Win32 enumeration and actions are implemented in
+`platform/backends/windows/windows.py`. Platform-neutral snapshot projection and
+application matching live in `window_projection.py`, used by KWin, Sway and
+Windows. `windows/ffi.py` contains only small Win32 ABI
+primitives needed by several Windows implementations.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.
@@ -692,6 +709,66 @@ References: [system power status](https://learn.microsoft.com/en-us/windows/win3
 [power information query](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-callntpowerinformation),
 [Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
+## Native Network monitoring and settings
+
+The Windows Network backend reads transport-bound adapters and IPv4/IPv6
+addresses with `GetAdaptersAddresses`, cumulative 64-bit byte counters with
+`GetIfEntry2`, and default routes with `GetIpForwardTable2`. Route selection
+adds the adapter metric to the route metric. Automatic selection prefers an
+IPv4 default route, then an IPv6 default route, then a connected local link.
+The returned route table is copied and released with `FreeMibTable`.
+
+Counter reads use the current interface LUID so index reuse during an adapter
+change cannot attach another device's counters to the old sample.
+The interface preference stores the persistent adapter identifier, while the
+menu and tooltip show its editable name. Explicit selection does not silently
+switch to another adapter when the requested one disappears. A change of
+identity resets the shared traffic baseline even when the display name stays
+the same. IPv6 scope identifiers are retained for link-local addresses.
+Automatic selection remains available as the “Auto” menu choice.
+
+`windows_network_smoke.py` runs the complete dock and compares the selected
+adapter's GUID, name, operational status and address with `Get-NetAdapter` and
+`Get-NetIPAddress`. It brackets the native counters with
+`Get-NetAdapterStatistics`, copies an owned 8 MiB payload over the lab SMB share,
+and verifies that both byte totals increase by at least the payload size.
+The applet's normal two-second poll produces visible speed updates; the test
+uses native keyboard input to select an adapter, change the upload overlay,
+hide speeds, and restore Auto, checking the persisted JSON preferences.
+
+![Native Network traffic during the owned SMB transfer](../images/windows-network.png)
+
+The same test opens the actual Network & internet and Advanced network settings
+pages through backend-owned shell actions. Normal dock shutdown restores the
+original work area, releases the Search shortcut and removes the Network timer.
+The payload files are removed, and the desktop captures were inspected.
+
+![Network backend opening Windows Advanced network settings](../images/windows-network-settings.png)
+
+Focused checks passed 269 cases on Linux, with six native-only cases skipped,
+and 137 selected cases on Windows. The window backend layout change also passed
+the real Notepad launch/minimize/restore/Close check without forced shutdown.
+
+For the desktop tool, prepare `traffic-source.bin` containing 8 MiB of data in a
+fresh output directory writable by the lab guest, then submit:
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\pythonw.exe' \
+  '\\host.lan\Data\repo\tools\windows_network_smoke.py' \
+  --output '\\host.lan\Data\lab\network'
+```
+
+The baseline has one wired adapter on one display at 96 DPI. Wi-Fi SSID/signal,
+profile/radio/networking/VPN controls, physical adapter changes, multiple-route
+desktop acceptance and broader network hardware remain required parity work.
+A Wi-Fi link with no accessible SSID is not labeled as Ethernet.
+
+References: [adapter addresses and interface metrics](https://learn.microsoft.com/en-us/windows/win32/api/iptypes/ns-iptypes-ip_adapter_addresses_lh),
+[interface byte counters](https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2),
+[route metrics](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/mib-ipforward-row2),
+[route table ownership](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/getipforwardtable2).
+
 ## Native Recycle Bin
 
 Trash selects a Windows shell backend. `SHQueryRecycleBinW` reads the current
@@ -890,7 +967,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin and aggregate Battery/power readings | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; physical batteries/accessories, other applet backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power and Network monitoring/settings backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; wireless/management controls, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

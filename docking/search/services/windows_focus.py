@@ -14,8 +14,8 @@ from pathlib import PureWindowsPath
 
 from gi.repository import GLib
 
+from docking.platform.backends.windows.ffi import bind as _bind
 from docking.platform.backends.windows.menus import WindowsMenuFocus
-from docking.platform.backends.windows.native import _bind
 
 _EXPLORER_CLASSES = {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
 _SHELL_PROCESSES = {

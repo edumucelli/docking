@@ -15,7 +15,7 @@ from ctypes import wintypes
 from dataclasses import dataclass
 
 from .com import GUID, HRESULT, method, release
-from .native import _bind
+from .ffi import bind as _bind
 
 _POINTER = ctypes.c_void_p
 _OUT = ctypes.POINTER(_POINTER)
