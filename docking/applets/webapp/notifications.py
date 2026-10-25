@@ -165,7 +165,7 @@ class DesktopNotifier:
             log.debug("web-app notification was rejected: %s", exc)
             return
         if self._stopped or generation != self._generation:
-            self._close_desktop_notification(notification_id)
+            self._close_desktop_notification(notification_id, connection)
             with suppress(Exception):
                 notification.close()
             return
@@ -182,11 +182,16 @@ class DesktopNotifier:
         self._drop_tag_id(notification_id)
         self._close_desktop_notification(notification_id)
 
-    def _close_desktop_notification(self, notification_id: int) -> None:
-        if self._bus is None:
+    def _close_desktop_notification(
+        self,
+        notification_id: int,
+        connection: Gio.DBusConnection | None = None,
+    ) -> None:
+        bus = connection if connection is not None else self._bus
+        if bus is None:
             return
         try:
-            self._bus.call(
+            bus.call(
                 NOTIFICATION_SERVICE,
                 NOTIFICATION_PATH,
                 NOTIFICATION_IFACE,
@@ -247,7 +252,7 @@ class DesktopNotifier:
             try:
                 notification.close()
             except Exception as exc:
-                log.debug("Could not close WhatsApp web notification: %s", exc)
+                log.debug("Could not close web-app notification: %s", exc)
 
     def _drop_tag_id(self, notification_id: int) -> None:
         for tag, existing_id in tuple(self._tag_ids.items()):

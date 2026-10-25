@@ -19,12 +19,12 @@ gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk
 
-from docking.applets.webapp_bridge import (
+from docking.applets.webapp.bridge import (
     BridgeEvent,
     parse_bridge_message,
 )
-from docking.applets.webapp_notifications import DesktopNotifier
-from docking.applets.webapp_state import (
+from docking.applets.webapp.notifications import DesktopNotifier
+from docking.applets.webapp.state import (
     BrowserPhase,
     NavigationTarget,
     navigation_target,

@@ -1,6 +1,6 @@
 """Telegram login landmarks; no private modules, messages, or contacts are read."""
 
-from docking.applets.webapp_bridge import build_bridge_script
+from docking.applets.webapp.bridge import build_bridge_script
 
 BRIDGE_HANDLER = "dockingTelegram"
 # Telegram's startup waits for animation frames, which WebKit pauses in an

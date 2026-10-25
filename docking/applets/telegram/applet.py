@@ -9,7 +9,7 @@ from docking.applets.telegram import meta
 from docking.applets.telegram.browser import TelegramBrowser
 from docking.applets.telegram.render import render_icon
 from docking.applets.telegram.state import TELEGRAM_WEB_URL, TelegramState, tooltip_text
-from docking.applets.webapp_applet import WebAppApplet
+from docking.applets.webapp.applet import WebAppApplet
 from docking.i18n import _
 
 

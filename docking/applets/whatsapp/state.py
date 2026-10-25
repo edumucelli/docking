@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from docking.applets.webapp_state import (
+from docking.applets.webapp.state import (
     BrowserPhase,
     NavigationTarget,
     WebAppState,
     parse_unread_count,
 )
-from docking.applets.webapp_state import (
+from docking.applets.webapp.state import (
     navigation_target as classify_navigation,
 )
 from docking.i18n import _

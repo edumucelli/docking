@@ -5,9 +5,9 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
-from docking.applets.webapp_applet import STARTUP_DELAY_S as STARTUP_DELAY_S
-from docking.applets.webapp_applet import GLib as GLib
-from docking.applets.webapp_applet import WebAppApplet
+from docking.applets.webapp.applet import STARTUP_DELAY_S as STARTUP_DELAY_S
+from docking.applets.webapp.applet import GLib as GLib
+from docking.applets.webapp.applet import WebAppApplet
 from docking.applets.whatsapp import meta
 from docking.applets.whatsapp.browser import WhatsAppBrowser
 from docking.applets.whatsapp.render import render_icon

@@ -2,7 +2,7 @@
 
 from docking.applets.telegram.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
 from docking.applets.telegram.state import TELEGRAM_WEB_URL
-from docking.applets.webapp import BrowserProfile, WebAppBrowser
+from docking.applets.webapp.browser import BrowserProfile, WebAppBrowser
 
 PROFILE = BrowserProfile(
     name="Telegram",

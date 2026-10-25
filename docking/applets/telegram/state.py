@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
-from docking.applets.webapp_state import BrowserPhase, NavigationTarget, WebAppState
-from docking.applets.webapp_state import navigation_target as classify_navigation
+from docking.applets.webapp.state import BrowserPhase, NavigationTarget, WebAppState
+from docking.applets.webapp.state import navigation_target as classify_navigation
 from docking.i18n import _, ngettext
 
 TELEGRAM_WEB_URL = "https://web.telegram.org/k/"

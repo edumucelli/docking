@@ -20,10 +20,10 @@ from docking.applets.telegram.state import (
     parse_unread_count,
     tooltip_text,
 )
-from docking.applets.webapp import _session_directories
-from docking.applets.webapp_bridge import parse_bridge_message
-from docking.applets.webapp_notifications import DesktopNotifier
-from docking.applets.webapp_state import BrowserPhase, NavigationTarget
+from docking.applets.webapp.bridge import parse_bridge_message
+from docking.applets.webapp.browser import _session_directories
+from docking.applets.webapp.notifications import DesktopNotifier
+from docking.applets.webapp.state import BrowserPhase, NavigationTarget
 from docking.applets.whatsapp.browser import PROFILE as WHATSAPP_PROFILE
 from docking.core.config import Config
 
@@ -110,7 +110,7 @@ def test_notification_fallback_is_named_and_cleared_separately_from_exact_count(
 def test_browser_profiles_separate_origin_bridge_and_persistent_data(
     tmp_path, monkeypatch
 ):
-    import docking.applets.webapp as shared
+    import docking.applets.webapp.browser as shared
 
     monkeypatch.setattr(shared, "docking_data_dir", lambda: tmp_path / "data")
     monkeypatch.setattr(shared, "docking_cache_dir", lambda: tmp_path / "cache")
@@ -185,7 +185,7 @@ def test_ui_uses_telegram_labels_and_exact_badges(applet):
 
 
 def test_open_in_browser_uses_the_official_telegram_web_url(applet, monkeypatch):
-    import docking.applets.webapp_applet as shared
+    import docking.applets.webapp.applet as shared
 
     opened = []
     monkeypatch.setattr(shared.targets, "open_target", lambda uri: opened.append(uri))
@@ -206,6 +206,31 @@ def test_notification_identity_and_fallback_title_are_provider_specific():
     payload = notifier._bus.call.call_args.args[4].unpack()
     assert payload[0] == "Telegram in Docking"
     assert payload[3] == "Telegram"
+
+
+@pytest.mark.parametrize("action", ["clear", "stop"])
+def test_late_notification_reply_closes_popup_using_its_original_connection(action):
+    notifier = DesktopNotifier(
+        service_name="Telegram", on_activate=lambda: None, on_shown=lambda: None
+    )
+    connection = MagicMock()
+    connection.call_finish.return_value.unpack.return_value = (42,)
+    notifier._bus = connection
+    notification = MagicMock()
+    notification.get_tag.return_value = "late-notification"
+    assert notifier.show(notification)
+    callback_data = connection.call.call_args.args[-1]
+
+    getattr(notifier, action)()
+    notifier._on_notify_finished(connection, MagicMock(), callback_data)
+
+    call = connection.call.call_args.args
+    assert call[3] == "CloseNotification"
+    assert call[4].unpack() == (42,)
+    notification.close.assert_called_once_with()
+    assert notifier._notifications == {}
+    if action == "stop":
+        assert notifier._bus is None
 
 
 def test_stopped_browser_ignores_a_late_session_clear_completion():

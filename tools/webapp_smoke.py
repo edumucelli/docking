@@ -35,8 +35,8 @@ def run(*, live: bool) -> int:
     from gi.repository import GLib, Gtk
 
     from docking.applets.telegram.browser import PROFILE, TelegramBrowser
-    from docking.applets.webapp import load_webkit
-    from docking.applets.webapp_state import BrowserPhase
+    from docking.applets.webapp.browser import load_webkit
+    from docking.applets.webapp.state import BrowserPhase
 
     initialized, _args = Gtk.init_check()
     if not initialized:

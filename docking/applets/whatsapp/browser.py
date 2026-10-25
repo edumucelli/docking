@@ -1,6 +1,6 @@
 """WhatsApp profile for the shared persistent WebKit host."""
 
-from docking.applets.webapp import (
+from docking.applets.webapp.browser import (
     BrowserProfile,
     WebAppBrowser,
     WebKitUnavailableError,
@@ -10,7 +10,7 @@ from docking.applets.webapp import (
     load_webkit,
     webkit_available,
 )
-from docking.applets.webapp import (
+from docking.applets.webapp.browser import (
     GLib as GLib,
 )
 from docking.applets.whatsapp.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT

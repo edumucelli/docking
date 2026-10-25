@@ -1,6 +1,6 @@
 """WhatsApp's narrow public-browser bridge and visible login landmarks."""
 
-from docking.applets.webapp_bridge import (
+from docking.applets.webapp.bridge import (
     BRIDGE_VERSION,
     MAX_BADGE_COUNT,
     MAX_BRIDGE_MESSAGE_BYTES,

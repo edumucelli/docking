@@ -15,8 +15,8 @@ from gi.repository import GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
-from docking.applets.webapp import WebAppBrowser
-from docking.applets.webapp_state import BrowserPhase, WebAppState
+from docking.applets.webapp.browser import WebAppBrowser
+from docking.applets.webapp.state import BrowserPhase, WebAppState
 from docking.i18n import _
 from docking.platform import targets
 

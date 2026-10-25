@@ -144,9 +144,6 @@ Telegram requires animation frames during initialization, even in an initially
 hidden window. Docking provides a slow background frame fallback while keeping
 the real document visibility state and native scheduling when visible.
 
-See [Telegram integration verification](TELEGRAM.md) for reproducible offline
-and anonymous live browser checks, and the remaining account-level checks.
-
 ### WhatsApp
 
 Runs a single persistent WhatsApp Web session in a Docking window. The session

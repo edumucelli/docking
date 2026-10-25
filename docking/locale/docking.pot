@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 02:11+0200\n"
+"POT-Creation-Date: 2026-10-25 11:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,7 +117,7 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:147
 #: docking/applets/runcommand/applet.py:368
 #: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:264
-#: docking/applets/weather/applet.py:278 docking/applets/webapp_applet.py:169
+#: docking/applets/weather/applet.py:278 docking/applets/webapp/applet.py:169
 #: docking/ui/diagnostics.py:391 docking/ui/menu.py:449
 msgid "Cancel"
 msgstr ""
@@ -329,7 +329,7 @@ msgstr ""
 msgid "Error: {msg}"
 msgstr ""
 
-#: docking/applets/apod/applet.py:134 docking/applets/webapp_applet.py:100
+#: docking/applets/apod/applet.py:134 docking/applets/webapp/applet.py:100
 msgid "Open in Browser"
 msgstr ""
 
@@ -584,7 +584,7 @@ msgstr ""
 msgid "Discovered Devices"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:383 docking/applets/webapp_applet.py:170
+#: docking/applets/bluetooth/applet.py:383 docking/applets/webapp/applet.py:170
 msgid "Disconnect"
 msgstr ""
 
@@ -3916,68 +3916,68 @@ msgstr ""
 msgid "{city}: {temp}"
 msgstr ""
 
-#: docking/applets/webapp.py:176
+#: docking/applets/webapp/applet.py:94
+msgid "Reload"
+msgstr ""
+
+#: docking/applets/webapp/applet.py:190
+msgid "Unknown WebKit error"
+msgstr ""
+
+#: docking/applets/webapp/browser.py:176
 msgid "WebKitGTK is unavailable"
 msgstr ""
 
-#: docking/applets/webapp.py:310
+#: docking/applets/webapp/browser.py:310
 msgid "Docking applet"
 msgstr ""
 
-#: docking/applets/webapp.py:317
+#: docking/applets/webapp/browser.py:317
 #, python-brace-format
 msgid "Reload {service}"
 msgstr ""
 
-#: docking/applets/webapp.py:431
+#: docking/applets/webapp/browser.py:431
 msgid "browser process stopped"
 msgstr ""
 
-#: docking/applets/webapp.py:515
+#: docking/applets/webapp/browser.py:515
 msgid "camera and microphone"
 msgstr ""
 
-#: docking/applets/webapp.py:517
+#: docking/applets/webapp/browser.py:517
 msgid "camera"
 msgstr ""
 
-#: docking/applets/webapp.py:519
+#: docking/applets/webapp/browser.py:519
 msgid "microphone"
 msgstr ""
 
-#: docking/applets/webapp.py:525
+#: docking/applets/webapp/browser.py:525
 #, python-brace-format
 msgid "Allow {service} to use your {device}?"
 msgstr ""
 
-#: docking/applets/webapp.py:529
+#: docking/applets/webapp/browser.py:529
 msgid "Deny"
 msgstr ""
 
-#: docking/applets/webapp.py:530
+#: docking/applets/webapp/browser.py:530
 msgid "Allow"
 msgstr ""
 
-#: docking/applets/webapp.py:605
+#: docking/applets/webapp/browser.py:605
 #, python-brace-format
 msgid "{service} requires WebKitGTK"
 msgstr ""
 
-#: docking/applets/webapp.py:609
+#: docking/applets/webapp/browser.py:609
 msgid ""
 "Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
 msgstr ""
 
-#: docking/applets/webapp.py:651
+#: docking/applets/webapp/browser.py:651
 msgid "unknown browser error"
-msgstr ""
-
-#: docking/applets/webapp_applet.py:94
-msgid "Reload"
-msgstr ""
-
-#: docking/applets/webapp_applet.py:190
-msgid "Unknown WebKit error"
 msgstr ""
 
 #: docking/applets/whatsapp/applet.py:21

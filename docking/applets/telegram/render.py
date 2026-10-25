@@ -10,7 +10,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.draw import rounded_rect
-from docking.applets.webapp_state import BrowserPhase
+from docking.applets.webapp.state import BrowserPhase
 from docking.ui.overlays import draw_warning_badge
 
 
