@@ -28,7 +28,7 @@ jobs:
       matrix:
         compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","phoc","phosh","weston","cage","gnome"]' || '["sway","cinnamon","niri","cosmic","kwin","wayfire","phoc","phosh","weston","gnome"]') }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install comparison dependencies
         run: |
           sudo apt-get update
@@ -39,7 +39,7 @@ jobs:
           .venv/bin/python -m pip install -e '.[dev]'
       - uses: docker/setup-buildx-action@v3
       - name: Build pinned-base compositor image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: tools/visual_compositor
           file: tools/visual_compositor/${{ contains(fromJSON('["niri","cosmic","wayfire"]'), matrix.compositor) && 'Dockerfile.arch' || 'Dockerfile' }}
@@ -111,7 +111,7 @@ jobs:
           fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compositor-${{ matrix.compositor }}
           path: tools/visual_compositor/evidence/

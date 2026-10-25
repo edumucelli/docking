@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Docking - Linux Dock with Applets, X11 &amp; Wayland Support</title>
-  <meta name="description" content="Docking is an open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <title>Docking - Dock for Linux, FreeBSD &amp; OpenBSD</title>
+  <meta name="description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
   <link rel="canonical" href="https://docking.cc/">
-  <meta property="og:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
-  <meta property="og:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta property="og:title" content="Docking - Dock for Linux, FreeBSD &amp; OpenBSD">
+  <meta property="og:description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://docking.cc/">
   <meta property="og:site_name" content="Docking">
@@ -16,23 +16,22 @@
   <meta property="og:image" content="https://docking.cc/social-preview.png">
   <meta property="og:image:width" content="1731">
   <meta property="og:image:height" content="909">
-  <meta property="og:image:alt" content="Docking Linux dock preview with applets">
+  <meta property="og:image:alt" content="Docking desktop dock preview with applets">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Docking - Linux Dock with Applets, X11 &amp; Wayland Support">
-  <meta name="twitter:description" content="Open source Linux dock with X11 and Wayland support, 64 built-in applets, themes, multi-monitor behavior, folder stacks, and desktop integration.">
+  <meta name="twitter:title" content="Docking - Dock for Linux, FreeBSD &amp; OpenBSD">
+  <meta name="twitter:description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
   <meta name="twitter:image" content="https://docking.cc/social-preview.png">
-  <meta name="twitter:image:alt" content="Docking Linux dock preview with applets">
+  <meta name="twitter:image:alt" content="Docking desktop dock preview with applets">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Docking",
-    "description": "Open source Linux dock with X11 and Wayland support, 64 built-in applets, customizable themes, multi-monitor behavior, folder stacks, and desktop integration.",
+    "description": "Open source dock for Linux, FreeBSD, and OpenBSD, with built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.",
     "applicationCategory": "DesktopEnhancement",
-    "operatingSystem": "Linux",
+    "operatingSystem": ["Linux", "FreeBSD", "OpenBSD"],
     "url": "https://docking.cc/",
     "downloadUrl": "https://github.com/edumucelli/docking/releases",
-    "softwareVersion": "2.19.0",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
     "programmingLanguage": "Python",
     "image": "https://docking.cc/social-preview.png",
@@ -59,10 +58,10 @@
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "What Linux desktop environments does Docking support?",
+        "name": "What operating systems and desktops does Docking support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking supports X11 and Wayland through backend-specific integrations: full X11 support, GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, COSMIC through native Wayland protocols, wlroots-style compositors via layer-shell and advertised protocols, and reduced mode when compositor integration is unavailable."
+          "text": "Docking supports Linux with X11 or Wayland, and FreeBSD and OpenBSD with X11. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable."
         }
       },
       {
@@ -78,7 +77,15 @@
         "name": "Does Docking support Wayland?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell/protocol paths, or reduced mode when needed."
+          "text": "Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD and OpenBSD support uses X11."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Are all applets available on BSD?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack."
         }
       },
       {
@@ -288,7 +295,7 @@
           <div class="reveal flex flex-col items-center">
             <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking</h1>
             <p class="mt-5 max-w-2xl text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A dock that adapts to your workflow.</p>
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Fast, customizable, and extensible dock application -- fully written in Python, with built-in applets and full Linux desktop integration.</p>
+            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">A fast, customizable dock for Linux, FreeBSD, and OpenBSD, written in Python with built-in applets. Supports X11 on all three systems and Wayland on Linux.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
               <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">View on GitHub</a>
@@ -323,7 +330,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">Built-in Applets</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
@@ -331,7 +338,7 @@
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
               <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">64 Applets</span>
+              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">Built-in Applets</span>
             </div>
           </div>
         </div>
@@ -339,7 +346,7 @@
 
       <section id="features" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal max-w-3xl">
-          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Features: built to feel native in real Linux workflows</h2>
+          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Features: built for your desktop workflow</h2>
           <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-300">Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.</p>
         </div>
 
@@ -351,7 +358,7 @@
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets (64)</h3>
+            <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
@@ -367,7 +374,7 @@
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Cross desktop compatibility</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Built for Linux setups that span more than one desktop environment and more than one way of working.</p>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Built for Linux and BSD setups that span more than one desktop environment and more than one way of working.</p>
           </article>
           <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
@@ -380,10 +387,10 @@
       <section id="compatibility" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: one dock across Linux desktops</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: Linux and BSD desktops</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
           </div>
-          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">X11, GNOME, KDE Plasma, COSMIC, Niri, Wayfire, Treeland, and protocol-capable Wayland</div>
+          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Linux X11 and Wayland · FreeBSD and OpenBSD X11</div>
         </div>
 
         <div class="mt-10 overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-ember/8 shadow-soft backdrop-blur-2xl">
@@ -398,12 +405,36 @@
               <div>
                 <div class="flex items-center gap-3">
                   <span class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100">Full</span>
-                  <h3 class="text-lg font-semibold text-white">X11 desktops</h3>
+                  <h3 class="text-lg font-semibold text-white">Linux X11 desktops</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">MATE, Xfce, Cinnamon, KDE, GNOME Flashback</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Native X11 backend</div>
               <p class="text-sm leading-7 text-slate-300">Running indicators, window actions, previews, workspace behavior, dodge/auto-hide, and desktop integration.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="freebsd-x11" data-status="x11">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100">X11</span>
+                  <h3 class="text-lg font-semibold text-white">FreeBSD</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Xfce reference desktop</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">X11 backend</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking and actions, workspace behavior, auto-hide, and system applets. Includes Classic Bluetooth and camera controls.</p>
+            </article>
+
+            <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="openbsd-x11" data-status="x11">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100">X11</span>
+                  <h3 class="text-lg font-semibold text-white">OpenBSD</h3>
+                </div>
+                <p class="mt-2 text-sm text-slate-400">Xfce reference desktop</p>
+              </div>
+              <div class="text-sm font-medium text-slate-200">X11 backend</div>
+              <p class="text-sm leading-7 text-slate-300">Dock placement, window tracking and actions, workspace behavior, auto-hide, and system applets, including camera controls. Bluetooth is unavailable on OpenBSD.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gnome-wayland" data-status="full">
@@ -532,11 +563,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">64 built-in applets: searchable tools for the dock</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Built-in applets: searchable tools for the dock</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">64</span> built-in applets plus folder stacks and a separator item</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">Dozens of</span> built-in applets plus folder stacks and a separator item</div>
           </div>
         </div>
 
@@ -546,7 +577,7 @@
               <span class="sr-only">Search applets</span>
               <input id="applet-search" type="search" placeholder="Search applets, categories, or features" class="w-full rounded-[1.1rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-skyline/50 focus:bg-white/[0.11]">
             </label>
-            <p id="applet-result-count" class="text-sm text-slate-300">Showing 64 applets</p>
+            <p id="applet-result-count" class="text-sm text-slate-300">Browse the applet catalog</p>
           </div>
           <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"></div>
         </div>
@@ -555,7 +586,7 @@
         <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
         <noscript>
           <div class="mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">
-            <p>Enable JavaScript to search and filter the applet catalog. The release includes 64 built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
+            <p>Enable JavaScript to search and filter the applet catalog. The release includes built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
             <ul class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <li><strong>AI Usage:</strong> Track sessions, token usage, and estimated spend.</li>
               <li><strong>Alarm:</strong> Local-time alarms with repeats and snooze controls.</li>
@@ -610,6 +641,7 @@
               <li><strong>Sunrise:</strong> Sunrise, sunset, twilight, and solar dial.</li>
               <li><strong>System Monitor:</strong> Live CPU, memory, and activity.</li>
               <li><strong>System Tray:</strong> Legacy tray area for status icons.</li>
+              <li><strong>Telegram:</strong> Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications.</li>
               <li><strong>Thermals:</strong> Sensor temperatures and fan context.</li>
               <li><strong>Today in History:</strong> Notable events with offline fallback.</li>
               <li><strong>Trash:</strong> Trash state, open, empty, and drop-to-trash access.</li>
@@ -631,12 +663,13 @@
         <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/8 p-8 shadow-glow backdrop-blur-2xl lg:p-10">
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
-              <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking on any Linux distribution</h2>
-              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Choose your distribution's package manager below, or download a release package for your Linux setup.</p>
+              <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking on Linux or BSD</h2>
+              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Choose a Linux package below, or follow the FreeBSD and OpenBSD installation guides.</p>
             </div>
 
             <div>
-              <div class="mb-4 mx-auto flex w-fit rounded-full border border-white/12 bg-white/8 p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle>
+              <p class="mb-3 text-center text-sm font-semibold text-slate-200">Linux packages</p>
+              <div class="mb-4 mx-auto flex w-fit rounded-full border border-white/12 bg-white/8 p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
                 <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
                 <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
               </div>
@@ -773,6 +806,28 @@ fi
             <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo dnf upgrade</code> or <code class="text-slate-100">sudo zypper update</code>. Existing .rpm installations can upgrade directly through the repository.</p>
             <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
           </details>
+          <details id="bsd-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+              <span>FreeBSD &amp; OpenBSD: native packages</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </summary>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.</p>
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+              <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
+                <h3 class="text-lg font-semibold text-white">FreeBSD 15.1</h3>
+                <p class="mt-2 text-sm text-slate-300">amd64 · .pkg</p>
+                <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="FreeBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                <a hidden data-bsd-asset="docking-latest-freebsd-15.1-amd64.pkg" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download FreeBSD package</a>
+              </article>
+              <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
+                <h3 class="text-lg font-semibold text-white">OpenBSD 7.9</h3>
+                <p class="mt-2 text-sm text-slate-300">amd64 · .tgz</p>
+                <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="OpenBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                <a hidden data-bsd-asset="docking-latest-openbsd-7.9-amd64.tgz" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download OpenBSD package</a>
+              </article>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Follow the guide to install dependencies, verify the package checksum, and install or update with <code>pkg</code> or <code>pkg_add</code>. See <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a> for current package availability.</p>
+          </details>
         </div>
       </section>
 
@@ -781,6 +836,7 @@ fi
           <div class="reveal">
             <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source: clone it, hack on it, extend it</h2>
             <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
+            <p class="mt-4 max-w-xl text-sm leading-7 text-slate-300">For BSD, install the native dependencies from the <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">BSD installation guide</a> before setting up the Python environment.</p>
           </div>
 
           <div class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/8 p-4 shadow-soft backdrop-blur-2xl">
@@ -820,8 +876,8 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Frequently asked questions</h2>
           <div class="mt-10 space-y-6">
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
-              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What Linux desktop environments does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports X11 and Wayland through backend-specific integrations: full X11 support, GNOME / Mutter via the companion Shell bridge, KDE Plasma 6 through the native KWin backend, COSMIC through native Wayland protocols, wlroots-style compositors via layer-shell and advertised protocols, and reduced mode when compositor integration is unavailable.</p>
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What operating systems and desktops does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports Linux with X11 or Wayland, and FreeBSD and OpenBSD with X11. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -829,7 +885,11 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking supports X11 and Wayland. Native Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell/protocol paths, or reduced mode when needed.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD and OpenBSD support uses X11.</p>
+            </details>
+            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-ember/4 p-5 backdrop-blur-xl">
+              <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Are all applets available on BSD?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack.</p>
             </details>
             <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
@@ -845,7 +905,7 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
           <div class="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-2xl">
               <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Start using Docking today</h2>
-              <p class="mt-4 text-lg leading-8 text-slate-300">Install a build, star the project, and shape a Linux dock that fits the way you actually work.</p>
+              <p class="mt-4 text-lg leading-8 text-slate-300">Install a build, star the project, and shape a dock that fits the way you actually work.</p>
             </div>
 
             <div class="flex flex-col gap-4 sm:flex-row">
@@ -860,7 +920,7 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
 
     <footer class="border-t border-white/10">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-300 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div>Docking is an open source dock for Linux with X11 and Wayland backends, written in Python with GTK and Cairo.</div>
+        <div>Docking is an open source dock for Linux, FreeBSD, and OpenBSD, written in Python with GTK and Cairo. Supports X11 on all three systems and Wayland on Linux.</div>
         <div class="flex items-center gap-6">
           <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">GitHub</a>
           <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">Releases</a>
@@ -936,6 +996,7 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
       { id: "sunrise", name: "Sunrise", category: "Information and Environment", summary: "Sunrise, sunset, twilight phases, and a solar dial for selected cities." },
       { id: "systemmonitor", name: "System Monitor", category: "System & Power", summary: "Live CPU, memory, and system activity in one widget." },
       { id: "systemtray", name: "System Tray", category: "System & Power", summary: "Legacy X11 tray area for status icons, with takeover and release controls." },
+      { id: "telegram", name: "Telegram", category: "Launcher & Navigation", summary: "Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications." },
       { id: "thermals", name: "Thermals", category: "System & Power", summary: "Hottest sensor temperature, fan RPM tooltip, and Celsius/Fahrenheit toggle." },
       { id: "todayinhistory", name: "Today in History", category: "Information and Environment", summary: "One notable event at a time with online refresh and offline fallback data." },
       { id: "trash", name: "Trash", category: "System & Power", summary: "Trash state and cleanup access without opening a file manager." },
@@ -1161,6 +1222,36 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
       });
 
       setArch("x64");
+    })();
+
+    (function () {
+      const section = document.getElementById("bsd-install");
+      let requested = false;
+
+      section.addEventListener("toggle", async () => {
+        if (!section.open || requested) return;
+        requested = true;
+        try {
+          const response = await fetch("https://api.github.com/repos/edumucelli/docking/releases/latest");
+          if (!response.ok) return;
+          const release = await response.json();
+          if (!Array.isArray(release.assets) || typeof release.tag_name !== "string") return;
+          const assets = new Set(release.assets.filter((asset) => asset.state === "uploaded").map((asset) => asset.name));
+          if (!assets.has("SHA256SUMS-bsd")) return;
+          section.querySelectorAll("[data-bsd-asset]").forEach((link) => {
+            const filename = link.dataset.bsdAsset;
+            if (!assets.has(filename) || !assets.has(`${filename}.json`)) return;
+            link.href = `https://github.com/edumucelli/docking/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(filename)}`;
+            link.hidden = false;
+            link.classList.add("inline-flex");
+          });
+        } catch {
+          // The installation guide and release listing also work without the API.
+        } finally {
+          requested = [...section.querySelectorAll("[data-bsd-asset]")]
+            .every((link) => !link.hidden);
+        }
+      });
     })();
 
   </script>
