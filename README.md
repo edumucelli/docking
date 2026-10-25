@@ -38,6 +38,9 @@ Release packages include or depend on the required runtime libraries. See the
 [installation guide](docs/INSTALLATION.md) for source dependencies and the
 [Wayland guide](docs/WAYLAND_SUPPORT.md) for compositor requirements and feature coverage.
 
+An [experimental Windows 11 source port](docs/WINDOWS.md) runs the basic dock.
+Native desktop integration and feature parity are in progress.
+
 ## Installation
 
 Choose the instructions for your system:

@@ -8,6 +8,23 @@ from docking.platform.backends import selection
 from tests.platform.application_fakes import identity_services
 
 
+def test_windows_selection_precedes_unix_display_probes(monkeypatch):
+    from docking.platform.backends.base import DisplayServer
+
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "is_windows", lambda: True)
+
+    def unexpected_x11_probe():
+        raise AssertionError("Windows selection must not probe an X11 display")
+
+    monkeypatch.setattr(selection, "is_x11_backend", unexpected_x11_probe)
+    backend = selection.create_session_backend(
+        config=MagicMock(), model=MagicMock(), **identity_services()
+    )
+    assert backend.display_server is DisplayServer.WINDOWS
+    assert backend.name == "windows"
+
+
 def test_create_session_backend_selects_x11_backend(monkeypatch):
     monkeypatch.delenv("DOCKING_BACKEND", raising=False)
     monkeypatch.setattr(selection, "is_x11_backend", lambda: True)

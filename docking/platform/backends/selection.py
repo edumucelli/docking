@@ -30,6 +30,7 @@ from docking.platform.environment import (
     is_gamescope_session,
     is_kde_session,
     is_wayland_session,
+    is_windows,
     is_x11_backend,
 )
 
@@ -71,6 +72,10 @@ def create_session_backend(
     requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
     if requested == "reduced":
         return _create_reduced_backend(reason="requested by DOCKING_BACKEND=reduced")
+    if is_windows() and requested in {"", "windows", "win32"}:
+        from docking.platform.backends.windows.session import WindowsSessionBackend
+
+        return WindowsSessionBackend()
     if requested == "x11":
         return _create_x11_backend(
             config=config,

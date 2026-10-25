@@ -16,7 +16,7 @@ from gi.repository import GLib
 
 from docking.log import get_logger, with_context
 from docking.platform import commands
-from docking.platform.environment import flatpak, is_flatpak
+from docking.platform.environment import flatpak, is_flatpak, is_windows
 
 from . import entries as desktop_entries
 from .identity import LaunchProvenanceStore
@@ -62,6 +62,17 @@ class ApplicationLauncher:
         application = self._registry.get(desktop_id)
         if application is None:
             return False
+        if is_windows():
+            handle = self._registry._gio_handle_for(desktop_id)
+            if handle is None:
+                return False
+            try:
+                return bool(handle.launch([], None))
+            except GLib.Error as exc:
+                log.bind(desktop_id=desktop_id, action="launch").warning(
+                    "Failed to launch Windows application: %s", exc
+                )
+                return False
         return self._launch_exec_line(
             application=application,
             exec_line=application.exec_line,

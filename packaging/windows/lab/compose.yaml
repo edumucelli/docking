@@ -1,0 +1,33 @@
+services:
+  windows:
+    image: dockurr/windows@sha256:16fd7c39a3e48bb946d29c59dc6015942e5b900a1fa5d7e5552053bfc48ee2ea
+    container_name: docking-windows-lab
+    environment:
+      VERSION: "11"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "64G"
+      DISK_FMT: qcow2
+      ALLOCATE: "N"
+      WIDTH: "1280"
+      HEIGHT: "800"
+      USERNAME: DockingLab
+      PASSWORD: ${DOCKING_WINDOWS_PASSWORD:?Set a lab password}
+      AUTOLOGIN: "Y"
+      BALLOONING: "Y"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 127.0.0.1:18006:8006
+      - 127.0.0.1:15900:5900
+      - 127.0.0.1:13389:3389
+    volumes:
+      - ${DOCKING_WINDOWS_STORAGE:?Set a persistent storage directory}:/storage
+      - ${DOCKING_WINDOWS_SHARE:?Set a shared artifacts directory}:/shared
+      - ${DOCKING_WINDOWS_SOURCE:?Set the Windows worktree path}:/shared/repo:ro
+      - ${DOCKING_WINDOWS_ISO:?Set the official Windows 11 x64 ISO path}:/custom.iso:ro
+      - .:/oem:ro
+    stop_grace_period: 2m

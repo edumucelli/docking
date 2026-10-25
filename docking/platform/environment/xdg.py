@@ -16,27 +16,52 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+
+def _windows_folder(variable: str, fallback: str) -> Path:
+    return Path(os.environ.get(variable) or Path.home() / "AppData" / fallback)
 
 
 def xdg_config_home() -> Path:
     """Return XDG_CONFIG_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    default = (
+        _windows_folder("APPDATA", "Roaming")
+        if sys.platform == "win32"
+        else Path.home() / ".config"
+    )
+    return Path(os.environ.get("XDG_CONFIG_HOME") or default)
 
 
 def xdg_cache_home() -> Path:
     """Return XDG_CACHE_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    default = (
+        _windows_folder("LOCALAPPDATA", "Local")
+        if sys.platform == "win32"
+        else Path.home() / ".cache"
+    )
+    return Path(os.environ.get("XDG_CACHE_HOME") or default)
 
 
 def xdg_data_home() -> Path:
     """Return XDG_DATA_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    default = (
+        _windows_folder("APPDATA", "Roaming") / "Data"
+        if sys.platform == "win32"
+        else Path.home() / ".local" / "share"
+    )
+    return Path(os.environ.get("XDG_DATA_HOME") or default)
 
 
 def xdg_state_home() -> Path:
     """Return XDG_STATE_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+    default = (
+        _windows_folder("LOCALAPPDATA", "Local") / "State"
+        if sys.platform == "win32"
+        else Path.home() / ".local" / "state"
+    )
+    return Path(os.environ.get("XDG_STATE_HOME") or default)
 
 
 def docking_config_dir() -> Path:

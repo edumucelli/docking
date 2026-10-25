@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -1124,6 +1125,30 @@ class TestConfigSave:
         config.save(path)
 
         assert len(fsynced) >= 2
+
+    def test_save_and_backup_with_windows_directory_restrictions(
+        self, monkeypatch, tmp_path
+    ):
+        native_os = config_mod.os
+
+        def windows_open(path, flags, *args, **kwargs):
+            if Path(path).is_dir():
+                raise PermissionError("Windows CRT cannot open a directory")
+            return native_os.open(path, flags, *args, **kwargs)
+
+        monkeypatch.setattr(
+            config_mod,
+            "os",
+            SimpleNamespace(**{**vars(native_os), "name": "nt", "open": windows_open}),
+        )
+        path = tmp_path / "dock.json"
+        config = Config(icon_size=48)
+        config.save(path)
+        config.icon_size = 64
+        config.save(path)
+
+        assert Config.load(path).icon_size == 64
+        assert Config.load(path.with_suffix(".json.bak")).icon_size == 48
 
 
 class TestNormalizeHideMode:

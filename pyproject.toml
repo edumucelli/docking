@@ -9,8 +9,11 @@ description = "A lightweight, feature-rich dock for Linux and BSD written in Pyt
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 dependencies = [
-    "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD'",
-    "openmeteo-requests>=1.2",
+    "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD' or platform_system == 'Windows'",
+    "openmeteo-requests>=1.2; platform_system != 'Windows'",
+    # The requests-based client avoids an unsupported qh3 build in MSYS2 Python.
+    "openmeteo-requests>=1.2,<1.5; platform_system == 'Windows'",
+    "numpy>=1.20; platform_system == 'Windows'",
     "requests-cache>=1.0",
     "retry-requests>=2.0",
 ]

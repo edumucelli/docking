@@ -16,6 +16,7 @@ gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger, with_context
+from docking.platform.environment import is_windows
 
 from . import discovery
 from . import entries as desktop_entries
@@ -93,17 +94,23 @@ class ApplicationRegistry:
         desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
         steam_source: Callable[[], SteamDiscoveryResult] | None = None,
     ) -> None:
+        default_source = (
+            Gio.AppInfo.get_all if is_windows() else discovery.default_gio_applications
+        )
         self._application_source = (
-            discovery.default_gio_applications
-            if application_source is None
-            else application_source
+            default_source if application_source is None else application_source
         )
         self._steam_source = steam_source
         self._desktop_directories_source = (
             desktop_directories_source or desktop_entries.desktop_dirs
         )
-        self._desktop_app_info_for_id = Gio.DesktopAppInfo.new
-        self._desktop_app_info_from_filename = Gio.DesktopAppInfo.new_from_filename
+        desktop_app_info = getattr(Gio, "DesktopAppInfo", None)
+        self._desktop_app_info_for_id = getattr(
+            desktop_app_info, "new", lambda _id: None
+        )
+        self._desktop_app_info_from_filename = getattr(
+            desktop_app_info, "new_from_filename", lambda _path: None
+        )
         self._app_monitor_factory = Gio.AppInfoMonitor.get
         self._directory_monitor_factory = _monitor_directory
         self._schedule_timeout = GLib.timeout_add
@@ -408,13 +415,18 @@ class ApplicationRegistry:
         return self._content_gio_handles.get(listing_key)
 
     def _discover(self, *, handle_epoch: int) -> _RegistryState:
-        result = discovery.discover(
-            application_source=self._application_source,
-            desktop_directories_source=self._desktop_directories_source,
-            desktop_app_info_for_id=self._desktop_app_info_for_id,
-            desktop_app_info_from_filename=self._desktop_app_info_from_filename,
-            handle_epoch=handle_epoch,
-        )
+        if is_windows():
+            from .windows import discover_windows_applications
+
+            result = discover_windows_applications(self._application_source())
+        else:
+            result = discovery.discover(
+                application_source=self._application_source,
+                desktop_directories_source=self._desktop_directories_source,
+                desktop_app_info_for_id=self._desktop_app_info_for_id,
+                desktop_app_info_from_filename=self._desktop_app_info_from_filename,
+                handle_epoch=handle_epoch,
+            )
         try:
             steam = (
                 self._steam_source()

@@ -66,8 +66,10 @@ prepare_gamescope_wayland_environment()
 
 # Print Python traceback on SIGSEGV/SIGABRT/SIGFPE to stderr.
 # Also dumps on SIGUSR1 for on-demand debugging (kill -USR1 <pid>).
-faulthandler.enable()
-faulthandler.register(signal.SIGUSR1)
+if sys.stderr is not None:
+    faulthandler.enable()
+if sys.platform != "win32":
+    faulthandler.register(signal.SIGUSR1)
 
 # Add vendor directory for bundled pip dependencies (.deb installs them
 # to /usr/lib/docking/vendor to avoid conflicts with system packages).
@@ -260,8 +262,12 @@ def main() -> None:
         model.set_applet_services(applet_services)
 
         # Graceful shutdown on SIGINT/SIGTERM
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
+        if sys.platform == "win32":
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                signal.signal(signum, lambda _signum, _frame: GLib.idle_add(_quit))
+        else:
+            GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, _quit)
+            GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, _quit)
 
         registry.start()
         status_service.start()
