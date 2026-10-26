@@ -29,6 +29,7 @@ _Identity = tuple[WindowId, int, str | None, WindowsWindowTarget]
 _REFRESH_SECONDS = 0.25
 _STREAM_IDLE_SECONDS = 1.5
 _CACHE_BYTES = 32 * 1024 * 1024
+_MAX_PREVIEW_SIZE = 2048
 
 
 class WindowsPreviewSource(Protocol):
@@ -65,8 +66,14 @@ class _Cached:
     captured_at: float
 
 
-def _image(pixels: CapturePixels, width: int, height: int) -> PreviewImage:
-    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+@dataclass(frozen=True)
+class _Frame:
+    pixbuf: GdkPixbuf.Pixbuf
+    captured_at: float
+
+
+def _pixbuf(pixels: CapturePixels) -> GdkPixbuf.Pixbuf:
+    return GdkPixbuf.Pixbuf.new_from_bytes(
         GLib.Bytes.new(pixels.pixels),
         GdkPixbuf.Colorspace.RGB,
         True,
@@ -75,14 +82,19 @@ def _image(pixels: CapturePixels, width: int, height: int) -> PreviewImage:
         pixels.height,
         pixels.width * 4,
     )
-    ratio = min(width / pixels.width, height / pixels.height, 1.0)
+
+
+def _scaled(
+    pixbuf: GdkPixbuf.Pixbuf, width: int, height: int
+) -> GdkPixbuf.Pixbuf | None:
+    ratio = min(width / pixbuf.get_width(), height / pixbuf.get_height(), 1.0)
     if ratio < 1.0:
-        pixbuf = pixbuf.scale_simple(
-            max(1, round(pixels.width * ratio)),
-            max(1, round(pixels.height * ratio)),
+        return pixbuf.scale_simple(
+            max(1, round(pixbuf.get_width() * ratio)),
+            max(1, round(pixbuf.get_height() * ratio)),
             GdkPixbuf.InterpType.BILINEAR,
         )
-    return PreviewImage(pixbuf, pixbuf.get_width(), pixbuf.get_height())
+    return pixbuf
 
 
 class WindowsPreviewService(PreviewService):
@@ -97,7 +109,8 @@ class WindowsPreviewService(PreviewService):
         self._windows = windows
         self._availability_changed = availability_changed
         self._cache: OrderedDict[_Key, _Cached] = OrderedDict()
-        self._pending: set[_Key] = set()
+        self._frames: OrderedDict[_Identity, _Frame] = OrderedDict()
+        self._pending: set[_Identity] = set()
         self._retry_after: dict[_Identity, float] = {}
         self._queue: Queue[_Key] = Queue(maxsize=32)
         self._closed = Event()
@@ -122,6 +135,7 @@ class WindowsPreviewService(PreviewService):
                 GLib.source_remove(source)
             self._sources.clear()
             self._cache.clear()
+            self._frames.clear()
             self._pending.clear()
             self._retry_after.clear()
         self._availability_changed(False)
@@ -132,7 +146,7 @@ class WindowsPreviewService(PreviewService):
         self, window_id: WindowId, *, width: int, height: int
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WINDOWS or not (
-            0 < width <= 2048 and 0 < height <= 2048
+            0 < width <= _MAX_PREVIEW_SIZE and 0 < height <= _MAX_PREVIEW_SIZE
         ):
             return None
         row = next(
@@ -161,21 +175,29 @@ class WindowsPreviewService(PreviewService):
             for old in tuple(self._cache):
                 if old.window_id == window_id and old.identity != key.identity:
                     self._cache.pop(old, None)
+            for old_identity in tuple(self._frames):
+                if old_identity[0] == window_id and old_identity != key.identity:
+                    self._frames.pop(old_identity, None)
+            frame = self._frames.get(key.identity)
             cached = self._cache.get(key)
+            if cached is None and frame is not None:
+                cached = self._fit_frame(key, frame)
             if cached is not None:
-                self._cache.move_to_end(key)
+                self._frames.move_to_end(key.identity)
+                if key in self._cache:
+                    self._cache.move_to_end(key)
             if (
                 (
                     cached is None
                     or time.monotonic() - cached.captured_at >= _REFRESH_SECONDS
                 )
-                and key not in self._pending
+                and key.identity not in self._pending
                 and time.monotonic() >= self._retry_after.get(key.identity, 0)
             ):
                 self.start()
                 try:
                     self._queue.put_nowait(key)
-                    self._pending.add(key)
+                    self._pending.add(key.identity)
                 except Full:
                     pass
             return cached.image if cached is not None else None
@@ -189,6 +211,43 @@ class WindowsPreviewService(PreviewService):
         for key in tuple(self._cache):
             if key.window_id == window_id:
                 self._cache.pop(key, None)
+        for identity in tuple(self._frames):
+            if identity[0] == window_id:
+                self._frames.pop(identity, None)
+
+    def _fit_frame(self, key: _Key, frame: _Frame) -> _Cached | None:
+        pixbuf = _scaled(frame.pixbuf, key.width, key.height)
+        if pixbuf is None:
+            self._trim()
+            return None
+        cached = _Cached(
+            PreviewImage(pixbuf, pixbuf.get_width(), pixbuf.get_height()),
+            frame.captured_at,
+        )
+        self._cache[key] = cached
+        self._cache.move_to_end(key)
+        self._trim()
+        return cached
+
+    def _trim(self) -> None:
+        retained = sum(
+            entry.image.width * entry.image.height * 4 for entry in self._cache.values()
+        ) + sum(
+            frame.pixbuf.get_width() * frame.pixbuf.get_height() * 4
+            for frame in self._frames.values()
+        )
+        # Prefer retaining the source over fitted copies: a static or minimized
+        # window may never supply another frame for a newly requested size.
+        while self._cache and (retained > _CACHE_BYTES or len(self._cache) > 64):
+            _old, entry = self._cache.popitem(last=False)
+            retained -= entry.image.width * entry.image.height * 4
+        while self._frames and (retained > _CACHE_BYTES or len(self._frames) > 64):
+            identity, frame = self._frames.popitem(last=False)
+            retained -= frame.pixbuf.get_width() * frame.pixbuf.get_height() * 4
+            for key in tuple(self._cache):
+                if key.identity == identity:
+                    entry = self._cache.pop(key)
+                    retained -= entry.image.width * entry.image.height * 4
 
     def _post(self, callback, *args) -> None:
         with self._lock:
@@ -207,7 +266,7 @@ class WindowsPreviewService(PreviewService):
             self._sources.add(source)
 
     def _publish(self, key: _Key, pixels: CapturePixels | None) -> None:
-        self._pending.discard(key)
+        self._pending.discard(key.identity)
         row = next(
             (
                 window
@@ -223,24 +282,30 @@ class WindowsPreviewService(PreviewService):
         ):
             return
         if pixels is None:
-            self._retry_after[key.identity] = time.monotonic() + 0.5
-            while len(self._retry_after) > 64:
-                self._retry_after.pop(next(iter(self._retry_after)))
+            self._defer(key.identity)
             return
-        self._cache[key] = _Cached(
-            _image(pixels, key.width, key.height), time.monotonic()
-        )
-        self._cache.move_to_end(key)
-        retained = sum(
-            entry.image.width * entry.image.height * 4 for entry in self._cache.values()
-        )
-        while self._cache and (retained > _CACHE_BYTES or len(self._cache) > 64):
-            _old, entry = self._cache.popitem(last=False)
-            retained -= entry.image.width * entry.image.height * 4
+        pixbuf = _scaled(_pixbuf(pixels), _MAX_PREVIEW_SIZE, _MAX_PREVIEW_SIZE)
+        if pixbuf is None:
+            self._defer(key.identity)
+            return
+        frame = _Frame(pixbuf, time.monotonic())
+        self._frames[key.identity] = frame
+        self._frames.move_to_end(key.identity)
+        for old in tuple(self._cache):
+            if old.identity == key.identity:
+                self._cache.pop(old, None)
+        self._fit_frame(key, frame)
+
+    def _defer(self, identity: _Identity) -> None:
+        self._retry_after[identity] = time.monotonic() + 0.5
+        while len(self._retry_after) > 64:
+            self._retry_after.pop(next(iter(self._retry_after)))
 
     def _mark_unavailable(self) -> None:
         self._unavailable = True
         self._pending.clear()
+        self._cache.clear()
+        self._frames.clear()
         self._availability_changed(False)
 
     def _worker(self) -> None:

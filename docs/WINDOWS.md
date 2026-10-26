@@ -286,13 +286,24 @@ device, capture sessions, GPU textures and mapped readback memory. GTK receives
 copied RGBA pixels through its main loop; hovering never calls another
 application's paint handler or waits for capture on the UI thread.
 
-The service keeps at most four native streams, expires unused streams after
-1.5 seconds, and bounds the image cache to 32 MiB and 64 entries. Window IDs are
+The service keeps at most four native streams and expires unused streams after
+1.5 seconds. Captured sources and fitted thumbnails share a 32 MiB budget, with
+at most 64 sources and 64 fitted images. Sources retain the supported preview
+resolution of at most 2048 pixels per axis; larger thumbnail requests do not
+enlarge an earlier small thumbnail. Different sizes share one pending capture.
+Window IDs are
 paired with process IDs and application IDs so reused handles and late results
 cannot inherit another application's preview. Resizing recreates the frame pool after releasing
 the previous frame, including transitions where content outgrows an old buffer.
 A minimized window retains its last captured image. Menu rows and Search panels
 refresh asynchronously, as the hover popup already does.
+
+A static or minimized window can stop supplying frames. Its retained source
+still serves new thumbnail sizes immediately, with the original capture time.
+New native pixels invalidate every fitted size for that source. Memory eviction
+prefers discarding fitted copies before the retained source; process,
+application-ID and ghost-surface changes discard both. Allocation failures keep
+the previous valid source and remain subject to the same memory budget.
 
 `windows_capture_smoke.py` verifies known colors from an animated native GTK
 window while a magenta window covers it on the desktop. Captures retained all
@@ -320,6 +331,22 @@ Python, with 11 platform-specific cases skipped. All six visibility modes and
 the existing Notepad launch/minimize/restore/Close desktop checks passed again
 with preview capture and the input-alpha rendering enabled. The baseline
 remains a single 1280×800 display at 96 DPI.
+
+`windows_preview_cache_smoke.py` runs the full application with an owned static
+Win32 fixture. After a 320-pixel warm capture, it minimizes the window and waits
+until the real graphics stream returns no more buffered frames. The baseline
+then failed to supply any image at a new size, with seven empty reads. The
+`windows-preview-cache-fixed` run served 190×114, 80×48 and full-resolution
+586×353 images from that retained source, rejected capture after normal window
+close, and restored the work area exactly. The stronger
+`windows-preview-cache-ghost` run also passed the native hang/minimize/thumbnail
+activation/physical move/Close/Wait/recovery sequence. Both recovered hover
+widgets contained actual pixbufs at their requested 200×150 limits; the previous
+Target icon fallback was replaced by its real image. Captures and the desktop
+PNG were inspected. The owned ghost fixture uses Calculator's registered ID to
+exercise common grouping; it is not a Calculator process.
+
+![Recovered native fixture with captured hover thumbnails](../images/windows-preview-cache.png)
 
 Windows draws its capture indicator around actively captured windows. Sessions
 expire when no preview requests them. Indicator-free previews, a first capture
@@ -398,10 +425,9 @@ Win32 contract, shared with Window Killer. Missing exports disable the relevant
 association rather than guessing from window titles or process names. This
 acceptance covers Windows 11 Pro 25H2 build 26200.8037, one 96-DPI display and
 normal GTK scale. Other Windows versions, display/session transitions and
-repeated ghost-recovery races remain acceptance work. A separate preview issue
-was observed: a static source requested at a different thumbnail size can still
-show the icon fallback even when another size has a valid capture; that cache
-behavior remains follow-up work.
+repeated ghost-recovery races remain acceptance work. The separate static-source
+thumbnail-size fallback exposed by this run was fixed and verified in the
+preview-cache acceptance above.
 
 The movement and Wait selection use `windows_vm_pointer.py` on the host. It
 negotiates QEMU's absolute virtual tablet over the loopback VNC endpoint; this
@@ -2209,7 +2235,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
-| Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; ghost/original surface switching, stale-target rejection and recovery captures verified; static sources at different thumbnail sizes can show the fallback; indicator, outlines and broader display/content cases pending |
+| Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; ghost/original surface switching, stale-target rejection and recovery captures verified; static/minimized source reuse across thumbnail sizes and real recovered hover images verified; shared memory budget and source-resolution limits tested; indicator, outlines, first uncached minimized source and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; broader tray providers/hover/WOW64/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |

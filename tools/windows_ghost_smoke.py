@@ -467,6 +467,41 @@ def main():
             preview("recovered-preview")
             record("recovered")
             hover("recovered-desktop")
+
+            def recovered_thumbnails():
+                popup = shared["ui"].window.preview
+                if not popup.get_visible():
+                    return None
+                rendered = []
+                for window in originals:
+                    if window.id not in popup._thumbnail_images:
+                        return None
+                    image, width, height, preview = popup._thumbnail_images[window.id]
+                    if preview is None or image.get_pixbuf() is None:
+                        return None
+                    rendered.append(
+                        (window.id.value, width, height, image.get_pixbuf())
+                    )
+                return rendered
+
+            rendered = native.wait_for(
+                lambda: call(recovered_thumbnails),
+                "Recovered hover kept an icon fallback instead of captured pixels",
+                10,
+            )
+            report["recovered_thumbnails"] = []
+            for value, width, height, pixbuf in rendered:
+                pixbuf.savev(
+                    str(output / f"recovered-hover-{value}.png"), "png", [], []
+                )
+                report["recovered_thumbnails"].append(
+                    {
+                        "id": value,
+                        "request": [width, height],
+                        "actual": [pixbuf.get_width(), pixbuf.get_height()],
+                    }
+                )
+            ImageGrab.grab(all_screens=True).save(output / "recovered-desktop.png")
             for window in originals:
                 assert (
                     call(lambda value=window.id: windows.close(value))
