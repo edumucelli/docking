@@ -82,6 +82,10 @@ available when no mixer tool is installed. CLI parsing belongs to the ALSA or
 PulseAudio implementation; native Core Audio and the Windows Settings action
 belong to `volume/windows.py`.
 
+Desk Presence uses the common `IdleService` supplied by the session backend.
+X11 and Windows own their respective input-time queries; the applet only reads
+idle seconds and updates its shared presence state.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.
@@ -1762,6 +1766,45 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 Exporting native application shortcuts to Explorer and cross-monitor gestures
 remain follow-up work.
 
+## Native session idle time
+
+`WindowsIdleService` reads `GetLastInputInfo` and `GetTickCount64` through the
+Windows backend. The native structure uses fixed-width fields on both Python
+architectures. Tick arithmetic handles the 32-bit input timestamp wrapping;
+failed queries and impossible pre-boot durations return an unknown reading.
+Stopping the service rejects further reads and results from an earlier lifetime.
+The implementation installs no input hooks and creates no polling worker.
+
+The API reports input in the calling Windows session. Its timestamp can be
+non-monotonic, including for injected input. A 32-bit timestamp cannot establish
+an uninterrupted idle history longer than its roughly 49.7-day cycle. Remote
+sessions, suspend/resume and an actual long-running desktop remain acceptance
+work; rollover arithmetic has unit coverage.
+
+`windows_idle_smoke.py` runs the complete application with Desk Presence and
+Clock, the supported 30-second threshold and the normal 10-second poll. A
+separate input process establishes activity, then the desktop remains untouched
+until the applet reports away. A separately compiled C# reader checks the native
+idle values. The test verifies both counters, the presence pulse stopping and
+resuming, and reactivation after new input. Native menu navigation selects the
+one-minute threshold and the saved configuration retains it. Normal shutdown
+restores Explorer's work area exactly; stopped and restarted service reads are
+also checked. No X11 transport is imported. The `windows-idle-native-menu-verified`
+run passed every stage and exited with code 0; its active, away and menu PNGs
+were inspected.
+
+![Desk Presence and its idle threshold menu on Windows 11](../images/windows-desk-presence.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_idle_smoke.py' \
+  --output '\\host.lan\Data\lab\idle'
+```
+
+References: [session-specific input time and timestamp caveats](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getlastinputinfo),
+[native uptime](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount64).
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -1821,6 +1864,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Runtime/bootstrap | Windows signals, paths, DLL bootstrap and backend selection | Native source launch and focused Windows tests passed |
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
+| Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |

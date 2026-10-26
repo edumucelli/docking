@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
+    from .idle import WindowsIdleService
+
 
 class WindowsSessionBackend(ReducedSessionBackend):
     """Run the shared GTK dock on Windows with native surface positioning.
@@ -35,6 +37,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         process_identity_service: ProcessIdentityService,
     ) -> None:
         super().__init__()
+        from .idle import WindowsIdleService
         from .previews import WindowsPreviewService
         from .surface import WindowsSurfaceService
         from .visibility import WindowsVisibilityService
@@ -47,6 +50,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
             process_identity_service=process_identity_service,
         )
         surface = WindowsSurfaceService()
+        self._idle = WindowsIdleService()
         self._services = ReducedRuntimeServices(
             windows=windows,
             previews=WindowsPreviewService(
@@ -82,4 +86,17 @@ class WindowsSessionBackend(ReducedSessionBackend):
             supports_overlap_active=True,
             supports_overlap_any=True,
             supports_overlap_maximized=True,
+            supports_idle_time=True,
         )
+
+    @property
+    def idle(self) -> WindowsIdleService:
+        return self._idle
+
+    def start(self) -> None:
+        super().start()
+        self._idle.start()
+
+    def stop(self) -> None:
+        self._idle.stop()
+        super().stop()
