@@ -1,5 +1,5 @@
 # Optional synthetic microphone fixture. Generate its raw input with
-# tools/windows_microphone_fixture.py before adding this overlay to the lab.
+# tools/windows/microphone_fixture.py before adding this overlay to the lab.
 # Remove the overlay and recreate the container after microphone acceptance.
 services:
   windows:

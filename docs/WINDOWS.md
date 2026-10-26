@@ -131,11 +131,11 @@ DOCKING_WINDOWS_PASSWORD=choose-a-local-lab-password
 docker compose --env-file /path/to/lab.env \
   -f packaging/windows/lab/compose.yaml \
   -f packaging/windows/lab/compose.install.yaml up -d
-python tools/windows_lab.py --share /path/to/shared/artifacts configure-share
-python tools/windows_lab.py --share /path/to/shared/artifacts ready
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 5 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts configure-share
+python tools/windows/lab.py --share /path/to/shared/artifacts ready
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 5 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\smoke.py' \
   --output '\\host.lan\Data\lab\smoke'
 ```
 
@@ -205,9 +205,9 @@ Importing a class does not verify its controls or native system backend; the
 catalog acceptance work remains open.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts run \
+python tools/windows/lab.py --share /path/to/shared/artifacts run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_window_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\window_smoke.py' \
   --output '\\host.lan\Data\lab\windows-native'
 ```
 
@@ -267,9 +267,9 @@ Negative-origin and scaled geometry have unit coverage. Actual mixed-DPI and
 multiple-monitor acceptance remains pending.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 600 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 600 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_desktop_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\desktop_smoke.py' \
   --output '\\host.lan\Data\lab\windows-desktop'
 ```
 
@@ -305,13 +305,13 @@ prefers discarding fitted copies before the retained source; process,
 application-ID and ghost-surface changes discard both. Allocation failures keep
 the previous valid source and remain subject to the same memory budget.
 
-`windows_capture_smoke.py` verifies known colors from an animated native GTK
+`tools/windows/capture_smoke.py` verifies known colors from an animated native GTK
 window while a magenta window covers it on the desktop. Captures retained all
 four source colors and an updating frame counter. It also verified resizing
 from 642×392 to 806×473 and rejection of a closed source. The actual desktop,
 captured source and resized image were inspected.
 
-`windows_preview_smoke.py` runs the complete application with Notepad and Search
+`tools/windows/preview_smoke.py` runs the complete application with Notepad and Search
 pinned. Native input verified that a real hover thumbnail replaced the icon
 fallback, kept foreground focus in Notepad, retained the image while minimized,
 and restored and activated Notepad on click. Native hit testing also verifies
@@ -332,7 +332,7 @@ the existing Notepad launch/minimize/restore/Close desktop checks passed again
 with preview capture and the input-alpha rendering enabled. The baseline
 remains a single 1280×800 display at 96 DPI.
 
-`windows_preview_cache_smoke.py` runs the full application with an owned static
+`tools/windows/preview_cache_smoke.py` runs the full application with an owned static
 Win32 fixture. After a 320-pixel warm capture, it minimizes the window and waits
 until the real graphics stream returns no more buffered frames. The baseline
 then failed to supply any image at a new size, with seven empty reads. The
@@ -368,7 +368,7 @@ cache entries and streams include the application ID, and the capture worker
 revalidates it before and after GPU readback. An old frame cannot publish pixels
 after the same HWND and PID have been assigned a different application ID.
 
-`windows_windowidentity_smoke.py` drives the complete dock with native input.
+`tools/windows/windowidentity_smoke.py` drives the complete dock with native input.
 The `windows-windowidentity-native-2` run launched Calculator and Clock from
 their pins, observed two distinct application IDs with the same host PID,
 activated/minimized/restored Calculator independently, captured distinct native
@@ -406,7 +406,7 @@ streams and cached images include the current native HWND/PID as well as the
 logical application identity. The worker validates that association before and
 after readback, and publication rejects results from a retired surface.
 
-`windows_ghost_smoke.py` runs the full dock with an owned two-window Win32
+`tools/windows/ghost_smoke.py` runs the full dock with an owned two-window Win32
 fixture. The fixture explicitly sets Calculator's registered application ID to
 exercise the real common grouping path; it is not a Calculator process. The
 `windows-ghost-native-12` run kept both original running IDs and the pre-minimized
@@ -429,19 +429,19 @@ repeated ghost-recovery races remain acceptance work. The separate static-source
 thumbnail-size fallback exposed by this run was fixed and verified in the
 preview-cache acceptance above.
 
-The movement and Wait selection use `windows_vm_pointer.py` on the host. It
+The movement and Wait selection use `tools/windows/vm_pointer.py` on the host. It
 negotiates QEMU's absolute virtual tablet over the loopback VNC endpoint; this
 provides guest hardware input without changing Windows privileges. Each request
 appears sequentially while the guest tool waits for its completion file:
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_ghost_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\ghost_smoke.py' \
   --output '\\host.lan\Data\lab\ghosts' --physical-input
-python tools/windows_vm_pointer.py \
+python tools/windows/vm_pointer.py \
   --request /path/to/shared/lab/ghosts/pointer-request.json
-python tools/windows_vm_pointer.py \
+python tools/windows/vm_pointer.py \
   --request /path/to/shared/lab/ghosts/close-pointer-request.json
 ```
 
@@ -449,13 +449,13 @@ References: [Windows ghosting behavior](https://learn.microsoft.com/en-us/window
 [QEMU pointer-mode negotiation](https://github.com/qemu/qemu/blob/master/ui/vnc.c).
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 150 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 150 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_capture_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\capture_smoke.py' \
   --output '\\host.lan\Data\lab\capture'
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 240 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_preview_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\preview_smoke.py' \
   --output '\\host.lan\Data\lab\previews'
 ```
 
@@ -485,7 +485,7 @@ Default-handler opening uses the native Windows shell association; the lab's
 Gio URI-launch path opened a blank Notepad instead of the requested document.
 Ordinary Windows documents no longer trigger Unix executable-launcher creation.
 
-`windows_file_smoke.py` creates isolated drive and SMB-share fixtures with
+`tools/windows/file_smoke.py` creates isolated drive and SMB-share fixtures with
 spaces, accents, `#`, `+` and `%` in their filenames. It checks canonical targets,
 Search results and copy actions, real image thumbnails, directory enumeration
 and text previews. Desktop stages open documents through their native default
@@ -497,9 +497,9 @@ assumes the documented baseline, with no other dock, editor or Explorer window
 open.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 240 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_file_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\file_smoke.py' \
   --output '\\host.lan\Data\lab\files'
 ```
 
@@ -552,7 +552,7 @@ The desktop acceptance uses the lab's US keyboard layout; broader keyboard
 layouts, dead keys, remote sessions and Windows-reserved combinations still
 need acceptance.
 
-`windows_shortcut_smoke.py` runs the complete application composition and GTK
+`tools/windows/shortcut_smoke.py` runs the complete application composition and GTK
 main loop with isolated settings. Its driver sends native `SendInput` events
 and independently observes HWNDs and foreground focus. GTK state observations
 and Preferences actions are marshalled to the application's main loop.
@@ -572,9 +572,9 @@ native Windows Python.
 ![Windows shortcut conflict in Preferences](../images/windows-shortcut-conflict.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 240 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_shortcut_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\shortcut_smoke.py' \
   --output '\\host.lan\Data\lab\shortcuts'
 ```
 
@@ -598,7 +598,7 @@ three sources; late notifications cannot touch destroyed widgets. Canonical
 icon file URIs use the existing platform path decoder, including Unicode and
 escaped literal characters. Windows paths do not use Flatpak's host-root map.
 
-`windows_search_icon_smoke.py` runs the full application with isolated settings.
+`tools/windows/search_icon_smoke.py` runs the full application with isolated settings.
 It briefly holds one real shell extraction until Search displays its fallback,
 then releases the extraction and verifies the published native pixels in the
 same row. It checks the unchanged query, selection, row generation and typing
@@ -610,9 +610,9 @@ The focused Search/icon selection passed 87 native Windows tests, with two
 platform-specific cases skipped.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 240 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 240 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_search_icon_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\search_icon_smoke.py' \
   --output '\\host.lan\Data\lab\search-icons'
 ```
 
@@ -635,7 +635,7 @@ match the requested Search window. An unrelated application taking focus,
 hiding/destroying Search, successful activation or a 750 ms expiry cancels the
 request. Foreground changes after success remain under user control.
 
-`windows_focus_smoke.py` runs the complete application and activates Search as
+`tools/windows/focus_smoke.py` runs the complete application and activates Search as
 soon as the native shortcut reports Bound. It records foreground HWNDs, native
 GUI-thread focus, GTK map/focus events and typing. Earlier Start, taskbar and
 desktop runs injected input from Docking's own process and passed, including
@@ -660,9 +660,9 @@ dismissing Start and pressing the shortcut, allowing that transition to be
 investigated separately from normal desktop activation.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_focus_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\focus_smoke.py' \
   --output '\\host.lan\Data\lab\focus-start' --origin start
 ```
 
@@ -687,7 +687,7 @@ Codex receives a native notify argv encoded as valid TOML, including backslashes
 spaces and bracket characters. Registration is idempotent and preserves
 unrelated Claude hooks when replacing old Docking commands.
 
-`windows_aiusage_smoke.py` runs the full application with AI Usage pinned and
+`tools/windows/aiusage_smoke.py` runs the full application with AI Usage pinned and
 isolated provider settings. The applet registers its real Windows commands;
 the generated Claude hook imports a Unicode-path transcript fixture through
 stdin while Docking runs, preserving foreground ownership. Its normal poll
@@ -699,9 +699,9 @@ with one POSIX-only filename case skipped, and 209 tests on Linux. Live provider
 CLI installations and real sessions remain broader integration acceptance.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_aiusage_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\aiusage_smoke.py' \
   --output '\\host.lan\Data\lab\aiusage'
 ```
 
@@ -738,8 +738,8 @@ metadata into its own cache, while keeping app preferences and runtime files
 separate. This verifies playback after setup; it does not measure cold scanning
 as application startup.
 
-`windows_ambient_smoke.py` runs the normal dock and uses native clicks, menu
-navigation and wheel events. `windows_vm_audio.py` records the actual QEMU audio
+`tools/windows/ambient_smoke.py` runs the normal dock and uses native clicks, menu
+navigation and wheel events. `tools/windows/vm_audio.py` records the actual QEMU audio
 relay as 48 kHz stereo PCM and WAV files. The successful run verified all seven
 bundled OGG sounds through `wasapi2sink`, white and pink noise, volume changes,
 muting, and stop. Muted output remained at the 16-bit quantization floor; after
@@ -753,11 +753,11 @@ Use a fresh output directory for each run. Start the guest job, then service its
 audio requests from the host:
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_ambient_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\ambient_smoke.py' \
   --output '\\host.lan\Data\lab\ambient-acceptance'
-python tools/windows_vm_audio.py --share /path/to/shared/artifacts \
+python tools/windows/vm_audio.py --share /path/to/shared/artifacts \
   --name ambient-acceptance --timeout 300
 ```
 
@@ -778,7 +778,7 @@ Each operation resolves the current default endpoint and releases its COM
 interfaces on the calling thread. A missing device leaves polling available
 for recovery instead of permanently disabling the backend.
 
-`windows_volume_smoke.py` runs the complete dock with Ambient as a real audio
+`tools/windows/volume_smoke.py` runs the complete dock with Ambient as a real audio
 source. Native wheel input checks five-point changes and both limits; native
 clicks toggle mute. With Explorer foreground, Windows' own volume and mute
 keys change the endpoint and the applet follows through its ordinary poll.
@@ -798,11 +798,11 @@ changes and cleanup after partial COM acquisition. Physical devices, role
 differences, Bluetooth and RDP routing still need desktop acceptance.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_volume_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\volume_smoke.py' \
   --output '\\host.lan\Data\lab\volume-acceptance'
-python tools/windows_vm_audio.py --share /path/to/shared/artifacts \
+python tools/windows/vm_audio.py --share /path/to/shared/artifacts \
   --name volume-acceptance --timeout 240
 ```
 
@@ -830,7 +830,7 @@ a time-to-full estimate. Power Settings opens `ms-settings:powersleep` through
 the native shell association. Windows does not attempt UPower peripheral
 discovery; native accessory battery discovery remains pending.
 
-`windows_battery_smoke.py` runs the full dock and compares the native readings
+`tools/windows/battery_smoke.py` runs the full dock and compares the native readings
 with Windows Forms' power-status interface and `Win32_Battery` enumeration.
 On the lab VM both report AC power with no system battery, and the applet shows
 the disabled glyph and “No battery” tooltip. Native keyboard input changes
@@ -862,9 +862,9 @@ The native desktop observer now excludes DWM-cloaked retained application
 frames, so a suspended UWP Settings frame is not mistaken for a visible window.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_battery_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\battery_smoke.py' \
   --output '\\host.lan\Data\lab\battery' --exercise-fixtures
 ```
 
@@ -891,7 +891,7 @@ identity resets the shared traffic baseline even when the display name stays
 the same. IPv6 scope identifiers are retained for link-local addresses.
 Automatic selection remains available as the “Auto” menu choice.
 
-`windows_network_smoke.py` runs the complete dock and compares the selected
+`tools/windows/network_smoke.py` runs the complete dock and compares the selected
 adapter's GUID, name, operational status and address with `Get-NetAdapter` and
 `Get-NetIPAddress`. It brackets the native counters with
 `Get-NetAdapterStatistics`, copies an owned 8 MiB payload over the lab SMB share,
@@ -917,9 +917,9 @@ For the desktop tool, prepare `traffic-source.bin` containing 8 MiB of data in a
 fresh output directory writable by the lab guest, then submit:
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_network_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\network_smoke.py' \
   --output '\\host.lan\Data\lab\network'
 ```
 
@@ -1014,7 +1014,7 @@ an external Windows disconnect and the resulting menu state.
 
 ![Windows-owned VPN credential dialog, before credential entry](../images/windows-vpn-dialog.png)
 
-`windows_vpn_smoke.py` requires an owned fixture JSON file containing `address`,
+`tools/windows/vpn_smoke.py` requires an owned fixture JSON file containing `address`,
 `port`, expected HTTP `token`, and the IKEv2 `username`/`password`. A sibling
 `profiles.json` lists the two provisioned user/system VPN profiles by GUID and
 phonebook. The tool checks their ownership markers, uses actual input for menu
@@ -1026,9 +1026,9 @@ acceptance. Other authentication methods, server policies, vendor clients,
 resume, reconnect and multi-user sessions remain broader acceptance work.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_vpn_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\vpn_smoke.py' \
   --fixture '\\host.lan\Data\lab\vpn-endpoint\fixture.json' \
   --output '\\host.lan\Data\lab\vpn-acceptance'
 ```
@@ -1083,7 +1083,7 @@ they are distinct from the inspection/lock runs' normal GTK shutdown checks.
 
 ![Secure Windows lock desktop after clicking the Session applet](../images/windows-session-locked.png)
 
-`tools/windows_session_smoke.py` uses real mouse/keyboard input and independent
+`tools/windows/session_smoke.py` uses real mouse/keyboard input and independent
 WTS state. Its default mode inspects the menu and quits normally. `--action lock`
 waits for an external unlock. `--action logout`, `reboot` or `poweroff` terminates
 the guest session; a host observer must prove the transition and recover the
@@ -1144,15 +1144,15 @@ The optional fixture is separate from the normal lab. Generate its input, then
 recreate only the owned lab with the microphone overlay:
 
 ```sh
-python tools/windows_microphone_fixture.py --share /path/to/shared/artifacts
+python tools/windows/microphone_fixture.py --share /path/to/shared/artifacts
 docker compose --env-file /path/to/lab.env -p lab \
   -f packaging/windows/lab/compose.yaml \
   -f packaging/windows/lab/compose.microphone.yaml up -d --force-recreate --pull never
-python tools/windows_lab.py --share /path/to/shared/artifacts configure-share
+python tools/windows/lab.py --share /path/to/shared/artifacts configure-share
 ```
 
 Record the two newly created capture endpoint IDs and original mute state. Run
-`tools/windows_micshield_smoke.py --output ... --device ID1 --device ID2` in the
+`tools/windows/micshield_smoke.py --output ... --device ID1 --device ID2` in the
 interactive Windows lab. It restores mute state and closes its owned recorders.
 After acceptance, recreate the lab with **only** `compose.yaml`, reconnect its
 share, verify the capture endpoints are gone, and remove the generated
@@ -1283,7 +1283,7 @@ generated frames:
 
 ![Camera policy restored and new capture working](../images/windows-camshield-policy-restored.png)
 
-Run `tools/windows_camshield_smoke.py --output ... --expect-absent` in the
+Run `tools/windows/camshield_smoke.py --output ... --expect-absent` in the
 interactive owned Windows lab after preparing its GStreamer registry. Keep
 the regular dock closed during acceptance and restore its normal configuration
 afterward. The verifier uses an isolated configuration and leaves pin/recent
@@ -1291,16 +1291,16 @@ history intact.
 
 For capture acceptance, use an elevated Windows 11 24H2-or-newer lab without
 existing cameras, MSYS2 UCRT64 GCC (`mingw-w64-ucrt-x86_64-gcc`), Python/GTK and
-Pillow. Run `tools/windows_camera_fixture.py --output C:\DockingLab\camera-test
+Pillow. Run `tools/windows/camera_fixture.py --output C:\DockingLab\camera-test
 --journal PATH\session.json --seconds 300` with a fresh local output directory
-and journal directory. It compiles `windows_camera_source.cpp` with warnings as
+and journal directory. It compiles `tools/windows/camera_source.cpp` with warnings as
 errors and records ownership before registering its unique COM class. The
 camera is current-user/session scoped and generates frames entirely in memory.
 Before declaring readiness, a short native read/stop cycle verifies the frames
 and releases Windows' initial registration activity, establishing an idle
 baseline for the desktop verifier.
 Use the exact symbolic link from the ready journal with
-`tools/windows_camshield_smoke.py --output ... --device SYMBOLIC_LINK`.
+`tools/windows/camshield_smoke.py --output ... --device SYMBOLIC_LINK`.
 Add `--verify-policy` to exercise actual menu Lock/Unlock, denied fresh capture,
 continued existing capture, backend restart/recovery and restored capture. This
 option requires the sole generated camera, a supported edition and an initially
@@ -1308,7 +1308,7 @@ unrestricted policy with no recovery pending. Its finalizer restores the saved
 policy through the same helper even after a test failure. The verifier owns
 and normally stops its capture processes. Write `stop` in
 the fixture journal's directory to remove the camera and its owned COM class.
-After an owner crash, `tools/windows_camera_fixture.py --recover PATH\session.json`
+After an owner crash, `tools/windows/camera_fixture.py --recover PATH\session.json`
 checks process identity, DLL hash and registry ownership before cleanup. Both
 normal removal and recovery after terminating only the owned fixture process
 have passed in the lab. Keep the result journals and screenshots; fixture COM
@@ -1471,10 +1471,10 @@ subsequent lifetimes return to the same warmed value.
 
 ![Real Task Manager notification icon in Docking](../images/windows-tray-task-manager.png)
 
-Run `tools/windows_tray_smoke.py --output PATH --task-manager` in the owned lab
+Run `tools/windows/tray_smoke.py --output PATH --task-manager` in the owned lab
 with the regular dock closed and a prepared GStreamer registry. Task Manager
 must not already be running. The tool uses an isolated dock configuration and
-starts `tools/windows_tray_fixture.py`; each fixture has a bounded lifetime and
+starts `tools/windows/tray_fixture.py`; each fixture has a bounded lifetime and
 deletes its own icons on normal exit. Reports, independent callback journals
 and screenshots remain in the output directory. The regular demo and its
 pin/recent history should be restored afterward.
@@ -1541,9 +1541,9 @@ denied-change, external-change, policy-disabled and removal scenarios are
 ![Injected Bluetooth device fixture with capability-aware controls](../images/windows-bluetooth-fixture.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_bluetooth_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\bluetooth_smoke.py' \
   --output '\\host.lan\Data\lab\bluetooth-acceptance'
 ```
 
@@ -1609,9 +1609,9 @@ External changes are observed through the normal two-second poll.
 ![Native French AZERTY layout viewer](../images/windows-keyboardlayout-viewer.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_keyboardlayout_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\keyboardlayout_smoke.py' \
   --output '\\host.lan\Data\lab\keyboardlayout-acceptance'
 ```
 
@@ -1664,7 +1664,7 @@ panels with coarse brightness steps. Writes read back the actual device value,
 including denied or rounded requests. Requests remain bound to their original
 display, coalesce rapid input, reject stale polls and stop after applet removal.
 
-The independent read-only `tools/windows_brightness_probe.py` finds one QEMU
+The independent read-only `tools/windows/brightness_probe.py` finds one QEMU
 monitor on the baseline VM. DDC capabilities/brightness return not supported
 (Win32 error 50), and `WmiMonitorBrightness` has no supported instances. The live
 dock correctly displays **Brightness: Unavailable**. Physical laptop panels,
@@ -1673,7 +1673,7 @@ hardware acceptance; this VM cannot prove physical brightness changes.
 
 ![Actual unavailable hardware on the Windows VM](../images/windows-brightness-unavailable.png)
 
-`tools/windows_brightness_smoke.py` first verifies that real unavailable state,
+`tools/windows/brightness_smoke.py` first verifies that real unavailable state,
 then injects explicitly labeled DDC and WMI provider fixtures behind the Windows
 backend. Real desktop wheel/click/menu input verifies scrolling, reset, denied
 write readback, five-second external updates, display replacement/removal and
@@ -1686,13 +1686,13 @@ levels and error handling. Read-only provider cycles check handle ownership.
 ![Explicit WMI provider fixture after native wheel input](../images/windows-brightness-panel-fixture.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_brightness_probe.py' \
+  '\\host.lan\Data\repo\tools\windows\brightness_probe.py' \
   --output '\\host.lan\Data\lab\brightness-capabilities.json'
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_brightness_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\brightness_smoke.py' \
   --output '\\host.lan\Data\lab\brightness-acceptance'
 ```
 
@@ -1720,7 +1720,7 @@ releases the lock on the worker, including when acquisition is already in
 flight or its GTK result has not been delivered. Cleanup does not require
 another GTK iteration, and the worker finishes before normal process exit.
 
-`tools/windows_caffeine_smoke.py` runs the complete dock. Actual native icon
+`tools/windows/caffeine_smoke.py` runs the complete dock. Actual native icon
 clicks, menu duration selection/persistence, release, rapid explicit requests
 and active-close cleanup passed at normal and doubled GTK scale. Independent
 `powercfg /requests` observations verified both native request types and their
@@ -1740,9 +1740,9 @@ support, so physical suspend/display behavior, battery/Modern Standby, remote
 sessions and other Windows versions remain acceptance limits.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_caffeine_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\caffeine_smoke.py' \
   --output '\\host.lan\Data\lab\caffeine'
 # Use fresh outputs for --stop-during-acquire or --fail-first-set.
 ```
@@ -1812,9 +1812,9 @@ Physical battery/AC transitions, OEM power management, policy restrictions and
 additional Windows versions remain broader acceptance work.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_powerprofiles_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\powerprofiles_smoke.py' \
   --output '\\host.lan\Data\lab\powerprofiles-acceptance'
 ```
 
@@ -1851,7 +1851,7 @@ network drives are rejected because they have no client-side Recycle Bin.
 Drop URI decoding preserves native drives, UNC authority and literal filename
 characters before the backend chooses whether it can recycle the item.
 
-`windows_trash_smoke.py` runs the complete dock in a lab with an initially empty
+`tools/windows/trash_smoke.py` runs the complete dock in a lab with an initially empty
 bin. It verifies external document recycling, native notifications, Open Trash
 and restoration with the original contents. It drags a Unicode-named folder
 from Explorer onto Trash using real mouse input, verifies the shell's recycled
@@ -1869,9 +1869,9 @@ running applications can reflow the dock. Its PowerShell queries create no
 console windows, and captures wait for native opening animations.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_trash_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\trash_smoke.py' \
   --output '\\host.lan\Data\lab\trash-acceptance'
 ```
 
@@ -1909,9 +1909,9 @@ internal drag now starts with a fresh flag, so a prior drop cannot suppress
 drag-off removal. A regression test reproduces that complete event history.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_trash_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\trash_smoke.py' \
   --output '\\host.lan\Data\lab\ole2-gestures' --exercise-internal
 ```
 
@@ -1930,7 +1930,7 @@ registry and pins the visible application at the insertion position. It does
 not interpret the ID as a path or launch command. Existing desktop-file URI
 transfers on Linux are preserved, and locked rows remain nondraggable.
 
-`windows_applications_smoke.py` runs the complete application with native mouse
+`tools/windows/applications_smoke.py` runs the complete application with native mouse
 and keyboard input. It types Notepad into the Applications filter, drags the
 actual result row onto an exposed part of the dock, and records the OLE2 target
 and exact packaged application ID at the receiver. It checks persisted pinning,
@@ -1950,9 +1950,9 @@ existing Windows menu session, so native close dismisses the owned menu before
 closing the dock. Applet shutdown also pops down its own menu.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_applications_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\applications_smoke.py' \
   --output '\\host.lan\Data\lab\applications'
 ```
 
@@ -1996,7 +1996,7 @@ recovery races still need acceptance.
 
 ![Window Killer capture with owned native controls](../images/windows-window-killer.png)
 
-`windows_windowpicker_smoke.py` runs the complete dock and real input against
+`tools/windows/windowpicker_smoke.py` runs the complete dock and real input against
 separate Win32 fixture processes. It checks repeated Escape and foreground
 restoration, ignored desktop/dock clicks, overlapping windows and native child
 controls, no click-through, running-entry removal, denied termination with a
@@ -2016,9 +2016,9 @@ Both normal and `GDK_SCALE=2` runs passed on the same 96-DPI display; physical
 mixed-DPI displays and secure/remote desktops remain pending.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_windowpicker_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\windowpicker_smoke.py' \
   --output '\\host.lan\Data\lab\window-picker' --calculator
 ```
 
@@ -2058,7 +2058,7 @@ still apply.
 
 ![Native Windows Show Desktop with Docking and a fixed topmost fixture](../images/windows-show-desktop.png)
 
-`windows_desktop_action_smoke.py` runs the complete application with Desktop,
+`tools/windows/desktop_action_smoke.py` runs the complete application with Desktop,
 Clock and System Tray, so shell commands also traverse the native notification
 host. A separate fixture owns normal, fixed, pre-minimized and fixed-topmost
 windows. Actual applet clicks, explicit and rapid requests, external Win+D and
@@ -2082,9 +2082,9 @@ transition and does not blindly dispatch a second toggle. Reliable application
 actions during this startup interval remain a behavior limit.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_desktop_action_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\desktop_action_smoke.py' \
   --output '\\host.lan\Data\lab\desktop-actions' \
   --hide-mode window-dodge --restart-explorer
 ```
@@ -2130,7 +2130,7 @@ Native acceptance currently covers Windows 11 25H2 build 26200.8037. Windows
 11 24H2, other patch levels, Explorer restart during a switch, remote sessions,
 and multiple displays still need desktop acceptance.
 
-`tools/windows_workspace_smoke.py` runs the complete dock with four explicitly
+`tools/windows/workspace_smoke.py` runs the complete dock with four explicitly
 labeled fixture windows on two desktops. The fixtures assign a registered
 application ID to exercise real common matching and grouping; they are not
 Calculator processes. Native applet clicks, wheel and menu selection, external
@@ -2147,9 +2147,9 @@ worker isolation, recovery, cancellation, filtering and deferred actions.
 ![Native Workspaces applet and menu on Windows 11](../images/windows-workspaces.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_workspace_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\workspace_smoke.py' \
   --output '\\host.lan\Data\lab\workspaces'
 ```
 
@@ -2174,7 +2174,7 @@ an active capture before native dock close. Temporary capture HWNDs cannot
 replace the remembered source application during repeated picks. Other apps
 that acquire foreground retain it through the existing ownership checks.
 
-`windows_colorpicker_smoke.py` runs the complete dock beside a separate process
+`tools/windows/colorpicker_smoke.py` runs the complete dock beside a separate process
 painting six known color patches. Independent desktop pixels establish the
 fixture before real input opens the shared overlay and selects each patch.
 Every color, including black and white, must match the tooltip, Windows
@@ -2196,9 +2196,9 @@ overlay and menu PNGs were inspected.
 ![Windows Color Picker with native menu and known desktop colors](../images/windows-colorpicker.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_colorpicker_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\colorpicker_smoke.py' \
   --output '\\host.lan\Data\lab\colorpicker' --shutdown-overlay
 ```
 
@@ -2240,7 +2240,7 @@ replacement of the exact confirmed path. The chooser supplies a `.png` default
 name; the applet does not silently change the chosen overwrite target. No
 screenshot file is created until Save As is accepted.
 
-`tools/windows_screenshot_smoke.py` uses a separate six-color fixture, actual
+`tools/windows/screenshot_smoke.py` uses a separate six-color fixture, actual
 dock clicks and menu input, independent Windows Forms clipboard reads and
 independently decoded PNG pixels. It checks source-resolution window capture,
 exact region bounds across a color boundary, clipboard persistence, Escape
@@ -2280,7 +2280,7 @@ an uninterrupted idle history longer than its roughly 49.7-day cycle. Remote
 sessions, suspend/resume and an actual long-running desktop remain acceptance
 work; rollover arithmetic has unit coverage.
 
-`windows_idle_smoke.py` runs the complete application with Desk Presence and
+`tools/windows/idle_smoke.py` runs the complete application with Desk Presence and
 Clock, the supported 30-second threshold and the normal 10-second poll. A
 separate input process establishes activity, then the desktop remains untouched
 until the applet reports away. A separately compiled C# reader checks the native
@@ -2295,9 +2295,9 @@ were inspected.
 ![Desk Presence and its idle threshold menu on Windows 11](../images/windows-desk-presence.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_idle_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\idle_smoke.py' \
   --output '\\host.lan\Data\lab\idle'
 ```
 
@@ -2312,7 +2312,7 @@ pressed-key bit does not. Zero means a valid off state. Native binding failures
 return the shared unavailable state. The existing one-second applet poll updates
 the icon and tooltip; no keyboard hook or separate polling worker is installed.
 
-`windows_capslock_smoke.py` runs the complete application beside an owned
+`tools/windows/capslock_smoke.py` runs the complete application beside an owned
 Notepad document. A separate process sends native lock-key input while Notepad
 keeps foreground focus. All four Caps Lock/Num Lock combinations must reach the
 background applet through its normal poll and agree with an independent Windows
@@ -2329,9 +2329,9 @@ Physical keyboard LEDs, remote sessions and secure-desktop transitions remain
 acceptance work.
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
   'C:\msys64\ucrt64\bin\python.exe' \
-  '\\host.lan\Data\repo\tools\windows_capslock_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\capslock_smoke.py' \
   --output '\\host.lan\Data\lab\capslock'
 ```
 
@@ -2355,7 +2355,7 @@ The surface removes both native hooks and pending callbacks during shutdown;
 the GDK event dispatcher remains unchanged. Search presentation also cancels
 an existing GTK menu grab before showing its typing surface.
 
-`windows_menu_smoke.py` drives the complete application with native keyboard and
+`tools/windows/menu_smoke.py` drives the complete application with native keyboard and
 mouse input. Run its two shutdown modes in separate fresh jobs. The baseline
 checks navigate three menu levels, return to a parent with Left, dismiss with
 Escape and restore Notepad focus, open Search by its hotkey while a submenu is
@@ -2375,13 +2375,13 @@ PNGs were inspected. The focused menu, runtime and Search selection also passed
 ![Keyboard selection in a nested Windows menu](../images/windows-menu-keyboard.png)
 
 ```sh
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_menu_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\menu_smoke.py' \
   --output '\\host.lan\Data\lab\menus-keyboard' --shutdown keyboard
-python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 180 run \
+python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows_menu_smoke.py' \
+  '\\host.lan\Data\repo\tools\windows\menu_smoke.py' \
   --output '\\host.lan\Data\lab\menus-native-close' --shutdown native
 ```
 

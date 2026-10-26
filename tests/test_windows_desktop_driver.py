@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from tools import windows_desktop_driver as mod
+from tools.windows import desktop_driver as mod
 
 
 def test_drag_emits_one_press_and_release_without_a_trailing_double_click(monkeypatch):
