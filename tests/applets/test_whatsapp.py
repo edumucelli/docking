@@ -11,13 +11,14 @@ from gi.repository import GLib
 
 import docking.applets.whatsapp.applet as whatsapp_applet_mod
 import docking.applets.whatsapp.browser as whatsapp_browser_mod
+from docking.applets.webapp.linux import LinuxWebAppBrowser
 from docking.applets.whatsapp.applet import WhatsAppApplet
 from docking.applets.whatsapp.bridge import (
     BRIDGE_SCRIPT,
     BridgeEvent,
     parse_bridge_message,
 )
-from docking.applets.whatsapp.browser import WhatsAppBrowser
+from docking.applets.whatsapp.browser import PROFILE
 from docking.applets.whatsapp.notifications import DesktopNotifier
 from docking.applets.whatsapp.render import render_icon
 from docking.applets.whatsapp.state import (
@@ -80,7 +81,13 @@ class _FakeBrowser:
         self.visible = True
 
 
-def _browser(**overrides) -> WhatsAppBrowser:
+class _LinuxWhatsAppBrowser(LinuxWebAppBrowser):
+    @staticmethod
+    def _open_external_uri(uri: str) -> None:
+        whatsapp_browser_mod._open_external_uri(uri)
+
+
+def _browser(**overrides) -> LinuxWebAppBrowser:
     callbacks = {
         "on_phase": lambda *_args: None,
         "on_title": lambda _title: None,
@@ -89,7 +96,7 @@ def _browser(**overrides) -> WhatsAppBrowser:
         "on_attention_cleared": lambda: None,
     }
     callbacks.update(overrides)
-    return WhatsAppBrowser(**callbacks)
+    return _LinuxWhatsAppBrowser(profile=PROFILE, **callbacks)
 
 
 @pytest.fixture
@@ -175,7 +182,7 @@ class TestWhatsAppState:
     def test_tooltips_cover_lifecycle_and_unread_state(self):
         assert "click to open" in tooltip_text(WhatsAppState())
         assert "loading" in tooltip_text(WhatsAppState(phase=BrowserPhase.STARTING))
-        assert "not installed" in tooltip_text(
+        assert "unavailable" in tooltip_text(
             WhatsAppState(phase=BrowserPhase.UNAVAILABLE)
         )
         assert "offline" in tooltip_text(

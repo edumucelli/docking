@@ -2262,6 +2262,67 @@ References: [notification listener and access revocation](https://learn.microsof
 [quiet-hours interface definition](https://github.com/bitdisaster/windows-focus-assist/blob/master/lib/quiethours.idl),
 [effective-profile reader](https://github.com/bitdisaster/windows-focus-assist/blob/master/lib/focus-assist.cc).
 
+## Shared WhatsApp and Telegram browser host
+
+Both applets use the same `BrowserBackend` contract and retain their separate
+service profiles. The WebKitGTK implementation lives in
+`docking/applets/webapp/linux.py`; the Windows implementation lives in
+`docking/applets/webapp/windows.py`. The service modules select only their URL,
+session name and public page landmarks. Windows does not import the WebKitGTK
+host or its D-Bus notification adapter.
+
+The native host uses Microsoft Edge WebView2 and the public SDK COM interfaces.
+Install the WebView2 Runtime, then install the pinned x64 loader from the
+repository root with the Windows Python interpreter:
+
+```powershell
+python -m tools.windows.webview2_setup
+```
+
+The installer verifies the official SDK archive checksum and extracts only
+`WebView2Loader.dll` and its license into the per-user runtime directory.
+`--package` accepts an already downloaded SDK archive. The running applets do
+not download dependencies. `DOCKING_WEBVIEW2_LOADER` can select another absolute
+loader path. A missing loader or runtime exposes an unavailable state.
+
+WebView2 interfaces stay on the GTK UI thread's STA as required by Microsoft.
+Environment/controller creation, script execution and profile clearing use
+native completion callbacks without nested message loops. Directory creation
+runs in a background worker. Native delegate references retain Python callbacks
+until their final COM release, including replies arriving after a browser stops.
+
+Each service stores its browser profile below its own
+`docking_data_dir()/<service>/webview2` directory. Hiding a window retains the
+controller and session; stopping releases the native host. Disconnect first
+navigates away from the service, clears the WebView2 profile asynchronously,
+then reloads. The page bridge accepts bounded status, badge and activation
+events only from the service's HTTPS origin. Camera and microphone requests
+require an explicit dialog while the browser is visible. External navigation
+requires a user gesture and uses the shared target opener.
+
+The owned desktop exercise uses generated responses at the service origin,
+without an account, conversations, contacts or a live QR code:
+
+```powershell
+python -m tools.windows.webapp_smoke --service whatsapp --output C:\Temp\docking-whatsapp-check
+python -m tools.windows.webapp_smoke --service telegram --output C:\Temp\docking-telegram-check
+```
+
+Native exercises on Windows 11 Pro 25H2 verified hidden startup and badge delivery,
+actual pointer and Unicode input, Escape/hide/reopen, controller restart with
+cookie/local-storage/IndexedDB persistence, generated login/ready transitions,
+malformed page traffic, confirmed disconnect and normal shutdown. The realized
+decorated window fits the native work area at GTK scale 1 and 2. These generated
+pages establish host behavior; signed-in service behavior and physical media
+devices remain separate acceptance work.
+
+`--popup-activation` additionally exercises WebView2's default notification
+popup and its DOM click reopening a hidden browser. This popup does not enter
+Windows notification history, and its placement overflowed the screen at forced
+GTK scale 2. Native Windows toast publishing remains unfinished. The separate
+`--notifications` option retains the stricter Windows-history requirement and
+currently fails that acceptance step.
+
 ## Native Music controls
 
 Music has one `MusicBackend` contract for player discovery, metadata, transport
@@ -2530,6 +2591,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
+| WhatsApp and Telegram | Shared BrowserBackend with separate service profiles, WebKitGTK and native WebView2 implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; default browser-popup click works, but Windows toast history/placement, signed-in services, downloads and physical media remain pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -11,7 +12,7 @@ import pytest
 from docking.applets import get_applet_catalog, load_applet_class
 from docking.applets.telegram.applet import TelegramApplet
 from docking.applets.telegram.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
-from docking.applets.telegram.browser import PROFILE, TelegramBrowser
+from docking.applets.telegram.browser import PROFILE
 from docking.applets.telegram.render import render_icon
 from docking.applets.telegram.state import (
     TELEGRAM_WEB_URL,
@@ -22,6 +23,7 @@ from docking.applets.telegram.state import (
 )
 from docking.applets.webapp.bridge import parse_bridge_message
 from docking.applets.webapp.browser import _session_directories
+from docking.applets.webapp.linux import LinuxWebAppBrowser
 from docking.applets.webapp.notifications import DesktopNotifier
 from docking.applets.webapp.state import BrowserPhase, NavigationTarget
 from docking.applets.whatsapp.browser import PROFILE as WHATSAPP_PROFILE
@@ -37,7 +39,7 @@ def browser(**overrides):
         "on_attention_cleared": lambda: None,
     }
     callbacks.update(overrides)
-    return TelegramBrowser(**callbacks)
+    return LinuxWebAppBrowser(profile=PROFILE, **callbacks)
 
 
 @pytest.fixture
@@ -110,7 +112,7 @@ def test_notification_fallback_is_named_and_cleared_separately_from_exact_count(
 def test_browser_profiles_separate_origin_bridge_and_persistent_data(
     tmp_path, monkeypatch
 ):
-    import docking.applets.webapp.browser as shared
+    import docking.applets.webapp.storage as shared
 
     monkeypatch.setattr(shared, "docking_data_dir", lambda: tmp_path / "data")
     monkeypatch.setattr(shared, "docking_cache_dir", lambda: tmp_path / "cache")
@@ -119,8 +121,18 @@ def test_browser_profiles_separate_origin_bridge_and_persistent_data(
     assert tg_data != wa_data and tg_cache != wa_cache
     assert PROFILE.origin == "https://web.telegram.org/"
     assert PROFILE.bridge_handler != WHATSAPP_PROFILE.bridge_handler
-    assert tg_data.stat().st_mode & 0o777 == 0o700
-    assert tg_cache.stat().st_mode & 0o777 == 0o700
+    assert all(path.is_dir() for path in (tg_data, tg_cache, wa_data, wa_cache))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Requires POSIX mode bits")
+def test_unix_session_directories_are_private(tmp_path, monkeypatch):
+    import docking.applets.webapp.storage as shared
+
+    monkeypatch.setattr(shared, "docking_data_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(shared, "docking_cache_dir", lambda: tmp_path / "cache")
+    data, cache = _session_directories(PROFILE.session_name)
+    assert data.stat().st_mode & 0o777 == 0o700
+    assert cache.stat().st_mode & 0o777 == 0o700
 
 
 @pytest.mark.parametrize(

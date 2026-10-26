@@ -49,6 +49,49 @@ def _rectangle(rect: wintypes.RECT) -> Rect:
     return Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
 
 
+def constrain_window(hwnd: int, workarea: Rect, user: Any = None) -> bool:
+    """Fit the actual decorated native frame, without activation or z-order changes.
+
+    GTK's requested content size excludes client-side decorations. Constraining
+    the realized frame avoids guessing their size or mixing device/GTK pixels.
+    """
+    if workarea.width <= 0 or workarea.height <= 0:
+        raise OSError("Window work area is unavailable")
+    user = user if user is not None else ctypes.WinDLL("user32", use_last_error=True)
+    rectangle = wintypes.RECT()
+    if not bind(
+        user,
+        "GetWindowRect",
+        wintypes.BOOL,
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.RECT),
+    )(hwnd, ctypes.byref(rectangle)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    current = _rectangle(rectangle)
+    width, height = (
+        min(current.width, workarea.width),
+        min(current.height, workarea.height),
+    )
+    x = min(max(current.x, workarea.x), workarea.x + workarea.width - width)
+    y = min(max(current.y, workarea.y), workarea.y + workarea.height - height)
+    if Rect(x, y, width, height) == current:
+        return False
+    if not bind(
+        user,
+        "SetWindowPos",
+        wintypes.BOOL,
+        wintypes.HWND,
+        wintypes.HWND,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.UINT,
+    )(hwnd, None, x, y, width, height, 0x14):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return True
+
+
 class WindowsMonitorGeometry:
     def __init__(self, user: Any = None) -> None:
         user = (

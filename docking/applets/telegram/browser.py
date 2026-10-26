@@ -1,4 +1,4 @@
-"""Telegram's isolated profile for the shared WebKit host."""
+"""Telegram's isolated profile for the shared browser host."""
 
 from docking.applets.telegram.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
 from docking.applets.telegram.state import TELEGRAM_WEB_URL
