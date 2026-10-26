@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.backends import selection
 from tests.platform.application_fakes import identity_services
+
+
+@pytest.fixture(autouse=True)
+def unix_selection_host(monkeypatch):
+    """Desktop fixtures model Unix unless a test explicitly selects Windows."""
+    monkeypatch.setattr(selection, "is_windows", lambda: False)
 
 
 def test_windows_selection_precedes_unix_display_probes(monkeypatch):
