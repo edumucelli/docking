@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--task-manager", action="store_true")
     parser.add_argument("--verify-geometry", action="store_true")
+    parser.add_argument("--guid-only-updates", action="store_true")
     parser.add_argument(
         "--restart-explorer",
         action="store_true",
@@ -474,6 +475,12 @@ def main():
             def command(action, which="modern"):
                 nonlocal revision
                 revision += 1
+                if (
+                    args.guid_only_updates
+                    and which == "modern"
+                    and action in {"modify", "hide", "show", "remove"}
+                ):
+                    action = "guid-" + action
                 # Each revision is immutable. A Windows SMB reader can deny
                 # deletion of a persistent command file while it is open.
                 target = fixture_root / f"command-{revision:06d}.json"
@@ -691,6 +698,31 @@ def main():
             assert call(lambda: applet._popup.get_visible())
             assert verify_pixels("modern") != checks["modern"]
             snapshot("native-updated-popup")
+            if args.guid_only_updates:
+                assert fixture_state()["guid_only_request"]["accepted"]
+                before_double = fixture_state().get("double_clicks", 0)
+                native.double_click(*call(lambda: button_point(ids["modern"], None)))
+                native.wait_for(
+                    lambda: (
+                        fixture_state().get("double_clicks", 0) > before_double
+                        and fixture_state().get("activated") == "modern"
+                    ),
+                    "GUID-only update changed the callback identity",
+                )
+                popup()
+                command("hide")
+                native.wait_for(
+                    lambda: all(i.identifier != ids["modern"] for i in ours()),
+                    "GUID-only hidden state was not projected",
+                    15,
+                )
+                command("show")
+                native.wait_for(
+                    lambda: any(i.identifier == ids["modern"] for i in ours()),
+                    "GUID-only shown state was not projected",
+                    15,
+                )
+                report["guid_only_updates"] = True
             if args.verify_geometry:
                 verify_geometry()
             command("hide", "legacy")

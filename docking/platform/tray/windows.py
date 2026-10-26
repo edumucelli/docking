@@ -74,7 +74,19 @@ class WindowsTrayBackend:
                 return True
             if message.operation == 3:
                 return current is not None
-            owner = self._api.owner(message.window)
+            # GUID-only modifications omit hWnd/uID. Keep the registered
+            # callback identity and still validate its current process owner.
+            window = message.window or (
+                current.window
+                if message.operation == 1 and message.guid and current is not None
+                else 0
+            )
+            uid = (
+                current.uid
+                if message.guid and current is not None and message.operation == 1
+                else message.uid
+            )
+            owner = self._api.owner(window)
             if not owner:
                 return False
             if message.operation == 0:
@@ -93,8 +105,8 @@ class WindowsTrayBackend:
             # sender can destroy its borrowed HICON immediately after return.
             self._items[key] = replace(
                 current,
-                window=message.window,
-                uid=message.uid,
+                window=window,
+                uid=uid,
                 callback=message.callback if message.flags & 1 else current.callback,
                 pixels=self._api.pixels(message.icon)
                 if message.flags & 2

@@ -212,13 +212,43 @@ def main():
         elif which in icons:
             data = icons[which]
             row = report["icons"][which]
+            guid_only = action.startswith("guid-")
+            if guid_only:
+                assert which == "modern"
+                action = action.removeprefix("guid-")
+
+            def request(operation):
+                if not guid_only:
+                    return bool(notify(operation, c.byref(data)))
+                # A GUID identifies an existing icon independently of hWnd/uID.
+                value = IconData(
+                    size=c.sizeof(IconData),
+                    flags=data.flags | 0x20,
+                    icon=data.icon,
+                    tip=data.tip,
+                    state=data.state,
+                    mask=data.mask,
+                    guid=data.guid,
+                )
+                accepted = bool(notify(operation, c.byref(value)))
+                report["guid_only_request"] = {
+                    "operation": operation,
+                    "window": 0,
+                    "uid": 0,
+                    "accepted": accepted,
+                }
+                return accepted
+
             if action == "modify":
                 old = data.icon
                 color = (32, 190, 96) if which == "modern" else (190, 48, 150)
                 data.icon = load_icon(which + "-updated-" + str(revision), color)
-                data.flags = 7 | (0x20 if which == "modern" else 0)
-                data.tip = "Docking tray fixture " + which + " updated"
-                assert notify(1, c.byref(data))
+                data.flags = (6 if guid_only else 7) | (
+                    0x20 if which == "modern" else 0
+                )
+                suffix = f" GUID {revision}" if guid_only else ""
+                data.tip = "Docking tray fixture " + which + suffix + " updated"
+                assert request(1)
                 bind(user, "DestroyIcon", c.c_int32, p)(old)
                 handles.remove(old)
                 row.update(title=data.tip, color=list(color))
@@ -226,11 +256,11 @@ def main():
                 data.flags = 8 | (0x20 if which == "modern" else 0)
                 data.state = 1 if action == "hide" else 0
                 data.mask = 1
-                assert notify(1, c.byref(data))
+                assert request(1)
                 row["hidden"] = action == "hide"
             elif action == "remove":
                 data.flags = 0x20 if which == "modern" else 0
-                assert notify(2, c.byref(data))
+                assert request(2)
                 row["registered"] = False
             elif action == "add":
                 assert add(which)

@@ -1203,6 +1203,15 @@ distinct. Existing clients are seeded through `TaskbarCreated`; a duplicate
 registration accepted by Docking succeeds even when Explorer already has it.
 Unknown messages continue to Explorer.
 
+GUID-only modifications can omit the callback window and numeric icon ID.
+The Windows implementation resolves the existing registration, validates its
+live owner, and preserves the callback window, numeric ID and version while
+applying only flagged metadata. Native acceptance first reproduced an update
+that Windows accepted while Docking retained the old title. The corrected
+backend follows icon/title and hidden-state changes, retains version-4
+double-click delivery to the original client, and removes the icon by GUID.
+Use `--guid-only-updates` with the tray smoke tool to repeat this check.
+
 Borrowed HICONs are copied synchronously into RGBA before the registering call
 returns. Two GDI composites recover transparency for alpha and masked icons;
 the DCs and bitmaps are released after each copy. Only pixels reach GTK. Native

@@ -213,6 +213,40 @@ def test_geometry_cannot_outlive_removal_or_closed_backend(tray):
     assert api.icon_bounds(query) is None
 
 
+def test_guid_only_modify_keeps_callback_window_uid_version_and_anchor(tray):
+    backend, api = tray
+    api.emit(guid=GUID, tip="Before")
+    api.emit(guid=GUID, operation=4, version=4)
+    query = geometry_query(guid=GUID)
+    anchor = Rect(350, 420, 24, 24)
+    backend.set_geometry({query.identifier: anchor})
+    assert api.emit(
+        guid=GUID, operation=1, window=0, uid=0, flags=6, tip="After", icon=10
+    )
+    item = backend.get_state().items[0]
+    assert item.title == "After" and item.icon_pixmap.rgba[0] == 10
+    assert api.icon_bounds(query) == anchor
+    assert backend.double_click(query.identifier)
+    assert api.posts[-1][0] == 0x1234
+    assert api.posts[-1][3] >> 16 == 37
+    assert api.emit(guid=GUID, operation=1, window=0, uid=0, flags=8, state=1, mask=1)
+    assert not backend.get_state().items
+    assert api.emit(guid=GUID, operation=1, window=0, uid=0, flags=8, state=0, mask=1)
+    assert backend.get_state().items[0].title == "After"
+
+
+def test_guid_only_update_requires_a_live_existing_registration(tray):
+    backend, api = tray
+    assert not api.emit(guid=GUID, operation=1, window=0, uid=0, flags=4, tip="Unknown")
+    api.emit(guid=GUID)
+    assert not api.emit(guid=GUID, operation=0, window=0, uid=0)
+    api.owners[0x1234] = 77
+    assert not api.emit(
+        guid=GUID, operation=1, window=0, uid=0, flags=4, tip="Reused owner"
+    )
+    assert not backend.get_state().items
+
+
 def test_replacement_explorer_is_reseeded_once_for_each_window_and_owner(monkeypatch):
     host = WindowsTrayHost()
     host._explorer = 101

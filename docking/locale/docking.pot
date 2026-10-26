@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-26 04:26+0100\n"
+"POT-Creation-Date: 2026-10-26 05:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -517,7 +517,7 @@ msgstr ""
 #: docking/applets/micshield/linux.py:170
 #: docking/applets/micshield/windows_audio.py:196
 #: docking/applets/powerprofiles/state.py:69
-#: docking/platform/tray/windows.py:128 docking/ui/diagnostics.py:258
+#: docking/platform/tray/windows.py:140 docking/ui/diagnostics.py:258
 #: docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr ""
@@ -3471,7 +3471,7 @@ msgstr ""
 
 #: docking/applets/systemtray/applet.py:312
 #: docking/applets/systemtray/applet.py:576
-#: docking/applets/systemtray/state.py:13 docking/platform/tray/windows.py:149
+#: docking/applets/systemtray/state.py:13 docking/platform/tray/windows.py:161
 msgid "System Tray unavailable"
 msgstr ""
 
