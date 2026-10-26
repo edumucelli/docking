@@ -25,7 +25,7 @@ from pathlib import Path
 
 from PIL import Image
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -255,8 +255,8 @@ def check_native_frame(*, frame: dict | None, output: dict) -> tuple[bool, str]:
 
 
 def check_output_transition(*, evidence: Path, case, record: dict) -> str | None:
-    from tools.visual_compositor.behaviour import footprint
-    from tools.visual_compositor.scenarios import EDGE_BAND_PX, expected_edge_coordinate
+    from tools.linux.visual.behaviour import footprint
+    from tools.linux.visual.scenarios import EDGE_BAND_PX, expected_edge_coordinate
 
     before = _load_json(evidence / f"{case.name}.before-change.json")
     if not before or before.get("outputs") == record.get("outputs"):
@@ -426,7 +426,7 @@ def evaluate(
     run_meta: dict,
     geometry_only: bool = False,
 ) -> list[Result]:
-    from tools.visual_compositor.scenarios import EDGE_BAND_PX, expected_edge_coordinate
+    from tools.linux.visual.scenarios import EDGE_BAND_PX, expected_edge_coordinate
 
     expected_backend = capabilities.get("expected_backend")
 
@@ -648,7 +648,7 @@ def evaluate(
             "limit": band["limit"] - origin[band["axis"]],
         }
         if case.action:
-            from tools.visual_compositor.behaviour import check_action
+            from tools.linux.visual.behaviour import check_action
 
             action_ok, action_detail = check_action(
                 evidence=evidence_dir, case=case, band=canvas_band
@@ -1022,7 +1022,7 @@ def main() -> int:
     if args.geometry_only and args.update_baselines:
         parser.error("--geometry-only cannot update pixel baselines")
 
-    from tools.visual_compositor.scenarios import select_cases
+    from tools.linux.visual.scenarios import select_cases
 
     cases = select_cases(behavior=args.behavior, only=args.only)
     args.out.mkdir(parents=True, exist_ok=True)

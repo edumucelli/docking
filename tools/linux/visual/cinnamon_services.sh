@@ -2,9 +2,9 @@
 # Exercise all native Cinnamon services through the actual Docking UI.
 set -euo pipefail
 if [ "${1:-}" != --session ]; then
-    repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    mkdir -p "$repo_dir/tools/visual_compositor/evidence"
-    evidence_dir="$(mktemp -d "$repo_dir/tools/visual_compositor/evidence/cinnamon-services.XXXXXX")"
+    repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+    mkdir -p "$repo_dir/tools/linux/visual/evidence"
+    evidence_dir="$(mktemp -d "$repo_dir/tools/linux/visual/evidence/cinnamon-services.XXXXXX")"
     docker run --rm --entrypoint cat "${DOCKING_LAB_IMAGE:-docking-lab:cinnamon}" /etc/passwd >"$evidence_dir/.passwd"
     docker run --rm --entrypoint cat "${DOCKING_LAB_IMAGE:-docking-lab:cinnamon}" /etc/group >"$evidence_dir/.group"
     printf 'lab:x:%s:%s:lab:/tmp:/bin/sh\n' "$(id -u)" "$(id -g)" >>"$evidence_dir/.passwd"
@@ -13,11 +13,11 @@ if [ "${1:-}" != --session ]; then
         -v "$repo_dir:/src:ro" -v "$evidence_dir:/evidence" \
         -v "$evidence_dir/.passwd:/etc/passwd:ro" -v "$evidence_dir/.group:/etc/group:ro" \
         "${DOCKING_LAB_IMAGE:-docking-lab:cinnamon}" dbus-run-session -- \
-        bash /src/tools/visual_compositor/cinnamon_services.sh --session
+        bash /src/tools/linux/visual/cinnamon_services.sh --session
     exit
 fi
 export LAB_DIR="${LAB_DIR:-/evidence}"
-export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/visual_compositor}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/linux/visual}"
 export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
 export XDG_RUNTIME_DIR="$(mktemp -d /tmp/cinnamon-services-runtime.XXXXXX)"
 export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"

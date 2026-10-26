@@ -55,7 +55,7 @@ def check_action(*, evidence: Path, case, band: dict) -> tuple[bool, str]:
                 "action",
             }:
                 return False, "stack endpoint/action proof incomplete"
-            from tools.visual_compositor.probes.stack_probe import popup_bounds
+            from tools.linux.visual.probes.stack_probe import popup_bounds
 
             for result in report["results"]:
                 rect = result["rect"]

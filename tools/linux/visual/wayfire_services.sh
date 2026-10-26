@@ -2,9 +2,9 @@
 # Two-output IPC contract with and without wm-actions/vswitch. No host session bus.
 set -euo pipefail
 if [ "${1:-}" != --session ]; then
-    repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
-    mkdir -p "$repo_dir/tools/visual_compositor/evidence"
-    evidence="$(mktemp -d "$repo_dir/tools/visual_compositor/evidence/wayfire-contract.XXXXXX")"
+    repo_dir="$(cd "$(dirname "$0")/../../.." && pwd)"
+    mkdir -p "$repo_dir/tools/linux/visual/evidence"
+    evidence="$(mktemp -d "$repo_dir/tools/linux/visual/evidence/wayfire-contract.XXXXXX")"
     image="${DOCKING_LAB_IMAGE:-docking-lab:wayfire}"
     lab_uid="$(id -u)"
     lab_gid="$(id -g)"
@@ -16,11 +16,11 @@ if [ "${1:-}" != --session ]; then
     docker run --rm --network none --user "$lab_uid:$lab_gid" -e HOME=/tmp \
         -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
         -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
-        "$image" dbus-run-session -- bash /src/tools/visual_compositor/wayfire_services.sh --session
+        "$image" dbus-run-session -- bash /src/tools/linux/visual/wayfire_services.sh --session
     exit
 fi
 export LAB_DIR="${LAB_DIR:-/evidence}"
-export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/visual_compositor}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/linux/visual}"
 export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
 export XDG_RUNTIME_DIR="$(mktemp -d /tmp/docking-wayfire-contract.XXXXXX)"
 export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"
