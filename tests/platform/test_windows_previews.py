@@ -10,6 +10,7 @@ import pytest
 from docking.platform.backends.base import DisplayServer, WindowId, WindowSnapshot
 from docking.platform.backends.windows.capture import CapturePixels, rgba_pixels
 from docking.platform.backends.windows.previews import WindowsPreviewService, _image
+from docking.platform.backends.windows.windows import WindowsWindowTarget
 
 
 @pytest.mark.parametrize("padding", [0, 1, 3, 16])
@@ -42,6 +43,11 @@ def _service():
     )
     windows = SimpleNamespace(
         list_all_windows=MagicMock(return_value=(row,)),
+        capture_target=MagicMock(
+            side_effect=lambda window_id, pid, _app_id: WindowsWindowTarget(
+                int(window_id.value), pid
+            )
+        ),
         capture_is_current=MagicMock(return_value=True),
     )
     service = WindowsPreviewService(windows=windows, availability_changed=MagicMock())
@@ -124,7 +130,8 @@ def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkey
             events.append(("device-close", threading.get_ident()))
 
     class Stream:
-        def __init__(self, *_args, validate):
+        def __init__(self, device, hwnd, pid, *, validate):
+            assert (hwnd, pid) == (900, 500)
             assert validate()
             events.append(("stream", threading.get_ident()))
 
@@ -146,7 +153,9 @@ def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkey
         visible=True,
     )
     windows = SimpleNamespace(
-        list_all_windows=lambda: (row,), capture_is_current=lambda *_args: True
+        list_all_windows=lambda: (row,),
+        capture_target=lambda *_args: WindowsWindowTarget(900, 500),
+        capture_is_current=lambda *_args: True,
     )
     service = WindowsPreviewService(windows=windows, availability_changed=MagicMock())
     monkeypatch.setattr(service, "_post", lambda *_args: None)
@@ -165,6 +174,41 @@ def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkey
     ]
     assert len({thread for _name, thread in events}) == 1
     assert events[0][1] != main_thread
+
+
+def test_ghost_transition_and_recovery_discard_old_surfaces_and_late_results():
+    service, windows, row = _service()
+    pixels = CapturePixels(bytes((255, 0, 0, 255)) * 32, 8, 4)
+    service.capture(row.id, width=6, height=6)
+    original = service._queue.get_nowait()
+    service._publish(original, pixels)
+    assert service.capture(row.id, width=6, height=6) is not None
+    windows.capture_target.side_effect = None
+    windows.capture_target.return_value = WindowsWindowTarget(900, 500)
+    assert service.capture(row.id, width=6, height=6) is None
+    ghost = service._queue.get_nowait()
+    assert ghost.identity != original.identity
+    windows.capture_is_current.side_effect = lambda _id, _pid, _app, target: (
+        target.hwnd == 900
+    )
+    service._publish(original, pixels)
+    assert not service._cache
+    service._publish(ghost, pixels)
+    assert service.capture(row.id, width=6, height=6) is not None
+    windows.capture_target.return_value = WindowsWindowTarget(100, 101)
+    windows.capture_is_current.side_effect = lambda _id, _pid, _app, target: (
+        target.hwnd == 100
+    )
+    assert service.capture(row.id, width=6, height=6) is None
+    service._publish(ghost, pixels)
+    assert not service._cache
+    recovered = service._queue.get_nowait()
+    service._publish(recovered, pixels)
+    assert service.capture(row.id, width=6, height=6) is not None
+    windows.capture_target.return_value = None
+    assert service.capture(row.id, width=6, height=6) is None
+    assert not service._cache
+    service.stop()
 
 
 def test_resize_frame_with_old_gpu_capacity_is_retried_without_mapping(monkeypatch):

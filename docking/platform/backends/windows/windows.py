@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 from ctypes import wintypes
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 
@@ -23,6 +23,7 @@ from docking.platform.backends.window_projection import SnapshotWindowService
 
 from .ffi import MonitorInfo
 from .ffi import bind as _bind
+from .ghosts import WindowsGhostWindows
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -31,6 +32,14 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
 log = get_logger("windows.windows")
+
+
+@dataclass(frozen=True)
+class WindowsWindowTarget:
+    """The current native surface; shared window IDs retain application identity."""
+
+    hwnd: int
+    pid: int
 
 
 class Win32WindowAPI:
@@ -43,6 +52,7 @@ class Win32WindowAPI:
         self._desktop = WindowsDesktopAPI()
         self._properties = WindowsWindowProperties()
         user = ctypes.WinDLL("user32", use_last_error=True)
+        self._ghosts = WindowsGhostWindows(user)
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
         self._callback_type = ctypes.WINFUNCTYPE(
@@ -181,17 +191,46 @@ class Win32WindowAPI:
     def windows(self) -> tuple[WindowSnapshot, ...]:
         foreground = self._foreground()
         covered = self._desktop.covered_windows() or frozenset()
-        rows: list[WindowSnapshot] = []
+        rows: dict[WindowId, WindowSnapshot] = {}
+        projected: set[WindowId] = set()
         identities: dict[int, tuple[str | None, str]] = {}
 
         def visit(hwnd: int, _data: int) -> bool:
             try:
                 row = self._snapshot(hwnd, foreground, identities)
                 if row is not None:
+                    if row.wm_class == "Ghost":
+                        original = self._ghosts.original(hwnd)
+                        application = (
+                            self._snapshot(
+                                original, foreground, identities, include_hidden=True
+                            )
+                            if original
+                            else None
+                        )
+                        if (
+                            application is None
+                            or application.wm_class == "Ghost"
+                            or self._ghosts.original(hwnd) != original
+                        ):
+                            return True
+                        row = replace(
+                            row,
+                            id=application.id,
+                            pid=application.pid,
+                            app_id=application.app_id,
+                            wm_class=application.wm_class,
+                            dialog=application.dialog,
+                            skip_taskbar=application.skip_taskbar,
+                        )
+                        projected.add(row.id)
+                        rows.pop(row.id, None)
+                    elif row.id in projected:
+                        return True
                     # Non-minimizable windows remain mapped behind a raised
                     # desktop. Keep their taskbar entry but exclude overlap.
-                    rows.append(
-                        replace(row, visible=row.visible and hwnd not in covered)
+                    rows[row.id] = replace(
+                        row, visible=row.visible and hwnd not in covered
                     )
             except Exception:
                 # Windows may disappear or deny access between native calls;
@@ -202,7 +241,10 @@ class Win32WindowAPI:
         callback = self._callback_type(visit)
         if not self._enumerate(callback, 0):
             raise ctypes.WinError(ctypes.get_last_error())
-        return tuple(rows)
+        return tuple(rows.values())
+
+    def original_window(self, ghost: int) -> int | None:
+        return self._ghosts.original(ghost)
 
     def _application_id(
         self,
@@ -336,20 +378,48 @@ class Win32WindowAPI:
         )
 
     def perform(self, window: WindowSnapshot, action: str) -> ActionResult:
-        if not self.matches(window):
+        target = self.target(window)
+        if target is None:
             return ActionResult.NOT_FOUND
-        hwnd = int(window.id.value)
+        hwnd = target.hwnd
         if action == "close":
-            accepted = self._post(hwnd, 0x0010, 0, 0)
+            # Ghosts handle the caption's system close command, which opens
+            # Windows' unresponsive-application prompt. WM_CLOSE is ignored.
+            accepted = (
+                self._post(hwnd, 0x0112, 0xF060, 0)
+                if hwnd != window.id.value
+                else self._post(hwnd, 0x0010, 0, 0)
+            )
         elif action == "minimize":
-            accepted = self._show(hwnd, 6)
+            if self._iconic(hwnd):
+                return ActionResult.OK
+            accepted = (
+                self._post(hwnd, 0x0112, 0xF020, 0)
+                if hwnd != window.id.value
+                else self._show(hwnd, 6)
+            )
         elif action == "activate":
             if self._iconic(hwnd):
-                self._show(hwnd, 9)
+                restored = (
+                    self._post(hwnd, 0x0112, 0xF120, 0)
+                    if hwnd != window.id.value
+                    else self._show(hwnd, 9)
+                )
+                if not restored:
+                    return ActionResult.FAILED
             accepted = self._activate(hwnd)
         else:
             return ActionResult.UNSUPPORTED
         return ActionResult.OK if accepted else ActionResult.FAILED
+
+    def target(self, window: WindowSnapshot) -> WindowsWindowTarget | None:
+        if not self.matches(window):
+            return None
+        original = int(window.id.value)
+        hwnd = self._ghosts.presentation(original) or original
+        pid = wintypes.DWORD()
+        self._pid(hwnd, ctypes.byref(pid))
+        return WindowsWindowTarget(hwnd, pid.value) if pid.value else None
 
 
 class WindowsWindowService(SnapshotWindowService):
@@ -420,7 +490,11 @@ class WindowsWindowService(SnapshotWindowService):
         return self._native.perform(window, action)
 
     def capture_is_current(
-        self, window_id: WindowId, pid: int, app_id: str | None
+        self,
+        window_id: WindowId,
+        pid: int,
+        app_id: str | None,
+        target: WindowsWindowTarget,
     ) -> bool:
         """Validate a worker's immutable frame identity without changing GTK state."""
         window = self._snapshots.get(window_id)
@@ -428,5 +502,17 @@ class WindowsWindowService(SnapshotWindowService):
             self._native is not None
             and window is not None
             and (window.pid, window.app_id) == (pid, app_id)
-            and self._native.matches(window)
+            and self._native.target(window) == target
         )
+
+    def capture_target(
+        self, window_id: WindowId, pid: int, app_id: str | None
+    ) -> WindowsWindowTarget | None:
+        window = self._snapshots.get(window_id)
+        if (
+            self._native is None
+            or window is None
+            or (window.pid, window.app_id) != (pid, app_id)
+        ):
+            return None
+        return self._native.target(window)

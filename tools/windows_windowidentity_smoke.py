@@ -38,7 +38,7 @@ def main():
     import docking.app as app
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import ActionResult
-    from tools.windows_desktop_driver import WindowsDesktop
+    from tools.windows_desktop_driver import WindowsDesktop, read_shared_json
 
     registry = ApplicationRegistry()
     registry.refresh()
@@ -240,7 +240,7 @@ def main():
 
             def fixture_state():
                 try:
-                    return json.loads((fixture_dir / "state.json").read_text())
+                    return read_shared_json(fixture_dir / "state.json")
                 except (FileNotFoundError, json.JSONDecodeError):
                     return None
 

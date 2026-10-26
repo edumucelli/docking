@@ -354,11 +354,73 @@ normal shutdown restored the exact work area and preserved Explorer.
 
 ![Distinct hosted applications and Calculator's native preview](../images/windows-window-identities.png)
 
-General DWM ghost-window projection, arbitrary executable/shortcut identity,
-broader hosted applications and multiple-window cycling remain acceptance work.
+Arbitrary executable/shortcut identity, broader hosted applications and
+multiple-window cycling remain acceptance work. Ghost-window projection is
+covered below.
 
 References: [per-window property stores](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetpropertystoreforwindow),
 [application identity property](https://learn.microsoft.com/en-us/windows/win32/properties/props-system-appusermodel-id).
+
+### Hung applications and ghost windows
+
+Windows can replace an unresponsive application window with a DWM-owned ghost.
+Polling can still see the original HWND, so treating the ghost as another
+application produces duplicate entries. The Windows backend associates the
+ghost with its original window, retains the original window ID, process and
+application identity, and reads visible state, title and geometry from the
+ghost. Enumeration deduplicates both representations in either Z order.
+
+Actions resolve the current associated HWND immediately before dispatch. Ghost
+minimize, restore and Close use native caption system commands;
+`ShowWindowAsync` returned access denied on the DWM-owned window in this lab,
+and `WM_CLOSE` did not open the unresponsive-application prompt. An already
+minimized window returns success without another minimize request. Capture
+streams and cached images include the current native HWND/PID as well as the
+logical application identity. The worker validates that association before and
+after readback, and publication rejects results from a retired surface.
+
+`windows_ghost_smoke.py` runs the full dock with an owned two-window Win32
+fixture. The fixture explicitly sets Calculator's registered application ID to
+exercise the real common grouping path; it is not a Calculator process. The
+`windows-ghost-native-12` run kept both original running IDs and the pre-minimized
+sibling throughout a real hang, captured the DWM ghost, minimized it, restored
+it by clicking its dock thumbnail, and tracked a virtual-mouse move from
+`(100, 80)` to `(200, 120)`. Close opened the actual Windows prompt. Selecting
+Wait hid that prompt and preserved the fixture; recovery retired the ghost,
+rejected its old capture target, and resumed original-window capture. Both
+windows then closed normally, Explorer was preserved, and the exact work area
+was restored. Desktop, prompt and capture PNGs were inspected.
+
+![Native Close prompt for the owned unresponsive fixture](../images/windows-ghost-windows.png)
+
+The ghost associations use optional named user32 exports outside the documented
+Win32 contract, shared with Window Killer. Missing exports disable the relevant
+association rather than guessing from window titles or process names. This
+acceptance covers Windows 11 Pro 25H2 build 26200.8037, one 96-DPI display and
+normal GTK scale. Other Windows versions, display/session transitions and
+repeated ghost-recovery races remain acceptance work. A separate preview issue
+was observed: a static source requested at a different thumbnail size can still
+show the icon fallback even when another size has a valid capture; that cache
+behavior remains follow-up work.
+
+The movement and Wait selection use `windows_vm_pointer.py` on the host. It
+negotiates QEMU's absolute virtual tablet over the loopback VNC endpoint; this
+provides guest hardware input without changing Windows privileges. Each request
+appears sequentially while the guest tool waits for its completion file:
+
+```sh
+python tools/windows_lab.py --share /path/to/shared --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_ghost_smoke.py' \
+  --output '\\host.lan\Data\lab\ghosts' --physical-input
+python tools/windows_vm_pointer.py \
+  --request /path/to/shared/lab/ghosts/pointer-request.json
+python tools/windows_vm_pointer.py \
+  --request /path/to/shared/lab/ghosts/close-pointer-request.json
+```
+
+References: [Windows ghosting behavior](https://learn.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues),
+[QEMU pointer-mode negotiation](https://github.com/qemu/qemu/blob/master/ui/vnc.c).
 
 ```sh
 python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 150 run \
@@ -2143,11 +2205,11 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
-| Running applications | Native snapshots, per-window application identity, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; general DWM ghost projection and multi-window cycling pending |
+| Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
-| Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
+| Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; ghost/original surface switching, stale-target rejection and recovery captures verified; static sources at different thumbnail sizes can show the fallback; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; broader tray providers/hover/WOW64/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |

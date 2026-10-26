@@ -156,12 +156,13 @@ def test_failed_lock_acquisition_still_closes_preferences_descriptor(
     path = tmp_path / "dock.json"
     monkeypatch.setattr(store, "config_path", lambda: path)
     descriptors = []
+    acquire = MagicMock(side_effect=OSError("lock failed"))
 
     @contextmanager
     def fail(fd, _path):
         descriptors.append(fd)
-        raise OSError("lock failed")
-        yield  # pragma: no cover
+        acquire(fd)
+        yield
 
     monkeypatch.setattr(store, "exclusive_update", fail)
     with pytest.raises(OSError, match="lock failed"):
@@ -170,6 +171,7 @@ def test_failed_lock_acquisition_still_closes_preferences_descriptor(
         )
     with pytest.raises(OSError):
         os.fstat(descriptors[0])
+    acquire.assert_called_once_with(descriptors[0])
 
 
 def test_real_hook_process_runs_from_another_directory_with_utf8_stdin(tmp_path):

@@ -22,9 +22,10 @@ from docking.platform.backends.base import (
 )
 
 from .capture import CapturePixels, WindowsCaptureDevice, WindowsCaptureStream
+from .windows import WindowsWindowTarget
 
 log = get_logger("windows.previews")
-_Key = tuple[WindowId, int, str | None, int, int]
+_Identity = tuple[WindowId, int, str | None, WindowsWindowTarget]
 _REFRESH_SECONDS = 0.25
 _STREAM_IDLE_SECONDS = 1.5
 _CACHE_BYTES = 32 * 1024 * 1024
@@ -32,9 +33,30 @@ _CACHE_BYTES = 32 * 1024 * 1024
 
 class WindowsPreviewSource(Protocol):
     def list_all_windows(self) -> Sequence[WindowSnapshot]: ...
-    def capture_is_current(
+    def capture_target(
         self, window_id: WindowId, pid: int, app_id: str | None
+    ) -> WindowsWindowTarget | None: ...
+    def capture_is_current(
+        self,
+        window_id: WindowId,
+        pid: int,
+        app_id: str | None,
+        target: WindowsWindowTarget,
     ) -> bool: ...
+
+
+@dataclass(frozen=True)
+class _Key:
+    window_id: WindowId
+    pid: int
+    app_id: str | None
+    target: WindowsWindowTarget
+    width: int
+    height: int
+
+    @property
+    def identity(self) -> _Identity:
+        return self.window_id, self.pid, self.app_id, self.target
 
 
 @dataclass(frozen=True)
@@ -76,7 +98,7 @@ class WindowsPreviewService(PreviewService):
         self._availability_changed = availability_changed
         self._cache: OrderedDict[_Key, _Cached] = OrderedDict()
         self._pending: set[_Key] = set()
-        self._retry_after: dict[tuple[WindowId, int, str | None], float] = {}
+        self._retry_after: dict[_Identity, float] = {}
         self._queue: Queue[_Key] = Queue(maxsize=32)
         self._closed = Event()
         self._lock = RLock()
@@ -125,14 +147,19 @@ class WindowsPreviewService(PreviewService):
             with self._lock:
                 self._drop_window(window_id)
             return None
-        key = (window_id, row.pid, row.app_id, width, height)
+        target = self._windows.capture_target(window_id, row.pid, row.app_id)
+        if target is None:
+            with self._lock:
+                self._drop_window(window_id)
+            return None
+        key = _Key(window_id, row.pid, row.app_id, target, width, height)
         with self._lock:
             if self._unavailable:
                 return None
             # A native host can reuse a frame for a different application without
             # changing its HWND or PID. Neither change may inherit cached pixels.
             for old in tuple(self._cache):
-                if old[0] == window_id and old[1:3] != key[1:3]:
+                if old.window_id == window_id and old.identity != key.identity:
                     self._cache.pop(old, None)
             cached = self._cache.get(key)
             if cached is not None:
@@ -143,7 +170,7 @@ class WindowsPreviewService(PreviewService):
                     or time.monotonic() - cached.captured_at >= _REFRESH_SECONDS
                 )
                 and key not in self._pending
-                and time.monotonic() >= self._retry_after.get(key[:3], 0)
+                and time.monotonic() >= self._retry_after.get(key.identity, 0)
             ):
                 self.start()
                 try:
@@ -160,7 +187,7 @@ class WindowsPreviewService(PreviewService):
 
     def _drop_window(self, window_id: WindowId) -> None:
         for key in tuple(self._cache):
-            if key[0] == window_id:
+            if key.window_id == window_id:
                 self._cache.pop(key, None)
 
     def _post(self, callback, *args) -> None:
@@ -185,18 +212,24 @@ class WindowsPreviewService(PreviewService):
             (
                 window
                 for window in self._windows.list_all_windows()
-                if window.id == key[0]
+                if window.id == key.window_id
             ),
             None,
         )
-        if row is None or (row.pid, row.app_id) != key[1:3]:
+        if (
+            row is None
+            or (row.pid, row.app_id) != (key.pid, key.app_id)
+            or not self._windows.capture_is_current(*key.identity)
+        ):
             return
         if pixels is None:
-            self._retry_after[key[:3]] = time.monotonic() + 0.5
+            self._retry_after[key.identity] = time.monotonic() + 0.5
             while len(self._retry_after) > 64:
                 self._retry_after.pop(next(iter(self._retry_after)))
             return
-        self._cache[key] = _Cached(_image(pixels, key[3], key[4]), time.monotonic())
+        self._cache[key] = _Cached(
+            _image(pixels, key.width, key.height), time.monotonic()
+        )
         self._cache.move_to_end(key)
         retained = sum(
             entry.image.width * entry.image.height * 4 for entry in self._cache.values()
@@ -212,9 +245,9 @@ class WindowsPreviewService(PreviewService):
 
     def _worker(self) -> None:
         device = None
-        streams: OrderedDict[
-            tuple[int, int, str | None], tuple[WindowsCaptureStream, float]
-        ] = OrderedDict()
+        streams: OrderedDict[_Identity, tuple[WindowsCaptureStream, float]] = (
+            OrderedDict()
+        )
         try:
             device = WindowsCaptureDevice()
             self._post(self._availability_changed, True)
@@ -228,7 +261,7 @@ class WindowsPreviewService(PreviewService):
                     key = self._queue.get(timeout=0.1)
                 except Empty:
                     continue
-                identity = (int(key[0].value), key[1], key[2])
+                identity = key.identity
                 pixels = None
                 try:
                     previous = streams.pop(identity, None)
@@ -238,10 +271,10 @@ class WindowsPreviewService(PreviewService):
                             stream.close()
                         stream = WindowsCaptureStream(
                             device,
-                            identity[0],
-                            identity[1],
+                            key.target.hwnd,
+                            key.target.pid,
                             validate=lambda k=key: self._windows.capture_is_current(
-                                k[0], k[1], k[2]
+                                *k.identity
                             ),
                         )
                     else:
@@ -250,7 +283,9 @@ class WindowsPreviewService(PreviewService):
                     pixels = stream.read()
                 except (OSError, ValueError):
                     log.debug(
-                        "Window capture unavailable for %s", key[0], exc_info=True
+                        "Window capture unavailable for %s",
+                        key.window_id,
+                        exc_info=True,
                     )
                     failed = streams.pop(identity, None)
                     if failed is not None:

@@ -63,14 +63,6 @@ class WindowsPickAPI:
         self._windows = Win32WindowAPI()
         self._geometry = WindowsMonitorGeometry(user)
         self._at_point = bind(user, "WindowFromPoint", ctypes.c_void_p, wintypes.POINT)
-        try:
-            # This named user32 export is optional, outside the documented
-            # Win32 contract. A ghost must never fall back to DWM's own PID.
-            self._hung = bind(
-                user, "HungWindowFromGhostWindow", ctypes.c_void_p, ctypes.c_void_p
-            )
-        except AttributeError:
-            self._hung = None
         self._ancestor = bind(
             user, "GetAncestor", ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32
         )
@@ -230,9 +222,8 @@ class WindowsPickAPI:
             (
                 target.ghost_window is None
                 or (
-                    self._hung is not None
-                    and self._exists(target.ghost_window)
-                    and self._hung(target.ghost_window) == root
+                    self._exists(target.ghost_window)
+                    and self._windows.original_window(target.ghost_window) == root
                 )
             )
             and self._exists(root)
@@ -257,7 +248,7 @@ class WindowsPickAPI:
             self._class(root, name, len(name))
             if name.value == "Ghost":
                 ghost = root
-                root = self._hung(ghost) if self._hung is not None else 0
+                root = self._windows.original_window(ghost) or 0
         window = (
             self._windows.snapshot(root, include_hidden=ghost is not None)
             if root

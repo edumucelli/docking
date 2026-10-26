@@ -165,9 +165,9 @@ def test_dwm_ghost_resolves_only_the_os_associated_original_application(
     api._class.side_effect = lambda hwnd, output, size: setattr(
         output, "value", "Ghost"
     )
-    api._hung = None if association == "missing-export" else Mock(return_value=200)
-    if association == "missing-window":
-        api._hung.return_value = None
+    api._windows.original_window.return_value = (
+        None if association in ("missing-export", "missing-window") else 200
+    )
     api._windows.snapshot.return_value = replace(
         window, id=WindowId(DisplayServer.WINDOWS, 200), visible=False
     )
@@ -180,7 +180,7 @@ def test_dwm_ghost_resolves_only_the_os_associated_original_application(
     assert target.window.id.value == 200 and target.ghost_window == 100
     api._windows.snapshot.assert_called_once_with(200, include_hidden=True)
     if association == "changed":
-        api._hung.return_value = 201
+        api._windows.original_window.return_value = 201
         assert not api.valid(target)
         assert api.terminate(target) is ActionResult.NOT_FOUND
         api._terminate.assert_not_called()

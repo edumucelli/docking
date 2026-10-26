@@ -4,6 +4,8 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.core.config import Config
 from docking.platform.backends.base import (
     ActionResult,
@@ -31,6 +33,160 @@ def test_reused_native_handle_cannot_act_on_another_process():
     )
     assert native.perform(old, "close") is ActionResult.NOT_FOUND
     native._post.assert_not_called()
+
+
+@pytest.mark.parametrize("order", [(100, 900), (900, 100)])
+def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_order(
+    order,
+):
+    from docking.platform.backends.base import Rect
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    original = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100),
+        desktop_id="",
+        app_id="Fixture.App",
+        wm_class="Fixture.Window",
+        pid=101,
+        title="Document",
+        visible=True,
+        geometry=Rect(0, 0, 300, 200),
+    )
+    ghost = replace(
+        original,
+        id=WindowId(DisplayServer.WINDOWS, 900),
+        pid=500,
+        wm_class="Ghost",
+        app_id="dwm",
+        title="Document (Not Responding)",
+        active=True,
+        minimized=True,
+        geometry=Rect(100, 200, 400, 300),
+    )
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._foreground = lambda: 900
+    native._desktop = MagicMock()
+    native._desktop.covered_windows.return_value = frozenset()
+    native._callback_type = lambda value: value
+    native._enumerate = lambda callback, data: tuple(callback(h, data) for h in order)
+    native._snapshot = lambda hwnd, *_args, **_kw: {100: original, 900: ghost}[hwnd]
+    native._ghosts = MagicMock()
+    native._ghosts.original.return_value = 100
+    rows = native.windows()
+    assert len(rows) == 1
+    row = rows[0]
+    assert (row.id, row.pid, row.app_id, row.wm_class) == (
+        original.id,
+        original.pid,
+        original.app_id,
+        original.wm_class,
+    )
+    assert (row.title, row.active, row.minimized, row.geometry) == (
+        ghost.title,
+        ghost.active,
+        ghost.minimized,
+        ghost.geometry,
+    )
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model, **identity_services(application("Fixture.App"))
+    )
+    service.replace_windows(rows)
+    assert len(service.list_windows("Fixture.App")) == 1
+    assert model.update_running.call_args.kwargs["running"]["Fixture.App"].count == 1
+
+
+def test_unassociated_ghost_cannot_create_a_dwm_running_entry():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._foreground = lambda: 900
+    native._desktop = MagicMock()
+    native._desktop.covered_windows.return_value = frozenset()
+    native._callback_type = lambda value: value
+    native._enumerate = lambda callback, data: callback(900, data)
+    native._snapshot = lambda *_args: WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 900),
+        desktop_id="",
+        pid=500,
+        wm_class="Ghost",
+    )
+    native._ghosts = MagicMock()
+    native._ghosts.original.return_value = None
+    assert native.windows() == ()
+
+
+def test_actions_and_capture_select_the_current_associated_surface_and_recover():
+    from docking.platform.backends.windows.windows import (
+        Win32WindowAPI,
+        WindowsWindowTarget,
+    )
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native.matches = MagicMock(return_value=True)
+    native._ghosts = MagicMock()
+    native._ghosts.presentation.return_value = 900
+    native._pid = lambda hwnd, output: setattr(
+        output._obj, "value", 500 if hwnd == 900 else 101
+    )
+    native._iconic = MagicMock(return_value=False)
+    native._show = MagicMock(return_value=True)
+    native._activate = MagicMock(return_value=True)
+    native._post = MagicMock(return_value=True)
+    row = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100), desktop_id="", pid=101
+    )
+    assert native.target(row) == WindowsWindowTarget(900, 500)
+    assert native.perform(row, "minimize") is ActionResult.OK
+    native._post.assert_called_once_with(900, 0x112, 0xF020, 0)
+    native._post.reset_mock()
+    native._iconic.return_value = True
+    native._show.reset_mock()
+    assert native.perform(row, "minimize") is ActionResult.OK
+    native._show.assert_not_called()
+    assert native.perform(row, "activate") is ActionResult.OK
+    native._post.assert_called_once_with(900, 0x112, 0xF120, 0)
+    native._show.assert_not_called()
+    native._activate.assert_called_once_with(900)
+    native._post.reset_mock()
+    assert native.perform(row, "close") is ActionResult.OK
+    native._post.assert_called_once_with(900, 0x112, 0xF060, 0)
+    native._post.return_value = False
+    native._activate.reset_mock()
+    assert native.perform(row, "activate") is ActionResult.FAILED
+    native._activate.assert_not_called()
+    native._ghosts.presentation.return_value = None
+    assert native.target(row) == WindowsWindowTarget(100, 101)
+    native.matches.return_value = False
+    assert native.target(row) is None
+    assert native.perform(row, "close") is ActionResult.NOT_FOUND
+
+
+def test_preview_target_requires_both_current_application_and_native_surface():
+    from docking.platform.backends.windows.windows import WindowsWindowTarget
+
+    row = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100),
+        desktop_id="",
+        pid=101,
+        app_id="Fixture.App",
+    )
+    native = MagicMock()
+    ghost = WindowsWindowTarget(900, 500)
+    native.target.return_value = ghost
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model, native=native, **identity_services(application("Fixture.App"))
+    )
+    service.replace_windows((row,))
+    assert service.capture_target(row.id, 101, "Fixture.App") == ghost
+    assert service.capture_is_current(row.id, 101, "Fixture.App", ghost)
+    assert service.capture_target(row.id, 202, "Fixture.App") is None
+    assert service.capture_target(row.id, 101, "Another.App") is None
+    native.target.return_value = WindowsWindowTarget(100, 101)
+    assert not service.capture_is_current(row.id, 101, "Fixture.App", ghost)
+    service.stop()
+    assert service.capture_target(row.id, 101, "Fixture.App") is None
 
 
 def test_windows_covered_by_desktop_keep_running_entries_without_reporting_overlap():
@@ -221,6 +377,8 @@ def test_same_host_hwnd_and_pid_with_changed_app_id_cannot_receive_a_stale_actio
     native._pid = lambda hwnd, output: setattr(output._obj, "value", 101)
     native._properties = MagicMock()
     native._properties.app_id.return_value = "Old.App"
+    native._ghosts = MagicMock()
+    native._ghosts.presentation.return_value = None
     native._post = MagicMock(return_value=True)
     row = WindowSnapshot(
         id=WindowId(DisplayServer.WINDOWS, 100),

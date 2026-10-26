@@ -84,7 +84,17 @@ def main():
                 release(store)
 
     def publish():
-        (output / "state.json").write_text(json.dumps(state, indent=2))
+        temporary = output / "state.tmp"
+        temporary.write_text(json.dumps(state, indent=2))
+        # A concurrent Windows/SMB reader can briefly hold a handle which
+        # denies replacement. Publish a complete file once that reader closes.
+        for _ in range(20):
+            try:
+                temporary.replace(output / "state.json")
+                return
+            except PermissionError:
+                time.sleep(0.01)
+        temporary.replace(output / "state.json")
 
     def dispatch(window, message, first, second):
         if message == 0x111 and first & 0xFFFF == 42:
@@ -124,8 +134,15 @@ def main():
             bind(user, "KillTimer", c.c_int32, pointer, c.c_size_t)(window, 1)
             state["hung"] = True
             publish()
-            while True:
-                time.sleep(60)
+            while not (output / "resume.request").exists():
+                time.sleep(0.1)
+            (output / "hang.request").unlink()
+            (output / "resume.request").unlink()
+            assert bind(
+                user, "SetTimer", c.c_size_t, pointer, c.c_size_t, unsigned, pointer
+            )(window, 1, 100, None)
+            state.update(hung=False, recovered=True)
+            publish()
         return default(window, message, first, second)
 
     callback = callback_type(dispatch)

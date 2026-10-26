@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import subprocess
 import time
 from ctypes import wintypes
 from pathlib import Path
 from typing import ClassVar
+
+
+def read_shared_json(path: Path):
+    """Retry transient Windows/SMB sharing failures during atomic replacement."""
+    for _ in range(19):
+        try:
+            return json.loads(path.read_text())
+        except PermissionError:
+            time.sleep(0.01)
+    return json.loads(path.read_text())
 
 
 class _Mouse(ctypes.Structure):
@@ -265,6 +276,22 @@ class WindowsDesktop:
 
     def double_click(self, x, y):
         self.user.SetCursorPos(int(x), int(y))
+        time.sleep(0.3)
+
+    def drag(self, start, end):
+        """Drag with actual pointer input, including protected native captions."""
+        self.user.SetCursorPos(int(start[0]), int(start[1]))
+        time.sleep(0.2)
+        self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=2)))])
+        try:
+            for step in range(1, 13):
+                self.user.SetCursorPos(
+                    int(start[0] + (end[0] - start[0]) * step / 12),
+                    int(start[1] + (end[1] - start[1]) * step / 12),
+                )
+                time.sleep(0.05)
+        finally:
+            self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=4)))])
         time.sleep(0.3)
         self._send(
             [

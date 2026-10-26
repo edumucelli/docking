@@ -43,7 +43,7 @@ def main():
     from docking.platform.backends.base import ActionResult
     from docking.platform.backends.windows.ffi import bind
     from docking.platform.backends.windows.picking import WindowsWindowPickService
-    from tools.windows_desktop_driver import WindowsDesktop
+    from tools.windows_desktop_driver import WindowsDesktop, read_shared_json
 
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
@@ -170,7 +170,7 @@ def main():
 
     def state(folder):
         try:
-            return json.loads((folder / "state.json").read_text())
+            return read_shared_json(folder / "state.json")
         except (FileNotFoundError, json.JSONDecodeError):
             return None
 
