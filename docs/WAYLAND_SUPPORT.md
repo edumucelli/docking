@@ -36,14 +36,14 @@ workspace switching, and Show Desktop over a private session D-Bus interface.
 
 ```bash
 # Install and enable the extension (one-time)
-tools/gnome_bridge.sh install
+tools/linux/gnome_bridge.sh install
 
 # Run the dock with the GNOME Shell bridge backend
 DOCKING_BACKEND=gnome-shell docking
 ```
 
 System packages include the extension. AppImage and Nix users should run
-`tools/gnome_bridge.sh install` once, or copy
+`tools/linux/gnome_bridge.sh install` once, or copy
 `docking/platform/backends/gnome/extension/` into the GNOME Shell user
 extensions directory.
 

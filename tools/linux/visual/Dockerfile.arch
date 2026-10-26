@@ -11,7 +11,7 @@
 #   docker build -f Dockerfile.arch --target niri   -t docking-lab-arch:niri   .
 #   docker build -f Dockerfile.arch --target cosmic -t docking-lab-arch:cosmic .
 #
-# tools/visual_compositor_matrix.sh picks this file for the compositors it
+# tools/linux/visual/matrix.sh picks this file for the compositors it
 # covers, based on the COMPOSITOR_BASE mapping near the top of that script.
 
 # ---------------------------------------------------------------------------

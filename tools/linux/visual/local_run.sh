@@ -3,8 +3,8 @@
 # Usage: local_run.sh cinnamon-services | native COMPOSITOR [MODE] |
 #        matrix COMPOSITOR [--case NAME | --behavior NAME] [--require-supported]
 set -euo pipefail
-repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-scripts="$repo_dir/tools/visual_compositor"
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+scripts="$repo_dir/tools/linux/visual"
 python="${DOCKING_LAB_PYTHON:-$repo_dir/.venv/bin/python}"
 mode="${1:?mode required: cinnamon-services, native, matrix}"
 shift
@@ -60,7 +60,7 @@ case "$mode" in
                 *) echo "Unknown matrix option: $1" >&2; exit 2 ;;
             esac
         done
-        (cd "$repo_dir" && "$python" -m tools.visual_compositor.scenarios \
+        (cd "$repo_dir" && "$python" -m tools.linux.visual.scenarios \
             --emit "$evidence/cases.json" "${emit_args[@]}")
         "$python" - "$evidence/run-meta.json" "$compositor" <<'PY'
 import json, os, sys
@@ -100,7 +100,7 @@ env -u DISPLAY -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS \
     bash -c 'export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"; exec "$@"' \
     docking-private-session "${session[@]}"
 if [ "$mode" = matrix ]; then
-    (cd "$repo_dir" && "$python" -m tools.visual_compositor.compare \
+    (cd "$repo_dir" && "$python" -m tools.linux.visual.compare \
         --compositor "$compositor" --evidence "$evidence" --out "$evidence/diffs" \
         --geometry-only "${emit_args[@]}" "${require_supported[@]}")
 fi

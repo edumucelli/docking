@@ -20,7 +20,7 @@ Recommended workflow
 
 1. Run the repro under the same backend as Docking.
 
-       GDK_BACKEND=x11 python3 tools/xwayland_repro.py
+       GDK_BACKEND=x11 python3 tools/linux/xwayland_repro.py
 
 2. Start from the most Docking-like configuration:
 

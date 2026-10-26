@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.bsd_visual import run
-from tools.bsd_visual.pixels import Frame, placement
-from tools.bsd_visual.run import private_environment, report
+from tools.bsd.visual import run
+from tools.bsd.visual.pixels import Frame, placement
+from tools.bsd.visual.run import private_environment, report
 
 
 def frame(width=200, height=160, rect=None, channels=3, padding=0):
