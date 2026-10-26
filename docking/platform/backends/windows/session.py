@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
     from .desktop import WindowsDesktopActionService
     from .idle import WindowsIdleService
+    from .picking import WindowsWindowPickService
     from .screen_capture import WindowsScreenCaptureService
 
 
@@ -41,6 +42,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         super().__init__()
         from .desktop import WindowsDesktopActionService
         from .idle import WindowsIdleService
+        from .picking import WindowsWindowPickService
         from .previews import WindowsPreviewService
         from .screen_capture import WindowsScreenCaptureService
         from .surface import WindowsSurfaceService
@@ -57,6 +59,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         self._idle = WindowsIdleService()
         self._screen_capture = WindowsScreenCaptureService()
         self._desktop_actions = WindowsDesktopActionService()
+        self._window_picker = WindowsWindowPickService()
         self._services = ReducedRuntimeServices(
             windows=windows,
             previews=WindowsPreviewService(
@@ -95,6 +98,8 @@ class WindowsSessionBackend(ReducedSessionBackend):
             supports_idle_time=True,
             supports_screen_color_pick=True,
             supports_show_desktop=True,
+            supports_window_pick=True,
+            supports_process_kill=True,
         )
 
     @property
@@ -109,13 +114,19 @@ class WindowsSessionBackend(ReducedSessionBackend):
     def desktop_actions(self) -> WindowsDesktopActionService:
         return self._desktop_actions
 
+    @property
+    def window_picker(self) -> WindowsWindowPickService:
+        return self._window_picker
+
     def start(self) -> None:
         super().start()
         self._idle.start()
         self._screen_capture.start()
         self._desktop_actions.start()
+        self._window_picker.start()
 
     def stop(self) -> None:
+        self._window_picker.stop()
         self._desktop_actions.stop()
         self._screen_capture.stop()
         self._idle.stop()

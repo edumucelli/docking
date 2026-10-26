@@ -101,7 +101,9 @@ surface backend; applets pass their ordinary popup anchor to the shared helper.
 Window Killer delegates selection and termination through `WindowPickService`.
 X11, Niri and Wayfire share the POSIX termination primitive in
 `backends/unix/processes.py`; process signaling belongs to these implementations.
-The Windows window-picking service remains pending.
+Windows implements the same interface in `windows/picking.py`, using native hit
+testing and validated process handles. The shared applet and capture overlay
+contain no Windows process operations.
 
 Desktop uses the common `DesktopActionService`. The Windows implementation owns
 Explorer's shell action and window-order observations in `windows/desktop.py`;
@@ -1787,6 +1789,73 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 Exporting native application shortcuts to Explorer and cross-monitor gestures
 remain follow-up work.
 
+## Native Window Killer
+
+`WindowsWindowPickService` supplies the shared Window Killer applet. The existing
+capture overlay handles input and Escape; the Windows surface service owns its
+focus and native-close behavior. After dismissal, the picker maps GTK logical
+coordinates through the monitor geometry used by AppBar and Color Picker, then
+uses native hit testing to resolve child controls to their application window.
+
+Each selection records the live HWND, owning PID and process creation time.
+Only the latest selection can be used, and a termination attempt consumes it.
+Before termination, the backend rechecks the window/process association and
+creation time using a newly opened process handle, then retains that exact
+kernel handle through `TerminateProcess`. HWND or PID reuse cannot redirect the
+operation to a different process. Start/stop invalidates previous selections.
+Handles are released on successful operations, rejected targets and errors.
+
+For `ApplicationFrameWindow`, a single visible foreign-process
+`Windows.UI.Core.CoreWindow` identifies the hosted application. Missing or
+ambiguous content is rejected. The host process, the dock itself, the current
+Explorer shell, critical processes and known shell UI processes are excluded.
+Termination applies to the selected application's process and all its windows.
+Normal queries request limited process information and synchronization access;
+termination adds `PROCESS_TERMINATE`. Windows applies the caller's effective
+permissions. The backend does not elevate or change privileges.
+
+Windows can cover a hung application with a DWM-owned `Ghost` window. The picker
+uses the optional named `HungWindowFromGhostWindow` export to obtain the original
+application HWND, and revalidates this association before terminating it.
+This export is outside the documented Win32 contract; its presence and behavior
+were verified on the Windows 11 baseline. If unavailable, ghost selection is
+rejected. DWM is excluded from termination. Broader Windows versions and ghost
+recovery races still need acceptance.
+
+![Window Killer capture with owned native controls](../images/windows-window-killer.png)
+
+`windows_windowpicker_smoke.py` runs the complete dock and real input against
+separate Win32 fixture processes. It checks repeated Escape and foreground
+restoration, ignored desktop/dock clicks, overlapping windows and native child
+controls, no click-through, running-entry removal, denied termination with a
+responsive surviving fixture, cross-process hosted content, stale-window
+rejection, a genuinely hung process with a DWM ghost, and real packaged
+Calculator activation and termination. Repeated queries check process handle
+counts. Native close while capture is active must release the overlay and stop
+the service; surviving fixtures close normally and the exact work area returns.
+
+The administrator lab's `psutil` enables `SeDebugPrivilege`, which can bypass a
+process DACL. The denial case therefore uses a duplicate same-user impersonation
+token with privileges disabled only around the actual backend call, requires
+Windows error 5, then restores the original thread token. This is a real access
+check against an owned fixture's deny rule; it does not change machine policy.
+Actual standard-user/elevated UAC behavior remains separate acceptance work.
+Both normal and `GDK_SCALE=2` runs passed on the same 96-DPI display; physical
+mixed-DPI displays and secure/remote desktops remain pending.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_windowpicker_smoke.py' \
+  --output '\\host.lan\Data\lab\window-picker' --calculator
+```
+
+References: [native hit testing](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-windowfrompoint),
+[window ancestry](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getancestor),
+[process creation times](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes),
+[process access and debug privilege](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess),
+[asynchronous process termination](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess).
+
 ## Native Show Desktop
 
 Windows uses the public `IShellDispatch4.ToggleDesktop` operation. It preserves
@@ -2037,6 +2106,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
+| Window Killer | Native implementation of WindowPickService with process-instance validation | Actual input, child/overlapping/hosted windows, real Calculator, denied access, stale targets, DWM ghost, handle ownership and active-capture shutdown verified at GTK scale1/2; optional ghost export across Windows versions, UAC and broader display/session acceptance pending |
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |

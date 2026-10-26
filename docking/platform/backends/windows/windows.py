@@ -202,13 +202,26 @@ class Win32WindowAPI:
             raise ctypes.WinError(ctypes.get_last_error())
         return tuple(rows)
 
+    def snapshot(
+        self, hwnd: int, *, include_hidden: bool = False
+    ) -> WindowSnapshot | None:
+        """Inspect one live application window using the shared native filters."""
+        if not self._exists(hwnd):
+            return None
+        return self._snapshot(
+            hwnd, self._foreground(), {}, include_hidden=include_hidden
+        )
+
     def _snapshot(
         self,
         hwnd: int,
         foreground: int | None,
         identities: dict[int, tuple[str | None, str]],
+        *,
+        include_hidden: bool = False,
     ) -> WindowSnapshot | None:
-        if not self._visible(hwnd):
+        visible = bool(self._visible(hwnd))
+        if not visible and not include_hidden:
             return None
         pid = wintypes.DWORD()
         self._pid(hwnd, ctypes.byref(pid))
@@ -273,7 +286,7 @@ class Win32WindowAPI:
             wm_class=class_name.value,
             pid=pid.value,
             active=hwnd == foreground,
-            visible=True,
+            visible=visible,
             minimized=bool(self._iconic(hwnd)),
             maximized=bool(self._zoomed(hwnd)),
             fullscreen=fullscreen,

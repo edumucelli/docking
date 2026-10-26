@@ -154,3 +154,7 @@ def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar(
     independent = native._snapshot(100, 100, {})
     assert independent is not None and not independent.skip_taskbar
     assert not independent.dialog
+    native._visible = lambda _hwnd: False
+    assert native._snapshot(100, 100, {}) is None
+    hidden = native._snapshot(100, 100, {}, include_hidden=True)
+    assert hidden is not None and not hidden.visible
