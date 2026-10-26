@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import ctypes
+import os
+import subprocess
 import time
 from ctypes import wintypes
+from pathlib import Path
 from typing import ClassVar
 
 
@@ -135,6 +138,66 @@ class WindowsDesktop:
 
         self.user.EnumWindows(visit, 0)
         return rows
+
+    def explorer(self):
+        """Identify the actual shell process, excluding Docking's hidden host."""
+        from docking.platform.backends.windows.ffi import bind
+
+        desktop = bind(self.user, "GetShellWindow", wintypes.HWND)()
+        owner = wintypes.DWORD()
+        self.user.GetWindowThreadProcessId(desktop, ctypes.byref(owner))
+        if not desktop or not owner.value:
+            return None
+        tray = next(
+            (w for w in self.windows(owner.value) if w["class"] == "Shell_TrayWnd"),
+            None,
+        )
+        if tray is None:
+            return None
+        style = bind(
+            self.user,
+            "GetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+        )(tray["hwnd"], -20)
+        return {"pid": owner.value, "window": tray["hwnd"], "style": style}
+
+    def ensure_explorer(self):
+        """Recover the owned test desktop if its shell has not auto-restarted."""
+        if self.explorer() is None:
+            subprocess.Popen(
+                [str(Path(os.environ["WINDIR"]) / "explorer.exe")],
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            )
+        return self.wait_for(self.explorer, "Explorer did not become ready", 30)
+
+    def restart_explorer(self):
+        """Simulate a shell crash only on an explicitly selected test desktop.
+
+        Refuse open folder windows, validate the exact shell executable, and
+        terminate only that process. psutil guards against PID reuse. The caller
+        must recover the desktop after closing its dock if Explorer cannot start
+        while a replacement notification host exists.
+        """
+        import psutil
+
+        before = self.explorer()
+        assert before is not None, "Explorer must be running before this check"
+        assert not any(w["class"] == "CabinetWClass" for w in self.windows()), (
+            "Close Explorer folder windows before testing a shell crash"
+        )
+        process = psutil.Process(before["pid"])
+        assert Path(process.exe()).samefile(Path(os.environ["WINDIR"]) / "explorer.exe")
+        assert self.explorer() == before
+        process.kill()
+        process.wait(15)
+        deadline = time.monotonic() + 3
+        while self.explorer() is None and time.monotonic() < deadline:
+            time.sleep(0.1)
+        after = self.ensure_explorer()
+        assert after["pid"] != before["pid"]
+        return {"before": before, "after": after, "old_process_exited": True}
 
     def _send(self, values):
         assert self.user.SendInput(

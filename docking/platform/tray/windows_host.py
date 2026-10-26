@@ -3,7 +3,7 @@
 The receiver is a hidden topmost Shell_TrayWnd and TrayNotifyWnd pair. Explorer
 remains topmost and receives the original shell messages, including AppBar and
 notification operations. Native resources and the message pump belong to one
-thread; no shell window is subclassed and no foreign process memory is read.
+thread. AppBar output uses the shell protocol's explicitly shared reply blocks.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from ctypes import wintypes
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind
 from docking.platform.tray.state import TrayIconPixmap
+from docking.platform.tray.windows_appbar import WindowsAppBarBridge
 from docking.platform.tray.windows_icons import icon_pixels
 from docking.platform.tray.windows_messages import NotifyMessage, decode_message
 
@@ -39,6 +40,7 @@ class WindowsTrayHost:
         self._explorer = 0
         self._user = None
         self._on_message: Callable[[NotifyMessage], bool] | None = None
+        self._appbar = WindowsAppBarBridge()
 
     def start(self, on_message: Callable[[NotifyMessage], bool]) -> None:
         with self._start_lock:
@@ -171,6 +173,26 @@ class WindowsTrayHost:
         if not self.owner(self._explorer):
             self._explorer = self._find_explorer()
         if not self._explorer:
+            return int(handled)
+        if message == 0x4A and second:
+            data = c.cast(second, c.POINTER(_CopyData)).contents
+            if data.kind == 0 and data.data and data.size == 64:
+
+                def send(payload: bytes) -> int:
+                    buffer = c.create_string_buffer(payload)
+                    packet = _CopyData(0, len(payload), c.cast(buffer, _P))
+                    return self._deliver(message, first, c.addressof(packet), handled)
+
+                result = self._appbar.forward(
+                    c.string_at(data.data, data.size), self.owner(self._explorer), send
+                )
+                if result is not None:
+                    return result
+        return self._deliver(message, first, second, handled)
+
+    def _deliver(self, message: int, first: int, second: int, handled: bool) -> int:
+        user = self._user
+        if user is None or not self._explorer:
             return int(handled)
         if message == 0x400 + 372:
             self.post(self._explorer, message, first, second)

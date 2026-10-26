@@ -3,20 +3,24 @@
 Runs an isolated dock configuration and the bounded generated-icon fixture.
 All activation/menu clicks use desktop input. The fixture records callbacks,
 real window focus and native menu selection independently of Docking.
+--restart-explorer probes shell recovery in an owned test VM.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import zlib
+from contextlib import suppress
 from pathlib import Path
 
 
@@ -24,6 +28,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--task-manager", action="store_true")
+    parser.add_argument(
+        "--restart-explorer",
+        action="store_true",
+        help="Crash/restart Explorer twice in an owned test VM; no open folder windows",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires an owned interactive Windows desktop")
@@ -98,11 +107,13 @@ def main():
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
+    fixture_cache = {}
+
     def fixture_state():
-        try:
-            return json.loads((fixture_root / "state.json").read_text())
-        except (OSError, ValueError):
-            return {}
+        nonlocal fixture_cache
+        with suppress(OSError, ValueError):
+            fixture_cache = json.loads((fixture_root / "state.json").read_text())
+        return fixture_cache
 
     try:
         native.wait_for(
@@ -118,13 +129,16 @@ def main():
     fixture_initial = fixture_state()
     config = output / "config/docking/dock.json"
     config.parent.mkdir(parents=True)
+    pinned = [
+        {"kind": "applet", "target": "applet://systemtray"},
+        {"kind": "applet", "target": "applet://clock"},
+    ]
+    if args.restart_explorer:
+        pinned.append({"kind": "applet", "target": "applet://trash"})
     config.write_text(
         json.dumps(
             {
-                "pinned": [
-                    {"kind": "applet", "target": "applet://systemtray"},
-                    {"kind": "applet", "target": "applet://clock"},
-                ],
+                "pinned": pinned,
                 "icon_size": 64,
                 "hide_mode": "none",
                 "show_recent_apps": False,
@@ -179,6 +193,123 @@ def main():
 
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))
+
+    def icon_rects():
+        from ctypes import wintypes
+
+        from docking.platform.backends.windows.com import GUID
+
+        class Identifier(ctypes.Structure):
+            _fields_ = [
+                ("size", ctypes.c_uint32),
+                ("window", ctypes.c_void_p),
+                ("uid", ctypes.c_uint32),
+                ("guid", GUID),
+            ]
+
+        query = bind(
+            ctypes.WinDLL("shell32"),
+            "Shell_NotifyIconGetRect",
+            ctypes.c_int32,
+            ctypes.POINTER(Identifier),
+            ctypes.POINTER(wintypes.RECT),
+        )
+        result = {}
+        for which, row in fixture_initial["icons"].items():
+            identifier = Identifier(
+                size=ctypes.sizeof(Identifier),
+                window=fixture_initial["window"],
+                uid=row["uid"],
+                guid=GUID.parse(row["guid"] or "00000000-0000-0000-0000-000000000000"),
+            )
+            rect = wintypes.RECT()
+            status = query(ctypes.byref(identifier), ctypes.byref(rect))
+            result[which] = {
+                "status": status,
+                "rect": [rect.left, rect.top, rect.right, rect.bottom],
+            }
+        return result
+
+    def recycle_round_trip(cycle):
+        from docking.applets.trash.windows import WindowsRecycleBin
+
+        trash = call(lambda: shared["model"].get_applet("applet://trash"))
+        assert trash is not None
+        recycle = WindowsRecycleBin()
+        before = recycle.count()
+        native.wait_for(
+            lambda: call(lambda: trash._item_count) == before,
+            "Recycle Bin baseline did not reach the applet",
+        )
+        root = Path(tempfile.mkdtemp(prefix="Docking-shell-recycle-")).resolve()
+        file = root / "Owned shell restart document.txt"
+        contents = "Docking shell restart fixture " + str(cycle)
+        file.write_text(contents, encoding="utf-8")
+        entry = {"cycle": cycle, "root": str(root), "before": before}
+        report.setdefault("recycle_after_restart", []).append(entry)
+
+        def restore():
+            def literal(value):
+                return "'" + str(value).replace("'", "''") + "'"
+
+            program = (
+                "$ErrorActionPreference='Stop';"
+                "$s=New-Object -ComObject Shell.Application;"
+                "$items=@($s.NameSpace(10).Items() | Where-Object {"
+                "$_.ExtendedProperty('System.Recycle.DeletedFrom') -eq "
+                + literal(root)
+                + " -and $_.Name -eq "
+                + literal(file.name)
+                + "});if($items.Count -ne 1){throw 'Owned item missing or ambiguous'};"
+                "if([IO.File]::ReadAllText($items[0].Path) -ne "
+                + literal(contents)
+                + "){throw 'Owned contents mismatch'};$items[0].InvokeVerb('undelete')"
+            )
+            subprocess.run(
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-EncodedCommand",
+                    base64.b64encode(program.encode("utf-16-le")).decode("ascii"),
+                ],
+                capture_output=True,
+                check=True,
+                timeout=30,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            native.wait_for(file.exists, "Owned Recycle Bin item was not restored", 20)
+            assert file.read_text(encoding="utf-8") == contents
+            entry["restored"] = True
+
+        try:
+            assert recycle.recycle(str(file)) and not file.exists()
+            entry["recycled"] = True
+            native.wait_for(
+                lambda: call(lambda: trash._item_count) == before + 1,
+                "Recycle Bin observer did not receive the post-restart addition",
+                20,
+            )
+            assert recycle.count() == before + 1
+            entry["notification_add"] = True
+            capture("restart-" + str(cycle) + "-trash-full")
+            restore()
+            native.wait_for(
+                lambda: call(lambda: trash._item_count) == before,
+                "Recycle Bin observer did not receive the post-restart restore",
+                20,
+            )
+            assert recycle.count() == before
+            entry["notification_restore"] = True
+        finally:
+            if entry.get("recycled") and not file.exists():
+                restore()
+            if file.exists():
+                assert file.read_text(encoding="utf-8") == contents
+                file.unlink()
+                root.rmdir()
+                entry["cleaned"] = True
+            publish()
 
     def drive():
         dock = None
@@ -360,6 +491,49 @@ def main():
 
             shared["command"] = command
 
+            if args.restart_explorer:
+                reserved = native.wait_for(
+                    lambda: area if (area := native.workarea()) != baseline else None,
+                    "Initial dock space reservation did not settle",
+                    15,
+                )
+                report["reserved_workarea"] = reserved
+                report["shell_restarts"] = []
+                for cycle in range(1, 3):
+                    previous = fixture_state()["icons"]
+                    entry = native.restart_explorer()
+                    report["shell_restarts"].append(entry)
+                    shared["explorer"] = entry["after"]["window"]
+                    publish()
+                    native.wait_for(
+                        lambda: backend._api._explorer == shared["explorer"],
+                        "Tray host did not find the replacement Explorer",
+                        15,
+                    )
+                    native.wait_for(
+                        lambda previous=previous: all(
+                            row["adds"] > previous[which]["adds"]
+                            for which, row in fixture_state()["icons"].items()
+                        ),
+                        "Native clients did not re-register after Explorer restart",
+                        15,
+                    )
+                    entry["reregistered"] = fixture_state()["icons"]
+                    native.wait_for(
+                        lambda: native.workarea() == reserved,
+                        "Dock space reservation did not recover after Explorer restart",
+                        20,
+                    )
+                    entry["workarea"] = native.workarea()
+                    assert style(shared["explorer"], -20) == before_style
+                    assert len(ours()) == 2
+                    popup()
+                    snapshot("restart-" + str(cycle) + "-tray-popup")
+                    native.click(1100, 100)
+                    recycle_round_trip(cycle)
+                    entry["icon_rects"] = icon_rects()
+                    publish()
+
             popup()
             checks = {which: verify_pixels(which) for which in ids}
             report["native_icon_crc"] = checks
@@ -524,12 +698,17 @@ def main():
                     "Closed Task Manager left a stale tray item",
                     15,
                 )
-            (fixture_root / "stop").touch()
-            assert fixture.wait(20) == 0
-            native.wait_for(
-                lambda: not ours(), "Stopped native tray client remained visible", 15
-            )
-            snapshot("native-fixture-stopped")
+            if not args.restart_explorer:
+                (fixture_root / "stop").touch()
+                assert fixture.wait(20) == 0
+                native.wait_for(
+                    lambda: not ours(),
+                    "Stopped native tray client remained visible",
+                    15,
+                )
+                snapshot("native-fixture-stopped")
+            else:
+                command("add")  # Keep both clients alive through host shutdown.
             report.update(
                 ok=True,
                 legacy_and_modern_activation=True,
@@ -549,7 +728,7 @@ def main():
                     report["task_manager_exit"] = task_process.wait(20)
                 except subprocess.TimeoutExpired:
                     report.update(ok=False, task_manager_cleanup_pending=True)
-            if fixture.poll() is None:
+            if fixture.poll() is None and not args.restart_explorer:
                 (fixture_root / "stop").touch()
                 try:
                     fixture.wait(20)
@@ -573,9 +752,17 @@ def main():
         app.main()
         driver.join(90)
         assert not driver.is_alive()
+        if args.restart_explorer:
+            recovery = native.ensure_explorer()
+            shared["explorer"] = recovery["window"]
+            report["explorer_recovered"] = recovery
         report["workarea_after"] = native.workarea()
-        report["explorer_style_after"] = style(explorer, -20)
-        assert native.workarea() == baseline and style(explorer, -20) == before_style
+        current_explorer = shared.get("explorer", explorer)
+        report["explorer_style_after"] = style(current_explorer, -20)
+        assert (
+            native.workarea() == baseline
+            and style(current_explorer, -20) == before_style
+        )
         backend = shared.get("backend")
         if backend is not None:
             thread = backend._api._thread
@@ -584,10 +771,28 @@ def main():
         report["normal_shutdown"] = True
         if errors:
             raise errors[0]
+        if args.restart_explorer:
+
+            def live_icon_rects():
+                rows = icon_rects()
+                return rows if all(r["status"] == 0 for r in rows.values()) else None
+
+            report["explorer_icon_rects_after_close"] = native.wait_for(
+                live_icon_rects,
+                "Notification icons did not survive host close after shell restart",
+                15,
+            )
+            shared["command"]("modify", "legacy")
+            shared["command"]("modify", "modern")
+            report["explorer_handoff_after_restart"] = True
+    except Exception as exc:
+        report.update(ok=False, error=repr(exc))
+        raise
     finally:
         if fixture.poll() is None:
             (fixture_root / "stop").touch()
             fixture.wait(20)
+        report["fixture_exit"] = fixture.poll()
         fixture_log.close()
         publish()
         print(json.dumps(report, indent=2))
