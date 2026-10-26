@@ -26,9 +26,9 @@ import traceback
 from contextlib import contextmanager
 from pathlib import Path
 
-from tools.bsd_visual.pixels import Frame, placement
+from tools.bsd.visual.pixels import Frame, placement
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 WIDTH, HEIGHT = 1280, 800
 
 
@@ -273,7 +273,7 @@ def seed(env: dict[str, str]):
     cr.fill()
     surface.write_to_png(str(icon))
     for name in ("alpha", "beta", "gamma"):
-        command = shlex.join([sys.executable, "-m", "tools.bsd_visual.run", "--client"])
+        command = shlex.join([sys.executable, "-m", "tools.bsd.visual.run", "--client"])
         (applications / f"bsd-{name}.desktop").write_text(
             f"[Desktop Entry]\nType=Application\nName=BSD {name}\n"
             f"Exec={command}\nIcon={icon}\nStartupWMClass=bsd-beta\n"
@@ -522,7 +522,7 @@ def run_checks(observer: Observer, env: dict[str, str], record):
         def reservation(edge=edge, name=name):
             observer.pointer.move(WIDTH // 2, HEIGHT // 2)
             with process(
-                [sys.executable, "-m", "tools.bsd_visual.run", "--client"],
+                [sys.executable, "-m", "tools.bsd.visual.run", "--client"],
                 observer.output / f"{name}.client.log",
                 env,
             ):
@@ -806,7 +806,7 @@ def session(args):
                 with (
                     process(shlex.split(args.wm), output / "wm.log", env),
                     process(
-                        [sys.executable, "-m", "tools.bsd_visual.run", "--background"],
+                        [sys.executable, "-m", "tools.bsd.visual.run", "--background"],
                         output / "desktop.log",
                         env,
                     ) as background,
@@ -824,7 +824,7 @@ def session(args):
                         [
                             sys.executable,
                             "-m",
-                            "tools.bsd_visual.run",
+                            "tools.bsd.visual.run",
                             "--observe",
                             "--output",
                             str(output),
@@ -948,7 +948,7 @@ def main():
                 "--",
                 sys.executable,
                 "-m",
-                "tools.bsd_visual.run",
+                "tools.bsd.visual.run",
                 "--session",
                 "--output",
                 str(args.output),

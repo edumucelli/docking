@@ -14,7 +14,7 @@ import pytest
 
 @pytest.mark.parametrize("dock_present", [False, True])
 def test_native_pixel_marker_excludes_fixture_titlebar_icon(dock_present):
-    from tools.visual_compositor.probes.native_services_probe import dock_marker_points
+    from tools.linux.visual.probes.native_services_probe import dock_marker_points
 
     width, height = 160, 64
     data = bytearray(b"\xff\x00\x00" * width * height)
@@ -43,8 +43,8 @@ def test_additional_adapter_capabilities(compositor, layer_shell):
         {"gtk_display_is_wayland": True, "layer_shell_supported": layer_shell}
     )
     script = f"""
-export LAB_SCRIPTS="{root}/tools/visual_compositor"
-source "{root}/tools/visual_compositor/adapters/{compositor}.sh"
+export LAB_SCRIPTS="{root}/tools/linux/visual"
+source "{root}/tools/linux/visual/adapters/{compositor}.sh"
 session_probe_json() {{ printf '%s\\n' '{probe}'; }}
 export LAB_PANEL_HEIGHT=36
 adapter_capabilities
@@ -80,7 +80,7 @@ adapter_capabilities
 def test_foreign_service_probe_requires_actual_fixture_pixels(
     tmp_path, monkeypatch, color, minimize_delivered, private_previews
 ):
-    from tools.visual_compositor.probes import foreign_services_probe as probe
+    from tools.linux.visual.probes import foreign_services_probe as probe
 
     monkeypatch.setenv("LAB_EXPECTED_BACKEND", "wayland-layer-shell")
     monkeypatch.setenv("LAB_COMPOSITOR", "phoc")

@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from docking.applets.base import Applet
 
 log = logging.getLogger(__name__)
+_SUPPORT_PACKAGES = {"webapp"}
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +53,9 @@ def get_applet_catalog() -> dict[str, AppletMeta]:
             continue
         if pkg.name.startswith("_"):
             log.debug("Skipping private applet package %s", pkg.name)
+            continue
+        if pkg.name in _SUPPORT_PACKAGES:
+            log.debug("Skipping shared applet support package %s", pkg.name)
             continue
         init_py = pkg / "__init__.py"
         if not init_py.exists():

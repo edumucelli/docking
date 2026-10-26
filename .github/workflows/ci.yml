@@ -86,7 +86,7 @@ jobs:
           sudo apt-get install -y gettext
 
       - name: Cache pip downloads
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-quality-pip-${{ hashFiles('pyproject.toml', 'requirements-typing.txt') }}
@@ -119,10 +119,10 @@ jobs:
         run: python3 tools/check_translation_packaging.py
 
       - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd_visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ packaging/bsd/
 
       - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd_visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ packaging/bsd/
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
@@ -138,7 +138,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Cache pip downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-bdd-visual-pip-${{ hashFiles('pyproject.toml') }}
@@ -211,12 +211,12 @@ jobs:
 
       - name: Set up Python
         if: matrix.python == '3.14'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
 
       - name: Cache pip downloads
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-ubuntu-${{ matrix.ubuntu }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -325,7 +325,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Cache pip downloads
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /root/.cache/pip
           key: ${{ runner.os }}-debian-${{ matrix.debian }}-py${{ matrix.python }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -379,7 +379,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Cache pip downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-ubuntu-24.04-arm-py3.12-pip-${{ hashFiles('pyproject.toml') }}
@@ -706,7 +706,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -743,7 +743,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
 

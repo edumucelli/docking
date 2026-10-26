@@ -3,10 +3,10 @@ name: Wayland compositors
 on:
   pull_request:
     branches: [master, visual-compositor-lab]
-    paths: ["docking/**", "tools/visual_compositor/**", "tools/visual_compositor_matrix.sh", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tools/linux/visual/**", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
-    paths: ["docking/**", "tools/visual_compositor/**", "tools/visual_compositor_matrix.sh", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tools/linux/visual/**", ".github/workflows/compositor.yml"]
   workflow_dispatch:
   schedule:
     - cron: "23 4 * * 1"
@@ -28,7 +28,7 @@ jobs:
       matrix:
         compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","phoc","phosh","weston","cage","gnome"]' || '["sway","cinnamon","niri","cosmic","kwin","wayfire","phoc","phosh","weston","gnome"]') }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install comparison dependencies
         run: |
           sudo apt-get update
@@ -39,10 +39,10 @@ jobs:
           .venv/bin/python -m pip install -e '.[dev]'
       - uses: docker/setup-buildx-action@v3
       - name: Build pinned-base compositor image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
-          context: tools/visual_compositor
-          file: tools/visual_compositor/${{ contains(fromJSON('["niri","cosmic","wayfire"]'), matrix.compositor) && 'Dockerfile.arch' || 'Dockerfile' }}
+          context: tools/linux/visual
+          file: tools/linux/visual/${{ contains(fromJSON('["niri","cosmic","wayfire"]'), matrix.compositor) && 'Dockerfile.arch' || 'Dockerfile' }}
           target: ${{ matrix.compositor }}
           tags: docking-ci:${{ matrix.compositor }}
           load: true
@@ -54,14 +54,14 @@ jobs:
           COMPOSITOR: ${{ matrix.compositor }}
         run: |
           if [ "$COMPOSITOR" = cinnamon ]; then
-            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
-            bash tools/visual_compositor_matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
-            bash tools/visual_compositor/cinnamon_services.sh
+            bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
+            bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+            bash tools/linux/visual/cinnamon_services.sh
           elif [ "$COMPOSITOR" = cage ] || [ "$COMPOSITOR" = gnome ] || [ "$COMPOSITOR" = weston ]; then
             # Negative compatibility lanes still verify backend, startup and shutdown.
-            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
+            bash tools/linux/visual/matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
           else
-            bash tools/visual_compositor_matrix.sh --compositor "$COMPOSITOR" --behavior placement \
+            bash tools/linux/visual/matrix.sh --compositor "$COMPOSITOR" --behavior placement \
               --case placement-bottom --case placement-top --case placement-left \
               --case placement-right --case placement-bottom-gap --geometry-only --require-supported
           fi
@@ -70,18 +70,18 @@ jobs:
         env:
           DOCKING_LAB_IMAGE: docking-ci:sway
         run: |
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior visibility \
+          bash tools/linux/visual/matrix.sh --compositor sway --behavior visibility \
             --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
-          bash tools/visual_compositor_matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+          bash tools/linux/visual/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+          bash tools/linux/visual/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
+          bash tools/linux/visual/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
       - name: Check native Wayfire dodge
         if: matrix.compositor == 'wayfire'
         env:
           DOCKING_LAB_IMAGE: docking-ci:wayfire
         run: |
-          bash tools/visual_compositor_matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
-          bash tools/visual_compositor/wayfire_services.sh
+          bash tools/linux/visual/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
+          bash tools/linux/visual/wayfire_services.sh
       - name: Check native services and independent dock pixels
         if: contains(fromJSON('["sway","niri","gnome","kwin","cosmic","wayfire","phoc","phosh"]'), matrix.compositor)
         env:
@@ -91,30 +91,30 @@ jobs:
           if [ "$COMPOSITOR" = kwin ]; then
             # GPU-less QPainter validates state/actions, not animation pixels or
             # the OpenGL-only ScreenShot2 effect. Keep this distinction in JSON.
-            bash tools/visual_compositor/native_services.sh kwin services
+            bash tools/linux/visual/native_services.sh kwin services
           elif [ "$COMPOSITOR" = cosmic ]; then
             # Native state/actions/filtering remain testable without GPU pixel acceptance.
-            bash tools/visual_compositor/native_services.sh cosmic services
-            bash tools/visual_compositor/native_services.sh cosmic idle
+            bash tools/linux/visual/native_services.sh cosmic services
+            bash tools/linux/visual/native_services.sh cosmic idle
           elif [ "$COMPOSITOR" = phoc ] || [ "$COMPOSITOR" = phosh ]; then
-            bash tools/visual_compositor/native_services.sh "$COMPOSITOR" foreign
+            bash tools/linux/visual/native_services.sh "$COMPOSITOR" foreign
             if [ "$COMPOSITOR" = phoc ]; then
-              bash tools/visual_compositor/native_services.sh phoc panel
+              bash tools/linux/visual/native_services.sh phoc panel
               # Explicit bare-compositor diagnostic, never the normal Phosh shell path.
-              DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/visual_compositor/native_services.sh phoc foreign
+              DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/linux/visual/native_services.sh phoc foreign
             fi
           else
-            bash tools/visual_compositor/native_services.sh "$COMPOSITOR"
+            bash tools/linux/visual/native_services.sh "$COMPOSITOR"
             if [ "$COMPOSITOR" = niri ]; then
-              bash tools/visual_compositor/native_services.sh niri picker
+              bash tools/linux/visual/native_services.sh niri picker
             fi
           fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compositor-${{ matrix.compositor }}
-          path: tools/visual_compositor/evidence/
+          path: tools/linux/visual/evidence/
           include-hidden-files: false
           if-no-files-found: warn
           retention-days: 14
