@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -33,6 +33,7 @@ from docking.applets.popup import create_popup_window, show_wrapped_popup
 from docking.applets.systemtray import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
+from docking.platform.backends.base import Rect
 from docking.platform.tray.menu import TrayMenuClient, TrayMenuItem, TrayMenuLayout
 from docking.platform.tray.service import TrayService
 from docking.platform.tray.state import TrayItem, TrayState
@@ -44,6 +45,7 @@ from .state import tooltip_text
 if TYPE_CHECKING:
     from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.backends.base import SurfaceService
 
 
 class SystemTrayApplet(Applet):
@@ -62,6 +64,7 @@ class SystemTrayApplet(Applet):
         self._active = False
         self._generation = 0
         self._popup: Gtk.Window | None = None
+        self._row_icons: dict[str, Gtk.Image] = {}
         self._item_menu: Gtk.Menu | None = None
         self._worker = BackgroundWorker()
         self._presentation = create_platform_presentation(
@@ -80,6 +83,7 @@ class SystemTrayApplet(Applet):
             return
         self._generation += 1
         self._service.remove_listener(self._on_state_result)
+        self._service.set_geometry({})
         if self._owns_service:
             self._service.stop()
             self._owns_service = False
@@ -88,6 +92,7 @@ class SystemTrayApplet(Applet):
         # and tooltip. Assigning it here first would make that callback a no-op
         # and leave the applet showing the previous service's state.
         service.add_listener(self._on_state_result)
+        self._publish_geometry()
 
     def create_icon(self, size: int):
         item_count = len(self._state.items)
@@ -119,6 +124,7 @@ class SystemTrayApplet(Applet):
         self._active = False
         self._generation += 1
         self._service.remove_listener(self._on_state_result)
+        self._service.set_geometry({})
         if self._owns_service:
             self._service.stop()
         if self._item_menu is not None:
@@ -127,6 +133,7 @@ class SystemTrayApplet(Applet):
         if self._popup is not None:
             self._popup.destroy()
             self._popup = None
+        self._row_icons.clear()
         if self._presentation is not None:
             self._presentation.stop()
         super().stop()
@@ -222,13 +229,78 @@ class SystemTrayApplet(Applet):
         self._position_platform_presentation()
         if self._popup is None:
             self._popup = create_popup_window()
+            self._popup.connect("configure-event", self._geometry_changed)
+            self._popup.connect("size-allocate", self._geometry_changed)
+            self._popup.connect("hide", self._geometry_changed)
         show_wrapped_popup(
             window=self._popup,
             content=self._build_popup_content(),
             anchor=self.popup_anchor,
         )
+        self._publish_geometry()
+
+    def _surface_rectangle(self, window: Gtk.Window, rect: Rect) -> Rect | None:
+        anchor = self.popup_anchor
+        surface = cast(
+            "SurfaceService | None",
+            getattr(anchor.parent, "surface_service", None) if anchor else None,
+        )
+        return surface.screen_rectangle(window, rect) if surface is not None else None
+
+    def _row_rectangle(self, identifier: str) -> Rect | None:
+        image = self._row_icons.get(identifier)
+        if image is None or self._popup is None or not self._popup.get_visible():
+            return None
+        pixbuf = image.get_pixbuf()
+        width = (
+            pixbuf.get_width()
+            if pixbuf is not None
+            else min(24, image.get_allocated_width())
+        )
+        height = (
+            pixbuf.get_height()
+            if pixbuf is not None
+            else min(24, image.get_allocated_height())
+        )
+        point = image.translate_coordinates(
+            self._popup,
+            (image.get_allocated_width() - width) // 2,
+            (image.get_allocated_height() - height) // 2,
+        )
+        if point is None or width <= 0 or height <= 0:
+            return None
+        return self._surface_rectangle(
+            self._popup, Rect(point[0], point[1], width, height)
+        )
+
+    def _action_rectangle(self, identifier: str) -> Rect | None:
+        rect = self._row_rectangle(identifier)
+        if rect is not None:
+            return rect
+        anchor = self.popup_anchor
+        if (
+            anchor is not None
+            and anchor.parent is not None
+            and anchor.bounds is not None
+        ):
+            return self._surface_rectangle(anchor.parent, anchor.bounds)
+        return None
+
+    def _geometry_changed(self, *_args) -> bool:
+        self._publish_geometry()
+        return False
+
+    def _publish_geometry(self) -> None:
+        bounds = {}
+        if self._active:
+            for identifier in self._row_icons:
+                rect = self._row_rectangle(identifier)
+                if rect is not None:
+                    bounds[identifier] = rect
+        self._service.set_geometry(bounds)
 
     def _build_popup_content(self) -> Gtk.Box:
+        self._row_icons.clear()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         box.set_border_width(10)
         header = Gtk.Label(label=self._menu_header())
@@ -261,6 +333,7 @@ class SystemTrayApplet(Applet):
     def _build_item_row(self, item: TrayItem) -> Gtk.Box:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         image = Gtk.Image()
+        self._row_icons[item.identifier] = image
         pixbuf = _load_item_icon(item=item, size=24)
         if pixbuf is not None:
             image.set_from_pixbuf(pixbuf)
@@ -313,21 +386,23 @@ class SystemTrayApplet(Applet):
         return row
 
     def _on_activate(self, identifier: str) -> None:
+        anchor = self._action_rectangle(identifier)
         if self._popup is not None:
             self._popup.hide()
         self._run_tray_action(
             name="systemtray-activate",
-            action=lambda service: service.activate(identifier),
+            action=lambda service: service.activate(identifier, anchor=anchor),
         )
 
     def _on_icon_press(self, identifier: str, event: Gdk.EventButton) -> bool:
         if event.button != 1 or event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
             return False
+        anchor = self._action_rectangle(identifier)
         if self._popup is not None:
             self._popup.hide()
         self._run_tray_action(
             name="systemtray-double-click",
-            action=lambda service: service.double_click(identifier),
+            action=lambda service: service.double_click(identifier, anchor=anchor),
         )
         return True
 
@@ -404,11 +479,12 @@ class SystemTrayApplet(Applet):
     def _on_context_menu(self, identifier: str) -> None:
         if not self._active:
             return
+        anchor = self._action_rectangle(identifier)
         if self._popup is not None:
             self._popup.hide()
         self._run_tray_action(
             name="systemtray-context-menu",
-            action=lambda service: service.context_menu(identifier),
+            action=lambda service: service.context_menu(identifier, anchor=anchor),
         )
 
     def _position_platform_presentation(self) -> None:

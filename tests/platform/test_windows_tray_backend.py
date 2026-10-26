@@ -5,15 +5,23 @@ import struct
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 from docking.platform import environment
+from docking.platform.backends.base import Rect
 from docking.platform.tray.backend import create_backend
 from docking.platform.tray.state import TrayIconPixmap
 from docking.platform.tray.windows import WindowsTrayBackend
+from docking.platform.tray.windows_host import WindowsTrayHost
 from docking.platform.tray.windows_icons import composite_pixels
-from docking.platform.tray.windows_messages import callback_parameters, decode_message
+from docking.platform.tray.windows_messages import (
+    callback_parameters,
+    decode_icon_query,
+    decode_message,
+    icon_query_reply,
+)
 
 GUID = "1dc183b6-df18-45ea-89d5-1049f9b2df91"
 
@@ -67,10 +75,11 @@ class API:
         self.images = []
         self.fail = False
 
-    def start(self, callback):
+    def start(self, callback, icon_bounds=None):
         if self.fail:
             raise OSError("Host failed")
         self.callback = callback
+        self.icon_bounds = icon_bounds
 
     def owner(self, window):
         return self.owners.get(window, 0)
@@ -107,6 +116,122 @@ def tray(monkeypatch):
     )
     assert backend.get_state().available
     return backend, api
+
+
+def geometry_query(*, operation=1, guid="", window=0x1234, uid=37):
+    return decode_icon_query(
+        struct.pack(
+            "<6I16s",
+            0x34753423,
+            operation,
+            32,
+            0,
+            window,
+            uid,
+            uuid.UUID(guid or "00000000-0000-0000-0000-000000000000").bytes_le,
+        )
+    )
+
+
+def test_native_geometry_wire_uses_guid_or_window_uid_and_dimensions():
+    origin = geometry_query()
+    size = geometry_query(operation=2, guid=GUID, window=99, uid=100)
+    assert origin.identifier == "window:00001234:37"
+    assert size.identifier == "guid:" + GUID
+    rect = Rect(-320, 250, 24, 48)
+    assert icon_query_reply(origin, rect) == ((-320 & 0xFFFF) | (250 << 16))
+    assert icon_query_reply(size, rect) == (24 | (48 << 16))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"",
+        b"\0" * 40,
+        b"\0" * 39,
+        b"\0" * 41,
+        struct.pack("<10I", 0x34753423, 3, 32, 0, 0, 0, 0, 0, 0, 0),
+    ],
+)
+def test_unknown_icon_query_is_left_to_explorer(data):
+    assert decode_icon_query(data) is None
+
+
+@pytest.mark.parametrize(
+    "rect", [Rect(0, 0, 0, 24), Rect(0, 0, 24, -1), Rect(40000, 0, 24, 24)]
+)
+def test_invalid_or_unrepresentable_icon_origin_has_no_reply(rect):
+    assert icon_query_reply(geometry_query(), rect) is None
+
+
+def test_geometry_is_published_and_survives_duplicate_registration(tray):
+    backend, api = tray
+    api.emit()
+    key = geometry_query().identifier
+    rect = Rect(-300, 410, 24, 24)
+    backend.set_geometry({key: rect, "unknown": rect})
+    assert api.icon_bounds(geometry_query()) == rect
+    api.emit()  # TaskbarCreated re-adds the same client while the view stays open.
+    assert api.icon_bounds(geometry_query()) == rect
+    api.emit(flags=8, state=1, mask=1, operation=1)
+    assert api.icon_bounds(geometry_query()) is None
+    api.emit(flags=8, state=0, mask=1, operation=1)
+    assert api.icon_bounds(geometry_query()) == rect
+    backend.set_geometry({})
+    assert api.icon_bounds(geometry_query()) is None
+
+
+def test_context_anchor_survives_popup_clear_then_invalidates_on_owner_exit(tray):
+    backend, api = tray
+    api.emit(guid=GUID)
+    api.emit(guid=GUID, operation=4, version=4)
+    query = geometry_query(guid=GUID)
+    rect = Rect(350, 420, 24, 24)
+    backend.set_geometry({})
+    assert backend.context_menu(query.identifier, anchor=rect)
+    assert api.icon_bounds(query) == rect
+    assert api.posts[-1][2:] == callback_parameters(
+        version=4, uid=37, event=0x7B, x=362, y=444
+    )
+    api.owners[0x1234] = 77
+    assert api.icon_bounds(query) is None
+    assert not backend.context_menu(query.identifier, anchor=rect)
+
+
+def test_geometry_cannot_outlive_removal_or_closed_backend(tray):
+    backend, api = tray
+    api.emit()
+    query = geometry_query()
+    rect = Rect(20, 30, 24, 24)
+    backend.set_geometry({query.identifier: rect})
+    api.emit(operation=2)
+    assert api.icon_bounds(query) is None
+    api.emit()
+    backend.set_geometry({query.identifier: rect})
+    backend.close()
+    backend.set_geometry({query.identifier: rect})
+    assert api.icon_bounds(query) is None
+
+
+def test_replacement_explorer_is_reseeded_once_for_each_window_and_owner(monkeypatch):
+    host = WindowsTrayHost()
+    host._explorer = 101
+    owner = Mock(return_value=202)
+    monkeypatch.setattr(host, "owner", owner)
+    monkeypatch.setattr(host, "_integrity", lambda pid: 0x2000)
+    announce = Mock()
+    monkeypatch.setattr(host, "_announce", announce)
+    host._seed_changed_explorer()
+    host._seed_changed_explorer()
+    assert announce.call_count == 1
+    host._explorer = 303
+    host._seed_changed_explorer()
+    owner.return_value = 404
+    host._seed_changed_explorer()
+    assert announce.call_count == 3
+    host._explorer = 0
+    host._seed_changed_explorer()
+    assert announce.call_count == 3
 
 
 def test_factory_and_close_do_no_native_or_unix_work(monkeypatch):

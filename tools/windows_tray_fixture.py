@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seconds", type=float, default=300)
+    parser.add_argument("--use-icon-rect", action="store_true")
     args = parser.parse_args()
     if sys.platform != "win32" or not 0 < args.seconds <= 600:
         parser.error("Requires Windows and a lifetime of at most 600 seconds")
@@ -78,6 +79,32 @@ def main():
             ("guid", GUID),
             ("balloon", p),
         ]
+
+    class IconIdentifier(c.Structure):
+        _fields_ = [("size", u), ("window", p), ("uid", u), ("guid", GUID)]
+
+    query_rect = bind(
+        shell,
+        "Shell_NotifyIconGetRect",
+        c.c_int32,
+        c.POINTER(IconIdentifier),
+        c.POINTER(wintypes.RECT),
+    )
+
+    def bounds(which):
+        data = icons[which]
+        identifier = IconIdentifier(
+            size=c.sizeof(IconIdentifier),
+            window=data.window,
+            uid=data.uid,
+            guid=data.guid,
+        )
+        rect = wintypes.RECT()
+        status = query_rect(c.byref(identifier), c.byref(rect))
+        return {
+            "status": status,
+            "rect": [rect.left, rect.top, rect.right, rect.bottom],
+        }
 
     report = {
         "pid": os.getpid(),
@@ -139,6 +166,12 @@ def main():
         return accepted
 
     def context(which, x, y):
+        if args.use_icon_rect:
+            geometry = bounds(which)
+            report["menu_icon_bounds"] = geometry
+            assert geometry["status"] == 0
+            x, y = geometry["rect"][0], geometry["rect"][3]
+            report["menu_requested_position"] = [x, y]
         menu = bind(user, "CreatePopupMenu", p)()
         if not menu:
             raise c.WinError(c.get_last_error())
@@ -174,6 +207,8 @@ def main():
         action, which = value.get("action"), value.get("which", "modern")
         if action == "quit":
             bind(user, "PostQuitMessage", None, c.c_int)(0)
+        elif action == "rects":
+            report["icon_rects"] = {key: bounds(key) for key in icons}
         elif which in icons:
             data = icons[which]
             row = report["icons"][which]
@@ -261,7 +296,11 @@ def main():
                 if time.monotonic() >= deadline or (output / "stop").exists():
                     bind(user, "PostQuitMessage", None, c.c_int)(0)
                 else:
-                    target = output / "command.json"
+                    target = (
+                        output / f"command-{report['command_revision'] + 1:06d}.json"
+                    )
+                    if not target.exists():
+                        target = output / "command.json"  # Earlier lab drivers.
                     if target.exists():
                         try:
                             value = json.loads(target.read_text())

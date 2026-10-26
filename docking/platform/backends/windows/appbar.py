@@ -18,7 +18,7 @@ from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.backends.base import MonitorSnapshot, Rect
 
-from .ffi import MonitorInfo
+from .ffi import MonitorInfo, explorer_tray
 from .ffi import bind as _bind
 
 if TYPE_CHECKING:
@@ -95,6 +95,7 @@ class WindowsAppBar:
         self._on_change = on_change
         self._on_fullscreen = on_fullscreen
         self._registered = False
+        self._registered_shell: tuple[int, int] | None = None
         self._reserved: Rect | None = None
         self._edge: int | None = None
         self._closed = False
@@ -297,6 +298,7 @@ class WindowsAppBar:
             if not self._appbar(0, ctypes.byref(data)):
                 raise OSError("Windows shell rejected AppBar registration")
             self._registered = True
+            self._registered_shell = explorer_tray(self._user, exclude_pid=os.getpid())
         edge = self._edge_for(position)
         bounds = self.external(mapping, position)
         rect = edge_strip(bounds, position, thickness * mapping.scale)
@@ -314,6 +316,7 @@ class WindowsAppBar:
     def clear(self) -> None:
         if self._registered:
             self._registered = False
+            self._registered_shell = None
             self._reserved = None
             self._edge = None
             self._appbar(1, ctypes.byref(self._data()))
@@ -348,7 +351,13 @@ class WindowsAppBar:
                     self._on_fullscreen(bool(lparam))
                     return 0
                 if message == self._taskbar_created:
-                    self._registered = False
+                    # Other notification hosts also send this broadcast.
+                    # Keep a live registration in the same Explorer lifetime;
+                    # duplicate ABM_NEW is rejected and must not orphan it.
+                    if self._registered_shell != explorer_tray(
+                        self._user, exclude_pid=os.getpid()
+                    ):
+                        self._registered = False
                     self._reserved = None
                     self._on_change()
                 elif self._registered and message in (6, 0x47):

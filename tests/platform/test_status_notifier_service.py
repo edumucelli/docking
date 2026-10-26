@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 import docking.platform.tray.service as service_mod
 from docking.applets.worker import BackgroundWorker
+from docking.platform.backends.base import Rect
 from docking.platform.tray.service import (
     POLL_INTERVAL_S,
 )
@@ -20,6 +22,21 @@ from docking.platform.tray.state import (
 from docking.platform.tray.state import (
     unavailable_state,
 )
+
+
+def test_presentation_geometry_and_action_anchor_are_forwarded_then_rejected_on_stop():
+    backend = Mock()
+    service = StatusNotifierService(backend=backend)
+    rect = Rect(350, 420, 24, 24)
+    service.set_geometry({"icon": rect})
+    backend.set_geometry.assert_called_once_with({"icon": rect})
+    assert service.context_menu("icon", anchor=rect)
+    backend.context_menu.assert_called_once_with("icon", anchor=rect)
+    service.stop()
+    backend.reset_mock()
+    service.set_geometry({"icon": rect})
+    assert not service.activate("icon", anchor=rect)
+    assert not backend.mock_calls
 
 
 def _available_state() -> StatusTrayState:

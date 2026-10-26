@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -26,6 +27,9 @@ from gi.repository import Gdk, Gtk
 
 from docking.core.position import Position
 from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
+
+if TYPE_CHECKING:
+    from docking.platform.backends.base import Rect
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -52,6 +56,7 @@ class PopupAnchor:
     y: int
     position: Position
     parent: Gtk.Window | None = None
+    bounds: Rect | None = None  # Icon bounds relative to the parent's client area.
 
 
 def prepare_menu_popup(menu: Gtk.Menu, anchor: PopupAnchor | None) -> None:

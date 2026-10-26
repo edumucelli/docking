@@ -44,6 +44,32 @@ class WindowsSurfaceService(ReducedSurfaceService):
         self._placement: PlacementRequest | None = None
         self._menus: WindowsMenuSession | None = None
 
+    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        from docking.platform.backends.gtk_geometry import logical_screen_rectangle
+
+        logical = logical_screen_rectangle(window, rect)
+        if logical is None or self._appbar is None:
+            return None
+        display = window.get_display()
+        monitor = display.get_monitor_at_window(window.get_window())
+        if monitor is None:
+            return None
+        index = next(
+            (
+                i
+                for i in range(display.get_n_monitors())
+                if display.get_monitor(i) == monitor
+            ),
+            -1,
+        )
+        geometry = monitor.get_geometry()
+        snapshot = MonitorSnapshot(
+            index=index,
+            geometry=Rect(geometry.x, geometry.y, geometry.width, geometry.height),
+            scale=monitor.get_scale_factor(),
+        )
+        return self._appbar.mapping(snapshot, display).to_physical(logical)
+
     def on_realize(self, window: object) -> None:
         super().on_realize(window)
         if self._appbar is None:

@@ -346,6 +346,13 @@ class SurfaceService(Service):
     def prepare_menu_popup(self, menu: object) -> None:
         """Prepare any platform-specific keyboard focus for a root menu."""
 
+    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        """Map a GTK client rectangle into the platform's desktop coordinates.
+
+        Called on the GTK thread. Return None when global placement is unknown.
+        """
+        return None
+
     def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
         """Register an optional compositor fallback for missing GTK exit events."""
 

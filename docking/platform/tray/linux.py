@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
+from docking.platform.backends.base import Rect
 from docking.platform.status_notifier.backend import StatusNotifierBackend
 from docking.platform.status_notifier.dbusmenu import DBusMenuClient, DBusMenuItem
 from docking.platform.tray.menu import TrayMenuItem, TrayMenuLayout
@@ -81,13 +84,25 @@ class LinuxTrayBackend:
             state.legacy_tray_owner,
         )
 
-    def activate(self, identifier: str) -> bool:
-        return self._backend.activate(identifier)
+    def set_geometry(self, bounds: Mapping[str, Rect]) -> None:
+        # SNI receives the invocation point directly in each action.
+        pass
 
-    def context_menu(self, identifier: str) -> bool:
-        return self._backend.context_menu(identifier)
+    def activate(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return (
+            self._backend.activate(identifier, x=anchor.x, y=anchor.bottom)
+            if anchor
+            else self._backend.activate(identifier)
+        )
 
-    def double_click(self, identifier: str) -> bool:
+    def context_menu(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return (
+            self._backend.context_menu(identifier, x=anchor.x, y=anchor.bottom)
+            if anchor
+            else self._backend.context_menu(identifier)
+        )
+
+    def double_click(self, identifier: str, *, anchor: Rect | None = None) -> bool:
         # SNI exposes semantic activation rather than a native double-click.
         return False
 

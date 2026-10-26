@@ -11,6 +11,8 @@ import struct
 import uuid
 from dataclasses import dataclass
 
+from docking.platform.backends.base import Rect
+
 
 @dataclass(frozen=True)
 class NotifyMessage:
@@ -67,3 +69,34 @@ def callback_parameters(
         return uid, event
     point = (x & 0xFFFF) | ((y & 0xFFFF) << 16)
     return point, (event & 0xFFFF) | ((uid & 0xFFFF) << 16)
+
+
+@dataclass(frozen=True)
+class IconQuery:
+    operation: int
+    identifier: str
+
+
+def decode_icon_query(payload: bytes) -> IconQuery | None:
+    if len(payload) != 40:
+        return None
+    signature, operation, size, _padding, window, uid = struct.unpack_from(
+        "<6I", payload
+    )
+    if signature != 0x34753423 or operation not in (1, 2) or size != 32:
+        return None
+    guid = uuid.UUID(bytes_le=payload[24:40])
+    identifier = f"guid:{guid}" if guid.int else f"window:{window:08x}:{uid}"
+    return IconQuery(operation, identifier)
+
+
+def icon_query_reply(query: IconQuery, rect: Rect) -> int | None:
+    # Native traces prove operation 2 returns width/height, not a second corner.
+    x, y = (rect.x, rect.y) if query.operation == 1 else (rect.width, rect.height)
+    if (
+        rect.width <= 0
+        or rect.height <= 0
+        or not (-32768 <= x <= 32767 and -32768 <= y <= 32767)
+    ):
+        return None
+    return (x & 0xFFFF) | ((y & 0xFFFF) << 16)

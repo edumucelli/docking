@@ -1217,6 +1217,47 @@ actions grant foreground permission to the selected process. Windows still
 enforces message and foreground restrictions. GTK tooltips stay hidden while
 the tray popup is open.
 
+The shared tray contract accepts immutable presentation rectangles and an
+optional invocation anchor. The applet measures its GTK images on the main
+thread; `SurfaceService.screen_rectangle` converts client-relative bounds to
+the platform desktop coordinate space. Windows reuses its monitor mapping to
+produce physical coordinates, including scale and origin translation. X11
+uses GTK desktop coordinates for SNI's position hints. Compositors with no
+known global placement can leave the projection unavailable.
+
+The Windows host bounds its icon-position wire decoder and resolves GUID or
+window/UID identity through the backend's live owner checks. Native traces
+establish that the two requests return origin and size. The implementation
+packs signed coordinates and dimensions separately. Visible rows republish
+geometry after movement and content changes. An explicit invocation retains
+its initiating icon bounds while the GTK popup hides, so an asynchronous native
+provider can query them before opening its own menu. A new presentation,
+service replacement, applet stop, icon removal or backend close clears the
+corresponding cached placement.
+
+The hidden receiver also follows Explorer's actual taskbar rectangle. This
+preserves Explorer's fallback placement for unpublished icons; a transparent
+receiver at the top of the display had shifted those fallback queries there.
+No GTK object or Windows handle crosses the shared tray geometry contract.
+
+After routing to a replacement Explorer window/process, the host reseeds
+clients once. A native run exposed a missed restart broadcast; the explicit
+reseed recovers it. AppBar registration tracks the real Explorer identity too:
+a repeated `TaskbarCreated` from another host keeps its existing registration
+and reflows its rectangle. An actual replacement requires registration again.
+This avoids duplicate-registration failures and preserves explicit removal on
+shutdown. The tray and AppBar implementations share the native shell lookup.
+
+Native acceptance compares an independent client's `Shell_NotifyIconGetRect`
+results with GTK image allocations anchored to independent native popup HWND
+bounds. Both legacy and GUID icons match exactly. The rectangles follow a
+60-pixel horizontal and 50-pixel vertical popup move, and return to Explorer's
+placement when the popup is hidden without an invocation. The native fixture
+queries the SDK for its menu position; both actual context menus open at the
+reported icon's left/bottom edge and accept keyboard selection. Separate SDK
+checks verify distinct icon sizes and negative origins; mixed-DPI hardware
+acceptance remains open.
+
 The shared service rejects stale polls/timers after restart and creates a new
 owned backend for a new lifetime. Applet actions and fetched menu layouts are
 also guarded across stop, restart and service replacement. Normal close
@@ -1281,6 +1322,10 @@ deletes its own icons on normal exit. Reports, independent callback journals
 and screenshots remain in the output directory. The regular demo and its
 pin/recent history should be restored afterward.
 
+Add `--verify-geometry` to include independent SDK queries, popup movement and
+native provider menu placement. Fixture commands use immutable revision files
+so Windows SMB readers cannot block replacement of a shared command file.
+
 Add `--restart-explorer` only in an owned test VM to include the two shell
 crashes, reservation recovery, Recycle Bin round trips and live-icon handoff.
 The tool refuses open Explorer folder windows and targets the verified shell
@@ -1290,13 +1335,13 @@ The shell hosting protocol is Windows implementation detail, with native
 acceptance on the lab build rather than a documented replacement-host API.
 Broader providers, WOW64 clients, custom hover interfaces/balloons, elevated
 client policies, restart races, multiple displays/DPI and long-running sessions
-remain acceptance work. Native icon rectangle queries currently resolve near
-the hidden host's top edge while hosting; provider popup placement needs a
-follow-up. This is an intermediate Windows milestone.
+remain acceptance work. Broader provider placement and real mixed-DPI/display
+changes still need verification. This is an intermediate Windows milestone.
 
 References: [notification area](https://learn.microsoft.com/en-us/windows/win32/shell/notification-area),
 [notification data and callback versions](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataw),
 [foreground permission](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow),
+[icon rectangle queries](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shell_notifyicongetrect),
 [AppBar requests](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shappbarmessage),
 [shared shell memory](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-shallocshared),
 [shell-host interoperability precedent](https://github.com/cairoshell/ManagedShell/blob/master/src/ManagedShell.WindowsTray/TrayService.cs).
@@ -1773,7 +1818,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; broader tray providers/hover/WOW64/native icon rectangles/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; broader tray providers/hover/WOW64/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

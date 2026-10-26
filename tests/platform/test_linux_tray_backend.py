@@ -2,6 +2,7 @@
 
 from unittest.mock import Mock
 
+from docking.platform.backends.base import Rect
 from docking.platform.status_notifier.backend import (
     RegisteredItemAddress,
     StatusNotifierBackend,
@@ -11,6 +12,18 @@ from docking.platform.status_notifier.backend import (
 from docking.platform.status_notifier.dbusmenu import DBusMenuItem, DBusMenuLayout
 from docking.platform.tray.linux import LinuxTrayBackend
 from docking.platform.tray.state import TrayState
+
+
+def test_linux_actions_send_the_presented_icon_anchor_without_ui_bus_calls():
+    provider = Mock(spec=StatusNotifierBackend)
+    adapter = LinuxTrayBackend(backend=provider)
+    anchor = Rect(-200, 400, 24, 24)
+    adapter.set_geometry({"item": anchor})
+    assert not provider.mock_calls
+    adapter.activate("item", anchor=anchor)
+    provider.activate.assert_called_once_with("item", x=-200, y=424)
+    adapter.context_menu("item", anchor=anchor)
+    provider.context_menu.assert_called_once_with("item", x=-200, y=424)
 
 
 def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui():

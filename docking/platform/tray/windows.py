@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import PureWindowsPath
 from typing import Protocol
@@ -11,15 +11,24 @@ from typing import Protocol
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.applications.windows_process import WindowsProcessBackend
+from docking.platform.backends.base import Rect
 from docking.platform.tray.state import TrayIconPixmap, TrayItem, TrayState
 from docking.platform.tray.windows_host import WindowsTrayHost
-from docking.platform.tray.windows_messages import NotifyMessage, callback_parameters
+from docking.platform.tray.windows_messages import (
+    IconQuery,
+    NotifyMessage,
+    callback_parameters,
+)
 
 log = get_logger("tray.windows")
 
 
 class TrayAPI(Protocol):
-    def start(self, on_message: Callable[[NotifyMessage], bool]) -> None: ...
+    def start(
+        self,
+        on_message: Callable[[NotifyMessage], bool],
+        icon_bounds: Callable[[IconQuery], Rect | None] | None = None,
+    ) -> None: ...
     def owner(self, window: int) -> int: ...
     def pixels(self, icon: int) -> TrayIconPixmap | None: ...
     def point(self) -> tuple[int, int]: ...
@@ -44,6 +53,7 @@ class WindowsTrayBackend:
     def __init__(self, *, api: TrayAPI | None = None) -> None:
         self._api = api if api is not None else WindowsTrayHost()
         self._items: dict[str, _Item] = {}
+        self._anchors: dict[str, Rect] = {}
         self._lock = threading.RLock()
         self._stopped = threading.Event()
         self._processes = WindowsProcessBackend()
@@ -54,6 +64,7 @@ class WindowsTrayBackend:
                 return False
             key = message.identifier
             if message.operation == 2:
+                self._anchors.pop(key, None)
                 return self._items.pop(key, None) is not None
             current = self._items.get(key)
             if message.operation == 4:
@@ -67,6 +78,12 @@ class WindowsTrayBackend:
             if not owner:
                 return False
             if message.operation == 0:
+                if (
+                    current is None
+                    or current.owner != owner
+                    or current.window != message.window
+                ):
+                    self._anchors.pop(key, None)
                 if key not in self._items and len(self._items) >= 1024:
                     return False
                 current = _Item(message.window, message.uid, owner)
@@ -94,12 +111,13 @@ class WindowsTrayBackend:
         if self._stopped.is_set():
             return TrayState(False, "unavailable", ())
         try:
-            self._api.start(self._on_message)
+            self._api.start(self._on_message, self._icon_bounds)
             with self._lock:
                 items = []
                 for key, item in tuple(self._items.items()):
                     if self._api.owner(item.window) != item.owner:
                         self._items.pop(key, None)
+                        self._anchors.pop(key, None)
                         continue
                     if item.state & 1:
                         continue  # NIS_HIDDEN is an app request, not overflow.
@@ -130,7 +148,35 @@ class WindowsTrayBackend:
             log.debug("Windows notification inventory failed: %s", exc)
             return TrayState(False, "unavailable", (), _("System Tray unavailable"))
 
-    def _send(self, identifier: str, *, context: bool, double: bool = False) -> bool:
+    def set_geometry(self, bounds: Mapping[str, Rect]) -> None:
+        with self._lock:
+            if not self._stopped.is_set():
+                self._anchors = {
+                    key: rect
+                    for key, rect in bounds.items()
+                    if key in self._items and rect.width > 0 and rect.height > 0
+                }
+
+    def _icon_bounds(self, query: IconQuery) -> Rect | None:
+        with self._lock:
+            item = self._items.get(query.identifier)
+            if (
+                self._stopped.is_set()
+                or item is None
+                or item.state & 1
+                or self._api.owner(item.window) != item.owner
+            ):
+                return None
+            return self._anchors.get(query.identifier)
+
+    def _send(
+        self,
+        identifier: str,
+        *,
+        context: bool,
+        double: bool = False,
+        anchor: Rect | None = None,
+    ) -> bool:
         with self._lock:
             item = self._items.get(identifier)
             if self._stopped.is_set() or item is None or item.state & 1:
@@ -140,7 +186,13 @@ class WindowsTrayBackend:
                 or self._api.owner(item.window) != item.owner
             ):
                 return False
-            x, y = self._api.point()
+            if anchor is not None and anchor.width > 0 and anchor.height > 0:
+                # Retain the initiating icon after its GTK popup hides. The
+                # provider may query its bounds asynchronously after PostMessage.
+                self._anchors[identifier] = anchor
+                x, y = anchor.x + anchor.width // 2, anchor.bottom
+            else:
+                x, y = self._api.point()
             self._api.authorize(item.owner)
             if double:
                 events = (0x203,)
@@ -156,14 +208,14 @@ class WindowsTrayBackend:
                     return False
             return True
 
-    def activate(self, identifier: str) -> bool:
-        return self._send(identifier, context=False)
+    def activate(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return self._send(identifier, context=False, anchor=anchor)
 
-    def context_menu(self, identifier: str) -> bool:
-        return self._send(identifier, context=True)
+    def context_menu(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return self._send(identifier, context=True, anchor=anchor)
 
-    def double_click(self, identifier: str) -> bool:
-        return self._send(identifier, context=False, double=True)
+    def double_click(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return self._send(identifier, context=False, double=True, anchor=anchor)
 
     def menu_client(self, identifier: str) -> None:
         # Windows apps own their native context menus; the callback opens them.
@@ -176,3 +228,4 @@ class WindowsTrayBackend:
         self._api.close()
         with self._lock:
             self._items.clear()
+            self._anchors.clear()

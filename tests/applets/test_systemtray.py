@@ -248,11 +248,14 @@ class _FakeService:
     def refresh(self) -> None:
         self.refreshes += 1
 
-    def activate(self, identifier: str) -> bool:
+    def set_geometry(self, bounds) -> None:
+        self.geometry = dict(bounds)
+
+    def activate(self, identifier: str, *, anchor=None) -> bool:
         self.activated.append(identifier)
         return True
 
-    def context_menu(self, identifier: str) -> bool:
+    def context_menu(self, identifier: str, *, anchor=None) -> bool:
         self.context_menus.append(identifier)
         return True
 
@@ -347,6 +350,18 @@ def _make_tray(monkeypatch, *, worker=None) -> SimpleNamespace:
 @pytest.fixture
 def tray(monkeypatch):
     return _make_tray(monkeypatch)
+
+
+def test_geometry_is_cleared_when_a_shared_service_is_replaced_or_applet_stops(tray):
+    old = tray.applet._service
+    old.set_geometry({"old": "bounds"})
+    shared = _FakeService()
+    tray.applet.set_services(AppletServices(status_notifier=shared))
+    assert old.geometry == {} and shared.geometry == {}
+    tray.applet.start(lambda: None)
+    shared.set_geometry({"current": "bounds"})
+    tray.applet.stop()
+    assert shared.geometry == {} and shared.stopped == 0
 
 
 class TestSystemTrayAppletService:

@@ -18,9 +18,9 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 import zlib
 from contextlib import suppress
+from ctypes import wintypes
 from pathlib import Path
 
 
@@ -28,6 +28,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--task-manager", action="store_true")
+    parser.add_argument("--verify-geometry", action="store_true")
     parser.add_argument(
         "--restart-explorer",
         action="store_true",
@@ -101,6 +102,7 @@ def main():
             str(fixture_root),
             "--seconds",
             "300",
+            *(["--use-icon-rect"] if args.verify_geometry else []),
         ],
         stdout=fixture_log,
         stderr=subprocess.STDOUT,
@@ -472,24 +474,65 @@ def main():
             def command(action, which="modern"):
                 nonlocal revision
                 revision += 1
-                temporary = fixture_root / "command.tmp"
-                temporary.write_text(
-                    json.dumps({"revision": revision, "action": action, "which": which})
-                )
-                for attempt in range(20):
-                    try:
-                        temporary.replace(fixture_root / "command.json")
-                        break
-                    except PermissionError:
-                        if attempt == 19:
-                            raise
-                        time.sleep(0.02)
+                # Each revision is immutable. A Windows SMB reader can deny
+                # deletion of a persistent command file while it is open.
+                target = fixture_root / f"command-{revision:06d}.json"
+                with target.open("x", encoding="utf-8") as stream:
+                    json.dump(
+                        {"revision": revision, "action": action, "which": which}, stream
+                    )
                 native.wait_for(
                     lambda: fixture_state().get("command_revision") == revision,
                     "Tray fixture command did not complete",
                 )
 
             shared["command"] = command
+
+            def verify_geometry():
+                popup()
+                command("rects")
+                observed = fixture_state()["icon_rects"]
+                expected = {}
+                for which, identifier in ids.items():
+                    center = call(
+                        lambda identifier=identifier: button_point(identifier, None)
+                    )
+                    # Independent native HWND bounds anchor the GTK client offsets.
+                    hwnd = native.user.GetAncestor(
+                        native.user.WindowFromPoint(wintypes.POINT(*map(int, center))),
+                        2,
+                    )
+                    window = next(
+                        w for w in native.windows(os.getpid()) if w["hwnd"] == hwnd
+                    )
+
+                    def offset(identifier=identifier):
+                        widget = row_for(identifier).get_children()[0]
+                        image = (
+                            widget.get_child()
+                            if isinstance(widget, Gtk.EventBox)
+                            else widget
+                        )
+                        pixbuf = image.get_pixbuf()
+                        width, height = pixbuf.get_width(), pixbuf.get_height()
+                        x, y = image.translate_coordinates(
+                            applet._popup,
+                            (image.get_allocated_width() - width) // 2,
+                            (image.get_allocated_height() - height) // 2,
+                        )
+                        return x, y, width, height
+
+                    x, y, width, height = call(offset)
+                    x, y = window["rect"][0] + x, window["rect"][1] + y
+                    expected[which] = [x, y, x + width, y + height]
+                    assert (
+                        observed[which]["status"] == 0
+                        and observed[which]["rect"] == expected[which]
+                    ), (observed, expected)
+                report.setdefault("geometry_checks", []).append(
+                    {"expected": expected, "native_provider": observed}
+                )
+                return expected
 
             if args.restart_explorer:
                 reserved = native.wait_for(
@@ -535,6 +578,32 @@ def main():
                     publish()
 
             popup()
+            if args.verify_geometry:
+                before_move = verify_geometry()
+                original_position = call(lambda: tuple(applet._popup.get_position()))
+                call(
+                    lambda: applet._popup.move(
+                        original_position[0] + 60, max(20, original_position[1] - 50)
+                    )
+                )
+                moved = verify_geometry()
+                assert moved != before_move
+                capture("native-moved-popup")
+                call(lambda: applet._popup.move(*original_position))
+                verify_geometry()
+                native.click(*call(point))
+                native.wait_for(
+                    lambda: not call(lambda: applet._popup.get_visible()),
+                    "Tray popup did not hide",
+                )
+                command("rects")
+                report["closed_popup_fallback"] = fixture_state()["icon_rects"]
+                assert all(
+                    row["status"] == 0 and row["rect"][1] >= baseline[3]
+                    for row in report["closed_popup_fallback"].values()
+                )
+                popup()
+                verify_geometry()
             checks = {which: verify_pixels(which) for which in ids}
             report["native_icon_crc"] = checks
             snapshot("native-initial-popup")
@@ -570,6 +639,7 @@ def main():
                 )
                 capture("native-" + which + "-activated")
                 popup()
+                expected_geometry = verify_geometry() if args.verify_geometry else None
                 before = fixture_state()["menu_actions"]
                 native.click(
                     *call(lambda which=which: button_point(ids[which], "Menu"))
@@ -581,6 +651,18 @@ def main():
                     "Native tray context menu did not map",
                 )
                 capture("native-" + which + "-context-menu")
+                if expected_geometry is not None:
+                    menu = next(
+                        w for w in native.windows(fixture.pid) if w["class"] == "#32768"
+                    )
+                    expected = expected_geometry[which]
+                    observed = fixture_state()["menu_icon_bounds"]
+                    assert observed["status"] == 0 and observed["rect"] == expected
+                    assert abs(menu["rect"][0] - expected[0]) <= 4
+                    assert abs(menu["rect"][1] - expected[3]) <= 4
+                    report.setdefault("native_menu_geometry", []).append(
+                        {"which": which, "icon": observed, "menu": menu["rect"]}
+                    )
                 report[which + "_menu_foreground"] = native.user.GetForegroundWindow()
                 native.key(0x28)
                 report[which + "_menu_foreground_after_down"] = (
@@ -609,6 +691,8 @@ def main():
             assert call(lambda: applet._popup.get_visible())
             assert verify_pixels("modern") != checks["modern"]
             snapshot("native-updated-popup")
+            if args.verify_geometry:
+                verify_geometry()
             command("hide", "legacy")
             native.wait_for(
                 lambda: all(i.identifier != ids["legacy"] for i in ours()),

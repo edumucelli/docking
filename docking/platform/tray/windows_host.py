@@ -15,11 +15,18 @@ from collections.abc import Callable
 from ctypes import wintypes
 
 from docking.log import get_logger
-from docking.platform.backends.windows.ffi import bind
+from docking.platform.backends.base import Rect
+from docking.platform.backends.windows.ffi import bind, explorer_tray
 from docking.platform.tray.state import TrayIconPixmap
 from docking.platform.tray.windows_appbar import WindowsAppBarBridge
 from docking.platform.tray.windows_icons import icon_pixels
-from docking.platform.tray.windows_messages import NotifyMessage, decode_message
+from docking.platform.tray.windows_messages import (
+    IconQuery,
+    NotifyMessage,
+    decode_icon_query,
+    decode_message,
+    icon_query_reply,
+)
 
 log = get_logger("tray.windows_host")
 _P, _U, _W, _L = c.c_void_p, c.c_uint32, c.c_size_t, c.c_ssize_t
@@ -41,13 +48,22 @@ class WindowsTrayHost:
         self._user = None
         self._on_message: Callable[[NotifyMessage], bool] | None = None
         self._appbar = WindowsAppBarBridge()
+        self._icon_bounds: Callable[[IconQuery], Rect | None] | None = None
+        self._notify_window = 0
+        self._mirror_rect: tuple[int, int, int, int] | None = None
+        self._announced_explorer: tuple[int, int] | None = None
 
-    def start(self, on_message: Callable[[NotifyMessage], bool]) -> None:
+    def start(
+        self,
+        on_message: Callable[[NotifyMessage], bool],
+        icon_bounds: Callable[[IconQuery], Rect | None] | None = None,
+    ) -> None:
         with self._start_lock:
             if self._stopped.is_set():
                 raise OSError("Notification host is stopped")
             if self._thread is None:
                 self._on_message = on_message
+                self._icon_bounds = icon_bounds
                 self._thread = threading.Thread(
                     target=self._run, name="windows-tray", daemon=True
                 )
@@ -105,27 +121,16 @@ class WindowsTrayHost:
                 raise OSError("Notification host did not close within its deadline")
 
     def _find_explorer(self) -> int:
-        user = self._user
-        if user is None:
+        if self._user is None:
             return 0
-        desktop = bind(user, "GetShellWindow", _P)()
-        shell_pid = self.owner(desktop) if desktop else 0
-        find = bind(user, "FindWindowExW", _P, _P, _P, c.c_wchar_p, c.c_wchar_p)
-        previous = None
-        for _ in range(32):
-            candidate = find(None, previous, "Shell_TrayWnd", None)
-            if not candidate:
-                return 0
-            pid = self.owner(candidate)
-            if pid and pid != os.getpid() and (not shell_pid or pid == shell_pid):
-                return int(candidate)
-            previous = candidate
-        return 0
+        identity = explorer_tray(self._user, exclude_pid=os.getpid())
+        return identity[0] if identity else 0
 
     def _arrange(self) -> None:
         user = self._user
         if user is None:
             return
+        self._mirror_explorer()
         first = bind(user, "FindWindowW", _P, c.c_wchar_p, c.c_wchar_p)(
             "Shell_TrayWnd", ""
         )
@@ -147,6 +152,39 @@ class WindowsTrayHost:
         )(self._explorer, self._window, 0, 0, 0, 0, 0x13):
             raise c.WinError(c.get_last_error())
 
+    def _mirror_explorer(self) -> None:
+        if self._user is None or not self._window or not self._explorer:
+            return
+        rect = wintypes.RECT()
+        if not bind(
+            self._user, "GetWindowRect", c.c_int32, _P, c.POINTER(wintypes.RECT)
+        )(self._explorer, c.byref(rect)):
+            return
+        bounds = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+        if bounds == self._mirror_rect or bounds[2] <= 0 or bounds[3] <= 0:
+            return
+        position = bind(
+            self._user,
+            "SetWindowPos",
+            c.c_int32,
+            _P,
+            _P,
+            c.c_int,
+            c.c_int,
+            c.c_int,
+            c.c_int,
+            _U,
+        )
+        # Preserve routing and activation while matching Explorer's placement.
+        # Explorer's fallback icon queries inspect the first Shell_TrayWnd.
+        if not position(self._window, None, *bounds, 0x14):
+            raise c.WinError(c.get_last_error())
+        if self._notify_window and not position(
+            self._notify_window, None, 0, 0, bounds[2], bounds[3], 0x14
+        ):
+            raise c.WinError(c.get_last_error())
+        self._mirror_rect = bounds
+
     def _announce(self) -> None:
         user = self._user
         if user is not None:
@@ -157,6 +195,18 @@ class WindowsTrayHost:
                 bind(user, "SendNotifyMessageW", c.c_int32, _P, _U, _W, _L)(
                     0xFFFF, message, 0, 0
                 )
+
+    def _seed_changed_explorer(self) -> None:
+        owner = self.owner(self._explorer)
+        identity = (self._explorer, owner)
+        if not all(identity) or identity == self._announced_explorer:
+            return
+        if self._integrity(os.getpid()) != self._integrity(owner):
+            raise OSError("Replacement Explorer has a different integrity level")
+        # Record before broadcasting: clients and our own windows can respond
+        # synchronously. Reseed once after replacement routing is established.
+        self._announced_explorer = identity
+        self._announce()
 
     def _forward(
         self,
@@ -239,6 +289,14 @@ class WindowsTrayHost:
                     if message == 0x4A and second:
                         data = c.cast(second, c.POINTER(_CopyData)).contents
                         handled = False
+                        if data.kind == 3 and data.data and data.size == 40:
+                            query = decode_icon_query(c.string_at(data.data, data.size))
+                            if query is not None and self._icon_bounds is not None:
+                                bounds = self._icon_bounds(query)
+                                if bounds is not None:
+                                    reply = icon_query_reply(query, bounds)
+                                    if reply is not None:
+                                        return reply
                         if data.kind == 1 and data.data and 160 <= data.size <= 8192:
                             try:
                                 decoded = decode_message(
@@ -265,9 +323,9 @@ class WindowsTrayHost:
                         if self._stopped.is_set():
                             self.post(self._window, 0x10, 0, 0)
                         else:
-                            if not self.owner(self._explorer):
-                                self._explorer = self._find_explorer()
+                            self._explorer = self._find_explorer()
                             self._arrange()
+                            self._seed_changed_explorer()
                         return 0
                     if message in (0x1C, 0x111) or message >= 0x400:
                         return self._forward(window, message, first, second)
@@ -357,13 +415,14 @@ class WindowsTrayHost:
             )
             if not child:
                 raise c.WinError(c.get_last_error())
+            self._notify_window = int(child)
             self._arrange()
             if not bind(user, "SetTimer", _W, _P, _W, _U, _P)(
                 self._window, 1, 500, None
             ):
                 raise c.WinError(c.get_last_error())
             self._ready.set()
-            self._announce()
+            self._seed_changed_explorer()
             message = wintypes.MSG()
             while True:
                 status = bind(
@@ -388,6 +447,8 @@ class WindowsTrayHost:
                     if window and self.owner(window) == os.getpid():
                         bind(user, "DestroyWindow", c.c_int32, _P)(window)
                 self._window = 0
+                self._notify_window = 0
+                self._mirror_rect = None
                 for name in reversed(registered):
                     bind(user, "UnregisterClassW", c.c_int32, c.c_wchar_p, _P)(
                         name, instance

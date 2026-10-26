@@ -20,7 +20,7 @@ metadata on the GTK main loop. Platform transports stay inside their backend.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING
 
 import gi
@@ -31,6 +31,7 @@ from gi.repository import GLib
 
 from docking.applets.worker import BackgroundWorker
 from docking.log import get_logger, with_context
+from docking.platform.backends.base import Rect
 from docking.platform.tray.backend import TrayBackend, create_backend
 from docking.platform.tray.state import TrayState, unavailable_state
 
@@ -138,14 +139,30 @@ class TrayService:
             ),
         )
 
-    def activate(self, identifier: str) -> bool:
-        return not self._closed and self._backend.activate(identifier)
+    def set_geometry(self, bounds: Mapping[str, Rect]) -> None:
+        if not self._closed:
+            self._backend.set_geometry(bounds)
 
-    def context_menu(self, identifier: str) -> bool:
-        return not self._closed and self._backend.context_menu(identifier)
+    def activate(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return not self._closed and (
+            self._backend.activate(identifier, anchor=anchor)
+            if anchor is not None
+            else self._backend.activate(identifier)
+        )
 
-    def double_click(self, identifier: str) -> bool:
-        return not self._closed and self._backend.double_click(identifier)
+    def context_menu(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return not self._closed and (
+            self._backend.context_menu(identifier, anchor=anchor)
+            if anchor is not None
+            else self._backend.context_menu(identifier)
+        )
+
+    def double_click(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+        return not self._closed and (
+            self._backend.double_click(identifier, anchor=anchor)
+            if anchor is not None
+            else self._backend.double_click(identifier)
+        )
 
     def menu_client(self, identifier: str) -> TrayMenuClient | None:
         return self._backend.menu_client(identifier) if not self._closed else None

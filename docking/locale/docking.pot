@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-26 02:25+0100\n"
+"POT-Creation-Date: 2026-10-26 04:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -347,7 +347,7 @@ msgstr ""
 #: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:303
 #: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:105
 #: docking/applets/reddit/applet.py:217
-#: docking/applets/systemtray/applet.py:175
+#: docking/applets/systemtray/applet.py:183
 #: docking/applets/thermals/applet.py:155
 #: docking/applets/todayinhistory/applet.py:107
 #: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:189
@@ -517,7 +517,7 @@ msgstr ""
 #: docking/applets/micshield/linux.py:170
 #: docking/applets/micshield/windows_audio.py:196
 #: docking/applets/powerprofiles/state.py:69
-#: docking/platform/tray/windows.py:110 docking/ui/diagnostics.py:258
+#: docking/platform/tray/windows.py:128 docking/ui/diagnostics.py:258
 #: docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr ""
@@ -3115,7 +3115,7 @@ msgid "Run with file"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:369
-#: docking/applets/systemtray/applet.py:284
+#: docking/applets/systemtray/applet.py:371
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
 #: docking/search/providers/web.py:93 docking/search/ui/window.py:684
@@ -3457,43 +3457,43 @@ msgstr ""
 msgid "Disk: {usage}"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:52
+#: docking/applets/systemtray/applet.py:55
 msgid "System Tray"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:158
+#: docking/applets/systemtray/applet.py:166
 msgid "Activate"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:164
+#: docking/applets/systemtray/applet.py:172
 msgid "Context Menu"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:239
-#: docking/applets/systemtray/applet.py:475
-#: docking/applets/systemtray/state.py:13 docking/platform/tray/windows.py:130
+#: docking/applets/systemtray/applet.py:312
+#: docking/applets/systemtray/applet.py:576
+#: docking/applets/systemtray/state.py:13 docking/platform/tray/windows.py:149
 msgid "System Tray unavailable"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:248
+#: docking/applets/systemtray/applet.py:321
 #: docking/applets/systemtray/state.py:20
 msgid "System Tray: waiting for tray apps"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:292
+#: docking/applets/systemtray/applet.py:379
 msgid "Menu"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:425
+#: docking/applets/systemtray/applet.py:526
 msgid "Menu Item"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:477
+#: docking/applets/systemtray/applet.py:578
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:478
+#: docking/applets/systemtray/applet.py:579
 #: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
@@ -4793,7 +4793,7 @@ msgstr ""
 msgid "Save Report..."
 msgstr ""
 
-#: docking/ui/diagnostics.py:160 docking/ui/dock_window.py:376
+#: docking/ui/diagnostics.py:160 docking/ui/dock_window.py:377
 msgid "Docking"
 msgstr ""
 

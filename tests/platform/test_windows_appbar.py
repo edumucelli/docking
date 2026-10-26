@@ -1,10 +1,35 @@
 """AppBar dimensions stay in monitor space across DPI and negative origins."""
 
+from unittest.mock import Mock
+
 import pytest
 
 from docking.core.position import Position
 from docking.platform.backends.base import Rect
+from docking.platform.backends.windows import appbar
 from docking.platform.backends.windows.appbar import ScreenMapping, edge_strip
+
+
+@pytest.mark.parametrize(
+    "identity,registered", [((101, 202), True), ((303, 404), False)]
+)
+def test_taskbar_broadcast_preserves_registration_until_the_actual_shell_changes(
+    monkeypatch, identity, registered
+):
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    bar._registered = True
+    bar._registered_shell = (101, 202)
+    bar._reserved = Rect(0, 681, 1280, 71)
+    bar._message = 0xC001
+    bar._taskbar_created = 0xC002
+    bar._user = object()
+    bar._on_change = Mock()
+    bar._default = Mock(return_value=0)
+    monkeypatch.setattr(appbar, "explorer_tray", lambda *args, **kwargs: identity)
+    assert bar._window_proc(10, 0xC002, 0, 0) == 0
+    assert bar._registered is registered and bar._reserved is None
+    bar._on_change.assert_called_once_with()
 
 
 def test_left_hand_scaled_monitor_reserves_the_resting_shelf_in_device_pixels():

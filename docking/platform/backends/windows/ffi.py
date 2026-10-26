@@ -21,3 +21,39 @@ def bind(library: Any, name: str, result: Any, *arguments: Any) -> Any:
     function.restype = result
     function.argtypes = arguments
     return function
+
+
+def explorer_tray(user: Any, *, exclude_pid: int) -> tuple[int, int] | None:
+    """Find the real shell tray, excluding an owned notification receiver."""
+    pointer, unsigned = ctypes.c_void_p, ctypes.c_uint32
+    owner = bind(
+        user, "GetWindowThreadProcessId", unsigned, pointer, ctypes.POINTER(unsigned)
+    )
+    desktop = bind(user, "GetShellWindow", pointer)()
+    shell_pid = unsigned()
+    if desktop:
+        owner(desktop, ctypes.byref(shell_pid))
+    find = bind(
+        user,
+        "FindWindowExW",
+        pointer,
+        pointer,
+        pointer,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+    )
+    previous = None
+    for _ in range(32):
+        window = find(None, previous, "Shell_TrayWnd", None)
+        if not window:
+            break
+        pid = unsigned()
+        owner(window, ctypes.byref(pid))
+        if (
+            pid.value
+            and pid.value != exclude_pid
+            and (not shell_pid.value or pid.value == shell_pid.value)
+        ):
+            return int(window), pid.value
+        previous = window
+    return None
