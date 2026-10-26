@@ -1703,6 +1703,57 @@ References: [monitor device identity](https://learn.microsoft.com/en-us/windows/
 [panel brightness method](https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmisetbrightness-method-in-class-wmimonitorbrightnessmethods),
 [gamma API limitations](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setdevicegammaramp).
 
+## Native Caffeine inhibition
+
+Caffeine uses a shared `Inhibitor` acquire/release contract. The Unix
+ScreenSaver D-Bus cookie and systemd child implementation lives in `caffeine/linux.py`;
+`caffeine/windows.py` owns Windows display/system power-request counts and their
+handle. Construction does no native IO. Acquisition is idempotent, partial
+failure rolls back owned counts, and release closes the request object even
+when clearing an individual count fails.
+
+The shared `InhibitionSession` reconciles the latest toggle on a worker. GTK
+confirms active state only after backend success, shows pending/unavailable
+status, and starts its duration countdown after acquisition. Duration changes
+do not acquire additional request counts. Stop invalidates old replies and
+releases the lock on the worker, including when acquisition is already in
+flight or its GTK result has not been delivered. Cleanup does not require
+another GTK iteration, and the worker finishes before normal process exit.
+
+`tools/windows_caffeine_smoke.py` runs the complete dock. Actual native icon
+clicks, menu duration selection/persistence, release, rapid explicit requests
+and active-close cleanup passed at normal and doubled GTK scale. Independent
+`powercfg /requests` observations verified both native request types and their
+removal; actual handle creation/set/clear/close calls ran off GTK and balanced.
+A labeled timing fixture reduces remaining time to three seconds to exercise
+the real GTK countdown and native release without a 30-minute test. A separate
+controlled barrier after a successful display request proved responsive GTK
+shutdown and cleanup after the GTK loop exits. The failure mode deliberately
+passes an invalid request kind to Windows, verifies unavailable/inactive UI and
+no remaining lease, then retries with normal valid requests.
+
+These requests prevent automatic display-off and idle sleep subject to Windows
+power policy. They do not change screensaver, lock or persistent power settings,
+or override explicit user sleep. Modern Standby on battery can terminate
+system/execution requests after its documented timeout. The VM has no sleep
+support, so physical suspend/display behavior, battery/Modern Standby, remote
+sessions and other Windows versions remain acceptance limits.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_caffeine_smoke.py' \
+  --output '\\host.lan\Data\lab\caffeine'
+# Use fresh outputs for --stop-during-acquire or --fail-first-set.
+```
+
+![Native Caffeine menu with an active Windows wake request](../images/windows-caffeine.png)
+
+References: [request object ownership](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-powercreaterequest),
+[request types and policy limits](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-powersetrequest),
+[balanced release](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-powerclearrequest),
+[reason structure](https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-reason_context).
+
 ## Native Windows Power Profiles
 
 Power Profiles has one `PowerProfilesControlBackend` contract for state, profile
@@ -2288,6 +2339,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
+| Caffeine | Shared Inhibitor contract with Unix cookie/child and Windows power-request implementations; worker-owned requests and cleanup | Native clicks, menu duration/persistence, countdown, independent display/system request counts and normal/blocked-acquisition shutdown verified; failed requests expose unavailable state; physical sleep/display effects, policy/Modern Standby, sessions and other versions pending |
 | Window Killer | Native implementation of WindowPickService with process-instance validation | Actual input, child/overlapping/hosted windows, real Calculator, denied access, stale targets, DWM ghost, handle ownership and active-capture shutdown verified at GTK scale1/2; optional ghost export across Windows versions, UAC and broader display/session acceptance pending |
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Virtual desktops | Windows implementation of WorkspaceService and surface scope, with build-gated shell ABI and public window membership | Native applet click/menu/scroll, external keyboard switch, names/list changes, current-workspace filtering and cross-desktop foreground activation verified at GTK scale 1/2; worker lifecycle, membership ownership and unknown builds tested; other versions, Explorer transition races, sessions and displays pending |
