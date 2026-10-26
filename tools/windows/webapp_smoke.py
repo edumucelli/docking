@@ -22,8 +22,19 @@ def main():
     parser.add_argument(
         "--service", choices=("whatsapp", "telegram"), default="whatsapp"
     )
-    parser.add_argument("--notifications", action="store_true")
-    parser.add_argument("--popup-activation", action="store_true")
+    parser.add_argument(
+        "--notifications",
+        "--popup-activation",
+        dest="notifications",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--notification-point",
+        nargs=2,
+        type=int,
+        metavar=("X", "Y"),
+        help="Native card point inspected visually when UI Automation misses it",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires the owned Windows desktop")
@@ -53,8 +64,8 @@ def main():
     from docking.applets.telegram.browser import PROFILE as TELEGRAM
     from docking.applets.webapp.windows import WindowsWebAppBrowser
     from docking.applets.whatsapp.browser import PROFILE as WHATSAPP
-    from docking.platform.backends.windows.com import value
     from docking.platform.backends.windows.ffi import bind
+    from docking.platform.backends.windows.toasts import ToastPublisher
     from tools.windows.desktop_driver import WindowsDesktop
     from tools.windows.webapp_fixture import WebAppPageFixture
 
@@ -75,7 +86,71 @@ def main():
         "service": service.session_name,
         "stages": [],
         "profile_directory": Path(profile.name).name,
+        "toast_io": [],
     }
+    ui_thread = threading.get_ident()
+    toast_originals = {}
+    publishers = set()
+
+    def owned_history(publisher):
+        from contextlib import ExitStack
+
+        from docking.platform.backends.windows.com import (
+            GUID,
+            object_result,
+            query,
+            value,
+        )
+
+        if publisher._runtime is None:
+            return []
+        with ExitStack() as scope:
+            history = query(
+                scope,
+                publisher._history,
+                GUID.parse("3bc3d253-2f31-4092-9129-8ad5abf067da"),
+            )
+            with publisher._runtime.string(publisher.identity) as identity:
+                rows = object_result(scope, history, 7, ctypes.c_void_p, identity)
+            result = []
+            for index in range(value(rows, 7, ctypes.c_uint32).value):
+                row = object_result(scope, rows, 6, ctypes.c_uint32, index)
+                properties = query(
+                    scope, row, GUID.parse("9dfb9fd1-143a-490e-90bf-b9fba7132de7")
+                )
+                result.append(
+                    {
+                        "tag": publisher._runtime.text(properties, 7),
+                        "group": publisher._runtime.text(properties, 9),
+                    }
+                )
+            return result
+
+    for method_name in ("show", "hide", "close"):
+        original = getattr(ToastPublisher, method_name)
+        toast_originals[method_name] = original
+
+        def invoke(publisher, *values, _name=method_name, _original=original):
+            publishers.add(publisher)
+            record = {
+                "method": _name,
+                "thread": threading.get_ident(),
+                "identity": publisher.identity,
+                "publisher": id(publisher),
+            }
+            report["toast_io"].append(record)
+            try:
+                result = _original(publisher, *values)
+                record["native_complete"] = True
+                record["owned_history"] = owned_history(publisher)
+                return result
+            except Exception as error:
+                record["error"] = type(error).__name__
+                raise
+            finally:
+                record["complete"] = True
+
+        setattr(ToastPublisher, method_name, invoke)
     notification_title = (
         "Docking generated web-app notification " + uuid.uuid4().hex[:8]
     )
@@ -254,6 +329,7 @@ def main():
                 ),
                 "Native text input was not reflected by the browser process",
             )
+            time.sleep(0.3)  # Let Chromium composite the accepted Unicode input.
             ImageGrab.grab(all_screens=True).save(output / "webapp-native-browser.png")
             native.key(0x1B)
             native.wait_for(
@@ -349,7 +425,7 @@ def main():
             assert call(lambda: view._state.phase.value == "ready")
             publish("native-login-ready-and-bounded-message-policy")
 
-            if args.notifications or args.popup_activation:
+            if args.notifications:
                 call(browser.hide)
                 script(
                     "document.title="
@@ -378,15 +454,15 @@ def main():
                         row for row in rows if row[2].summary == notification_title
                     )
 
-                if args.notifications:
-                    native.wait_for(
-                        owned_notifications,
-                        "Native browser notification never reached Windows history",
-                        25,
-                    )
-                    report["native_notification_delivered"] = True
-                else:
-                    report["notification_ui"] = "webview2-popup"
+                native.wait_for(
+                    owned_notifications,
+                    "Native browser notification never reached Windows history",
+                    25,
+                )
+                report["native_notification_delivered"] = True
+                # History activation remains available after the brief popup.
+                native.key(ord("N"), windows=True)
+                time.sleep(0.5)
                 script_text = r"""
 Add-Type -AssemblyName UIAutomationClient;Add-Type -AssemblyName UIAutomationTypes;
 $root=[System.Windows.Automation.AutomationElement]::RootElement;
@@ -417,35 +493,19 @@ ConvertTo-Json -InputObject $answer -Compress
                     )
                     return json.loads(result.stdout) if result.stdout.strip() else None
 
-                if args.notifications:
-                    position = native.wait_for(
-                        toast_point, "Owned Windows notification was not visible", 20
+                if args.notification_point is not None:
+                    x, y = args.notification_point
+                    ImageGrab.grab(bbox=(x - 160, y - 55, x + 160, y + 60)).save(
+                        output / "owned-native-toast-card.png"
                     )
+                    position = {"x": x, "y": y}
+                    report["notification_target"] = "visually-verified-native-card"
                 else:
-                    owner = call(
-                        lambda: int(
-                            value(browser._engine.core, 37, ctypes.c_uint32).value
-                        )
+                    position = native.wait_for(
+                        toast_point,
+                        "Owned Windows history notification was not visible",
+                        20,
                     )
-
-                    def popup():
-                        matches = [
-                            w
-                            for w in native.windows(owner)
-                            if 100 <= w["rect"][2] - w["rect"][0] <= 600
-                            and 40 <= w["rect"][3] - w["rect"][1] <= 300
-                        ]
-                        return matches[0] if len(matches) == 1 else None
-
-                    window = native.wait_for(
-                        popup, "Owned browser popup was not visible", 20
-                    )
-                    left, top, right, bottom = window["rect"]
-                    report["owned_popup_rectangle"] = window["rect"]
-                    position = {
-                        "x": left + (right - left) * 0.35,
-                        "y": top + (bottom - top) * 0.6,
-                    }
                 native.click(position["x"], position["y"])
                 native.wait_for(
                     lambda: script("window.fixture.clicked===true"),
@@ -455,11 +515,116 @@ ConvertTo-Json -InputObject $answer -Compress
                     lambda: call(lambda: browser.visible),
                     "Native notification click did not reopen browser",
                 )
-                publish(
-                    "native-notification-history-dom-click-and-window-activation"
-                    if args.notifications
-                    else "default-popup-dom-click-and-window-activation"
+                native.wait_for(
+                    lambda: any(
+                        w["title"] == service.name
+                        and w["hwnd"] == native.user.GetForegroundWindow()
+                        for w in native.windows(os.getpid())
+                    ),
+                    "Native notification did not focus the service window",
                 )
+                publish("native-notification-history-dom-click-and-window-activation")
+                first = notification_title + " replacement-first"
+                second = notification_title + " replacement-next"
+                script("window.fixture.notify(" + json.dumps(first) + "); true")
+                native.wait_for(
+                    lambda: any(
+                        row[2].summary == first
+                        for row in listener.read(threading.Event())[1]
+                    ),
+                    "First replacement toast absent from history",
+                )
+                script("window.fixture.notify(" + json.dumps(second) + "); true")
+
+                def family():
+                    access, rows = listener.read(threading.Event())
+                    assert access == 1
+                    return tuple(
+                        row
+                        for row in rows
+                        if row[2].summary.startswith(notification_title)
+                    )
+
+                native.wait_for(
+                    lambda: tuple(row[2].summary for row in family()) == (second,),
+                    "Same-tag replacement retained the wrong history entry",
+                )
+                native.wait_for(
+                    lambda: script("window.fixture.closedTitles").count(first) == 1,
+                    "Replacement did not close the old DOM notification once",
+                )
+                from docking.platform.backends.windows.com import GUID
+                from docking.platform.backends.windows.com_callback import ComObject
+
+                handler_iid = bytes(GUID.parse("47c32d23-1e94-4733-85f1-d9bf4acd0974"))
+                report["before_web_close"] = {
+                    "close_handler_references": call(
+                        lambda: [
+                            cb._references
+                            for cb in ComObject._live.values()
+                            if cb._iid == handler_iid
+                        ]
+                    ),
+                    "closed_titles": script("window.fixture.closedTitles"),
+                    "shown_titles": script("window.fixture.shownTitles"),
+                    "native_tokens": call(
+                        lambda: list(browser._notifier._notifications)
+                    ),
+                }
+                report["web_close_result"] = script(
+                    "(()=>{const n=window.fixture.notification;try{n.close();"
+                    "return {ok:true,title:n.title,tag:n.tag}}catch(e){"
+                    "return {ok:false,name:e.name,message:e.message}}})()"
+                )
+                assert report["web_close_result"]["ok"], report["web_close_result"]
+                native.wait_for(lambda: not family(), "Web close retained history")
+                native.wait_for(
+                    lambda: script("window.fixture.closedTitles").count(second) == 1,
+                    "Web close duplicated or missed the DOM close event",
+                )
+                publish("native-tag-replacement-and-web-close-remove-owned-history")
+
+                def close_handlers():
+                    return call(
+                        lambda: sum(
+                            cb._iid == handler_iid for cb in ComObject._live.values()
+                        )
+                    )
+
+                report["replacement_cycles"] = []
+                for cycle in range(3):
+                    titles = []
+                    for replacement in range(12):
+                        title = f"{notification_title} cycle-{cycle}-{replacement}"
+                        titles.append(title)
+                        script("window.fixture.notify(" + json.dumps(title) + ");true")
+                        native.wait_for(
+                            lambda title=title: (
+                                title in script("window.fixture.shownTitles")
+                            ),
+                            "Repeated replacement missed DOM show",
+                        )
+                    native.wait_for(
+                        lambda title=titles[-1]: (
+                            tuple(row[2].summary for row in family()) == (title,)
+                        ),
+                        "Repeated replacement retained stale Windows history",
+                    )
+                    assert close_handlers() == len(titles)
+                    script("window.fixture.notification.close();true")
+                    native.wait_for(
+                        lambda: not family(), "Repeated close retained history"
+                    )
+                    native.wait_for(
+                        lambda: close_handlers() == 0,
+                        "Replacement group retained native callback references",
+                    )
+                    closed = script("window.fixture.closedTitles")
+                    assert all(closed.count(title) == 1 for title in titles)
+                    report["replacement_cycles"].append(
+                        {"replacements": len(titles), "remaining_close_handlers": 0}
+                    )
+                publish("repeated-tag-lifetimes-release-all-native-callbacks")
 
             call(browser.hide)
             click(True)
@@ -505,8 +670,13 @@ ConvertTo-Json -InputObject $answer -Compress
                 and "docking_fixture=" not in cleared["cookie"]
             )
             publish("native-confirmed-disconnect-clears-cookie-localstorage-indexeddb")
-            # Actual browser notification presentation/activation is a separate
-            # acceptance step; this tool does not fabricate its result.
+            if args.notifications:
+                script(
+                    "window.fixture.notify("
+                    + json.dumps(notification_title + " shutdown")
+                    + "); true"
+                )
+                native.wait_for(family, "Owned shutdown toast absent from history")
             assert native.user.PostMessageW(dock["hwnd"], 0x10, 0, 0)
             native.wait_for(
                 lambda: not native.user.IsWindow(dock["hwnd"]), "Dock did not close"
@@ -516,24 +686,97 @@ ConvertTo-Json -InputObject $answer -Compress
         except Exception as exc:
             errors.append(exc)
             report.update(ok=False, error=repr(exc))
+            if args.notifications and report.get("native_notification_delivered"):
+                access, rows = NotificationListener().read(threading.Event())
+                report["retained_owned_titles"] = [
+                    [row[0], row[2].app_name, row[2].summary]
+                    for row in rows
+                    if row[2].summary.startswith(notification_title)
+                ]
+                report["retained_owned_sources"] = []
+                with NotificationListener()._listener() as (
+                    runtime,
+                    scope,
+                    native_listener,
+                ):
+                    from docking.platform.backends.windows.com import object_result
+
+                    for identifier, _created, entry in rows:
+                        if entry.summary.startswith(notification_title):
+                            current = object_result(
+                                scope,
+                                native_listener,
+                                11,
+                                ctypes.c_uint32,
+                                int(identifier),
+                            )
+                            if not current.value:
+                                report["retained_owned_sources"].append(None)
+                                continue
+                            info = object_result(scope, current, 7)
+                            report["retained_owned_sources"].append(
+                                runtime.text(info, 7)
+                            )
+                probe = (
+                    "import json,threading;"
+                    "from docking.applets.notifications.windows "
+                    "import NotificationListener;"
+                    "access,rows=NotificationListener().read(threading.Event());"
+                    "print(json.dumps([access,[[row[0],row[2].app_name,row[2].summary] "
+                    "for row in rows if row[2].summary.startswith("
+                    + repr(notification_title)
+                    + ")]]))"
+                )
+                fresh = subprocess.run(
+                    [sys.executable, "-c", probe],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                report["fresh_reader_owned_titles"] = json.loads(fresh.stdout)
             ImageGrab.grab(all_screens=True).save(output / "failure.png")
         finally:
             if sibling is not None:
                 call(sibling.stop)
             if args.notifications:
                 listener = NotificationListener()
+                if report.get("ok"):
+                    native.wait_for(
+                        lambda: (
+                            not any(
+                                row[2].summary.startswith(notification_title)
+                                for row in listener.read(threading.Event())[1]
+                            )
+                        ),
+                        "Normal close retained owned history",
+                    )
                 access, rows = listener.read(threading.Event())
                 report["cleanup_history_access"] = access
                 owned = tuple(
-                    row for row in rows if row[2].summary == notification_title
+                    row for row in rows if row[2].summary.startswith(notification_title)
                 )
+                report["owned_history_after_normal_close"] = len(owned)
+                if report.get("ok"):
+                    assert not owned, "Normal close retained owned history"
                 if owned:
                     assert listener.remove(owned, threading.Event())
             if dock and native.user.IsWindow(dock["hwnd"]):
                 native.user.PostMessageW(dock["hwnd"], 0x10, 0, 0)
             publish()
 
-    driver = threading.Thread(target=drive, name="webapp-native-smoke", daemon=True)
+    def run_driver():
+        try:
+            drive()
+        except Exception as exc:
+            errors.append(exc)
+            report.update(ok=False, error=repr(exc))
+            publish()
+
+    driver = threading.Thread(
+        target=run_driver, name="webapp-native-smoke", daemon=True
+    )
     driver.start()
     try:
         app.main()
@@ -544,6 +787,36 @@ ConvertTo-Json -InputObject $answer -Compress
             w["pid"] == os.getpid() and w["title"] == service.name
             for w in native.windows()
         )
+        if args.notifications:
+            published = {
+                row["publisher"]
+                for row in report["toast_io"]
+                if row["method"] == "show"
+            }
+            native.wait_for(
+                lambda: published.issubset(
+                    {
+                        row["publisher"]
+                        for row in report["toast_io"]
+                        if row["method"] == "close" and row.get("complete")
+                    }
+                ),
+                "Native toast finalizer did not finish",
+            )
+            assert all(row.get("complete") for row in report["toast_io"])
+            assert not any("error" in row for row in report["toast_io"])
+            assert all(row["thread"] != ui_thread for row in report["toast_io"])
+            for publisher in published:
+                assert (
+                    len(
+                        {
+                            row["thread"]
+                            for row in report["toast_io"]
+                            if row["publisher"] == publisher
+                        }
+                    )
+                    == 1
+                )
         report["normal_shutdown"] = True
         if errors:
             raise errors[0]
@@ -553,6 +826,8 @@ ConvertTo-Json -InputObject $answer -Compress
     finally:
         app.build_dock_window = original_build
         WindowsWebAppBrowser._browser_ready = original_ready
+        for method_name, original in toast_originals.items():
+            setattr(ToastPublisher, method_name, original)
         # Cleanup belongs to the subsequent process audit, after Chromium has
         # released its asynchronous profile handles.
         profile._finalizer.detach()

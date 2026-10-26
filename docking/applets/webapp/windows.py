@@ -38,6 +38,7 @@ from docking.platform.environment.xdg import docking_data_dir
 from .backend import BrowserBackend, BrowserProfile, ClearCallback
 from .bridge import parse_bridge_message
 from .state import BrowserPhase, NavigationTarget, navigation_target
+from .windows_notifications import DesktopNotifier
 
 log = get_logger("webapp.windows")
 
@@ -45,6 +46,7 @@ log = get_logger("webapp.windows")
 class WindowsWebAppBrowser(BrowserBackend):
     def __init__(self, *, profile: BrowserProfile, **callbacks) -> None:
         super().__init__(profile=profile, **callbacks)
+        self._notifier: DesktopNotifier | None = None
         self._engine: WebView2Host | None = None
         self._window: Gtk.Window | None = None
         self._area: Gtk.DrawingArea | None = None
@@ -58,6 +60,8 @@ class WindowsWebAppBrowser(BrowserBackend):
         self._fit_source = 0
         self._clear_pending: ClearCallback | None = None
         self._clearing = False
+        self._clear_serial = 0
+        self._clear_sources: set[int] = set()
         self._permission_dialogs: list[Gtk.MessageDialog] = []
         self._permission_requests: dict[int, Callable[[], None]] = {}
         self._permission_idles: dict[int, int] = {}
@@ -87,7 +91,9 @@ class WindowsWebAppBrowser(BrowserBackend):
     def _prepare_failed(self, _error: Exception, lifetime: int) -> bool:
         if self._started and lifetime == self._lifetime:
             self._preparing = False
-            self._set_phase(BrowserPhase.ERROR, _("Could not open browser session"))
+            error = _("Could not open browser session")
+            self._set_phase(BrowserPhase.ERROR, error)
+            self._fail_clear(error)
         return False
 
     def _prepared(self, profile: Path, lifetime: int) -> bool:
@@ -96,6 +102,7 @@ class WindowsWebAppBrowser(BrowserBackend):
         self._preparing = False
         try:
             window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+            self._window = window
             window.set_title(self.profile.name)
             display = Gdk.Display.get_default()
             if display is None:
@@ -159,9 +166,9 @@ class WindowsWebAppBrowser(BrowserBackend):
                 window.show_all()
         except OSError:
             self._close_runtime()
-            self._set_phase(
-                BrowserPhase.UNAVAILABLE, _("Microsoft Edge WebView2 is unavailable")
-            )
+            error = _("Microsoft Edge WebView2 is unavailable")
+            self._set_phase(BrowserPhase.UNAVAILABLE, error)
+            self._fail_clear(error)
         return False
 
     def _browser_ready(self) -> None:
@@ -169,6 +176,14 @@ class WindowsWebAppBrowser(BrowserBackend):
         if engine is None or not self._started:
             return
         self._ready = True
+        self._notifier = DesktopNotifier(
+            service_name=self.profile.name,
+            profile_directory=docking_data_dir()
+            / self.profile.session_name
+            / "webview2",
+            on_activate=self._activate_notification,
+            on_shown=self._on_notification,
+        )
         engine.on("navigation_starting", self._navigation_starting)
         engine.on("content_loading", lambda _args: self._content_loading())
         engine.on("navigation_completed", self._navigation_completed)
@@ -326,6 +341,12 @@ class WindowsWebAppBrowser(BrowserBackend):
             self._blocked_navigations.discard(identifier)
             return
         if not value(args, 3, ctypes.c_int32).value:
+            if self._clear_pending is not None:
+                self._fail_clear(
+                    _("Could not disconnect {service}").format(
+                        service=self.profile.name
+                    )
+                )
             if value(args, 4, ctypes.c_int32).value == 14:  # Operation canceled.
                 return
             self._set_phase(
@@ -339,7 +360,11 @@ class WindowsWebAppBrowser(BrowserBackend):
         ):
             if not self._clearing:
                 self._clearing = True
-                engine.clear(self._cleared)
+                serial = self._clear_serial
+                try:
+                    engine.clear(lambda status: self._cleared(status, serial))
+                except OSError:
+                    self._cleared(-1, serial)
             return
         if self._last_bridge_status is None:
             self._set_phase(BrowserPhase.SYNCING)
@@ -380,9 +405,8 @@ class WindowsWebAppBrowser(BrowserBackend):
         if not self.profile.allows_origin(engine.text(args, 3)):
             engine.put(args, 5, True)
             return
-        # WebView2's native UI owns notification lifetime and DOM click/close
-        # delivery. The shared applet records activity while the view is hidden.
-        self._on_notification()
+        if self._notifier is None or not self._notifier.show((engine, args)):
+            engine.put(args, 5, True)
 
     def _activate_notification(self) -> None:
         lifetime = self._lifetime
@@ -480,13 +504,42 @@ class WindowsWebAppBrowser(BrowserBackend):
     def clear_session(self, on_complete: ClearCallback) -> None:
         if self._clear_pending is not None:
             return
+        if self._notifier is not None:
+            self._notifier.clear()
+        self._clear_serial += 1
         self._clear_pending = on_complete
         self._set_phase(BrowserPhase.STARTING)
         self.start()
         if self._engine is not None and self._ready:
-            self._engine.navigate("about:blank")
+            try:
+                self._engine.navigate("about:blank")
+            except OSError:
+                self._cleared(-1, self._clear_serial)
 
-    def _cleared(self, status: int) -> None:
+    def _fail_clear(self, error: str) -> None:
+        callback, self._clear_pending = self._clear_pending, None
+        self._clearing = False
+        self._clear_serial += 1
+        if callback is not None:
+            self._notify_clear(callback, False, error)
+
+    def _notify_clear(self, callback: ClearCallback, success: bool, error: str) -> None:
+        lifetime = self._lifetime
+
+        def notify() -> bool:
+            self._clear_sources.discard(source)
+            if self._started and lifetime == self._lifetime:
+                callback(success, error)
+            return False
+
+        # The applet can open a modal error dialog. Leave WebView2's callback
+        # stack first; it forbids reentrant/nested UI message loops.
+        source = GLib.idle_add(notify)
+        self._clear_sources.add(source)
+
+    def _cleared(self, status: int, serial: int) -> None:
+        if serial != self._clear_serial or self._clear_pending is None:
+            return
         callback, self._clear_pending = self._clear_pending, None
         self._clearing = False
         if status < 0:
@@ -495,17 +548,22 @@ class WindowsWebAppBrowser(BrowserBackend):
             )
             self._set_phase(BrowserPhase.ERROR, error)
             if callback is not None:
-                callback(False, error)
+                self._notify_clear(callback, False, error)
             return
         self._on_attention_cleared()
         self._on_title("")
         self._set_phase(BrowserPhase.STARTING)
-        self._navigate_home()
+        try:
+            self._navigate_home()
+        except OSError as error:
+            self._browser_failed(error)
         if callback is not None:
-            callback(True, "")
+            self._notify_clear(callback, True, "")
 
     def _browser_failed(self, _error: Exception) -> None:
-        self._set_phase(BrowserPhase.ERROR, _("browser process stopped"))
+        error = _("browser process stopped")
+        self._set_phase(BrowserPhase.ERROR, error)
+        self._fail_clear(error)
         if self._started and not self._recovery_id:
             self._recovery_id = GLib.timeout_add(1500, self._recover)
 
@@ -518,6 +576,9 @@ class WindowsWebAppBrowser(BrowserBackend):
         return False
 
     def _close_runtime(self) -> None:
+        if self._notifier is not None:
+            self._notifier.stop()
+            self._notifier = None
         if self._fit_source:
             GLib.source_remove(self._fit_source)
             self._fit_source = 0
@@ -548,6 +609,10 @@ class WindowsWebAppBrowser(BrowserBackend):
         self._lifetime += 1
         self._preparing = False
         self._clear_pending = None
+        self._clear_serial += 1
+        for source in self._clear_sources:
+            GLib.source_remove(source)
+        self._clear_sources.clear()
         if self._recovery_id:
             GLib.source_remove(self._recovery_id)
             self._recovery_id = 0

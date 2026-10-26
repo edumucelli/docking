@@ -2316,12 +2316,37 @@ decorated window fits the native work area at GTK scale 1 and 2. These generated
 pages establish host behavior; signed-in service behavior and physical media
 devices remain separate acceptance work.
 
-`--popup-activation` additionally exercises WebView2's default notification
-popup and its DOM click reopening a hidden browser. This popup does not enter
-Windows notification history, and its placement overflowed the screen at forced
-GTK scale 2. Native Windows toast publishing remains unfinished. The separate
-`--notifications` option retains the stricter Windows-history requirement and
-currently fails that acceptance step.
+`--notifications` additionally exercises native Windows toasts and Action Center
+history. Both engines implement the shared `NotificationBackend` contract;
+Windows publishes through worker-owned WinRT interfaces and routes immutable
+activation tokens back to the browser's STA. Notification text stays within the
+native notification adapters. The page bridge carries badge/status data only.
+
+Each browser profile has a stable Windows application identity so native
+notification preferences survive restarts. An owned profile mutex prevents a
+second publisher from replacing its active COM route. Closing the browser
+removes its owned notifications and revokes the live activation server while
+retaining the user's notification settings. Disconnect failures also complete
+their callbacks; callbacks that can open a dialog run after leaving the native
+WebView2 event stack and are discarded after the browser stops.
+
+The lab's WebView2 155 runtime loses the active tag's close routing if any
+superseded same-tag notification object is released. The adapter retains those
+objects in a flat group until the active tag closes, disconnects or stops. This
+keeps native and DOM close behavior correct without changing the page's public
+Notification API. A long-lived tag retains its replacement objects until that
+group ends; sustained memory use remains acceptance work.
+
+Generated native pages verified Windows history delivery and actual card clicks
+dispatching the page's notification click handler and reopening the matching
+browser at GTK scale 1 and 2. Native lifecycle runs also verified tag replacement,
+programmatic close, active-notification shutdown and worker ownership. Repeated
+replacement/close cycles verify that each DOM notification closes once and that
+every native close handler is released after its group ends.
+Some shell cards in this VM are absent from UI Automation. In that case,
+`--notification-point X Y` supplies a card position inspected visually; the tool
+captures that card and still requires the actual DOM click and browser activation.
+`--popup-activation` is an alias for the native notification exercise.
 
 ## Native Music controls
 
@@ -2591,7 +2616,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
-| WhatsApp and Telegram | Shared BrowserBackend with separate service profiles, WebKitGTK and native WebView2 implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; default browser-popup click works, but Windows toast history/placement, signed-in services, downloads and physical media remain pending |
+| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; sustained memory use, signed-in services, downloads and physical media remain pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

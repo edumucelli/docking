@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-26 21:29+0100\n"
+"POT-Creation-Date: 2026-10-27 00:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3970,23 +3970,23 @@ msgid "Reload"
 msgstr ""
 
 #: docking/applets/webapp/applet.py:190
-msgid "Unknown WebKit error"
+msgid "Unknown browser error"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:148
 msgid "WebKitGTK is unavailable"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:282 docking/applets/webapp/windows.py:131
+#: docking/applets/webapp/linux.py:282 docking/applets/webapp/windows.py:138
 msgid "Docking applet"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:289 docking/applets/webapp/windows.py:137
+#: docking/applets/webapp/linux.py:289 docking/applets/webapp/windows.py:144
 #, python-brace-format
 msgid "Reload {service}"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:375 docking/applets/webapp/windows.py:508
+#: docking/applets/webapp/linux.py:375 docking/applets/webapp/windows.py:564
 msgid "browser process stopped"
 msgstr ""
 
@@ -3994,24 +3994,24 @@ msgstr ""
 msgid "camera and microphone"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:461 docking/applets/webapp/windows.py:452
+#: docking/applets/webapp/linux.py:461 docking/applets/webapp/windows.py:476
 msgid "camera"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:463 docking/applets/webapp/windows.py:452
+#: docking/applets/webapp/linux.py:463 docking/applets/webapp/windows.py:476
 msgid "microphone"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:469 docking/applets/webapp/windows.py:458
+#: docking/applets/webapp/linux.py:469 docking/applets/webapp/windows.py:482
 #, python-brace-format
 msgid "Allow {service} to use your {device}?"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:473 docking/applets/webapp/windows.py:463
+#: docking/applets/webapp/linux.py:473 docking/applets/webapp/windows.py:487
 msgid "Deny"
 msgstr ""
 
-#: docking/applets/webapp/linux.py:474 docking/applets/webapp/windows.py:464
+#: docking/applets/webapp/linux.py:474 docking/applets/webapp/windows.py:488
 msgid "Allow"
 msgstr ""
 
@@ -4029,22 +4029,22 @@ msgstr ""
 msgid "unknown browser error"
 msgstr ""
 
-#: docking/applets/webapp/windows.py:90
+#: docking/applets/webapp/windows.py:94
 msgid "Could not open browser session"
 msgstr ""
 
-#: docking/applets/webapp/windows.py:163
+#: docking/applets/webapp/windows.py:169
 msgid "Microsoft Edge WebView2 is unavailable"
 msgstr ""
 
-#: docking/applets/webapp/windows.py:333
-#, python-brace-format
-msgid "could not load {service}"
-msgstr ""
-
-#: docking/applets/webapp/windows.py:493
+#: docking/applets/webapp/windows.py:346 docking/applets/webapp/windows.py:546
 #, python-brace-format
 msgid "Could not disconnect {service}"
+msgstr ""
+
+#: docking/applets/webapp/windows.py:354
+#, python-brace-format
+msgid "could not load {service}"
 msgstr ""
 
 #: docking/applets/whatsapp/applet.py:21

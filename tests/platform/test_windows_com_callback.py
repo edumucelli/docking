@@ -72,3 +72,48 @@ def test_callback_failure_never_escapes_native_abi():
         assert errors == [failure]
     finally:
         callback.close()
+
+
+def test_multi_method_com_object_preserves_hresult_and_vtable_order():
+    from docking.platform.backends.windows.com_callback import ComObject
+
+    called = []
+    factory = ComObject(
+        IID,
+        (
+            ((ctypes.c_int32,), lambda number: called.append(number) or -2147221232),
+            ((), lambda: 1),
+        ),
+        on_error=Mock(),
+    )
+    try:
+        assert (
+            method(factory.pointer, 3, HRESULT, ctypes.c_int32)(factory.pointer, 12)
+            == -2147221232
+        )
+        assert method(factory.pointer, 4, HRESULT)(factory.pointer) == 1
+        assert called == [12]
+    finally:
+        factory.close()
+
+
+@pytest.mark.parametrize("agile,expected", [(False, -2147467262), (True, 0)])
+def test_only_explicit_mta_callbacks_advertise_agility(agile, expected):
+    callback = ComCallback(IID, (), lambda: None, on_error=Mock(), agile=agile)
+    iid = GUID.parse("94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90")
+    output = ctypes.c_void_p()
+    try:
+        query = method(
+            callback.pointer,
+            0,
+            HRESULT,
+            ctypes.POINTER(GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        assert (
+            query(callback.pointer, ctypes.byref(iid), ctypes.byref(output)) == expected
+        )
+        if output.value:
+            assert method(output, 2, ctypes.c_uint32)(output) == 1
+    finally:
+        callback.close()

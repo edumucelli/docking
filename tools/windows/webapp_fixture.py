@@ -39,7 +39,7 @@ Download generated file</a></p>
 <small>This page is supplied by a labeled native response fixture.
 The normal origin checks and page bridge remain enabled.</small>
 </section></main><script>
-window.fixture={dbValue:null,storage:null};
+window.fixture={dbValue:null,storage:null,closedTitles:[],shownTitles:[]};
 window.fixture.store=function(value){
  localStorage.setItem('docking-fixture',value);
  document.cookie='docking_fixture='+value+
@@ -71,8 +71,9 @@ window.fixture.notify=async function(title){
  if(allowed!=='granted')throw new Error('Notification permission denied');
  const n=new Notification(title,{body:'Owned browser notification fixture',
   tag:'docking-owned'});
+ n.onshow=()=>window.fixture.shownTitles.push(title);
  n.onclick=()=>{document.title='(11) WhatsApp';window.fixture.clicked=true};
- n.onclose=()=>{window.fixture.closed=true};
+ n.onclose=()=>{window.fixture.closed=true;window.fixture.closedTitles.push(title)};
  window.fixture.notification=n;window.fixture.sent=true;
 };
 addEventListener('DOMContentLoaded',()=>navigator.setAppBadge(7));

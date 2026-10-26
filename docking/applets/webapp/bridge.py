@@ -108,28 +108,6 @@ def build_bridge_script(
             }}
         }};
 
-        // Observe only standard activation events. No notification text crosses
-        // this bridge; each engine owns its native presentation and DOM lifetime.
-        if (typeof window.Notification === 'function') {{
-            const notifications = new Set();
-            const NativeNotification = window.Notification;
-            window.Notification = new Proxy(NativeNotification, {{
-                construct(target, args, newTarget) {{
-                    const notification = Reflect.construct(target, args, newTarget);
-                    notifications.add(notification);
-                    notification.addEventListener('click', () =>
-                        post({{kind: 'activate'}}));
-                    notification.addEventListener('close', () =>
-                        notifications.delete(notification));
-                    return notification;
-                }},
-            }});
-            window.addEventListener('pagehide', () => {{
-                for (const notification of notifications) notification.close();
-                notifications.clear();
-            }}, {{once: true}});
-        }}
-
         const originalSetBadge = typeof navigator.setAppBadge === 'function'
             ? navigator.setAppBadge.bind(navigator)
             : null;
