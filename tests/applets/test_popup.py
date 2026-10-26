@@ -207,6 +207,12 @@ class _FakeCaptureOverlay:
     def set_app_paintable(self, value: bool) -> None:
         self.paintable = value
 
+    def set_transient_for(self, parent) -> None:
+        self.transient_for = parent
+
+    def set_attached_to(self, parent) -> None:
+        self.attached_to = parent
+
     def get_screen(self):
         return self.screen
 
@@ -457,6 +463,7 @@ def test_draw_transparent_capture_overlay():
 def test_create_capture_overlay_configures_fullscreen_grab(monkeypatch):
     overlay = _FakeCaptureOverlay()
     seat = MagicMock()
+
     display = MagicMock()
     display.get_default_seat.return_value = seat
     monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: overlay)
@@ -499,6 +506,29 @@ def test_create_capture_overlay_returns_none_without_a_display(monkeypatch):
 
     assert created is None
     assert overlay.destroyed is True
+
+
+def test_capture_overlay_uses_its_anchor_surface_for_focus_and_ownership(monkeypatch):
+    overlay, parent, display = _FakeCaptureOverlay(), MagicMock(), MagicMock()
+
+    def grab(*_args):
+        parent.surface_service.prepare_capture_overlay.assert_called_once_with(overlay)
+
+    display.get_default_seat.return_value.grab.side_effect = grab
+    monkeypatch.setattr(popup.Gtk, "Window", lambda **kw: overlay)
+    monkeypatch.setattr(popup.Gdk.Display, "get_default", lambda: display)
+    monkeypatch.setattr(popup.Gdk.Cursor, "new_for_display", lambda *args: "cursor")
+    anchor = popup.PopupAnchor(0, 0, Position.BOTTOM, parent=parent)
+    result = popup.create_capture_overlay(
+        draw_handler=MagicMock(),
+        click_handler=MagicMock(),
+        key_handler=MagicMock(),
+        cursor_type=popup.Gdk.CursorType.CROSSHAIR,
+        anchor=anchor,
+    )
+    assert result is overlay and overlay.transient_for is parent
+    assert overlay.attached_to is parent
+    parent.surface_service.prepare_capture_overlay.assert_called_once_with(overlay)
 
 
 def test_create_capture_overlay_returns_none_without_a_gdk_window(monkeypatch):

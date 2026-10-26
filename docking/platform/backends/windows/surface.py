@@ -17,7 +17,8 @@ from docking.platform.backends.base import (
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 
 if TYPE_CHECKING:
-    from .appbar import ScreenMapping, WindowsAppBar
+    from .appbar import WindowsAppBar
+    from .geometry import ScreenMapping
     from .menus import WindowsMenuSession
 
 
@@ -94,6 +95,16 @@ class WindowsSurfaceService(ReducedSurfaceService):
 
             self._menus = WindowsMenuSession(self._window)
         self._menus.prepare(menu)
+
+    def prepare_capture_overlay(self, overlay: object) -> None:
+        if self._window is None:
+            return
+        if self._menus is None:
+            from .menus import WindowsMenuSession
+
+            self._menus = WindowsMenuSession(self._window)
+        self._menus.prepare_capture(overlay)
+        overlay.present()
 
     def stop(self) -> None:
         if self._menus is not None:

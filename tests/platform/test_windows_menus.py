@@ -25,6 +25,64 @@ class Menu:
             callback(self)
 
 
+class CaptureSurface(Menu):
+    def __init__(self):
+        super().__init__()
+        self.destroys = 0
+
+    def destroy(self):
+        self.destroys += 1
+        for callback in self.handlers.values():
+            callback(self)
+
+
+def test_capture_surface_uses_destroy_signal_and_restores_foreground_once(session):
+    overlay = CaptureSurface()
+    session.value.prepare_capture(overlay)
+    assert set(overlay.handlers) == {"hide", "destroy"}
+    session.parent.set_accept_focus.assert_called_with(True)
+    overlay.destroy()
+    assert len(session.sources) == 1
+    session.sources.pop(session.value._finish_source)()
+    session.native.restore.assert_called_once_with((10, 99), (20, 101))
+    session.parent.set_accept_focus.assert_called_with(False)
+
+
+def test_native_close_destroys_the_owned_capture_before_closing_parent(session):
+    overlay = CaptureSurface()
+    session.value.prepare_capture(overlay)
+    session.parent.close.side_effect = lambda: (
+        overlay.destroys == 1 or pytest.fail("Capture must close before its parent")
+    )
+    assert session.value._request_close()
+    session.sources.pop(session.value._close_source)()
+    assert overlay.destroys == 1 and not session.value._active
+    session.value.stop()
+    assert not session.sources and not session.value._capture_surfaces
+
+
+def test_repeated_captures_cannot_remember_their_own_temporary_foreground(session):
+    session.value._observe_foreground((10, 99))
+    first = CaptureSurface()
+    session.value.prepare_capture(first)
+    session.value._observe_foreground((30, 101))  # A popup in the dock process.
+    first.destroy()
+    session.sources.pop(session.value._finish_source)()
+    session.native.foreground.return_value = None  # Non-activating dock click.
+    session.value.prepare_capture(CaptureSurface())
+    assert session.value._previous == (10, 99)
+
+
+def test_new_owned_foreground_after_capture_is_retained_for_the_next_action(session):
+    overlay = CaptureSurface()
+    session.value.prepare_capture(overlay)
+    session.value._observe_foreground((30, 101))  # Search takes focus.
+    overlay.destroy()
+    session.native.foreground.return_value = (30, 101)
+    session.sources.pop(session.value._finish_source)()
+    assert session.value._last_foreground == (30, 101)
+
+
 @pytest.fixture
 def session(monkeypatch):
     sources = {}

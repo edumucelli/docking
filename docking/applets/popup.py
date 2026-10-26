@@ -291,11 +291,16 @@ def create_capture_overlay(
     click_handler: Callable[[Gtk.Window, Gdk.EventButton], bool],
     key_handler: Callable[[Gtk.Window, Gdk.EventKey], bool],
     cursor_type: Gdk.CursorType,
+    anchor: PopupAnchor | None = None,
 ) -> Gtk.Window | None:
     """Create a fullscreen pointer-capture overlay, or return None when unavailable."""
     overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
     overlay.set_decorated(False)
     overlay.set_app_paintable(True)
+    parent = anchor.parent if anchor is not None else None
+    if parent is not None:
+        overlay.set_transient_for(parent)
+        overlay.set_attached_to(parent)
 
     screen = overlay.get_screen()
     visual = screen.get_rgba_visual()
@@ -325,6 +330,10 @@ def create_capture_overlay(
     if seat is None:
         overlay.destroy()
         return None
+    # Some backends need native focus before grabbing for Escape to arrive.
+    surface = getattr(parent, "surface_service", None)
+    if surface is not None:
+        surface.prepare_capture_overlay(overlay)
     seat.grab(
         window,
         Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.platform.backends.base import Rect
-from docking.platform.backends.windows.appbar import ScreenMapping
+from docking.platform.backends.windows.geometry import ScreenMapping
 from docking.platform.backends.windows.surface import WindowsSurfaceService
 
 

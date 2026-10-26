@@ -346,6 +346,9 @@ class SurfaceService(Service):
     def prepare_menu_popup(self, menu: object) -> None:
         """Prepare any platform-specific keyboard focus for a root menu."""
 
+    def prepare_capture_overlay(self, overlay: object) -> None:
+        """Prepare focus and shutdown handling for an owned input-capture surface."""
+
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
         """Map a GTK client rectangle into the platform's desktop coordinates.
 
@@ -569,7 +572,7 @@ class ScreenCaptureService(Service):
 
     @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
-        """Pick a screen color in RGB byte values."""
+        """Pick RGB bytes at GTK logical root coordinates (ignored when interactive)."""
 
 
 class IdleService(Service):

@@ -137,6 +137,8 @@ class WindowsMenuSession:
         self._close_hook = hook_factory(self._request_close)
         self._close_source = 0
         self._watched = WeakSet()
+        self._capture_surfaces = WeakSet()
+        self._capture_session = False
         self._active = set()
         self._in_session = False
         self._saved_accept_focus = False
@@ -150,9 +152,22 @@ class WindowsMenuSession:
 
     def _observe_foreground(self, identity):
         if not self._stopped and identity and identity != self._parent_identity:
+            if (
+                self._capture_session
+                and self._parent_identity
+                and identity[1] == self._parent_identity[1]
+            ):
+                # A capture popup briefly owns foreground itself. Its handle
+                # must not replace the source app for the next pick.
+                return
             self._last_foreground = identity
 
-    def prepare(self, menu):
+    def prepare_capture(self, overlay):
+        self._capture_session = True
+        self._capture_surfaces.add(overlay)
+        self.prepare(overlay, capture=True)
+
+    def prepare(self, menu, *, capture=False):
         if self._stopped:
             return
         if self._finish_source:
@@ -178,7 +193,7 @@ class WindowsMenuSession:
         if menu not in self._watched:
             self._watched.add(menu)
             menu.connect("hide", self._closed)
-            menu.connect("deactivate", self._closed)
+            menu.connect("destroy" if capture else "deactivate", self._closed)
         self._active.add(menu)
         self._parent.set_accept_focus(True)
         self._parent.present_with_time(Gtk.get_current_event_time())
@@ -206,6 +221,11 @@ class WindowsMenuSession:
         if restored is False and not self._stopped and self._restore_attempts < 5:
             self._finish_source = GLib.timeout_add(50, self._finish)
             return False
+        if self._capture_session:
+            self._capture_session = False
+            # Search or another app may have taken focus during capture. Keep
+            # that current identity after the normal restoration ownership check.
+            self._observe_foreground(self._native.foreground())
         self._in_session = False
         self._previous = None
         return False
@@ -225,7 +245,10 @@ class WindowsMenuSession:
 
     def dismiss(self):
         for menu in tuple(self._active):
-            menu.popdown()
+            if menu in self._capture_surfaces:
+                menu.destroy()
+            else:
+                menu.popdown()
             self._closed(menu)
 
     def stop(self):
@@ -241,3 +264,4 @@ class WindowsMenuSession:
             self._finish_source = 0
         self._finish()
         self._watched.clear()
+        self._capture_surfaces.clear()

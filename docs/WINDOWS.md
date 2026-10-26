@@ -92,6 +92,12 @@ Caps Lock follows `LockKeyBackend` for Caps Lock and Num Lock indicators.
 contain no operating-system calls, and the applet retains one backend for its
 normal poll and Refresh Now action.
 
+Color Picker consumes `ScreenCaptureService`. X11 owns root-window sampling;
+Windows owns screen device contexts and pixel reads in `windows/screen_capture.py`.
+`windows/geometry.py` shares the monitor mapping used by AppBar placement and
+color sampling. Capture-overlay focus and native close handling belong to the
+surface backend; applets pass their ordinary popup anchor to the shared helper.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.
@@ -1772,6 +1778,56 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 Exporting native application shortcuts to Explorer and cross-monitor gestures
 remain follow-up work.
 
+## Native screen color picking
+
+The Windows screen service maps GTK logical root coordinates into physical
+monitor coordinates, then reads one pixel with `GetDC`/`GetPixel`. Each request
+releases its device context on the calling thread, including failed reads.
+`CLR_INVALID` returns an unknown reading; black and white remain valid colors.
+`DwmFlush` lets removal of the caller's translucent capture overlay reach
+composition before sampling. Construction and start/stop do not acquire screen
+resources, and stopped or earlier-lifetime results are rejected.
+
+The shared capture helper assigns its dock parent and asks the surface backend
+to prepare focus before the input grab. The Windows surface reuses its existing
+focus session, restores the previous app after selection or Escape, and dismisses
+an active capture before native dock close. Temporary capture HWNDs cannot
+replace the remembered source application during repeated picks. Other apps
+that acquire foreground retain it through the existing ownership checks.
+
+`windows_colorpicker_smoke.py` runs the complete dock beside a separate process
+painting six known color patches. Independent desktop pixels establish the
+fixture before real input opens the shared overlay and selects each patch.
+Every color, including black and white, must match the tooltip, Windows
+clipboard readback and saved preferences. The test checks source focus after
+every pick and cancellation, no clicks leaking into the fixture, the native
+Copy and Show Hex menu actions, and 300 repeated reads with stable GDI handles.
+`--shutdown-overlay` closes the dock while a capture is active and requires
+normal exit, fixture shutdown and exact work-area restoration.
+
+The baseline is one 1280×800 Windows display at 96 DPI. A second run forces
+`GDK_SCALE=2` and exercises actual doubled GTK surfaces and input coordinates;
+it does not establish mixed-DPI or multiple-monitor acceptance. Those displays,
+HDR, protected content, remote sessions and secure desktops remain follow-up
+work. Negative-origin and scaled monitor arithmetic has unit coverage.
+The `windows-colorpicker-baseline-verified` and
+`windows-colorpicker-scale2-verified` runs passed and exited normally; their
+overlay and menu PNGs were inspected.
+
+![Windows Color Picker with native menu and known desktop colors](../images/windows-colorpicker.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_colorpicker_smoke.py' \
+  --output '\\host.lan\Data\lab\colorpicker' --shutdown-overlay
+```
+
+References: [screen device contexts](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdc),
+[pixel values and invalid reads](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getpixel),
+[same-thread context release](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc),
+[caller composition flush](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmflush).
+
 ## Native session idle time
 
 `WindowsIdleService` reads `GetLastInputInfo` and `GetTickCount64` through the
@@ -1904,6 +1960,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
+| Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |

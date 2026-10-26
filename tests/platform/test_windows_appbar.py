@@ -7,7 +7,8 @@ import pytest
 from docking.core.position import Position
 from docking.platform.backends.base import Rect
 from docking.platform.backends.windows import appbar
-from docking.platform.backends.windows.appbar import ScreenMapping, edge_strip
+from docking.platform.backends.windows.appbar import edge_strip
+from docking.platform.backends.windows.geometry import ScreenMapping
 
 
 @pytest.mark.parametrize(

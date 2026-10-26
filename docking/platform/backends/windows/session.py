@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
     from .idle import WindowsIdleService
+    from .screen_capture import WindowsScreenCaptureService
 
 
 class WindowsSessionBackend(ReducedSessionBackend):
@@ -39,6 +40,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         super().__init__()
         from .idle import WindowsIdleService
         from .previews import WindowsPreviewService
+        from .screen_capture import WindowsScreenCaptureService
         from .surface import WindowsSurfaceService
         from .visibility import WindowsVisibilityService
         from .windows import WindowsWindowService
@@ -51,6 +53,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         )
         surface = WindowsSurfaceService()
         self._idle = WindowsIdleService()
+        self._screen_capture = WindowsScreenCaptureService()
         self._services = ReducedRuntimeServices(
             windows=windows,
             previews=WindowsPreviewService(
@@ -87,16 +90,23 @@ class WindowsSessionBackend(ReducedSessionBackend):
             supports_overlap_any=True,
             supports_overlap_maximized=True,
             supports_idle_time=True,
+            supports_screen_color_pick=True,
         )
 
     @property
     def idle(self) -> WindowsIdleService:
         return self._idle
 
+    @property
+    def screen_capture(self) -> WindowsScreenCaptureService:
+        return self._screen_capture
+
     def start(self) -> None:
         super().start()
         self._idle.start()
+        self._screen_capture.start()
 
     def stop(self) -> None:
+        self._screen_capture.stop()
         self._idle.stop()
         super().stop()

@@ -11,50 +11,20 @@ import ctypes
 import os
 from collections.abc import Callable
 from ctypes import wintypes
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.backends.base import MonitorSnapshot, Rect
 
-from .ffi import MonitorInfo, explorer_tray
 from .ffi import bind as _bind
+from .ffi import explorer_tray
+from .geometry import ScreenMapping, WindowsMonitorGeometry
 
 if TYPE_CHECKING:
     from gi.repository import Gdk
 
 log = get_logger("windows.appbar")
-
-
-@dataclass(frozen=True)
-class ScreenMapping:
-    logical: Rect
-    physical: Rect
-    workarea: Rect
-    scale: int
-
-    def to_physical(self, rect: Rect) -> Rect:
-        return Rect(
-            self.physical.x + (rect.x - self.logical.x) * self.scale,
-            self.physical.y + (rect.y - self.logical.y) * self.scale,
-            rect.width * self.scale,
-            rect.height * self.scale,
-        )
-
-    def to_logical(self, rect: Rect) -> Rect:
-        relative = Rect(
-            rect.x - self.physical.x,
-            rect.y - self.physical.y,
-            rect.width,
-            rect.height,
-        ).device_to_logical(self.scale)
-        return Rect(
-            self.logical.x + relative.x,
-            self.logical.y + relative.y,
-            relative.width,
-            relative.height,
-        )
 
 
 def edge_strip(bounds: Rect, position: Position, thickness: int) -> Rect:
@@ -112,16 +82,7 @@ class WindowsAppBar:
         self._cursor = _bind(
             user, "GetCursorPos", wintypes.BOOL, ctypes.POINTER(wintypes.POINT)
         )
-        self._monitor_from_point = _bind(
-            user, "MonitorFromPoint", wintypes.HMONITOR, wintypes.POINT, wintypes.DWORD
-        )
-        self._monitor_info = _bind(
-            user,
-            "GetMonitorInfoW",
-            wintypes.BOOL,
-            wintypes.HMONITOR,
-            ctypes.POINTER(MonitorInfo),
-        )
+        self._coordinates = WindowsMonitorGeometry(user)
         register_message = _bind(
             user, "RegisterWindowMessageW", wintypes.UINT, wintypes.LPCWSTR
         )
@@ -250,29 +211,7 @@ class WindowsAppBar:
         return (point.x, point.y) if self._cursor(ctypes.byref(point)) else None
 
     def mapping(self, monitor: MonitorSnapshot, display: Gdk.Display) -> ScreenMapping:
-        # GDK translates negative Windows origins and scales each monitor. Use
-        # the primary origin to locate the native monitor, then map relative to
-        # the exact native bounds so mixed scales do not shift the reserved edge.
-        primary = display.get_primary_monitor() or display.get_monitor(0)
-        origin = primary.get_geometry()
-        primary_scale = primary.get_scale_factor()
-        target = display.get_monitor(monitor.index) if monitor.index >= 0 else None
-        scale = max(
-            1, target.get_scale_factor() if target is not None else monitor.scale
-        )
-        center = wintypes.POINT(
-            (monitor.geometry.x + monitor.geometry.width // 2) * scale
-            - origin.x * primary_scale,
-            (monitor.geometry.y + monitor.geometry.height // 2) * scale
-            - origin.y * primary_scale,
-        )
-        handle = self._monitor_from_point(center, 2)
-        info = MonitorInfo(size=ctypes.sizeof(MonitorInfo))
-        if not self._monitor_info(handle, ctypes.byref(info)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        return ScreenMapping(
-            monitor.geometry, _rectangle(info.monitor), _rectangle(info.workarea), scale
-        )
+        return self._coordinates.mapping(monitor, display)
 
     @staticmethod
     def _edge_for(position: Position) -> int:
