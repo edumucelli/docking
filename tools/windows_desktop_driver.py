@@ -204,11 +204,16 @@ class WindowsDesktop:
             len(values), (_Input * len(values))(*values), ctypes.sizeof(_Input)
         ) == len(values)
 
-    def key(self, key, *, control=False, alt=False, shift=False):
+    def key(self, key, *, control=False, alt=False, shift=False, windows=False):
         extended = int(key in (*range(0x21, 0x29), 0x2D, 0x2E))
         keys = [
             modifier
-            for enabled, modifier in ((control, 0x11), (alt, 0x12), (shift, 0x10))
+            for enabled, modifier in (
+                (control, 0x11),
+                (alt, 0x12),
+                (shift, 0x10),
+                (windows, 0x5B),
+            )
             if enabled
         ]
         events = (

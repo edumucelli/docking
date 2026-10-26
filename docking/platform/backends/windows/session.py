@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
 
+    from .desktop import WindowsDesktopActionService
     from .idle import WindowsIdleService
     from .screen_capture import WindowsScreenCaptureService
 
@@ -38,6 +39,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         process_identity_service: ProcessIdentityService,
     ) -> None:
         super().__init__()
+        from .desktop import WindowsDesktopActionService
         from .idle import WindowsIdleService
         from .previews import WindowsPreviewService
         from .screen_capture import WindowsScreenCaptureService
@@ -54,6 +56,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         surface = WindowsSurfaceService()
         self._idle = WindowsIdleService()
         self._screen_capture = WindowsScreenCaptureService()
+        self._desktop_actions = WindowsDesktopActionService()
         self._services = ReducedRuntimeServices(
             windows=windows,
             previews=WindowsPreviewService(
@@ -91,6 +94,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
             supports_overlap_maximized=True,
             supports_idle_time=True,
             supports_screen_color_pick=True,
+            supports_show_desktop=True,
         )
 
     @property
@@ -101,12 +105,18 @@ class WindowsSessionBackend(ReducedSessionBackend):
     def screen_capture(self) -> WindowsScreenCaptureService:
         return self._screen_capture
 
+    @property
+    def desktop_actions(self) -> WindowsDesktopActionService:
+        return self._desktop_actions
+
     def start(self) -> None:
         super().start()
         self._idle.start()
         self._screen_capture.start()
+        self._desktop_actions.start()
 
     def stop(self) -> None:
+        self._desktop_actions.stop()
         self._screen_capture.stop()
         self._idle.stop()
         super().stop()

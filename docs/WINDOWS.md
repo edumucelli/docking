@@ -103,6 +103,10 @@ X11, Niri and Wayfire share the POSIX termination primitive in
 `backends/unix/processes.py`; process signaling belongs to these implementations.
 The Windows window-picking service remains pending.
 
+Desktop uses the common `DesktopActionService`. The Windows implementation owns
+Explorer's shell action and window-order observations in `windows/desktop.py`;
+the shared applet performs the same service call on every platform.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.
@@ -1783,6 +1787,74 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 Exporting native application shortcuts to Explorer and cross-monitor gestures
 remain follow-up work.
 
+## Native Show Desktop
+
+Windows uses the public `IShellDispatch4.ToggleDesktop` operation. It preserves
+Windows' behavior for minimized, non-minimizable and topmost windows. The backend
+observes the shell desktop's actual Z order for explicit show/hide requests,
+including changes made outside Docking with Win+D. Hidden native surfaces also
+participate in this ordering, so the dock's AppBar proxy keeps empty desktops
+observable in modes without screen reservation. State comes from the target
+Windows shell's current ordering.
+
+Explorer applies the toggle asynchronously. One lazy worker serializes requests
+and waits for the observed transition before dispatching the next action.
+Repeated explicit requests stay idempotent, and GTK keeps processing input and
+window updates. Each COM interface belongs to that worker's calling apartment
+and is released per invocation. The queue is bounded; stop cancels queued work
+and interrupts transition waits. Following an Explorer restart, the worker waits
+up to ten seconds for the desktop to become ready. `IShellWindows.FindWindowSW`
+must confirm desktop registration before dispatch; a visible shell window alone
+does not establish readiness. A pending registration never dispatches a toggle.
+An accepted request returns OK, with its outcome available through the backend's
+completion state.
+
+Windows window tracking keeps covered windows in its running-app projection.
+A non-minimizable window behind the raised desktop reports no overlap, allowing
+Window Dodge to reveal the dock after Show Desktop. Windows that were already
+minimized keep their prior state. The shell's own activation and topmost rules
+still apply.
+
+![Native Windows Show Desktop with Docking and a fixed topmost fixture](../images/windows-show-desktop.png)
+
+`windows_desktop_action_smoke.py` runs the complete application with Desktop,
+Clock and System Tray, so shell commands also traverse the native notification
+host. A separate fixture owns normal, fixed, pre-minimized and fixed-topmost
+windows. Actual applet clicks, explicit and rapid requests, external Win+D and
+service stop/restart must produce the expected native states. The test compares
+window hit testing, native minimized bits, tracked visibility and retained window
+IDs. Run both `none` and `window-dodge` modes; the latter verifies that covered
+fixed windows cease hiding the dock. Captures wait for the dock's animation
+endpoint and stable fixture pixels, since native minimized bits precede DWM's
+minimize animation. The optional Explorer restart checks fresh shell identity
+and post-restart actions. Shutdown restores the desktop, closes
+the owned fixtures, stops the worker and restores the exact desktop work area.
+
+On the baseline Windows build, Explorer creates its windows before its Show
+Desktop commands work: early automation requests and even native Win+D can be
+ignored. Registration checks alone do not establish command readiness. The
+restart test first requires independent native Win+D to minimize and restore
+the owned normal fixture, recording ignored startup shortcuts, then verifies
+Docking's explicit requests and actual applet clicks. Immediate requests during
+Explorer initialization can still fail; the backend reports an unobserved
+transition and does not blindly dispatch a second toggle. Reliable application
+actions during this startup interval remain a behavior limit.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_desktop_action_smoke.py' \
+  --output '\\host.lan\Data\lab\desktop-actions' \
+  --hide-mode window-dodge --restart-explorer
+```
+
+References: [public shell toggle](https://learn.microsoft.com/en-us/windows/win32/shell/ishelldispatch4-toggledesktop),
+[Show Desktop and Minimize All semantics](https://devblogs.microsoft.com/oldnewthing/20040527-00/?p=39153),
+[shell desktop identity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getshellwindow),
+[window Z order](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindow),
+[desktop registration](https://learn.microsoft.com/en-us/windows/win32/api/exdisp/nf-exdisp-ishellwindows-findwindowsw),
+[SDK interface layout](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/ShlDisp.h).
+
 ## Native screen color picking
 
 The Windows screen service maps GTK logical root coordinates into physical
@@ -1965,6 +2037,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
+| Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |

@@ -33,6 +33,35 @@ def test_reused_native_handle_cannot_act_on_another_process():
     native._post.assert_not_called()
 
 
+def test_windows_covered_by_desktop_keep_running_entries_without_reporting_overlap():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._desktop = MagicMock()
+    native._desktop.covered_windows.return_value = frozenset({10})
+    native._foreground = lambda: 0
+    native._callback_type = lambda value: value
+    native._enumerate = lambda callback, _: (callback(10, 0), callback(20, 0))
+    native._snapshot = lambda hwnd, *_args: WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, hwnd),
+        desktop_id="",
+        app_id="Example.App",
+        pid=101,
+        visible=True,
+        minimized=False,
+    )
+    rows = native.windows()
+    assert not rows[0].visible and not rows[0].minimized
+    assert rows[1].visible
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model, **identity_services(application("Example.App"))
+    )
+    service.replace_windows(rows)
+    assert len(service.list_windows("Example.App")) == 2
+    assert model.update_running.call_args.kwargs["running"]["Example.App"].count == 2
+
+
 def test_windows_grouping_actions_and_disappearing_windows(monkeypatch):
     from docking.platform.backends.windows import windows as module
 

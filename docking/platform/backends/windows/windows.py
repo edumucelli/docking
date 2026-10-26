@@ -37,6 +37,9 @@ class Win32WindowAPI:
     """Own the small native API boundary used by window tracking."""
 
     def __init__(self) -> None:
+        from .desktop import WindowsDesktopAPI
+
+        self._desktop = WindowsDesktopAPI()
         user = ctypes.WinDLL("user32", use_last_error=True)
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
@@ -175,6 +178,7 @@ class Win32WindowAPI:
 
     def windows(self) -> tuple[WindowSnapshot, ...]:
         foreground = self._foreground()
+        covered = self._desktop.covered_windows() or frozenset()
         rows: list[WindowSnapshot] = []
         identities: dict[int, tuple[str | None, str]] = {}
 
@@ -182,7 +186,11 @@ class Win32WindowAPI:
             try:
                 row = self._snapshot(hwnd, foreground, identities)
                 if row is not None:
-                    rows.append(row)
+                    # Non-minimizable windows remain mapped behind a raised
+                    # desktop. Keep their taskbar entry but exclude overlap.
+                    rows.append(
+                        replace(row, visible=row.visible and hwnd not in covered)
+                    )
             except Exception:
                 # Windows may disappear or deny access between native calls;
                 # exceptions must never escape a ctypes callback.
