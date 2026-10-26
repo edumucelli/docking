@@ -98,6 +98,11 @@ Windows owns screen device contexts and pixel reads in `windows/screen_capture.p
 color sampling. Capture-overlay focus and native close handling belong to the
 surface backend; applets pass their ordinary popup anchor to the shared helper.
 
+Window Killer delegates selection and termination through `WindowPickService`.
+X11, Niri and Wayfire share the POSIX termination primitive in
+`backends/unix/processes.py`; process signaling belongs to these implementations.
+The Windows window-picking service remains pending.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.

@@ -176,7 +176,7 @@ def test_kill_revalidates_the_live_pid_and_rejects_changed_or_unsafe_targets(
     pid,
 ):
     kill = MagicMock(return_value=True)
-    monkeypatch.setattr("docking.applets.windowkiller.state.kill_pid", kill)
+    monkeypatch.setattr("docking.platform.backends.unix.processes.kill_pid", kill)
     windows = SimpleNamespace(live_window=lambda _: _row(pid))
     service = picking.NiriWindowPickService(windows=windows, socket_path="/unused")
     row = _row()
