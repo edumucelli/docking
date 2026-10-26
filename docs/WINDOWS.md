@@ -2348,6 +2348,29 @@ Some shell cards in this VM are absent from UI Automation. In that case,
 captures that card and still requires the actual DOM click and browser activation.
 `--popup-activation` is an alias for the native notification exercise.
 
+### Web-app downloads
+
+The native host preserves WebView2's default download manager, destination
+selection and progress dialog. Generated HTTP attachments and browser `blob:`
+links have native acceptance coverage, including Unicode filenames and contents,
+existing-file preservation, duplicate names, public SDK pause/resume and closing
+the browser while a download is paused. Native process observation verifies that
+the stopped browser leaves no WebView2 processes for its owned profile. These
+checks passed for WhatsApp at GTK scale 1 and Telegram at GTK scale 2.
+
+`tools/windows/webapp_download_smoke.py` drives the actual download link with
+native pointer input, observes SDK download states on the browser's owning STA,
+checks the saved bytes in the real Downloads directory, and captures the native
+progress UI. It uses random owned filenames and removes only those files.
+
+```sh
+python -m tools.windows.webapp_download_smoke --service whatsapp --output C:\\lab\\webapp-downloads
+```
+
+Signed-in service exports, real CDN/network failures, managed download policies,
+alternate default handlers and broader display/session behavior remain acceptance
+work. The generated pages use no account, messages or contacts.
+
 ## Native Music controls
 
 Music has one `MusicBackend` contract for player discovery, metadata, transport
@@ -2616,7 +2639,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
-| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; sustained memory use, signed-in services, downloads and physical media remain pending |
+| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; native HTTP/blob downloads, Unicode, collision handling, pause/resume and paused-download process cleanup verified; sustained memory use, signed-in services, CDN/network/policy and physical media remain pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

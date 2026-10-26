@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ctypes
 from contextlib import ExitStack
+from urllib.parse import quote
 
 from docking.platform.backends.windows.com import (
     HRESULT,
@@ -85,6 +86,8 @@ class WebAppPageFixture:
         self.profile = profile
         self.mode = "ready"
         self.requests = 0
+        self.download_filename = f"docking-generated-{profile.session_name}.txt"
+        self.download_content = f"Docking generated {profile.name} download\n".encode()
 
     def install(self, engine) -> None:
         engine.subscribe(
@@ -105,11 +108,12 @@ class WebAppPageFixture:
             request = object_result(scope, args, 3)
             uri = engine.text(request, 3)
             if uri.endswith("/fixture-download"):
-                content = f"Docking generated {self.profile.name} download\n".encode()
+                content = self.download_content
                 headers = (
                     "Content-Type: application/octet-stream\r\n"
-                    "Content-Disposition: attachment; "
-                    f'filename="docking-generated-{self.profile.session_name}.txt"\r\n'
+                    "Content-Disposition: attachment; filename*=UTF-8''"
+                    + quote(self.download_filename, safe="")
+                    + "\r\n"
                 )
             else:
                 landmark = (
