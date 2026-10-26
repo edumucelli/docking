@@ -277,6 +277,13 @@ class WindowsDesktop:
     def double_click(self, x, y):
         self.user.SetCursorPos(int(x), int(y))
         time.sleep(0.3)
+        self._send(
+            [
+                _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+                for flag in (2, 4, 2, 4)
+            ]
+        )
+        time.sleep(0.3)
 
     def drag(self, start, end):
         """Drag with actual pointer input, including protected native captions."""
@@ -292,13 +299,6 @@ class WindowsDesktop:
                 time.sleep(0.05)
         finally:
             self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=4)))])
-        time.sleep(0.3)
-        self._send(
-            [
-                _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
-                for flag in (2, 4, 2, 4)
-            ]
-        )
         time.sleep(0.3)
 
     def workarea(self):

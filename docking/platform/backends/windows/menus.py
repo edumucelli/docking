@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+from collections import deque
 from ctypes import wintypes
 from weakref import WeakSet
 
@@ -145,6 +146,7 @@ class WindowsMenuSession:
         self._previous = None
         self._parent_identity = None
         self._last_foreground = None
+        self._foreground_history = deque(maxlen=8)
         self._finish_source = 0
         self._restore_attempts = 0
         self._stopped = False
@@ -161,11 +163,38 @@ class WindowsMenuSession:
                 # must not replace the source app for the next pick.
                 return
             self._last_foreground = identity
+            if identity in self._foreground_history:
+                self._foreground_history.remove(identity)
+            self._foreground_history.append(identity)
+
+    def _remembered_foreground(self):
+        # Closing a transient can restore its preceding foreground window
+        # without delivering another foreground event. Skip dead preview/dialog
+        # handles while retaining HWND/PID validation for every candidate.
+        for identity in reversed(self._foreground_history):
+            if (
+                identity != self._parent_identity
+                and self._native.identity(identity[0]) == identity
+            ):
+                return identity
+        return None
 
     def prepare_capture(self, overlay):
         self._capture_session = True
         self._capture_surfaces.add(overlay)
         self.prepare(overlay, capture=True)
+
+    def bind_parent(self, native_window: object | None) -> None:
+        """Identify the dock before its first click can change foreground."""
+        if native_window is None:
+            return
+        from .ffi import window_handle
+
+        hwnd = window_handle(native_window)
+        if hwnd:
+            self._parent_identity = self._native.identity(hwnd)
+            if self._parent_identity is not None:
+                self._close_hook.install(hwnd)
 
     def prepare(self, menu, *, capture=False):
         if self._stopped:
@@ -174,7 +203,7 @@ class WindowsMenuSession:
             GLib.source_remove(self._finish_source)
             self._finish_source = 0
             if self._in_session and not self._active:
-                foreground = self._native.foreground() or self._last_foreground
+                foreground = self._native.foreground() or self._remembered_foreground()
                 if foreground and foreground not in (
                     self._previous,
                     self._parent_identity,
@@ -188,7 +217,7 @@ class WindowsMenuSession:
             self._previous = (
                 foreground
                 if foreground and foreground != self._parent_identity
-                else self._last_foreground
+                else self._remembered_foreground()
             )
         if menu not in self._watched:
             self._watched.add(menu)
@@ -236,6 +265,20 @@ class WindowsMenuSession:
         if not self._close_source:
             self._close_source = GLib.idle_add(self._close)
         return True
+
+    def capture_source(self) -> tuple[int, int] | None:
+        if self._stopped:
+            return None
+        source = self._previous if self._in_session else self._native.foreground()
+        if source is None or source == self._parent_identity:
+            source = self._remembered_foreground()
+        if (
+            source
+            and source != self._parent_identity
+            and self._native.identity(source[0]) == source
+        ):
+            return int(source[0]), int(source[1])
+        return None
 
     def _close(self):
         self._close_source = 0

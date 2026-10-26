@@ -2207,6 +2207,64 @@ References: [screen device contexts](https://learn.microsoft.com/en-us/windows/w
 [same-thread context release](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc),
 [caller composition flush](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmflush).
 
+## Native screenshots
+
+Screenshot uses one `ScreenshotBackend` contract for discovery, full/window/region
+capture, region coordinates and cleanup. The existing Unix CLI and portal
+implementation is isolated in `screenshot/linux.py`; `state.py` contains only
+modes, coordinates and owned pixel results. The shared applet owns asynchronous
+requests, cancellable delays, region selection and captured-image presentation.
+
+Windows captures the virtual desktop or a physical pixel rectangle through
+Pillow's Windows screen capture. Window mode reuses the WinRT graphics capture
+implementation at source resolution. The shared surface contract provides the
+window active before a dock menu took focus; Windows validates its HWND/PID and
+normalizes DWM ghosts before capture. Menu restoration retains a bounded history
+of live identities so a destroyed preview cannot hide the preceding source.
+A stale source is rejected rather than capturing a recycled HWND.
+
+GTK Win32 rounds scaled mouse coordinates to logical integers. The Windows
+backend observes button coordinates on the owned region overlay before GTK
+translation, then maps them to fractional logical coordinates for the shared
+selection UI. It leaves native input dispatch intact and removes the observer
+before destroying the overlay. Physical capture bounds therefore retain odd
+pixels at doubled GTK scale. Desktop reads validate geometry and a 128 MiB pixel
+budget; window frame pools and GPU devices close on their owning worker. Stop
+invalidates old results, cancels pending delays and reads, and lets worker
+cleanup finish after GTK exits.
+
+Captured pixels go to the image clipboard and a monitor-sized preview. Copy
+repeats that operation. Save As uses GTK's native file chooser (Windows
+`IFileDialog`) and writes a PNG on a worker using a temporary file followed by
+replacement of the exact confirmed path. The chooser supplies a `.png` default
+name; the applet does not silently change the chosen overwrite target. No
+screenshot file is created until Save As is accepted.
+
+`tools/windows_screenshot_smoke.py` uses a separate six-color fixture, actual
+dock clicks and menu input, independent Windows Forms clipboard reads and
+independently decoded PNG pixels. It checks source-resolution window capture,
+exact region bounds across a color boundary, clipboard persistence, Escape
+cancellation, the three-second delay and normal-close cleanup. Use a fresh
+output directory for each run. `--shutdown-region` closes with the input overlay
+active; `--shutdown-window` holds a real captured frame until normal dock close
+and checks worker-owned stream/device cleanup. `GDK_SCALE=2` exercises doubled
+GTK scale; this does not establish physical mixed-DPI monitor acceptance.
+Normal and doubled-scale runs passed, including an odd-device-pixel region,
+Unicode UNC export, active-overlay close and close during a native window read.
+The same 136 focused tests passed on Linux and native Windows.
+
+Multiple physical monitors, negative origins and monitor changes during
+selection still need native desktop acceptance. HDR, protected content,
+uncached minimized windows, secure/remote sessions and other Windows versions
+remain acceptance limits, alongside the capture indicator behavior documented
+for window previews.
+
+![Native source-resolution Screenshot preview](../images/windows-screenshot.png)
+
+References: [Pillow desktop capture](https://pillow.readthedocs.io/en/stable/reference/ImageGrab.html),
+[GTK native file chooser](https://docs.gtk.org/gtk3/class.FileChooserNative.html),
+[GTK Win32 button-coordinate translation](https://github.com/GNOME/gtk/blob/gtk-3-24/gdk/win32/gdkevents-win32.c).
+
 ## Native session idle time
 
 `WindowsIdleService` reads `GetLastInputInfo` and `GetTickCount64` through the
@@ -2344,6 +2402,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Virtual desktops | Windows implementation of WorkspaceService and surface scope, with build-gated shell ABI and public window membership | Native applet click/menu/scroll, external keyboard switch, names/list changes, current-workspace filtering and cross-desktop foreground activation verified at GTK scale 1/2; worker lifecycle, membership ownership and unknown builds tested; other versions, Explorer transition races, sessions and displays pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
+| Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |

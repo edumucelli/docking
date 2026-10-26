@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -29,7 +29,7 @@ from docking.core.position import Position
 from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
 
 if TYPE_CHECKING:
-    from docking.platform.backends.base import Rect
+    from docking.platform.backends.base import Rect, SurfaceService, WindowSnapshot
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -285,6 +285,13 @@ def add_cancel_ok_buttons(
     )
 
 
+def capture_source_window(anchor: PopupAnchor | None) -> WindowSnapshot | None:
+    parent = anchor.parent if anchor is not None else None
+    # Anchors can also wrap plain Gtk.Window instances supplied by embedders.
+    surface = cast("SurfaceService | None", getattr(parent, "surface_service", None))
+    return surface.capture_source_window() if surface is not None else None
+
+
 def create_capture_overlay(
     *,
     draw_handler: Callable[[Gtk.Window, object], bool],
@@ -292,6 +299,8 @@ def create_capture_overlay(
     key_handler: Callable[[Gtk.Window, Gdk.EventKey], bool],
     cursor_type: Gdk.CursorType,
     anchor: PopupAnchor | None = None,
+    release_handler: Callable[[Gtk.Window, Gdk.EventButton], bool] | None = None,
+    motion_handler: Callable[[Gtk.Window, Gdk.EventMotion], bool] | None = None,
 ) -> Gtk.Window | None:
     """Create a fullscreen pointer-capture overlay, or return None when unavailable."""
     overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
@@ -311,6 +320,12 @@ def create_capture_overlay(
     overlay.move(0, 0)
     overlay.connect("draw", draw_handler)
     overlay.set_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK)
+    if release_handler is not None:
+        overlay.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        overlay.connect("button-release-event", release_handler)
+    if motion_handler is not None:
+        overlay.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        overlay.connect("motion-notify-event", motion_handler)
     overlay.connect("button-press-event", click_handler)
     overlay.connect("key-press-event", key_handler)
 

@@ -103,6 +103,7 @@ def session(monkeypatch):
     native = MagicMock()
     native.foreground.return_value = (10, 99)
     native.active.return_value = (20, 101)
+    native.identity.side_effect = {10: (10, 99), 20: (20, 101), 30: (30, 102)}.get
     hook = MagicMock()
     value = menus.WindowsMenuSession(parent, native=native, hook_factory=lambda _: hook)
     return SimpleNamespace(
@@ -422,3 +423,51 @@ def test_surface_starts_foreground_observation_at_realize_before_first_menu(
     factory.return_value.prepare.assert_called_once_with(menu)
     service.stop()
     factory.return_value.stop.assert_called_once()
+
+
+def test_capture_source_survives_menu_focus_and_rejects_reused_handles(session):
+    menu = Menu()
+    session.native.identity.side_effect = lambda hwnd: (hwnd, 99 if hwnd == 10 else 101)
+    session.value._observe_foreground((10, 99))
+    session.value.prepare(menu)
+    session.native.foreground.return_value = (20, 101)
+    assert session.value.capture_source() == (10, 99)
+    menu.popdown()
+    session.sources.pop(session.value._finish_source)()
+    assert session.value.capture_source() == (10, 99)
+    session.native.identity.side_effect = lambda hwnd: (hwnd, 500)
+    assert session.value.capture_source() is None
+    session.value.stop()
+
+
+def test_parent_is_known_before_first_menu_focus_can_replace_source(
+    session, monkeypatch
+):
+    from docking.platform.backends.windows import ffi
+
+    monkeypatch.setattr(ffi, "window_handle", lambda _window: 20)
+    session.native.identity.side_effect = lambda hwnd: (hwnd, 99 if hwnd == 10 else 101)
+    session.value._observe_foreground((10, 99))
+    session.value.bind_parent(object())
+    session.value._observe_foreground((20, 101))
+    session.native.foreground.return_value = (20, 101)
+    session.value.prepare(Menu())
+    assert session.value.capture_source() == (10, 99)
+    assert session.value._previous == (10, 99)
+    session.value.stop()
+
+
+def test_closed_preview_does_not_hide_the_surviving_foreground_source(session):
+    identities = {10: (10, 99), 20: (20, 101), 30: (30, 101)}
+    session.native.identity.side_effect = identities.get
+    session.value._parent_identity = (20, 101)
+    session.value._observe_foreground((10, 99))
+    session.value._observe_foreground((30, 101))  # Screenshot preview.
+    del identities[30]
+    session.native.foreground.return_value = None  # Non-activating right click.
+    session.value.prepare(Menu())
+    assert session.value._previous == (10, 99)
+    assert session.value.capture_source() == (10, 99)
+    identities[10] = (10, 500)  # A recycled handle cannot name the source.
+    assert session.value.capture_source() is None
+    session.value.stop()

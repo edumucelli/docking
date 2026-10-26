@@ -349,6 +349,10 @@ class SurfaceService(Service):
     def prepare_capture_overlay(self, overlay: object) -> None:
         """Prepare focus and shutdown handling for an owned input-capture surface."""
 
+    def capture_source_window(self) -> WindowSnapshot | None:
+        """Return the window which was active before an owned menu took focus."""
+        return None
+
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
         """Map a GTK client rectangle into the platform's desktop coordinates.
 

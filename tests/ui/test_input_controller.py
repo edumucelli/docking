@@ -264,3 +264,41 @@ def test_model_change_does_not_refresh_existing_applet_stack():
     controller._on_model_changed()
 
     interactions.refresh_open_applet_stack.assert_not_called()
+
+
+@pytest.mark.parametrize("background", [False, True])
+def test_right_click_prepares_applet_anchor_before_building_its_menu(background):
+    from gi.repository import Gdk
+
+    item = DockItem("applet://screenshot")
+    frame = SimpleNamespace(item_at_point=MagicMock(return_value=item))
+    applet, anchor = MagicMock(), object()
+    window = SimpleNamespace(
+        config=SimpleNamespace(pos=Position.BOTTOM),
+        model=SimpleNamespace(get_applet=MagicMock(return_value=applet)),
+        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+        popup_anchor_for_item=MagicMock(return_value=anchor),
+    )
+    interactions = MagicMock()
+    if not background:
+        interactions.show_context_menu.side_effect = lambda **_kw: (
+            applet.set_popup_anchor.assert_called_once_with(anchor)
+        )
+    controller = DockInputController(
+        window=window,
+        interactions=interactions,
+        dnd=MagicMock(),
+        application_launcher=MagicMock(),
+        target_service=MagicMock(),
+    )
+    event = SimpleNamespace(
+        x=10,
+        y=20,
+        button=3,
+        state=Gdk.ModifierType.CONTROL_MASK if background else 0,
+    )
+    controller._on_button_press(None, event)
+    assert controller._on_button_release(None, event)
+    interactions.show_context_menu.assert_called_once()
+    if background:
+        applet.set_popup_anchor.assert_not_called()

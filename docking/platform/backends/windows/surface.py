@@ -9,10 +9,13 @@ from gi.repository import GLib
 
 from docking.core.position import Position
 from docking.platform.backends.base import (
+    DisplayServer,
     MonitorSnapshot,
     PlacementRequest,
     Rect,
     ReservationRequest,
+    WindowId,
+    WindowSnapshot,
 )
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 
@@ -89,6 +92,7 @@ class WindowsSurfaceService(ReducedSurfaceService):
             from .menus import WindowsMenuSession
 
             self._menus = WindowsMenuSession(window)
+        self._menus.bind_parent(window.get_window())
 
     def prepare_menu_popup(self, menu: object) -> None:
         if self._window is None:
@@ -98,6 +102,18 @@ class WindowsSurfaceService(ReducedSurfaceService):
 
             self._menus = WindowsMenuSession(self._window)
         self._menus.prepare(menu)
+
+    def capture_source_window(self) -> WindowSnapshot | None:
+        source = self._menus.capture_source() if self._menus is not None else None
+        return (
+            WindowSnapshot(
+                id=WindowId(DisplayServer.WINDOWS, source[0]),
+                desktop_id="",
+                pid=source[1],
+            )
+            if source
+            else None
+        )
 
     def prepare_capture_overlay(self, overlay: object) -> None:
         if self._window is None:

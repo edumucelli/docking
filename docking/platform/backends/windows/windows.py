@@ -390,6 +390,34 @@ class Win32WindowAPI:
             can_close=True,
         )
 
+    def foreground_capture_snapshot(self) -> WindowSnapshot | None:
+        hwnd = self._foreground()
+        return self.capture_snapshot(hwnd) if hwnd else None
+
+    def capture_snapshot(
+        self, hwnd: int, *, expected_pid: int | None = None
+    ) -> WindowSnapshot | None:
+        """Read capture identity without applying taskbar/own-window filters."""
+        if not self._exists(hwnd):
+            return None
+        owner = wintypes.DWORD()
+        self._pid(hwnd, ctypes.byref(owner))
+        if not owner.value or (
+            expected_pid is not None and owner.value != expected_pid
+        ):
+            return None
+        original = self._ghosts.original(hwnd) or hwnd
+        self._pid(original, ctypes.byref(owner))
+        if not owner.value:
+            return None
+        window = WindowSnapshot(
+            id=WindowId(DisplayServer.WINDOWS, original),
+            desktop_id="",
+            pid=owner.value,
+            app_id=self._application_id(original, owner.value, "", {}),
+        )
+        return window if self.matches(window) else None
+
     def matches(self, window: WindowSnapshot) -> bool:
         if window.id.backend is not DisplayServer.WINDOWS:
             return False

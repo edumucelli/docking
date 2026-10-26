@@ -508,3 +508,17 @@ def test_same_host_hwnd_and_pid_with_changed_app_id_cannot_receive_a_stale_actio
     native._properties.app_id.return_value = "New.App"
     assert native.perform(row, "close") is ActionResult.NOT_FOUND
     native._post.assert_not_called()
+
+
+def test_capture_identity_includes_own_surfaces_without_changing_taskbar_policy():
+    import os
+
+    native = snapshot_api()
+    native._pid = lambda hwnd, output: setattr(output._obj, "value", os.getpid())
+    native._exists = lambda hwnd: True
+    native._ghosts = MagicMock()
+    native._ghosts.original.return_value = None
+    assert native._snapshot(100, 100, {}) is None
+    row = native.capture_snapshot(100, expected_pid=os.getpid())
+    assert row is not None and row.pid == os.getpid()
+    assert native.capture_snapshot(100, expected_pid=os.getpid() + 1) is None
