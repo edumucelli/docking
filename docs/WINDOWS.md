@@ -2207,6 +2207,61 @@ References: [screen device contexts](https://learn.microsoft.com/en-us/windows/w
 [same-thread context release](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc),
 [caller composition flush](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmflush).
 
+## Native Notifications
+
+Notifications uses one `NotificationsBackend` contract and shared GTK history,
+badge, wheel navigation and menus. `notifications/linux.py` owns dunst/GNOME
+commands and the bounded D-Bus monitor. `state.py` contains only values and
+presentation. Initial discovery, polling, controls and cleanup run on one
+`SerialWorker` thread. Old state replies cannot replace newer controls, while
+events drained by an earlier read still reach the same applet lifetime. Stop
+cancels pending work and prevents late replies from reviving timers or history.
+
+The Windows implementation reads `UserNotificationListener` with scoped WinRT
+objects and cancellable asynchronous enumeration. It checks permission before
+and after enumeration: revoked access is an unknown pending count, never an
+empty inbox. New, replaced and reused notification IDs update shared history;
+unchanged notifications do not reappear after clearing local history. History
+keeps at most 40 entries. Windows Clear Notifications is offered only when all
+pending entries fit, validates the exact displayed revision, and removes those
+IDs individually so a newly arriving notification is not included in a global
+clear. Clearing local history does not dismiss Windows notifications.
+
+Do Not Disturb uses the shell's **private** `IQuietHoursSettings` interface and
+the effective quiet-hours WNF profile, validated on Windows 11 25H2. This is
+separate from the documented presentation/first-login notification-state query.
+Unknown profiles or ABI failures disable the control while notification history
+can remain available. Changes wait for both the selected and effective profiles;
+the shell can accept a setter before publishing its new selection. A remembered
+Alarms Only selection is retained when disabling and reenabling. Automatic rules
+can keep the effective state paused even after a manual off request; the applet
+reports that outcome rather than claiming the effective state changed.
+
+The native dock check uses actual pointer/menu/wheel input, generated toasts
+under an owned AppUserModelId, and the real Windows Settings Do Not Disturb
+toggle as an independent readback. It exercises history, the badge, local clear,
+subsequent events, and normal worker cleanup at GTK scale 1 and 2. The doubled
+scale run also verifies Unicode text, native removal of one displayed ID while
+retaining other notifications, and normal close during a held native read.
+The fixture removes only its own
+notification group and registration and restores the original quiet-hours
+selection. It does not clear preexisting Windows notifications.
+
+```powershell
+python -m tools.windows.notifications_smoke --output C:\\lab\\notifications
+```
+
+Revoked-access and shell-failure behavior has policy/lifecycle test coverage;
+native permission prompts, managed policy, automatic-rule transitions, other
+toast providers, Windows versions and user sessions still need acceptance.
+
+![Native Notifications history, badge and generated Windows toast](../images/windows-notifications.png)
+
+References: [notification listener and access revocation](https://learn.microsoft.com/en-us/windows/apps/develop/notifications/app-notifications/notification-listener),
+[notification-state query semantics](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-query_user_notification_state),
+[quiet-hours interface definition](https://github.com/bitdisaster/windows-focus-assist/blob/master/lib/quiethours.idl),
+[effective-profile reader](https://github.com/bitdisaster/windows-focus-assist/blob/master/lib/focus-assist.cc).
+
 ## Native Music controls
 
 Music has one `MusicBackend` contract for player discovery, metadata, transport
@@ -2474,6 +2529,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Virtual desktops | Windows implementation of WorkspaceService and surface scope, with build-gated shell ABI and public window membership | Native applet click/menu/scroll, external keyboard switch, names/list changes, current-workspace filtering and cross-desktop foreground activation verified at GTK scale 1/2; worker lifecycle, membership ownership and unknown builds tested; other versions, Explorer transition races, sessions and displays pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
+| Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

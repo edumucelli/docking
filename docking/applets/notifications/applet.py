@@ -15,13 +15,8 @@
 
 from __future__ import annotations
 
-import shlex
-import shutil
-import subprocess
-import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import gi
@@ -32,17 +27,18 @@ from gi.repository import GLib, Gtk
 from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import SerialWorker
 from docking.core.math import clamp_index, clamp_int
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.environment import flatpak, is_flatpak
 
+from .backend import create_backend
 from .render import create_notifications_icon
 from .state import (
-    NotificationsBackend,
+    HISTORY_LIMIT,
+    NotificationEntry,
+    NotificationsSnapshot,
     NotificationsState,
-    detect_backend,
     tooltip_text,
 )
 
@@ -53,22 +49,11 @@ log = with_context(get_logger(name="notifications"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 2
 ACTIVITY_WINDOW_S = 8
-HISTORY_LIMIT = 40
 TOOLTIP_APP_LIMIT = 36
 TOOLTIP_SUMMARY_LIMIT = 72
 TOOLTIP_BODY_LIMIT = 96
 MAX_HISTORY_BADGE_COUNT = 99
-ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
 ELLIPSIS_RESERVED_CHARS = 3
-NOTIFICATION_MONITOR_RULE = "interface='org.freedesktop.Notifications',member='Notify'"
-HOST_MONITOR_PID_PREFIX = "__DOCKING_HOST_DBUS_MONITOR_PID="
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationEntry:
-    app_name: str
-    summary: str
-    body: str
 
 
 class NotificationsApplet(Applet):
@@ -79,19 +64,24 @@ class NotificationsApplet(Applet):
     icon_name = "preferences-system-notifications"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend: NotificationsBackend = detect_backend()
-        self._state: NotificationsState = self._backend.get_state()
+        self._backend = create_backend()
+        self._state = NotificationsState()
+        self._stopped = False
+        self._lifetime = 0
+        self._generation = 0
+        self._pending_target: bool | None = None
+        self._pending = False
+        self._loading = True
+        self._error = False
         self._timer_id: int = 0
         self._activity_until_monotonic: float = 0.0
         self._activity_clear_id: int = 0
-        self._activity_monitor_proc: subprocess.Popen[str] | None = None
-        self._activity_monitor_thread: threading.Thread | None = None
-        self._activity_monitor_host_pid: str | None = None
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
-        self._worker = BackgroundWorker()
+        self._worker = SerialWorker(on_close=self._backend.close)
         super().__init__(icon_size=icon_size, config=config)
         self.present()
+        self._tick()
 
     def create_icon(self, size: int):
         return create_notifications_icon(
@@ -104,6 +94,12 @@ class NotificationsApplet(Applet):
 
     def refresh_tooltip(self) -> None:
         lines = [tooltip_text(self._state)]
+        if self._loading or self._pending:
+            lines.append(_("Loading..."))
+        elif self._error:
+            lines.append(_("Could not update notifications"))
+        if self._state.access_required:
+            lines.append(_("Notification history requires access in Windows Settings"))
         current = self._current_notification_lines()
         if current:
             lines.append("")
@@ -111,28 +107,45 @@ class NotificationsApplet(Applet):
         self.item.name = "\n".join(lines)
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._stopped:
+            self._backend = create_backend()
+            self._worker = SerialWorker(on_close=self._backend.close)
+            self._stopped = False
+            self._loading = True
+            self._tick()
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
-        self._start_activity_monitor()
 
     def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
+        self._lifetime += 1
+        self._pending = False
+        self._pending_target = None
+        self._backend.stop()
+        self._worker.stop()
         if self._activity_clear_id:
             GLib.source_remove(self._activity_clear_id)
             self._activity_clear_id = 0
-        self._stop_activity_monitor()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
         super().stop()
 
     def on_clicked(self) -> None:
-        if not self._state.available:
+        if self._stopped:
             return
-        target = not self._state.paused
-        if self._backend.set_paused(target):
-            self._state = replace(self._state, paused=target)
-            self.present()
-            self._refresh_now()
+        if not self._state.available:
+            self._tick()
+            return
+        if self._state.can_pause and self._state.paused_known:
+            current = (
+                self._pending_target
+                if self._pending_target is not None
+                else self._state.paused
+            )
+            self._set_paused(not current)
 
     def on_scroll(self, direction_up: bool) -> None:
         if not self._history:
@@ -147,6 +160,7 @@ class NotificationsApplet(Applet):
 
         dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
+        dnd.set_sensitive(self._state.can_pause and self._state.paused_known)
         dnd.connect("toggled", self._on_toggle_dnd)
 
         status: list[Gtk.MenuItem] = []
@@ -162,7 +176,7 @@ class NotificationsApplet(Applet):
         clear_history.connect("activate", lambda _w: self._on_clear_history())
         destructive = [clear_history]
 
-        if self._backend.supports_clear:
+        if self._state.can_clear:
             clear = Gtk.MenuItem(label=_("Clear Notifications"))
             clear.connect("activate", lambda _w: self._on_clear())
             destructive.append(clear)
@@ -171,18 +185,20 @@ class NotificationsApplet(Applet):
 
     def _on_toggle_dnd(self, widget: Gtk.CheckMenuItem) -> None:
         target = widget.get_active()
-        if target == self._state.paused:
+        if target != self._state.paused and self._state.can_pause:
+            self._set_paused(target)
+
+    def _set_paused(self, paused: bool) -> None:
+        if self._stopped:
             return
-        if self._backend.set_paused(target):
-            self._state = replace(self._state, paused=target)
-            self.present()
-            self._refresh_now()
-            return
-        widget.set_active(self._state.paused)
+        backend = self._backend
+        self._pending_target = paused
+        self._request(lambda: backend.set_paused(paused))
 
     def _on_clear(self) -> None:
-        if self._backend.clear_notifications():
-            self._refresh_now()
+        if self._state.can_clear:
+            backend, state = self._backend, self._state
+            self._request(lambda: backend.clear_notifications(state))
 
     def _on_clear_history(self) -> None:
         if not self._history:
@@ -191,28 +207,87 @@ class NotificationsApplet(Applet):
         self._history_index = 0
         self.present()
 
+    def _current(self, lifetime: int) -> bool:
+        return not self._stopped and lifetime == self._lifetime
+
+    def _request(self, action: Callable[[], bool]) -> None:
+        if self._stopped:
+            return
+        self._generation += 1
+        generation, lifetime, backend = self._generation, self._lifetime, self._backend
+        self._pending = True
+        self.present()
+
+        def request() -> tuple[NotificationsSnapshot, bool]:
+            if not self._current(lifetime):
+                return NotificationsSnapshot(), False
+            success = action()
+            return backend.poll(), success
+
+        self._worker.run(
+            name="notifications-action",
+            fn=request,
+            on_result=lambda result: self._deliver(
+                result[0], generation, lifetime, result[1]
+            ),
+            on_error=lambda _error: self._failed(generation, lifetime),
+        )
+
     def _tick(self) -> bool:
+        if self._stopped:
+            return False
+        generation, lifetime, backend = self._generation, self._lifetime, self._backend
         self._worker.run_guarded(
             key="poll",
             name="notifications-poll",
-            fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            fn=lambda: (
+                backend.poll() if self._current(lifetime) else NotificationsSnapshot()
+            ),
+            on_result=lambda result: self._deliver(result, generation, lifetime),
+            on_error=lambda _error: self._failed(generation, lifetime),
         )
         return True
 
-    def _poll_worker(self) -> NotificationsState:
-        if not self._state.available:
-            self._backend = detect_backend()
-        return self._backend.get_state()
+    def _deliver(
+        self,
+        snapshot: NotificationsSnapshot,
+        generation: int,
+        lifetime: int,
+        success: bool = True,
+    ) -> bool:
+        if not self._current(lifetime):
+            return False
+        # A control can supersede state, but events already drained on that
+        # earlier read still belong to this lifetime and must not disappear.
+        for entry in snapshot.events:
+            if entry is None:
+                self._on_notification_activity()
+            else:
+                self._on_notification_event(entry.app_name, entry.summary, entry.body)
+        if generation == self._generation:
+            self._loading = False
+            self._error = not success
+            self._pending = False
+            self._pending_target = None
+            self._on_poll_result(snapshot.state)
+            self.present()
+        return False
+
+    def _failed(self, generation: int, lifetime: int) -> bool:
+        if self._current(lifetime) and generation == self._generation:
+            self._loading = False
+            self._pending = False
+            self._pending_target = None
+            self._error = True
+            self._state = NotificationsState()
+            self.present()
+        return False
 
     def _on_poll_result(self, state: NotificationsState) -> bool:
         if state != self._state:
             self._state = state
             self.present()
         return False
-
-    def _refresh_now(self) -> None:
-        self._on_poll_result(self._poll_worker())
 
     def _show_activity_badge(self) -> bool:
         return (
@@ -245,139 +320,6 @@ class NotificationsApplet(Applet):
         self.present()
         return False
 
-    def _start_activity_monitor(self) -> None:
-        if self._activity_monitor_proc is not None:
-            return
-        command = self._activity_monitor_command()
-        if command is None:
-            log.bind(action="activity_monitor").warning(
-                "dbus-monitor not found; notification activity monitoring is disabled"
-            )
-            return
-        try:
-            self._activity_monitor_proc = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-            )
-        except OSError as exc:
-            self._activity_monitor_proc = None
-            log.bind(action="activity_monitor").warning(
-                "Failed to start dbus-monitor: %s", exc
-            )
-            return
-
-        self._activity_monitor_thread = threading.Thread(
-            target=self._activity_monitor_worker,
-            daemon=True,
-        )
-        self._activity_monitor_thread.start()
-
-    def _activity_monitor_command(self) -> list[str] | None:
-        if is_flatpak():
-            # The Flatpak D-Bus proxy does not expose other clients' Notify
-            # method calls to sandbox dbus-monitor, so observe on the host.
-            monitor_rule = shlex.quote(NOTIFICATION_MONITOR_RULE)
-            return flatpak.host_command(
-                [
-                    "sh",
-                    "-c",
-                    (
-                        "command -v dbus-monitor >/dev/null || exit 127; "
-                        f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                        f"exec dbus-monitor --session {monitor_rule}"
-                    ),
-                ]
-            )
-
-        dbus_monitor = shutil.which("dbus-monitor")
-        if dbus_monitor is None:
-            return None
-        return [dbus_monitor, "--session", NOTIFICATION_MONITOR_RULE]
-
-    def _stop_activity_monitor(self) -> None:
-        proc = self._activity_monitor_proc
-        self._activity_monitor_proc = None
-        host_pid = self._activity_monitor_host_pid
-        self._activity_monitor_host_pid = None
-        if proc is None:
-            return
-        if host_pid is not None:
-            self._stop_host_activity_monitor(host_pid)
-        try:
-            proc.terminate()
-            proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
-        except subprocess.TimeoutExpired as exc:
-            log.debug("dbus-monitor did not exit cleanly, forcing kill: %s", exc)
-            proc.kill()
-        except OSError as exc:
-            log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
-            return
-
-    def _stop_host_activity_monitor(self, pid: str) -> None:
-        command = flatpak.host_command(["kill", pid], sanitize_env=False)
-        if command is None:
-            return
-        try:
-            subprocess.run(
-                command,
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            log.debug("Failed to stop host dbus-monitor %s: %s", pid, exc)
-
-    def _activity_monitor_worker(self) -> None:
-        proc = self._activity_monitor_proc
-        if proc is None or proc.stdout is None:
-            return
-        capture_notify = False
-        notify_strings: list[str] = []
-        try:
-            for line in proc.stdout:
-                if line.startswith(HOST_MONITOR_PID_PREFIX):
-                    # Store the host-side pid so stop() can kill the actual
-                    # dbus-monitor, not just the flatpak-spawn wrapper.
-                    self._activity_monitor_host_pid = line[
-                        len(HOST_MONITOR_PID_PREFIX) :
-                    ].strip()
-                    continue
-                if "member=Notify" in line:
-                    capture_notify = True
-                    notify_strings = []
-                    continue
-                if not capture_notify:
-                    continue
-
-                value = self._extract_monitor_string(line)
-                if value is not None:
-                    notify_strings.append(value)
-
-                stripped = line.strip()
-                if stripped.startswith(("array [", "int32 ")):
-                    if len(notify_strings) >= 4:
-                        app_name = notify_strings[0]
-                        summary = notify_strings[2]
-                        body = notify_strings[3]
-                        GLib.idle_add(
-                            self._on_notification_event,
-                            app_name,
-                            summary,
-                            body,
-                        )
-                    else:
-                        GLib.idle_add(self._on_notification_activity)
-                    capture_notify = False
-        except Exception as exc:
-            log.bind(action="activity_monitor").warning(
-                "Notification activity monitor stopped unexpectedly: %s", exc
-            )
-            return
-
     def _on_notification_event(self, app_name: str, summary: str, body: str) -> bool:
         app = self._shorten_for_tooltip(app_name, TOOLTIP_APP_LIMIT)
         title = self._shorten_for_tooltip(summary, TOOLTIP_SUMMARY_LIMIT)
@@ -402,14 +344,6 @@ class NotificationsApplet(Applet):
         if entry.app_name:
             lines.append(f"App: {entry.app_name}")
         return lines
-
-    @staticmethod
-    def _extract_monitor_string(line: str) -> str | None:
-        stripped = line.strip()
-        prefix = 'string "'
-        if not stripped.startswith(prefix) or not stripped.endswith('"'):
-            return None
-        return stripped[len(prefix) : -1].replace('\\"', '"')
 
     @staticmethod
     def _shorten_for_tooltip(text: str, limit: int) -> str:
