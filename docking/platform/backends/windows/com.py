@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import uuid
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Any
 
 from .ffi import bind as _bind
@@ -51,3 +51,43 @@ def apartment(*, multithreaded: bool = False) -> Iterator[Any]:
     finally:
         if status in (0, 1):
             _bind(ole, "CoUninitialize", None)()
+
+
+def _check(status: int) -> None:
+    if status < 0:
+        raise OSError(status & 0xFFFFFFFF, f"COM failed: 0x{status & 0xFFFFFFFF:08x}")
+
+
+def value(pointer, index: int, kind):
+    if not pointer.value:
+        raise OSError("Missing COM interface")
+    result = kind()
+    _check(
+        method(pointer, index, HRESULT, ctypes.POINTER(kind))(
+            pointer, ctypes.byref(result)
+        )
+    )
+    return result
+
+
+def object_result(stack: ExitStack, pointer, index: int, *arguments):
+    if not pointer.value:
+        raise OSError("Missing COM interface")
+    result = ctypes.c_void_p()
+    kinds, values = arguments[::2], arguments[1::2]
+    try:
+        _check(
+            method(pointer, index, HRESULT, *kinds, ctypes.POINTER(ctypes.c_void_p))(
+                pointer, *values, ctypes.byref(result)
+            )
+        )
+    finally:
+        if result.value:
+            stack.callback(release, result)
+    return result
+
+
+def query(stack: ExitStack, pointer, interface: GUID):
+    return object_result(
+        stack, pointer, 0, ctypes.POINTER(GUID), ctypes.byref(interface)
+    )

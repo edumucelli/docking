@@ -2207,6 +2207,77 @@ References: [screen device contexts](https://learn.microsoft.com/en-us/windows/w
 [same-thread context release](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc),
 [caller composition flush](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmflush).
 
+## Native Music controls
+
+Music has one `MusicBackend` contract for player discovery, metadata, transport
+controls, volume and cleanup. `music/linux.py` owns the existing MPRIS,
+playerctl and Rhythmbox implementations; `state.py` contains platform-neutral
+session values and presentation. The shared GTK applet does not interpret
+D-Bus names or run player commands. Registry icon candidates come from the
+backend without IO on GTK.
+
+Discovery, artwork and all player controls run through the shared `SerialWorker`.
+It creates one IO thread on first use and keeps related calls in order. The
+constructor displays loading state without waiting for discovery. Old poll
+replies cannot undo actions or revive a stopped/restarted applet. Volume bursts
+coalesce before execution; explicit transport clicks retain their order. Stop
+signals cancellation and lets native cleanup finish on the IO thread without
+another GTK callback. The thread exits before normal process termination.
+
+Windows uses the public `GlobalSystemMediaTransportControlsSessionManager` API.
+It prefers a playing session and uses the system's current session for ties.
+The backend retains COM session identities, assigns opaque snapshot tokens and
+revalidates both session membership and source application before acting. A
+closed or replaced source cannot fall back to another player. Supported
+Play/Pause/Next/Previous commands come from the session's current capabilities.
+Connecting metadata can be temporarily unavailable; that does not erase known
+transport capabilities. Thumbnail streams are bounded to 4 MiB, copied into
+owned bytes, closed on the worker and decoded by the shared artwork resolver.
+Changed artwork invalidates the cache even when track text stays the same.
+Native drive paths, Unicode filenames and file URIs use the shared path parser.
+
+Per-player volume uses Core Audio output-session groups. Attribution checks the
+live creator application, executable identity or a validated explicit window
+application ID. Cross-process groups use the documented creator identity.
+Ambiguous or unavailable attribution disables volume controls. The displayed
+level is the group's highest stream level; an explicit change updates that same
+group. An opaque digest of endpoint/session-instance IDs rejects a changed
+group before writing. Partial failures roll back owned changes where the level
+still matches the attempted write. Endpoint master volume, mute and the source
+player's own volume property are preserved.
+
+`tools/windows/music_smoke.py` runs the full dock with actual icon clicks,
+keyboard menu selection and wheel input. Its separate `music_fixture.py` owns a
+real Windows MediaPlayer, two generated PCM tracks, late-published PNG covers
+and SMTC transport callbacks. The fixture reports MediaPlayer's actual playback
+state and selected source. Native normal and doubled-scale runs verified
+pause/resume, next/previous, changed metadata/cover pixels, both volume menu
+items, wheel changes with Core Audio readback, exact fixture-level restoration
+and normal shutdown. `--shutdown-read` holds a completed native read before its
+reply to verify responsive close and worker-owned cleanup. These checks also
+verify unchanged master/source volume and Explorer/work-area restoration.
+
+```sh
+python -m tools.windows.lab --share /path/to/shared --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows\music_smoke.py' \
+  --output '\\host.lan\Data\lab\music'
+# Repeat with --env GDK_SCALE=2 and --shutdown-read using a fresh output.
+```
+
+![Native Music with the second fixture cover and playing state](../images/windows-music.png)
+
+Third-party/browser publishers, multiple simultaneous sessions, vanished creator
+processes, device/default changes, hardware output effects, remote sessions and
+other Windows versions still need broader acceptance. Unattributed/shared
+output groups do not gain a master-volume shortcut. The existing default-player
+launch path remains part of the shared application-registry workflow.
+
+References: [media-session manager](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager),
+[session capabilities](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionplaybackcontrols),
+[Core Audio creator-process semantics](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol2-getprocessid),
+[session-instance identity](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol2-getsessionidentifier).
+
 ## Native screenshots
 
 Screenshot uses one `ScreenshotBackend` contract for discovery, full/window/region
@@ -2402,6 +2473,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Virtual desktops | Windows implementation of WorkspaceService and surface scope, with build-gated shell ABI and public window membership | Native applet click/menu/scroll, external keyboard switch, names/list changes, current-workspace filtering and cross-desktop foreground activation verified at GTK scale 1/2; worker lifecycle, membership ownership and unknown builds tested; other versions, Explorer transition races, sessions and displays pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
+| Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

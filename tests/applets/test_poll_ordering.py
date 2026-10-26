@@ -12,16 +12,21 @@ import docking.applets.music.applet as music
 from docking.applets.bluetooth.state import BluetoothAdapterState, BluetoothState
 from docking.applets.micshield.state import MicShieldState
 from docking.applets.music.state import VOLUME_STEP, MusicState
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import BackgroundWorker, SerialWorker
 from docking.core.config import Config
+from tests.applets.inline_worker import InlineSerialWorker
 
 
 class _UIReplies:
     """Keep real worker threads, and control when their GTK replies are delivered."""
 
-    def __init__(self):
+    def __init__(self, *, serial=False):
         self.queue = Queue()
-        self.worker = BackgroundWorker(idle_add=self._enqueue)
+        self.worker = (
+            SerialWorker(idle_add=self._enqueue, on_close=lambda: None)
+            if serial
+            else BackgroundWorker(idle_add=self._enqueue)
+        )
 
     def _enqueue(self, callback, *args):
         self.queue.put((callback, args))
@@ -33,17 +38,19 @@ class _UIReplies:
 
 @pytest.mark.parametrize("action", ["next", "volume"])
 def test_music_old_poll_does_not_undo_action(monkeypatch, action):
+    monkeypatch.setattr(music, "SerialWorker", InlineSerialWorker)
     initial = MusicState(
         available=True,
         title="First song",
         volume_percent=50,
+        can_set_volume=True,
         can_go_next=True,
     )
     backend = MagicMock()
     backend.poll.return_value = initial
     resolver = MagicMock()
     resolver.resolve.return_value = None
-    monkeypatch.setattr(music, "HybridBackend", lambda: backend)
+    monkeypatch.setattr(music, "create_backend", lambda: backend)
     monkeypatch.setattr(music, "CoverArtResolver", lambda: resolver)
     applet = music.MusicApplet(
         48,
@@ -51,7 +58,7 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
         application_registry=MagicMock(),
         application_launcher=MagicMock(),
     )
-    replies = _UIReplies()
+    replies = _UIReplies(serial=True)
     applet._worker = replies.worker
     try:
         applet._tick()
@@ -60,6 +67,7 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
             expected = replace(initial, title="Second song")
             backend.poll.return_value = expected
             applet._action_next()
+            replies.next()()
         else:
             expected = replace(initial, volume_percent=50 + VOLUME_STEP)
             backend.poll.return_value = expected
@@ -144,12 +152,15 @@ def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, a
 
 
 def test_music_scroll_sync_can_refresh_while_old_poll_is_pending(monkeypatch):
-    initial = MusicState(available=True, title="First song", volume_percent=50)
+    monkeypatch.setattr(music, "SerialWorker", InlineSerialWorker)
+    initial = MusicState(
+        available=True, title="First song", volume_percent=50, can_set_volume=True
+    )
     backend = MagicMock()
     backend.poll.return_value = initial
     resolver = MagicMock()
     resolver.resolve.return_value = None
-    monkeypatch.setattr(music, "HybridBackend", lambda: backend)
+    monkeypatch.setattr(music, "create_backend", lambda: backend)
     monkeypatch.setattr(music, "CoverArtResolver", lambda: resolver)
     applet = music.MusicApplet(
         48,
@@ -157,7 +168,7 @@ def test_music_scroll_sync_can_refresh_while_old_poll_is_pending(monkeypatch):
         application_registry=MagicMock(),
         application_launcher=MagicMock(),
     )
-    replies = _UIReplies()
+    replies = _UIReplies(serial=True)
     applet._worker = replies.worker
     try:
         applet._tick()

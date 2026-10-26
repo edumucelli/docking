@@ -10,18 +10,20 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.music.applet as music_applet_mod
-import docking.applets.music.state as music_state_mod
+import docking.applets.music.linux as music_state_mod
 import docking.i18n as i18n_mod
 import docking.platform.applications.registry as registry_mod
 from docking.applets.music.applet import MusicApplet
-from docking.applets.music.render import create_music_icon
-from docking.applets.music.state import (
+from docking.applets.music.linux import (
     HybridBackend,
-    MusicState,
     PlayerctlBackend,
     RhythmboxClientBackend,
     _normalize_desktop_entry,
     _normalize_volume_percent,
+)
+from docking.applets.music.render import create_music_icon
+from docking.applets.music.state import (
+    MusicState,
     clamp_percent,
     play_pause_menu_label,
     tooltip_text,
@@ -34,6 +36,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
     TransientApplicationInfo,
 )
+from tests.applets.inline_worker import InlineSerialWorker
 from tests.platform.application_fakes import (
     ApplicationRegistryHarness,
     GioApplicationFake,
@@ -59,12 +62,13 @@ def _state(**overrides: object) -> MusicState:
     base = MusicState(
         available=True,
         player_name="Spotify",
-        player_bus_name="org.mpris.MediaPlayer2.spotify",
+        player_id="org.mpris.MediaPlayer2.spotify",
         playback_status="Playing",
         title="Midnight City",
         artist="M83",
         album="Hurry Up, We're Dreaming",
         volume_percent=50,
+        can_set_volume=True,
         can_play_pause=True,
         can_go_next=True,
         can_go_previous=True,
@@ -137,9 +141,7 @@ class _StubPlayerctl:
     ) -> MusicState:
         if strict_preferred and preferred:
             preferred_norm = preferred.lower()
-            state_norm = (
-                self._state.player_name or self._state.player_bus_name
-            ).lower()
+            state_norm = (self._state.player_name or self._state.player_id).lower()
             if preferred_norm not in state_norm and state_norm not in preferred_norm:
                 return unavailable_state()
         return self._state
@@ -245,7 +247,7 @@ class TestMusicStateHelpers:
         )
 
         assert state.playback_status == "Playing"
-        assert music_state_mod.has_active_media(state) is True
+        assert music_state_mod._active_media(state) is True
         # Labels, unlike tokens, must still come from the catalog.
         assert play_pause_menu_label(state) == "Pausieren"
 
@@ -260,16 +262,16 @@ class TestMusicStateHelpers:
         )
         internal_webkit = _state(
             player_name="Docking",
-            player_bus_name=(
+            player_id=(
                 "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
             ),
             playback_status="Playing",
             title="WhatsApp",
         )
 
-        assert music_state_mod.has_active_media(idle_browser) is False
-        assert music_state_mod.has_active_media(internal_webkit) is False
-        assert music_state_mod.has_active_media(_state()) is True
+        assert music_state_mod._active_media(idle_browser) is False
+        assert music_state_mod._active_media(internal_webkit) is False
+        assert music_state_mod._active_media(_state()) is True
 
     def test_normalize_volume_percent(self):
         assert _normalize_volume_percent(0.78) == 78
@@ -313,7 +315,7 @@ class TestMusicStateHelpers:
         text = tooltip_text(
             _state(
                 player_name="Rhythmbox",
-                player_bus_name="org.gnome.Rhythmbox3",
+                player_id="org.gnome.Rhythmbox3",
                 playback_status="Unknown",
                 title="",
                 artist="",
@@ -384,16 +386,14 @@ class TestMprisBackendInternals:
 
     def test_get_state_and_get_state_for_bus_name(self):
         backend = self._make_backend()
-        s1 = _state(player_bus_name="org.mpris.MediaPlayer2.spotify")
-        s2 = _state(
-            player_bus_name="org.mpris.MediaPlayer2.vlc", playback_status="Paused"
-        )
-        backend.list_players = lambda: [s1.player_bus_name, s2.player_bus_name]  # type: ignore[method-assign]
+        s1 = _state(player_id="org.mpris.MediaPlayer2.spotify")
+        s2 = _state(player_id="org.mpris.MediaPlayer2.vlc", playback_status="Paused")
+        backend.list_players = lambda: [s1.player_id, s2.player_id]  # type: ignore[method-assign]
         backend._read_state = lambda bus_name: s1 if "spotify" in bus_name else s2  # type: ignore[method-assign]
         backend._select_player = lambda states: states[-1]  # type: ignore[method-assign]
         selected = backend.get_state()
-        assert selected.player_bus_name == s2.player_bus_name
-        assert backend._last_active_bus_name == s2.player_bus_name
+        assert selected.player_id == s2.player_id
+        assert backend._last_active_bus_name == s2.player_id
 
         backend.has_owner = lambda bus_name: False  # type: ignore[method-assign]
         assert (
@@ -409,7 +409,7 @@ class TestMprisBackendInternals:
         backend._read_state = lambda bus_name: s1  # type: ignore[method-assign]
         state = backend.get_state_for_bus_name("org.mpris.MediaPlayer2.spotify")
         assert state.available is True
-        assert backend._last_active_bus_name == s1.player_bus_name
+        assert backend._last_active_bus_name == s1.player_id
 
     def test_get_state_unavailable_when_no_players(self):
         backend = self._make_backend()
@@ -420,13 +420,13 @@ class TestMprisBackendInternals:
         backend = self._make_backend()
         internal_webkit = _state(
             player_name="Docking",
-            player_bus_name=(
+            player_id=(
                 "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
             ),
             playback_status="Playing",
             title="WhatsApp",
         )
-        backend.list_players = lambda: [internal_webkit.player_bus_name]  # type: ignore[method-assign]
+        backend.list_players = lambda: [internal_webkit.player_id]  # type: ignore[method-assign]
         backend._read_state = lambda bus_name: internal_webkit  # type: ignore[method-assign]
 
         assert backend.get_state().available is False
@@ -494,12 +494,12 @@ class TestMprisBackendInternals:
         backend._get_props_proxy = lambda bus_name: _Props(fail=True)  # type: ignore[method-assign]
         assert backend.set_volume("bus", 50) is False
 
-        playing_a = _state(player_bus_name="a", playback_status="Playing")
-        playing_b = _state(player_bus_name="b", playback_status="Playing")
+        playing_a = _state(player_id="a", playback_status="Playing")
+        playing_b = _state(player_id="b", playback_status="Playing")
         backend._last_active_bus_name = "b"
-        assert backend._select_player([playing_a, playing_b]).player_bus_name == "b"
+        assert backend._select_player([playing_a, playing_b]).player_id == "b"
         backend._last_active_bus_name = "x"
-        assert backend._select_player([playing_a, playing_b]).player_bus_name == "a"
+        assert backend._select_player([playing_a, playing_b]).player_id == "a"
 
     def test_player_display_name_and_read_state(self):
         backend = self._make_backend()
@@ -566,7 +566,7 @@ class TestMprisBackendInternals:
         assert state is not None
         assert state.player_name == "Spotify"
         assert state.player_icon_name == "spotify"
-        assert state.player_desktop_entry == "spotify.desktop"
+        assert state.player_application_id == "spotify.desktop"
         assert state.title == "Song"
         assert state.artist == "Artist"
         assert state.volume_percent == 42
@@ -601,7 +601,7 @@ class TestMprisBackendInternals:
 
         assert state is not None
         assert state.player_icon_name == expected_icon
-        assert state.player_desktop_entry == ""
+        assert state.player_application_id == ""
 
     def test_get_property_call_method_and_proxy_caches(self, monkeypatch):
         backend = self._make_backend()
@@ -740,9 +740,7 @@ class TestHybridBackend:
         assert playerctl.play_pause_calls == 1
 
     def test_poll_falls_back_to_rhythmbox_when_playerctl_missing(self):
-        rb_state = _state(
-            player_name="Rhythmbox", player_bus_name="org.gnome.Rhythmbox3"
-        )
+        rb_state = _state(player_name="Rhythmbox", player_id="org.gnome.Rhythmbox3")
         backend = HybridBackend(
             mpris=_StubMpris(state=unavailable_state()),
             playerctl=_StubPlayerctl(state=unavailable_state()),
@@ -763,7 +761,7 @@ class TestHybridBackend:
     def test_poll_avoids_unrelated_playerctl_when_rhythmbox_running(self):
         rb_unknown = _state(
             player_name="Rhythmbox",
-            player_bus_name="org.gnome.Rhythmbox3",
+            player_id="org.gnome.Rhythmbox3",
             playback_status="Unknown",
         )
         backend = HybridBackend(
@@ -771,7 +769,7 @@ class TestHybridBackend:
             playerctl=_StubPlayerctl(
                 state=_state(
                     player_name="Firefox",
-                    player_bus_name="firefox",
+                    player_id="firefox",
                     playback_status="Stopped",
                     volume_percent=100,
                 )
@@ -780,7 +778,12 @@ class TestHybridBackend:
         )
         selected = backend.poll()
         assert selected.player_name == "Rhythmbox"
-        assert selected.player_bus_name == "org.gnome.Rhythmbox3"
+        assert selected.player_id == "org.gnome.Rhythmbox3"
+
+
+@pytest.fixture(autouse=True)
+def inline_music_io(monkeypatch):
+    monkeypatch.setattr(music_applet_mod, "SerialWorker", InlineSerialWorker)
 
 
 def _make_applet(
@@ -792,6 +795,9 @@ def _make_applet(
 ):
     backend = MagicMock()
     backend.poll.return_value = state
+    backend.application_ids.side_effect = lambda s: (
+        music_state_mod._desktop_entry_candidates(s.player_application_id)
+    )
     backend.play_pause.return_value = True
     backend.next_track.return_value = True
     backend.previous_track.return_value = True
@@ -800,7 +806,7 @@ def _make_applet(
     resolver = MagicMock()
     resolver.resolve.return_value = None
 
-    monkeypatch.setattr(music_applet_mod, "HybridBackend", lambda: backend)
+    monkeypatch.setattr(music_applet_mod, "create_backend", lambda: backend)
     monkeypatch.setattr(music_applet_mod, "CoverArtResolver", lambda: resolver)
     if registry is None:
         registry = MagicMock()
@@ -823,9 +829,7 @@ class TestMusicApplet:
         applet, _backend, _resolver = _make_applet(monkeypatch, _state())
         assert applet.item.icon is not None
 
-    def test_constructor_performs_initial_poll_and_artwork_resolution(
-        self, monkeypatch
-    ):
+    def test_first_worker_result_resolves_metadata_and_artwork(self, monkeypatch):
         initial = _state(title="Initial")
 
         applet, backend, resolver = _make_applet(monkeypatch, initial)
@@ -835,10 +839,10 @@ class TestMusicApplet:
         assert applet._state == initial
         assert applet._album_art is None
 
-    def test_constructor_resolves_initial_state_only_once(self, monkeypatch):
+    def test_first_worker_result_resolves_registry_icon_once(self, monkeypatch):
         initial = _state(
             player_icon_name="vlc",
-            player_desktop_entry="org.videolan.VLC",
+            player_application_id="org.videolan.VLC",
         )
         application = SimpleNamespace(declared_icon="vlc-installed")
         registry = MagicMock()
@@ -854,7 +858,7 @@ class TestMusicApplet:
         registry.get.assert_called_once_with("org.videolan.VLC.desktop")
         registry.refresh.assert_not_called()
         assert applet._state.player_icon_name == "vlc-installed"
-        assert applet._state.player_desktop_entry == "org.videolan.VLC"
+        assert applet._state.player_application_id == "org.videolan.VLC"
 
     @pytest.mark.parametrize(
         ("raw", "installed_id"),
@@ -877,7 +881,7 @@ class TestMusicApplet:
     ):
         initial = _state(
             player_icon_name="worker-fallback",
-            player_desktop_entry=raw,
+            player_application_id=raw,
         )
         application = SimpleNamespace(declared_icon=f"installed:{installed_id}")
         registry = MagicMock()
@@ -900,7 +904,7 @@ class TestMusicApplet:
         fallback = "MiXeD/Icon Name.desktop"
         initial = _state(
             player_icon_name=fallback,
-            player_desktop_entry="org.example.MissingPlayer",
+            player_application_id="org.example.MissingPlayer",
         )
         registry = MagicMock()
         registry.get.return_value = None
@@ -987,7 +991,7 @@ class TestMusicApplet:
     def test_on_clicked_ignores_idle_empty_browser_mpris_service(self, monkeypatch):
         idle_browser = _state(
             player_name="Chrome",
-            player_bus_name="org.mpris.MediaPlayer2.chromium.instance1",
+            player_id="org.mpris.MediaPlayer2.chromium.instance1",
             playback_status="Stopped",
             title="",
             artist="",
@@ -1015,7 +1019,7 @@ class TestMusicApplet:
     def test_on_clicked_ignores_internal_webkit_media_service(self, monkeypatch):
         internal_webkit = _state(
             player_name="Docking",
-            player_bus_name=(
+            player_id=(
                 "org.mpris.MediaPlayer2.org.webkit.app-example.Sandboxed.instance-1"
             ),
             playback_status="Playing",
@@ -1028,7 +1032,11 @@ class TestMusicApplet:
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
             monkeypatch,
-            internal_webkit,
+            HybridBackend(
+                mpris=_StubMpris(internal_webkit),
+                playerctl=_StubPlayerctl(unavailable_state()),
+                rhythmbox=_StubRhythmbox(unavailable_state()),
+            ).poll(),
             registry=registry,
             launcher=launcher,
         )
@@ -1103,9 +1111,11 @@ class TestMusicApplet:
             return True
 
         applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
-        applet._poll_worker = lambda: (calls.append("poll"), (_state(), None))[1]  # type: ignore[assignment]
-        assert applet._tick() is True
-        assert calls == ["poll", "poll"]
+        applet._poll_worker = lambda _backend: (calls.append("poll"), (_state(), None))[
+            1
+        ]  # type: ignore[assignment]
+        assert applet._tick() is False
+        assert calls == []
 
     def test_tick_applies_poll_only_through_async_result_callback(self, monkeypatch):
         initial = _state(title="Initial")
@@ -1136,12 +1146,12 @@ class TestMusicApplet:
     ):
         initial = _state(
             player_icon_name="initial",
-            player_desktop_entry="initial",
+            player_application_id="initial",
         )
         updated = _state(
             title="Worker result",
             player_icon_name="worker-fallback",
-            player_desktop_entry="org.example.Player",
+            player_application_id="org.example.Player",
         )
         registry = MagicMock()
         registry.get.return_value = SimpleNamespace(declared_icon="installed")
@@ -1159,7 +1169,7 @@ class TestMusicApplet:
             theme_lookup,
         )
 
-        result = applet._poll_worker()
+        result = applet._poll_worker(backend)
 
         assert result == (updated, resolver.resolve.return_value)
         registry.get.assert_not_called()
@@ -1170,12 +1180,12 @@ class TestMusicApplet:
         registry.get.assert_called_once_with("org.example.Player.desktop")
         assert applet._state.player_icon_name == "installed"
 
-    def test_sync_refresh_resolves_registry_icon_on_calling_thread(self, monkeypatch):
+    def test_refresh_resolves_registry_icon_in_result_callback(self, monkeypatch):
         initial = _state(title="Initial")
         updated = _state(
             title="Synchronous update",
             player_icon_name="worker-fallback",
-            player_desktop_entry="org.example.Player",
+            player_application_id="org.example.Player",
         )
         registry = MagicMock()
         registry.get.return_value = SimpleNamespace(declared_icon="installed")
@@ -1195,7 +1205,7 @@ class TestMusicApplet:
         registry.refresh.assert_not_called()
         assert applet._state.player_icon_name == "installed"
 
-    def test_refresh_now_polls_and_applies_result_synchronously(self, monkeypatch):
+    def test_refresh_now_queues_and_applies_a_worker_result(self, monkeypatch):
         initial = _state(title="Initial")
         updated = _state(title="Synchronous update")
         applet, backend, resolver = _make_applet(monkeypatch, initial)
@@ -1205,13 +1215,15 @@ class TestMusicApplet:
         backend.poll.return_value = updated
         resolver.resolve.return_value = artwork
         applet.present = MagicMock()
-        applet._worker.run_guarded = MagicMock()  # type: ignore[method-assign]
+        applet._worker.run = MagicMock()  # type: ignore[method-assign]
 
         applet._refresh_now()
-
+        backend.poll.assert_not_called()
+        request = applet._worker.run.call_args.kwargs
+        result = request["fn"]()
+        request["on_result"](result)
         backend.poll.assert_called_once_with()
         resolver.resolve.assert_called_once_with(state=updated)
-        applet._worker.run_guarded.assert_not_called()
         assert applet._state == updated
         assert applet._album_art is artwork
         applet.present.assert_called_once_with()
@@ -1239,7 +1251,9 @@ class TestMusicApplet:
         applet._action_volume(direction_up=True)
         applet.on_scroll.assert_called_once_with(direction_up=True)
 
-        assert applet._refresh_now.call_count == 3
+        assert backend.previous_track.call_count == 2
+        assert backend.play_pause.call_count == 2
+        assert backend.next_track.call_count == 2
 
     def test_poll_worker_and_apply_poll_result(self, monkeypatch):
         applet, backend, resolver = _make_applet(monkeypatch, _state())
@@ -1247,7 +1261,7 @@ class TestMusicApplet:
         backend.poll.return_value = polled
         art = MagicMock()
         resolver.resolve.return_value = art
-        state, resolved_art = applet._poll_worker()
+        state, resolved_art = applet._poll_worker(backend)
         assert state == polled
         assert resolved_art is art
 
@@ -1286,7 +1300,7 @@ class TestMusicApplet:
         applet._worker.run = fake_run  # type: ignore[method-assign]
         assert applet._run_scroll_sync() is False
         assert applet._scroll_sync_id == 0
-        assert calls == ["music-scroll-sync"]
+        assert calls == ["music-refresh"]
 
         applet._state = _state(title="Song", artist="Artist", album="Album")
 
@@ -1569,7 +1583,7 @@ class TestRhythmboxClientBackendInternals:
         assert state.playback_status == "Playing"
         assert state.title == "Song"
         assert state.volume_percent == 55
-        assert state.player_desktop_entry == "org.gnome.Rhythmbox3"
+        assert state.player_application_id == "org.gnome.Rhythmbox3"
 
         backend._run = lambda **kwargs: ""
         assert backend.set_volume(50) is True
@@ -1632,10 +1646,7 @@ class TestHybridBackendActions:
             playerctl=_StubPlayerctl(state=_state(), action_ok=False),
             rhythmbox=rb,
         )
-        assert (
-            backend.next_track(_state(player_bus_name=music_state_mod._RB_SERVICE))
-            is True
-        )
+        assert backend.next_track(_state(player_id=music_state_mod._RB_SERVICE)) is True
 
     def test_previous_track_falls_back_to_playerctl(self):
         playerctl = _StubPlayerctl(state=_state(), action_ok=True)
@@ -1645,9 +1656,7 @@ class TestHybridBackendActions:
             rhythmbox=_StubRhythmbox(state=_state(), action_ok=False),
         )
         assert (
-            backend.previous_track(
-                _state(player_bus_name="org.mpris.MediaPlayer2.spotify")
-            )
+            backend.previous_track(_state(player_id="org.mpris.MediaPlayer2.spotify"))
             is True
         )
 
@@ -1676,7 +1685,7 @@ class TestHybridBackendActions:
 
         assert (
             backend.set_volume(
-                _state(player_bus_name="", player_name="Spotify"),
+                _state(player_id="", player_name="Spotify"),
                 65,
             )
             is True
@@ -1693,9 +1702,7 @@ class TestHybridBackendActions:
         assert state.available is False
         assert backend._last_source == ""
         assert (
-            backend._is_rhythmbox_state(
-                _state(player_bus_name=music_state_mod._RB_SERVICE)
-            )
+            backend._is_rhythmbox_state(_state(player_id=music_state_mod._RB_SERVICE))
             is True
         )
         assert backend._is_rhythmbox_hint("Rhythmbox") is True
@@ -1718,11 +1725,11 @@ class TestHybridBackendActions:
             playerctl=_StubPlayerctl(state=unavailable_state()),
             rhythmbox=_StubRhythmbox(state=unavailable_state()),
         )
-        backend._last_state = _state(player_bus_name="same")
+        backend._last_state = _state(player_id="same")
         high = backend._state_score(
             "mpris-rhythmbox",
             _state(
-                player_bus_name="same",
+                player_id="same",
                 playback_status="Playing",
                 title="x",
             ),
@@ -1730,7 +1737,7 @@ class TestHybridBackendActions:
         low = backend._state_score(
             "playerctl",
             _state(
-                player_bus_name="other",
+                player_id="other",
                 playback_status="Stopped",
                 title="",
                 artist="",
@@ -1758,7 +1765,7 @@ class TestMusicAdditionalBranches:
         backend._player_proxies = {}
         backend._props_proxies = {}
         calls: list[str] = []
-        backend._call_player_method = lambda player_bus_name, method: (
+        backend._call_player_method = lambda player_id, method: (
             calls.append(method) or True
         )  # type: ignore[method-assign]
         assert backend.play_pause("a") is True
@@ -1769,11 +1776,11 @@ class TestMusicAdditionalBranches:
     def test_mpris_select_fallback_and_empty_property_unpack(self):
         backend = object.__new__(music_state_mod.MprisBackend)
         backend._last_active_bus_name = "b"
-        s1 = _state(player_bus_name="a", playback_status="Paused")
-        s2 = _state(player_bus_name="b", playback_status="Stopped")
-        assert backend._select_player([s1, s2]).player_bus_name == "b"
+        s1 = _state(player_id="a", playback_status="Paused")
+        s2 = _state(player_id="b", playback_status="Stopped")
+        assert backend._select_player([s1, s2]).player_id == "b"
         backend._last_active_bus_name = "x"
-        assert backend._select_player([s1, s2]).player_bus_name == "a"
+        assert backend._select_player([s1, s2]).player_id == "a"
         backend._get_property = lambda **kwargs: None  # type: ignore[method-assign]
         assert backend._player_display_name("custom.Player.Instance") == "Custom"
 
@@ -1803,7 +1810,7 @@ class TestMusicAdditionalBranches:
         assert backend._binary == "/usr/bin/playerctl"
 
         backend._select_player = lambda **kwargs: "spotify"  # type: ignore[method-assign]
-        backend._read_state = lambda player: _state(player_bus_name=player)  # type: ignore[method-assign]
+        backend._read_state = lambda player: _state(player_id=player)  # type: ignore[method-assign]
         backend._run_action = lambda player, action: bool(player and action)  # type: ignore[method-assign]
         state = backend.get_state(preferred="spotify", strict_preferred=False)
         assert state.available is True
@@ -1831,7 +1838,7 @@ class TestMusicAdditionalBranches:
         assert state.available is True
         assert state.volume_percent == 0
         assert state.player_icon_name == "player"
-        assert state.player_desktop_entry == "player.desktop"
+        assert state.player_application_id == "player.desktop"
         assert backend._run_action(None, "play-pause") is False
         assert backend._run_action("spotify", "play-pause") is True
 
@@ -1922,12 +1929,12 @@ class TestMusicAdditionalBranches:
     def test_hybrid_poll_and_transport_fallback_paths(self):
         rb_mpris = _state(
             player_name="Rhythmbox",
-            player_bus_name=music_state_mod._RB_MPRIS_SERVICE,
+            player_id=music_state_mod._RB_MPRIS_SERVICE,
             playback_status="Playing",
         )
         mpris_state = _state(
             player_name="Spotify",
-            player_bus_name="org.mpris.MediaPlayer2.spotify",
+            player_id="org.mpris.MediaPlayer2.spotify",
             playback_status="Paused",
         )
 
@@ -1946,20 +1953,18 @@ class TestMusicAdditionalBranches:
             rhythmbox=_StubRhythmbox(state=_state(player_name="rb"), action_ok=True),
         )
         selected = backend.poll()
-        assert selected.player_bus_name == music_state_mod._RB_MPRIS_SERVICE
+        assert selected.player_id == music_state_mod._RB_MPRIS_SERVICE
 
         assert (
             backend.play_pause(
-                _state(
-                    player_bus_name=music_state_mod._RB_SERVICE, player_name="Rhythmbox"
-                )
+                _state(player_id=music_state_mod._RB_SERVICE, player_name="Rhythmbox")
             )
             is True
         )
         assert (
             backend.play_pause(
                 _state(
-                    player_bus_name="org.mpris.MediaPlayer2.spotify",
+                    player_id="org.mpris.MediaPlayer2.spotify",
                     player_name="Spotify",
                 )
             )
@@ -1968,7 +1973,7 @@ class TestMusicAdditionalBranches:
         assert (
             backend.next_track(
                 _state(
-                    player_bus_name="org.mpris.MediaPlayer2.spotify",
+                    player_id="org.mpris.MediaPlayer2.spotify",
                     player_name="Spotify",
                 )
             )
@@ -1976,18 +1981,14 @@ class TestMusicAdditionalBranches:
         )
         assert (
             backend.previous_track(
-                _state(
-                    player_bus_name=music_state_mod._RB_SERVICE, player_name="Rhythmbox"
-                )
+                _state(player_id=music_state_mod._RB_SERVICE, player_name="Rhythmbox")
             )
             is True
         )
 
         assert (
             backend.set_volume(
-                _state(
-                    player_bus_name=music_state_mod._RB_SERVICE, player_name="Rhythmbox"
-                ),
+                _state(player_id=music_state_mod._RB_SERVICE, player_name="Rhythmbox"),
                 70,
             )
             is True
@@ -1995,7 +1996,7 @@ class TestMusicAdditionalBranches:
         assert (
             backend.set_volume(
                 _state(
-                    player_bus_name="org.mpris.MediaPlayer2.spotify",
+                    player_id="org.mpris.MediaPlayer2.spotify",
                     player_name="Spotify",
                 ),
                 70,
