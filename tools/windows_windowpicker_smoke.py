@@ -382,7 +382,14 @@ def main():
                 ) * scale
 
             def open_picker():
-                native.click(*call(icon))
+                # A newly mapped app can add a running item on the next poll.
+                # Clear hover and let its layout settle before fixing a native
+                # click coordinate; SendInput's hover interval can span a poll.
+                native.user.SetCursorPos(1100, 100)
+                time.sleep(0.6)
+                point = call(icon)
+                assert native.window_at(*point) == dock["hwnd"], point
+                native.click(*point)
                 native.wait_for(
                     lambda: call(lambda: applet._overlay is not None),
                     "Actual applet click did not open capture",
