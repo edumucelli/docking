@@ -139,14 +139,16 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
-        "docking.platform.status_notifier": {
-            "StatusNotifierNotificationBridge": type(
-                "StatusNotifierNotificationBridge",
+        "docking.platform.tray.notifications": {
+            "TrayNotificationBridge": type(
+                "TrayNotificationBridge",
                 (),
                 {},
             ),
-            "StatusNotifierService": type(
-                "StatusNotifierService",
+        },
+        "docking.platform.tray.service": {
+            "TrayService": type(
+                "TrayService",
                 (),
                 {"start": lambda self: None, "stop": lambda self: None},
             ),
@@ -372,7 +374,7 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
     monkeypatch.setattr(
         app_mod,
-        "StatusNotifierNotificationBridge",
+        "TrayNotificationBridge",
         MagicMock(return_value=status_notifications),
     )
     monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=ui))
@@ -402,7 +404,7 @@ def test_app_main_smoke(monkeypatch):
         model=model,
         application_registry=registry,
     )
-    app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
+    app_mod.TrayNotificationBridge.assert_called_once_with(
         model=model,
         application_registry=registry,
         service=ANY,

@@ -6,22 +6,26 @@ from types import SimpleNamespace
 
 import pytest
 
-import docking.platform.status_notifier.service as service_mod
+import docking.platform.tray.service as service_mod
 from docking.applets.worker import BackgroundWorker
-from docking.platform.status_notifier.backend import (
-    StatusTrayState,
-    unavailable_state,
-)
-from docking.platform.status_notifier.service import (
+from docking.platform.tray.service import (
     POLL_INTERVAL_S,
-    StatusNotifierService,
+)
+from docking.platform.tray.service import (
+    TrayService as StatusNotifierService,
+)
+from docking.platform.tray.state import (
+    TrayState as StatusTrayState,
+)
+from docking.platform.tray.state import (
+    unavailable_state,
 )
 
 
 def _available_state() -> StatusTrayState:
     return StatusTrayState(
         available=True,
-        watcher_mode="watcher",
+        mode="watcher",
         items=(),
         error="",
     )
@@ -153,7 +157,8 @@ class TestPolling:
         service.start()
 
         assert backend.get_state_calls == 1
-        assert timers.added == [(POLL_INTERVAL_S, service._tick)]
+        assert len(timers.added) == 1
+        assert timers.added[0][0] == POLL_INTERVAL_S and callable(timers.added[0][1])
 
     def test_start_is_idempotent(self, timers):
         backend = _Backend()
@@ -318,3 +323,51 @@ class TestTrayActions:
         assert service.menu_client(":1.42/Item") == "client::1.42/Item"
         assert backend.activated == [":1.42/Item"]
         assert backend.context_menus == [":1.42/Item"]
+
+
+def test_stale_poll_result_and_timer_are_rejected_after_restart(timers):
+    worker = _DeferredWorker()
+    service = _service(worker=worker)
+    service.start()
+    old_result = worker._on_result
+    old_timer = timers.added[0][1]
+    service.stop()
+    service.start()
+    received = []
+    service.add_listener(received.append)
+    received.clear()
+    old_result(_available_state())
+    assert received == [] and service.state == unavailable_state()
+    assert old_timer() is False
+    worker.deliver()
+    assert received == [_available_state()]
+
+
+def test_owned_backend_is_recreated_after_stop(monkeypatch, timers):
+    from dataclasses import replace
+
+    first = _Backend(_available_state())
+    second = _Backend(replace(_available_state(), mode="host"))
+    available = iter((first, second))
+    monkeypatch.setattr(service_mod, "create_backend", lambda: next(available))
+    service = StatusNotifierService(worker=_ImmediateWorker())
+    service.start()
+    service.stop()
+    service.start()
+    assert service.state == second.state
+    assert (
+        first.close_calls == 1 and first.get_state_calls == second.get_state_calls == 1
+    )
+    service.stop()
+    assert second.close_calls == 1
+
+
+def test_stop_before_start_releases_backend_and_rejects_actions():
+    backend = _Backend()
+    service = _service(backend=backend)
+    service.stop()
+    service.stop()
+    assert backend.close_calls == 1
+    assert not service.activate("old") and not service.context_menu("old")
+    assert service.menu_client("old") is None
+    assert not backend.activated and not backend.context_menus

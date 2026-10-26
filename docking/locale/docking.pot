@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 18:41+0100\n"
+"POT-Creation-Date: 2026-10-26 02:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -337,13 +337,13 @@ msgstr ""
 msgid "Copy Explanation"
 msgstr ""
 
-#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:230
-#: docking/applets/camshield/applet.py:139
+#: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:242
+#: docking/applets/camshield/applet.py:145
 #: docking/applets/capslock/applet.py:97
 #: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:209
-#: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:133
+#: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:154
 #: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:303
 #: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:105
 #: docking/applets/reddit/applet.py:217
@@ -498,157 +498,168 @@ msgstr ""
 msgid "Device"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:82
+#: docking/applets/bluetooth/applet.py:74
 msgid "Bluetooth"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:194
+#: docking/applets/bluetooth/applet.py:191
 msgid "Bluetooth unavailable"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:198
+#: docking/applets/bluetooth/applet.py:199
 msgid "No Bluetooth adapter"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:200
-#: docking/applets/bluetooth/state.py:122 docking/applets/capslock/state.py:112
+#: docking/applets/bluetooth/applet.py:205
+#: docking/applets/bluetooth/state.py:97 docking/applets/camshield/linux.py:109
+#: docking/applets/camshield/windows.py:94
+#: docking/applets/deskpresence/state.py:185
+#: docking/applets/micshield/linux.py:170
+#: docking/applets/micshield/windows_audio.py:196
+#: docking/applets/powerprofiles/state.py:69
+#: docking/platform/tray/windows.py:110 docking/ui/diagnostics.py:258
+#: docking/ui/diagnostics.py:445
+msgid "Unknown"
+msgstr ""
+
+#: docking/applets/bluetooth/applet.py:207
+#: docking/applets/bluetooth/state.py:99 docking/applets/capslock/state.py:112
 msgid "On"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:200
-#: docking/applets/bluetooth/state.py:122 docking/applets/caffeine/state.py:145
+#: docking/applets/bluetooth/applet.py:209
+#: docking/applets/bluetooth/state.py:101 docking/applets/caffeine/state.py:145
 #: docking/applets/capslock/state.py:112
 msgid "Off"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:209
+#: docking/applets/bluetooth/applet.py:219
 #, python-brace-format
 msgid "{alias} ({powered}) - Connected {connected}"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:220
+#: docking/applets/bluetooth/applet.py:232
 msgid "Continuous Discovery"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:252
+#: docking/applets/bluetooth/applet.py:264
 msgid "Turn Bluetooth Off"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:252
+#: docking/applets/bluetooth/applet.py:264
 msgid "Turn Bluetooth On"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:268
+#: docking/applets/bluetooth/applet.py:286
 #, python-brace-format
 msgid "Disconnect {device}"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:282
+#: docking/applets/bluetooth/applet.py:307
 msgid "Send Files to Device..."
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:290
+#: docking/applets/bluetooth/applet.py:308
 msgid "Devices..."
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:296
+#: docking/applets/bluetooth/applet.py:309
 msgid "Adapters..."
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:302
+#: docking/applets/bluetooth/applet.py:310
 msgid "Local Services..."
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:309
+#: docking/applets/bluetooth/applet.py:322
 msgid "Recent Connections"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:314
+#: docking/applets/bluetooth/applet.py:327
 msgid "No recent connections"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:338
+#: docking/applets/bluetooth/applet.py:351
 msgid "Adapter"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:356
+#: docking/applets/bluetooth/applet.py:369
 msgid "Connected Devices"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:357
+#: docking/applets/bluetooth/applet.py:370
 msgid "Paired Devices"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:358
+#: docking/applets/bluetooth/applet.py:371
 msgid "Discovered Devices"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:383
+#: docking/applets/bluetooth/applet.py:396
 #: docking/applets/whatsapp/applet.py:176
 msgid "Disconnect"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:392
+#: docking/applets/bluetooth/applet.py:405
 msgid "Connect"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:402
+#: docking/applets/bluetooth/applet.py:415
 msgid "Pair"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:416
+#: docking/applets/bluetooth/applet.py:429
 msgid "Remove Pairing"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:429
+#: docking/applets/bluetooth/applet.py:442
 msgid "Trusted"
 msgstr ""
 
-#: docking/applets/bluetooth/applet.py:444
+#: docking/applets/bluetooth/applet.py:457
 #, python-brace-format
 msgid "Battery: {percent}%"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:115
+#: docking/applets/bluetooth/state.py:89
 #, python-brace-format
 msgid "Bluetooth: {error}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:116
-#: docking/applets/bluetooth/state.py:120
+#: docking/applets/bluetooth/state.py:90 docking/applets/bluetooth/state.py:94
 msgid "Bluetooth: No adapter/service"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:129
+#: docking/applets/bluetooth/state.py:109
 #, python-brace-format
 msgid "Bluetooth: {state}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:130
+#: docking/applets/bluetooth/state.py:110
 #, python-brace-format
 msgid "Adapter: {name}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:131
+#: docking/applets/bluetooth/state.py:111
 #, python-brace-format
 msgid "Connected: {n}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:132
+#: docking/applets/bluetooth/state.py:112
 #, python-brace-format
 msgid "Paired: {n}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:133
+#: docking/applets/bluetooth/state.py:113
 #, python-brace-format
 msgid "Discovering: {state}"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:134 docking/ui/diagnostics.py:440
+#: docking/applets/bluetooth/state.py:114 docking/ui/diagnostics.py:440
 msgid "Yes"
 msgstr ""
 
-#: docking/applets/bluetooth/state.py:134 docking/ui/diagnostics.py:440
+#: docking/applets/bluetooth/state.py:114 docking/ui/diagnostics.py:440
 msgid "No"
 msgstr ""
 
@@ -745,58 +756,68 @@ msgstr ""
 msgid "Calendar"
 msgstr ""
 
-#: docking/applets/camshield/applet.py:63 docking/applets/camshield/state.py:59
+#: docking/applets/camshield/applet.py:55 docking/applets/camshield/state.py:49
 msgid "Cam Shield"
 msgstr ""
 
-#: docking/applets/camshield/applet.py:116
-#: docking/applets/camshield/state.py:61
+#: docking/applets/camshield/applet.py:117
+#: docking/applets/camshield/state.py:55
+msgid "Camera state unavailable"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:119
+#: docking/applets/camshield/state.py:57
 msgid "No camera devices found"
 msgstr ""
 
-#: docking/applets/camshield/applet.py:118
-#: docking/applets/camshield/state.py:68
-msgid "Camera idle"
-msgstr ""
-
-#: docking/applets/camshield/applet.py:120
-#: docking/applets/camshield/state.py:71
-msgid "Camera active"
-msgstr ""
-
 #: docking/applets/camshield/applet.py:124
-#: docking/applets/camshield/state.py:65
-msgid "Camera locked"
+#: docking/applets/camshield/state.py:62
+msgid "Camera activity unknown"
 msgstr ""
 
 #: docking/applets/camshield/applet.py:126
+#: docking/applets/camshield/state.py:66
+msgid "Camera idle"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:128
+#: docking/applets/camshield/state.py:69
+msgid "Camera active"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:132
+#: docking/applets/camshield/state.py:51
+msgid "Camera locked"
+msgstr ""
+
+#: docking/applets/camshield/applet.py:134
 msgid "Lock Camera"
 msgstr ""
 
-#: docking/applets/camshield/applet.py:130
+#: docking/applets/camshield/applet.py:138
 msgid "Unlock Camera"
 msgstr ""
 
-#: docking/applets/camshield/linux.py:109
-#: docking/applets/deskpresence/state.py:185
-#: docking/applets/micshield/state.py:200
-#: docking/applets/powerprofiles/state.py:69 docking/ui/diagnostics.py:258
-#: docking/ui/diagnostics.py:445
-msgid "Unknown"
+#: docking/applets/camshield/applet.py:143
+msgid "Camera locking unavailable"
 msgstr ""
 
-#: docking/applets/camshield/state.py:74
+#: docking/applets/camshield/applet.py:149
+msgid "Camera Settings"
+msgstr ""
+
+#: docking/applets/camshield/state.py:72
 #, python-brace-format
 msgid "{command} (PID {pid}) using {devices}"
 msgstr ""
 
-#: docking/applets/camshield/state.py:82 docking/applets/devices/state.py:132
-#: docking/applets/micshield/state.py:230 docking/applets/usbwatch/state.py:99
+#: docking/applets/camshield/state.py:80 docking/applets/devices/state.py:132
+#: docking/applets/micshield/state.py:71 docking/applets/usbwatch/state.py:99
 #, python-brace-format
 msgid "{count} more"
 msgstr ""
 
-#: docking/applets/camshield/state.py:88
+#: docking/applets/camshield/state.py:86
 #, python-brace-format
 msgid "{command} (PID {pid}) - {devices}"
 msgstr ""
@@ -1360,29 +1381,29 @@ msgstr ""
 msgid "Copy Last URL"
 msgstr ""
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:221
 msgid "1 hour"
 msgstr ""
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:220
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:221
 #, python-brace-format
 msgid "{count} hours"
 msgstr ""
 
-#: docking/applets/freshness.py:33 docking/ui/tooltip.py:214
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:215
 msgid "1 minute"
 msgstr ""
 
-#: docking/applets/freshness.py:35 docking/ui/tooltip.py:216
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:217
 #, python-brace-format
 msgid "{count} minutes"
 msgstr ""
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:207
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
 msgid "1 second"
 msgstr ""
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:209
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:210
 #, python-brace-format
 msgid "{count} seconds"
 msgstr ""
@@ -1514,19 +1535,19 @@ msgstr ""
 msgid "Next in {time}"
 msgstr ""
 
-#: docking/applets/keyboardlayout/applet.py:60
+#: docking/applets/keyboardlayout/applet.py:54
 msgid "Keyboard Layout"
 msgstr ""
 
-#: docking/applets/keyboardlayout/applet.py:89
+#: docking/applets/keyboardlayout/applet.py:92
 msgid "No keyboard layout detected"
 msgstr ""
 
-#: docking/applets/keyboardlayout/applet.py:135
+#: docking/applets/keyboardlayout/applet.py:142
 msgid "Keyboard Settings"
 msgstr ""
 
-#: docking/applets/keyboardlayout/applet.py:141
+#: docking/applets/keyboardlayout/applet.py:147
 msgid "Show Current Layout"
 msgstr ""
 
@@ -1621,47 +1642,62 @@ msgstr ""
 msgid "Use Refresh Now from the menu."
 msgstr ""
 
-#: docking/applets/micshield/applet.py:57
-#: docking/applets/micshield/state.py:215
+#: docking/applets/micshield/applet.py:56 docking/applets/micshield/state.py:49
 msgid "Mic Shield"
 msgstr ""
 
-#: docking/applets/micshield/applet.py:108
-#: docking/applets/micshield/state.py:217
+#: docking/applets/micshield/applet.py:120
+#: docking/applets/micshield/state.py:52
+msgid "Microphone state unavailable"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:122
+#: docking/applets/micshield/state.py:54
 msgid "No microphone source found"
 msgstr ""
 
-#: docking/applets/micshield/applet.py:112
-#: docking/applets/micshield/state.py:220
-msgid "Microphone muted"
-msgstr ""
-
-#: docking/applets/micshield/applet.py:114
-#: docking/applets/micshield/state.py:220
-msgid "Microphone unmuted"
-msgstr ""
-
-#: docking/applets/micshield/applet.py:120
-#: docking/applets/micshield/state.py:225
+#: docking/applets/micshield/applet.py:135
+#: docking/applets/micshield/state.py:66
 msgid "Microphone active"
 msgstr ""
 
-#: docking/applets/micshield/applet.py:124
-#: docking/applets/micshield/state.py:222
+#: docking/applets/micshield/applet.py:140
+#: docking/applets/micshield/state.py:60
+msgid "Microphone activity unknown"
+msgstr ""
+
+#: docking/applets/micshield/applet.py:143
+#: docking/applets/micshield/state.py:63
 msgid "Microphone idle"
 msgstr ""
 
-#: docking/applets/micshield/applet.py:127
+#: docking/applets/micshield/applet.py:146
 msgid "Unmute Microphone"
 msgstr ""
 
-#: docking/applets/micshield/applet.py:127
+#: docking/applets/micshield/applet.py:146
 msgid "Mute Microphone"
 msgstr ""
 
-#: docking/applets/micshield/state.py:238
+#: docking/applets/micshield/applet.py:158
+msgid "Microphone Settings"
+msgstr ""
+
+#: docking/applets/micshield/state.py:79
 #, python-brace-format
 msgid "{command} (PID {pid})"
+msgstr ""
+
+#: docking/applets/micshield/state.py:87
+msgid "Microphone mute state unknown"
+msgstr ""
+
+#: docking/applets/micshield/state.py:88
+msgid "Microphone muted"
+msgstr ""
+
+#: docking/applets/micshield/state.py:88
+msgid "Microphone unmuted"
 msgstr ""
 
 #: docking/applets/moon/applet.py:62
@@ -3079,7 +3115,7 @@ msgid "Run with file"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:369
-#: docking/applets/systemtray/applet.py:289
+#: docking/applets/systemtray/applet.py:284
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
 #: docking/search/providers/web.py:93 docking/search/ui/window.py:684
@@ -3421,117 +3457,43 @@ msgstr ""
 msgid "Disk: {usage}"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:60
+#: docking/applets/systemtray/applet.py:52
 msgid "System Tray"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:106
-#, python-brace-format
-msgid "System Tray: {n} legacy item(s)"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:160
+#: docking/applets/systemtray/applet.py:158
 msgid "Activate"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:165
+#: docking/applets/systemtray/applet.py:164
 msgid "Context Menu"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:234
-#, python-brace-format
-msgid "Legacy X11 tray is active with {n} item(s)."
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:238
-msgid "Legacy X11 tray is active and waiting for tray apps."
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:246
-#, python-brace-format
-msgid ""
-"No StatusNotifier apps are registered. Legacy tray icons are currently owned "
-"by {owner}. Use Take Over Legacy Tray from the applet menu if you want "
-"Docking to host them."
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:252
-msgid ""
-"No tray applications are registered. Use Start Legacy Tray from the applet "
-"menu for older X11 tray apps."
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:296
-msgid "Menu"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:381
-msgid "Release Legacy Tray"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:385
-#, python-brace-format
-msgid "Legacy X11 tray active: {n} item(s)"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:394
-msgid "Take Over Legacy Tray"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:398
-#, python-brace-format
-msgid "Legacy X11 tray owned by {owner}"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:406
-msgid "Start Legacy Tray"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:422
-msgid "Unknown X11 tray error"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:428
-msgid "Could not start the legacy tray"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:435
-msgid "another tray"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:441
-msgid "Take over the legacy tray?"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:443
-msgid "Take Over"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:446
-#, python-brace-format
-msgid ""
-"Docking will replace {owner} as the X11 system tray host. Existing legacy "
-"tray apps may need to be restarted before they dock into Docking."
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:509
-msgid "Menu Item"
-msgstr ""
-
-#: docking/applets/systemtray/applet.py:559
+#: docking/applets/systemtray/applet.py:239
+#: docking/applets/systemtray/applet.py:475
+#: docking/applets/systemtray/state.py:13 docking/platform/tray/windows.py:130
 msgid "System Tray unavailable"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:561
+#: docking/applets/systemtray/applet.py:248
+#: docking/applets/systemtray/state.py:20
+msgid "System Tray: waiting for tray apps"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:292
+msgid "Menu"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:425
+msgid "Menu Item"
+msgstr ""
+
+#: docking/applets/systemtray/applet.py:477
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:562
+#: docking/applets/systemtray/applet.py:478
 #: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
@@ -3542,17 +3504,9 @@ msgstr ""
 msgid "System Tray: {error}"
 msgstr ""
 
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr ""
-
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
-msgstr ""
-
-#: docking/applets/systemtray/state.py:20
-msgid "System Tray: waiting for tray apps"
 msgstr ""
 
 #: docking/applets/systemtray/state.py:21
@@ -3562,6 +3516,83 @@ msgstr ""
 #: docking/applets/systemtray/state.py:26
 #, python-brace-format
 msgid "and {n} more"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:47
+#, python-brace-format
+msgid "System Tray: {n} legacy item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:62
+#, python-brace-format
+msgid "Legacy X11 tray is active with {n} item(s)."
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:64
+msgid "Legacy X11 tray is active and waiting for tray apps."
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:69
+#, python-brace-format
+msgid ""
+"No StatusNotifier apps are registered. Legacy tray icons are currently owned "
+"by {owner}. Use Take Over Legacy Tray from the applet menu if you want "
+"Docking to host them."
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:74
+msgid ""
+"No tray applications are registered. Use Start Legacy Tray from the applet "
+"menu for older X11 tray apps."
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:80
+msgid "Release Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:84
+#, python-brace-format
+msgid "Legacy X11 tray active: {n} item(s)"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:93
+msgid "Take Over Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:97
+#, python-brace-format
+msgid "Legacy X11 tray owned by {owner}"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:105
+msgid "Start Legacy Tray"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:121
+msgid "Unknown X11 tray error"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:127
+msgid "Could not start the legacy tray"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:134
+msgid "another tray"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:140
+msgid "Take over the legacy tray?"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:142
+msgid "Take Over"
+msgstr ""
+
+#: docking/applets/systemtray/unix_presentation.py:145
+#, python-brace-format
+msgid ""
+"Docking will replace {owner} as the X11 system tray host. Existing legacy "
+"tray apps may need to be restarted before they dock into Docking."
 msgstr ""
 
 #: docking/applets/temperature.py:44
@@ -5593,20 +5624,20 @@ msgstr ""
 msgid "Next Tip"
 msgstr ""
 
-#: docking/ui/tooltip.py:222
+#: docking/ui/tooltip.py:223
 msgid "1 day"
 msgstr ""
 
-#: docking/ui/tooltip.py:222
+#: docking/ui/tooltip.py:223
 #, python-brace-format
 msgid "{count} days"
 msgstr ""
 
-#: docking/ui/tooltip.py:240
+#: docking/ui/tooltip.py:241
 msgid "just now"
 msgstr ""
 
-#: docking/ui/tooltip.py:241
+#: docking/ui/tooltip.py:242
 #, python-brace-format
 msgid "{age} ago"
 msgstr ""
@@ -5631,40 +5662,4 @@ msgstr ""
 
 #: docking/ui/update_popup.py:248
 msgid "Ignore"
-msgstr ""
-
-#: docking/applets/micshield/applet.py:120
-#: docking/applets/micshield/state.py:52
-msgid "Microphone state unavailable"
-msgstr ""
-
-#: docking/applets/micshield/state.py:87
-msgid "Microphone mute state unknown"
-msgstr ""
-
-#: docking/applets/micshield/applet.py:140
-#: docking/applets/micshield/state.py:60
-msgid "Microphone activity unknown"
-msgstr ""
-
-#: docking/applets/micshield/applet.py:158
-msgid "Microphone Settings"
-msgstr ""
-
-#: docking/applets/camshield/applet.py:117
-#: docking/applets/camshield/state.py:52
-msgid "Camera state unavailable"
-msgstr ""
-
-#: docking/applets/camshield/applet.py:124
-#: docking/applets/camshield/state.py:62
-msgid "Camera activity unknown"
-msgstr ""
-
-#: docking/applets/camshield/applet.py:143
-msgid "Camera locking unavailable"
-msgstr ""
-
-#: docking/applets/camshield/applet.py:149
-msgid "Camera Settings"
 msgstr ""

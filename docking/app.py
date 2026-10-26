@@ -111,11 +111,9 @@ from docking.platform.backends.selection import create_session_backend
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.icons import IconLoader
 from docking.platform.model import DockModel
-from docking.platform.status_notifier import (
-    StatusNotifierNotificationBridge,
-    StatusNotifierService,
-)
 from docking.platform.targets import TargetService
+from docking.platform.tray.notifications import TrayNotificationBridge
+from docking.platform.tray.service import TrayService
 from docking.platform.unity import UnityLauncherListener
 from docking.ui.factory import build_dock_window
 from docking.ui.renderer import DockRenderer
@@ -231,10 +229,10 @@ def main() -> None:
         )
         cleanup.callback(_safe_stop, "unity", unity.stop)
 
-        status_service = StatusNotifierService()
+        status_service = TrayService()
         cleanup.callback(_safe_stop, "status notifier", status_service.stop)
 
-        status_notifications = StatusNotifierNotificationBridge(
+        status_notifications = TrayNotificationBridge(
             model=model,
             application_registry=registry,
             service=status_service,

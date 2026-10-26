@@ -145,14 +145,16 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
-        "docking.platform.status_notifier": {
-            "StatusNotifierNotificationBridge": type(
-                "StatusNotifierNotificationBridge",
+        "docking.platform.tray.notifications": {
+            "TrayNotificationBridge": type(
+                "TrayNotificationBridge",
                 (),
                 {},
             ),
-            "StatusNotifierService": type(
-                "StatusNotifierService",
+        },
+        "docking.platform.tray.service": {
+            "TrayService": type(
+                "TrayService",
                 (),
                 {"start": lambda self: None, "stop": lambda self: None},
             ),
@@ -401,7 +403,7 @@ class TestAppMain:
         )
         monkeypatch.setattr(
             app_mod,
-            "StatusNotifierNotificationBridge",
+            "TrayNotificationBridge",
             MagicMock(return_value=status_notifications),
         )
 
@@ -462,7 +464,7 @@ class TestAppMain:
             application_registry=registry,
         )
         # Both tray consumers share the one poll service.
-        app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
+        app_mod.TrayNotificationBridge.assert_called_once_with(
             model=model,
             application_registry=registry,
             service=services.status_notifier,
@@ -792,8 +794,8 @@ class TestAppMain:
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
         )
         monkeypatch.setattr(
-            sys.modules["docking.platform.status_notifier"],
-            "StatusNotifierNotificationBridge",
+            sys.modules["docking.platform.tray.notifications"],
+            "TrayNotificationBridge",
             status_notifications_cls,
         )
         monkeypatch.setattr(

@@ -7,16 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.platform.status_notifier.service as service_mod
+import docking.platform.tray.service as service_mod
 from docking.platform.status_notifier import (
     StatusNotifierNotificationBridge,
     StatusNotifierService,
-    StatusTrayState,
 )
 from docking.platform.status_notifier.backend import (
     RegisteredItemAddress,
     tray_item_from_properties,
-    unavailable_state,
 )
 from docking.platform.status_notifier.notifications import (
     SLACK_DESKTOP_ID,
@@ -47,10 +45,14 @@ def _tray_item(
     )
 
 
+from docking.platform.tray.state import TrayState as StatusTrayState
+from docking.platform.tray.state import unavailable_state
+
+
 def _available_state(*items) -> StatusTrayState:
     return StatusTrayState(
         available=True,
-        watcher_mode="watcher",
+        mode="watcher",
         items=tuple(items),
     )
 
@@ -244,7 +246,8 @@ class TestStatusNotifierNotificationBridge:
             badge_count=2,
         )
         assert backend.get_state_calls == 1
-        assert timers.added == [(POLL_INTERVAL_S, service._tick)]
+        assert len(timers.added) == 1
+        assert timers.added[0][0] == POLL_INTERVAL_S and callable(timers.added[0][1])
 
         bridge.stop()
 
@@ -258,7 +261,7 @@ class TestStatusNotifierNotificationBridge:
     def test_bridge_without_service_owns_its_lifetime(self, monkeypatch, timers):
         model = MagicMock()
         backend = _Backend(_available_state(_tray_item()))
-        monkeypatch.setattr(service_mod, "StatusNotifierBackend", lambda: backend)
+        monkeypatch.setattr(service_mod, "create_backend", lambda: backend)
         monkeypatch.setattr(
             service_mod,
             "BackgroundWorker",

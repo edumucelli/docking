@@ -606,16 +606,24 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### System Tray
 
-StatusNotifier/AppIndicator host for tray applications such as chat clients, sync tools, background utilities, and desktop services.
+Tray host for chat clients, sync tools, background utilities and desktop services.
 
 **Click:** Show registered tray applications
 **Right-click options:**
 
 - Registered tray app actions
 - Context menus exposed through DBusMenu when available
+- Native application menus on Windows
 - Refresh Now
 
-The applet uses an existing desktop StatusNotifier watcher when one is available. In sessions without a watcher, Docking can provide the watcher service so tray apps started afterward can register with the dock.
+On Linux and BSD, the applet uses an existing StatusNotifier watcher or provides
+one so tray apps can register with the dock. The optional XEmbed host supports
+legacy X11 tray applications.
+
+On Windows, native notification icons appear in the popup alongside their
+status. Open sends a primary activation; double-click an icon for applications
+that require that gesture, such as Task Manager. Menu opens the application's
+native menu. Explorer's notification area continues to work when Docking closes.
 
 **Update interval:** 3 seconds
 

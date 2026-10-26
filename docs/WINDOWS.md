@@ -171,8 +171,9 @@ native icon and running indicator. The baseline remains the same single display.
 Fourteen focused tests also passed under native Windows Python. Repeating shell
 icon extraction 26 times left the process's GDI handle count unchanged at 40.
 
-The native catalog import audit currently loads 64 of 65 applet classes.
-System Tray remains blocked by its eager XEmbed/GdkX11 import.
+System Tray now selects a native Windows backend and no longer imports
+XEmbed/GdkX11 on Windows. Its shared GTK presentation, service and menu models
+use the same contracts as the Linux implementation.
 Importing a class does not verify its controls or native system backend; the
 catalog acceptance work remains open.
 
@@ -1175,6 +1176,98 @@ References: [sensor activity monitoring](https://learn.microsoft.com/en-us/windo
 [shared camera sources](https://learn.microsoft.com/en-us/windows/win32/medfound/mf-devsource-attribute-frameserver-share-mode),
 [machine camera policy and supported editions](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-camera).
 
+## Windows System Tray
+
+The shared `platform/tray` package owns immutable item/menu models, the backend
+contract, one background poll service and launcher notification projection.
+`LinuxTrayBackend` adapts StatusNotifier/AppIndicator metadata and D-Bus menus;
+menu clients are prepared during the background poll. Unix XEmbed windows and
+their takeover/release UI live in `systemtray/unix_presentation.py`, loaded only
+by the Unix presentation factory. The shared applet performs no D-Bus calls,
+loads no X11 library and knows no Windows handles. Compatibility imports remain
+under `platform/status_notifier` for existing consumers.
+
+Windows uses `WindowsTrayBackend` and an owned message thread with a hidden
+`Shell_TrayWnd`/`TrayNotifyWnd` pair. The host receives real `Shell_NotifyIcon`
+registrations while forwarding notification and AppBar messages to Explorer.
+Explorer keeps its visible notification area and topmost style. A session-local
+mutex prevents two Docking hosts competing for routing. The host must run at
+Explorer's integrity level; it does not weaken the window message filter to
+accept lower-integrity senders.
+
+The Windows transport bounds and decodes the shell's normalized Unicode wire
+format, rather than interpreting it as a native pointer-sized
+`NOTIFYICONDATA`. GUID identities, legacy window/UID identities, flagged
+modifications, notification versions and app-requested hidden state are kept
+distinct. Existing clients are seeded through `TaskbarCreated`; a duplicate
+registration accepted by Docking succeeds even when Explorer already has it.
+Unknown messages continue to Explorer.
+
+Borrowed HICONs are copied synchronously into RGBA before the registering call
+returns. Two GDI composites recover transparency for alpha and masked icons;
+the DCs and bitmaps are released after each copy. Only pixels reach GTK. Native
+tooltip titles and multiline status are projected separately. Polling rejects
+destroyed/reused owner windows; actions validate the current owner again.
+
+Open sends the provider's primary activation. Double-click the row's icon for
+providers that require that gesture. Menu sends the native context request;
+the application owns and renders its menu. Callback version 4 packs the icon ID
+and signed screen coordinates as required by the notification API. Explicit
+actions grant foreground permission to the selected process. Windows still
+enforces message and foreground restrictions. GTK tooltips stay hidden while
+the tray popup is open.
+
+The shared service rejects stale polls/timers after restart and creates a new
+owned backend for a new lifetime. Applet actions and fetched menu layouts are
+also guarded across stop, restart and service replacement. Normal close
+destroys the receiver windows and releases the mutex. Because registrations
+were forwarded, clients continue using Explorer without a synthetic shutdown
+announcement.
+
+Native desktop acceptance on Windows 11 Pro 25H2 exercises two independent
+notification identities in a generated-pixel fixture: legacy callbacks and
+GUID/version-4 callbacks, both registered before Docking starts. Actual mouse
+input opens the GTK popup, double-clicks both icons, activates both native
+windows and opens both native context menus; Down/Enter selects a native menu
+command. Color/alpha pixels are checked in the backend and GTK row. The fixture
+changes and destroys its source HICON, updates its title, hides/shows an icon,
+deletes another and exits normally; the popup follows each change. No SNI,
+XEmbed or GdkX11 module is loaded.
+
+A separate real-provider check starts Task Manager, minimizes it and restores
+and focuses it by double-clicking its icon in Docking's popup. Normal Task
+Manager close removes its tray entry. A handoff probe keeps both fixture icons
+alive while closing the backend, then verifies successful updates through
+Explorer with no re-registration, work-area change or foreground change.
+Full dock close restores the original work area and stops the owned host thread.
+Across 60 native icon updates, the receiving process kept the same GDI/USER
+handle counts; close returned its USER count to the pre-host baseline.
+
+![Native generated icons in the shared tray popup](../images/windows-tray-native.png)
+
+![Application-owned Windows tray context menu](../images/windows-tray-context-menu.png)
+
+![Real Task Manager notification icon in Docking](../images/windows-tray-task-manager.png)
+
+Run `tools/windows_tray_smoke.py --output PATH --task-manager` in the owned lab
+with the regular dock closed and a prepared GStreamer registry. Task Manager
+must not already be running. The tool uses an isolated dock configuration and
+starts `tools/windows_tray_fixture.py`; each fixture has a bounded lifetime and
+deletes its own icons on normal exit. Reports, independent callback journals
+and screenshots remain in the output directory. The regular demo and its
+pin/recent history should be restored afterward.
+
+The shell hosting protocol is Windows implementation detail, with native
+acceptance on the lab build rather than a documented replacement-host API.
+Broader providers, WOW64 clients, custom hover interfaces/balloons, elevated
+client policies, Explorer restart, multiple displays/DPI and long-running
+sessions remain acceptance work. This is an intermediate Windows milestone.
+
+References: [notification area](https://learn.microsoft.com/en-us/windows/win32/shell/notification-area),
+[notification data and callback versions](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataw),
+[foreground permission](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow),
+[shell-host interoperability precedent](https://github.com/cairoshell/ManagedShell/blob/master/src/ManagedShell.WindowsTray/TrayService.cs).
+
 ## Windows Bluetooth
 
 Bluetooth uses the shared `BluetoothBackend` contract for snapshots, radio
@@ -1645,7 +1738,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; indicator, outlines and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture and Cam Shield activity/policy backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; broader tray providers/hover/WOW64/restart/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Pending | Install, launch, update and uninstall on a clean Windows VM |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

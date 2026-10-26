@@ -17,16 +17,21 @@ from docking.core.config import Config
 from docking.platform.status_notifier.backend import (
     DEFAULT_ITEM_PATH,
     RegisteredItemAddress,
-    StatusTrayState,
     parse_registered_item,
     tray_item_from_properties,
-    unavailable_state,
 )
 from docking.platform.status_notifier.dbusmenu import (
     DBusMenuClient,
     DBusMenuItem,
     DBusMenuLayout,
     parse_menu_node,
+)
+from docking.platform.tray.state import (
+    TrayItem,
+    unavailable_state,
+)
+from docking.platform.tray.state import (
+    TrayState as StatusTrayState,
 )
 
 
@@ -117,9 +122,7 @@ class TestTooltipText:
         )
 
     def test_host_waiting_text(self):
-        text = tooltip_text(
-            StatusTrayState(available=True, watcher_mode="host", items=())
-        )
+        text = tooltip_text(StatusTrayState(available=True, mode="host", items=()))
 
         assert text == "System Tray: waiting for tray apps"
 
@@ -127,9 +130,9 @@ class TestTooltipText:
         text = tooltip_text(
             StatusTrayState(
                 available=True,
-                watcher_mode="watcher",
+                mode="watcher",
                 items=(),
-                legacy_tray_owner="notification-area-applet",
+                legacy_owner="notification-area-applet",
             )
         )
 
@@ -142,7 +145,7 @@ class TestTooltipText:
         )
 
         assert "- Example" in tooltip_text(
-            StatusTrayState(available=True, watcher_mode="watcher", items=(item,))
+            StatusTrayState(available=True, mode="watcher", items=(item,))
         )
 
 
@@ -210,11 +213,8 @@ def test_create_status_tray_icon_dimensions():
 
 
 def _tray_state(title: str) -> StatusTrayState:
-    item = tray_item_from_properties(
-        address=RegisteredItemAddress(service=":1.42", path="/Tray"),
-        properties={"Id": "example", "Title": title, "Status": "Active"},
-    )
-    return StatusTrayState(available=True, watcher_mode="watcher", items=(item,))
+    item = TrayItem(identifier=":1.42/Tray", title=title, item_id="example")
+    return StatusTrayState(available=True, mode="watcher", items=(item,))
 
 
 class _FakeService:
@@ -334,7 +334,7 @@ def _make_tray(monkeypatch, *, worker=None) -> SimpleNamespace:
         created.append(service)
         return service
 
-    monkeypatch.setattr(applet_mod, "StatusNotifierService", factory)
+    monkeypatch.setattr(applet_mod, "TrayService", factory)
     monkeypatch.setattr(
         applet_mod,
         "BackgroundWorker",
@@ -373,7 +373,7 @@ class TestSystemTrayAppletService:
             address=RegisteredItemAddress(service=":1.42", path="/Tray"),
             properties={"Id": "x", "Title": "Example", "Status": "Active"},
         )
-        state = StatusTrayState(available=True, watcher_mode="watcher", items=(item,))
+        state = StatusTrayState(available=True, mode="watcher", items=(item,))
 
         shared.publish(state)
 
@@ -485,7 +485,7 @@ class TestSystemTrayAppletService:
         applet.set_services(AppletServices(status_notifier=shared))
         applet.start(notify=lambda: None)
         build_menu = MagicMock()
-        monkeypatch.setattr(applet, "_gtk_menu_from_dbus_menu", build_menu)
+        monkeypatch.setattr(applet, "_gtk_menu_from_tray_menu", build_menu)
 
         applet._show_item_menu(":1.42/Tray")
         assert worker.tasks, "the layout fetch should still be in flight"
@@ -503,3 +503,31 @@ class TestSystemTrayAppletService:
 
         assert applet._item_menu is None
         assert menu.destroyed is True
+
+
+def test_old_menu_cannot_open_after_applet_restart(monkeypatch):
+    worker = _DeferredWorker()
+    applet = _make_tray(monkeypatch, worker=worker).applet
+    service = _FakeService()
+    service.menu_client_result = _FakeMenuClient(layout=_menu_layout())
+    applet.set_services(AppletServices(status_notifier=service))
+    applet.start(notify=lambda: None)
+    build_menu = MagicMock()
+    monkeypatch.setattr(applet, "_gtk_menu_from_tray_menu", build_menu)
+    applet._show_item_menu(":1.42/Tray")
+    applet.stop()
+    applet.start(notify=lambda: None)
+    worker.deliver()
+    build_menu.assert_not_called()
+
+
+def test_queued_action_cannot_cross_a_service_replacement(monkeypatch):
+    worker = _DeferredWorker()
+    applet = _make_tray(monkeypatch, worker=worker).applet
+    first, second = _FakeService(), _FakeService()
+    applet.set_services(AppletServices(status_notifier=first))
+    applet.start(notify=lambda: None)
+    applet._on_activate(":1.42/Tray")
+    applet.set_services(AppletServices(status_notifier=second))
+    worker.deliver()
+    assert not first.activated and not second.activated
