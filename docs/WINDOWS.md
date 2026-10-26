@@ -86,6 +86,12 @@ Desk Presence uses the common `IdleService` supplied by the session backend.
 X11 and Windows own their respective input-time queries; the applet only reads
 idle seconds and updates its shared presence state.
 
+Caps Lock follows `LockKeyBackend` for Caps Lock and Num Lock indicators.
+`capslock/linux.py` owns `xset` discovery, execution and parsing;
+`capslock/windows.py` owns the Win32 toggle query. Shared state and rendering
+contain no operating-system calls, and the applet retains one backend for its
+normal poll and Refresh Now action.
+
 ## Repeatable Windows desktop lab
 
 `packaging/windows/lab/compose.yaml` pins the Dockur image used by this port.
@@ -1805,6 +1811,39 @@ python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
 References: [session-specific input time and timestamp caveats](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getlastinputinfo),
 [native uptime](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount64).
 
+## Native keyboard lock indicators
+
+The Windows Caps Lock backend binds `GetKeyState` lazily and reads on the GTK
+message-loop thread. Only the low toggle bit supplies an indicator; the high
+pressed-key bit does not. Zero means a valid off state. Native binding failures
+return the shared unavailable state. The existing one-second applet poll updates
+the icon and tooltip; no keyboard hook or separate polling worker is installed.
+
+`windows_capslock_smoke.py` runs the complete application beside an owned
+Notepad document. A separate process sends native lock-key input while Notepad
+keeps foreground focus. All four Caps Lock/Num Lock combinations must reach the
+background applet through its normal poll and agree with an independent Windows
+Forms reader. Actual scan-code typing and the saved Notepad contents verify
+lowercase and uppercase behavior. The native menu shows both indicators and
+invokes Refresh Now. Cleanup restores the original lock states, closes the
+owned document and dock normally, and checks the exact desktop work area.
+The `windows-capslock-native-first` run passed every stage and exited with code 0;
+its indicator and menu PNGs were inspected.
+
+![Caps Lock indicators and native menu beside Notepad](../images/windows-capslock.png)
+
+Physical keyboard LEDs, remote sessions and secure-desktop transitions remain
+acceptance work.
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_capslock_smoke.py' \
+  --output '\\host.lan\Data\lab\capslock'
+```
+
+Reference: [toggle bits and message-queue semantics](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeystate).
+
 ## Keyboard menus and close handling
 
 GDK Win32 records keyboard grabs without transferring native focus. The Windows
@@ -1865,6 +1904,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Application metadata | Gio Win32 discovery, packaged activation and background shell icons | Packaged Notepad discovery, pinning, icon and foreground launch verified; broader Win32 inventory pending |
 | Basic dock | Shared GTK/Cairo UI with Windows surface adapter and scoped native menu focus | Startup, transparency, hover, mouse/keyboard/nested menus, dismissal, Preferences and both keyboard Quit and native close during a menu grab verified on the baseline desktop |
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
+| Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |

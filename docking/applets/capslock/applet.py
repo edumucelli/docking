@@ -26,12 +26,12 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
 from docking.applets.capslock import meta
+from docking.applets.capslock.backend import create_backend
 from docking.applets.capslock.render import render_icon
 from docking.applets.capslock.state import (
     POLL_INTERVAL_S,
     LockKeyState,
     menu_label,
-    query_lock_state,
     tooltip_text,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
@@ -52,7 +52,8 @@ class CapslockApplet(Applet):
     icon_name = "input-keyboard"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: LockKeyState = query_lock_state()
+        self._backend = create_backend()
+        self._state: LockKeyState = self._backend.get_state()
         self._timer_id: int = 0
         super().__init__(icon_size=icon_size, config=config)
         self.present()
@@ -99,12 +100,12 @@ class CapslockApplet(Applet):
         return menu_sections(status=status, refresh=[refresh], gtk=Gtk)
 
     def _refresh_now(self) -> None:
-        self._state = query_lock_state()
+        self._state = self._backend.get_state()
         self.present()
 
     def _tick(self) -> bool:
         old_state = self._state
-        self._state = query_lock_state()
+        self._state = self._backend.get_state()
         if self._state != old_state:
             self.present()
         return True

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-26 05:04+0100\n"
+"POT-Creation-Date: 2026-10-26 05:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -339,7 +339,7 @@ msgstr ""
 
 #: docking/applets/apod/applet.py:143 docking/applets/bluetooth/applet.py:242
 #: docking/applets/camshield/applet.py:145
-#: docking/applets/capslock/applet.py:97
+#: docking/applets/capslock/applet.py:98
 #: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:209
@@ -523,13 +523,13 @@ msgid "Unknown"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:207
-#: docking/applets/bluetooth/state.py:99 docking/applets/capslock/state.py:112
+#: docking/applets/bluetooth/state.py:99 docking/applets/capslock/state.py:67
 msgid "On"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:209
 #: docking/applets/bluetooth/state.py:101 docking/applets/caffeine/state.py:145
-#: docking/applets/capslock/state.py:112
+#: docking/applets/capslock/state.py:67
 msgid "Off"
 msgstr ""
 
@@ -822,30 +822,30 @@ msgstr ""
 msgid "{command} (PID {pid}) - {devices}"
 msgstr ""
 
-#: docking/applets/capslock/applet.py:51 docking/applets/capslock/applet.py:88
-#: docking/applets/capslock/state.py:99
+#: docking/applets/capslock/applet.py:51 docking/applets/capslock/applet.py:89
+#: docking/applets/capslock/state.py:54
 msgid "Caps Lock"
 msgstr ""
 
-#: docking/applets/capslock/applet.py:83 docking/applets/capslock/state.py:95
+#: docking/applets/capslock/applet.py:84 docking/applets/capslock/state.py:50
 msgid "Keyboard lock state unavailable"
 msgstr ""
 
-#: docking/applets/capslock/applet.py:93
+#: docking/applets/capslock/applet.py:94
 msgid "Num Lock"
 msgstr ""
 
-#: docking/applets/capslock/state.py:100
+#: docking/applets/capslock/state.py:55
 #, python-brace-format
 msgid "Caps Lock: {state}"
 msgstr ""
 
-#: docking/applets/capslock/state.py:101
+#: docking/applets/capslock/state.py:56
 #, python-brace-format
 msgid "Num Lock: {state}"
 msgstr ""
 
-#: docking/applets/capslock/state.py:108
+#: docking/applets/capslock/state.py:63
 #, python-brace-format
 msgid "{name}: {state}"
 msgstr ""
