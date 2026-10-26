@@ -288,8 +288,8 @@ application's paint handler or waits for capture on the UI thread.
 
 The service keeps at most four native streams, expires unused streams after
 1.5 seconds, and bounds the image cache to 32 MiB and 64 entries. Window IDs are
-paired with process IDs so reused handles and late results cannot inherit
-another process's preview. Resizing recreates the frame pool after releasing
+paired with process IDs and application IDs so reused handles and late results
+cannot inherit another application's preview. Resizing recreates the frame pool after releasing
 the previous frame, including transitions where content outgrows an old buffer.
 A minimized window retains its last captured image. Menu rows and Search panels
 refresh asynchronously, as the hover popup already does.
@@ -326,6 +326,39 @@ expire when no preview requests them. Indicator-free previews, a first capture
 of an already minimized window, HDR/protected content, window outlines and
 broader application coverage remain acceptance work. Multiple monitors and DPI
 changes still require a real Windows display test.
+
+### Per-window application identity
+
+Windows snapshots read `PKEY_AppUserModel_ID` from the window property store
+before falling back to process identity. Packaged applications can share an
+`ApplicationFrameHost` process while retaining distinct application IDs. The
+shared matcher receives that application ID; the snapshot retains the native
+frame-owner PID for window actions and graphics capture. COM apartments,
+property stores and returned values have scoped ownership.
+
+Actions recheck both native process ownership and application identity. Preview
+cache entries and streams include the application ID, and the capture worker
+revalidates it before and after GPU readback. An old frame cannot publish pixels
+after the same HWND and PID have been assigned a different application ID.
+
+`windows_windowidentity_smoke.py` drives the complete dock with native input.
+The `windows-windowidentity-native-2` run launched Calculator and Clock from
+their pins, observed two distinct application IDs with the same host PID,
+activated/minimized/restored Calculator independently, captured distinct native
+previews and closed both applications through the shared window service. Clock
+displayed its installed update-required view. An owned Win32 fixture changed its
+explicit application ID and visible button label without changing its HWND or
+PID: the stale action returned `NOT_FOUND`, the old cached image was discarded,
+and a new preview contained the updated label. All five PNGs were inspected;
+normal shutdown restored the exact work area and preserved Explorer.
+
+![Distinct hosted applications and Calculator's native preview](../images/windows-window-identities.png)
+
+General DWM ghost-window projection, arbitrary executable/shortcut identity,
+broader hosted applications and multiple-window cycling remain acceptance work.
+
+References: [per-window property stores](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetpropertystoreforwindow),
+[application identity property](https://learn.microsoft.com/en-us/windows/win32/properties/props-system-appusermodel-id).
 
 ```sh
 python tools/windows_lab.py --share /path/to/shared/artifacts --timeout 150 run \
@@ -2110,7 +2143,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
-| Running applications | Native snapshots, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; grouping/cycling have unit coverage and need multi-window desktop checks |
+| Running applications | Native snapshots, per-window application identity, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; general DWM ghost projection and multi-window cycling pending |
 | Drag and drop | GTK OLE2 runtime, native URI file drops and shared internal gestures | Explorer target feedback and recycle drop, internal reorder/persistence, drag-off immediately after an external applet drop, and Applications-menu pinning/launch/close verified; broader display/source cases pending |
 | Desktop integration | Native AppBar and overlap services | All four edges, taskbar coexistence, maximized-window placement and work-area restoration, six visibility modes and focus-preserving edge reveal verified on the baseline; fullscreen/restart/pressure follow-up pending |
 | Displays | Pending | Multiple monitors, negative origins, DPI changes and display removal |

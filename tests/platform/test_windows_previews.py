@@ -40,7 +40,10 @@ def _service():
         pid=101,
         visible=True,
     )
-    windows = SimpleNamespace(list_all_windows=MagicMock(return_value=(row,)))
+    windows = SimpleNamespace(
+        list_all_windows=MagicMock(return_value=(row,)),
+        capture_is_current=MagicMock(return_value=True),
+    )
     service = WindowsPreviewService(windows=windows, availability_changed=MagicMock())
     service.start = MagicMock()  # The pure cache tests must not start a native worker.
     return service, windows, row
@@ -87,6 +90,25 @@ def test_unavailable_capture_does_not_keep_queuing_work():
     service.stop()
 
 
+def test_host_reassigning_same_hwnd_and_pid_cannot_reuse_cached_or_late_app_pixels():
+    service, windows, row = _service()
+    windows.list_all_windows.return_value = (replace(row, app_id="Old.App"),)
+    service.capture(row.id, width=6, height=6)
+    old = service._queue.get_nowait()
+    pixels = CapturePixels(bytes((255, 0, 0, 255)) * 32, 8, 4)
+    service._publish(old, pixels)
+    assert service.capture(row.id, width=6, height=6) is not None
+    windows.list_all_windows.return_value = (replace(row, app_id="New.App"),)
+    assert service.capture(row.id, width=6, height=6) is None
+    service._publish(old, pixels)
+    assert not service._cache
+    new = service._queue.get_nowait()
+    assert new != old
+    service._publish(new, pixels)
+    assert service.capture(row.id, width=6, height=6) is not None
+    service.stop()
+
+
 def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkeypatch):
     from docking.platform.backends.windows import previews as module
 
@@ -102,7 +124,8 @@ def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkey
             events.append(("device-close", threading.get_ident()))
 
     class Stream:
-        def __init__(self, *_args):
+        def __init__(self, *_args, validate):
+            assert validate()
             events.append(("stream", threading.get_ident()))
 
         def read(self):
@@ -122,7 +145,9 @@ def test_native_worker_owns_and_expires_its_stream_without_waiting_on_gtk(monkey
         pid=101,
         visible=True,
     )
-    windows = SimpleNamespace(list_all_windows=lambda: (row,))
+    windows = SimpleNamespace(
+        list_all_windows=lambda: (row,), capture_is_current=lambda *_args: True
+    )
     service = WindowsPreviewService(windows=windows, availability_changed=MagicMock())
     monkeypatch.setattr(service, "_post", lambda *_args: None)
     try:
@@ -166,3 +191,32 @@ def test_resize_frame_with_old_gpu_capacity_is_retried_without_mapping(monkeypat
     assert stream._read_texture(ctypes.c_void_p(1), module._Size(806, 473)) is None
     assert stream._resize_pending
     assert calls == [10]
+
+
+def test_capture_rechecks_application_identity_after_gpu_readback(monkeypatch):
+    import ctypes
+
+    from docking.platform.backends.windows import capture as module
+
+    stream = module.WindowsCaptureStream.__new__(module.WindowsCaptureStream)
+    stream._closed = False
+    stream._resize_pending = False
+    stream._device = SimpleNamespace(current_window=lambda *_args: True)
+    stream.hwnd, stream.pid = 100, 101
+    stream.pool = ctypes.c_void_p(123)
+    stream._validate = MagicMock(side_effect=[True, False])
+    closed, released = [], []
+
+    def native_method(pointer, index, result, *arguments):
+        assert index == 7
+        return lambda pool, output: setattr(output._obj, "value", 456) or 0
+
+    monkeypatch.setattr(module, "method", native_method)
+    monkeypatch.setattr(module, "_close", lambda pointer: closed.append(pointer.value))
+    monkeypatch.setattr(
+        module, "release", lambda pointer: released.append(pointer.value)
+    )
+    stream._read_frame = lambda _frame: CapturePixels(bytes((255, 0, 0, 255)), 1, 1)
+    assert stream.read() is None
+    assert closed == released == [456]
+    assert stream._validate.call_count == 2

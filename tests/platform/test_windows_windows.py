@@ -127,6 +127,8 @@ def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar(
     native._dwm_attribute = lambda *_args: 0
     native._title = lambda _hwnd, output, _size: setattr(output, "value", "Open file")
     native._process_identity = lambda _pid: ("Example.App", "example")
+    native._properties = MagicMock()
+    native._properties.app_id.return_value = None
     native._rect = lambda _hwnd, output: (
         setattr(output._obj, "left", -1920),
         setattr(output._obj, "right", 0),
@@ -158,3 +160,76 @@ def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar(
     assert native._snapshot(100, 100, {}) is None
     hidden = native._snapshot(100, 100, {}, include_hidden=True)
     assert hidden is not None and not hidden.visible
+
+
+def test_explicit_per_window_id_separates_applications_in_one_host_process():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._properties = MagicMock()
+    native._properties.app_id.side_effect = lambda hwnd: {
+        10: "Calc.App",
+        20: "Clock.App",
+    }[hwnd]
+    native._process_identity = MagicMock(return_value=(None, "applicationframehost"))
+    identities = {}
+    rows = [
+        WindowSnapshot(
+            id=WindowId(DisplayServer.WINDOWS, hwnd),
+            desktop_id="",
+            app_id=native._application_id(
+                hwnd, 101, "ApplicationFrameWindow", identities
+            ),
+            pid=101,
+            visible=True,
+        )
+        for hwnd in (10, 20)
+    ]
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model,
+        **identity_services(application("Calc.App"), application("Clock.App")),
+    )
+    service.replace_windows(rows)
+    assert [w.id.value for w in service.list_windows("Calc.App")] == [10]
+    assert [w.id.value for w in service.list_windows("Clock.App")] == [20]
+    assert set(model.update_running.call_args.kwargs["running"]) == {
+        "Calc.App",
+        "Clock.App",
+    }
+    native._process_identity.assert_not_called()
+
+
+def test_missing_or_unreadable_window_id_uses_process_identity_without_hiding_window():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._properties = MagicMock()
+    native._properties.app_id.side_effect = [None, OSError("Unavailable")]
+    native._process_identity = MagicMock(return_value=("Process.App", "example"))
+    identities = {}
+    assert native._application_id(10, 101, "Example", identities) == "Process.App"
+    assert native._application_id(20, 101, "Example", identities) == "Process.App"
+    native._process_identity.assert_called_once_with(101)
+
+
+def test_same_host_hwnd_and_pid_with_changed_app_id_cannot_receive_a_stale_action():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._exists = lambda _hwnd: True
+    native._pid = lambda hwnd, output: setattr(output._obj, "value", 101)
+    native._properties = MagicMock()
+    native._properties.app_id.return_value = "Old.App"
+    native._post = MagicMock(return_value=True)
+    row = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100),
+        desktop_id="",
+        pid=101,
+        app_id="Old.App",
+    )
+    assert native.perform(row, "close") is ActionResult.OK
+    native._post.reset_mock()
+    native._properties.app_id.return_value = "New.App"
+    assert native.perform(row, "close") is ActionResult.NOT_FOUND
+    native._post.assert_not_called()

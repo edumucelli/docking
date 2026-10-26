@@ -38,8 +38,10 @@ class Win32WindowAPI:
 
     def __init__(self) -> None:
         from .desktop import WindowsDesktopAPI
+        from .properties import WindowsWindowProperties
 
         self._desktop = WindowsDesktopAPI()
+        self._properties = WindowsWindowProperties()
         user = ctypes.WinDLL("user32", use_last_error=True)
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
@@ -202,6 +204,27 @@ class Win32WindowAPI:
             raise ctypes.WinError(ctypes.get_last_error())
         return tuple(rows)
 
+    def _application_id(
+        self,
+        hwnd: int,
+        pid: int,
+        class_name: str,
+        identities: dict[int, tuple[str | None, str]],
+    ) -> str:
+        # One host process can own windows from multiple packaged applications.
+        # Windows' explicit per-window ID takes precedence over process identity.
+        try:
+            declared = self._properties.app_id(hwnd)
+        except OSError as exc:
+            log.debug("Window application identity unavailable: %s", exc)
+            declared = None
+        if declared:
+            return declared
+        if pid not in identities:
+            identities[pid] = self._process_identity(pid)
+        app_id, executable = identities[pid]
+        return app_id or executable or class_name
+
     def snapshot(
         self, hwnd: int, *, include_hidden: bool = False
     ) -> WindowSnapshot | None:
@@ -254,9 +277,7 @@ class Win32WindowAPI:
         self._title(hwnd, title, len(title))
         if not title.value:
             return None
-        if pid.value not in identities:
-            identities[pid.value] = self._process_identity(pid.value)
-        app_id, executable = identities[pid.value]
+        app_id = self._application_id(hwnd, pid.value, class_name.value, identities)
         rectangle = wintypes.RECT()
         geometry = None
         fullscreen = None
@@ -282,7 +303,7 @@ class Win32WindowAPI:
             id=WindowId(DisplayServer.WINDOWS, hwnd),
             desktop_id="",
             title=title.value,
-            app_id=app_id or executable or class_name.value,
+            app_id=app_id,
             wm_class=class_name.value,
             pid=pid.value,
             active=hwnd == foreground,
@@ -298,16 +319,26 @@ class Win32WindowAPI:
             can_close=True,
         )
 
-    def perform(self, window: WindowSnapshot, action: str) -> ActionResult:
+    def matches(self, window: WindowSnapshot) -> bool:
         if window.id.backend is not DisplayServer.WINDOWS:
-            return ActionResult.NOT_FOUND
+            return False
         hwnd = int(window.id.value)
         if not self._exists(hwnd):
-            return ActionResult.NOT_FOUND
+            return False
         pid = wintypes.DWORD()
         self._pid(hwnd, ctypes.byref(pid))
         if pid.value != window.pid:
+            return False
+        return (
+            not window.app_id
+            or self._application_id(hwnd, pid.value, window.wm_class or "", {})
+            == window.app_id
+        )
+
+    def perform(self, window: WindowSnapshot, action: str) -> ActionResult:
+        if not self.matches(window):
             return ActionResult.NOT_FOUND
+        hwnd = int(window.id.value)
         if action == "close":
             accepted = self._post(hwnd, 0x0010, 0, 0)
         elif action == "minimize":
@@ -387,3 +418,15 @@ class WindowsWindowService(SnapshotWindowService):
         if self._native is None or window is None:
             return ActionResult.NOT_FOUND
         return self._native.perform(window, action)
+
+    def capture_is_current(
+        self, window_id: WindowId, pid: int, app_id: str | None
+    ) -> bool:
+        """Validate a worker's immutable frame identity without changing GTK state."""
+        window = self._snapshots.get(window_id)
+        return bool(
+            self._native is not None
+            and window is not None
+            and (window.pid, window.app_id) == (pid, app_id)
+            and self._native.matches(window)
+        )

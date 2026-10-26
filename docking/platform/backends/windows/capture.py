@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ctypes
 import time
+from collections.abc import Callable
 from contextlib import ExitStack
 from ctypes import wintypes
 from dataclasses import dataclass
@@ -262,8 +263,16 @@ class WindowsCaptureDevice:
 class WindowsCaptureStream:
     """A free-threaded frame pool and one window; all methods are worker-only."""
 
-    def __init__(self, device: WindowsCaptureDevice, hwnd: int, pid: int) -> None:
+    def __init__(
+        self,
+        device: WindowsCaptureDevice,
+        hwnd: int,
+        pid: int,
+        *,
+        validate: Callable[[], bool] | None = None,
+    ) -> None:
         self._device = device
+        self._validate = validate
         self.hwnd, self.pid = hwnd, pid
         self._resources = ExitStack()
         self._closed = False
@@ -273,7 +282,7 @@ class WindowsCaptureStream:
         self.pool = _POINTER()
         self.session = _POINTER()
         try:
-            if not device.current_window(hwnd, pid):
+            if not self._current():
                 raise OSError("Capture source window no longer belongs to this process")
             interop = device.factory(
                 "Windows.Graphics.Capture.GraphicsCaptureItem",
@@ -358,8 +367,13 @@ class WindowsCaptureStream:
         ):
             raise ValueError("Unsupported Windows capture dimensions")
 
+    def _current(self) -> bool:
+        return self._device.current_window(self.hwnd, self.pid) and (
+            self._validate is None or self._validate()
+        )
+
     def read(self, timeout: float = 0.3) -> CapturePixels | None:
-        if self._closed or not self._device.current_window(self.hwnd, self.pid):
+        if self._closed or not self._current():
             return None
         if self._resize_pending:
             _check(
@@ -390,7 +404,7 @@ class WindowsCaptureStream:
                         _close(frame)
                     finally:
                         release(frame)
-                if self._device.current_window(self.hwnd, self.pid):
+                if self._current():
                     return result
                 return None
             if time.monotonic() >= deadline:

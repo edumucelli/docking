@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--protected", action="store_true")
     parser.add_argument("--host", action="store_true")
     parser.add_argument("--parent", type=int)
+    parser.add_argument("--app-ids", action="store_true")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires an owned Windows test desktop")
@@ -34,7 +35,53 @@ def main():
     )
     destroy = bind(user, "DestroyWindow", c.c_int32, pointer)
     quit_loop = bind(user, "PostQuitMessage", None, c.c_int32)
-    state = {"pid": os.getpid(), "windows": {}, "child_clicks": 0, "closed": []}
+    state = {
+        "pid": os.getpid(),
+        "windows": {},
+        "child_clicks": 0,
+        "closed": [],
+        "app_ids": {},
+    }
+    applied = set()
+
+    def set_app_id(window, value):
+        from docking.platform.backends.windows.com import apartment, method, release
+        from docking.platform.backends.windows.properties import (
+            APP_ID,
+            PROPERTY_STORE,
+            PropertyKey,
+            PropertyVariant,
+        )
+
+        with apartment():
+            store, variant = c.c_void_p(), PropertyVariant()
+            try:
+                get_store = bind(
+                    c.WinDLL("shell32"),
+                    "SHGetPropertyStoreForWindow",
+                    c.c_int32,
+                    pointer,
+                    c.POINTER(type(PROPERTY_STORE)),
+                    c.POINTER(pointer),
+                )
+                assert get_store(window, c.byref(PROPERTY_STORE), c.byref(store)) >= 0
+                if value is not None:
+                    variant.vt = 31
+                    # Borrow Python's string storage for SetValue, which copies
+                    # it. PropVariantClear must not free this borrowed storage.
+                    variant.data.string = value
+                assert (
+                    method(
+                        store,
+                        6,
+                        c.c_int32,
+                        c.POINTER(PropertyKey),
+                        c.POINTER(PropertyVariant),
+                    )(store, c.byref(APP_ID), c.byref(variant))
+                    >= 0
+                )
+            finally:
+                release(store)
 
     def publish():
         (output / "state.json").write_text(json.dumps(state, indent=2))
@@ -45,10 +92,26 @@ def main():
             publish()
             return 0
         if message == 0x10:
+            if window in state["app_ids"]:
+                set_app_id(window, None)
             state["closed"].append(window)
             publish()
             destroy(window)
             return 0
+        if message == 0x113 and args.app_ids:
+            for request in sorted(output.glob("identity-*.request.json")):
+                if request.name in applied:
+                    continue
+                command = json.loads(request.read_text())
+                target = state["windows"][command["window"]]
+                set_app_id(target, command["app_id"])
+                state["app_ids"][target] = command["app_id"]
+                if command.get("label"):
+                    bind(user, "SetWindowTextW", c.c_int32, pointer, c.c_wchar_p)(
+                        state["button"], command["label"]
+                    )
+                applied.add(request.name)
+                publish()
         if message == 2:
             state["windows"] = {
                 key: value for key, value in state["windows"].items() if value != window
@@ -165,6 +228,11 @@ def main():
     )
     assert button
     state.update(button=button, parent=args.parent, protected=args.protected)
+    if args.app_ids:
+        for label, window in state["windows"].items():
+            value = "Docking.Fixture." + label
+            set_app_id(window, value)
+            state["app_ids"][window] = value
     if args.protected:
         descriptor = pointer()
         advapi = c.WinDLL("advapi32", use_last_error=True)
