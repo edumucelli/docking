@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from .appbar import WindowsAppBar
     from .geometry import ScreenMapping
     from .menus import WindowsMenuSession
+    from .workspaces import WindowsWorkspaceService
 
 
 class _CursorCoordinates(Protocol):
@@ -30,8 +31,10 @@ class _CursorCoordinates(Protocol):
 class WindowsSurfaceService(ReducedSurfaceService):
     """Share GTK placement while keeping Windows surface details in one place."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, workspaces: WindowsWorkspaceService | None = None) -> None:
         super().__init__()
+        self._workspaces = workspaces
+        self._current_workspace_only = False
         self._appbar: WindowsAppBar | None = None
         self._reservation: ReservationRequest | None = None
         self._mapping: ScreenMapping | None = None
@@ -155,7 +158,26 @@ class WindowsSurfaceService(ReducedSurfaceService):
             self._map_source = GLib.idle_add(
                 self._restore_placement, priority=GLib.PRIORITY_LOW
             )
+        self.set_workspace_scope(current_workspace_only=self._current_workspace_only)
         return False
+
+    def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
+        self._current_workspace_only = current_workspace_only
+        if (
+            self._workspaces is None
+            or not self._workspaces.supported
+            or self._window is None
+        ):
+            return
+        native = self._window.get_window()
+        if native is not None:
+            from .ffi import window_handle
+
+            hwnd = window_handle(native)
+            if hwnd:
+                self._workspaces.set_surface_scope(
+                    hwnd, current_workspace_only=current_workspace_only
+                )
 
     def _restore_placement(self) -> bool:
         self._map_source = 0

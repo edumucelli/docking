@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+from collections.abc import Callable
 from ctypes import wintypes
 from dataclasses import dataclass, replace
 from pathlib import PureWindowsPath
@@ -24,12 +25,15 @@ from docking.platform.backends.window_projection import SnapshotWindowService
 from .ffi import MonitorInfo
 from .ffi import bind as _bind
 from .ghosts import WindowsGhostWindows
+from .virtual_desktops import WindowWorkspace
 
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
+
+    from .workspaces import WindowsWorkspaceService
 
 log = get_logger("windows.windows")
 
@@ -45,11 +49,17 @@ class WindowsWindowTarget:
 class Win32WindowAPI:
     """Own the small native API boundary used by window tracking."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        workspace_membership: Callable[[int, int], WindowWorkspace | None]
+        | None = None,
+    ) -> None:
         from .desktop import WindowsDesktopAPI
         from .properties import WindowsWindowProperties
 
         self._desktop = WindowsDesktopAPI()
+        self._membership = workspace_membership
         self._properties = WindowsWindowProperties()
         user = ctypes.WinDLL("user32", use_last_error=True)
         self._ghosts = WindowsGhostWindows(user)
@@ -222,6 +232,9 @@ class Win32WindowAPI:
                             wm_class=application.wm_class,
                             dialog=application.dialog,
                             skip_taskbar=application.skip_taskbar,
+                            workspace_id=application.workspace_id,
+                            on_current_workspace=application.on_current_workspace,
+                            sticky=application.sticky,
                         )
                         projected.add(row.id)
                         rows.pop(row.id, None)
@@ -292,6 +305,9 @@ class Win32WindowAPI:
         self._pid(hwnd, ctypes.byref(pid))
         if not pid.value or pid.value == os.getpid():
             return None
+        membership = (
+            self._membership(hwnd, pid.value) if self._membership is not None else None
+        )
         extended_style = self._style(hwnd, -20)
         # Keep owned dialogs for overlap policy, but never give them a separate
         # taskbar entry. Tool palettes and passive shell surfaces are excluded.
@@ -314,7 +330,17 @@ class Win32WindowAPI:
             == 0
             and cloaked.value
         ):
-            return None
+            # Shell cloaking also represents a real application on another
+            # virtual desktop. Keep that row for all-workspace taskbars; it
+            # remains invisible to overlap policy. Other cloaked surfaces stay
+            # excluded, including retained UWP frames on the current desktop.
+            if (
+                membership is None
+                or membership.current is not False
+                or cloaked.value != 2
+            ):
+                return None
+            visible = False
         title = ctypes.create_unicode_buffer(1024)
         self._title(hwnd, title, len(title))
         if not title.value:
@@ -355,6 +381,9 @@ class Win32WindowAPI:
             fullscreen=fullscreen,
             dialog=dialog,
             skip_taskbar=dialog,
+            workspace_id=membership.desktop_id if membership is not None else None,
+            on_current_workspace=membership.current if membership is not None else None,
+            sticky=membership.sticky if membership is not None else False,
             geometry=geometry,
             can_activate=True,
             can_minimize=True,
@@ -431,6 +460,7 @@ class WindowsWindowService(SnapshotWindowService):
         process_identity_service: ProcessIdentityService,
         config: Config | None = None,
         native: Win32WindowAPI | None = None,
+        workspaces: WindowsWorkspaceService | None = None,
     ) -> None:
         super().__init__(
             model=model,
@@ -439,6 +469,8 @@ class WindowsWindowService(SnapshotWindowService):
             config=config,
         )
         self._native = native
+        self._workspaces = workspaces
+        self._workspace_watch: object | None = None
         self._timer = 0
         self._previews_available = False
 
@@ -446,11 +478,22 @@ class WindowsWindowService(SnapshotWindowService):
         if self._timer:
             return
         if self._native is None:
-            self._native = Win32WindowAPI()
+            self._native = Win32WindowAPI(
+                workspace_membership=self._workspaces.membership
+                if self._workspaces is not None
+                else None
+            )
+        if self._workspaces is not None:
+            self._workspace_watch = self._workspaces.watch_active_workspace(
+                self.refresh
+            )
         self.refresh()
         self._timer = GLib.timeout_add(500, self._poll)
 
     def stop(self) -> None:
+        if self._workspaces is not None and self._workspace_watch is not None:
+            self._workspaces.unwatch_active_workspace(self._workspace_watch)
+            self._workspace_watch = None
         if self._timer:
             GLib.source_remove(self._timer)
             self._timer = 0
@@ -479,15 +522,30 @@ class WindowsWindowService(SnapshotWindowService):
             self.refresh()
 
     def _taskbar_window(self, window: WindowSnapshot) -> bool:
-        # Virtual desktop membership is not implemented yet. An unsupported
-        # workspace preference must not hide every application from the dock.
-        return not window.skip_taskbar
+        # Membership can be unknown for windows outside the public desktop
+        # manager contract or while Explorer recovers. Only a known other
+        # desktop establishes that a taskbar entry should be filtered out.
+        return not window.skip_taskbar and (
+            self._config is None
+            or not self._config.current_workspace_only
+            or window.on_current_workspace is not False
+        )
 
     def perform(self, window_id: WindowId, action: str) -> ActionResult:
         window = self._snapshots.get(window_id)
         if self._native is None or window is None:
             return ActionResult.NOT_FOUND
-        return self._native.perform(window, action)
+        native = self._native
+        if (
+            action == "activate"
+            and window.on_current_workspace is False
+            and window.workspace_id is not None
+            and self._workspaces is not None
+        ):
+            return self._workspaces.activate_then(
+                window.workspace_id, lambda: native.perform(window, action)
+            )
+        return native.perform(window, action)
 
     def capture_is_current(
         self,

@@ -23,6 +23,29 @@ def bind(library: Any, name: str, result: Any, *arguments: Any) -> Any:
     return function
 
 
+def window_handle(window: object) -> int | None:
+    """Resolve a live GdkWindow through GDK's exported Win32 ABI.
+
+    GTK 3 does not introspect this function. PyGObject's capsule exposes the
+    borrowed GObject pointer; keep its owner alive for the complete local call.
+    """
+    capsule = bind(
+        ctypes.pythonapi,
+        "PyCapsule_GetPointer",
+        ctypes.c_void_p,
+        ctypes.py_object,
+        ctypes.c_char_p,
+    )
+    native = bind(
+        ctypes.CDLL("libgdk-3-0.dll"),
+        "gdk_win32_window_get_handle",
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    )
+    value = native(capsule(window.__gpointer__, None))
+    return int(value) if value else None
+
+
 def explorer_tray(user: Any, *, exclude_pid: int) -> tuple[int, int] | None:
     """Find the real shell tray, excluding an owned notification receiver."""
     pointer, unsigned = ctypes.c_void_p, ctypes.c_uint32

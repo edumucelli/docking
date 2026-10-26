@@ -49,6 +49,9 @@ def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_o
         wm_class="Fixture.Window",
         pid=101,
         title="Document",
+        workspace_id="original-desktop",
+        on_current_workspace=False,
+        sticky=True,
         visible=True,
         geometry=Rect(0, 0, 300, 200),
     )
@@ -59,6 +62,9 @@ def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_o
         wm_class="Ghost",
         app_id="dwm",
         title="Document (Not Responding)",
+        workspace_id="dwm-desktop",
+        on_current_workspace=True,
+        sticky=False,
         active=True,
         minimized=True,
         geometry=Rect(100, 200, 400, 300),
@@ -86,6 +92,11 @@ def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_o
         ghost.active,
         ghost.minimized,
         ghost.geometry,
+    )
+    assert (row.workspace_id, row.on_current_workspace, row.sticky) == (
+        original.workspace_id,
+        original.on_current_workspace,
+        original.sticky,
     )
     model = SimpleNamespace(visible_items=list, update_running=MagicMock())
     service = WindowsWindowService(
@@ -269,13 +280,14 @@ def test_windows_grouping_actions_and_disappearing_windows(monkeypatch):
     assert removed == [91]
 
 
-def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar():
+def snapshot_api():
     from ctypes import wintypes
 
     from docking.platform.backends.windows.windows import Win32WindowAPI
 
     native = object.__new__(Win32WindowAPI)
     native._visible = lambda _hwnd: True
+    native._membership = None
     native._pid = lambda _hwnd, output: setattr(output._obj, "value", 101)
     native._style = lambda *_args: 0
     native._owner = lambda *_args: 900
@@ -299,6 +311,11 @@ def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar(
     native._monitor_info = monitor_info
     native._iconic = lambda _hwnd: False
     native._zoomed = lambda _hwnd: False
+    return native
+
+
+def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar():
+    native = snapshot_api()
     row = native._snapshot(100, 100, {})
     assert row is not None
     assert row.dialog and row.skip_taskbar and row.fullscreen
@@ -316,6 +333,106 @@ def test_native_owned_dialog_is_available_to_overlap_but_not_grouped_on_taskbar(
     assert native._snapshot(100, 100, {}) is None
     hidden = native._snapshot(100, 100, {}, include_hidden=True)
     assert hidden is not None and not hidden.visible
+
+
+@pytest.mark.parametrize(
+    "current,cloaked,keep",
+    [
+        (False, 2, True),
+        (False, 1, False),
+        (False, 3, False),
+        (True, 2, False),
+        (None, 2, False),
+        (True, 0, True),
+    ],
+)
+def test_shell_cloaked_other_desktop_windows_keep_membership_without_overlap(
+    current, cloaked, keep
+):
+    from docking.platform.backends.windows.virtual_desktops import WindowWorkspace
+
+    native = snapshot_api()
+    membership = WindowWorkspace(101, "desktop", current, sticky=True)
+    native._membership = lambda hwnd, pid: (
+        membership if (hwnd, pid) == (100, 101) else None
+    )
+    native._dwm_attribute = lambda hwnd, key, output, size: (
+        setattr(output._obj, "value", cloaked) or 0
+    )
+    row = native._snapshot(100, 100, {})
+    assert (row is not None) is keep
+    if keep:
+        assert (row.workspace_id, row.on_current_workspace, row.sticky) == (
+            "desktop",
+            current,
+            True,
+        )
+        assert row.visible is (cloaked == 0)
+
+
+@pytest.mark.parametrize(
+    "current_only,current,keep",
+    [
+        (False, False, True),
+        (True, False, False),
+        (True, True, True),
+        (True, None, True),
+    ],
+)
+def test_current_workspace_filter_excludes_only_established_other_desktop(
+    current_only, current, keep
+):
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model,
+        config=Config(current_workspace_only=current_only),
+        **identity_services(application("Fixture.App")),
+    )
+    row = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100),
+        desktop_id="",
+        app_id="Fixture.App",
+        on_current_workspace=current,
+    )
+    service.replace_windows((row,))
+    running = model.update_running.call_args.kwargs["running"]
+    assert ("Fixture.App" in running) is keep
+    # Filtering changes the projection; the complete snapshot remains usable.
+    assert service.list_all_windows() == (replace(row, desktop_id="Fixture.App"),)
+
+
+def test_offdesktop_activation_switches_before_native_action_but_close_does_not():
+    native, workspaces = MagicMock(), MagicMock()
+    native.perform.return_value = workspaces.activate_then.return_value = (
+        ActionResult.OK
+    )
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model,
+        native=native,
+        workspaces=workspaces,
+        **identity_services(application("Fixture.App")),
+    )
+    row = WindowSnapshot(
+        id=WindowId(DisplayServer.WINDOWS, 100),
+        desktop_id="",
+        app_id="Fixture.App",
+        workspace_id="other",
+        on_current_workspace=False,
+        can_activate=True,
+        can_close=True,
+    )
+    service.replace_windows((row,))
+    row = service.list_all_windows()[0]
+    assert service.activate(row.id) is ActionResult.OK
+    native.perform.assert_not_called()
+    identifier, after = workspaces.activate_then.call_args.args
+    assert identifier == "other"
+    assert after() is ActionResult.OK
+    native.perform.assert_called_once_with(row, "activate")
+    assert service.close(row.id) is ActionResult.OK
+    assert native.perform.call_args.args == (row, "close")
+    assert workspaces.activate_then.call_count == 1
 
 
 def test_explicit_per_window_id_separates_applications_in_one_host_process():

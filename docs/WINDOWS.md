@@ -2045,6 +2045,67 @@ References: [public shell toggle](https://learn.microsoft.com/en-us/windows/win3
 [desktop registration](https://learn.microsoft.com/en-us/windows/win32/api/exdisp/nf-exdisp-ishellwindows-findwindowsw),
 [SDK interface layout](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/ShlDisp.h).
 
+## Native virtual desktops
+
+`windows/workspaces.py` implements the common `WorkspaceService` used by the
+existing Workspaces applet. Its worker owns COM enumeration, names, active
+desktop observations and serialized switches; GTK receives immutable snapshots
+and change notifications. A stopped or restarted service rejects old replies,
+queued switches and deferred window activation. Failed shell reads expose an
+unavailable service and recover on subsequent polls.
+
+Window membership uses the public `IVirtualDesktopManager`. Windows tracking
+retains shell-cloaked applications on other desktops, excludes them from overlap
+policy, and filters established other-desktop windows when the current-workspace
+preference is enabled. Unknown membership does not hide a running application.
+Activating an off-desktop window switches to its desktop first, verifies the
+transition, then validates and activates the native window. Close and Minimize
+do not switch desktops. Ghost windows retain their original application's
+workspace membership.
+
+Windows ignores GTK 3's sticky hint. `WindowsSurfaceService` therefore delegates
+the shared workspace-scope setting to the worker, which pins or unpins only the
+dock's owned shell view. It never pins a shared Python application ID. GDK's
+exported handle function resolves the exact surface, and native ownership is
+checked before pinning. A newly mapped view is retried without discarding
+workspace observations.
+
+Desktop listing, switching and view pinning require internal shell interfaces.
+The implementation checks Windows build 26100/26200 and the identified 24H2
+interface IDs before calling their vtables. Other builds advertise these
+capabilities as unavailable. The public API alone does not provide enumeration
+or switching; a missing shell interface does not produce a fabricated desktop.
+Native acceptance currently covers Windows 11 25H2 build 26200.8037. Windows
+11 24H2, other patch levels, Explorer restart during a switch, remote sessions,
+and multiple displays still need desktop acceptance.
+
+`tools/windows_workspace_smoke.py` runs the complete dock with four explicitly
+labeled fixture windows on two desktops. The fixtures assign a registered
+application ID to exercise real common matching and grouping; they are not
+Calculator processes. Native applet clicks, wheel and menu selection, external
+Win+Ctrl+Left, current-workspace filtering, off-desktop foreground activation,
+external rename/create/removal and stale-ID rejection passed at GTK scale 1/2.
+An additional run verified native unpinning hides the dock on the other desktop,
+restoring its original desktop reveals it, and repinning makes it visible across
+desktops again.
+Both runs closed the fixtures normally, removed only their own new desktops,
+restored the original desktop list and active desktop, preserved Explorer, and
+restored the exact work area. Unit tests cover ABI ownership, unavailable builds,
+worker isolation, recovery, cancellation, filtering and deferred actions.
+
+![Native Workspaces applet and menu on Windows 11](../images/windows-workspaces.png)
+
+```sh
+python tools/windows_lab.py --share /path/to/shared/artifacts --wait 1 start \
+  'C:\msys64\ucrt64\bin\python.exe' \
+  '\\host.lan\Data\repo\tools\windows_workspace_smoke.py' \
+  --output '\\host.lan\Data\lab\workspaces'
+```
+
+References: [public membership contract](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ivirtualdesktopmanager),
+[PowerToys membership and pinned-window handling](https://github.com/microsoft/PowerToys/blob/main/src/modules/launcher/Wox.Plugin/Common/VirtualDesktop/VirtualDesktopHelper.cs),
+[24H2 shell interface definitions](https://github.com/MScholtes/VirtualDesktop/blob/master/VirtualDesktop11-24H2.cs).
+
 ## Native screen color picking
 
 The Windows screen service maps GTK logical root coordinates into physical
@@ -2229,6 +2290,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Session idle | Native Windows implementation of the common IdleService | Desk Presence real idle/input transitions, independent native time readings, counters, pulse, threshold menu and persistence verified; remote sessions, suspend/resume and long uptime pending |
 | Window Killer | Native implementation of WindowPickService with process-instance validation | Actual input, child/overlapping/hosted windows, real Calculator, denied access, stale targets, DWM ghost, handle ownership and active-capture shutdown verified at GTK scale1/2; optional ghost export across Windows versions, UAC and broader display/session acceptance pending |
 | Show Desktop | Native Explorer implementation of DesktopActionService with serialized actions and live shell ordering | Applet/explicit/rapid/external toggle, minimized/fixed/topmost windows, retained running entries, Window Dodge, worker lifecycle and shell recovery have desktop acceptance tools; broader displays, Windows versions, focus and policy behavior remain pending |
+| Virtual desktops | Windows implementation of WorkspaceService and surface scope, with build-gated shell ABI and public window membership | Native applet click/menu/scroll, external keyboard switch, names/list changes, current-workspace filtering and cross-desktop foreground activation verified at GTK scale 1/2; worker lifecycle, membership ownership and unknown builds tested; other versions, Explorer transition races, sessions and displays pending |
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

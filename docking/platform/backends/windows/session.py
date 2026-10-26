@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from .idle import WindowsIdleService
     from .picking import WindowsWindowPickService
     from .screen_capture import WindowsScreenCaptureService
+    from .workspaces import WindowsWorkspaceService
 
 
 class WindowsSessionBackend(ReducedSessionBackend):
@@ -27,8 +28,8 @@ class WindowsSessionBackend(ReducedSessionBackend):
 
     Native tracking and taskbar actions share the same immutable window model
     as other backends. AppBar reservation and overlap policy use native monitor
-    geometry. Previews use worker-owned Windows graphics capture. Workspace
-    services follow as their native implementation is verified.
+    geometry. Previews use worker-owned Windows graphics capture. Virtual
+    desktops use worker-owned shell services on identified Windows builds.
     """
 
     def __init__(
@@ -48,14 +49,17 @@ class WindowsSessionBackend(ReducedSessionBackend):
         from .surface import WindowsSurfaceService
         from .visibility import WindowsVisibilityService
         from .windows import WindowsWindowService
+        from .workspaces import WindowsWorkspaceService
 
+        self._workspaces = WindowsWorkspaceService()
         windows = WindowsWindowService(
             model=model,
             config=config,
             application_registry=application_registry,
             process_identity_service=process_identity_service,
+            workspaces=self._workspaces,
         )
-        surface = WindowsSurfaceService()
+        surface = WindowsSurfaceService(workspaces=self._workspaces)
         self._idle = WindowsIdleService()
         self._screen_capture = WindowsScreenCaptureService()
         self._desktop_actions = WindowsDesktopActionService()
@@ -100,6 +104,10 @@ class WindowsSessionBackend(ReducedSessionBackend):
             supports_show_desktop=True,
             supports_window_pick=True,
             supports_process_kill=True,
+            supports_workspace_list=self._workspaces.supported,
+            supports_workspace_switch=self._workspaces.supported,
+            tracks_window_workspace=self._workspaces.supported,
+            supports_current_workspace_filter=self._workspaces.supported,
         )
 
     @property
@@ -118,7 +126,12 @@ class WindowsSessionBackend(ReducedSessionBackend):
     def window_picker(self) -> WindowsWindowPickService:
         return self._window_picker
 
+    @property
+    def workspaces(self) -> WindowsWorkspaceService:
+        return self._workspaces
+
     def start(self) -> None:
+        self._workspaces.start()
         super().start()
         self._idle.start()
         self._screen_capture.start()
@@ -126,6 +139,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         self._window_picker.start()
 
     def stop(self) -> None:
+        self._workspaces.stop()
         self._window_picker.stop()
         self._desktop_actions.stop()
         self._screen_capture.stop()

@@ -62,3 +62,45 @@ def test_pointer_fallback_releases_hover_after_reveal_and_stop_removes_its_sourc
     assert removed == [100]
     native.close.assert_called_once_with()
     assert service._pointer_source == 0
+
+
+def test_surface_delegates_scope_only_after_native_window_exists(monkeypatch):
+    from unittest.mock import Mock
+
+    from docking.platform.backends.windows import ffi
+
+    workspaces = Mock(supported=True)
+    service = WindowsSurfaceService(workspaces=workspaces)
+    handle = Mock(return_value=0x100000001)
+    monkeypatch.setattr(ffi, "window_handle", handle)
+    service.set_workspace_scope(current_workspace_only=False)
+    handle.assert_not_called()
+    parent = Mock()
+    service._window = parent
+    parent.get_window.return_value = None
+    service.set_workspace_scope(current_workspace_only=False)
+    handle.assert_not_called()
+    parent.get_window.return_value = object()
+    service.set_workspace_scope(current_workspace_only=True)
+    workspaces.set_surface_scope.assert_called_once_with(
+        0x100000001, current_workspace_only=True
+    )
+
+
+def test_gdk_handle_boundary_borrows_capsule_and_keeps_pointer_width(monkeypatch):
+    import ctypes
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from docking.platform.backends.windows import ffi
+
+    python, library = Mock(), Mock()
+    python.PyCapsule_GetPointer.return_value = 0x200000002
+    library.gdk_win32_window_get_handle.return_value = 0x100000001
+    monkeypatch.setattr(ctypes, "pythonapi", python)
+    monkeypatch.setattr(ctypes, "CDLL", lambda name: library)
+    capsule = object()
+    assert ffi.window_handle(SimpleNamespace(__gpointer__=capsule)) == 0x100000001
+    python.PyCapsule_GetPointer.assert_called_once_with(capsule, None)
+    library.gdk_win32_window_get_handle.assert_called_once_with(0x200000002)
+    assert library.gdk_win32_window_get_handle.restype is ctypes.c_void_p
