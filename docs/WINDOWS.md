@@ -2048,6 +2048,44 @@ python tools/windows/lab.py --share /path/to/shared/artifacts --wait 1 start \
 Exporting native application shortcuts to Explorer and cross-monitor gestures
 remain follow-up work.
 
+## Packaged application visibility
+
+Gio can expose packaged background components as visible applications even when
+their manifest declares `AppListEntry="none"`. Windows Clock 11.2607.6.0 exposed
+both `Microsoft.WindowsAlarms_8wekyb3d8bbwe!App` and its `!ClockWidgets` component
+with the same title and icon. The native Start list and AppsFolder listed only
+the main application. Docking now respects the manifest declaration rather than
+merging applications by title or guessing from their IDs. See Microsoft's
+[VisualElements manifest contract](https://learn.microsoft.com/uwp/schemas/appxpackage/uapmanifestschema/element-uap-visualelements).
+
+The Windows backend resolves the current user's registered head packages through
+[FindPackagesByPackageFamily](https://learn.microsoft.com/windows/win32/api/appmodel/nf-appmodel-findpackagesbypackagefamily)
+and reads their manifests outside the GTK thread. Only explicit hidden entries
+override Gio visibility; missing, unreadable or malformed metadata leaves Gio's
+decision intact. The shared registry retains hidden applications' canonical
+metadata and launch handles, publishes the changed listing, and refreshes open
+Search results. Registry notifications invalidate pending metadata; obsolete
+requests and stopped workers cannot publish into a later lifecycle.
+
+`tools/windows/applications_smoke.py --check-visibility` uses the installed Clock
+package and the complete dock. An explicit fixture delays the real metadata
+lookup until native input has exposed both raw Gio entries in the Applications
+menu and Search. Releasing it must remove the widget from open Search without
+changing its query, selection or entry focus. The reopened Applications menu
+must show one Clock row, whose native mouse activation must launch the main
+application with its canonical ID. The probe closes its owned windows normally
+and verifies work-area restoration and hotkey release. Run it with a fresh output
+directory using the same lab command as the pinning check, adding
+`--check-visibility`.
+
+On the standard-user Windows 11 25H2 lab, this check passed with registry
+generation 1 changing to 2 while the open query, pinned Clock selection and
+entry focus remained unchanged. The menu and Search PNGs were inspected, as
+was the actual launched Clock application. Both canonical launch handles
+remained available, and normal shutdown restored the exact work area and
+released the shortcut. The portable application/metadata selection passed
+276 tests. Broader Win32 shortcut inventory still needs acceptance.
+
 ## Native Window Killer
 
 `WindowsWindowPickService` supplies the shared Window Killer applet. The existing

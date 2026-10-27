@@ -28,6 +28,7 @@ from .types import (
     DiscoveryReason,
     TransientApplicationInfo,
 )
+from .visibility import create_visibility_lookup
 
 DEFAULT_DEBOUNCE_MS = 150
 MAX_CONTENT_HANDLER_TOKENS = 64
@@ -129,6 +130,11 @@ class ApplicationRegistry:
         self._app_monitor_handler: object | None = None
         self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
         self._debounce_source_id: int | None = None
+        self._visibility = create_visibility_lookup(
+            on_changed=self._queue_refresh,
+            schedule_idle=GLib.idle_add,
+            remove_source=GLib.source_remove,
+        )
 
     @property
     def generation(self) -> int:
@@ -245,6 +251,8 @@ class ApplicationRegistry:
 
         if self._started:
             self._sync_directory_monitors()
+            if self._visibility is not None:
+                self._visibility.request(self._state.applications_by_id)
         return changed
 
     def start(self) -> None:
@@ -253,6 +261,8 @@ class ApplicationRegistry:
             return
         self._started = True
         self._lifecycle_token += 1
+        if self._visibility is not None:
+            self._visibility.start()
         self._connect_app_monitor()
         self._sync_directory_monitors()
         self.refresh()
@@ -266,6 +276,8 @@ class ApplicationRegistry:
         self._cancel_pending_refresh()
         self._disconnect_app_monitor()
         self._cancel_directory_monitors()
+        if self._visibility is not None:
+            self._visibility.stop()
 
     def default_for_content_type(
         self,
@@ -438,8 +450,19 @@ class ApplicationRegistry:
                 "Failed to discover Steam games: %s", exc
             )
             steam = SteamDiscoveryResult()
-        applications = list(result.applications)
-        diagnostics = list(result.diagnostics)
+        visibility_hidden = (
+            self._visibility.hidden_ids if self._visibility is not None else frozenset()
+        )
+        applications = [
+            replace(app, visible=False) if app.desktop_id in visibility_hidden else app
+            for app in result.applications
+        ]
+        diagnostics = [
+            replace(item, visible=False)
+            if item.desktop_id in visibility_hidden
+            else item
+            for item in result.diagnostics
+        ]
         steam_apps: dict[str, ApplicationInfo] = {}
         for index, app in enumerate(applications):
             app_id = steam_app_id_from_exec(app.exec_line)
@@ -664,6 +687,8 @@ class ApplicationRegistry:
             self._cancel_directory_monitor(path)
 
     def _on_registry_changed(self, *_args: object) -> None:
+        if self._visibility is not None:
+            self._visibility.invalidate()
         self._queue_refresh()
 
     def _queue_refresh(self) -> None:

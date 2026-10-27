@@ -61,6 +61,57 @@ def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
     assert registry._gio_handle_for("Example.App") is handle
 
 
+def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch_handles(
+    monkeypatch,
+):
+    main = native_app(app_id="Example.Package!Main", name="Same name")
+    widget = native_app(app_id="Example.Package!Widget", name="Same name")
+    lookup = SimpleNamespace(
+        hidden_ids=frozenset(),
+        start=MagicMock(),
+        stop=MagicMock(),
+        request=MagicMock(),
+        invalidate=MagicMock(),
+    )
+    wiring = {}
+
+    def create_lookup(**kwargs):
+        wiring.update(kwargs)
+        return lookup
+
+    monkeypatch.setattr(registry_module, "create_visibility_lookup", create_lookup)
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    registry = ApplicationRegistry(
+        application_source=lambda: (main, widget), desktop_directories_source=lambda: ()
+    )
+    registry._app_monitor_factory = lambda: None
+    timers = []
+    registry._schedule_timeout = lambda _delay, callback: (
+        timers.append(callback) or len(timers)
+    )
+    try:
+        registry.start()
+        assert len(registry.snapshot()) == 2
+        lookup.hidden_ids = frozenset(("Example.Package!Widget",))
+        wiring["on_changed"]()
+        assert len(timers) == 1
+        timers.pop()()
+        assert [app.desktop_id for app in registry.snapshot()] == [
+            "Example.Package!Main"
+        ]
+        assert registry.get("Example.Package!Widget").visible is False
+        assert registry._gio_handle_for("Example.Package!Widget") is widget
+        assert registry._gio_handle_for("Example.Package!Main") is main
+        lookup.invalidate.assert_not_called()
+        registry._on_registry_changed()
+        lookup.invalidate.assert_called_once()
+        timers.pop()()
+    finally:
+        registry.stop()
+    lookup.start.assert_called_once()
+    lookup.stop.assert_called_once()
+
+
 def test_windows_launch_uses_native_handle_instead_of_posix_exec(monkeypatch):
     handle = native_app()
     app = discover_windows_applications([handle]).applications[0]

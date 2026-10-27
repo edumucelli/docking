@@ -14,6 +14,11 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--check-visibility",
+        action="store_true",
+        help="Check the installed Windows Clock's hidden widget in menus and Search",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python")
@@ -56,6 +61,7 @@ def main():
                 "show_recent_apps": False,
                 "startup_tips_enabled": False,
                 "update_check_enabled": False,
+                "global_search_enabled": True,
             }
         ),
         encoding="utf-8",
@@ -68,6 +74,24 @@ def main():
     baseline = native.workarea()
     ready = threading.Event()
     report, shared, errors = {"baseline_workarea": baseline}, {}, []
+    blocked, release = threading.Event(), threading.Event()
+    main_id = "Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"
+    widget_id = "Microsoft.WindowsAlarms_8wekyb3d8bbwe!ClockWidgets"
+    if args.check_visibility:
+        from docking.platform.backends.windows import packages
+
+        original_resolve = packages.hidden_application_ids
+
+        def resolve(ids):
+            # This fixture delays real OS metadata; it never replaces the result.
+            if widget_id in ids and not release.is_set():
+                blocked.set()
+                assert release.wait(90), "Visibility fixture was not released"
+            result = original_resolve(ids)
+            report["native_hidden_ids"] = sorted(result)
+            return result
+
+        packages.hidden_application_ids = resolve
     original_received = DnDHandler._on_drag_data_received
 
     def observed_received(handler, widget, context, x, y, selection, info, time):
@@ -85,7 +109,7 @@ def main():
 
     def build(**kwargs):
         ui = original_build(**kwargs)
-        shared.update(ui=ui, model=kwargs["model"])
+        shared.update(ui=ui, model=kwargs["model"], kwargs=kwargs)
         ready.set()
         return ui
 
@@ -111,6 +135,143 @@ def main():
 
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))
+
+    def label(widget):
+        if isinstance(widget, Gtk.Label):
+            return widget.get_text()
+        if isinstance(widget, Gtk.Container):
+            return next(
+                (value for child in widget.get_children() if (value := label(child))),
+                "",
+            )
+        return ""
+
+    def check_visibility(ui, menu, entry, point):
+        assert blocked.wait(10), "No real package lookup reached the fixture"
+        registry = shared["kwargs"]["application_registry"]
+        title = call(lambda: registry.get(main_id).name)
+        assert call(lambda: registry.get(widget_id).name) == title
+        native.type_text(title)
+        native.wait_for(lambda: call(entry.get_text) == title, "Menu input was lost")
+
+        def matching_rows():
+            return [
+                row
+                for row in menu.get_children()
+                if row.get_visible() and label(row) == title
+            ]
+
+        assert call(lambda: len(matching_rows())) == 2
+        capture("visibility-menu-pending")
+        native.key(0x1B)
+        native.click(1100, 100)
+        native.key(0x20, control=True, alt=True)
+        native.wait_for(
+            lambda: any(
+                w["title"] == "Docking Search" for w in native.windows(os.getpid())
+            ),
+            "Native shortcut did not open Search",
+        )
+        native.type_text("clock")
+
+        def search_state():
+            window = ui.search.window
+            ids = [
+                dict(row.result.metadata).get("desktop_id")
+                for row in window.results_list.get_children()
+                if row.result.identity.provider_id == "applications"
+            ]
+            selected = window.selected_result()
+            return {
+                "ids": ids,
+                "query": window.search_entry.get_text(),
+                "focus": window.window.get_focus() is window.search_entry,
+                "selection": str(selected.identity) if selected else None,
+                "registry_generation": registry.generation,
+            }
+
+        native.wait_for(
+            lambda: {main_id, widget_id} <= set(call(search_state)["ids"]),
+            "Search did not expose both raw Gio entries before native metadata",
+        )
+        before = call(search_state)
+        capture("visibility-search-pending")
+        release.set()
+        native.wait_for(
+            lambda: widget_id not in call(search_state)["ids"],
+            "Open Search did not remove the hidden component",
+        )
+        after = call(search_state)
+        assert main_id in after["ids"] and after["ids"].count(main_id) == 1
+        assert after["query"] == before["query"] == "clock"
+        assert after["focus"] and before["focus"]
+        assert after["selection"] == before["selection"]
+        assert after["registry_generation"] > before["registry_generation"]
+        assert call(lambda: registry.get(widget_id).visible) is False
+        for app_id in (main_id, widget_id):
+            assert (
+                call(lambda app_id=app_id: registry._gio_handle_for(app_id).get_id())
+                == app_id
+            )
+        report["visibility_search"] = {"before": before, "after": after}
+        capture("visibility-search-ready")
+        native.key(0x1B)
+        native.click(1100, 100)
+        native.click(*call(point))
+        applet = call(lambda: shared["model"].get_applet("applet://applications"))
+        menu = native.wait_for(
+            lambda: call(lambda: applet._popup_menu), "Applications did not reopen"
+        )
+        entry = call(lambda: menu.get_children()[0].get_child().get_children()[0])
+        native.type_text(title)
+        native.wait_for(lambda: call(entry.get_text) == title, "Menu input was lost")
+        assert call(lambda: len(matching_rows())) == 1
+        capture("visibility-menu-ready")
+
+        def row_point():
+            row = matching_rows()[0]
+            origin = menu.get_window().get_origin()
+            offset = row.translate_coordinates(
+                menu, row.get_allocated_width() // 2, row.get_allocated_height() // 2
+            )
+            assert offset is not None
+            return origin[-2] + offset[0], origin[-1] + offset[1]
+
+        windows = shared["kwargs"]["window_tracker"]
+        assert not call(lambda: tuple(windows.list_windows(main_id))), (
+            "Close the lab's existing Clock before running this check"
+        )
+        native.click(*call(row_point))
+        launched = native.wait_for(
+            lambda: call(lambda: next(iter(windows.list_windows(main_id)), None)),
+            "The visible Clock row did not launch the real application",
+            30,
+        )
+        shared["launched_hwnd"] = launched.id.value
+        assert launched.app_id == main_id
+        assert not call(lambda: tuple(windows.list_windows(widget_id)))
+        native.wait_for(
+            lambda: native.user.GetForegroundWindow() == launched.id.value,
+            "The visible Clock row did not activate the real application",
+        )
+        report["visibility_launch"] = {
+            "hwnd": launched.id.value,
+            "app_id": launched.app_id,
+            "title": launched.title,
+        }
+        time.sleep(2)
+        capture("visibility-clock-launched")
+        assert native.user.PostMessageW(launched.id.value, 0x10, 0, 0)
+        native.wait_for(
+            lambda: not native.user.IsWindow(launched.id.value),
+            "Owned Clock did not close",
+        )
+        assert native.user.PostMessageW(shared["dock_hwnd"], 0x10, 0, 0)
+        native.wait_for(
+            lambda: not native.user.IsWindow(shared["dock_hwnd"]),
+            "Docking did not close normally",
+        )
+        report["ok"] = True
 
     def drive():
         try:
@@ -154,6 +315,9 @@ def main():
             )
             entry = call(lambda: menu.get_children()[0].get_child().get_children()[0])
             assert isinstance(entry, Gtk.Entry)
+            if args.check_visibility:
+                check_visibility(ui, menu, entry, point)
+                return
             report["menu_foreground"] = native.user.GetForegroundWindow()
             native.type_text("Notepad")
             native.wait_for(
@@ -162,20 +326,6 @@ def main():
                 5,
             )
             report["typed_filter"] = call(entry.get_text)
-
-            def label(widget):
-                if isinstance(widget, Gtk.Label):
-                    return widget.get_text()
-                if isinstance(widget, Gtk.Container):
-                    return next(
-                        (
-                            value
-                            for child in widget.get_children()
-                            if (value := label(child))
-                        ),
-                        "",
-                    )
-                return ""
 
             report["visible_labels"] = call(
                 lambda: [
@@ -340,6 +490,7 @@ def main():
                 report["actual_filter"] = call(entry.get_text)
             capture("failure")
         finally:
+            release.set()
             launched_hwnd = shared.get("launched_hwnd", 0)
             if native.user.IsWindow(launched_hwnd):
                 native.user.PostMessageW(launched_hwnd, 0x10, 0, 0)
