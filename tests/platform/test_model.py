@@ -1,7 +1,7 @@
 """Tests for the dock data model."""
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -33,6 +33,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
+from tests.platform.application_fakes import application
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class _ModelDependencies:
 def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     """Create distinct model collaborators that resolve given desktop IDs."""
     registry = MagicMock(spec=ApplicationRegistry)
+    registry.initial_discovery_pending = False
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -213,6 +215,218 @@ class TestDockModelInit:
         )
 
         recent_applications.load.assert_called_once_with(pinned_ids={"a.desktop"})
+
+
+class TestApplicationCatalogUpdates:
+    @pytest.mark.parametrize("resolves", [True, False])
+    def test_saved_recent_history_survives_until_discovery_finishes(self, resolves):
+        config = _make_config([], show_recent_apps=True)
+        config.recent_apps = [
+            {"desktop_id": "Native.Recent", "last_closed": 9_999_999_999}
+        ]
+        saved = list(config.recent_apps)
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        assert config.recent_apps == saved
+        item = model.visible_items()[0]
+        assert item.is_recent
+        if resolves:
+            registry.get.side_effect = lambda _id: application("Native.Recent")
+        registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        if resolves:
+            assert model.visible_items() == [item]
+            assert item.application_info is not None
+            assert item.name == "Native.Recent"
+            assert config.recent_apps == saved
+        else:
+            assert model.visible_items() == []
+            assert config.recent_apps == []
+        config.save.assert_not_called()
+
+    def test_pending_pins_keep_order_and_running_state_when_catalog_arrives(self):
+        config = _make_config(["Native.One", "known.desktop", "Native.Two"])
+        dependencies = _make_dependencies("known.desktop")
+        registry = dependencies.application_registry
+        known = registry.get("known.desktop")
+        available = {"known.desktop": known}
+        registry.get.side_effect = available.get
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.One",
+            "known.desktop",
+            "Native.Two",
+        ]
+        original = {item.desktop_id: item for item in model.pinned_items}
+        assert original["Native.One"].application_info is None
+        model.update_running({"Native.One": _running(count=2, active=True)})
+        original["Native.One"].progress = 0.6
+        model.reorder_visible(2, 0)
+        saved = list(config.pinned)
+        config.save.reset_mock()
+        changed = MagicMock()
+        model.add_change_listener(changed)
+        available.update(
+            {
+                "Native.One": replace(application("Native.One"), name="First program"),
+                "Native.Two": replace(application("Native.Two"), name="Second program"),
+            }
+        )
+        registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.Two",
+            "Native.One",
+            "known.desktop",
+        ]
+        assert all(item is original[item.desktop_id] for item in model.pinned_items)
+        first = original["Native.One"]
+        assert first.name == "First program"
+        assert first.is_pinned and first.is_running and first.is_active
+        assert first.instance_count == 2 and first.progress == 0.6
+        assert config.pinned == saved
+        config.save.assert_not_called()
+        changed.assert_called_once_with()
+        model.refresh_applications()
+        changed.assert_called_once_with()
+
+    def test_empty_complete_catalog_removes_loading_pin_but_preserves_config(self):
+        config = _make_config(["Native.Missing", "known.desktop"])
+        dependencies = _make_dependencies("known.desktop")
+        registry = dependencies.application_registry
+        known = registry.get("known.desktop")
+        available = {"known.desktop": known}
+        registry.get.side_effect = available.get
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        assert len(model.pinned_items) == 2
+        saved = list(config.pinned)
+
+        registry.initial_discovery_pending = False
+        model.refresh_applications()
+
+        assert [item.desktop_id for item in model.pinned_items] == ["known.desktop"]
+        assert config.pinned == saved
+        available["Native.Missing"] = application("Native.Missing")
+        model.refresh_applications()
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.Missing",
+            "known.desktop",
+        ]
+        config.save.assert_not_called()
+
+    def test_late_pin_reuses_a_running_transient_without_duplicate_items(
+        self, tmp_path
+    ):
+        config = _make_config(["Native.One"])
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        model = _make_model(config, dependencies)
+        assert not model.pinned_items
+        runtime = _runtime_application(
+            desktop_id="Native.One", executable_path=tmp_path / "program.exe"
+        )
+        model.update_running(
+            {"Native.One": RunningAppInfo(count=2, active=True, runtime_app=runtime)}
+        )
+        item = model.visible_items()[0]
+        assert item.runtime_executable == str(runtime.executable_path)
+        registry.get.side_effect = lambda _id: application("Native.One")
+
+        model.refresh_applications()
+
+        assert model.pinned_items == [item]
+        assert model.visible_items() == [item]
+        assert item.is_pinned and item.is_running and item.is_active
+        assert item.instance_count == 2
+        assert item.runtime_executable == ""
+        assert not model._transient
+        config.save.assert_not_called()
+
+    def test_unresolved_loading_pin_keeps_its_running_window_after_discovery(self):
+        config = _make_config(["Native.One"])
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        item = model.pinned_items[0]
+        model.update_running({"Native.One": _running(count=2, active=True)})
+        saved = list(config.pinned)
+
+        registry.initial_discovery_pending = False
+        model.refresh_applications()
+
+        assert not model.pinned_items
+        assert model.visible_items() == [item]
+        assert not item.is_pinned and item.is_running and item.is_active
+        assert item.instance_count == 2
+        assert item.name == "Native.One"
+        assert config.pinned == saved
+        config.save.assert_not_called()
+
+    def test_catalog_metadata_refresh_keeps_custom_icon_and_item_identity(
+        self, tmp_path
+    ):
+        config = _make_config(["Native.One"])
+        custom = tmp_path / "custom.png"
+        config.item_prefs = {
+            "Native.One": {
+                ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+                CUSTOM_ICON_PATH_KEY: str(custom),
+            }
+        }
+        dependencies = _make_dependencies("Native.One")
+        dependencies.icon_loader.load_icon_file.return_value = object()
+        model = _make_model(config, dependencies)
+        item = model.pinned_items[0]
+        icon = item.icon
+        updated = replace(
+            item.application_info,
+            name="Updated program",
+            declared_icon="updated-icon",
+            wm_class="UpdatedProgram",
+            exec_line="updated-program",
+        )
+        dependencies.application_registry.get.side_effect = lambda _id: updated
+
+        model.refresh_applications()
+
+        assert model.pinned_items[0] is item
+        assert item.application_info is updated
+        assert item.name == "Updated program" and item.wm_class == "UpdatedProgram"
+        assert item.exec_line == "updated-program"
+        assert item.icon is icon and item.icon_name == "custom.png"
+        config.save.assert_not_called()
+
+    def test_catalog_refresh_keeps_live_applet_instances(self, monkeypatch):
+        config = _make_config(["Native.One", "applet://clock"])
+        dependencies = _make_dependencies()
+        dependencies.application_registry.initial_discovery_pending = True
+        applet = MagicMock()
+        applet.item = DockItem(desktop_id="applet://clock", name="Clock")
+        loader = MagicMock(return_value=lambda icon_size, config: applet)
+        monkeypatch.setattr(model_mod.applets, "load_applet_class", loader)
+        model = _make_model(config, dependencies)
+        dependencies.application_registry.get.side_effect = lambda _id: application(
+            "Native.One"
+        )
+        dependencies.application_registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        assert model.pinned_items[1] is applet.item
+        assert model.get_applet("applet://clock") is applet
+        loader.assert_called_once_with("clock")
+        applet.stop.assert_not_called()
+        config.save.assert_not_called()
 
 
 class TestUpdateRunning:
@@ -396,7 +610,10 @@ class TestPinUnpin:
         )
         dependencies.application_registry.refresh.assert_called_once_with()
 
-    def test_runtime_pin_uses_generated_metadata_stably_across_restart(
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Unix desktop-entry persistence"
+    )
+    def test_unix_runtime_pin_uses_generated_metadata_stably_across_restart(
         self,
         tmp_path,
         monkeypatch,
@@ -564,12 +781,13 @@ class TestPinUnpin:
 
 
 class TestCustomIcons:
-    def test_pinned_app_applies_custom_icon_on_load(self):
+    def test_pinned_app_applies_custom_icon_on_load(self, tmp_path):
         config = _make_config(["a.desktop"])
+        path = tmp_path / "a.png"
         config.item_prefs = {
             "a.desktop": {
                 ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
-                CUSTOM_ICON_PATH_KEY: "/home/user/a.png",
+                CUSTOM_ICON_PATH_KEY: str(path),
             }
         }
         dependencies = _make_dependencies("a.desktop")
@@ -582,7 +800,7 @@ class TestCustomIcons:
         assert item.icon is custom_icon
         assert item.icon_name == "a.png"
         dependencies.icon_loader.load_icon_file.assert_called_once_with(
-            path=Path("/home/user/a.png"),
+            path=path,
             size=48,
         )
 
@@ -647,12 +865,13 @@ class TestCustomIcons:
         assert item.window_urgent is True
         assert item.insert_factor == 0.5
 
-    def test_insert_pinned_item_applies_override_and_persists(self):
+    def test_insert_pinned_item_applies_override_and_persists(self, tmp_path):
         config = _make_config([])
+        path = tmp_path / "tool.png"
         config.item_prefs = {
             "tool.desktop": {
                 ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
-                CUSTOM_ICON_PATH_KEY: "/home/user/tool.png",
+                CUSTOM_ICON_PATH_KEY: str(path),
             }
         }
         dependencies = _make_dependencies("tool.desktop")

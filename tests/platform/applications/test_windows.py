@@ -47,6 +47,44 @@ def test_idless_applications_get_distinct_stable_identities():
     assert len(set(first.presentation_order)) == 2
 
 
+def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch):
+    lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
+    monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    registry = ApplicationRegistry(application_source=lambda: ())
+    assert registry.initial_discovery_pending
+    assert registry.refresh()
+    assert registry.initial_discovery_pending
+    published = []
+    registry.subscribe(lambda: published.append(registry.initial_discovery_pending))
+
+    lookup.applications = ()
+    assert registry.refresh()
+
+    assert not registry.initial_discovery_pending
+    assert registry.snapshot() == ()
+    assert published == [False]
+    assert not registry.refresh()
+    assert published == [False]
+
+
+def test_failed_refresh_preserves_published_discovery_readiness(monkeypatch):
+    lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
+    monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    source = MagicMock(return_value=())
+    registry = ApplicationRegistry(application_source=source)
+    assert registry.refresh()
+    generation = registry.generation
+
+    lookup.applications = ()
+    source.side_effect = OSError("Unavailable fixture")
+    assert not registry.refresh()
+
+    assert registry.initial_discovery_pending
+    assert registry.generation == generation
+
+
 def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
     handle = native_app()
     monkeypatch.setattr(registry_module, "is_windows", lambda: True)

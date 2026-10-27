@@ -16,10 +16,10 @@ def read_shared_json(path: Path):
     """Retry transient Windows/SMB sharing failures during atomic replacement."""
     for _ in range(19):
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8-sig"))
         except PermissionError:
             time.sleep(0.01)
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 class _Mouse(ctypes.Structure):

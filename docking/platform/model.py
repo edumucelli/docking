@@ -171,6 +171,7 @@ from docking.core.items import (
     DockItem,
 )
 from docking.core.math import clamp
+from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform import icon_overrides
 from docking.platform.applications import entries as desktop_entries
@@ -289,6 +290,8 @@ class DockModel:
         self._status_notifier_entries: dict[str, StatusNotifierOverlayState] = {}
         self._recent_apps: list[DockItem] = []
         self._recent_item_overrides: dict[str, DockItem] = {}
+        self._pending_application_ids: set[str] = set()
+        self._initial_discovery_pending = application_registry.initial_discovery_pending
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
             self._config.pinned = normalize_pinned_entries(list(raw_pinned))
@@ -343,6 +346,68 @@ class DockModel:
             if item is not None:
                 self.pinned_items.append(item)
 
+    def refresh_applications(self) -> None:
+        """Reconcile configured pins and metadata after registry publication."""
+        pending = self._application_registry.initial_discovery_pending
+        previous = {item.desktop_id: item for item in self.pinned_items}
+        ordered: list[DockItem] = []
+        changed = False
+        for entry in self._config.pinned:
+            item = previous.get(entry.id)
+            if entry.kind == APP_KIND:
+                application = self._application_registry.get(entry.target)
+                if (
+                    item is not None
+                    and item.application_info is None
+                    and entry.id in self._pending_application_ids
+                    and application is None
+                    and not pending
+                ):
+                    item.is_pinned = False
+                    item.name = entry.target
+                    if item.is_running or self._is_launcher_only_transient(item):
+                        self._transient.append(item)
+                    changed = True
+                    continue
+                if item is None:
+                    if application is None and not pending:
+                        continue
+                    item = self.find_by_desktop_id(entry.id)
+                    if item is None:
+                        item = self._build_pinned_item(entry)
+                    if item is not None:
+                        self._promote_to_pinned(item)
+                        changed = True
+            if item is not None:
+                ordered.append(item)
+        self.pinned_items[:] = ordered
+        self._pending_application_ids.intersection_update(self._pinned_ids())
+        if self._initial_discovery_pending and not pending:
+            before_recent = self._recent_applications.snapshot()
+            self._recent_applications.load(pinned_ids=self._pinned_ids())
+            changed = changed or before_recent != self._recent_applications.snapshot()
+        self._initial_discovery_pending = pending
+        for item in self.pinned_items + self._recent_apps + self._transient:
+            if item.kind != APP_KIND:
+                continue
+            application = self._application_registry.get(item.target or item.desktop_id)
+            if application is None:
+                continue
+            self._pending_application_ids.discard(item.desktop_id)
+            if item.application_info != application:
+                self._apply_application_metadata(item, application)
+                if application.origin is not ApplicationOrigin.RUNTIME:
+                    item.runtime_executable = ""
+                item.icon = self._icon_loader.load_desktop_icon(
+                    info=application,
+                    size=self._config.scaled_icon_size,
+                )
+                self._apply_icon_override(item)
+                changed = True
+        if changed:
+            self._materialize_recent_apps()
+            self.notify()
+
     def rebuild_recent_apps(self) -> None:
         """Apply recent-app policy and rebuild its dock-item projection."""
         self._recent_applications.reload_policy(pinned_ids=self._pinned_ids())
@@ -373,6 +438,11 @@ class DockModel:
             item.is_active = False
             item.instance_count = 0
             item.is_recent = True
+            if (
+                item.application_info is None
+                and self._application_registry.initial_discovery_pending
+            ):
+                item.name = _("Loading...")
             if should_set_last_closed:
                 item.last_closed = float(record.last_closed)
             recent_apps.append(item)
@@ -413,25 +483,20 @@ class DockModel:
 
         if entry.kind == APP_KIND:
             application = self._application_registry.get(entry.target)
-            if application is None:
+            if (
+                application is None
+                and not self._application_registry.initial_discovery_pending
+            ):
                 return None
-            icon = self._icon_loader.load_desktop_icon(
-                info=application,
-                size=icon_size,
-            )
-            item = DockItem(
-                desktop_id=entry.id,
-                kind=APP_KIND,
-                target=entry.target,
-                name=application.name,
-                icon_name=dock_icon_name(application),
-                wm_class=application.wm_class,
-                exec_line=application.exec_line,
-                application_info=application,
+            item = self._make_app_item(
+                desktop_id=entry.target,
                 is_pinned=True,
-                icon=icon,
+                running_info=None,
             )
-            return self._apply_icon_override(item=item)
+            if application is None:
+                self._pending_application_ids.add(entry.id)
+                item.name = _("Loading...")
+            return item
 
         info = self._target_service.resolve_file(
             target=entry.target,

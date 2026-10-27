@@ -92,6 +92,10 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         def subscribe(self, _callback):
             return lambda: None
 
+    class _ApplicationIcons:
+        def __init__(self, *, model, registry, loader):
+            pass
+
     class _TargetService:
         def __init__(self, *, icon_loader):
             self.icon_loader = icon_loader
@@ -132,6 +136,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         },
         "docking.platform.icons": {
             "IconLoader": _IconLoader,
+        },
+        "docking.platform.application_icons": {
+            "ApplicationIcons": _ApplicationIcons,
         },
         "docking.platform.targets": {
             "TargetService": _TargetService,
@@ -303,6 +310,7 @@ class TestAppMain:
             nonlocal registry_active
             registry_active = True
             call_order.append("registry_start")
+            registry.subscribe.call_args.args[0]()
 
         def stop_registry():
             nonlocal registry_active
@@ -499,6 +507,9 @@ class TestAppMain:
         registry.refresh.assert_called_once_with()
         registry.start.assert_called_once_with()
         registry.stop.assert_called_once_with()
+        registry.subscribe.assert_called_once_with(model.refresh_applications)
+        model.refresh_applications.assert_called_once_with()
+        registry.subscribe.return_value.assert_called_once_with()
         fake_glib.idle_add.assert_called_once()
         assert fake_glib.idle_add.call_args.args == (
             app_mod._start_runtime,

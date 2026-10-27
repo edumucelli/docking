@@ -49,6 +49,7 @@ def _content_handler_is_visible(app_info: object) -> bool:
 @dataclass(frozen=True, slots=True)
 class _RegistryState:
     generation: int
+    initial_discovery_pending: bool
     directories: tuple[Path, ...]
     handle_epoch: int
     applications_by_id: Mapping[str, ApplicationInfo]
@@ -66,6 +67,7 @@ class _RegistryState:
 def _empty_state() -> _RegistryState:
     return _RegistryState(
         generation=0,
+        initial_discovery_pending=False,
         directories=(),
         handle_epoch=0,
         applications_by_id=MappingProxyType({}),
@@ -135,11 +137,22 @@ class ApplicationRegistry:
             schedule_idle=GLib.idle_add,
             remove_source=GLib.source_remove,
         )
+        self._state = replace(
+            self._state,
+            initial_discovery_pending=(
+                self._metadata is not None and self._metadata.applications is None
+            ),
+        )
 
     @property
     def generation(self) -> int:
         """Return the current immutable generation number."""
         return self._state.generation
+
+    @property
+    def initial_discovery_pending(self) -> bool:
+        """Whether an optional catalog still lacks its first complete result."""
+        return self._state.initial_discovery_pending
 
     def diagnostic_snapshot(self) -> ApplicationDiscoveryDiagnostic:
         """Read discovery evidence without consulting Gio or scanning directories."""
@@ -525,6 +538,9 @@ class ApplicationRegistry:
             unidentified_handles=result.transient_handles,
             presentation_order=result.presentation_order,
             directories=result.directories,
+            initial_discovery_pending=(
+                self._metadata is not None and self._metadata.applications is None
+            ),
         )
         return replace(
             state,
@@ -753,6 +769,7 @@ class ApplicationRegistry:
 
 def _state_content(state: _RegistryState) -> tuple[object, ...]:
     return (
+        state.initial_discovery_pending,
         state.applications_by_id,
         state.visible,
         state.wm_class_index,
@@ -772,6 +789,7 @@ def _build_state(
     unidentified_handles: Mapping[str, object],
     presentation_order: Iterable[str],
     directories: tuple[Path, ...] = (),
+    initial_discovery_pending: bool = False,
 ) -> _RegistryState:
     applications_by_id: dict[str, ApplicationInfo] = {}
     for application in applications:
@@ -814,6 +832,7 @@ def _build_state(
 
     return _RegistryState(
         generation=0,
+        initial_discovery_pending=initial_discovery_pending,
         steam_apps=MappingProxyType({}),
         steam_installs=(),
         directories=directories,

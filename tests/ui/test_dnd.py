@@ -186,10 +186,12 @@ class _ReorderDock:
             distance_from_edge=0,
             urgent_glow_time_ms=500,
         )
+        registry = MagicMock()
+        registry.initial_discovery_pending = False
         self.model = DockModel(
             config=self.config,
             applet_services=MagicMock(),
-            application_registry=MagicMock(),
+            application_registry=registry,
             application_launcher=MagicMock(),
             icon_loader=MagicMock(),
             target_service=MagicMock(),

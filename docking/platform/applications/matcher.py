@@ -128,7 +128,12 @@ _GENERIC_BUNDLE_ROOTS = frozenset(
 
 def _application_executable_path(application: ApplicationInfo) -> Path | None:
     """Resolve the application's current executable target."""
-    return desktop_entries.executable_path_from_exec_line(application.exec_line)
+    # Re-read desktop Exec targets so symlink changes remain observable. Native
+    # catalogs can provide a canonical path without an Exec command at all.
+    return (
+        desktop_entries.executable_path_from_exec_line(application.exec_line)
+        or application.executable_path
+    )
 
 
 def _executable_paths_conflict(
@@ -181,10 +186,17 @@ def _specific_bundle_root(path: Path) -> Path | None:
 
 @lru_cache(maxsize=512)
 def _is_native_executable(path: Path) -> bool:
-    """Return whether *path* currently has the Linux ELF signature."""
+    """Recognize directly comparable ELF and Windows PE program images."""
     try:
         with path.open("rb") as handle:
-            return handle.read(4) == b"\x7fELF"
+            header = handle.read(64)
+            if header[:4] == b"\x7fELF":
+                return True
+            if len(header) < 64 or header[:2] != b"MZ":
+                return False
+            # The DOS header stores the PE signature's file offset at 0x3c.
+            handle.seek(int.from_bytes(header[0x3C:0x40], "little"))
+            return handle.read(4) == b"PE\0\0"
     except OSError:
         return False
 

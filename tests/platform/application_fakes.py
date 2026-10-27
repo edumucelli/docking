@@ -143,6 +143,7 @@ class ApplicationRegistryStub:
     """Registry lookup surface needed by the canonical matcher."""
 
     generation = 1
+    initial_discovery_pending = False
 
     def resolve_steam_app_id(self, _app_id: str) -> ApplicationInfo | None:
         return None

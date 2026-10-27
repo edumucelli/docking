@@ -200,6 +200,7 @@ def main() -> None:
             recent_applications=recent_applications,
         )
         cleanup.callback(_safe_stop, "applets", model.stop_applets)
+        cleanup.callback(registry.subscribe(model.refresh_applications))
         cleanup.callback(
             icon_loader.subscribe(
                 lambda desktop_id: _refresh_application_icon(model, desktop_id)

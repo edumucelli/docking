@@ -2047,8 +2047,28 @@ Windows 11 25H2 session. Its Search row and pinned dock icon used shell artwork;
 the newly opened window grouped under the exact canonical pin ID. The PNGs were
 visually inspected. The hidden Clock widget regression also passed with the new
 catalog, preserving the open query, selection and entry focus while metadata
-arrived. Broader shortcut arguments, working-directory and installer/multi-user
-behavior still need native acceptance.
+arrived. Installer, multi-user and broader file-association behavior still need
+native acceptance.
+
+The shared registry publishes whether its initial optional catalog is pending.
+Configured pins keep their places while discovery runs; publication fills the
+existing items without replacing their running state, custom icons or applets.
+Saved recent IDs are also retained until the catalog can validate them. The
+application owns the model's registry subscription and releases it at shutdown.
+
+`tools/windows/visual/classic_smoke.py` uses independent compiled GUI programs
+with the same executable filename in different directories and real Start-menu
+shortcuts. Native checks cover saved-pin startup, distinct grouping, activation,
+Unicode shortcut names and folders, empty/quoted/Unicode arguments, updated
+working directories, and a separate runtime identity for an unlisted program.
+The shell records have no desktop `Exec` command, so matching uses their canonical
+executable paths. ELF and PE signatures distinguish direct executable conflicts
+while preserving Unix wrapper and symlink behavior. Captures and reports remain
+under `artifacts/`.
+
+Native persistence for newly pinned, unlisted executables remains incomplete;
+the existing Unix desktop-entry generator explicitly declines Windows targets.
+Installed native shortcut pins use their existing shell identities.
 
 ## Shared application artwork
 
