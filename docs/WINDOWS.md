@@ -2366,13 +2366,53 @@ default. `--observe` records unavailable delivery without a command failure;
 python -m tools.windows.webapp_worker_smoke --output C:\\lab\\worker-observation --observe
 ```
 
-A separate Qt WebEngine 6.10.2 lab prototype delivered a persistent notification
-through the same Windows toast publisher and returned an actual Action Center
-card click to the real worker's `notificationclick` handler. The worker closed
-the notification and both native history and `getNotifications()` became empty.
-Qt is not integrated into `BrowserBackend` or production packaging. Its profile,
-permissions, notification lifecycle and GTK process boundary need integration
-and acceptance before it can supply this feature.
+### Experimental browser companion
+
+The Windows Qt companion implements the shared `BrowserBackend` in a separate
+CPython process. Set `DOCKING_WEBENGINE_PYTHON` to that interpreter before starting
+Docking to select it for WhatsApp and Telegram. The normal Windows host uses
+WebView2 when this variable is absent. This remains an experimental engine path;
+installer integration, signed-in services, media, downloads, sustained resource
+use, broader input methods and physical display acceptance remain pending.
+
+Install the companion dependencies in a separate CPython x64 environment:
+
+```powershell
+py -3.13 -m venv "$env:LOCALAPPDATA\Docking\WebEngine"
+& "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\python.exe" -m pip install -r requirements-windows-browser.txt
+$env:DOCKING_WEBENGINE_PYTHON = "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\python.exe"
+```
+
+The pinned Qt 6.12 metapackage supplies the matching WebEngine/PDF wheels.
+Browser commands and validated badge/status events use bounded UTF-8 packets on
+private pipes. A Windows job owns the companion and Chromium descendants before
+configuration permits browser startup. Normal close releases the profile and
+toasts; a shutdown deadline releases the job for an unresponsive companion.
+Notification text and Qt objects stay in that process. WinRT publication has one
+owned worker; real engine notifications route OS activation back to page or
+service-worker handlers.
+
+The public Badging API bridge runs in the main JavaScript world. Its narrow
+status channel reaches Qt through an isolated world; subframes get no injected
+bridge. Profile origin checks, navigation and device consent remain active.
+Disconnect holds the profile lock while destroying the old browser, removing
+its stored data off the UI thread and starting a fresh companion. The parent
+holds profile ownership across that replacement, and old native processes have
+exited before stored files are removed.
+
+`tools.windows.webengine_smoke` serves generated HTTPS pages at the actual service
+origins using a profile-local test certificate. It creates no OS certificate trust
+and requires no account. Native runs on Windows 11 Pro 25H2 with Qt 6.12 verified
+both service profiles, real Unicode input, worker tag replacement and card clicks,
+page notification close, cookie/local-storage/IndexedDB/worker removal on
+disconnect, and normal or held-UI process-tree shutdown while GTK stayed responsive.
+`--notification-point X Y` supplies a visually inspected
+Action Center card position. `--hang-at-end` explicitly holds the Qt UI thread to
+exercise process-tree cleanup while the GTK loop continues running.
+
+```powershell
+python -m tools.windows.webengine_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --output C:\\lab\\qt-browser --notification-point 1100 155
+```
 
 ### Web-app downloads
 
@@ -2665,7 +2705,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
-| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; native HTTP/blob downloads, Unicode, collision handling, pause/resume and paused-download process cleanup verified; persistent service-worker notifications unsupported by current WebView2 host; Qt lab prototype verified native worker delivery/click/close but production integration remains; sustained memory use, signed-in services, CDN/network/policy and physical media remain pending |
+| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; native HTTP/blob downloads, Unicode, collision handling, pause/resume and paused-download process cleanup verified; persistent workers unsupported by WebView2; experimental Qt companion verifies native worker/tag/click/close, Unicode input, process-replacement disconnect and normal/forced process-tree cleanup; sustained memory use, signed-in services, CDN/network/policy and physical media remain pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

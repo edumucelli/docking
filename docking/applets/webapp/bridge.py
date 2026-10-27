@@ -93,7 +93,8 @@ def build_bridge_script(
             enumerable: false,
         }});
 
-        const handler = window.webkit?.messageHandlers?.{handler}
+        const handler = window.__dockingBrowserBridge
+            ?? window.webkit?.messageHandlers?.{handler}
             ?? window.chrome?.webview;
         if (!handler) return;
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from functools import cache
 
@@ -17,7 +18,10 @@ from .storage import _session_directories as _session_directories
 from .storage import _unique_download_path as _unique_download_path
 
 if sys.platform == "win32":
-    from .windows import WindowsWebAppBrowser as WebAppBrowser
+    if os.environ.get("DOCKING_WEBENGINE_PYTHON"):
+        from .windows_companion.browser import WindowsCompanionBrowser as WebAppBrowser
+    else:
+        from .windows import WindowsWebAppBrowser as WebAppBrowser
 
     @cache
     def load_webkit():
