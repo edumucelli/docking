@@ -2385,6 +2385,9 @@ $env:DOCKING_WEBENGINE_PYTHON = "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\pyt
 ```
 
 The pinned Qt 6.12 metapackage supplies the matching WebEngine/PDF wheels.
+The companion omits Qt's extra user-agent product token while preserving the
+actual Chromium version and platform. The real WhatsApp page rejects that extra
+token with an update screen; the normalized identity reaches its login page.
 Browser commands and validated badge/status events use bounded UTF-8 packets on
 private pipes. A Windows job owns the companion and Chromium descendants before
 configuration permits browser startup. Normal close releases the profile and
@@ -2427,6 +2430,26 @@ The generated fixture uses no signed-in accounts or private service data.
 ```powershell
 python -m tools.windows.webengine_dock_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --service whatsapp --output C:\\lab\\qt-dock --notification-point 1100 155
 ```
+
+`tools.windows.webengine_live_smoke` uses the production entry point and fresh
+profiles against the actual service. It verifies anonymous login while hidden,
+native window focus, Escape/show retention, reload and owned process-tree exit.
+WhatsApp and Telegram passed on Windows 11 Pro 25H2 with Qt 6.12. The tool records
+coarse lifecycle states, takes no screenshots and removes the real service profile
+after the owned browser has exited. It does not sign in or establish signed-in
+messaging/media acceptance.
+
+```powershell
+python -m tools.windows.webengine_live_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --service whatsapp --output C:\\lab\\qt-live
+```
+
+`--diagnostic` selects a separate observer that records only coarse public
+landmark/compatibility flags. It exports no page text, pairing codes, cookies or
+account data. `--show-before-login` isolates mapping effects during diagnosis;
+`--chromium-user-agent` is an explicit diagnostic identity experiment. Normal
+acceptance uses none of those flags. The current Qt wheel advertises WebM support
+but no H.264/AAC MP4 support; a complete media-capable engine remains required
+before this experimental path can become the default.
 
 The Qt companion uses the native Windows Save dialog and retains progress
 controls for each accepted download. Pause/Resume control the actual engine

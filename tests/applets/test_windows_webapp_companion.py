@@ -21,11 +21,38 @@ from docking.applets.webapp.windows_companion.protocol import (
     read,
 )
 from docking.applets.webapp.windows_companion.text_input import PacketText
+from docking.applets.webapp.windows_companion.user_agent import chromium_user_agent
 from tests.applets.deferred_worker import DeferredWorker
 
 PROFILE = BrowserProfile(
     "WhatsApp", "whatsapp", "https://web.whatsapp.com/", "status", "fixture"
 )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) QtWebEngine/6.12.0 Chrome/140.0.7339.218 Safari/537.36"
+            ),
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/140.0.7339.218 Safari/537.36"
+            ),
+        ),
+        ("QtWebEngine/6.12.0 Chrome/140.0.7339.218", "Chrome/140.0.7339.218"),
+        ("Chrome/140.0 QtWebEngine/6.12.0", "Chrome/140.0"),
+        (
+            "Chrome/155.0 Safari/537.36 Edg/155.0",
+            "Chrome/155.0 Safari/537.36 Edg/155.0",
+        ),
+        ("custom QtWebEngine/6.12.0", "custom QtWebEngine/6.12.0"),
+    ],
+)
+def test_chromium_identity_preserves_actual_engine_and_platform(value, expected):
+    assert chromium_user_agent(value) == expected
 
 
 def test_windows_utf16_packet_order_and_focus_reset():

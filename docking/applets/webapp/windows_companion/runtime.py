@@ -36,6 +36,7 @@ from .downloads import Downloads
 from .input import UnicodePackets
 from .notifications import DesktopNotifier
 from .protocol import Configuration, encode, read
+from .user_agent import chromium_user_agent
 
 _F = TypeVar("_F", bound=Callable[..., object])
 
@@ -160,6 +161,7 @@ class Runtime:
         )
         if self.profile is None:
             raise OSError("Browser profile is already in use")
+        self.profile.setHttpUserAgent(chromium_user_agent(self.profile.httpUserAgent()))
         self.window = BrowserWindow(self)
         self.window.setWindowTitle(service.name)
         self.view = QWebEngineView(self.window)
