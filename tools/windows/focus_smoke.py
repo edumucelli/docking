@@ -27,6 +27,14 @@ def main():
     p.add_argument("--origin", choices=("desktop", "taskbar", "start"), required=True)
     p.add_argument("--delay", type=float, default=0)
     p.add_argument("--same-process-input", action="store_true")
+    p.add_argument(
+        "--outside-point",
+        type=int,
+        nargs=2,
+        default=(1100, 100),
+        metavar=("X", "Y"),
+        help="Native desktop point outside Search for the focus-release check",
+    )
     a = p.parse_args()
     if sys.platform != "win32":
         p.error("Requires native Windows Python")
@@ -46,6 +54,7 @@ def main():
     import docking.app as app
     from docking.search.controller import GlobalSearchController
     from docking.search.services.global_shortcuts import GlobalShortcutsState
+    from docking.search.services.windows_focus import WindowsShellFocus
     from docking.search.ui.window import SearchWindow
     from tools.windows.desktop_driver import WindowsDesktop
 
@@ -182,6 +191,27 @@ def main():
     original_runtime = app._start_runtime
     original_present = SearchWindow.present
     original_status = GlobalSearchController._on_shortcut_status
+    original_focus_init = WindowsShellFocus.__init__
+
+    def focus_init(self):
+        original_focus_init(self)
+        set_foreground = self._set_foreground
+
+        def activate(hwnd):
+            record("search.native-foreground.before", target=hwnd_info(hwnd))
+            requested = time.monotonic()
+            result = set_foreground(hwnd)
+            record(
+                "search.native-foreground.after",
+                target=hwnd_info(hwnd),
+                returned=bool(result),
+                elapsed=time.monotonic() - requested,
+            )
+            return result
+
+        self._set_foreground = activate
+
+    WindowsShellFocus.__init__ = focus_init
 
     def build(**kwargs):
         ui = original_build(**kwargs)
@@ -315,7 +345,15 @@ def main():
                     "Search providers did not settle",
                 )
             ImageGrab.grab(all_screens=True).save(a.output / "desktop.png")
-            native.click(1100, 100)
+            outside = user.GetAncestor(
+                user.WindowFromPoint(w.POINT(*a.outside_point)), 2
+            )
+            assert outside and outside != search["hwnd"], (
+                "Outside point hits Search or no window; choose --outside-point "
+                "over the desktop or another visible native window"
+            )
+            report["outside_click_target"] = hwnd_info(outside)
+            native.click(*a.outside_point)
             time.sleep(0.8)
             assert user.GetForegroundWindow() != search["hwnd"], (
                 "Search reclaimed focus after an outside click"
@@ -348,6 +386,7 @@ def main():
         binding.unregister()
         report["normal_shutdown"] = True
     finally:
+        WindowsShellFocus.__init__ = original_focus_init
         user.UnhookWinEvent(hook)
         report["events"] = events
         (a.output / "result.json").write_text(json.dumps(report, indent=2))

@@ -666,6 +666,24 @@ The immediate Start-close case fails. `--delay` controls the interval between
 dismissing Start and pressing the shortcut, allowing that transition to be
 investigated separately from normal desktop activation.
 
+The trace also records the raw `SetForegroundWindow` return value, call duration,
+target identity and foreground/GUI-thread state before and after each native
+Search activation attempt. In the ordinary medium-integrity UAC session, the
+observer found the correct Search window and Explorer handoff, but the API
+returned false. Bounded retries, an explicit foreground grant on the hotkey
+receiver and an earlier native activation attempt did not fix this case.
+An attached-input-queue diagnostic acquired focus and passed typing and
+outside-click checks. A production solution must keep GTK independent of a
+foreign input queue: attaching queues can make activation block on that other
+thread. See [Microsoft's explanation of attached input queues](https://devblogs.microsoft.com/oldnewthing/20130607-00/?p=4143).
+
+The outside-click check uses native hit testing to confirm that the click lands
+outside Search. `--outside-point X Y` selects a desktop point or a visible
+foreign window. On the 1280 × 800 lab at GTK scale 2, Search filled the display:
+native focus and typing passed, but the default point was inside Search and
+could not establish outside-click behavior. Palette sizing on small scaled
+displays remains acceptance work.
+
 ```sh
 python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \
   'C:\msys64\ucrt64\bin\pythonw.exe' \
@@ -1269,7 +1287,7 @@ all reader/sensor exits and normal dock shutdown.
 
 **Physical/IR/proprietary devices and device hotplug/removal during capture
 remain open.** Native `ShellExecuteExW`/`runas` dispatch and recovery with no
-cameras present also passed. The lab has UAC disabled (`EnableLUA=0`), so actual
+cameras present also passed. Those runs used UAC disabled (`EnableLUA=0`), so actual
 consent and cancellation on a standard-user desktop remain unverified;
 cancellation and process-handle cleanup have focused API tests.
 
@@ -2457,6 +2475,24 @@ account data. `--show-before-login` isolates mapping effects during diagnosis;
 acceptance uses none of those flags. The current Qt wheel advertises WebM support
 but no H.264/AAC MP4 support; a complete media-capable engine remains required
 before this experimental path can become the default.
+
+The generated companion checks also passed after enabling UAC and rebooting the
+lab into an ordinary medium-integrity, non-admin session: WhatsApp at GTK scale 1
+and Telegram at GTK scale 2 both verified real worker cards, tag replacement,
+native card clicks, Unicode input, session clearing and normal process cleanup.
+The original dock was restored and its Search, tray ownership and placement
+checked in that session.
+
+A separate full Edge 156 control decoded an actual generated H.264/AAC clip,
+but registered-worker notifications never reached Windows history, despite
+native Allow input and a granted permission state. The actual browser token was
+medium integrity and non-admin. Removing the lab's job object or changing the
+worker's `silent` option did not restore delivery. A debugger-free fresh
+default-profile control decoded the clip and activated the worker but did not
+obtain notification permission, so it does not establish default-profile
+notification behavior. The original browser profile was restored unchanged.
+These controls do not yet identify a media-capable replacement for the default
+browser backend.
 
 The Qt companion uses the native Windows Save dialog and retains progress
 controls for each accepted download. Pause/Resume control the actual engine
