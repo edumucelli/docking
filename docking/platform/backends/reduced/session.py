@@ -43,10 +43,10 @@ from docking.platform.backends.reduced.services import (
 class ReducedRuntimeServices:
     """Concrete mandatory services for reduced mode."""
 
-    windows: WindowService
-    previews: PreviewService
+    windows: ReducedWindowService
+    previews: ReducedPreviewService
     surface: ReducedSurfaceService
-    visibility: VisibilityService
+    visibility: ReducedVisibilityService
 
 
 class ReducedSessionBackend(SessionBackend):

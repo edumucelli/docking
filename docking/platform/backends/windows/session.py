@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from docking.platform.backends.base import DisplayServer, PlatformCapabilities
-from docking.platform.backends.reduced.session import (
-    ReducedRuntimeServices,
-    ReducedSessionBackend,
+from docking.platform.backends.base import (
+    DisplayServer,
+    PlatformCapabilities,
+    SessionBackend,
 )
 
 if TYPE_CHECKING:
@@ -19,11 +20,25 @@ if TYPE_CHECKING:
     from .desktop import WindowsDesktopActionService
     from .idle import WindowsIdleService
     from .picking import WindowsWindowPickService
+    from .previews import WindowsPreviewService
     from .screen_capture import WindowsScreenCaptureService
+    from .surface import WindowsSurfaceService
+    from .visibility import WindowsVisibilityService
+    from .windows import WindowsWindowService
     from .workspaces import WindowsWorkspaceService
 
 
-class WindowsSessionBackend(ReducedSessionBackend):
+@dataclass(frozen=True)
+class WindowsRuntimeServices:
+    """Concrete mandatory services selected by the Windows session backend."""
+
+    windows: WindowsWindowService
+    previews: WindowsPreviewService
+    surface: WindowsSurfaceService
+    visibility: WindowsVisibilityService
+
+
+class WindowsSessionBackend(SessionBackend):
     """Run the shared GTK dock on Windows with native surface positioning.
 
     Native tracking and taskbar actions share the same immutable window model
@@ -40,7 +55,6 @@ class WindowsSessionBackend(ReducedSessionBackend):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
     ) -> None:
-        super().__init__()
         from .desktop import WindowsDesktopActionService
         from .idle import WindowsIdleService
         from .picking import WindowsWindowPickService
@@ -64,7 +78,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         self._screen_capture = WindowsScreenCaptureService()
         self._desktop_actions = WindowsDesktopActionService()
         self._window_picker = WindowsWindowPickService()
-        self._services = ReducedRuntimeServices(
+        self._services = WindowsRuntimeServices(
             windows=windows,
             previews=WindowsPreviewService(
                 windows=windows, availability_changed=windows.set_previews_available
@@ -111,6 +125,22 @@ class WindowsSessionBackend(ReducedSessionBackend):
         )
 
     @property
+    def windows(self) -> WindowsWindowService:
+        return self._services.windows
+
+    @property
+    def surface(self) -> WindowsSurfaceService:
+        return self._services.surface
+
+    @property
+    def visibility(self) -> WindowsVisibilityService:
+        return self._services.visibility
+
+    @property
+    def previews(self) -> WindowsPreviewService:
+        return self._services.previews
+
+    @property
     def idle(self) -> WindowsIdleService:
         return self._idle
 
@@ -132,7 +162,10 @@ class WindowsSessionBackend(ReducedSessionBackend):
 
     def start(self) -> None:
         self._workspaces.start()
-        super().start()
+        self._services.windows.start()
+        self._services.previews.start()
+        self._services.surface.start()
+        self._services.visibility.start()
         self._idle.start()
         self._screen_capture.start()
         self._desktop_actions.start()
@@ -144,4 +177,7 @@ class WindowsSessionBackend(ReducedSessionBackend):
         self._desktop_actions.stop()
         self._screen_capture.stop()
         self._idle.stop()
-        super().stop()
+        self._services.visibility.stop()
+        self._services.surface.stop()
+        self._services.previews.stop()
+        self._services.windows.stop()
