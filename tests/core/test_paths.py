@@ -84,7 +84,7 @@ def test_windows_unc_uri_keeps_the_network_authority(uri):
     path = local_path_from_uri_or_path(uri)
     assert path == Path(r"\\server\share\a b.txt")
     assert path.is_absolute()
-    assert path.drive == r"\\server\share"
+    assert path.drive.replace("/", "\\") == r"\\server\share"
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows drive and UNC paths")

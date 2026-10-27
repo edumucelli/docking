@@ -76,8 +76,8 @@ class WindowsRecycleBin:
         path = PureWindowsPath(filename)
         if (
             not path.is_absolute()
-            or path.drive.startswith("\\\\")
-            or self._drive_type(path.anchor) not in (2, 3)
+            or path.drive.startswith(("\\\\", "//"))
+            or self._drive_type(path.anchor.replace("/", "\\")) not in (2, 3)
         ):
             return False  # Network shares do not have a client-side Recycle Bin.
         with apartment() as ole:

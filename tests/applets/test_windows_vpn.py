@@ -3,6 +3,7 @@
 import ctypes
 import threading
 from dataclasses import replace
+from pathlib import PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -235,7 +236,10 @@ def test_dialer_uses_system_binary_and_quotes_exact_entry_without_shell(
     monkeypatch.setattr(ras.os, "startfile", launch, raising=False)
     ras.launch_dialer(_profile(name='Café "VPN" & $x'))
     args = launch.call_args.args
-    assert args[0] == r"C:\Windows\System32\rasphone.exe" and args[1] == "open"
+    assert PureWindowsPath(args[0]) == PureWindowsPath(
+        r"C:\Windows\System32\rasphone.exe"
+    )
+    assert args[1] == "open"
     assert args[2] == ras.subprocess.list2cmdline(["-f", BOOK, "-d", 'Café "VPN" & $x'])
     assert "password" not in args[2].lower()
 

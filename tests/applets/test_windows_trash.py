@@ -85,7 +85,14 @@ def test_open_uses_the_native_recycle_bin_shell_folder(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "path", [r"\\server\share\keep.txt", r"relative.txt", r"C:relative.txt"]
+    "path",
+    [
+        r"\\server\share\keep.txt",
+        "//server/share/keep.txt",
+        r"\\server/share\keep.txt",
+        r"relative.txt",
+        r"C:relative.txt",
+    ],
 )
 def test_unsupported_drop_does_not_start_a_file_operation(path):
     native = windows.WindowsRecycleBin.__new__(windows.WindowsRecycleBin)
@@ -257,7 +264,9 @@ def test_native_drop_uri_keeps_drive_and_unc_authority(path):
 
     for value in (path, Path(path).as_uri()):
         file = TrashApplet._file_from_drop_uri(value)
-        assert file is not None and file.get_path() == path
+        assert file is not None
+        filename = file.get_path()
+        assert filename is not None and Path(filename) == Path(path)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows shell ABI")

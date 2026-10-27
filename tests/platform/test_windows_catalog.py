@@ -2,6 +2,7 @@
 
 import ctypes
 from contextlib import nullcontext
+from pathlib import Path
 
 import pytest
 
@@ -83,7 +84,7 @@ def test_catalog_preserves_ids_and_distinct_same_name_items_and_frees_resources(
     rows = catalog.read_shell_applications()
     assert [r.desktop_id for r in rows] == ["Example.Classic", "Example.Other"]
     assert rows[0].name == rows[1].name == "Same name"
-    assert str(rows[0].executable_path) == r"C:\Program Files\Example\one.exe"
+    assert rows[0].executable_path == Path(r"C:\Program Files\Example\one.exe")
     assert rows[0].launch_target == r"shell:AppsFolder\Example.Classic"
     assert rows[1].executable_path is None
     assert not rows[0].has_gio_source
