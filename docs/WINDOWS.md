@@ -2348,6 +2348,32 @@ Some shell cards in this VM are absent from UI Automation. In that case,
 captures that card and still requires the actual DOM click and browser activation.
 `--popup-activation` is an alias for the native notification exercise.
 
+Persistent service-worker notifications remain unsupported by the current host.
+Microsoft documents `NotificationReceived` as a
+[non-persistent notification callback](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/overview-features-apis#web-notification-handling).
+An actual generated service worker registered, activated and called
+`registration.showNotification()` successfully in the lab's WebView2 155 runtime,
+but no native callback or matching Windows toast arrived. Page `new Notification()`
+acceptance does not establish this worker path or signed-in service behavior.
+
+The worker fixture serves actual JavaScript through the SDK's resource-source
+filter, including service-worker requests. The diagnostic records worker replies,
+native callbacks and Windows history separately. It requires native delivery by
+default. `--observe` records unavailable delivery without a command failure;
+`result.json` still reports `native_delivery: false` and `ok: false`.
+
+```powershell
+python -m tools.windows.webapp_worker_smoke --output C:\\lab\\worker-observation --observe
+```
+
+A separate Qt WebEngine 6.10.2 lab prototype delivered a persistent notification
+through the same Windows toast publisher and returned an actual Action Center
+card click to the real worker's `notificationclick` handler. The worker closed
+the notification and both native history and `getNotifications()` became empty.
+Qt is not integrated into `BrowserBackend` or production packaging. Its profile,
+permissions, notification lifecycle and GTK process boundary need integration
+and acceptance before it can supply this feature.
+
 ### Web-app downloads
 
 The native host preserves WebView2's default download manager, destination
@@ -2639,7 +2665,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Screen color picking | Native Windows implementation of the common ScreenCaptureService | Six actual desktop colors, clipboard/preferences, Copy/Show Hex, repeated pick/cancel focus, active-capture close and GDI lifetime verified at normal and doubled GTK scale; mixed-DPI/displays, HDR, protected/remote/secure content pending |
 | Music | Shared MusicBackend and serial worker; Unix MPRIS/CLI and native Windows media-session/Core Audio implementations | Native clicks, menu transport, late artwork/metadata changes, per-player volume readback and normal/held-read close verified at GTK scale 1/2; third-party/browser/multiple sessions, output attribution/device changes and broader versions/sessions pending |
 | Notifications | Shared NotificationsBackend, history and serial worker; Unix dunst/GNOME/D-Bus and native Windows listener/quiet-hours implementations | Native click/menu DND confirmed by Windows Settings at GTK scale 1/2; generated toasts, Unicode history, badge, wheel, local clear, targeted removal and normal/held-read shutdown verified; permission/managed policy, automatic rules, other providers and broader versions/sessions pending |
-| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; native HTTP/blob downloads, Unicode, collision handling, pause/resume and paused-download process cleanup verified; sustained memory use, signed-in services, CDN/network/policy and physical media remain pending |
+| WhatsApp and Telegram | Shared BrowserBackend and NotificationBackend with separate service profiles, WebKitGTK/D-Bus and native WebView2/Windows toast implementations | Generated native pages verify startup/badges, actual Unicode input, window sizing at GTK scale 1/2, persistence, disconnect and normal close; native Windows history, real card-click/DOM activation, tag replacement, programmatic close, repeated group cleanup and active-toast shutdown verified for both profiles; native HTTP/blob downloads, Unicode, collision handling, pause/resume and paused-download process cleanup verified; persistent service-worker notifications unsupported by current WebView2 host; Qt lab prototype verified native worker delivery/click/close but production integration remains; sustained memory use, signed-in services, CDN/network/policy and physical media remain pending |
 | Screenshots | Shared ScreenshotBackend with Unix tool/portal and native Windows pixel implementations; shared selection, clipboard, preview and PNG export | Full-screen/window/region pixels, native Save As, clipboard persistence, Escape, delay and normal-close cancellation verified at normal and doubled GTK scale, with exact odd-device-pixel bounds and worker-owned capture cleanup during normal close; physical displays, HDR/protected content and broader sessions remain |
 | Keyboard lock indicators | Shared LockKeyBackend with X11 and Windows implementations | Normal polling while Notepad has focus, all four toggle combinations, independent Windows Forms state, typed letter case, native menu and exact restoration verified; physical LEDs, remote and secure desktops pending |
 | Running applications | Native snapshots, per-window application identity, ghost projection, matching and taskbar actions | Indicators, activate, minimize, restore and Close verified with Notepad; Calculator/Clock sharing one host PID retain separate pins/actions/previews; same-HWND/PID application-ID replacement rejects stale actions/pixels; real DWM ghost deduplication, minimize/thumbnail restore, moved bounds, native Close/Wait and recovery verified with owned native fixtures; broader hosted apps, recovery races and multi-window cycling pending |

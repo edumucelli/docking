@@ -11,9 +11,11 @@ from contextlib import ExitStack
 from urllib.parse import quote
 
 from docking.platform.backends.windows.com import (
+    GUID,
     HRESULT,
     method,
     object_result,
+    query,
     release,
 )
 from docking.platform.backends.windows.ffi import bind
@@ -77,8 +79,68 @@ window.fixture.notify=async function(title){
  n.onclose=()=>{window.fixture.closed=true;window.fixture.closedTitles.push(title)};
  window.fixture.notification=n;window.fixture.sent=true;
 };
+window.fixture.workerEvents=[];
+window.fixture.startWorker=async function(){
+ const registration=await navigator.serviceWorker.register('/fixture-worker.js',
+  {scope:'/'});
+ await navigator.serviceWorker.ready;
+ window.fixture.registration=registration;
+ window.fixture.workerReady=true;
+ return true;
+};
+window.fixture.workerRequest=function(action,values={}){
+ return new Promise((resolve,reject)=>{
+  const id=crypto.randomUUID();
+  const timeout=setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',
+   receive);reject(new Error('Worker fixture timed out'))},15000);
+  function receive(event){
+   const data=event.data;
+   if(data?.fixture!=='docking-worker'||data.id!==id)return;
+   clearTimeout(timeout);navigator.serviceWorker.removeEventListener('message',receive);
+   if(data.error)reject(new Error(data.error));else resolve(data.result);
+  }
+  navigator.serviceWorker.addEventListener('message',receive);
+  window.fixture.registration.active.postMessage({id,action,...values});
+ });
+};
+navigator.serviceWorker.addEventListener('message',event=>{
+ const data=event.data;
+ if(data?.fixture==='docking-worker'&&data.event)
+  window.fixture.workerEvents.push(data);
+});
 addEventListener('DOMContentLoaded',()=>navigator.setAppBadge(7));
 </script></body></html>"""
+
+_WORKER = r"""
+const events=[];
+self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+async function relay(event,notification){
+ events.push({event,title:notification.title,tag:notification.tag});
+ const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+ for(const client of clients)client.postMessage({fixture:'docking-worker',event,
+  title:notification.title,tag:notification.tag});
+}
+self.addEventListener('notificationclick',event=>{
+ event.waitUntil((async()=>{
+  await relay('clicked',event.notification);
+  event.notification.close();
+ })());
+});
+self.addEventListener('notificationclose',event=>
+ event.waitUntil(relay('closed',event.notification)));
+self.addEventListener('message',event=>{
+ const {id,action,title,tag='docking-worker-owned'}=event.data;
+ event.waitUntil((async()=>{
+  if(action==='show')await self.registration.showNotification(title,
+   {body:'Owned generated service-worker notification',tag,silent:true});
+  const notifications=await self.registration.getNotifications({tag});
+  if(action==='close')for(const notification of notifications)notification.close();
+  event.source.postMessage({fixture:'docking-worker',id,
+   result:action==='events'?events:notifications.map(n=>({title:n.title,tag:n.tag}))});
+ })().catch(error=>event.source.postMessage({fixture:'docking-worker',id,
+  error:error.name+': '+error.message})));
+});"""
 
 
 class WebAppPageFixture:
@@ -86,6 +148,7 @@ class WebAppPageFixture:
         self.profile = profile
         self.mode = "ready"
         self.requests = 0
+        self.worker_requests = 0
         self.download_filename = f"docking-generated-{profile.session_name}.txt"
         self.download_content = f"Docking generated {profile.name} download\n".encode()
 
@@ -96,18 +159,36 @@ class WebAppPageFixture:
             "ab00b74c-15f1-4646-80e8-e76341d25d71",
             lambda args: self._response(engine, args),
         )
-        check(
-            method(engine.core, 57, HRESULT, ctypes.c_wchar_p, ctypes.c_int32)(
-                engine.core, self.profile.origin + "*", 0
+        with ExitStack() as scope:
+            # The original document-only filter misses service-worker requests.
+            # Core22's source-kind filter serves the actual worker script too.
+            view = query(
+                scope, engine.core, GUID.parse("db75dfc7-a857-4632-a398-6969dde26c0a")
             )
-        )
+            check(
+                method(
+                    view,
+                    123,
+                    HRESULT,
+                    ctypes.c_wchar_p,
+                    ctypes.c_int32,
+                    ctypes.c_uint32,
+                )(view, self.profile.origin + "*", 0, 0xFFFFFFFF)
+            )
 
     def _response(self, engine, args) -> None:
         self.requests += 1
         with ExitStack() as scope:
             request = object_result(scope, args, 3)
             uri = engine.text(request, 3)
-            if uri.endswith("/fixture-download"):
+            if uri.endswith("/fixture-worker.js"):
+                self.worker_requests += 1
+                content = _WORKER.encode()
+                headers = (
+                    "Content-Type: application/javascript; charset=utf-8\r\n"
+                    "Service-Worker-Allowed: /\r\nCache-Control: no-store\r\n"
+                )
+            elif uri.endswith("/fixture-download"):
                 content = self.download_content
                 headers = (
                     "Content-Type: application/octet-stream\r\n"
