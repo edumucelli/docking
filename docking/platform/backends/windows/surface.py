@@ -14,10 +14,11 @@ from docking.platform.backends.base import (
     PlacementRequest,
     Rect,
     ReservationRequest,
+    SurfaceService,
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.backends.reduced.services import ReducedSurfaceService
+from docking.platform.backends.gtk_surface import apply_dock_hints, place_window
 
 if TYPE_CHECKING:
     from .appbar import WindowsAppBar
@@ -31,11 +32,11 @@ class _CursorCoordinates(Protocol):
     cursor_y: float
 
 
-class WindowsSurfaceService(ReducedSurfaceService):
+class WindowsSurfaceService(SurfaceService):
     """Share GTK placement while keeping Windows surface details in one place."""
 
     def __init__(self, *, workspaces: WindowsWorkspaceService | None = None) -> None:
-        super().__init__()
+        self._window: object | None = None
         self._workspaces = workspaces
         self._current_workspace_only = False
         self._appbar: WindowsAppBar | None = None
@@ -77,8 +78,16 @@ class WindowsSurfaceService(ReducedSurfaceService):
         )
         return self._appbar.mapping(snapshot, display).to_physical(logical)
 
+    def start(self) -> None:
+        """Native surface resources are attached when the window is realized."""
+
+    def configure_before_realize(self, window: object) -> None:
+        self._window = window
+        apply_dock_hints(window)
+
     def on_realize(self, window: object) -> None:
-        super().on_realize(window)
+        self._window = window
+        apply_dock_hints(window)
         if self._appbar is None:
             from .appbar import WindowsAppBar
 
@@ -176,7 +185,8 @@ class WindowsSurfaceService(ReducedSurfaceService):
             self._mapping = self._appbar.mapping(
                 request.monitor, self._window.get_display()
             )
-        super().position_or_anchor(request)
+        if self._window is not None:
+            place_window(self._window, request)
 
     def _mapped(self, *_args: object) -> bool:
         # Win32 initially constrains normal GTK windows to the work area. The
@@ -269,6 +279,9 @@ class WindowsSurfaceService(ReducedSurfaceService):
         # pixel alpha for normal hit testing; retain shared geometry to reveal
         # the fully transparent hidden edge without intercepting clicks.
         self._input_rect = rect
+
+    def set_blur_region(self, rect: Rect | None) -> None:
+        """No native blur hint is applied to the Windows dock surface."""
 
     def update_pointer_barrier(
         self,
