@@ -63,6 +63,12 @@ class ApplicationLauncher:
         if application is None:
             return False
         if is_windows():
+            if application.launch_target:
+                from docking.platform.backends.windows.shell import (
+                    activate_application_target,
+                )
+
+                return activate_application_target(application.launch_target)
             handle = self._registry._gio_handle_for(desktop_id)
             if handle is None:
                 return False

@@ -9,7 +9,11 @@ from docking.platform.applications import registry as registry_module
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
-from docking.platform.applications.windows import discover_windows_applications
+from docking.platform.applications.windows import (
+    discover_windows_applications,
+    merge_shell_catalog,
+)
+from tests.platform.application_fakes import application
 
 
 def native_app(*, app_id="Example.App", name="Example", visible=True):
@@ -68,6 +72,7 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
     widget = native_app(app_id="Example.Package!Widget", name="Same name")
     lookup = SimpleNamespace(
         hidden_ids=frozenset(),
+        applications=None,
         start=MagicMock(),
         stop=MagicMock(),
         request=MagicMock(),
@@ -79,7 +84,7 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
         wiring.update(kwargs)
         return lookup
 
-    monkeypatch.setattr(registry_module, "create_visibility_lookup", create_lookup)
+    monkeypatch.setattr(registry_module, "create_metadata_lookup", create_lookup)
     monkeypatch.setattr(registry_module, "is_windows", lambda: True)
     registry = ApplicationRegistry(
         application_source=lambda: (main, widget), desktop_directories_source=lambda: ()
@@ -125,6 +130,84 @@ def test_windows_launch_uses_native_handle_instead_of_posix_exec(monkeypatch):
     assert files == []
     assert isinstance(context, launcher_module.Gio.AppLaunchContext)
     popen.assert_not_called()
+
+
+def test_shell_catalog_keeps_distinct_ids_and_gio_only_association_handles():
+    handle = native_app(app_id="Registered.Client", name="Same name")
+    result = discover_windows_applications([handle])
+    shell_apps = (
+        replace(application("Native.One"), name="Same name"),
+        replace(application("Native.Two"), name="Same name"),
+    )
+    merged = merge_shell_catalog(result, shell_apps)
+    assert {app.desktop_id for app in merged.applications if app.visible} == {
+        "Native.One",
+        "Native.Two",
+    }
+    assert merged.handles["Registered.Client"] is handle
+    assert merged.applications[0].desktop_id == "Registered.Client"
+    assert not merged.applications[0].visible
+
+
+def test_shell_identity_updates_gio_metadata_without_losing_its_handle():
+    handle = native_app(app_id="Native.One", name="Old name")
+    native = replace(
+        application("Native.One"),
+        name="Localized name",
+        launch_target=r"shell:AppsFolder\Native.One",
+    )
+    merged = merge_shell_catalog(discover_windows_applications([handle]), (native,))
+    assert len(merged.applications) == 1
+    app = merged.applications[0]
+    assert app.name == "Localized name" and app.has_gio_source
+    assert app.launch_target == native.launch_target
+    assert merged.handles[app.desktop_id] is handle
+
+
+def test_native_catalog_launcher_needs_no_gio_handle_or_command_parser(monkeypatch):
+    from docking.platform.backends.windows import shell
+
+    app = replace(
+        application("Native.One"), launch_target=r"shell:AppsFolder\Native.One"
+    )
+    registry = SimpleNamespace(get=lambda _id: app)
+    launch = MagicMock(return_value=True)
+    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(shell, "activate_application_target", launch)
+    launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
+    assert launcher.launch(app.desktop_id)
+    launch.assert_called_once_with(app.launch_target)
+
+
+def test_native_menu_catalog_keeps_association_only_clients_but_hides_components(
+    monkeypatch,
+):
+    client = native_app(app_id="Registered.Client")
+    hidden = native_app(app_id="Package!Hidden")
+    main = replace(
+        application("Native.One"), launch_target=r"shell:AppsFolder\Native.One"
+    )
+    lookup = SimpleNamespace(
+        hidden_ids=frozenset(("Package!Hidden",)),
+        applications=(main,),
+    )
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
+    registry = ApplicationRegistry(application_source=lambda: (client, hidden))
+    registry.refresh()
+    assert registry.snapshot() == (main,)
+    assert registry.get("Registered.Client").visible is False
+    assert registry._listing_for_content_type_result(hidden) is None
+    listing = registry._listing_for_content_type_result(client)
+    assert listing is not None and listing.desktop_id is None
+    assert registry._gio_handle_for_unidentified(listing.listing_key) is client
+    monkeypatch.setattr(
+        registry_module.Gio.AppInfo,
+        "get_all_for_type",
+        lambda _type: [client, client, hidden],
+    )
+    listings = registry._all_listings_for_content_type("text/plain")
+    assert len(listings) == 1 and listings[0].desktop_id is None
 
 
 def test_packaged_launch_delegates_foreground_permission_without_double_launch(

@@ -184,7 +184,9 @@ class WindowsIconCache:
         if key in self._pending or self._closed.is_set():
             return None
         target = (
-            "shell:AppsFolder\\" + info.desktop_id
+            info.launch_target
+            if info.launch_target
+            else "shell:AppsFolder\\" + info.desktop_id
             if "!" in info.desktop_id
             else str(info.executable_path)
             if info.executable_path

@@ -14,10 +14,16 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--check-visibility",
         action="store_true",
         help="Check the installed Windows Clock's hidden widget in menus and Search",
+    )
+    mode.add_argument(
+        "--classic",
+        action="store_true",
+        help="Exercise native Character Map Search, drag-to-pin and activation",
     )
     args = parser.parse_args()
     if sys.platform != "win32":
@@ -67,9 +73,23 @@ def main():
         encoding="utf-8",
     )
     native = WindowsDesktop()
+    app_name = "Character Map" if args.classic else "Notepad"
+    expected_id = (
+        r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\charmap.exe"
+        if args.classic
+        else "Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"
+    )
+
+    def matches_application(window):
+        return (
+            window["title"] == app_name
+            if args.classic
+            else window["class"] == "Notepad"
+        )
+
     assert not any(w["title"] == "Docking" for w in native.windows())
-    assert not any(w["class"] == "Notepad" for w in native.windows()), (
-        "Close the lab's existing Notepad before running this check"
+    assert not any(matches_application(w) for w in native.windows()), (
+        "Close the lab's existing application before running this check"
     )
     baseline = native.workarea()
     ready = threading.Event()
@@ -215,6 +235,7 @@ def main():
             )
         report["visibility_search"] = {"before": before, "after": after}
         capture("visibility-search-ready")
+        title = call(lambda: registry.get(main_id).name)
         native.key(0x1B)
         native.click(1100, 100)
         native.click(*call(point))
@@ -308,6 +329,50 @@ def main():
 
             time.sleep(2)
             native.click(1100, 100)
+            if args.classic:
+                native.key(0x20, control=True, alt=True)
+                search = native.wait_for(
+                    lambda: next(
+                        (
+                            w
+                            for w in native.windows(os.getpid())
+                            if w["title"] == "Docking Search"
+                        ),
+                        None,
+                    ),
+                    "Native shortcut did not open Search",
+                )
+                native.wait_for(
+                    lambda: native.user.GetForegroundWindow() == search["hwnd"],
+                    "Search did not acquire foreground",
+                )
+                native.type_text(app_name)
+
+                def search_ready():
+                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    if cache is None or cache._images.get((expected_id, 32)) is None:
+                        return False
+                    image = cache._images[(expected_id, 32)]
+                    return any(
+                        dict(row.result.metadata).get("desktop_id") == expected_id
+                        and row.image.get_pixbuf() is not None
+                        and bytes(row.image.get_pixbuf().get_pixels()) == image.pixels
+                        for row in ui.search.window.results_list.get_children()
+                        if row.result.identity.provider_id == "applications"
+                    )
+
+                native.wait_for(
+                    lambda: call(search_ready),
+                    "Classic Search result did not receive native shell artwork",
+                )
+                report["classic_search"] = {
+                    "id": expected_id,
+                    "query": app_name,
+                    "native_artwork": True,
+                }
+                capture("classic-search")
+                native.key(0x1B)
+                native.click(1100, 100)
             native.click(*call(point))
             menu = native.wait_for(
                 lambda: call(lambda: applet._popup_menu),
@@ -319,9 +384,9 @@ def main():
                 check_visibility(ui, menu, entry, point)
                 return
             report["menu_foreground"] = native.user.GetForegroundWindow()
-            native.type_text("Notepad")
+            native.type_text(app_name)
             native.wait_for(
-                lambda: call(entry.get_text) == "Notepad",
+                lambda: call(entry.get_text) == app_name,
                 "Native typing did not reach the application filter",
                 5,
             )
@@ -334,10 +399,9 @@ def main():
                     if w.get_visible() and label(w)
                 ]
             )
-            assert "Notepad" in report["visible_labels"]
+            assert app_name in report["visible_labels"]
             time.sleep(0.5)
             capture("applications-filter")
-            expected_id = "Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"
             application = call(lambda: model._application_registry.get(expected_id))
             assert application is not None and application.desktop_file is None
             report["application"] = {"id": application.desktop_id, "desktop_file": None}
@@ -345,7 +409,7 @@ def main():
                 lambda: next(
                     w
                     for w in menu.get_children()
-                    if w.get_visible() and label(w) == "Notepad"
+                    if w.get_visible() and label(w) == app_name
                 )
             )
             drag_ended = threading.Event()
@@ -409,7 +473,7 @@ def main():
             native.key(0x1B)
             time.sleep(0.7)
             capture("application-pinned")
-            assert not any(w["class"] == "Notepad" for w in native.windows()), (
+            assert not any(matches_application(w) for w in native.windows()), (
                 "Dragging activated the application"
             )
             report["native_pin"] = True
@@ -434,9 +498,9 @@ def main():
             native.click(*call(application_point))
             launched = native.wait_for(
                 lambda: next(
-                    (w for w in native.windows() if w["class"] == "Notepad"), None
+                    (w for w in native.windows() if matches_application(w)), None
                 ),
-                "The newly pinned launcher did not open Notepad",
+                "The newly pinned launcher did not open the application",
                 30,
             )
             shared["launched_hwnd"] = launched["hwnd"]
@@ -446,18 +510,30 @@ def main():
                         w
                         for w in native.windows()
                         if w["hwnd"] == shared["launched_hwnd"]
-                        and w["title"] not in {"", "Notepad"}
+                        and w["title"]
+                        and (args.classic or w["title"] != "Notepad")
                     ),
                     None,
                 ),
-                "Notepad did not finish loading its document",
+                "The application did not finish loading its window",
                 30,
             )
             native.wait_for(
                 lambda: native.user.GetForegroundWindow() == launched["hwnd"],
-                "The newly pinned launcher did not activate Notepad",
+                "The newly pinned launcher did not activate the application",
             )
             report["launched_window"] = launched
+            if args.classic:
+                windows = shared["kwargs"]["window_tracker"]
+                grouped = native.wait_for(
+                    lambda: call(lambda: tuple(windows.list_windows(expected_id))),
+                    "Classic window did not group under its pinned canonical ID",
+                )
+                assert any(w.id.value == launched["hwnd"] for w in grouped)
+                report["classic_grouping"] = [
+                    {"hwnd": w.id.value, "desktop_id": w.desktop_id, "app_id": w.app_id}
+                    for w in grouped
+                ]
             time.sleep(2)
             capture("application-launched")
             assert native.user.PostMessageW(launched["hwnd"], 0x10, 0, 0)

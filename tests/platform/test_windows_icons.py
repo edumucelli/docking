@@ -42,3 +42,37 @@ def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatc
     unsubscribe()
     loader.stop()
     assert cache.stopped
+
+
+def test_classic_application_artwork_uses_its_native_shell_item(monkeypatch):
+    import threading
+    from dataclasses import replace
+
+    posted, callbacks, targets = threading.Event(), [], []
+    image = native_icons.NativeIcon(bytes((255, 0, 0, 255)) * 4, 2, 2)
+
+    def extract(target, _size):
+        targets.append(target)
+        return image
+
+    def idle(callback, *args):
+        callbacks.append(lambda: callback(*args))
+        posted.set()
+        return 1
+
+    monkeypatch.setattr(native_icons, "extract_icon", extract)
+    monkeypatch.setattr(native_icons.GLib, "idle_add", idle)
+    app = replace(
+        application("Native.ControlPanel"),
+        executable_path=None,
+        launch_target=r"shell:AppsFolder\Native.ControlPanel",
+    )
+    cache = native_icons.WindowsIconCache(lambda _id: None)
+    try:
+        assert cache.get(app, 2) is None
+        assert posted.wait(2)
+        assert targets == [app.launch_target]
+        callbacks.pop()()
+        assert cache.get(app, 2) is image
+    finally:
+        cache.stop()

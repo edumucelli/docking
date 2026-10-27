@@ -3,7 +3,10 @@
 import threading
 import time
 
-from docking.platform.applications.visibility import ApplicationVisibilityLookup
+from docking.platform.applications.metadata import (
+    ApplicationMetadata,
+    ApplicationMetadataLookup,
+)
 
 
 class _Idle:
@@ -38,8 +41,8 @@ def _wait(predicate):
 
 
 def _lookup(resolve, idle, changed):
-    return ApplicationVisibilityLookup(
-        resolve=resolve,
+    return ApplicationMetadataLookup(
+        resolve=lambda ids: ApplicationMetadata(hidden_ids=resolve(ids)),
         on_changed=changed,
         schedule_idle=idle.add,
         remove_source=idle.remove,
@@ -171,4 +174,60 @@ def test_restarting_cannot_publish_a_stopped_workers_result():
         assert lookup.hidden_ids == {"new"}
     finally:
         release.set()
+        lookup.stop()
+
+
+def test_failed_catalog_read_preserves_the_last_complete_native_listing():
+    from tests.platform.application_fakes import application
+
+    idle, calls = _Idle(), []
+    apps = (application("Native"),)
+
+    def resolve(_ids):
+        calls.append(True)
+        return ApplicationMetadata(applications=apps if len(calls) == 1 else None)
+
+    lookup = ApplicationMetadataLookup(
+        resolve=resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    try:
+        lookup.start()
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        lookup.invalidate()
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.applications == apps
+    finally:
+        lookup.stop()
+
+
+def test_periodic_worker_refresh_discovers_changes_without_gio_notifications():
+    from tests.platform.application_fakes import application
+
+    idle, called = _Idle(), threading.Event()
+    apps = (application("Added"),)
+    lookup = ApplicationMetadataLookup(
+        resolve=lambda _ids: called.set() or ApplicationMetadata(applications=apps),
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+        refresh_interval=0.02,
+    )
+    try:
+        lookup.start()
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        called.clear()
+        assert called.wait(1)
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.applications == apps
+    finally:
         lookup.stop()

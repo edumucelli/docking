@@ -67,6 +67,8 @@ class ApplicationInfo:
     working_directory: str = ""
     steam_app_id: str = ""
     steam_manifest: Path | None = None
+    # A source-owned native target; activation must preserve its shell semantics.
+    launch_target: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

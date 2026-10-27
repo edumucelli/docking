@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 
 from .constants import FALLBACK_ICON
@@ -83,4 +84,48 @@ def discover_windows_applications(source: Iterable[object]) -> DiscoveryResult:
         transient_handles={},
         presentation_order=tuple(handles),
         diagnostics=tuple(diagnostics),
+    )
+
+
+def merge_shell_catalog(
+    result: DiscoveryResult, applications: tuple[ApplicationInfo, ...]
+) -> DiscoveryResult:
+    """Use shell menu identities while retaining all Gio association handles."""
+    native_ids = {app.desktop_id for app in applications}
+    gio = {app.desktop_id: app for app in result.applications}
+    records = [
+        replace(app, visible=False)
+        for app in result.applications
+        if app.desktop_id not in native_ids
+    ]
+    for native in applications:
+        previous = gio.get(native.desktop_id)
+        if previous is not None:
+            native = replace(
+                previous,
+                name=native.name,
+                executable_path=native.executable_path,
+                wm_class=native.wm_class,
+                aliases=tuple(dict.fromkeys((*native.aliases, *previous.aliases))),
+                visible=native.visible,
+                launch_target=native.launch_target,
+            )
+        records.append(native)
+    return replace(
+        result,
+        applications=tuple(records),
+        presentation_order=tuple(app.desktop_id for app in records),
+        diagnostics=tuple(
+            ApplicationDiagnostic(
+                desktop_id=app.desktop_id,
+                name=app.name,
+                desktop_file=app.desktop_file,
+                visible=app.visible,
+                has_gio_source=app.has_gio_source,
+                wm_class=app.wm_class,
+                launcher_basename=app.wm_class,
+                aliases=app.aliases,
+            )
+            for app in records
+        ),
     )

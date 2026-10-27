@@ -20,6 +20,7 @@ from docking.platform.environment import is_windows
 
 from . import discovery
 from . import entries as desktop_entries
+from .metadata import create_metadata_lookup
 from .steam import SteamDiscoveryResult, steam_app_id_from_exec
 from .types import (
     ApplicationDiagnostic,
@@ -28,7 +29,6 @@ from .types import (
     DiscoveryReason,
     TransientApplicationInfo,
 )
-from .visibility import create_visibility_lookup
 
 DEFAULT_DEBOUNCE_MS = 150
 MAX_CONTENT_HANDLER_TOKENS = 64
@@ -130,7 +130,7 @@ class ApplicationRegistry:
         self._app_monitor_handler: object | None = None
         self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
         self._debounce_source_id: int | None = None
-        self._visibility = create_visibility_lookup(
+        self._metadata = create_metadata_lookup(
             on_changed=self._queue_refresh,
             schedule_idle=GLib.idle_add,
             remove_source=GLib.source_remove,
@@ -251,8 +251,8 @@ class ApplicationRegistry:
 
         if self._started:
             self._sync_directory_monitors()
-            if self._visibility is not None:
-                self._visibility.request(self._state.applications_by_id)
+            if self._metadata is not None:
+                self._metadata.request(self._state.applications_by_id)
         return changed
 
     def start(self) -> None:
@@ -261,8 +261,8 @@ class ApplicationRegistry:
             return
         self._started = True
         self._lifecycle_token += 1
-        if self._visibility is not None:
-            self._visibility.start()
+        if self._metadata is not None:
+            self._metadata.start()
         self._connect_app_monitor()
         self._sync_directory_monitors()
         self.refresh()
@@ -276,8 +276,8 @@ class ApplicationRegistry:
         self._cancel_pending_refresh()
         self._disconnect_app_monitor()
         self._cancel_directory_monitors()
-        if self._visibility is not None:
-            self._visibility.stop()
+        if self._metadata is not None:
+            self._metadata.stop()
 
     def default_for_content_type(
         self,
@@ -396,11 +396,14 @@ class ApplicationRegistry:
                 continue
             registered = self._registered_application_for_content_type_result(app_info)
             if registered is not None:
-                if not registered.visible or registered.desktop_id in seen_registered:
+                if registered.desktop_id in seen_registered:
                     continue
-                seen_registered.add(registered.desktop_id)
-                result.append(registered)
-                continue
+                if registered.visible:
+                    seen_registered.add(registered.desktop_id)
+                    result.append(registered)
+                    continue
+                if not self._is_association_only_handler(registered):
+                    continue
 
             desktop_id = discovery.desktop_id(app_info)
             identity: tuple[str, object] = (
@@ -428,9 +431,14 @@ class ApplicationRegistry:
 
     def _discover(self, *, handle_epoch: int) -> _RegistryState:
         if is_windows():
-            from .windows import discover_windows_applications
+            from .windows import discover_windows_applications, merge_shell_catalog
 
             result = discover_windows_applications(self._application_source())
+            catalog = (
+                self._metadata.applications if self._metadata is not None else None
+            )
+            if catalog is not None:
+                result = merge_shell_catalog(result, catalog)
         else:
             result = discovery.discover(
                 application_source=self._application_source,
@@ -451,7 +459,7 @@ class ApplicationRegistry:
             )
             steam = SteamDiscoveryResult()
         visibility_hidden = (
-            self._visibility.hidden_ids if self._visibility is not None else frozenset()
+            self._metadata.hidden_ids if self._metadata is not None else frozenset()
         )
         applications = [
             replace(app, visible=False) if app.desktop_id in visibility_hidden else app
@@ -588,8 +596,21 @@ class ApplicationRegistry:
             return None
         registered = self._registered_application_for_content_type_result(app_info)
         if registered is not None:
-            return registered if registered.visible else None
+            if registered.visible:
+                return registered
+            if self._is_association_only_handler(registered):
+                # Native menu membership is narrower than file associations.
+                # Keep the original Gio handler for an association-only client.
+                return self._retain_content_listing(app_info)
+            return None
         return self._retain_content_listing(app_info)
+
+    def _is_association_only_handler(self, application: ApplicationInfo) -> bool:
+        return (
+            self._metadata is not None
+            and self._metadata.applications is not None
+            and application.desktop_id not in self._metadata.hidden_ids
+        )
 
     def _retain_content_listing(
         self,
@@ -687,8 +708,8 @@ class ApplicationRegistry:
             self._cancel_directory_monitor(path)
 
     def _on_registry_changed(self, *_args: object) -> None:
-        if self._visibility is not None:
-            self._visibility.invalidate()
+        if self._metadata is not None:
+            self._metadata.invalidate()
         self._queue_refresh()
 
     def _queue_refresh(self) -> None:

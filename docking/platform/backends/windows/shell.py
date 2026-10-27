@@ -14,6 +14,17 @@ from .ffi import bind as _bind
 log = get_logger("windows.shell")
 
 
+def activate_application_target(target: str) -> bool:
+    """Activate a recorded application-folder target without parsing its command."""
+    prefix = "shell:AppsFolder\\"
+    if not target.startswith(prefix) or not target[len(prefix) :]:
+        return False
+    app_id = target[len(prefix) :]
+    if "!" in app_id:
+        return activate_packaged_application(app_id)
+    return open_default_target(target)
+
+
 def activate_packaged_application(application_id: str) -> bool:
     """Pass the user's launch privilege to the shell's activation manager."""
     try:

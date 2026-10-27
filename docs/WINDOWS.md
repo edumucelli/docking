@@ -2086,6 +2086,50 @@ remained available, and normal shutdown restored the exact work area and
 released the shortcut. The portable application/metadata selection passed
 276 tests. Broader Win32 shortcut inventory still needs acceptance.
 
+## Classic Windows application catalog
+
+The Windows backend enumerates the current user's AppsFolder through
+`SHGetKnownFolderItem`, `IShellItem` and `IEnumShellItems`. It copies canonical
+application IDs, localized names and available link targets into the shared
+immutable application model. Each read owns its COM apartment, interfaces and
+returned strings; enumeration and property reads run outside GTK. Hidden shell
+items and explicit hidden package components remain excluded. See Microsoft's
+[shell enumeration handler](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishellitem-bindtohandler)
+and [AppUserModelID property](https://learn.microsoft.com/windows/win32/properties/props-system-appusermodel-id).
+
+The complete native catalog supplies application-menu and Search listings while
+Gio's original records and handles remain available for associations and existing
+pins. Association-only clients remain usable through their actual Gio handles;
+their absence from the Start menu does not make their file associations unusable.
+Discovery uses canonical IDs, without merging equal names or guessing identities
+from command strings. Failed catalog reads retain the last complete native
+snapshot, with Gio as the initial fallback. The owned metadata worker also
+refreshes every 30 seconds, covering shortcut changes without Gio notifications;
+stop and lifecycle invalidation reject late replies.
+
+Native catalog entries record their shell application-folder target. Activation
+passes that target to Windows rather than reconstructing the shortcut command,
+arguments or working directory. Packaged entries retain activation-manager
+foreground delegation. Background icon extraction now also accepts classic shell
+targets, including entries whose artwork is not an executable's default icon.
+
+The standard-user lab initially exposed 36 visible Gio records versus 79 entries
+in both `Get-StartApps` and AppsFolder. With native discovery, Docking's visible
+catalog matches all 79 native IDs and names.
+`tools/windows/applications_smoke.py --classic` exercises Character Map in Search
+with actual shell artwork, native
+menu filtering, OLE2 drag-to-pin, persisted canonical identity, mouse activation,
+window grouping and normal cleanup. The default mode still checks packaged
+Notepad, and `--check-visibility` checks asynchronous hidden-component filtering.
+
+Character Map passed this complete native UI sequence under the standard-user
+Windows 11 25H2 session. Its Search row and pinned dock icon used shell artwork;
+the newly opened window grouped under the exact canonical pin ID. The PNGs were
+visually inspected. The hidden Clock widget regression also passed with the new
+catalog, preserving the open query, selection and entry focus while metadata
+arrived. Broader shortcut arguments, working-directory and installer/multi-user
+behavior still need native acceptance.
+
 ## Native Window Killer
 
 `WindowsWindowPickService` supplies the shared Window Killer applet. The existing
