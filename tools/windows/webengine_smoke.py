@@ -7,14 +7,11 @@ def main():
     import argparse
     import json
     import os
-    import ssl
-    import subprocess
     import sys
     import tempfile
     import threading
     import time
     import uuid
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -40,32 +37,6 @@ def main():
     os.environ["XDG_CACHE_HOME"] = str(root / "cache")
     os.environ["DOCKING_WEBENGINE_PYTHON"] = str(args.python)
     os.environ["DOCKING_BROWSER_FIXTURE_OUTPUT"] = str(root)
-    certificate = Path(folder.name) / "fixture-cert.pem"
-    key = Path(folder.name) / "fixture-key.pem"
-    subprocess.run(
-        [
-            str(Path(sys.executable).with_name("openssl.exe")),
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-keyout",
-            str(key),
-            "-out",
-            str(certificate),
-            "-days",
-            "1",
-            "-subj",
-            "/CN=Docking generated TLS fixture",
-            "-addext",
-            "subjectAltName=DNS:web.whatsapp.com,DNS:web.telegram.org",
-        ],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    os.environ["DOCKING_BROWSER_FIXTURE_CERT"] = str(certificate)
     from docking.launcher import prepare_display
 
     prepare_display()
@@ -81,50 +52,14 @@ def main():
     from docking.applets.webapp.windows_companion.browser import WindowsCompanionBrowser
     from docking.applets.whatsapp.browser import WhatsAppBrowser
     from tools.windows.desktop_driver import WindowsDesktop
-    from tools.windows.webapp_fixture import _HTML, _WORKER
+    from tools.windows.webengine_fixture import TLSFixture
 
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args):
-            pass
-
-        def do_GET(self):
-            worker = self.path == "/fixture-worker.js"
-            landmark = (
-                '<div id="pane-side">Generated connected state</div>'
-                if args.service == "whatsapp"
-                else '<div id="column-left"><div class="chatlist">'
-                "Generated connected state</div></div>"
-            )
-            html = _HTML.replace("LANDMARK", landmark).replace(
-                "Native WebView2", "Native Qt WebEngine"
-            )
-            if args.service == "telegram":
-                html = html.replace("WhatsApp", "Telegram").replace(
-                    "web.whatsapp.com", "web.telegram.org"
-                )
-            body = (_WORKER if worker else html).encode()
-            self.send_response(200)
-            self.send_header(
-                "Content-Type",
-                "application/javascript" if worker else "text/html; charset=utf-8",
-            )
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Service-Worker-Allowed", "/")
-            self.end_headers()
-            self.wfile.write(body)
-
-    server = ThreadingHTTPServer(("127.0.0.1", 443), Handler)
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.load_cert_chain(certificate, key)
-    key.unlink()
-    server.socket = context.wrap_socket(server.socket, server_side=True)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    fixture = TLSFixture(root, Path(folder.name))
+    fixture.start()
     report = {
         "service": args.service,
         "stages": [],
@@ -422,8 +357,7 @@ def main():
                 errors.append(error)
                 report.update(ok=False, cleanup_error=repr(error))
             finally:
-                server.shutdown()
-                server.server_close()
+                fixture.close()
                 GLib.idle_add(Gtk.main_quit)
 
     browser.start()

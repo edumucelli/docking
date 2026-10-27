@@ -2414,6 +2414,19 @@ exercise process-tree cleanup while the GTK loop continues running.
 python -m tools.windows.webengine_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --output C:\\lab\\qt-browser --notification-point 1100 155
 ```
 
+`tools.windows.webengine_dock_smoke` runs the actual dock with both service
+applets active. It drives native dock clicks, Open/Hide and Reload menus,
+generated login/ready transitions, worker notification activation and the real
+Disconnect confirmation. It checks that the matching applet receives and clears
+notification attention, that profiles isolate cookies/local storage/IndexedDB,
+and that disconnect preserves the other service's data and badge. Normal dock
+shutdown must reap both companion trees and restore the Windows shell state.
+The generated fixture uses no signed-in accounts or private service data.
+
+```powershell
+python -m tools.windows.webengine_dock_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --service whatsapp --output C:\\lab\\qt-dock --notification-point 1100 155
+```
+
 ### Web-app downloads
 
 The native host preserves WebView2's default download manager, destination
