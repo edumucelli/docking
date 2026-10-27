@@ -25,7 +25,20 @@ def main():
         action="store_true",
         help="Exercise native Character Map Search, drag-to-pin and activation",
     )
+    parser.add_argument(
+        "--trace-surfaces",
+        action="store_true",
+        help="Record native and GTK popup ownership across the drag lifecycle",
+    )
+    parser.add_argument(
+        "--check-artwork",
+        action="store_true",
+        help="Hold real menu artwork and check the unavailable-capture preview",
+    )
     args = parser.parse_args()
+    if args.check_artwork and args.check_visibility:
+        parser.error("Choose artwork or visibility acceptance for this run")
+    args.trace_surfaces = args.trace_surfaces or args.check_artwork
     if sys.platform != "win32":
         parser.error("Requires native Windows Python")
     output = args.output.resolve()
@@ -95,6 +108,22 @@ def main():
     ready = threading.Event()
     report, shared, errors = {"baseline_workarea": baseline}, {}, []
     blocked, release = threading.Event(), threading.Event()
+    if args.check_artwork:
+        from docking.platform.backends.windows import icons
+
+        original_extract = icons.extract_icon
+
+        def extract(target, size):
+            if (
+                target == "shell:AppsFolder\\" + expected_id
+                and size == 16
+                and not release.is_set()
+            ):
+                blocked.set()
+                assert release.wait(90), "Real menu artwork was not released"
+            return original_extract(target, size)
+
+        icons.extract_icon = extract
     main_id = "Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"
     widget_id = "Microsoft.WindowsAlarms_8wekyb3d8bbwe!ClockWidgets"
     if args.check_visibility:
@@ -129,6 +158,23 @@ def main():
 
     def build(**kwargs):
         ui = original_build(**kwargs)
+        if args.check_artwork:
+            original_previews = ui.window.preview._preview_service
+
+            class UnavailableOwnedPreview:
+                asynchronous = original_previews.asynchronous
+
+                def capture(self, window_id, *, width, height):
+                    if ui.window.preview.current_desktop_id == expected_id:
+                        return None
+                    return original_previews.capture(
+                        window_id, width=width, height=height
+                    )
+
+            ui.window.preview._preview_service = UnavailableOwnedPreview()
+            report["preview_capture_fixture"] = (
+                "Unavailable for the probe's owned application"
+            )
         shared.update(ui=ui, model=kwargs["model"], kwargs=kwargs)
         ready.set()
         return ui
@@ -155,6 +201,34 @@ def main():
 
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))
+
+    def surface_snapshot(stage):
+        if not args.trace_surfaces:
+            return
+        from docking.platform.backends.windows.ffi import window_handle
+
+        def gtk_windows():
+            return [
+                {
+                    "hwnd": window_handle(w.get_window()) if w.get_realized() else None,
+                    "title": w.get_title(),
+                    "name": w.get_name(),
+                    "type": w.get_type_hint().value_nick,
+                    "visible": w.get_visible(),
+                    "mapped": w.get_mapped(),
+                    "classes": w.get_style_context().list_classes(),
+                    "child_type": type(w.get_child()).__name__,
+                }
+                for w in Gtk.Window.list_toplevels()
+            ]
+
+        report.setdefault("surfaces", []).append(
+            {
+                "stage": stage,
+                "gtk": call(gtk_windows),
+                "native": native.windows(os.getpid()),
+            }
+        )
 
     def label(widget):
         if isinstance(widget, Gtk.Label):
@@ -412,6 +486,40 @@ def main():
                     if w.get_visible() and label(w) == app_name
                 )
             )
+            if args.check_artwork:
+                assert blocked.wait(15), (
+                    "The real 16px extraction did not reach the gate"
+                )
+                before = {
+                    "row": id(row),
+                    "query": call(entry.get_text),
+                    "foreground": native.user.GetForegroundWindow(),
+                }
+
+                def menu_artwork():
+                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    native_image = (
+                        cache._images.get((expected_id, 16)) if cache else None
+                    )
+                    image = row.get_child().get_children()[0]
+                    pixbuf = image.get_pixbuf()
+                    return (
+                        native_image is not None
+                        and pixbuf is not None
+                        and bytes(pixbuf.get_pixels()) == native_image.pixels
+                    )
+
+                assert not call(menu_artwork)
+                capture("menu-artwork-pending")
+                release.set()
+                native.wait_for(
+                    lambda: call(menu_artwork), "Menu artwork did not update in place"
+                )
+                assert call(entry.get_text) == before["query"]
+                assert native.user.GetForegroundWindow() == before["foreground"]
+                assert call(lambda: row.get_parent()) is menu
+                report["menu_artwork"] = {**before, "updated_in_place": True}
+                capture("menu-artwork-ready")
             drag_ended = threading.Event()
 
             def drag_begin(_row, context):
@@ -419,6 +527,13 @@ def main():
                     "protocol": context.get_protocol().value_nick,
                     "targets": [target.name() for target in context.list_targets()],
                 }
+                if args.trace_surfaces:
+                    from docking.platform.backends.windows.ffi import window_handle
+
+                    window = context.get_drag_window()
+                    report["drag_source"]["window"] = (
+                        window_handle(window) if window is not None else None
+                    )
 
             call(lambda: row.connect("drag-begin", drag_begin))
             call(lambda: row.connect("drag-end", lambda *_args: drag_ended.set()))
@@ -470,8 +585,10 @@ def main():
                 and report["drops"][-1]["data"] == expected_id
             )
             assert report["drops"][-1]["protocol"] == "ole2"
+            surface_snapshot("drop-finished")
             native.key(0x1B)
             time.sleep(0.7)
+            surface_snapshot("menu-dismissed")
             capture("application-pinned")
             assert not any(matches_application(w) for w in native.windows()), (
                 "Dragging activated the application"
@@ -535,6 +652,82 @@ def main():
                     for w in grouped
                 ]
             time.sleep(2)
+            if args.check_artwork:
+                preview = ui.window.preview
+                native.wait_for(
+                    lambda: call(preview.get_visible),
+                    "Hover did not open the owned preview",
+                )
+
+                def preview_artwork():
+                    item = model.find_by_desktop_id(expected_id)
+                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    size = shared["kwargs"]["config"].scaled_icon_size
+                    native_image = (
+                        cache._images.get((expected_id, size)) if cache else None
+                    )
+                    if native_image is None or item is None or item.icon is None:
+                        return False
+                    if bytes(item.icon.get_pixels()) != native_image.pixels:
+                        return False
+                    expected = item.icon.scale_simple(64, 64, 2)
+                    values = list(preview._thumbnail_images.values())
+                    return (
+                        len(values) == 1
+                        and values[0][3] is None
+                        and (
+                            bytes(values[0][0].get_pixbuf().get_pixels())
+                            == bytes(expected.get_pixels())
+                        )
+                    )
+
+                native.wait_for(
+                    lambda: call(preview_artwork),
+                    "Unavailable-capture preview did not use current native artwork",
+                )
+                from docking.platform.backends.windows.ffi import window_handle
+
+                hwnd = call(lambda: window_handle(preview.get_window()))
+                popup = next(
+                    w for w in native.windows(os.getpid()) if w["hwnd"] == hwnd
+                )
+                tooltips = call(
+                    lambda: [
+                        w
+                        for w in Gtk.Window.list_toplevels()
+                        if w.get_visible() and w.get_type_hint().value_nick == "tooltip"
+                    ]
+                )
+                assert tooltips == [preview], "Ordinary tooltip overlaps the preview"
+                import cairo
+
+                def preview_surface():
+                    width, height = preview.get_size()
+                    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+                    preview.draw(cairo.Context(surface))
+                    return surface
+
+                surface = call(preview_surface)
+                surface.flush()
+                data = surface.get_data()
+                border_alpha = [
+                    data[3],
+                    data[
+                        (surface.get_height() // 2) * surface.get_stride() + 4 * 4 + 3
+                    ],
+                ]
+                assert border_alpha == [0, 0], (
+                    "Floating preview lost transparency",
+                    border_alpha,
+                )
+                surface.write_to_png(str(output / "preview-alpha.png"))
+                report["preview_artwork"] = {
+                    "native_icon": True,
+                    "tooltip_count": len(tooltips),
+                    "border_alpha": border_alpha,
+                    "window": popup,
+                }
+            surface_snapshot("application-launched")
             capture("application-launched")
             assert native.user.PostMessageW(launched["hwnd"], 0x10, 0, 0)
             native.wait_for(

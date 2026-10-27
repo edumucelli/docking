@@ -96,6 +96,7 @@ from docking.applets.services import AppletServices
 from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform.application_icons import ApplicationIcons
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
@@ -216,6 +217,9 @@ def main() -> None:
 
         applet_services = replace(
             applet_services,
+            application_icons=ApplicationIcons(
+                model=model, registry=registry, loader=icon_loader
+            ),
             desktop_actions=backend.desktop_actions,
             workspaces=backend.workspaces,
             window_picker=backend.window_picker,

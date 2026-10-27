@@ -25,6 +25,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from docking.applets.applications import meta
+from docking.applets.applications.icons import MenuIcons
 from docking.applets.applications.render import create_icon, make_menu_item_with_icon
 from docking.applets.applications.state import (
     CATEGORY_ICONS,
@@ -48,7 +49,9 @@ from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationInfo, ApplicationListing
 
 if TYPE_CHECKING:
+    from docking.applets.services import AppletServices
     from docking.core.config import Config
+    from docking.platform.application_icons import ApplicationIcons
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
@@ -80,7 +83,14 @@ class ApplicationsApplet(ApplicationServicesApplet):
             application_launcher=application_launcher,
         )
         self._popup_menu: Gtk.Menu | None = None
+        self._application_icons: ApplicationIcons | None = None
         self.present()
+
+    def set_services(self, services: AppletServices) -> None:
+        if self._application_icons is not services.application_icons:
+            if self._popup_menu is not None:
+                self._popup_menu.popdown()
+            self._application_icons = services.application_icons
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
@@ -115,6 +125,14 @@ class ApplicationsApplet(ApplicationServicesApplet):
     def _build_launcher_menu(self) -> Gtk.Menu:
         """Build the categorized launcher menu lazily on each open."""
         menu = Gtk.Menu()
+        artwork = (
+            MenuIcons(self._application_icons)
+            if self._application_icons is not None
+            else None
+        )
+        if artwork is not None:
+            menu.connect("hide", artwork.stop)
+            menu.connect("destroy", artwork.stop)
         categories = build_app_categories(self._application_registry)
         category_rows: list[tuple[Gtk.MenuItem, list[ApplicationListing]]] = []
 
@@ -146,6 +164,7 @@ class ApplicationsApplet(ApplicationServicesApplet):
                 config=self._config,
                 registry=self._application_registry,
                 launcher=self._application_launcher,
+                artwork=artwork,
             )
 
             cat_item.set_submenu(submenu)
@@ -158,6 +177,8 @@ class ApplicationsApplet(ApplicationServicesApplet):
             nonlocal search_results
             lowered = query.strip().lower()
             for result in search_results:
+                if artwork is not None:
+                    artwork.forget(result)
                 menu.remove(result)
             search_results = []
 
@@ -175,6 +196,7 @@ class ApplicationsApplet(ApplicationServicesApplet):
                     config=self._config,
                     registry=self._application_registry,
                     launcher=self._application_launcher,
+                    artwork=artwork,
                 )
                 menu.append(result)
                 result.show_all()
@@ -209,6 +231,7 @@ def _populate_app_submenu(
     config: Config,
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
+    artwork: MenuIcons | None = None,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -218,6 +241,7 @@ def _populate_app_submenu(
                 config=config,
                 registry=registry,
                 launcher=launcher,
+                artwork=artwork,
             )
         )
     submenu.show_all()
@@ -229,11 +253,16 @@ def _application_menu_item(
     config: Config,
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
+    artwork: MenuIcons | None = None,
 ) -> Gtk.MenuItem:
+    image = Gtk.Image() if artwork is not None else None
     menu_item = make_menu_item_with_icon(
         label=_app_name(app_info),
         gicon=listing_gicon(registry, app_info),
+        image=image,
     )
+    if artwork is not None and image is not None:
+        artwork.bind(menu_item, app_info, image)
     menu_item.connect(
         "activate",
         lambda _, info=app_info: _launch_app(
@@ -246,6 +275,7 @@ def _application_menu_item(
         app_info=app_info,
         config=config,
         registry=registry,
+        artwork=artwork,
     )
     return menu_item
 
@@ -256,6 +286,7 @@ def _configure_drag_source(
     app_info: ApplicationListing,
     config: Config,
     registry: ApplicationRegistry,
+    artwork: MenuIcons | None = None,
 ) -> None:
     """Offer a desktop URI or a canonical ID for listings without a file."""
     if config.lock_icons:
@@ -268,7 +299,7 @@ def _configure_drag_source(
         [_URI_TARGET] if uri is not None else [_APPLICATION_TARGET],
         Gdk.DragAction.COPY,
     )
-    menu_item.connect("drag-begin", _on_drag_begin, app_info, registry)
+    menu_item.connect("drag-begin", _on_drag_begin, app_info, registry, artwork)
     if uri is not None:
         menu_item.connect("drag-data-get", _on_drag_data_get, uri)
     else:
@@ -278,12 +309,18 @@ def _configure_drag_source(
 
 
 def _on_drag_begin(
-    _menu_item: Gtk.MenuItem,
+    menu_item: Gtk.MenuItem,
     context: Gdk.DragContext,
     app_info: ApplicationListing,
     registry: ApplicationRegistry,
+    artwork: MenuIcons | None = None,
 ) -> None:
     """Show the application's icon beside the pointer while it is dragged."""
+    if artwork is not None:
+        pixbuf = artwork.drag_icon(menu_item)
+        if pixbuf is not None:
+            Gtk.drag_set_icon_pixbuf(context, pixbuf, 0, 0)
+            return
     icon = listing_gicon(registry, app_info)
     if icon is not None:
         Gtk.drag_set_icon_gicon(context, icon, 0, 0)

@@ -162,6 +162,24 @@ def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
     ]
 
 
+def test_distinct_byte_icons_without_serialized_names_keep_distinct_pixels():
+    loader = IconLoader()
+    actual = []
+    for color in (0xCC4422FF, 0x2288CCFF):
+        image = icons_mod.GdkPixbuf.Pixbuf.new(
+            icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 16, 16
+        )
+        image.fill(color)
+        ok, data = image.save_to_bufferv("png", [], [])
+        assert ok
+        icon = icons_mod.Gio.BytesIcon.new(icons_mod.GLib.Bytes.new(data))
+        assert icon.to_string() is None
+        loaded = loader.load_gicon(icon, 16)
+        assert loaded is not None
+        actual.append(bytes(loaded.get_pixels())[:4])
+    assert actual == [b"\xcc\x44\x22\xff", b"\x22\x88\xcc\xff"]
+
+
 def test_default_file_normalizer_handles_only_local_targets(tmp_path):
     path = tmp_path / "photo one.png"
 

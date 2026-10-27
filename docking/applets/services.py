@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from docking.platform.application_icons import ApplicationIcons
     from docking.platform.backends.base import (
         DesktopActionService,
         IdleService,
@@ -41,3 +42,4 @@ class AppletServices:
     screen_capture: ScreenCaptureService | None = None
     search: SearchPresenter | None = None
     status_notifier: TrayService | None = None
+    application_icons: ApplicationIcons | None = None

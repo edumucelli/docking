@@ -190,12 +190,18 @@ class IconLoader:
         self,
         info: ApplicationInfo,
         size: int,
+        *,
+        gicon: Gio.Icon | None = None,
     ) -> GdkPixbuf.Pixbuf | None:
         """Load an application icon from canonical metadata with fallbacks."""
         if is_windows():
             native_icon = self._windows_desktop_icon(info, size)
             if native_icon is not None:
                 return native_icon
+        if gicon is not None:
+            retained = self.load_gicon(gicon=gicon, size=size)
+            if retained is not None:
+                return retained
         desktop_id = info.desktop_id
         icon_name = dock_icon_name(info)
         exec_line = info.exec_line
@@ -239,7 +245,10 @@ class IconLoader:
         """Load a pixbuf directly from a Gio.Icon when available."""
         if gicon is None:
             return None
-        cache_key = (f"gicon:{gicon.to_string()}", size)
+        serialized = gicon.to_string()
+        if serialized is None:
+            return self._try_load_gicon(gicon=gicon, size=size)
+        cache_key = (f"gicon:{serialized}", size)
         if cache_key in self._icon_cache:
             return self._icon_cache[cache_key]
 

@@ -2130,6 +2130,32 @@ catalog, preserving the open query, selection and entry focus while metadata
 arrived. Broader shortcut arguments, working-directory and installer/multi-user
 behavior still need native acceptance.
 
+## Shared application artwork
+
+Applications menu rows, their drag images, Search results and unavailable window
+previews now use the same application artwork resolver. It preserves current
+painted or custom dock icons, canonical native extraction and retained Gio icons
+for association-only listings. Native extraction stays on the existing worker;
+completion updates the existing menu image without rebuilding rows or changing
+the query, selection or focus. Menu and preview subscriptions end when their
+surface closes. A completed window capture replaces fallback artwork and cannot
+be overwritten by a later icon update.
+
+`tools/windows/applications_smoke.py --check-artwork` holds real native icon
+extraction until the filtered menu is visible, then checks the existing row's
+pixels, OLE2 drag-to-pin, activation and preview fallback. The preview capture is
+explicitly unavailable for the probe's owned application. Both packaged Notepad
+and `--classic` Character Map passed under the standard-user Windows 11 25H2
+session, including normal cleanup. The captured menu, drag and preview images
+were visually inspected; fallback previews retain transparent edges and display
+one label, without the ordinary dock tooltip overlapping the preview.
+
+`--trace-surfaces` records GTK ownership and native visible windows around the
+drop. This identified the earlier floating generic icon as preview fallback:
+the GDK drag window was already hidden. The fix replaces that fallback artwork
+and suppresses the duplicate tooltip while retaining the existing transparent
+preview design.
+
 ## Native Window Killer
 
 `WindowsWindowPickService` supplies the shared Window Killer applet. The existing

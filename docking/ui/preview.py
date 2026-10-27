@@ -129,6 +129,7 @@ from docking.ui.display import clamp_popup, popup_workarea
 from docking.ui.display import scrolled_popup_size as preview_size
 
 if TYPE_CHECKING:
+    from docking.platform.application_icons import ApplicationIcons
     from docking.platform.backends.base import PreviewImage, PreviewService
     from docking.ui.autohide import AutoHideController
     from docking.ui.window_outline import WindowOutline
@@ -224,6 +225,9 @@ class PreviewPopup(Gtk.Window):
             WindowId, tuple[Gtk.Image, int, int, PreviewImage | None]
         ] = {}
         self._current_desktop_id: str = ""
+        self._application_icons: ApplicationIcons | None = None
+        self._unsubscribe_icons: Callable[[], None] | None = None
+        self._fallback_icons: dict[WindowId, GdkPixbuf.Pixbuf | None] = {}
         self._thumbnail_outline_enabled: Callable[[], bool] = lambda: False
         self._thumbnail_width: Callable[[], int] = lambda: THUMB_W
         self._outline: WindowOutline | None = None
@@ -249,6 +253,10 @@ class PreviewPopup(Gtk.Window):
 
     def set_autohide(self, controller: AutoHideController | None) -> None:
         self._autohide = controller
+
+    def set_application_icons(self, source: ApplicationIcons) -> None:
+        self._stop_preview_updates()
+        self._application_icons = source
 
     def set_thumbnail_outline_enabled(self, enabled: Callable[[], bool]) -> None:
         """Set the live probe for the hovered-thumbnail border (polled per hover)."""
@@ -302,6 +310,10 @@ class PreviewPopup(Gtk.Window):
         # this long-lived popup is already visible.
         self._hide_outline()
         self.hide()
+        if self._application_icons is not None:
+            self._unsubscribe_icons = self._application_icons.subscribe(
+                self._fallback_icons_changed
+            )
         child = self.get_child()
         if child:
             child.destroy()
@@ -416,9 +428,21 @@ class PreviewPopup(Gtk.Window):
         if preview is not None:
             image = Gtk.Image.new_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
         else:
-            image = Gtk.Image.new_from_icon_name(
-                fallback_icon_name, Gtk.IconSize.DIALOG
+            icon = (
+                self._application_icons.load(
+                    self._current_desktop_id, ICON_FALLBACK_SIZE
+                )
+                if self._application_icons is not None
+                else None
             )
+            image = (
+                Gtk.Image.new_from_pixbuf(icon)
+                if icon is not None
+                else Gtk.Image.new_from_icon_name(
+                    fallback_icon_name, Gtk.IconSize.DIALOG
+                )
+            )
+            self._fallback_icons[window.id] = icon
         image.set_size_request(thumb_w, thumb_h)
         self._thumbnail_images[window.id] = (image, thumb_w, thumb_h, preview)
         vbox.pack_start(image, False, False, 0)
@@ -593,13 +617,38 @@ class PreviewPopup(Gtk.Window):
             if preview is not None and preview is not previous:
                 image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
                 self._thumbnail_images[window_id] = (image, width, height, preview)
+                self._fallback_icons.pop(window_id, None)
         return True
 
+    def _fallback_icons_changed(self, desktop_id: str | None) -> None:
+        if (
+            not self.get_visible()
+            or self._application_icons is None
+            or not self._current_desktop_id
+            or (desktop_id is not None and desktop_id != self._current_desktop_id)
+        ):
+            return
+        icon = self._application_icons.load(
+            self._current_desktop_id, ICON_FALLBACK_SIZE
+        )
+        if icon is None:
+            return
+        for window_id, previous_icon in tuple(self._fallback_icons.items()):
+            if icon is not previous_icon and window_id in self._thumbnail_images:
+                image, _width, _height, preview = self._thumbnail_images[window_id]
+                if preview is None:
+                    image.set_from_pixbuf(icon)
+                    self._fallback_icons[window_id] = icon
+
     def _stop_preview_updates(self) -> None:
+        if self._unsubscribe_icons is not None:
+            self._unsubscribe_icons()
+            self._unsubscribe_icons = None
         if self._preview_refresh_timer_id:
             GLib.source_remove(self._preview_refresh_timer_id)
             self._preview_refresh_timer_id = 0
         self._thumbnail_images.clear()
+        self._fallback_icons.clear()
 
     def _on_destroy(self, _widget: Gtk.Widget) -> None:
         self._cancel_hide_timer()

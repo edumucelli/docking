@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING
 
 from docking.core.config import Config, effective_edge_gap
 from docking.core.theme import Theme
+from docking.platform.application_icons import ApplicationIcons
 from docking.platform.backends.base import (
     PreviewService,
     Rect,
@@ -138,6 +139,9 @@ def build_dock_window(
         preview_service=preview_service,
         surface_service=surface_service,
         session_backend=session_backend,
+    )
+    window.preview.set_application_icons(
+        ApplicationIcons(model=model, registry=application_registry, loader=icon_loader)
     )
     update_checker = UpdateCheckController(window=window, config=config)
     runtime = DockRuntime(window, update_checker=update_checker)
