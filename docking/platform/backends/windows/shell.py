@@ -8,11 +8,25 @@ from ctypes import wintypes
 from pathlib import PureWindowsPath
 
 from docking.log import get_logger
+from docking.platform.applications.launched_process import LaunchOutcome
 
 from .com import GUID, HRESULT, apartment, method, release
 from .ffi import bind as _bind
 
 log = get_logger("windows.shell")
+
+
+def launch_application_target(target: str) -> LaunchOutcome:
+    shortcut = PureWindowsPath(target)
+    if shortcut.is_absolute() and shortcut.suffix.lower() == ".lnk":
+        from .launching import launch_shortcut
+
+        try:
+            return launch_shortcut(target)
+        except OSError as exc:
+            log.warning("Windows shell activation failed: %s", exc)
+            return LaunchOutcome(False)
+    return LaunchOutcome(activate_application_target(target))
 
 
 def activate_application_target(target: str) -> bool:

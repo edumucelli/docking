@@ -2095,6 +2095,27 @@ paths passed with Unicode executable directories, including restart from an
 active UCRT64 shell into ordinary desktop path semantics. Only the owned Explorer
 window closes, and Explorer's original shell and work area remain intact.
 
+Native shortcut activation now uses `ShellExecuteExW` with an optional owned
+process handle. The Windows backend polls that exact handle without waiting and
+releases it after exit or when its launch record is discarded. The shared
+process-lifetime contract also accepts Unix `Popen` instances. When Windows
+returns a process, the application launcher records which canonical launcher
+started it; the matcher uses that evidence before executable-name ties. DDE or
+delegated activations may return no new process and keep their native behavior.
+
+`python -m tools.windows.visual.launch_provenance_smoke --output artifacts/windows/launch-provenance`
+uses controlled registry records and independently written native shortcuts to
+launch two profiles of one compiled executable under a Unicode path. The native
+programs report distinct PIDs, exact empty/quoted/Unicode arguments and different
+working directories. The real launcher, process-identity service and matcher
+retain each profile's identity, then prune completed process records. The actual
+dock's Explorer-drop/restart/launch check also passed with this shell launcher.
+Importing arbitrary `.lnk` files and resolving their installed identities remains
+separate unfinished work.
+
+The [ShellExecuteEx process-handle contract](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shellexecuteinfow)
+defines when the shell returns a handle and requires the caller to close it.
+
 The native reader uses [IShellLinkW::GetPath](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-getpath)
 with stored-path flags and [IPersistFile::Load](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-ipersistfile-load)
 without resolving moved targets or launching them during catalog discovery.

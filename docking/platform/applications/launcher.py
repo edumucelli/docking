@@ -65,10 +65,17 @@ class ApplicationLauncher:
         if is_windows():
             if application.launch_target:
                 from docking.platform.backends.windows.shell import (
-                    activate_application_target,
+                    launch_application_target,
                 )
 
-                return activate_application_target(application.launch_target)
+                outcome = launch_application_target(application.launch_target)
+                if outcome.started and outcome.process is not None:
+                    self._provenance_store.record_launch(
+                        process=outcome.process,
+                        desktop_id=application.desktop_id,
+                        executable_path=application.executable_path,
+                    )
+                return outcome.started
             handle = self._registry._gio_handle_for(desktop_id)
             if handle is None:
                 return False
