@@ -1417,6 +1417,9 @@ class DockHarness:
         self._preview_popup._preview_refresh_timer_id = 0
         self._preview_popup._thumbnail_images = {}
         self._preview_popup._current_desktop_id = ""
+        self._preview_popup._application_icons = None
+        self._preview_popup._unsubscribe_icons = None
+        self._preview_popup._fallback_icons = {}
         self._preview_popup._thumbnail_outline_enabled = lambda: False
         self._preview_popup._outline = None
         self._preview_popup._outline_enabled = lambda: False

@@ -123,6 +123,13 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
                 },
             ),
         },
+        "docking.platform.application_icons": {
+            "ApplicationIcons": type(
+                "ApplicationIcons",
+                (),
+                {"__init__": lambda self, **_kwargs: None},
+            ),
+        },
         "docking.platform.targets": {
             "TargetService": type(
                 "TargetService",
