@@ -134,7 +134,10 @@ class ClassicApplications:
             / ("Docking Classic résumé 日本語 " + nonce)
         )
         self.executables = {
-            key: self.root / key / "SharedFixture.exe" for key in self.labels
+            key: self.root
+            / (f"Other résumé 日本語 {nonce}" if key == "Other" else key)
+            / "SharedFixture.exe"
+            for key in self.labels
         }
         self.native = WindowsDesktop()
         self._owns_links = False

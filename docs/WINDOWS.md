@@ -2085,6 +2085,16 @@ it with ordinary desktop path semantics, then restores Explorer's work area and
 removes its owned fixtures. Existing arbitrary shortcuts, installer-owned
 portable bundles and broader file associations still require acceptance.
 
+Add `--explorer-drop` to exercise an actual Explorer OLE2 file drag instead of
+the application menu. The owned fixture lives under a path containing French
+and Japanese characters. The check obtains Explorer's file-icon geometry through
+UI Automation, sends native pointer input, verifies the decoded URI and app pin,
+and retains the source executable. A fresh Docking process then launches the pin
+and groups its window under the saved application ID. Both the menu and Explorer
+paths passed with Unicode executable directories, including restart from an
+active UCRT64 shell into ordinary desktop path semantics. Only the owned Explorer
+window closes, and Explorer's original shell and work area remain intact.
+
 The native reader uses [IShellLinkW::GetPath](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-getpath)
 with stored-path flags and [IPersistFile::Load](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-ipersistfile-load)
 without resolving moved targets or launching them during catalog discovery.

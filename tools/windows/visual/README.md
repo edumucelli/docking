@@ -17,6 +17,7 @@ control the VM from its host.
 python -m tools.windows.visual.lab --share /path/to/shared status
 python -m tools.windows.visual.smoke --output artifacts/windows/smoke
 python -m tools.windows.visual.runtime_pin_smoke --output artifacts/windows/runtime-pin
+python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --output artifacts/windows/explorer-pin
 ```
 
 The [Windows workflow](../../../.github/workflows/windows.yml) runs the installed

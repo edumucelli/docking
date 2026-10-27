@@ -1,4 +1,4 @@
-"""Pin an unlisted native executable, restart Docking, and launch its saved pin."""
+"""Pin or Explorer-drop an executable, restart Docking, and launch its pin."""
 
 from __future__ import annotations
 
@@ -24,9 +24,12 @@ def _phase(output: Path, phase: str) -> None:
     from PIL import ImageGrab
 
     import docking.app as app
+    from docking.core.items import APP_KIND
+    from docking.core.paths import local_path_from_uri_or_path
     from docking.platform.applications.registration import executable_application_id
     from docking.platform.applications.types import ApplicationOrigin
     from tools.windows.visual.desktop_driver import WindowsDesktop, read_shared_json
+    from tools.windows.visual.explorer import ExplorerFolder
 
     manifest = read_shared_json(output / "manifest.json")
     executable = Path(manifest["executable"])
@@ -58,6 +61,19 @@ def _phase(output: Path, phase: str) -> None:
         return ui
 
     app.build_dock_window = observe_build
+    if phase == "drop":
+        from docking.ui.dnd import DnDHandler
+
+        receive = DnDHandler._on_drag_data_received
+
+        def observe_drop(handler, widget, context, x, y, selection, info, when):
+            report["native_drop"] = {
+                "protocol": context.get_protocol().value_nick,
+                "uris": selection.get_uris(),
+            }
+            return receive(handler, widget, context, x, y, selection, info, when)
+
+        DnDHandler._on_drag_data_received = observe_drop
 
     def call(callback):
         done, values, errors = threading.Event(), [], []
@@ -177,6 +193,57 @@ def _phase(output: Path, phase: str) -> None:
                 )
                 assert Path(original_item.application_info.launch_target).is_file()
                 report["same_running_item"] = True
+            elif phase == "drop":
+                with ExplorerFolder(native, executable.parent) as folder:
+                    source = folder.file_rectangle(executable)
+                    report["explorer_source"] = source
+
+                    def insertion_point():
+                        window = shared["ui"].window
+                        geometry = next(
+                            g
+                            for g in window.geometry.build_frame().item_geometries
+                            if g.item.desktop_id == "applet://clock"
+                        )
+                        rect = geometry.draw_rect
+                        bounds = next(
+                            w["rect"]
+                            for w in native.windows(os.getpid())
+                            if w["hwnd"] == dock["hwnd"]
+                        )
+                        scale = window.get_scale_factor()
+                        return bounds[0] + (rect.x + 2) * scale, bounds[1] + (
+                            rect.y + rect.h / 2
+                        ) * scale
+
+                    destination = call(insertion_point)
+                    report["drop_point"] = destination
+                    native.drag(
+                        (source["x"] + source["width"] / 2, source["y"] + 20),
+                        destination,
+                    )
+                    item = native.wait_for(
+                        lambda: call(
+                            lambda: shared["model"].find_by_desktop_id(identifier)
+                        ),
+                        "Explorer drop did not create an executable pin",
+                    )
+                    assert (
+                        item.kind == APP_KIND and item.is_pinned and not item.is_running
+                    )
+                    assert item.application_info.origin is ApplicationOrigin.GENERATED
+                    assert report["native_drop"]["protocol"] == "ole2"
+                    uris = report["native_drop"]["uris"]
+                    assert len(uris) == 1
+                    source_path = local_path_from_uri_or_path(uris[0])
+                    assert source_path is not None and source_path.samefile(executable)
+                    assert executable.is_file()
+                    report["source_retained"] = True
+                    ImageGrab.grab(all_screens=True).save(
+                        output / "explorer-dropped.png"
+                    )
+                report.update(ok=True, actual_explorer_drop=True)
+                return
             else:
                 item = native.wait_for(
                     lambda: call(
@@ -255,7 +322,8 @@ def _phase(output: Path, phase: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--phase", choices=("pin", "restart"))
+    parser.add_argument("--phase", choices=("pin", "drop", "restart"))
+    parser.add_argument("--explorer-drop", action="store_true")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires a native Windows desktop")
@@ -272,6 +340,7 @@ def main() -> None:
     native = WindowsDesktop()
     baseline, explorer = native.workarea(), native.explorer()
     with ClassicApplications(output) as fixture:
+        assert not str(fixture.executables["Other"].parent).isascii()
         config_home = fixture.root / "config"
         config = config_home / "docking/dock.json"
         config.parent.mkdir(parents=True)
@@ -302,7 +371,7 @@ def main() -> None:
             "XDG_CACHE_HOME": str(fixture.root / "cache"),
             "PYTHONUTF8": "1",
         }
-        for phase in ("pin", "restart"):
+        for phase in ("drop" if args.explorer_drop else "pin", "restart"):
             if phase == "restart":
                 # A pin created from UCRT64 must also restore from a normal
                 # desktop launch, where Python uses backslash separators.
@@ -338,7 +407,9 @@ def main() -> None:
         json.dumps(
             {
                 "ok": True,
-                "actual_menu_pin": True,
+                "actual_menu_pin": not args.explorer_drop,
+                "actual_explorer_drop": args.explorer_drop,
+                "unicode_executable_directory": True,
                 "process_restart": True,
                 "native_relaunch": True,
                 "normal_shutdown": True,
@@ -348,7 +419,7 @@ def main() -> None:
         ),
         encoding="utf-8",
     )
-    print("Native menu pin, process restart, launch, grouping and cleanup passed")
+    print("Native executable pin, restart, launch, grouping and cleanup passed")
 
 
 if __name__ == "__main__":
