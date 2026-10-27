@@ -93,7 +93,12 @@ log = get_logger("search.controller")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.backends.base import PreviewService, WindowService
+    from docking.platform.backends.base import (
+        MonitorSnapshot,
+        PreviewService,
+        Rect,
+        WindowService,
+    )
     from docking.platform.model import DockModel
 
 
@@ -118,6 +123,7 @@ class GlobalSearchController:
         application_launcher: ApplicationLauncher,
         icon_loader: IconLoader,
         target_service: TargetService,
+        monitor_workarea: Callable[[MonitorSnapshot], Rect | None] | None = None,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._config = config
@@ -207,6 +213,7 @@ class GlobalSearchController:
             preview_resolver=self._resolve_result_preview,
             refresh_dynamic_previews=self._preview_service.asynchronous is True,
             window_focus_factory=window_focus_factory,
+            monitor_workarea=monitor_workarea,
         )
         self._global_shortcuts = self._new_shortcut_service()
         self._shortcut_fallback = self._new_shortcut_fallback()

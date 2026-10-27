@@ -28,6 +28,19 @@ def main():
     p.add_argument("--delay", type=float, default=0)
     p.add_argument("--same-process-input", action="store_true")
     p.add_argument(
+        "--check-panels", action="store_true", help="Exercise Preview and Actions"
+    )
+    p.add_argument(
+        "--check-scroll",
+        action="store_true",
+        help="Require overflowing Preview and Actions fixtures to scroll",
+    )
+    p.add_argument(
+        "--check-workarea",
+        action="store_true",
+        help="Require Search to fit inside the lab's primary Windows work area",
+    )
+    p.add_argument(
         "--outside-point",
         type=int,
         nargs=2,
@@ -36,6 +49,8 @@ def main():
         help="Native desktop point outside Search for the focus-release check",
     )
     a = p.parse_args()
+    if a.check_scroll:
+        a.check_panels = True
     if sys.platform != "win32":
         p.error("Requires native Windows Python")
     a.output.mkdir(parents=True, exist_ok=True)
@@ -48,7 +63,7 @@ def main():
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib
+    from gi.repository import GLib, Gtk
     from PIL import ImageGrab
 
     import docking.app as app
@@ -106,6 +121,40 @@ def main():
             "class": cls.value,
             "pid": pid.value,
             "thread": tid,
+        }
+
+    def inside_workarea(rectangle):
+        left, top, right, bottom = native.workarea()
+        x, y, x2, y2 = rectangle
+        return left < x < x2 < right and top < y < y2 < bottom
+
+    def panel_geometry(panel):
+        palette = shared["ui"].search.window.window
+        if not panel.get_visible():
+            return None
+        allocation = panel.get_allocation()
+        if allocation.width <= 1 or allocation.height <= 1:
+            return None
+        x, y = panel.translate_coordinates(palette, 0, 0)
+        return {
+            "rect": [x, y, x + allocation.width, y + allocation.height],
+            "window_size": list(palette.get_size()),
+        }
+
+    def panel_scroll(name):
+        palette = shared["ui"].search.window
+        widget = palette.preview_image if name == "preview" else palette.actions_list
+        scroller = widget.get_ancestor(Gtk.ScrolledWindow)
+        assert scroller is not None
+        x, y = scroller.translate_coordinates(palette.window, 0, 0)
+        allocation = scroller.get_allocation()
+        adjustment = scroller.get_vadjustment()
+        return {
+            "point": [x + allocation.width // 2, y + allocation.height // 2],
+            "scale": palette.window.get_scale_factor(),
+            "value": adjustment.get_value(),
+            "upper": adjustment.get_upper(),
+            "page_size": adjustment.get_page_size(),
         }
 
     def gui(tid):
@@ -345,6 +394,87 @@ def main():
                     "Search providers did not settle",
                 )
             ImageGrab.grab(all_screens=True).save(a.output / "desktop.png")
+            report["settled_search"] = next(
+                row
+                for row in native.windows(os.getpid())
+                if row["hwnd"] == search["hwnd"]
+            )
+            report["search_workarea"] = native.workarea()
+            if a.check_workarea:
+                assert inside_workarea(report["settled_search"]["rect"]), (
+                    "Search must leave a margin inside the native work area"
+                )
+            if a.check_panels:
+                for key, name, panel in (
+                    ("P", "preview", lambda: shared["ui"].search.window.preview_frame),
+                    ("J", "actions", lambda: shared["ui"].search.window.action_frame),
+                ):
+                    native.key(ord(key), control=True)
+                    geometry = native.wait_for(
+                        lambda panel=panel: call(lambda: panel_geometry(panel())),
+                        "Search panel did not map: " + name,
+                    )
+                    x, y, right, bottom = geometry["rect"]
+                    width, height = geometry["window_size"]
+                    assert 0 <= x < right <= width and 0 <= y < bottom <= height, (
+                        "Search panel exceeds palette bounds: " + name
+                    )
+                    report[name + "_geometry"] = geometry
+                    ImageGrab.grab(all_screens=True).save(a.output / (name + ".png"))
+                    if a.check_scroll:
+                        before = call(lambda name=name: panel_scroll(name))
+                        assert before["upper"] > before["page_size"]
+                        report[name + "_scroll"] = {"before": before}
+                        current = next(
+                            row
+                            for row in native.windows(os.getpid())
+                            if row["hwnd"] == search["hwnd"]
+                        )
+                        point = (
+                            current["rect"][0] + before["point"][0] * before["scale"],
+                            current["rect"][1] + before["point"][1] * before["scale"],
+                        )
+                        assert native.user.SetCursorPos(*point)
+                        assert native.window_at(*point) == search["hwnd"]
+                        # Let GTK process pointer crossing before injecting the
+                        # wheel, as the desktop driver's click/drag helpers do.
+                        time.sleep(0.3)
+                        amount = (
+                            -960
+                            if before["value"]
+                            < before["upper"] - before["page_size"] - 1
+                            else 960
+                        )
+                        report[name + "_scroll"]["wheel_amount"] = amount
+                        native.scroll(amount)
+                        after = native.wait_for(
+                            lambda name=name, initial=before["value"]: (
+                                value
+                                if abs(
+                                    (value := call(lambda: panel_scroll(name)))["value"]
+                                    - initial
+                                )
+                                > 0.1
+                                else None
+                            ),
+                            "Native wheel did not scroll Search panel: " + name,
+                        )
+                        report[name + "_scroll"]["after"] = after
+                        ImageGrab.grab(all_screens=True).save(
+                            a.output / (name + "-scrolled.png")
+                        )
+                    if a.check_workarea:
+                        current = next(
+                            row
+                            for row in native.windows(os.getpid())
+                            if row["hwnd"] == search["hwnd"]
+                        )
+                        assert inside_workarea(current["rect"])
+                    native.key(0x1B)
+                    native.wait_for(
+                        lambda panel=panel: not call(lambda: panel().get_visible()),
+                        "Escape did not close Search panel: " + name,
+                    )
             outside = user.GetAncestor(
                 user.WindowFromPoint(w.POINT(*a.outside_point)), 2
             )

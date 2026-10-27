@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from docking.platform.backends.base import Rect
+from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.backends.gtk_geometry import logical_screen_rectangle
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.windows.appbar import ScreenMapping
@@ -63,3 +63,40 @@ def test_windows_unrealized_surface_has_no_guessed_screen_coordinates():
     assert (
         WindowsSurfaceService().screen_rectangle(window(), Rect(0, 0, 24, 24)) is None
     )
+
+
+def test_monitor_workarea_defaults_to_the_toolkit_reservations():
+    monitor = MonitorSnapshot(
+        index=0, geometry=Rect(0, 0, 1280, 800), workarea=Rect(0, 0, 1280, 699)
+    )
+    assert ReducedSurfaceService().monitor_workarea(monitor) == monitor.workarea
+    assert WindowsSurfaceService().monitor_workarea(monitor) == monitor.workarea
+
+
+def test_windows_workarea_includes_own_live_reservation_with_scaled_negative_origin():
+    monitor = MonitorSnapshot(
+        index=0,
+        geometry=Rect(-1280, 0, 1280, 720),
+        workarea=Rect(-1280, 0, 1280, 720),
+        scale=2,
+    )
+    surface = WindowsSurfaceService()
+    surface._window = window()
+    surface._appbar = Mock()
+    surface._appbar.mapping.return_value = ScreenMapping(
+        monitor.geometry,
+        Rect(-2560, 0, 2560, 1440),
+        Rect(-2560, 0, 2560, 1292),
+        2,
+    )
+    assert surface.monitor_workarea(monitor) == Rect(-1280, 0, 1280, 646)
+    surface._appbar.external.assert_not_called()
+
+
+def test_windows_workarea_query_failure_allows_toolkit_fallback():
+    monitor = MonitorSnapshot(index=0, geometry=Rect(0, 0, 1280, 800))
+    surface = WindowsSurfaceService()
+    surface._window = window()
+    surface._appbar = Mock()
+    surface._appbar.mapping.side_effect = OSError("Monitor removed")
+    assert surface.monitor_workarea(monitor) is None

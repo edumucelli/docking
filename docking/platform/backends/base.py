@@ -472,6 +472,10 @@ class SurfaceService(Service):
         window.move(logical.x, logical.y)
         window.resize(logical.width, logical.height)
 
+    def monitor_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Current logical work area, including this dock's screen reservation."""
+        return monitor.workarea or monitor.geometry
+
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         """Return monitor space excluding other edge-reserving surfaces.
 

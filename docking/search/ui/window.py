@@ -33,6 +33,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from docking.i18n import _
+from docking.platform.backends.base import MonitorSnapshot, Rect, Size
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
 from docking.search.icons import SearchResultIcons
@@ -44,6 +45,7 @@ from docking.search.types import (
     SearchResult,
 )
 from docking.search.ui.thumbnails import LoadedSearchImage, SearchImageCache
+from docking.ui.display import get_pointer_position, popup_workarea
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
     wrap_startup_popup_content,
@@ -51,6 +53,7 @@ from docking.ui.popup_surface import (
 
 SEARCH_WINDOW_WIDTH = 680
 SEARCH_WINDOW_HEIGHT = 470
+SEARCH_WINDOW_MARGIN = 16
 SEARCH_ICON_SIZE = 32
 ACTION_PANEL_WIDTH = 320
 PREVIEW_PANEL_WIDTH = 320
@@ -163,6 +166,7 @@ class SearchWindow:
         refresh_dynamic_previews: bool = False,
         result_icons: SearchResultIcons | None = None,
         window_focus_factory: Callable[[], WindowFocus] | None = None,
+        monitor_workarea: Callable[[MonitorSnapshot], Rect | None] | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
@@ -172,6 +176,7 @@ class SearchWindow:
         self._window_focus = (
             window_focus_factory() if window_focus_factory is not None else None
         )
+        self._monitor_workarea = monitor_workarea
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -196,6 +201,8 @@ class SearchWindow:
         )
         self._pending_thumbnails: set[tuple[str, int, int]] = set()
         self._result_generation = 0
+        self._preferred_size = Size(SEARCH_WINDOW_WIDTH, SEARCH_WINDOW_HEIGHT)
+        self._fitted_size: Size | None = None
 
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         window.set_title(_("Docking Search"))
@@ -249,6 +256,7 @@ class SearchWindow:
         self.action_frame.set_margin_end(10)
         self.action_frame.set_margin_bottom(10)
         self.action_frame.set_size_request(ACTION_PANEL_WIDTH, -1)
+        self.action_frame.get_style_context().add_class("view")
         action_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         action_box.set_border_width(8)
         action_title = Gtk.Label(label=_("Actions"))
@@ -262,7 +270,13 @@ class SearchWindow:
         self.actions_list = Gtk.ListBox()
         self.actions_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.actions_list.connect("row-activated", self._on_action_row_activated)
-        action_box.pack_start(self.actions_list, False, False, 0)
+        self._actions_scroller = Gtk.ScrolledWindow()
+        self._actions_scroller.set_policy(
+            Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC
+        )
+        self._actions_scroller.set_propagate_natural_height(True)
+        self._actions_scroller.add(self.actions_list)
+        action_box.pack_start(self._actions_scroller, False, False, 0)
         self.action_frame.add(action_box)
         overlay.add_overlay(self.action_frame)
 
@@ -285,12 +299,13 @@ class SearchWindow:
         self.preview_image.set_halign(Gtk.Align.CENTER)
         self.preview_image.set_valign(Gtk.Align.START)
         self.preview_image.set_no_show_all(True)
-        preview_box.pack_start(self.preview_image, False, False, 0)
+        preview_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        preview_content.pack_start(self.preview_image, False, False, 0)
         self.preview_metadata = Gtk.Label()
         self.preview_metadata.set_xalign(0.0)
         self.preview_metadata.get_style_context().add_class("dim-label")
         self.preview_metadata.set_no_show_all(True)
-        preview_box.pack_start(self.preview_metadata, False, False, 0)
+        preview_content.pack_start(self.preview_metadata, False, False, 0)
         self.preview_body = Gtk.Label()
         self.preview_body.set_xalign(0.0)
         self.preview_body.set_yalign(0.0)
@@ -301,7 +316,8 @@ class SearchWindow:
             Gtk.PolicyType.NEVER,
             Gtk.PolicyType.AUTOMATIC,
         )
-        preview_scroller.add(self.preview_body)
+        preview_content.pack_start(self.preview_body, False, False, 0)
+        preview_scroller.add(preview_content)
         preview_box.pack_start(preview_scroller, True, True, 0)
         self.preview_frame.add(preview_box)
         overlay.add_overlay(self.preview_frame)
@@ -326,6 +342,7 @@ class SearchWindow:
         outer.pack_end(footer, False, False, 0)
         self.surface = wrap_startup_popup_content(outer)
         window.add(self.surface)
+        overlay.connect("size-allocate", self._constrain_actions)
         if result_icons is not None:
             self._unsubscribe_icons = result_icons.subscribe(self.refresh_result_icons)
 
@@ -344,7 +361,8 @@ class SearchWindow:
         grab = Gtk.grab_get_current()
         if isinstance(grab, Gtk.MenuShell):
             grab.cancel()
-        focus = getattr(self, "_window_focus", None)
+        self._fit_workarea()
+        focus = self._window_focus
         if focus is not None:
             focus.before_present()
         context = activation_context or {}
@@ -374,9 +392,56 @@ class SearchWindow:
         else:
             self.window.present()
         if focus is not None:
-            focus.after_present(
-                title=self.window.get_title(), visible=lambda: self.visible
-            )
+            title = self.window.get_title()
+            assert title is not None
+            focus.after_present(title=title, visible=lambda: self.visible)
+
+    def _fit_workarea(self) -> None:
+        """Fit the palette to the pointer monitor in GTK's logical coordinates."""
+        display = self.window.get_display()
+        if display is None:
+            return
+        pointer = get_pointer_position(display)
+        if pointer is None:
+            monitor = display.get_primary_monitor()
+            if monitor is None and display.get_n_monitors():
+                monitor = display.get_monitor(0)
+            if monitor is None:
+                return
+            geometry = monitor.get_geometry()
+            anchor_x = geometry.x + geometry.width // 2
+            anchor_y = geometry.y + geometry.height // 2
+        else:
+            anchor_x, anchor_y = pointer
+        bounds = popup_workarea(
+            self.window,
+            anchor_x,
+            anchor_y,
+            workarea_provider=self._monitor_workarea,
+        )
+        if self.window.get_realized() and self._fitted_size is not None:
+            current = Size(*self.window.get_size())
+            if current != self._fitted_size:
+                self._preferred_size = current
+        maximum = Size(
+            max(1, bounds.width - 2 * SEARCH_WINDOW_MARGIN),
+            max(1, bounds.height - 2 * SEARCH_WINDOW_MARGIN),
+        )
+        size = Size(
+            min(self._preferred_size.width, maximum.width),
+            min(self._preferred_size.height, maximum.height),
+        )
+        hints = Gdk.Geometry()
+        hints.max_width = maximum.width
+        hints.max_height = maximum.height
+        self.window.set_geometry_hints(None, hints, Gdk.WindowHints.MAX_SIZE)
+        self.window.resize(size.width, size.height)
+        self.window.set_position(Gtk.WindowPosition.NONE)
+        self.window.move(
+            bounds.x + (bounds.width - size.width) // 2,
+            bounds.y + (bounds.height - size.height) // 2,
+        )
+        self._fitted_size = size
 
     def hide(self) -> None:
         """Hide the toplevel while preserving reusable widget state."""
@@ -542,7 +607,22 @@ class SearchWindow:
         self._hide_preview()
         self._sync_actions(result)
         self.action_frame.show_all()
+        self._constrain_actions()
         self.action_filter.grab_focus()
+
+    def _constrain_actions(self, *_args: object) -> None:
+        """Keep the filter visible while long action lists scroll in the overlay."""
+        if self._destroyed or not self.action_frame.get_visible():
+            return
+        overlay = self.action_frame.get_parent()
+        if overlay is None or overlay.get_allocated_height() <= 1:
+            return
+        _, panel_height = self.action_frame.get_preferred_height()
+        _, scroll_height = self._actions_scroller.get_preferred_height()
+        chrome = panel_height - scroll_height
+        maximum = max(1, overlay.get_allocated_height() - chrome)
+        if self._actions_scroller.get_max_content_height() != maximum:
+            self._actions_scroller.set_max_content_height(maximum)
 
     def _hide_actions(self, *, focus_search: bool) -> None:
         self.action_frame.hide()

@@ -679,10 +679,30 @@ thread. See [Microsoft's explanation of attached input queues](https://devblogs.
 
 The outside-click check uses native hit testing to confirm that the click lands
 outside Search. `--outside-point X Y` selects a desktop point or a visible
-foreign window. On the 1280 × 800 lab at GTK scale 2, Search filled the display:
-native focus and typing passed, but the default point was inside Search and
-could not establish outside-click behavior. Palette sizing on small scaled
-displays remains acceptance work.
+foreign window. Search now fits to the pointer monitor's usable desktop with a
+16-logical-pixel margin. The shared UI asks the surface backend for the current
+work area, including the dock's reservation; Windows reads the live native
+mapping because GTK can retain an older work area after AppBar registration.
+Reopening on a larger work area restores the preferred size, and an explicit
+user resize is retained. Long action lists scroll below their filter, and image,
+metadata and text previews scroll together inside the palette.
+
+On the 1280 × 800 lab at GTK scale 2, native Search bounds were
+`(32, 32)–(1248, 614)` inside the dock-reserved work area
+`(0, 0)–(1280, 646)`. Independent shortcut input, native foreground ownership,
+typing, Preview/Actions keyboard controls, outside-click focus and normal
+shutdown passed. An owned generated image and twelve-action layout fixture also
+passed real native wheel scrolling in both panels; this checks UI layout rather
+than provider actions. The native captures were visually inspected.
+At GTK scale 1 the palette retained its 680 × 470 preferred size and passed the
+same native focus, keyboard-panel, outside-click and shutdown checks.
+
+`--check-workarea` requires a margin inside the native primary work area;
+`--check-panels` opens Preview and Actions, checks their bounds and dismisses them
+with Escape. `--check-scroll` additionally requires overflowing fixtures and
+observes actual adjustment changes after native wheel input. These geometry
+checks currently target the lab's single primary display; mixed-DPI and physical
+multi-monitor acceptance remains open.
 
 ```sh
 python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run \

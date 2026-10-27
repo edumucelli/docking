@@ -149,6 +149,18 @@ class WindowsSurfaceService(ReducedSurfaceService):
             self._appbar = None
         self._mapping = None
 
+    def monitor_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Read live native reservations instead of GTK's cached work area."""
+        if self._appbar is not None and self._window is not None:
+            try:
+                mapping = self._appbar.mapping(monitor, self._window.get_display())
+            except OSError:
+                # A display can disappear between toolkit selection and the
+                # native query. Let the caller use its toolkit fallback.
+                return None
+            return mapping.to_logical(mapping.workarea)
+        return super().monitor_workarea(monitor)
+
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect:
         """Keep every dock edge inside Explorer's available desktop area."""
         if self._appbar is not None and self._window is not None:
