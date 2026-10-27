@@ -199,6 +199,15 @@ def main():
             GLib.source_remove(source)
         browser.stop()
 
+    def require_paused(record):
+        operation = shared["operation"]
+        state = value(operation, 16, ctypes.c_int32).value
+        can_resume = bool(value(operation, 21, ctypes.c_int32).value)
+        record.setdefault("pause_checks", []).append(
+            {"state": state, "can_resume": can_resume}
+        )
+        assert state == 1 and can_resume, (state, can_resume)
+
     def drive():
         files_owned = False
         downloads = Path(
@@ -285,8 +294,10 @@ def main():
                 "Native pause did not settle",
             )
             assert 1 in record["states"] and record.get("can_resume"), record
+            call(lambda: require_paused(record))
             # The native state event precedes the progress dialog's paint.
             time.sleep(0.5)
+            call(lambda: require_paused(record))
             ImageGrab.grab(all_screens=True).save(output / "native-paused-download.png")
             call(
                 lambda: check(
@@ -313,7 +324,14 @@ def main():
                 "Shutdown pause did not settle",
             )
             assert 1 in record["states"] and record.get("can_resume"), record
-            call(stop_browser)
+
+            def stop_paused():
+                # Sample and stop in one STA callback. A historical pause event
+                # alone does not prove that shutdown interrupted a live transfer.
+                require_paused(record)
+                stop_browser()
+
+            call(stop_paused)
             native.wait_for(
                 lambda: not owned_processes(),
                 "Browser left owned WebView2 processes after paused-download shutdown",
