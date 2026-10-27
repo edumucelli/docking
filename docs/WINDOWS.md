@@ -144,6 +144,13 @@ command times out, inspect the response and heartbeat before submitting another
 job. Do not launch a second copy merely because observation timed out.
 An agent restart does not replay a claimed job whose outcome is unknown.
 
+The readiness report includes `security_context`: UAC policy, effective
+administrator membership, token elevation/type and integrity RID. Check these
+before desktop acceptance: an elevated session with UAC disabled does not
+establish behavior for an ordinary medium-integrity user. The report contains
+no account identifiers. After changing UAC policy and rebooting the test VM,
+verify the new agent's startup time and token before submitting further jobs.
+
 Run `configure-share` after each container startup, before submitting jobs.
 It disables SMB leases for this dedicated lab and reconnects the lab clients,
 so host edits and new job files reach Windows promptly. It leaves Windows

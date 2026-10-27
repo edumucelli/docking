@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import traceback
+from ctypes import wintypes
 from pathlib import Path
 
 
@@ -44,6 +45,70 @@ def windows_release() -> dict[str, str | int]:
             name: winreg.QueryValueEx(key, name)[0]
             for name in ("EditionID", "DisplayVersion", "CurrentBuildNumber", "UBR")
         }
+
+
+def security_context() -> dict[str, bool | int]:
+    """Report the test token and UAC policy without account identifiers."""
+    import winreg
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    security = ctypes.WinDLL("advapi32", use_last_error=True)
+    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+    security.OpenProcessToken.argtypes = (
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    )
+    security.GetTokenInformation.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    security.GetSidSubAuthorityCount.argtypes = (ctypes.c_void_p,)
+    security.GetSidSubAuthorityCount.restype = ctypes.POINTER(wintypes.BYTE)
+    security.GetSidSubAuthority.argtypes = (ctypes.c_void_p, wintypes.DWORD)
+    security.GetSidSubAuthority.restype = ctypes.POINTER(wintypes.DWORD)
+    token = wintypes.HANDLE()
+    if not security.OpenProcessToken(
+        kernel.GetCurrentProcess(), 8, ctypes.byref(token)
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    def query(kind: int):
+        size = wintypes.DWORD()
+        security.GetTokenInformation(token, kind, None, 0, ctypes.byref(size))
+        buffer = ctypes.create_string_buffer(size.value)
+        if not security.GetTokenInformation(
+            token, kind, buffer, size.value, ctypes.byref(size)
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return buffer
+
+    try:
+        # TOKEN_MANDATORY_LABEL starts with a SID pointer. Its backing buffer
+        # stays alive until the integrity RID has been read.
+        integrity = query(25)
+        sid = ctypes.c_void_p.from_buffer(integrity).value
+        count = security.GetSidSubAuthorityCount(sid).contents.value
+        rid = security.GetSidSubAuthority(sid, count - 1).contents.value
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        ) as key:
+            uac = bool(winreg.QueryValueEx(key, "EnableLUA")[0])
+        return {
+            "uac_enabled": uac,
+            "admin_member": bool(shell.IsUserAnAdmin()),
+            "elevated": bool(int.from_bytes(query(20).raw, "little")),
+            "elevation_type": int.from_bytes(query(18).raw, "little"),
+            "integrity_rid": rid,
+        }
+    finally:
+        kernel.CloseHandle(token)
 
 
 def main() -> None:
@@ -86,6 +151,7 @@ def main() -> None:
             "platform": platform.platform(),
             "windows_version": str(sys.getwindowsversion()),
             "windows_release": windows_release(),
+            "security_context": security_context(),
             "pid": os.getpid(),
             "started_at": time.time(),
         },
