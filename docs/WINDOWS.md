@@ -2372,8 +2372,9 @@ The Windows Qt companion implements the shared `BrowserBackend` in a separate
 CPython process. Set `DOCKING_WEBENGINE_PYTHON` to that interpreter before starting
 Docking to select it for WhatsApp and Telegram. The normal Windows host uses
 WebView2 when this variable is absent. This remains an experimental engine path;
-installer integration, signed-in services, media, downloads, sustained resource
-use, broader input methods and physical display acceptance remain pending.
+installer integration, signed-in services, media, real-service downloads,
+sustained resource use, broader input methods and physical display acceptance
+remain pending.
 
 Install the companion dependencies in a separate CPython x64 environment:
 
@@ -2425,6 +2426,29 @@ The generated fixture uses no signed-in accounts or private service data.
 
 ```powershell
 python -m tools.windows.webengine_dock_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --service whatsapp --output C:\\lab\\qt-dock --notification-point 1100 155
+```
+
+The Qt companion uses the native Windows Save dialog and retains progress
+controls for each accepted download. Pause/Resume control the actual engine
+request; Cancel or closing its progress window cancels the transfer. Docking
+shutdown and Disconnect reject pending destination dialogs and cancel active
+requests before destroying the browser profile.
+
+`tools.windows.webengine_download_smoke` drives real download links, destination
+dialogs and transfer buttons. It checks overwrite refusal, HTTP and blob
+attachments with Unicode names and byte-exact contents, pause/resume, partial-file
+removal, disconnect during a paused transfer, and normal process-tree shutdown
+with either a paused transfer or a pending native Save dialog. It removes only
+its own generated Downloads subdirectory. Saving complete pages is not supported
+by this companion yet. Signed-in exports, CDN/network faults, managed policies,
+concurrent-profile downloads and physical display behavior remain acceptance work.
+
+These generated download cases passed on Windows 11 Pro 25H2 with Qt 6.12 for
+WhatsApp at GTK scale 1 and Telegram at GTK scale 2. Both shutdown cases exited
+normally in under a second and left none of their native browser processes.
+
+```powershell
+python -m tools.windows.webengine_download_smoke --python "$env:DOCKING_WEBENGINE_PYTHON" --service whatsapp --output C:\\lab\\qt-downloads
 ```
 
 ### Web-app downloads

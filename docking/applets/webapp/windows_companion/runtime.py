@@ -8,7 +8,6 @@ import queue
 import sys
 import threading
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any, TypeVar, cast
 
 from PySide6.QtCore import QFile, QIODevice, QLockFile, QObject, Qt, QUrl, Signal, Slot
@@ -24,7 +23,6 @@ from PySide6.QtWebEngineCore import (
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
-    QFileDialog,
     QMainWindow,
     QMessageBox,
     QToolBar,
@@ -34,6 +32,7 @@ from docking.i18n import _
 
 from ..bridge import parse_bridge_message
 from ..state import NavigationTarget, navigation_target
+from .downloads import Downloads
 from .input import UnicodePackets
 from .notifications import DesktopNotifier
 from .protocol import Configuration, encode, read
@@ -190,7 +189,8 @@ class Runtime:
             on_shown=lambda: self.emit("notification"),
         )
         self.profile.setNotificationPresenter(self.notifier.show)
-        self.profile.downloadRequested.connect(self._download)
+        self.downloads = Downloads(self.window, self._download_allowed)
+        self.profile.downloadRequested.connect(self.downloads.request)
         self.page.permissionRequested.connect(self._permission)
         self.page.newWindowRequested.connect(self._new_window)
         self.page.windowCloseRequested.connect(self.window.hide)
@@ -359,29 +359,14 @@ class Runtime:
         else:
             request.deny()
 
-    def _download(self, download) -> None:
-        if (
-            self._closing
-            or self._clearing
-            or not self.window.isVisible()
-            or download.page() is not self.page
-            or not self.configuration.profile.allows_origin(self.page.url().toString())
-        ):
-            download.cancel()
-            return
-        name = Path(download.suggestedFileName()).name
-        if name in {"", ".", ".."}:
-            name = "download"
-        destination, _filter = QFileDialog.getSaveFileName(
-            self.window, _("Save"), str(Path(download.downloadDirectory()) / name)
+    def _download_allowed(self, download) -> bool:
+        return bool(
+            not self._closing
+            and not self._clearing
+            and self.window.isVisible()
+            and download.page() is self.page
+            and self.configuration.profile.allows_origin(self.page.url().toString())
         )
-        if destination and not self._closing and not self._clearing:
-            path = Path(destination)
-            download.setDownloadDirectory(str(path.parent))
-            download.setDownloadFileName(path.name)
-            download.accept()
-        else:
-            download.cancel()
 
     def command(self, packet: dict[str, Any]) -> None:
         operation = packet.get("op")
@@ -421,6 +406,7 @@ class Runtime:
             return
         self._closing = True
         if not self._disposed:
+            self.downloads.stop()
             self.notifier.stop(self._after_notifications)
 
 

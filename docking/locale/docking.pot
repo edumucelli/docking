@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-10-27 00:14+0100\n"
+"POT-Creation-Date: 2026-10-27 04:16+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -118,6 +118,7 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:368
 #: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:265
 #: docking/applets/weather/applet.py:278 docking/applets/webapp/applet.py:169
+#: docking/applets/webapp/windows_companion/downloads.py:97
 #: docking/ui/diagnostics.py:391 docking/ui/menu.py:450
 msgid "Cancel"
 msgstr ""
@@ -1593,6 +1594,7 @@ msgid "Scrobbler Settings"
 msgstr ""
 
 #: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/applets/webapp/windows_companion/downloads.py:140
 #: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr ""
@@ -1813,6 +1815,7 @@ msgid "Volume Down"
 msgstr ""
 
 #: docking/applets/music/state.py:74
+#: docking/applets/webapp/windows_companion/downloads.py:94
 msgid "Pause"
 msgstr ""
 
@@ -2706,6 +2709,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: docking/applets/plantcare/applet.py:244
+#: docking/applets/webapp/windows_companion/downloads.py:97
 #: docking/search/providers/applications.py:193 docking/ui/diagnostics.py:137
 #: docking/ui/menu.py:585 docking/ui/startup_tips.py:216
 msgid "Close"
@@ -3982,11 +3986,13 @@ msgid "Docking applet"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:289 docking/applets/webapp/windows.py:144
+#: docking/applets/webapp/windows_companion/runtime.py:173
 #, python-brace-format
 msgid "Reload {service}"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:375 docking/applets/webapp/windows.py:564
+#: docking/applets/webapp/windows_companion/browser.py:166
 msgid "browser process stopped"
 msgstr ""
 
@@ -3995,14 +4001,17 @@ msgid "camera and microphone"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:461 docking/applets/webapp/windows.py:476
+#: docking/applets/webapp/windows_companion/runtime.py:335
 msgid "camera"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:463 docking/applets/webapp/windows.py:476
+#: docking/applets/webapp/windows_companion/runtime.py:333
 msgid "microphone"
 msgstr ""
 
 #: docking/applets/webapp/linux.py:469 docking/applets/webapp/windows.py:482
+#: docking/applets/webapp/windows_companion/runtime.py:344
 #, python-brace-format
 msgid "Allow {service} to use your {device}?"
 msgstr ""
@@ -4030,6 +4039,7 @@ msgid "unknown browser error"
 msgstr ""
 
 #: docking/applets/webapp/windows.py:94
+#: docking/applets/webapp/windows_companion/browser.py:213
 msgid "Could not open browser session"
 msgstr ""
 
@@ -4038,6 +4048,7 @@ msgid "Microsoft Edge WebView2 is unavailable"
 msgstr ""
 
 #: docking/applets/webapp/windows.py:346 docking/applets/webapp/windows.py:546
+#: docking/applets/webapp/windows_companion/browser.py:134
 #, python-brace-format
 msgid "Could not disconnect {service}"
 msgstr ""
@@ -4045,6 +4056,36 @@ msgstr ""
 #: docking/applets/webapp/windows.py:354
 #, python-brace-format
 msgid "could not load {service}"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:28
+msgid "Download"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:71
+msgid "Completed"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:73
+#: docking/search/controller.py:300
+msgid "Cancelled"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:75
+#: docking/search/controller.py:275 docking/search/controller.py:302
+msgid "Failed"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:77
+msgid "Paused"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:79
+msgid "Downloading"
+msgstr ""
+
+#: docking/applets/webapp/windows_companion/downloads.py:94
+msgid "Resume"
 msgstr ""
 
 #: docking/applets/whatsapp/applet.py:21
@@ -4458,10 +4499,6 @@ msgstr ""
 msgid "Conflict"
 msgstr ""
 
-#: docking/search/controller.py:275 docking/search/controller.py:302
-msgid "Failed"
-msgstr ""
-
 #: docking/search/controller.py:278 docking/search/controller.py:303
 msgid "Inactive"
 msgstr ""
@@ -4472,10 +4509,6 @@ msgstr ""
 
 #: docking/search/controller.py:298
 msgid "Denied"
-msgstr ""
-
-#: docking/search/controller.py:300
-msgid "Cancelled"
 msgstr ""
 
 #: docking/search/controller.py:772

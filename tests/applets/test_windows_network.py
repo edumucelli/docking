@@ -146,7 +146,9 @@ def test_shared_applet_resets_traffic_when_same_alias_belongs_to_a_new_identity(
     api = _api([_adapter()])
     monkeypatch.setattr(windows, "_ip_helper", lambda: api)
     times = iter([1.0, 3.0, 5.0, 7.0])
-    monkeypatch.setattr(module.time, "monotonic", lambda: next(times))
+    # Replacing the shared time module's function also changes other workers'
+    # clocks, which can consume this test's four traffic-sample timestamps.
+    monkeypatch.setattr(module, "time", SimpleNamespace(monotonic=lambda: next(times)))
     config = Config()
     applet = NetworkApplet(48, config)
     assert isinstance(applet._backend, backend.NetworkBackend)

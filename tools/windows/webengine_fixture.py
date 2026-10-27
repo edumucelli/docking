@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import ssl
 import subprocess
 import sys
@@ -11,6 +12,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -21,6 +23,9 @@ class TLSFixture:
     def __init__(self, output: Path, directory: Path) -> None:
         self.output, self.directory = output, directory
         self.modes = {"whatsapp": "ready", "telegram": "ready"}
+        self.download_name = "Docking generated attachment.txt"
+        self.download_content = b"Docking generated Windows attachment\n"
+        self.download_delay = 0.0
         self._server = None
         self._thread = None
 
@@ -66,6 +71,43 @@ class TLSFixture:
                 host = self.headers.get("Host", "").split(":")[0].casefold()
                 if host not in {"web.whatsapp.com", "web.telegram.org"}:
                     self.send_error(404)
+                    return
+                if self.path.split("?", 1)[0] == "/fixture-download":
+                    body = fixture.download_content
+                    start = 0
+                    ranged = self.headers.get("Range")
+                    if ranged:
+                        match = re.fullmatch(r"bytes=(\d+)-", ranged)
+                        start = int(match[1]) if match else len(body)
+                        if start >= len(body):
+                            self.send_response(416)
+                            self.send_header("Content-Range", f"bytes */{len(body)}")
+                            self.end_headers()
+                            return
+                    self.send_response(206 if ranged else 200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header(
+                        "Content-Disposition",
+                        "attachment; filename=attachment.txt; filename*=UTF-8''"
+                        + quote(fixture.download_name),
+                    )
+                    self.send_header("Content-Length", str(len(body) - start))
+                    self.send_header("Accept-Ranges", "bytes")
+                    self.send_header("ETag", '"docking-generated-attachment"')
+                    if ranged:
+                        self.send_header(
+                            "Content-Range",
+                            f"bytes {start}-{len(body) - 1}/{len(body)}",
+                        )
+                    self.end_headers()
+                    try:
+                        for offset in range(start, len(body), 32768):
+                            self.wfile.write(body[offset : offset + 32768])
+                            self.wfile.flush()
+                            if fixture.download_delay:
+                                time.sleep(fixture.download_delay)
+                    except (ConnectionError, ssl.SSLError):
+                        pass
                     return
                 service = "whatsapp" if host == "web.whatsapp.com" else "telegram"
                 if fixture.modes[service] == "login":
@@ -163,6 +205,46 @@ def main() -> None:
             self.emit("fixture", pid=os.getpid(), gi_imported="gi" in sys.modules)
 
         def command(self, packet) -> None:
+            if packet.get("op") == "fixture-downloads":
+                rows = []
+                for transfer in self.downloads.transfers:
+                    request = transfer.request
+
+                    def point(widget):
+                        origin = widget.mapToGlobal(
+                            QPoint(widget.width() // 2, widget.height() // 2)
+                        )
+                        scale = widget.devicePixelRatioF()
+                        return [round(origin.x() * scale), round(origin.y() * scale)]
+
+                    rows.append(
+                        {
+                            "id": request.id(),
+                            "name": request.downloadFileName(),
+                            "state": request.state().name,
+                            "scheme": request.url().scheme(),
+                            "paused": request.isPaused(),
+                            "finished": request.isFinished(),
+                            "received": request.receivedBytes(),
+                            "total": request.totalBytes(),
+                            "visible": transfer.isVisible(),
+                            "status": transfer.status.text(),
+                            "pause": point(transfer.pause),
+                            "cancel": point(transfer.cancel),
+                            "pause_enabled": transfer.pause.isEnabled(),
+                        }
+                    )
+                chooser = self.downloads.chooser
+                self.emit(
+                    "probe",
+                    id=packet["id"],
+                    result={
+                        "transfers": rows,
+                        "chooser": chooser is not None,
+                        "suggested": chooser.selectedFiles() if chooser else [],
+                    },
+                )
+                return
             if packet.get("op") == "fixture-origin":
                 origin = self.view.mapToGlobal(QPoint(0, 0))
                 self.emit(
