@@ -286,9 +286,7 @@ def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles(
 ):
     import threading
 
-    from gi.repository import GLib
-
-    api = native_keyboard_window
+    api, pump = native_keyboard_window
     assert ctypes.sizeof(mod._GuiThreadInfo) == 72
     before_context = api.foreground()
     assert before_context is not None
@@ -323,11 +321,9 @@ def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles(
     before_handles = handles()
     worker = threading.Thread(target=read)
     worker.start()
-    context = GLib.MainContext.default()
     deadline = time.monotonic() + 20
     while worker.is_alive() and time.monotonic() < deadline:
-        while context.pending():
-            context.iteration(False)
+        pump()
         worker.join(0.01)
     assert not worker.is_alive() and not errors
     assert set(api.layouts()) == before_loaded
@@ -338,15 +334,9 @@ def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles(
 
 @pytest.fixture
 def native_keyboard_window():
-    """Own the input window rather than depending on an idle desktop's focus."""
-    import gi
+    """Own a Win32 input window without measuring unrelated GTK initialization."""
+    from docking.platform.backends.windows.ffi import bind
 
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
-
-    from docking.platform.backends.windows.ffi import bind, window_handle
-
-    assert Gtk.init_check()[0]
     api = mod.WindowsKeyboardAPI()
     previous = api.foreground()
     user = ctypes.WinDLL("user32", use_last_error=True)
@@ -373,19 +363,69 @@ def native_keyboard_window():
         wintypes.DWORD,
         ctypes.c_size_t,
     )
-    window = Gtk.Window(title="Docking keyboard test")
-    window.set_default_size(300, 120)
-    window.set_position(Gtk.WindowPosition.CENTER)
-    window.set_keep_above(True)
-    entry = Gtk.Entry()
-    window.add(entry)
+    create = bind(
+        user,
+        "CreateWindowExW",
+        wintypes.HWND,
+        wintypes.DWORD,
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.HWND,
+        wintypes.HMENU,
+        wintypes.HINSTANCE,
+        ctypes.c_void_p,
+    )
+    destroy = bind(user, "DestroyWindow", wintypes.BOOL, wintypes.HWND)
+    peek = bind(
+        user,
+        "PeekMessageW",
+        wintypes.BOOL,
+        ctypes.POINTER(wintypes.MSG),
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.UINT,
+        wintypes.UINT,
+    )
+    translate = bind(
+        user, "TranslateMessage", wintypes.BOOL, ctypes.POINTER(wintypes.MSG)
+    )
+    dispatch = bind(
+        user, "DispatchMessageW", ctypes.c_ssize_t, ctypes.POINTER(wintypes.MSG)
+    )
+    # Built-in window classes need no registered procedure or callback lifetime.
+    handle = create(
+        8,
+        "STATIC",
+        "Docking keyboard test",
+        0x10CF0000,
+        100,
+        100,
+        300,
+        150,
+        None,
+        None,
+        None,
+        None,
+    )
+    assert handle
+
+    def pump():
+        message = wintypes.MSG()
+        while peek(ctypes.byref(message), handle, 0, 0, 1):
+            translate(ctypes.byref(message))
+            dispatch(ctypes.byref(message))
+
     try:
-        window.show_all()
-        window.present()
-        entry.grab_focus()
-        handle = window_handle(window.get_window())
-        while Gtk.events_pending():
-            Gtk.main_iteration_do(False)
+        edit = create(
+            0x200, "EDIT", "", 0x50010080, 10, 10, 260, 30, handle, None, None, None
+        )
+        assert edit
+        pump()
         bounds = wintypes.RECT()
         assert rectangle(handle, ctypes.byref(bounds))
         # Windows may deny programmatic foreground activation for a background
@@ -397,16 +437,15 @@ def native_keyboard_window():
         mouse(4, 0, 0, 0, 0)
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
-            while Gtk.events_pending():
-                Gtk.main_iteration_do(False)
+            pump()
             context = api.foreground()
             if context is not None and context.root == handle:
                 break
             time.sleep(0.01)
         assert context is not None and context.root == handle
-        yield api
+        yield api, pump
     finally:
-        window.destroy()
+        assert destroy(handle)
         set_cursor(cursor.x, cursor.y)
         if previous is not None and api.valid(previous):
             api.focus(previous)
