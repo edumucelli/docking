@@ -119,10 +119,10 @@ jobs:
         run: python3 tools/check_translation_packaging.py
 
       - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/
 
       - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
@@ -1197,6 +1197,14 @@ jobs:
     permissions:
       contents: read
 
+  windows-desktop:
+    name: Windows backend and desktop
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
+    uses: ./.github/workflows/windows.yml
+    permissions:
+      contents: read
+
   release:
     name: Release
     runs-on: ubuntu-22.04
@@ -1226,6 +1234,7 @@ jobs:
       - build-nix
       - build-nix-arm64
       - bsd-desktops
+      - windows-desktop
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write

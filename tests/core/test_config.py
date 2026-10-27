@@ -1,6 +1,7 @@
 """Tests for config loading, saving, and defaults."""
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -19,6 +20,15 @@ from docking.core.config import (
     PinnedEntry,
 )
 from docking.core.position import Position
+
+
+def create_symlink(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target)
+    except OSError as exc:
+        if os.name == "nt" and exc.winerror == 1314:
+            pytest.skip("Symbolic links require Windows Developer Mode or elevation")
+        raise
 
 
 class TestConfigDefaults:
@@ -738,7 +748,7 @@ class TestConfigLoad:
         target.parent.mkdir()
         target.write_text("{", encoding="utf-8")
         link = tmp_path / "dock.json"
-        link.symlink_to(target)
+        create_symlink(link, target)
         legacy_backup = link.with_name("dock.json.bak")
         legacy_backup.write_text(
             json.dumps(
@@ -882,7 +892,7 @@ class TestConfigSave:
         target.parent.mkdir()
         target.write_text(json.dumps({"icon_size": 96}))
         link = tmp_path / "dock.json"
-        link.symlink_to(target)
+        create_symlink(link, target)
         config = Config.load(link)
         config.icon_size = 32
 
@@ -903,7 +913,7 @@ class TestConfigSave:
         target.parent.mkdir()
         target.write_text(json.dumps({"icon_size": 96}))
         link = tmp_path / "dock.json"
-        link.symlink_to(target)
+        create_symlink(link, target)
 
         first = Config.load(link)
         first.icon_size = 32
@@ -1107,6 +1117,9 @@ class TestConfigSave:
 
         assert list(tmp_path.iterdir()) == []
 
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Directory fsync uses POSIX file descriptors"
+    )
     def test_save_fsyncs_directory_after_replace(self, monkeypatch, tmp_path):
         path = tmp_path / "dock.json"
         config = Config(icon_size=96)
@@ -1176,7 +1189,7 @@ class TestUriIsDir:
         assert config_mod._uri_is_dir("") is False
         assert config_mod._uri_is_dir("not-a-uri") is False
 
-    def test_invalid_uri_returns_false_logs_warning(self, monkeypatch):
+    def test_invalid_uri_returns_false_logs_warning(self, monkeypatch, tmp_path):
         import docking.core.config as config_mod
 
         warnings: list[str] = []
@@ -1191,12 +1204,13 @@ class TestUriIsDir:
             raise ValueError("unsupported path encoding")
 
         monkeypatch.setattr(config_mod.Path, "is_dir", _raise_valueerror)
-        # Any file:// URI triggers the code path; Path.is_dir raises
-        result = config_mod._uri_is_dir("file:///bad/path")
+        result = config_mod._uri_is_dir((tmp_path / "bad-path").as_uri())
         assert result is False
         assert any("file URI in persisted config" in w for w in warnings)
 
-    def test_unreadable_path_is_not_fatal_to_the_whole_config(self, monkeypatch):
+    def test_unreadable_path_is_not_fatal_to_the_whole_config(
+        self, monkeypatch, tmp_path
+    ):
         """A parent directory that cannot be traversed makes is_dir() raise.
 
         That is an OSError, not a ValueError, so it escaped and aborted the
@@ -1214,7 +1228,7 @@ class TestUriIsDir:
             raise PermissionError(13, "Permission denied")
 
         monkeypatch.setattr(config_mod.Path, "is_dir", _raise_permissionerror)
-        result = config_mod._uri_is_dir("file:///locked/secret")
+        result = config_mod._uri_is_dir((tmp_path / "locked" / "secret").as_uri())
 
         assert result is False
         assert any("file URI in persisted config" in w for w in warnings)

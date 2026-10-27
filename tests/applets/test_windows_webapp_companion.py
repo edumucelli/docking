@@ -165,7 +165,11 @@ for line in sys.stdin.buffer:
     assert process._process.stdin.closed and process._process.stdout.closed
 
 
-@pytest.mark.parametrize("response", ["not json", "x" * (MAX_PACKET_BYTES + 1)])
+@pytest.mark.parametrize(
+    "response",
+    ["not json", "x" * (MAX_PACKET_BYTES + 1)],
+    ids=["invalid-json", "oversized-packet"],
+)
 def test_malformed_real_child_output_closes_owned_process(tmp_path, response):
     process, _packets, closed = child(
         tmp_path, f"print({response!r},flush=True)\ntime.sleep(60)\n"

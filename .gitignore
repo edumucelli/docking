@@ -18,6 +18,8 @@ htmlcov/
 .claude/
 AGENTS.md
 artifacts/
+# Generated native Windows captures are published as CI artifacts.
+/images/windows-*.png
 AppDir/
 result-nix
 *.AppImage

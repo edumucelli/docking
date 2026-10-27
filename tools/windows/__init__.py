@@ -1,1 +1,1 @@
-"""Windows development, VM control, fixtures and native acceptance tools."""
+"""Windows development tools, with native desktop checks under visual."""

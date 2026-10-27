@@ -1,0 +1,86 @@
+name: Windows desktop
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: UCRT64 (x64)
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      GDK_BACKEND: win32
+      GSETTINGS_BACKEND: memory
+      GTK_THEME: Adwaita
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install the native Windows runtime
+        id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            gettext
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-python-cairo
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-setuptools
+            mingw-w64-ucrt-x86_64-python-wheel
+            mingw-w64-ucrt-x86_64-python-build
+            mingw-w64-ucrt-x86_64-python-pytest
+            mingw-w64-ucrt-x86_64-python-pillow
+            mingw-w64-ucrt-x86_64-python-psutil
+            mingw-w64-ucrt-x86_64-python-numpy
+            mingw-w64-ucrt-x86_64-gstreamer
+            mingw-w64-ucrt-x86_64-gst-plugins-base
+            mingw-w64-ucrt-x86_64-gst-plugins-good
+            mingw-w64-ucrt-x86_64-gst-plugins-bad
+      - name: Install Python dependencies and compile translations
+        run: |
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
+          python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
+          bash tools/i18n.sh --compile
+          python -m pip install --break-system-packages --no-deps --no-build-isolation -e .
+          echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
+      - name: Verify native Windows GTK and GStreamer
+        run: python -m tools.windows.ci --stage preflight
+      - name: Windows backend and shared core tests
+        run: python -m tools.windows.ci --stage tests
+      - name: Native GTK allocation and preview checks
+        run: python -m tools.windows.ci --stage gtk
+      - name: Build and install the wheel in an isolated directory
+        run: |
+          python -m build --wheel --no-isolation
+          python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
+      - name: Exercise the installed application on the Windows desktop
+        run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-ucrt64-x64
+          path: |
+            artifacts/windows/environment.json
+            artifacts/windows/*-junit.xml
+            artifacts/windows/smoke/
+            dist/*.whl
+          if-no-files-found: error
+          retention-days: 14

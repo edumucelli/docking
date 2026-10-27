@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.windows import vm_input
+from tools.windows.visual import vm_input
 
 
 def _request(stage, *, origin="start", delay=0, token="current"):

@@ -2,6 +2,8 @@
 
 import ctypes
 import sys
+import time
+from ctypes import wintypes
 
 import pytest
 
@@ -279,10 +281,14 @@ def test_input_desktop_gate_releases_owned_handles_and_rejects_inactive_desktops
 @pytest.mark.skipif(
     sys.platform != "win32", reason="Windows ABI and real input-locale query"
 )
-def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles():
+def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles(
+    native_keyboard_window,
+):
     import threading
 
-    api = mod.WindowsKeyboardAPI()
+    from gi.repository import GLib
+
+    api = native_keyboard_window
     assert ctypes.sizeof(mod._GuiThreadInfo) == 72
     before_context = api.foreground()
     assert before_context is not None
@@ -317,9 +323,90 @@ def test_native_read_cycles_preserve_foreground_layout_loaded_set_and_handles():
     before_handles = handles()
     worker = threading.Thread(target=read)
     worker.start()
-    worker.join(20)
+    context = GLib.MainContext.default()
+    deadline = time.monotonic() + 20
+    while worker.is_alive() and time.monotonic() < deadline:
+        while context.pending():
+            context.iteration(False)
+        worker.join(0.01)
     assert not worker.is_alive() and not errors
     assert set(api.layouts()) == before_loaded
     assert api.active(before_context.thread) == before_active
     assert handles() <= before_handles + 2
     backend.stop()
+
+
+@pytest.fixture
+def native_keyboard_window():
+    """Own the input window rather than depending on an idle desktop's focus."""
+    import gi
+
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk
+
+    from docking.platform.backends.windows.ffi import bind, window_handle
+
+    assert Gtk.init_check()[0]
+    api = mod.WindowsKeyboardAPI()
+    previous = api.foreground()
+    user = ctypes.WinDLL("user32", use_last_error=True)
+    cursor = wintypes.POINT()
+    get_cursor = bind(
+        user, "GetCursorPos", wintypes.BOOL, ctypes.POINTER(wintypes.POINT)
+    )
+    assert get_cursor(ctypes.byref(cursor))
+    set_cursor = bind(user, "SetCursorPos", wintypes.BOOL, ctypes.c_int, ctypes.c_int)
+    rectangle = bind(
+        user,
+        "GetWindowRect",
+        wintypes.BOOL,
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.RECT),
+    )
+    mouse = bind(
+        user,
+        "mouse_event",
+        None,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_size_t,
+    )
+    window = Gtk.Window(title="Docking keyboard test")
+    window.set_default_size(300, 120)
+    window.set_position(Gtk.WindowPosition.CENTER)
+    window.set_keep_above(True)
+    entry = Gtk.Entry()
+    window.add(entry)
+    try:
+        window.show_all()
+        window.present()
+        entry.grab_focus()
+        handle = window_handle(window.get_window())
+        while Gtk.events_pending():
+            Gtk.main_iteration_do(False)
+        bounds = wintypes.RECT()
+        assert rectangle(handle, ctypes.byref(bounds))
+        # Windows may deny programmatic foreground activation for a background
+        # test runner. Actual input to our own visible window establishes focus.
+        assert set_cursor(
+            (bounds.left + bounds.right) // 2, (bounds.top + bounds.bottom) // 2
+        )
+        mouse(2, 0, 0, 0, 0)
+        mouse(4, 0, 0, 0, 0)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            while Gtk.events_pending():
+                Gtk.main_iteration_do(False)
+            context = api.foreground()
+            if context is not None and context.root == handle:
+                break
+            time.sleep(0.01)
+        assert context is not None and context.root == handle
+        yield api
+    finally:
+        window.destroy()
+        set_cursor(cursor.x, cursor.y)
+        if previous is not None and api.valid(previous):
+            api.focus(previous)
