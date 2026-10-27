@@ -638,9 +638,13 @@ Windows still considered the Start menu foreground, and the shell then returned
 foreground ownership to the taskbar. Search now observes that pending handoff
 from verified Explorer/Start/Search processes and completes the original
 activation on GTK's idle loop. The target must belong to Docking's process and
-match the requested Search window. An unrelated application taking focus,
-hiding/destroying Search, successful activation or a 750 ms expiry cancels the
-request. Foreground changes after success remain under user control.
+match the requested Search window. The observer stays active for its original
+750 ms limit after the first foreground success: native tracing also found a
+late return to Windows Search about 80 ms after Docking acquired focus.
+Restoration requires unchanged session input, checked with `GetLastInputInfo`.
+New input, an unrelated application taking focus, hiding/destroying Search or
+expiry cancels the request. A later shell return cannot override an outside
+click during this interval. No foreign input queues are attached.
 
 `tools/windows/focus_smoke.py` runs the complete application and activates Search as
 soon as the native shortcut reports Bound. It records foreground HWNDs, native
@@ -713,8 +717,46 @@ python tools/windows/lab.py --share /path/to/shared/artifacts --timeout 180 run 
 
 Use `--origin taskbar` and `--origin desktop` for the other startup cases.
 
+For real QEMU keyboard input, start the guest probe with `--external-keyboard`,
+then run its host partner against the same shared output directory:
+
+```sh
+python -m tools.windows.lab --share /path/to/shared/artifacts --wait 0 start \
+  'C:\msys64\ucrt64\bin\python.exe' -m tools.windows.focus_smoke \
+  --output '\\host.lan\Data\lab\focus-qemu' --origin start \
+  --external-keyboard --check-workarea --check-panels
+python -m tools.windows.vm_input \
+  --focus-handshake /path/to/shared/artifacts/lab/focus-qemu
+```
+
+The probe and host exchange fresh tokens for origin and activation. The host
+acknowledges only after sending the corresponding QEMU key sequence, and cannot
+replay an already acknowledged request. Start activation uses a 20 ms Escape
+press, a 40 ms interval before the shortcut, plus optional `--delay` (0–10 s).
+Results identify this as `external-keyboard` and retain both sequences; failure
+captures include the visible desktop. Synthetic input remains available as a
+separate diagnostic, and an isolated hardware success does not close the
+remaining regular-launch, shell/session and keyboard acceptance work.
+
+On the medium-integrity Windows 11 Pro 25H2 lab, hardware activation at GTK
+scales 1 and 2 passed native focus, typing, panel controls, outside-click and
+shutdown checks. A controlled native Explorer foreground return after the first
+Search success also exercised restoration: input stayed unchanged, the native
+foreground call succeeded and the observer expired at its original deadline.
+This explicit handoff fixture complements the naturally reproduced race; it
+does not replace regular-launch or broader session acceptance.
+
+The uninstrumented regular launch with the original eleven-pin configuration
+also passed QEMU Start/Escape/shortcut activation and fifteen native foreground
+samples while typing. In a second activation, an independent pointer helper
+clicked the desktop shortly after Search acquired focus (the click helper
+returned after 651 ms). The session input tick changed, and eight subsequent
+samples stayed with Explorer. Broader shell timing, first-acquisition failures
+and remote-session acceptance remain open.
+
 References: [foreground activation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow),
-[GUI-thread observations](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getguithreadinfo).
+[GUI-thread observations](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getguithreadinfo),
+[last input information](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getlastinputinfo).
 
 ## AI Usage applet and headless hooks
 

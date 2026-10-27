@@ -29,6 +29,7 @@ def focus(monkeypatch):
     native.target.return_value = target = (20, 200)
     native.shell_origin.return_value = True
     native.shell_return.side_effect = lambda identity: identity == (30, 300)
+    native.input_time.return_value = 1234
     value = module.WindowsSearchFocus(native=native)
     return SimpleNamespace(
         value=value, native=native, sources=sources, origin=origin, target=target
@@ -51,8 +52,8 @@ def test_shell_returns_foreground_then_idle_completes_original_activation(focus)
     assert len(focus.sources) == 2
     focus.sources.pop(focus.value._idle)()
     focus.native.restore.assert_called_once_with(focus.target, explorer)
-    assert not focus.value._pending
-    assert focus.sources == {}
+    assert focus.value._pending
+    assert list(focus.sources) == [focus.value._expiry]
 
 
 def test_foreground_event_for_search_does_not_count_until_native_ownership_matches(
@@ -64,8 +65,8 @@ def test_foreground_event_for_search_does_not_count_until_native_ownership_match
     assert focus.value._pending
     focus.native.foreground.return_value = focus.target
     changed(focus.target)
-    assert not focus.value._pending
-    assert focus.sources == {}
+    assert focus.value._pending
+    assert list(focus.sources) == [focus.value._expiry]
     focus.native.restore.assert_not_called()
 
 
@@ -108,16 +109,76 @@ def test_expiry_releases_native_observer_without_forcing_focus(focus):
     focus.native.restore.assert_not_called()
 
 
-def test_already_focused_search_or_non_shell_origin_needs_no_repair(focus):
+def test_first_foreground_success_keeps_the_bounded_shell_observer(focus):
     focus.value.before_present()
     focus.native.foreground.return_value = focus.target
     focus.value.after_present(title="Docking Search", visible=lambda: True)
-    assert focus.sources == {}
+    assert list(focus.sources) == [focus.value._expiry]
     focus.native.restore.assert_not_called()
+    focus.native.foreground.return_value = focus.origin
+    focus.value._changed(focus.origin)
+    focus.sources.pop(focus.value._idle)()
+    focus.native.restore.assert_called_once_with(focus.target, focus.origin)
+    focus.sources.pop(focus.value._expiry)()
+    assert not focus.value._pending
+    assert not focus.sources
+
+
+def test_non_shell_origin_needs_no_repair(focus):
     focus.native.start.reset_mock()
     focus.native.shell_origin.return_value = False
     begin(focus)
     focus.native.start.assert_not_called()
+
+
+@pytest.mark.parametrize("shell", ["origin", "explorer"])
+def test_new_user_input_cancels_repair_after_the_first_success(focus, shell):
+    focus.value.before_present()
+    focus.native.foreground.return_value = focus.target
+    focus.value.after_present(title="Docking Search", visible=lambda: True)
+    focus.native.input_time.return_value = 1235
+    focus.native.foreground.return_value = (
+        focus.origin if shell == "origin" else (30, 300)
+    )
+    focus.value._changed(focus.native.foreground.return_value)
+    assert not focus.value._pending
+    assert not focus.sources
+    focus.native.restore.assert_not_called()
+
+
+def test_queued_repair_checks_for_input_that_arrives_before_dispatch(focus):
+    begin(focus)
+    focus.native.foreground.return_value = (30, 300)
+    focus.value._changed((30, 300))
+    callback = focus.sources.pop(focus.value._idle)
+    focus.value._idle = 0
+    focus.native.input_time.return_value = 1235
+    callback()
+    focus.native.restore.assert_not_called()
+    assert not focus.value._pending
+
+
+def test_unknown_last_input_cannot_authorize_shell_reactivation(focus):
+    focus.native.input_time.return_value = None
+    begin(focus)
+    focus.native.foreground.return_value = (30, 300)
+    focus.value._changed((30, 300))
+    assert not focus.value._pending
+    focus.native.restore.assert_not_called()
+
+
+def test_native_last_input_reads_a_sized_win32_structure():
+    native = module.WindowsShellFocus.__new__(module.WindowsShellFocus)
+
+    def read(pointer):
+        assert pointer._obj.size == 8
+        pointer._obj.tick = 0xFFFFFFFF
+        return True
+
+    native._last_input = read
+    assert native.input_time() == 0xFFFFFFFF
+    native._last_input = lambda _pointer: False
+    assert native.input_time() is None
 
 
 @pytest.mark.parametrize(

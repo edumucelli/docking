@@ -19,6 +19,7 @@ def main():
     import sys
     import threading
     import time
+    import uuid
     from ctypes import wintypes as w
     from pathlib import Path
 
@@ -26,7 +27,13 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--origin", choices=("desktop", "taskbar", "start"), required=True)
     p.add_argument("--delay", type=float, default=0)
-    p.add_argument("--same-process-input", action="store_true")
+    inputs = p.add_mutually_exclusive_group()
+    inputs.add_argument("--same-process-input", action="store_true")
+    inputs.add_argument(
+        "--external-keyboard",
+        action="store_true",
+        help="Wait for the host vm_input --focus-handshake virtual keyboard",
+    )
     p.add_argument(
         "--check-panels", action="store_true", help="Exercise Preview and Actions"
     )
@@ -71,7 +78,7 @@ def main():
     from docking.search.services.global_shortcuts import GlobalShortcutsState
     from docking.search.services.windows_focus import WindowsShellFocus
     from docking.search.ui.window import SearchWindow
-    from tools.windows.desktop_driver import WindowsDesktop
+    from tools.windows.desktop_driver import WindowsDesktop, read_shared_json
 
     native = WindowsDesktop()
     baseline = native.workarea()
@@ -100,7 +107,13 @@ def main():
         "delay": a.delay,
         "pid": os.getpid(),
         "gtk_thread": gtk_thread,
-        "input_process": "same" if a.same_process_input else "separate",
+        "input_process": (
+            "external-keyboard"
+            if a.external_keyboard
+            else "same"
+            if a.same_process_input
+            else "separate"
+        ),
     }
     shared = {}
     bound = threading.Event()
@@ -181,6 +194,31 @@ def main():
             }
         )
 
+    def request_keyboard(stage):
+        token = uuid.uuid4().hex
+        request = {
+            "token": token,
+            "stage": stage,
+            "origin": a.origin,
+            "delay": a.delay,
+        }
+        path = a.output / f"keyboard-{stage}.request.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(request), encoding="utf-8")
+        temporary.replace(path)
+        response_path = a.output / f"keyboard-{stage}.response.json"
+
+        def acknowledged():
+            if not response_path.exists():
+                return None
+            response = read_shared_json(response_path)
+            return response if response["token"] == token else None
+
+        response = native.wait_for(
+            acknowledged, "Host did not send external keyboard input: " + stage, 90
+        )
+        report.setdefault("keyboard", {})[stage] = response["commands"]
+
     callback_type = ctypes.WINFUNCTYPE(
         None, w.HANDLE, w.DWORD, w.HWND, w.LONG, w.LONG, w.DWORD, w.DWORD
     )
@@ -202,11 +240,15 @@ def main():
 
     hook = user.SetWinEventHook(3, 3, None, event, 0, 0, 0)
     assert hook
-    native.key(0x1B)
-    if a.origin == "desktop":
-        native.click(1100, 100)
+    if a.external_keyboard:
+        request_keyboard("origin")
     else:
-        native.key(0x5B)
+        native.key(0x1B)
+    if a.origin == "desktop" and not a.external_keyboard:
+        native.click(1100, 100)
+    elif a.origin != "desktop" and (not a.external_keyboard or a.origin == "start"):
+        if not a.external_keyboard:
+            native.key(0x5B)
         native.wait_for(
             lambda: (
                 hwnd_info(user.GetForegroundWindow())
@@ -215,7 +257,7 @@ def main():
             ),
             "Native Start menu did not open",
         )
-        if a.origin == "taskbar":
+        if a.origin == "taskbar" and not a.external_keyboard:
             native.key(0x1B)
     record("origin-ready")
     cfg = a.output / "config/docking/dock.json"
@@ -319,7 +361,9 @@ def main():
         try:
             assert bound.wait(90)
             record("activate.before")
-            if a.same_process_input:
+            if a.external_keyboard:
+                request_keyboard("activate")
+            elif a.same_process_input:
                 if a.origin == "start":
                     native.key(0x1B)
                 if a.delay:
@@ -492,6 +536,7 @@ def main():
         except Exception as exc:
             errors.append(exc)
             report["error"] = repr(exc)
+            ImageGrab.grab(all_screens=True).save(a.output / "failure-desktop.png")
         finally:
             if "ui" in shared:
                 call(lambda: shared["ui"].window.close())
