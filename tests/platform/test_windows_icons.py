@@ -39,6 +39,11 @@ def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatc
     assert pixbuf.get_width() == pixbuf.get_height() == 2
     assert bytes(pixbuf.get_pixels())[:4] == bytes((255, 0, 0, 128))
     assert changes == [app.desktop_id]
+    cache.image = native_icons.NativeIcon(bytes((0, 0, 255, 255)) * 4, 2, 2)
+    cache.on_ready(app.desktop_id)
+    updated = loader.load_desktop_icon(app, 2)
+    assert bytes(updated.get_pixels())[:4] == bytes((0, 0, 255, 255))
+    assert updated is not pixbuf
     unsubscribe()
     loader.stop()
     assert cache.stopped
@@ -74,5 +79,43 @@ def test_classic_application_artwork_uses_its_native_shell_item(monkeypatch):
         assert targets == [app.launch_target]
         callbacks.pop()()
         assert cache.get(app, 2) is image
+    finally:
+        cache.stop()
+
+
+def test_changed_shortcut_target_extracts_fresh_artwork_for_the_same_id(monkeypatch):
+    import threading
+    from dataclasses import replace
+
+    posted, callbacks, targets = threading.Event(), [], []
+    red = native_icons.NativeIcon(bytes((255, 0, 0, 255)), 1, 1)
+    blue = native_icons.NativeIcon(bytes((0, 0, 255, 255)), 1, 1)
+
+    def extract(target, _size):
+        targets.append(target)
+        return red if target == "previous.lnk" else blue
+
+    def idle(callback, *args):
+        callbacks.append(lambda: callback(*args))
+        posted.set()
+        return 1
+
+    monkeypatch.setattr(native_icons, "extract_icon", extract)
+    monkeypatch.setattr(native_icons.GLib, "idle_add", idle)
+    previous = replace(application("Native.App"), launch_target="previous.lnk")
+    current = replace(previous, launch_target="current.lnk")
+    cache = native_icons.WindowsIconCache(lambda _id: None)
+    try:
+        assert cache.get(previous, 1) is None
+        assert posted.wait(2)
+        callbacks.pop()()
+        assert cache.get(previous, 1) is red
+        posted.clear()
+        assert cache.get(current, 1) is None
+        assert posted.wait(2)
+        callbacks.pop()()
+        assert cache.get(current, 1) is blue
+        assert targets == ["previous.lnk", "current.lnk"]
+        assert cache.get(previous, 1) is red
     finally:
         cache.stop()

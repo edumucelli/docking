@@ -132,7 +132,9 @@ class IconLoader:
 
     def _native_icon_ready(self, desktop_id: str) -> None:
         for key in tuple(self._icon_cache):
-            if key[0].startswith(f"desktop:{desktop_id}:"):
+            if key[0] == f"native:{desktop_id}" or key[0].startswith(
+                f"desktop:{desktop_id}:"
+            ):
                 del self._icon_cache[key]
         for callback in tuple(self._listeners):
             callback(desktop_id)

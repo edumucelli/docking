@@ -1,4 +1,4 @@
-"""Pin or Explorer-drop an executable, restart Docking, and launch its pin."""
+"""Pin or Explorer-drop a program/shortcut, restart Docking, and launch its pin."""
 
 from __future__ import annotations
 
@@ -33,7 +33,9 @@ def _phase(output: Path, phase: str) -> None:
 
     manifest = read_shared_json(output / "manifest.json")
     executable = Path(manifest["executable"])
-    identifier = executable_application_id(executable)
+    source = Path(manifest.get("source", manifest["executable"]))
+    shortcut = "source" in manifest
+    identifier = manifest.get("identifier") or executable_application_id(executable)
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
     shared, report, failures = {}, {"phase": phase, "id": identifier}, []
@@ -194,9 +196,9 @@ def _phase(output: Path, phase: str) -> None:
                 assert Path(original_item.application_info.launch_target).is_file()
                 report["same_running_item"] = True
             elif phase == "drop":
-                with ExplorerFolder(native, executable.parent) as folder:
-                    source = folder.file_rectangle(executable)
-                    report["explorer_source"] = source
+                with ExplorerFolder(native, source.parent) as folder:
+                    rectangle = folder.file_rectangle(source)
+                    report["explorer_source"] = rectangle
 
                     def insertion_point():
                         window = shared["ui"].window
@@ -219,7 +221,7 @@ def _phase(output: Path, phase: str) -> None:
                     destination = call(insertion_point)
                     report["drop_point"] = destination
                     native.drag(
-                        (source["x"] + source["width"] / 2, source["y"] + 20),
+                        (rectangle["x"] + rectangle["width"] / 2, rectangle["y"] + 20),
                         destination,
                     )
                     item = native.wait_for(
@@ -231,13 +233,23 @@ def _phase(output: Path, phase: str) -> None:
                     assert (
                         item.kind == APP_KIND and item.is_pinned and not item.is_running
                     )
-                    assert item.application_info.origin is ApplicationOrigin.GENERATED
+                    if not shortcut:
+                        assert (
+                            item.application_info.origin is ApplicationOrigin.GENERATED
+                        )
+                    else:
+                        saved = Path(item.application_info.launch_target)
+                        assert (
+                            saved != source
+                            and saved.read_bytes() == source.read_bytes()
+                        )
+                        report["binary_copy_preserved"] = True
                     assert report["native_drop"]["protocol"] == "ole2"
                     uris = report["native_drop"]["uris"]
                     assert len(uris) == 1
                     source_path = local_path_from_uri_or_path(uris[0])
-                    assert source_path is not None and source_path.samefile(executable)
-                    assert executable.is_file()
+                    assert source_path is not None and source_path.samefile(source)
+                    assert source.is_file()
                     report["source_retained"] = True
                     ImageGrab.grab(all_screens=True).save(
                         output / "explorer-dropped.png"
@@ -252,17 +264,28 @@ def _phase(output: Path, phase: str) -> None:
                     "Persisted executable pin did not restore",
                 )
                 assert item.is_pinned and not item.is_running
-                assert item.application_info.origin is ApplicationOrigin.GENERATED
+                if not shortcut:
+                    assert item.application_info.origin is ApplicationOrigin.GENERATED
+                else:
+                    assert not source.exists()
+                    assert Path(item.application_info.launch_target).is_file()
+                    report["original_shortcut_removed"] = True
                 native.click(*target())
-                facts_file = executable.parent / "facts-generated.json"
+                facts_file = (
+                    Path(manifest["facts"])
+                    if shortcut
+                    else executable.parent / "facts-generated.json"
+                )
                 native.wait_for(
                     facts_file.is_file, "Saved shortcut did not launch the executable"
                 )
                 facts = read_shared_json(facts_file)
                 program_pid = facts["pid"]
                 assert Path(facts["executable"]).samefile(executable)
-                assert Path(facts["cwd"]).samefile(executable.parent)
-                assert facts["argv"] == []
+                assert Path(facts["cwd"]).samefile(
+                    Path(manifest["cwd"]) if shortcut else executable.parent
+                )
+                assert facts["argv"] == (manifest["argv"][2:] if shortcut else [])
                 report["native_launch"] = facts
 
             def tracked():
@@ -324,9 +347,12 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--phase", choices=("pin", "drop", "restart"))
     parser.add_argument("--explorer-drop", action="store_true")
+    parser.add_argument("--shortcut", choices=("installed", "unlisted"))
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires a native Windows desktop")
+    if args.shortcut and not args.explorer_drop:
+        parser.error("--shortcut requires --explorer-drop")
     output = args.output.resolve()
     if args.phase:
         _phase(output, args.phase)
@@ -334,7 +360,7 @@ def main() -> None:
     if output.exists() and any(output.iterdir()):
         parser.error("Choose a fresh output directory")
     output.mkdir(parents=True, exist_ok=True)
-    from .classic_fixture import ClassicApplications
+    from .classic_fixture import ClassicApplications, write_shortcut
     from .desktop_driver import WindowsDesktop, read_shared_json
 
     native = WindowsDesktop()
@@ -356,15 +382,64 @@ def main() -> None:
             ),
             encoding="utf-8",
         )
-        (output / "manifest.json").write_text(
-            json.dumps(
-                {
-                    "executable": str(fixture.executables["Other"]),
-                    "argv": fixture.arguments("Other"),
-                }
-            ),
-            encoding="utf-8",
-        )
+        manifest = {
+            "executable": str(fixture.executables["Other"]),
+            "argv": fixture.arguments("Other"),
+        }
+        if args.shortcut:
+            import shutil
+
+            from docking.platform.backends.windows.appresolver import (
+                shortcut_application_id,
+            )
+            from docking.platform.backends.windows.catalog import (
+                read_shell_applications,
+            )
+
+            key = "First" if args.shortcut == "installed" else "Other"
+            directory = fixture.root / "Explorer résumé 日本語"
+            directory.mkdir()
+            selected = directory / "Selected résumé 日本語.lnk"
+            cwd = directory / "Working directory résumé 日本語"
+            cwd.mkdir()
+            if args.shortcut == "installed":
+                original = fixture.links / (fixture.labels[key] + ".lnk")
+
+                def catalog_id():
+                    return next(
+                        (
+                            a.desktop_id
+                            for a in read_shell_applications()
+                            if a.name == fixture.labels[key]
+                        ),
+                        None,
+                    )
+
+                identifier = native.wait_for(
+                    catalog_id, "Installed fixture not cataloged", 45
+                )
+                shutil.copyfile(original, selected)
+                cwd = fixture.executables[key].parent / "working directory 0 résumé"
+                selected_id = shortcut_application_id(selected)
+                assert selected_id == identifier, (selected_id, identifier)
+            else:
+                write_shortcut(
+                    selected,
+                    executable=fixture.executables[key],
+                    argv=fixture.arguments(key),
+                    cwd=cwd,
+                )
+                identifier = shortcut_application_id(selected)
+                assert identifier
+            manifest = {
+                "executable": str(fixture.executables[key]),
+                "argv": fixture.arguments(key),
+                "facts": str(fixture.facts_path(key)),
+                "cwd": str(cwd),
+                "source": str(selected),
+                "identifier": identifier,
+            }
+        (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         env = {
             **os.environ,
             "XDG_CONFIG_HOME": str(config_home),
@@ -373,6 +448,8 @@ def main() -> None:
         }
         for phase in ("drop" if args.explorer_drop else "pin", "restart"):
             if phase == "restart":
+                if args.shortcut:
+                    Path(manifest["source"]).unlink()
                 # A pin created from UCRT64 must also restore from a normal
                 # desktop launch, where Python uses backslash separators.
                 env.pop("MSYSTEM", None)
@@ -409,11 +486,14 @@ def main() -> None:
                 "ok": True,
                 "actual_menu_pin": not args.explorer_drop,
                 "actual_explorer_drop": args.explorer_drop,
-                "unicode_executable_directory": True,
+                "unicode_executable_directory": not str(
+                    Path(manifest["executable"]).parent
+                ).isascii(),
                 "process_restart": True,
                 "native_relaunch": True,
                 "normal_shutdown": True,
                 "fixture_cleanup": True,
+                "shortcut": args.shortcut,
             },
             indent=2,
         ),

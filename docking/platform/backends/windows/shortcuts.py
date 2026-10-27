@@ -16,7 +16,7 @@ from .ffi import bind
 
 @dataclass(frozen=True, slots=True)
 class ShellLink:
-    executable: Path
+    executable: Path | None
     working_directory: str
     arguments: str
 
@@ -74,8 +74,6 @@ def read_shortcut(path: Path) -> ShellLink:
                 ctypes.c_uint32,
             )(pointer, target, len(target), None, 4)
         )
-        if not target.value:
-            raise OSError("Shell link has no executable target")
         values = []
         for index in (8, 10):  # GetWorkingDirectory, GetArguments
             buffer = ctypes.create_unicode_buffer(32768)
@@ -85,7 +83,9 @@ def read_shortcut(path: Path) -> ShellLink:
                 )
             )
             values.append(buffer.value)
-        return ShellLink(Path(target.value), values[0], values[1])
+        return ShellLink(
+            Path(target.value) if target.value else None, values[0], values[1]
+        )
 
 
 def write_shortcut(path: Path, *, executable: Path, name: str) -> None:

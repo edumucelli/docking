@@ -37,10 +37,202 @@ def links(monkeypatch):
 
     def read(path):
         target, cwd, arguments = json.loads(path.read_text(encoding="utf-8"))
-        return ShellLink(Path(target), cwd, arguments)
+        return ShellLink(Path(target) if target else None, cwd, arguments)
 
     monkeypatch.setattr(registration, "write_shortcut", write)
     monkeypatch.setattr(registration, "read_shortcut", read)
+
+
+def _shortcut(path, executable, *, arguments='--profile "résumé 日本語" ""', cwd=None):
+    path.write_text(
+        json.dumps(
+            [str(executable) if executable else "", str(cwd or path.parent), arguments]
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_import_preserves_native_identity_and_selected_binary_after_source_removal(
+    tmp_path, monkeypatch, links
+):
+    executable = _executable(tmp_path / "program" / "Shared.exe")
+    cwd = tmp_path / "different working directory"
+    source = _shortcut(tmp_path / "résumé 日本語.lnk", executable, cwd=cwd)
+    original = source.read_bytes()
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    registry = ApplicationRegistry(
+        application_source=lambda: (), executable_registration=backend
+    )
+    imported = registry.register_executable(source.as_uri())
+    assert imported.desktop_id == "Native.App"
+    assert imported.name == source.stem
+    assert imported.working_directory == str(cwd)
+    copy = Path(imported.launch_target)
+    assert copy.read_bytes() == original
+    assert copy != source
+    source.unlink()
+    restarted = ApplicationRegistry(
+        application_source=lambda: (), executable_registration=backend
+    )
+    restarted.refresh()
+    assert restarted.get("Native.App") == imported
+    assert registration.read_shortcut(copy).arguments == '--profile "résumé 日本語" ""'
+
+
+def test_imported_shortcut_overrides_launch_options_without_losing_catalog_metadata(
+    tmp_path, monkeypatch, links
+):
+    from tests.platform.application_fakes import GioApplicationFake
+
+    executable = _executable(tmp_path / "Shared.exe")
+    source = _shortcut(tmp_path / "Selected.lnk", executable, cwd=tmp_path / "profile")
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    handle = GioApplicationFake(
+        "Native.App", name="Catalog", commandline=str(executable)
+    )
+    registry = ApplicationRegistry(
+        application_source=lambda: (handle,), executable_registration=backend
+    )
+    registry.refresh()
+    before = registry.get("Native.App")
+    imported = registry.register_executable(source)
+    assert len(registry.snapshot()) == 1
+    assert imported.name == "Selected"
+    assert imported.origin is before.origin is ApplicationOrigin.INSTALLED
+    assert imported.has_gio_source and registry._gio_handle_for("Native.App") is handle
+    assert imported.categories == before.categories
+    assert imported.working_directory == str(tmp_path / "profile")
+    assert Path(imported.launch_target).read_bytes() == source.read_bytes()
+    diagnostic = registry.diagnostic_snapshot().applications[0]
+    assert diagnostic.name == imported.name and diagnostic.aliases == imported.aliases
+
+
+@pytest.mark.parametrize("failure", ["copy", "publish"])
+def test_failed_shortcut_update_preserves_previous_registration(
+    tmp_path, monkeypatch, links, failure
+):
+    executable = _executable(tmp_path / "Shared.exe")
+    source = _shortcut(tmp_path / "Selected.lnk", executable)
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    backend.create(source, startup_wm_class="")
+    before = backend.applications()
+    files = {p.resolve(): p.read_bytes() for p in backend.directory.iterdir()}
+    _shortcut(source, executable, arguments="--changed")
+
+    def denied(*_a, **_kw):
+        raise PermissionError("Denied")
+
+    if failure == "copy":
+        monkeypatch.setattr(registration.shutil, "copyfile", denied)
+    else:
+        monkeypatch.setattr(Path, "replace", denied)
+    with pytest.raises(PermissionError):
+        backend.create(source, startup_wm_class="")
+    assert backend.applications() == before
+    assert {p.resolve(): p.read_bytes() for p in backend.directory.iterdir()} == files
+
+
+def test_updating_shortcut_changes_target_but_retains_previous_generation(
+    tmp_path, monkeypatch, links
+):
+    executable = _executable(tmp_path / "Shared.exe")
+    source = tmp_path / "Selected.lnk"
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    previous = None
+    for index in range(4):
+        _shortcut(source, executable, arguments=f"--profile {index}")
+        backend.create(source, startup_wm_class="")
+        current = backend.applications()[0]
+        assert current.desktop_id == "Native.App"
+        assert (
+            registration.read_shortcut(Path(current.launch_target)).arguments
+            == f"--profile {index}"
+        )
+        if previous is not None:
+            assert Path(previous.launch_target).is_file()
+            assert previous.launch_target != current.launch_target
+        previous = current
+    assert len(tuple(backend.directory.glob("*.lnk"))) == 2
+    assert len(tuple(backend.directory.glob("*.json"))) == 1
+
+
+def test_shortcut_fallback_id_is_stable_and_does_not_merge_same_executable_profiles(
+    tmp_path, monkeypatch, links
+):
+    executable = _executable(tmp_path / "Shared.exe")
+    monkeypatch.setattr(registration, "shortcut_application_id", lambda _p: None)
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    first = _shortcut(tmp_path / "one.lnk", executable)
+    second = _shortcut(tmp_path / "two.lnk", executable)
+    identifier = backend.create(first, startup_wm_class="")
+    assert identifier == backend.create(first, startup_wm_class="")
+    assert identifier != backend.create(second, startup_wm_class="")
+    assert len(backend.applications()) == 2
+
+
+@pytest.mark.parametrize("kind", ["folder", "document", "virtual"])
+def test_shortcut_validation_distinguishes_application_and_file_links(
+    tmp_path, monkeypatch, links, kind
+):
+    target = tmp_path / kind
+    if kind == "folder":
+        target.mkdir()
+    elif kind == "document":
+        target.write_text("Document", encoding="utf-8")
+    else:
+        target = None
+    source = _shortcut(tmp_path / "Selected.lnk", target)
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    identifier = backend.create(source, startup_wm_class="")
+    if kind == "virtual":
+        assert identifier == "Native.App"
+        assert backend.applications()[0].executable_path is None
+    else:
+        assert identifier is None
+        assert not backend.directory.exists()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("file", "../outside.lnk"),
+        ("file", "..\\outside.lnk"),
+        ("id", 7),
+        ("name", None),
+    ],
+)
+def test_invalid_import_manifest_cannot_replace_a_valid_record(
+    tmp_path, monkeypatch, links, field, value
+):
+    source = _shortcut(tmp_path / "Selected.lnk", _executable(tmp_path / "Shared.exe"))
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    backend.create(source, startup_wm_class="")
+    manifest = next(backend.directory.glob("*.json"))
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data[field] = value
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    assert backend.applications() == ()
 
 
 def test_persistent_registration_is_idempotent_and_matches_the_actual_executable(

@@ -2082,8 +2082,8 @@ pin with real pointer input. Independent program facts verify the executable,
 empty arguments and executable working directory; native window tracking proves
 one matching dock item. The check creates its pin in active UCRT64 and restores
 it with ordinary desktop path semantics, then restores Explorer's work area and
-removes its owned fixtures. Existing arbitrary shortcuts, installer-owned
-portable bundles and broader file associations still require acceptance.
+removes its owned fixtures. Installer-owned portable bundles and broader file
+associations still require acceptance.
 
 Add `--explorer-drop` to exercise an actual Explorer OLE2 file drag instead of
 the application menu. The owned fixture lives under a path containing French
@@ -2110,8 +2110,38 @@ programs report distinct PIDs, exact empty/quoted/Unicode arguments and differen
 working directories. The real launcher, process-identity service and matcher
 retain each profile's identity, then prune completed process records. The actual
 dock's Explorer-drop/restart/launch check also passed with this shell launcher.
-Importing arbitrary `.lnk` files and resolving their installed identities remains
-separate unfinished work.
+Explorer application-shortcut drops now preserve a binary copy of the selected
+`.lnk`, including its arguments, working directory, artwork and other shell
+options. The Windows registration backend stores an atomic manifest and an
+immutable shortcut generation under Docking's configuration directory. Restoring
+the pin does not require the original shortcut. A failed update preserves the
+previous registration. File and folder shortcuts retain ordinary file behavior.
+
+The Windows shell's `IApplicationResolver2.GetAppIDForShortcut` supplies canonical
+installed and implicit application IDs. Its first-method ABI is documented by
+the [System Informer implementation](https://github.com/winsiderss/systeminformer/blob/master/phlib/include/appresolverp.h).
+This is an internal shell interface: unavailable implementations use a stable
+Docking ID for executable shortcuts. Virtual shell shortcuts require a resolved
+native identity. The registry preserves existing association handles and catalog
+metadata while using the selected copy's launch options. Native icon extraction
+also distinguishes shortcut generations, so replacing a selected shortcut can
+refresh its artwork without changing the pin ID.
+
+Add `--shortcut installed` or `--shortcut unlisted` to the `runtime_pin_smoke`
+Explorer command to exercise shortcut import. The installed case copies a real
+Start-menu shortcut, checking the shell ID against AppsFolder before the drop.
+Both modes use a working directory distinct from the executable's directory and
+remove the selected original before restarting Docking, then verify exact empty,
+quoted and Unicode arguments, the selected working directory and native window grouping
+from the launched program's independent facts.
+
+Both shortcut modes passed on Windows 11 25H2 with real Explorer OLE2 drops,
+fresh-process restoration without MSYS2, pointer activation, normal cleanup and
+the original Explorer shell/work area preserved. Drop and grouped-launch PNGs
+were inspected. Native shell parsing explicitly normalizes MSYS2 separators;
+the resolver regression also exercises Unicode shortcut paths. Other Windows
+versions, installer-owned and virtual shortcut inventories, elevation and
+multi-user behavior still require acceptance.
 
 The [ShellExecuteEx process-handle contract](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shellexecuteinfow)
 defines when the shell returns a handle and requires the caller to close it.

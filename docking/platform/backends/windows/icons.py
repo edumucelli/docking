@@ -167,9 +167,11 @@ class WindowsIconCache:
 
     def __init__(self, on_ready: Callable[[str], None]) -> None:
         self._on_ready = on_ready
-        self._images: OrderedDict[tuple[str, int], NativeIcon | None] = OrderedDict()
-        self._pending: set[tuple[str, int]] = set()
-        self._queue: Queue[tuple[tuple[str, int], str]] = Queue(maxsize=256)
+        self._images: OrderedDict[tuple[str, int, str], NativeIcon | None] = (
+            OrderedDict()
+        )
+        self._pending: set[tuple[str, int, str]] = set()
+        self._queue: Queue[tuple[str, int, str]] = Queue(maxsize=256)
         self._closed = Event()
         for index in range(2):
             Thread(
@@ -177,12 +179,6 @@ class WindowsIconCache:
             ).start()
 
     def get(self, info: ApplicationInfo, size: int) -> NativeIcon | None:
-        key = (info.desktop_id, max(1, min(size, 512)))
-        if key in self._images:
-            self._images.move_to_end(key)
-            return self._images[key]
-        if key in self._pending or self._closed.is_set():
-            return None
         target = (
             info.launch_target
             if info.launch_target
@@ -194,9 +190,15 @@ class WindowsIconCache:
         )
         if not target:
             return None
+        key = (info.desktop_id, max(1, min(size, 512)), target)
+        if key in self._images:
+            self._images.move_to_end(key)
+            return self._images[key]
+        if key in self._pending or self._closed.is_set():
+            return None
         self._pending.add(key)
         try:
-            self._queue.put_nowait((key, target))
+            self._queue.put_nowait(key)
         except Full:
             self._pending.discard(key)
         return None
@@ -207,18 +209,18 @@ class WindowsIconCache:
     def _worker(self) -> None:
         while not self._closed.is_set():
             try:
-                key, target = self._queue.get(timeout=0.5)
+                key = self._queue.get(timeout=0.5)
             except Empty:
                 continue
             image = None
             try:
-                image = extract_icon(target, key[1])
+                image = extract_icon(key[2], key[1])
             except Exception:
                 log.debug("Windows shell icon extraction failed", exc_info=True)
             if not self._closed.is_set():
                 GLib.idle_add(self._publish, key, image)
 
-    def _publish(self, key: tuple[str, int], image: NativeIcon | None) -> bool:
+    def _publish(self, key: tuple[str, int, str], image: NativeIcon | None) -> bool:
         if self._closed.is_set():
             return False
         self._pending.discard(key)

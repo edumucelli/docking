@@ -489,25 +489,54 @@ class ApplicationRegistry:
         registered = list(result.applications)
         diagnostics = list(result.diagnostics)
         order = list(result.presentation_order)
-        known = {app.desktop_id for app in registered}
+        known = {app.desktop_id: index for index, app in enumerate(registered)}
+        diagnostic_indices = {
+            item.desktop_id: index for index, item in enumerate(diagnostics)
+        }
         for app in self._executable_registration.applications():
-            if app.desktop_id in known:
-                continue
-            known.add(app.desktop_id)
-            registered.append(app)
-            order.append(app.desktop_id)
-            diagnostics.append(
-                ApplicationDiagnostic(
-                    desktop_id=app.desktop_id,
+            index = known.get(app.desktop_id)
+            if index is not None:
+                # A selected native shortcut can share the shell's identity
+                # while carrying different arguments, artwork or working dir.
+                # Keep association handles/actions from normal discovery.
+                previous = registered[index]
+                app = replace(
+                    previous,
                     name=app.name,
-                    desktop_file=app.desktop_file,
-                    visible=app.visible,
-                    has_gio_source=app.has_gio_source,
+                    executable_path=app.executable_path,
+                    wm_class=app.wm_class or previous.wm_class,
+                    aliases=tuple(dict.fromkeys((*app.aliases, *previous.aliases))),
+                    working_directory=app.working_directory,
+                    launch_target=app.launch_target,
+                )
+                registered[index] = app
+            else:
+                known[app.desktop_id] = len(registered)
+                registered.append(app)
+                order.append(app.desktop_id)
+            diagnostic_index = diagnostic_indices.get(app.desktop_id)
+            if diagnostic_index is not None:
+                diagnostics[diagnostic_index] = replace(
+                    diagnostics[diagnostic_index],
+                    name=app.name,
                     wm_class=app.wm_class,
                     launcher_basename=app.wm_class,
                     aliases=app.aliases,
                 )
-            )
+            else:
+                diagnostic_indices[app.desktop_id] = len(diagnostics)
+                diagnostics.append(
+                    ApplicationDiagnostic(
+                        desktop_id=app.desktop_id,
+                        name=app.name,
+                        desktop_file=app.desktop_file,
+                        visible=app.visible,
+                        has_gio_source=app.has_gio_source,
+                        wm_class=app.wm_class,
+                        launcher_basename=app.wm_class,
+                        aliases=app.aliases,
+                    )
+                )
         result = replace(
             result,
             applications=tuple(registered),
