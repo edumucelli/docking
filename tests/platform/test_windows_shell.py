@@ -10,6 +10,36 @@ from docking.platform.backends.windows import shell
 @pytest.mark.parametrize(
     "target",
     [
+        r"C:\Profiles\résumé\app.lnk",
+        "C:/Profiles/résumé/app.lnk",
+        r"\\server\share\app.lnk",
+    ],
+)
+def test_private_executable_shortcuts_keep_literal_shell_activation(
+    target, monkeypatch
+):
+    launch = MagicMock(return_value=True)
+    monkeypatch.setattr(shell, "open_default_target", launch)
+    assert shell.activate_application_target(target)
+    launch.assert_called_once_with(target)
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["relative.lnk", "C:relative.lnk", "https://example.com/app.lnk", r"C:\app.exe"],
+)
+def test_application_shortcut_activation_requires_an_absolute_native_link(
+    target, monkeypatch
+):
+    launch = MagicMock()
+    monkeypatch.setattr(shell, "open_default_target", launch)
+    assert not shell.activate_application_target(target)
+    launch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
         r"C:\My Files\résumé & 100%.txt",
         r"\\server\share\file #1.txt",
         "https://example.com/docs?a=1&b=2",

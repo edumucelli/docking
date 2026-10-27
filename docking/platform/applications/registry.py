@@ -21,6 +21,7 @@ from docking.platform.environment import is_windows
 from . import discovery
 from . import entries as desktop_entries
 from .metadata import create_metadata_lookup
+from .registration import ExecutableRegistrationBackend, create_registration_backend
 from .steam import SteamDiscoveryResult, steam_app_id_from_exec
 from .types import (
     ApplicationDiagnostic,
@@ -96,6 +97,7 @@ class ApplicationRegistry:
         application_source: Callable[[], Iterable[object]] | None = None,
         desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
         steam_source: Callable[[], SteamDiscoveryResult] | None = None,
+        executable_registration: ExecutableRegistrationBackend | None = None,
     ) -> None:
         default_source = (
             Gio.AppInfo.get_all if is_windows() else discovery.default_gio_applications
@@ -104,6 +106,11 @@ class ApplicationRegistry:
             default_source if application_source is None else application_source
         )
         self._steam_source = steam_source
+        self._executable_registration = (
+            create_registration_backend()
+            if executable_registration is None
+            else executable_registration
+        )
         self._desktop_directories_source = (
             desktop_directories_source or desktop_entries.desktop_dirs
         )
@@ -267,6 +274,25 @@ class ApplicationRegistry:
             if self._metadata is not None:
                 self._metadata.request(self._state.applications_by_id)
         return changed
+
+    def register_executable(
+        self, target: str | Path, *, startup_wm_class: str = ""
+    ) -> ApplicationInfo | None:
+        """Resolve a persisted launcher, or reject a non-executable with None.
+
+        An unresolvable saved launcher raises OSError so callers cannot
+        reinterpret a catalog failure as an ordinary file pin.
+        """
+        identifier = self._executable_registration.create(
+            target, startup_wm_class=startup_wm_class
+        )
+        if identifier is None:
+            return None
+        self.refresh()
+        application = self.get(identifier)
+        if application is None:
+            raise OSError("Persisted executable launcher could not be resolved")
+        return application
 
     def start(self) -> None:
         """Start monitors and synchronously populate the registry."""
@@ -460,6 +486,39 @@ class ApplicationRegistry:
                 desktop_app_info_from_filename=self._desktop_app_info_from_filename,
                 handle_epoch=handle_epoch,
             )
+        registered = list(result.applications)
+        diagnostics = list(result.diagnostics)
+        order = list(result.presentation_order)
+        known = {app.desktop_id for app in registered}
+        for app in self._executable_registration.applications():
+            if app.desktop_id in known:
+                continue
+            known.add(app.desktop_id)
+            registered.append(app)
+            order.append(app.desktop_id)
+            diagnostics.append(
+                ApplicationDiagnostic(
+                    desktop_id=app.desktop_id,
+                    name=app.name,
+                    desktop_file=app.desktop_file,
+                    visible=app.visible,
+                    has_gio_source=app.has_gio_source,
+                    wm_class=app.wm_class,
+                    launcher_basename=app.wm_class,
+                    aliases=app.aliases,
+                )
+            )
+        result = replace(
+            result,
+            applications=tuple(registered),
+            diagnostics=tuple(diagnostics),
+            presentation_order=tuple(order),
+            directories=tuple(
+                dict.fromkeys(
+                    (*result.directories, *self._executable_registration.directories())
+                )
+            ),
+        )
         try:
             steam = (
                 self._steam_source()
@@ -674,6 +733,7 @@ class ApplicationRegistry:
     def _sync_directory_monitors(self) -> None:
         try:
             wanted = set(discovery.unique_paths(self._desktop_directories_source()))
+            wanted.update(self._executable_registration.directories())
             wanted.update(self._state.diagnostic.steam_directories)
         except Exception as exc:
             log.bind(action="list_desktop_directories").warning(

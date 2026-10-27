@@ -25,6 +25,8 @@ _SHARED_TESTS = (
     "tests/ui/test_preview.py",
     "tests/ui/test_preview_artwork.py",
     "tests/ui/test_preview_popup_integration.py",
+    "tests/ui/test_dnd.py",
+    "tests/ui/test_dnd_integration.py",
 )
 
 

@@ -2066,9 +2066,28 @@ executable paths. ELF and PE signatures distinguish direct executable conflicts
 while preserving Unix wrapper and symlink behavior. Captures and reports remain
 under `artifacts/`.
 
-Native persistence for newly pinned, unlisted executables remains incomplete;
-the existing Unix desktop-entry generator explicitly declines Windows targets.
-Installed native shortcut pins use their existing shell identities.
+Executable registration now has a shared backend contract. The Unix backend
+keeps its existing desktop entries; Windows persists direct PE executables as
+private Unicode `.lnk` files under Docking's configuration directory. Runtime
+matching and registration use the same identity, including when MSYS2 changes
+path separators or Windows returns different path casing. The registry publishes
+the generated records and monitors their directory. The model and drop handler
+request registration through the registry, and failed writes or catalog lookups
+leave the item unpinned. Installed native shortcut pins retain their shell IDs.
+
+`python -m tools.windows.visual.runtime_pin_smoke --output artifacts/windows/runtime-pin`
+checks the actual Keep in Dock menu on an unlisted compiled program, preserves
+the running item, restarts Docking in a fresh process, and launches the restored
+pin with real pointer input. Independent program facts verify the executable,
+empty arguments and executable working directory; native window tracking proves
+one matching dock item. The check creates its pin in active UCRT64 and restores
+it with ordinary desktop path semantics, then restores Explorer's work area and
+removes its owned fixtures. Existing arbitrary shortcuts, installer-owned
+portable bundles and broader file associations still require acceptance.
+
+The native reader uses [IShellLinkW::GetPath](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-getpath)
+with stored-path flags and [IPersistFile::Load](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-ipersistfile-load)
+without resolving moved targets or launching them during catalog discovery.
 
 ## Shared application artwork
 

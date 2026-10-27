@@ -29,8 +29,13 @@ public static class ClassicFixture {
     [STAThread]
     public static void Main(string[] args) {
         var process = Process.GetCurrentProcess();
-        var payload = new string[args.Length - 2];
-        Array.Copy(args, 2, payload, 0, payload.Length);
+        var directory = Path.GetDirectoryName(process.MainModule.FileName);
+        var factsPath = args.Length >= 2 ? args[0] :
+            Path.Combine(directory, "facts-generated.json");
+        var title = args.Length >= 2 ? args[1] :
+            File.ReadAllText(Path.Combine(directory, "fixture-title.txt"));
+        var payload = new string[Math.Max(0, args.Length - 2)];
+        if (payload.Length > 0) Array.Copy(args, 2, payload, 0, payload.Length);
         var facts = new {
             pid = process.Id,
             executable = process.MainModule.FileName,
@@ -39,14 +44,14 @@ public static class ClassicFixture {
             command_line = Marshal.PtrToStringUni(GetCommandLineW())
         };
         var json = new JavaScriptSerializer().Serialize(facts);
-        File.WriteAllText(args[0] + ".tmp", json, new UTF8Encoding(false));
-        File.Move(args[0] + ".tmp", args[0]);
+        File.WriteAllText(factsPath + ".tmp", json, new UTF8Encoding(false));
+        File.Move(factsPath + ".tmp", factsPath);
         var text = "Application: " + new DirectoryInfo(
             Path.GetDirectoryName(process.MainModule.FileName)).Name +
             "\nArguments:\n" + String.Join("\n", payload) +
             "\nWorking directory: " +
             new DirectoryInfo(Environment.CurrentDirectory).Name;
-        MessageBox.Show(text, args[1], MessageBoxButtons.OK,
+        MessageBox.Show(text, title, MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
     }
 }
@@ -140,6 +145,10 @@ class ClassicApplications:
             self._owns_links = True
             for path in self.executables.values():
                 path.parent.mkdir()
+            for key, path in self.executables.items():
+                (path.parent / "fixture-title.txt").write_text(
+                    self.labels[key], encoding="utf-8"
+                )
             source = self.root / "fixture.cs"
             source.write_text(_SOURCE)
             compiled = subprocess.run(
@@ -211,7 +220,11 @@ class ClassicApplications:
     def close(self):
         import psutil
 
-        for path in self.output.glob("facts-*.json"):
+        facts_paths = (
+            *self.output.glob("facts-*.json"),
+            *self.root.rglob("facts-generated.json"),
+        )
+        for path in facts_paths:
             facts = read_shared_json(path)
             try:
                 process = psutil.Process(facts["pid"])

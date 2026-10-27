@@ -20,6 +20,7 @@ from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
+from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.entries import GeneratedDesktopEntry
 from docking.platform.applications.recents import (
     RecentApplications,
@@ -532,12 +533,10 @@ class TestPinUnpin:
         assert "b.desktop" in config.pinned
         config.save.assert_called_once()
 
-    def test_pin_runtime_transient_generates_persistent_launcher(
-        self, tmp_path, monkeypatch
-    ):
+    def test_pin_runtime_transient_generates_persistent_launcher(self, tmp_path):
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = desktop_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
@@ -570,7 +569,7 @@ class TestPinUnpin:
             desktop_file=generated.path,
             executable_path=executable,
             aliases=tuple(
-                model_mod.desktop_entries.match_aliases(
+                desktop_entries.match_aliases(
                     desktop_id=runtime_id,
                     wm_class="tool",
                     exec_line=str(executable),
@@ -579,15 +578,8 @@ class TestPinUnpin:
             visible=True,
             has_gio_source=False,
         )
-        create = MagicMock(return_value=generated)
-        monkeypatch.setattr(
-            model_mod.desktop_entries,
-            "create_desktop_entry_for_executable",
-            create,
-        )
-        dependencies.application_registry.get.side_effect = lambda desktop_id: (
-            resolved if desktop_id == runtime_id else None
-        )
+        create = dependencies.application_registry.register_executable
+        create.return_value = resolved
 
         model.pin_item(runtime_id)
 
@@ -598,7 +590,7 @@ class TestPinUnpin:
         assert isinstance(item.application_info, ApplicationInfo)
         assert item.application_info.origin is ApplicationOrigin.GENERATED
         assert item.application_info.aliases == tuple(
-            model_mod.desktop_entries.match_aliases(
+            desktop_entries.match_aliases(
                 desktop_id=runtime_id,
                 wm_class="tool",
                 exec_line=str(executable),
@@ -608,7 +600,37 @@ class TestPinUnpin:
             str(executable),
             startup_wm_class="SharedTool",
         )
-        dependencies.application_registry.refresh.assert_called_once_with()
+        config.save.assert_called_once_with()
+
+    @pytest.mark.parametrize(
+        "registered", [None, application("different"), OSError("Catalog unavailable")]
+    )
+    def test_failed_runtime_registration_preserves_the_running_transient(
+        self, registered
+    ):
+        dependencies = _make_dependencies()
+        config = _make_config([])
+        model = _make_model(config, dependencies, AppletServices())
+        runtime = _runtime_application(
+            desktop_id="runtime", executable_path=Path("tool")
+        )
+        model.update_running({"runtime": RunningAppInfo(count=1, runtime_app=runtime)})
+        item = model.visible_items()[0]
+        if isinstance(registered, OSError):
+            dependencies.application_registry.register_executable.side_effect = (
+                registered
+            )
+        else:
+            dependencies.application_registry.register_executable.return_value = (
+                registered
+            )
+
+        model.pin_item("runtime")
+
+        assert model.visible_items() == [item]
+        assert not item.is_pinned and item.is_running
+        assert item.runtime_executable
+        config.save.assert_not_called()
 
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Unix desktop-entry persistence"
@@ -621,19 +643,19 @@ class TestPinUnpin:
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
         executable.chmod(0o755)
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = desktop_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
         )
         applications_dir = tmp_path / "applications"
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            desktop_entries,
             "user_applications_dir",
             lambda: applications_dir,
         )
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            desktop_entries,
             "_refresh_desktop_database",
             lambda _directory: None,
         )

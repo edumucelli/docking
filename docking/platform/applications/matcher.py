@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from . import entries as desktop_entries
 from .constants import DESKTOP_SUFFIX, FALLBACK_ICON, GNOME_APP_PREFIX
 from .identity import ProcessIdentity, ProcessIdentityService
+from .registration import executable_application_id, executable_format
 from .registry import ApplicationRegistry
 from .types import (
     ApplicationInfo,
@@ -187,18 +188,7 @@ def _specific_bundle_root(path: Path) -> Path | None:
 @lru_cache(maxsize=512)
 def _is_native_executable(path: Path) -> bool:
     """Recognize directly comparable ELF and Windows PE program images."""
-    try:
-        with path.open("rb") as handle:
-            header = handle.read(64)
-            if header[:4] == b"\x7fELF":
-                return True
-            if len(header) < 64 or header[:2] != b"MZ":
-                return False
-            # The DOS header stores the PE signature's file offset at 0x3c.
-            handle.seek(int.from_bytes(header[0x3C:0x40], "little"))
-            return handle.read(4) == b"PE\0\0"
-    except OSError:
-        return False
+    return executable_format(path) is not None
 
 
 def _launcher_path_compatibility(
@@ -925,7 +915,7 @@ def _runtime_application(
     wm_class: str,
 ) -> ApplicationInfo:
     """Create deterministic canonical metadata for a path-split process."""
-    desktop_id = desktop_entries.generated_desktop_id_for_path(executable_path)
+    desktop_id = executable_application_id(executable_path)
     display_name = (
         name
         or (source.name if source is not None else "")

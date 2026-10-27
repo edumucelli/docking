@@ -174,7 +174,6 @@ from docking.core.math import clamp
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform import icon_overrides
-from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.recents import (
     RecentApplications,
@@ -1470,21 +1469,20 @@ class DockModel:
         """Persist a safe launcher before a runtime-only item becomes pinned."""
         if not item.runtime_executable:
             return True
-        # Runtime IDs deliberately use generated_desktop_id_for_path(), so this
-        # promotion creates the matching desktop file without changing the
-        # item's identity (and therefore without losing its running windows).
-        generated = desktop_entries.create_desktop_entry_for_executable(
-            item.runtime_executable,
-            startup_wm_class=item.wm_class,
-        )
-        if generated is None or generated.desktop_id != item.desktop_id:
+        # Keep the runtime identity and its windows while persisting the
+        # corresponding native launcher through the registry.
+        try:
+            application = self._application_registry.register_executable(
+                item.runtime_executable,
+                startup_wm_class=item.wm_class,
+            )
+        except OSError as exc:
+            log.warning("Could not resolve executable pin: %s", exc)
             return False
-        self._application_registry.refresh()
-        application = self._application_registry.get(generated.desktop_id)
-        if application is None:
+        if application is None or application.desktop_id != item.desktop_id:
             return False
-        item.target = generated.desktop_id
-        item.prefs_key = generated.desktop_id
+        item.target = application.desktop_id
+        item.prefs_key = application.desktop_id
         self._apply_application_metadata(item, application)
         item.runtime_executable = ""
         item.icon = self._icon_loader.load_desktop_icon(

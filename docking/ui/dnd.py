@@ -851,16 +851,12 @@ class DnDHandler:
         if not self._prepare_appimage_for_generation(uri):
             return False
 
-        generated = desktop_entries.create_desktop_entry_for_executable(uri)
-        if generated is not None:
-            self._application_registry.refresh()
-            application = self._application_registry.get(generated.desktop_id)
-            if application is None:
-                log.debug(
-                    "_insert_pinned_uri: generated desktop entry did not resolve: %s",
-                    generated.desktop_id,
-                )
-                return False
+        try:
+            application = self._application_registry.register_executable(uri)
+        except OSError as exc:
+            log.warning("Could not resolve executable drop: %s", exc)
+            return False
+        if application is not None:
             log.debug(
                 "_insert_pinned_uri: generated application desktop_id=%s",
                 application.desktop_id,

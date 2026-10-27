@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 from ctypes import wintypes
+from pathlib import PureWindowsPath
 
 from docking.log import get_logger
 
@@ -15,14 +16,17 @@ log = get_logger("windows.shell")
 
 
 def activate_application_target(target: str) -> bool:
-    """Activate a recorded application-folder target without parsing its command."""
+    """Activate a recorded shell application or native executable shortcut."""
     prefix = "shell:AppsFolder\\"
-    if not target.startswith(prefix) or not target[len(prefix) :]:
-        return False
-    app_id = target[len(prefix) :]
-    if "!" in app_id:
-        return activate_packaged_application(app_id)
-    return open_default_target(target)
+    if target.startswith(prefix) and target[len(prefix) :]:
+        app_id = target[len(prefix) :]
+        if "!" in app_id:
+            return activate_packaged_application(app_id)
+        return open_default_target(target)
+    shortcut = PureWindowsPath(target)
+    if shortcut.is_absolute() and shortcut.suffix.lower() == ".lnk":
+        return open_default_target(target)
+    return False
 
 
 def activate_packaged_application(application_id: str) -> bool:
