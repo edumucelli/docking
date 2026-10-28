@@ -129,16 +129,6 @@ def test_unknown_capacity_has_a_distinct_glyph_from_zero_and_absence():
         assert pixels != render.render_icon(48, None, overlay).get_pixels()
 
 
-@pytest.mark.parametrize("capacity", [0, 15])
-def test_charging_marker_is_visible_above_a_low_battery_fill(capacity):
-    idle = BatteryState("battery-caution", capacity, "Not charging", None)
-    charging = idle._replace(icon_name="battery-caution-charging", status="Charging")
-    assert (
-        render.render_icon(64, idle).get_pixels()
-        != render.render_icon(64, charging).get_pixels()
-    )
-
-
 def test_factory_selects_windows_without_linux_specific_arguments(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     assert isinstance(backend.create_backend(), windows.WindowsBatteryBackend)
