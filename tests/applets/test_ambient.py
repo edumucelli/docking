@@ -243,6 +243,15 @@ class TestAmbientPlaybackBranches:
 
 
 class TestAmbientLifecycleAndPipelines:
+    @pytest.mark.parametrize("sound", ["white-noise", "pink-noise"])
+    def test_noise_selection_matches_gstreamers_named_waveform(self, sound):
+        source = ambient_mod.Gst.ElementFactory.make("audiotestsrc", "waveform-check")
+        if source is None:
+            pytest.skip("GStreamer audiotestsrc plugin is unavailable")
+        source.set_property("wave", ambient_mod.NOISE_WAVES[sound])
+        # Read the real enum so a tone cannot accidentally replace noise.
+        assert source.get_property("wave").value_nick == sound
+
     def test_build_file_pipeline_returns_none_when_factory_missing(self, monkeypatch):
         monkeypatch.setattr(
             ambient_mod.Gst.ElementFactory, "make", lambda *_a, **_k: None
