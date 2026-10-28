@@ -30,6 +30,11 @@ installed application outside the checkout. The native desktop smoke checks
 rendering, menus, Preferences, resize and normal shutdown. Its import-origin
 assertion prevents a source checkout from masking missing wheel contents.
 
+The native multiwindow check pins an unlisted compiled program with two
+independent windows in one process. It verifies grouping, repeated foreground
+cycling and closing one window, then restarts Docking and launches the restored
+pin. Its reports and captures are uploaded with the other desktop evidence.
+
 It also builds and extracts a standalone ZIP, then builds an NSIS per-user
 installer from that verified artifact. Installer acceptance checks Unicode paths,
 all installed-file hashes, Start menu/Installed Apps registration, active-hook

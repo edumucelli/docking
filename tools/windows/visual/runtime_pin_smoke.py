@@ -30,6 +30,7 @@ def _phase(output: Path, phase: str) -> None:
     from docking.platform.applications.types import ApplicationOrigin
     from tools.windows.visual.desktop_driver import WindowsDesktop, read_shared_json
     from tools.windows.visual.explorer import ExplorerFolder
+    from tools.windows.visual.smoke import dock_window
 
     manifest = read_shared_json(output / "manifest.json")
     executable = Path(manifest["executable"])
@@ -100,10 +101,7 @@ def _phase(output: Path, phase: str) -> None:
         try:
             assert ready.wait(90)
             dock = native.wait_for(
-                lambda: next(
-                    (w for w in native.windows(os.getpid()) if w["title"] == "Docking"),
-                    None,
-                ),
+                lambda: dock_window(native.windows(os.getpid())),
                 "Dock did not map",
             )
 

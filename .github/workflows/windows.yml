@@ -75,6 +75,8 @@ jobs:
           python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
       - name: Exercise the installed application on the Windows desktop
         run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
+      - name: Verify native multiwindow grouping, cycling and restored pins
+        run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --output artifacts/windows/multiple-windows
       - name: Build the standalone Windows application
         run: |
           python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
@@ -103,6 +105,7 @@ jobs:
             artifacts/windows/environment.json
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
+            artifacts/windows/multiple-windows/
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/
