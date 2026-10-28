@@ -20,6 +20,7 @@ control the VM from its host.
 python -m tools.windows.visual.lab --share /path/to/shared status
 python -m tools.windows.visual.smoke --output artifacts/windows/smoke
 python -m tools.windows.visual.runtime_pin_smoke --output artifacts/windows/runtime-pin
+python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --output artifacts/windows/multiple-windows
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --output artifacts/windows/explorer-pin
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut installed --output artifacts/windows/installed-shortcut
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut unlisted --output artifacts/windows/unlisted-shortcut

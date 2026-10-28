@@ -2103,6 +2103,15 @@ it with ordinary desktop path semantics, then restores Explorer's work area and
 removes its owned fixtures. Installer-owned portable bundles and broader file
 associations still require acceptance.
 
+Add `--multiple-windows` to create two independent native top-level windows in
+one process. Before and after restarting Docking, the check verifies one pinned
+item with two windows, four alternating foreground changes through actual pin
+clicks, and closing one window while the remaining window stays grouped and
+activates from the pin. This passed for the owned unlisted executable in a
+Unicode directory on Windows 11 with UAC enabled and an ordinary user. Broader
+application identities, process layouts and display/session behavior still need
+acceptance.
+
 Add `--explorer-drop` to exercise an actual Explorer OLE2 file drag instead of
 the application menu. The owned fixture lives under a path containing French
 and Japanese characters. The check obtains Explorer's file-icon geometry through

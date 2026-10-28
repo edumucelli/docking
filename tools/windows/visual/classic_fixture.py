@@ -51,6 +51,32 @@ public static class ClassicFixture {
             "\nArguments:\n" + String.Join("\n", payload) +
             "\nWorking directory: " +
             new DirectoryInfo(Environment.CurrentDirectory).Name;
+        if (File.Exists(Path.Combine(directory, "fixture-two-windows.txt"))) {
+            var context = new ApplicationContext();
+            var remaining = 2;
+            for (var index = 0; index < 2; index++) {
+                var form = new Form();
+                form.Text = title + (index == 0 ? "" : " Second");
+                form.Width = 460;
+                form.Height = 240;
+                form.StartPosition = FormStartPosition.Manual;
+                form.Left = 120 + index * 80;
+                form.Top = 120 + index * 60;
+                var content = new TextBox();
+                content.Multiline = true;
+                content.ReadOnly = true;
+                content.Dock = DockStyle.Fill;
+                content.Text = text;
+                form.Controls.Add(content);
+                form.FormClosed += delegate {
+                    if (--remaining == 0) context.ExitThread();
+                };
+                form.Show();
+            }
+            Application.Run(context);
+            context.Dispose();
+            return;
+        }
         MessageBox.Show(text, title, MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
     }
@@ -235,7 +261,10 @@ class ClassicApplications:
                 continue
             assert Path(process.exe()).is_relative_to(self.root)
             for window in self.native.windows(process.pid):
-                assert window["title"] in self.labels.values()
+                assert any(
+                    window["title"] in (label, label + " Second")
+                    for label in self.labels.values()
+                )
                 assert self.native.user.PostMessageW(window["hwnd"], 0x10, 0, 0)
             assert process.wait(20) == 0
         if self._owns_links and self.links.exists():

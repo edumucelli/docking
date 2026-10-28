@@ -297,8 +297,12 @@ def _phase(output: Path, phase: str) -> None:
                     ]
                 )
 
-            rows = native.wait_for(tracked, "Executable window was not tracked")
-            assert len(rows) == 1 and rows[0].desktop_id == identifier
+            count = 2 if manifest.get("multiple_windows") else 1
+            rows = native.wait_for(
+                lambda: current if len(current := tracked()) == count else None,
+                "Executable windows were not tracked",
+            )
+            assert all(row.desktop_id == identifier for row in rows)
             assert (
                 call(
                     lambda: len(
@@ -311,6 +315,64 @@ def _phase(output: Path, phase: str) -> None:
                 )
                 == 1
             )
+            if count == 2:
+                item = call(lambda: shared["model"].find_by_desktop_id(identifier))
+                assert item.instance_count == 2 and item.is_pinned
+                handles = {row.id.value for row in rows}
+                native_rows = native.windows(program_pid)
+                assert handles == {row["hwnd"] for row in native_rows}
+                ImageGrab.grab(all_screens=True).save(
+                    output / f"{phase}-two-windows.png"
+                )
+                bounds = native_rows[0]["rect"]
+                native.click(bounds[0] + 80, bounds[1] + 15)
+
+                def active_handle():
+                    foreground = native.user.GetForegroundWindow()
+                    return next(
+                        (
+                            row.id.value
+                            for row in tracked()
+                            if row.active and row.id.value == foreground
+                        ),
+                        None,
+                    )
+
+                initial = native.wait_for(active_handle, "Fixture did not activate")
+                foregrounds = [initial]
+                for _ in range(4):
+                    native.click(*target())
+                    expected = next(h for h in handles if h != foregrounds[-1])
+                    native.wait_for(
+                        lambda expected=expected: active_handle() == expected,
+                        "Pin did not cycle to the other native window",
+                    )
+                    foregrounds.append(expected)
+                assert foregrounds[-1] == initial
+                closing = native.user.GetForegroundWindow()
+                bounds = next(
+                    row["rect"]
+                    for row in native.windows(program_pid)
+                    if row["hwnd"] == closing
+                )
+                native.click(bounds[2] - 20, bounds[1] + 15)
+                remaining = native.wait_for(
+                    lambda: current if len(current := tracked()) == 1 else None,
+                    "Closing one native window did not update its pin",
+                )
+                assert remaining[0].id.value != closing
+                assert item.is_running and item.is_pinned and item.instance_count == 1
+                native.click(*target())
+                native.wait_for(
+                    lambda: active_handle() == remaining[0].id.value,
+                    "Surviving window did not activate from the pin",
+                )
+                report["multiple_windows"] = {
+                    "handles": sorted(handles),
+                    "cycle_foregrounds": foregrounds,
+                    "count_after_close": item.instance_count,
+                    "survivor": remaining[0].id.value,
+                }
             ImageGrab.grab(all_screens=True).save(output / f"{phase}-grouped.png")
             report.update(ok=True, pid=program_pid, grouped=True)
         except Exception as exc:
@@ -347,6 +409,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--phase", choices=("pin", "drop", "restart"))
     parser.add_argument("--explorer-drop", action="store_true")
+    parser.add_argument("--multiple-windows", action="store_true")
     parser.add_argument("--shortcut", choices=("installed", "unlisted"))
     args = parser.parse_args()
     if sys.platform != "win32":
@@ -376,6 +439,7 @@ def main() -> None:
                     "pinned": [{"kind": "applet", "target": "applet://clock"}],
                     "icon_size": 64,
                     "hide_mode": "none",
+                    "left_click_action": "cycle" if args.multiple_windows else "toggle",
                     "startup_tips_enabled": False,
                     "update_check_enabled": False,
                 }
@@ -439,6 +503,9 @@ def main() -> None:
                 "source": str(selected),
                 "identifier": identifier,
             }
+        if args.multiple_windows:
+            (Path(manifest["executable"]).parent / "fixture-two-windows.txt").touch()
+            manifest["multiple_windows"] = True
         (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         env = {
             **os.environ,
@@ -494,6 +561,7 @@ def main() -> None:
                 "normal_shutdown": True,
                 "fixture_cleanup": True,
                 "shortcut": args.shortcut,
+                "multiple_windows": args.multiple_windows,
             },
             indent=2,
         ),
