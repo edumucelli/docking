@@ -1426,6 +1426,12 @@ jobs:
           name: docking-bsd-openbsd
           path: artifacts/bsd-openbsd
 
+      - name: Download Windows packages and acceptance reports
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-ucrt64-x64
+          path: artifacts/windows-release
+
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
         run: |
@@ -1603,6 +1609,12 @@ jobs:
           python3 packaging/bsd/release.py --version "${{ steps.version.outputs.version }}" \
             --directory artifacts/bsd-freebsd --directory artifacts/bsd-openbsd \
             --output artifacts/release
+
+      - name: Stage verified Windows release assets
+        if: steps.release_check.outputs.should_release == 'true'
+        run: |
+          python3 -m tools.windows.release --version "${{ steps.version.outputs.version }}" \
+            --directory artifacts/windows-release --output artifacts/release
 
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'

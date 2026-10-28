@@ -7,6 +7,7 @@ Run these tools from the repository root. Native checks require Windows.
 - `bundle`: assemble a relocatable application from a wheel and its native runtime;
   see [Windows packaging](../../packaging/windows/README.md).
 - `installer`: build per-user setup from a verified portable ZIP using NSIS.
+- `release`: stage versioned Windows packages from accepted CI artifacts.
 - [`visual/`](visual/README.md): desktop acceptance checks, VM controls, fixtures,
   captures and independent observations, matching the Linux and BSD tool layout.
 

@@ -78,5 +78,16 @@ preservation and disabling, the installed desktop, and uninstall with retained
 preferences and unknown files. Windows CI builds and uploads the ZIP, installer,
 checksums, reports, logs and desktop captures.
 
+The release workflow stages the accepted Windows CI artifact alongside the
+Linux and BSD assets. It verifies the project version, package checksums and the
+matching successful installer report before copying the ZIP and installer to
+versioned and `docking-latest-windows-x86_64` names, with `SHA256SUMS-windows`.
+To stage a downloaded `windows-ucrt64-x64` artifact locally:
+
+```sh
+python -m tools.windows.release --directory path/to/downloaded-artifact \
+  --version 2.28.0 --output artifacts/release
+```
+
 Release signing, automatic update delivery and broader startup-performance
 acceptance remain pending.
