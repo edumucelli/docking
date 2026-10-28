@@ -20,6 +20,7 @@ from tools.windows.bundle import (
     read_packages,
     relative_package_file,
     runtime_file,
+    staging_directory,
 )
 
 
@@ -196,3 +197,19 @@ def test_portable_extraction_handles_long_nested_paths_without_system_policy(tmp
     owned = filesystem_path(destination) / name
     assert len(str(owned)) > 260
     assert owned.read_bytes() == b"owned"
+    assert filesystem_path(owned).read_bytes() == b"owned"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows long-path APIs")
+def test_failed_stage_cleans_long_paths_in_an_active_msys_shell(tmp_path):
+    name = "runtime/lib/" + "long-directory/" * 15 + "owned.txt"
+    with (
+        pytest.raises(RuntimeError, match="interrupted"),
+        staging_directory(tmp_path, "interrupted-") as stage,
+    ):
+        owned = stage / name
+        owned.parent.mkdir(parents=True)
+        owned.write_bytes(b"owned")
+        assert owned.relative_to(stage).as_posix() == name
+        raise RuntimeError("interrupted")
+    assert not stage.exists()

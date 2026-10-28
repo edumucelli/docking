@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,8 +19,8 @@ import pytest
 from docking.applets.aiusage import hook_command
 from docking.platform.backends.windows import installation as install_module
 from docking.platform.backends.windows.installation import installed_hook
-from tools.windows.bundle import payload_root
-from tools.windows.installer import payload_script, removal_manifest
+from tools.windows.bundle import native_path, payload_root
+from tools.windows.installer import build, payload_script, removal_manifest
 
 
 @pytest.mark.parametrize(
@@ -321,7 +323,11 @@ def test_native_installed_launchers_follow_current_version_and_preserve_io(
             target = payload / (
                 "Docking.exe" if name == "Docking.exe" else "runtime/bin/python.exe"
             )
-            assert "EXE:" + str(target) in lines
+            assert [
+                Path(line.removeprefix("EXE:"))
+                for line in lines
+                if line.startswith("EXE:")
+            ] == [target]
             assert "INPUT:résumé 日本語" in lines
             assert result.stderr.strip() == "child stderr"
 
@@ -417,6 +423,41 @@ def test_native_generated_inventory_removes_a_complete_owned_payload(
     assert not payload.exists()
 
 
+def test_native_builder_compiles_and_cleans_an_installer_in_the_msys_environment(
+    tmp_path, native_helpers
+):
+    compiler = Path(sys.base_prefix) / "bin/makensis.exe"
+    if not compiler.is_file():
+        pytest.skip("Requires the NSIS package used by Windows CI")
+    # A small compile-only payload exercises the real builder, not the desktop
+    # runtime. The complete runtime and setup lifecycle have separate acceptance.
+    files = {
+        "Docking.exe": (native_helpers / "child.exe").read_bytes(),
+        "runtime/share/docking/runtime.json": json.dumps({"version": "0.0.0"}).encode(),
+        "runtime/lib/python3/site-packages/docking/platform/backends/windows/installation.py": Path(
+            install_module.__file__
+        ).read_bytes(),
+    }
+    archive = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive, "w") as target:
+        target.writestr(
+            "Docking/files.sha256.json",
+            json.dumps(
+                {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
+            ),
+        )
+        for name, data in files.items():
+            target.writestr("Docking/" + name, data)
+    output = tmp_path / "Docking-setup.exe"
+    build(archive, output, Path(sys.base_prefix))
+    assert output.read_bytes().startswith(b"MZ")
+    assert (
+        output.with_suffix(".exe.sha256").read_text().split()[0]
+        == hashlib.sha256(output.read_bytes()).hexdigest()
+    )
+    assert not list(tmp_path.glob("docking-setup-*"))
+
+
 def test_native_interrupted_first_install_keeps_ownership_and_removal_inventory(
     tmp_path, native_helpers
 ):
@@ -447,9 +488,9 @@ def test_native_interrupted_first_install_keeps_ownership_and_removal_inventory(
     setup = tmp_path / "interruption-setup.exe"
     settings = tmp_path / "settings.nsh"
     values = {
-        "PAYLOAD": str(payload),
-        "HELPERS": str(native_helpers),
-        "OUTPUT": str(setup),
+        "PAYLOAD": native_path(payload),
+        "HELPERS": native_path(native_helpers),
+        "OUTPUT": native_path(setup),
         "APP_VERSION": "0.0.0",
         "VERSION_ID": "0.0.0-interruption",
         "FILE_VERSION": "0.0.0.0",
@@ -465,8 +506,8 @@ def test_native_interrupted_first_install_keeps_ownership_and_removal_inventory(
             "/V2",
             "/INPUTCHARSET",
             "UTF8",
-            f"/DSETTINGS={settings}",
-            str(source),
+            f"/DSETTINGS={native_path(settings)}",
+            native_path(source),
         ],
         check=True,
     )
@@ -476,7 +517,11 @@ def test_native_interrupted_first_install_keeps_ownership_and_removal_inventory(
         dir=programs, prefix="Docking-interruption-"
     ) as directory:
         root = Path(directory)
-        command = subprocess.list2cmdline([str(setup), "/S"]) + " /D=" + str(root)
+        command = (
+            subprocess.list2cmdline([native_path(setup), "/S"])
+            + " /D="
+            + native_path(root)
+        )
         with subprocess.Popen(command) as process:
             try:
                 manifest_path = root / "versions/0.0.0-interruption/uninstall-files.txt"
@@ -584,7 +629,15 @@ def test_native_manifest_cleanup_rejects_directory_junction_before_deleting(
     owned.write_text("keep on validation failure")
     junction = payload / "linked"
     subprocess.run(
-        ["cmd.exe", "/d", "/c", "mklink", "/J", str(junction), str(outside)],
+        [
+            "cmd.exe",
+            "/d",
+            "/c",
+            "mklink",
+            "/J",
+            native_path(junction),
+            native_path(outside),
+        ],
         check=True,
         capture_output=True,
     )

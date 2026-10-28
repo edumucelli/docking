@@ -17,7 +17,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from docking.platform.backends.windows.shortcuts import read_shortcut
-from tools.windows.bundle import filesystem_path, payload_root
+from tools.windows.bundle import filesystem_path, native_path, payload_root, walk_tree
 from tools.windows.installer import removal_manifest
 
 APP_ID = "org.docking.Docking"
@@ -41,11 +41,11 @@ def registry_value(key: str, name: str) -> str | None:
 
 
 def run_setup(installer: Path, root: Path, startup: bool | None = None) -> int:
-    arguments = [str(installer), "/S"]
+    arguments = [native_path(installer), "/S"]
     if startup is not None:
         arguments.append(f"/STARTUP={int(startup)}")
     # NSIS consumes /D as the unquoted remainder of its command line.
-    command = subprocess.list2cmdline(arguments) + " /D=" + str(root)
+    command = subprocess.list2cmdline(arguments) + " /D=" + native_path(root)
     return subprocess.run(command, timeout=600).returncode
 
 
@@ -53,7 +53,7 @@ def disable_owned_startup(root: Path) -> None:
     """Leave a failed acceptance installation available without enabling login."""
     import winreg
 
-    if registry_value(RUN_KEY, APP_ID) != '"' + str(root / "Docking.exe") + '"':
+    if registry_value(RUN_KEY, APP_ID) != '"' + native_path(root / "Docking.exe") + '"':
         return
     with winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
@@ -103,7 +103,11 @@ def uninstall(root: Path, output: Path) -> int:
     with tempfile.TemporaryDirectory(prefix="docking-uninstall-") as temp:
         executable = Path(temp) / "Uninstall.exe"
         shutil.copy2(root / "Uninstall.exe", executable)
-        command = subprocess.list2cmdline([str(executable), "/S"]) + " _?=" + str(root)
+        command = (
+            subprocess.list2cmdline([native_path(executable), "/S"])
+            + " _?="
+            + native_path(root)
+        )
         with (output / "uninstall.log").open("w", encoding="utf-8") as log:
             return subprocess.run(
                 command, stdout=log, stderr=subprocess.STDOUT, timeout=600
@@ -131,7 +135,7 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
     assert run_setup(installer, root, startup=True) == 0
     first, count = verify_installation(root)
     report["verified_payload_files"] = count
-    expected_startup = '"' + str(root / "Docking.exe") + '"'
+    expected_startup = '"' + native_path(root / "Docking.exe") + '"'
     assert registry_value(RUN_KEY, APP_ID) == expected_startup
     root_note = root / "acceptance-user-note.txt"
     payload_note = first / "runtime/acceptance-user-note.txt"
@@ -215,7 +219,7 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
     root_note.unlink()
     payload_note.unlink()
     for path in sorted(
-        filesystem_path(root).rglob("*"), key=lambda item: len(item.parts), reverse=True
+        walk_tree(filesystem_path(root)), key=lambda item: len(item.parts), reverse=True
     ):
         if path.is_dir():
             with suppress(OSError):

@@ -10,12 +10,17 @@ import struct
 import subprocess
 import sys
 import sysconfig
-import tempfile
 from pathlib import Path, PurePosixPath
 
 from packaging.version import Version
 
-from tools.windows.bundle import extract_bundle, filesystem_path
+from tools.windows.bundle import (
+    extract_bundle,
+    filesystem_path,
+    native_path,
+    staging_directory,
+    walk_tree,
+)
 
 MANIFEST_HEADER = "Docking-Install-Manifest-1\r\n"
 
@@ -92,14 +97,11 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
         raise FileExistsError(f"Choose a new installer destination: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).resolve().parents[2] / "packaging/windows"
-    with tempfile.TemporaryDirectory(
-        dir=output.parent, prefix="docking-setup-"
-    ) as temp:
-        stage = Path(temp)
+    with staging_directory(output.parent, "docking-setup-") as stage:
         payload = filesystem_path(extract_bundle(archive, stage / "payload"))
         files = sorted(
             path.relative_to(payload).as_posix()
-            for path in payload.rglob("*")
+            for path in walk_tree(payload)
             if path.is_file()
         )
         (payload / "uninstall-files.txt").write_bytes(removal_manifest(files))
@@ -107,12 +109,14 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
         metadata = json.loads(
             (payload / "runtime/share/docking/runtime.json").read_text(encoding="utf-8")
         )
-        modules = list(
-            payload.glob(
+        modules = [
+            name
+            for name in files
+            if PurePosixPath(name).match(
                 "runtime/lib/python*/site-packages/"
                 "docking/platform/backends/windows/installation.py"
             )
-        )
+        ]
         if len(modules) != 1:
             raise ValueError(
                 "Portable artifact lacks the installed-runtime maintenance module"
@@ -154,9 +158,9 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
                 check=True,
             )
         settings = {
-            "PAYLOAD": str(payload),
-            "HELPERS": str(stage),
-            "OUTPUT": str(stage / "Docking-setup.exe"),
+            "PAYLOAD": native_path(payload),
+            "HELPERS": native_path(stage),
+            "OUTPUT": native_path(stage / "Docking-setup.exe"),
             "APP_VERSION": str(version),
             "VERSION_ID": version_id,
             "FILE_VERSION": ".".join(
@@ -164,7 +168,7 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
             ),
             "INSTALLED_KIB": str(
                 sum(
-                    path.stat().st_size for path in payload.rglob("*") if path.is_file()
+                    path.stat().st_size for path in walk_tree(payload) if path.is_file()
                 )
                 // 1024
             ),
@@ -184,8 +188,8 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
                 "/V3",
                 "/INPUTCHARSET",
                 "UTF8",
-                f"/DSETTINGS={include}",
-                str(source / "installer.nsi"),
+                f"/DSETTINGS={native_path(include)}",
+                native_path(source / "installer.nsi"),
             ],
             check=True,
         )

@@ -14,12 +14,14 @@ import struct
 import subprocess
 import sys
 import sysconfig
-import tempfile
 import urllib.request
+import uuid
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from email.parser import Parser
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, WindowsPath
 
 from packaging.requirements import Requirement
 
@@ -72,16 +74,67 @@ _EXECUTABLES = {
 }
 
 
+def native_path(path: Path) -> str:
+    """Pass native separators to tools that do not accept MSYS2's path spelling."""
+    return str(path).replace("/", "\\")
+
+
+class _NativeWindowsPath(WindowsPath):
+    # MSYS2 changes pathlib's preferred separator. Extended Win32 paths require
+    # backslashes even when ordinary short paths accept the shell's spelling.
+    def __str__(self) -> str:
+        return super().__str__().replace("/", "\\")
+
+    def as_posix(self) -> str:
+        return super().__str__().replace("\\", "/")
+
+
 def filesystem_path(path: Path) -> Path:
     """Access Windows package files without depending on long-path policy."""
     if os.name != "nt":
         return path
-    value = str(path.absolute())
+    value = native_path(path.absolute())
     if value.startswith("\\\\?\\"):
-        return Path(value)
+        return _NativeWindowsPath(value)
     if value.startswith("\\\\"):
-        return Path("\\\\?\\UNC\\" + value[2:])
-    return Path("\\\\?\\" + value)
+        return _NativeWindowsPath("\\\\?\\UNC\\" + value[2:])
+    return _NativeWindowsPath("\\\\?\\" + value)
+
+
+def walk_tree(root: Path) -> Iterator[Path]:
+    """Retain native paths while enumerating, including under an MSYS2 shell."""
+    # pathlib's globber joins plain strings with the MSYS2 separator, losing
+    # extended-path support before it reaches the filesystem operation.
+    with os.scandir(root) as entries:
+        children = [
+            (root / entry.name, entry.is_dir(follow_symlinks=False))
+            for entry in entries
+        ]
+    for path, directory in children:
+        yield path
+        if directory:
+            yield from walk_tree(path)
+
+
+@contextmanager
+def staging_directory(parent: Path, prefix: str) -> Iterator[Path]:
+    """Keep every staging and cleanup operation in the native path namespace."""
+    stage = filesystem_path(parent) / (prefix + uuid.uuid4().hex)
+    stage.mkdir()
+    try:
+        yield stage
+    finally:
+        # tempfile/shutil join child names using MSYS2's separator, which breaks
+        # the extended prefix. These are only files in this newly created stage.
+        if stage.exists():
+            for path in sorted(
+                walk_tree(stage), key=lambda item: len(item.parts), reverse=True
+            ):
+                if path.is_dir() and not path.is_symlink():
+                    path.rmdir()
+                else:
+                    path.unlink()
+            stage.rmdir()
 
 
 def payload_root(root: Path) -> Path:
@@ -243,10 +296,7 @@ def extract_bundle(archive_path: Path, destination: Path) -> Path:
                 or path.parts[0] != "Docking"
             ):
                 raise ValueError(f"Invalid portable archive path: {entry.filename}")
-        with tempfile.TemporaryDirectory(
-            dir=destination.parent, prefix="docking-extract-"
-        ) as tmp:
-            stage = Path(tmp)
+        with staging_directory(destination.parent, "docking-extract-") as stage:
             for entry in files:
                 data = archive.read(entry)
                 relative = PurePosixPath(entry.filename).relative_to("Docking")
@@ -324,8 +374,8 @@ def build(
         tuple(_PACKAGE_PREFIX + name for name in RUNTIME_PACKAGES),
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=output.parent, prefix="docking-build-") as tmp:
-        stage = Path(tmp) / "Docking"
+    with staging_directory(output.parent, "docking-build-") as temporary:
+        stage = temporary / "Docking"
         runtime = stage / "runtime"
         for package in packages:
             print(f"Copying {package.name} {package.version}", flush=True)
@@ -405,7 +455,7 @@ def build(
             path.relative_to(stage).as_posix(): hashlib.sha256(
                 path.read_bytes()
             ).hexdigest()
-            for path in sorted(stage.rglob("*"))
+            for path in sorted(walk_tree(stage))
             if path.is_file()
         }
         (stage / "files.sha256.json").write_text(
@@ -440,10 +490,13 @@ def main() -> None:
     if args.archive is not None:
         print("Creating the portable ZIP archive", flush=True)
         args.archive.parent.mkdir(parents=True, exist_ok=True)
+        bundle = filesystem_path(args.output)
         with zipfile.ZipFile(args.archive, "x", zipfile.ZIP_DEFLATED) as archive:
-            for path in sorted(args.output.rglob("*")):
+            for path in sorted(walk_tree(bundle)):
                 if path.is_file():
-                    archive.write(path, Path("Docking") / path.relative_to(args.output))
+                    archive.write(
+                        path, "Docking/" + path.relative_to(bundle).as_posix()
+                    )
         digest = hashlib.sha256(args.archive.read_bytes()).hexdigest()
         args.archive.with_suffix(".zip.sha256").write_text(
             f"{digest}  {args.archive.name}\n", encoding="utf-8"
