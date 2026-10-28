@@ -238,7 +238,6 @@ def main() -> None:
         desktop_before.work.bottom,
     ]
     executable = Path(sys.executable).with_name("pythonw.exe")
-    report["executable"] = str(executable)
     env = {
         **os.environ,
         "XDG_CONFIG_HOME": str(config_home),
@@ -281,6 +280,7 @@ def main() -> None:
                 env.pop(name)
         env["PATH"] = str(Path(os.environ["WINDIR"]) / "System32")
         report["bundle"] = str(bundle)
+    report["executable"] = command[0]
     child = None
     dock = None
     try:
@@ -322,6 +322,8 @@ def main() -> None:
         if dock is None:
             raise AssertionError("No visible native Docking window appeared")
         report["application_pid"] = application_pid
+        if args.bundle is not None:
+            report["application_executable"] = psutil.Process(application_pid).exe()
         user32.SetCursorPos(20, 20)
         time.sleep(2)
         resting = ImageGrab.grab(all_screens=True)
