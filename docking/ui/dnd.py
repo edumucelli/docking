@@ -522,11 +522,30 @@ class DnDHandler:
 
         # External drop -- process URIs
         insert_at = max(0, self.drop_insert_index)
+        application = None
+        uris = []
         if _info == APPLICATION_DRAG_INFO:
             desktop_id = application_id_from_drag(selection.get_data())
             application = (
                 self._application_registry.get(desktop_id) if desktop_id else None
             )
+        else:
+            uris = selection.get_uris()
+            if not uris:
+                text = selection.get_text()
+                if text:
+                    uris = [line.strip() for line in text.splitlines() if line.strip()]
+            # A native file source has no GTK source widget, so its private
+            # SAME_APP target may be unavailable. Its prepared export still
+            # identifies the application; preserve application-pin semantics
+            # before routing ordinary files to applets or launchers.
+            if uris and len(uris) == 1:
+                path = desktop_entries.local_path_from_uri_or_path(uris[0])
+                if path is not None:
+                    application = self._application_registry.resolve_by_export_file(
+                        path
+                    )
+        if _info == APPLICATION_DRAG_INFO or application is not None:
             added = bool(
                 application is not None
                 and application.visible
@@ -544,11 +563,6 @@ class DnDHandler:
             Gtk.drag_finish(context, added, False, time)
             return
         log.debug(f"drag-data-received: external drop, insert_at={insert_at}")
-        uris = selection.get_uris()
-        if not uris:
-            text = selection.get_text()
-            if text:
-                uris = [line.strip() for line in text.splitlines() if line.strip()]
 
         # Check if dropped onto an applet that handles file/URI drops.
         applet_drop = self._try_drop_on_applet(x=x, y=y, uris=uris)

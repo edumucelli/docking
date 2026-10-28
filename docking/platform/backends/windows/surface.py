@@ -22,6 +22,7 @@ from docking.platform.backends.gtk_surface import apply_dock_hints, place_window
 
 if TYPE_CHECKING:
     from .appbar import WindowsAppBar
+    from .drag_source import WindowsFileDragSource
     from .geometry import ScreenMapping
     from .menus import WindowsMenuSession
     from .workspaces import WindowsWorkspaceService
@@ -51,6 +52,7 @@ class WindowsSurfaceService(SurfaceService):
         self._map_handler = 0
         self._placement: PlacementRequest | None = None
         self._menus: WindowsMenuSession | None = None
+        self._file_drags: WindowsFileDragSource | None = None
 
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
         from docking.platform.backends.gtk_geometry import logical_screen_rectangle
@@ -112,6 +114,22 @@ class WindowsSurfaceService(SurfaceService):
             self._menus = WindowsMenuSession(self._window)
         self._menus.prepare(menu)
 
+    def prepare_file_drag_source(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> bool:
+        if self._window is None or not data:
+            return False
+        if self._file_drags is None:
+            from .drag_source import WindowsFileDragSource
+
+            self._file_drags = WindowsFileDragSource(self._window)
+        self._file_drags.prepare(widget, application_id=application_id, data=data)
+        return True
+
     def capture_source_window(self) -> WindowSnapshot | None:
         source = self._menus.capture_source() if self._menus is not None else None
         return (
@@ -135,6 +153,9 @@ class WindowsSurfaceService(SurfaceService):
         overlay.present()
 
     def stop(self) -> None:
+        if self._file_drags is not None:
+            self._file_drags.stop()
+            self._file_drags = None
         if self._menus is not None:
             self._menus.stop()
             self._menus = None

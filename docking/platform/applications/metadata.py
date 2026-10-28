@@ -13,6 +13,7 @@ from threading import Event, RLock, Thread
 from docking.log import get_logger
 from docking.platform.environment import is_windows
 
+from .registration import ExecutableRegistrationBackend
 from .types import ApplicationInfo
 
 log = get_logger("application_metadata")
@@ -179,13 +180,16 @@ def create_metadata_lookup(
     on_changed: Callable[[], None],
     schedule_idle: Callable[..., int],
     remove_source: Callable[[int], bool],
+    registrations: ExecutableRegistrationBackend,
 ) -> ApplicationMetadataLookup | None:
     if not is_windows():
         return None
     from docking.platform.backends.windows.catalog import read_application_metadata
 
     return ApplicationMetadataLookup(
-        resolve=read_application_metadata,
+        resolve=lambda ids: read_application_metadata(
+            ids, registrations=registrations.applications()
+        ),
         on_changed=on_changed,
         schedule_idle=schedule_idle,
         remove_source=remove_source,

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         DesktopActionService,
         IdleService,
         ScreenCaptureService,
+        SurfaceService,
         WindowPickService,
         WorkspaceService,
     )
@@ -43,3 +44,4 @@ class AppletServices:
     search: SearchPresenter | None = None
     status_notifier: TrayService | None = None
     application_icons: ApplicationIcons | None = None
+    surface: SurfaceService | None = None

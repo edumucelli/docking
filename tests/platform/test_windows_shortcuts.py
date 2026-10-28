@@ -2,7 +2,7 @@
 
 import ctypes
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 
 import pytest
 
@@ -75,6 +75,83 @@ def test_reads_stored_unicode_target_without_resolving_or_running_it(
     assert link[-1] == "release"
 
 
+@pytest.mark.parametrize(
+    "failure", ["parse", "target", "identity", "commit", "save", None]
+)
+def test_namespace_link_releases_pidl_and_store_and_publishes_only_after_success(
+    tmp_path, monkeypatch, link, failure
+):
+    path = tmp_path / "application.lnk"
+    path.write_bytes(b"previous")
+    freed = []
+    monkeypatch.setattr(shortcuts, "apartment", lambda: nullcontext(object()))
+    monkeypatch.setattr(ctypes, "WinDLL", lambda *_a, **_kw: object(), raising=False)
+
+    def bind(_library, name, *_signature):
+        if name == "CoTaskMemFree":
+            return lambda pointer: freed.append(pointer.value)
+        assert name == "SHParseDisplayName"
+
+        def parse(target, _context, output, attributes, result):
+            assert target == r"shell:AppsFolder\Example.App"
+            assert attributes == 0 and result is None
+            output._obj.value = 123
+            return -1 if failure == "parse" else 0
+
+        return parse
+
+    def query(stack, _pointer, _interface):
+        stack.callback(link.append, "store-release")
+        return ctypes.c_void_p(33)
+
+    def method(pointer, index, *_signature):
+        def invoke(_this, *args):
+            operation = (
+                "save"
+                if pointer.value == 22
+                else "identity"
+                if pointer.value == 33 and index == 6
+                else "commit"
+                if pointer.value == 33
+                else "target"
+                if index == 5
+                else "description"
+            )
+            if operation == "identity":
+                assert args[0]._obj.id == 5
+                assert args[1]._obj.vt == 31
+                assert args[1]._obj.data.string == "Example.App"
+            if operation == "save":
+                assert "store-release" in link
+                assert "/" not in args[0]
+            link.append(operation)
+            return -1 if failure == operation else 0
+
+        return invoke
+
+    monkeypatch.setattr(shortcuts, "bind", bind)
+    monkeypatch.setattr(shortcuts, "query", query)
+    monkeypatch.setattr(shortcuts, "method", method)
+
+    def write():
+        shortcuts.write_application_shortcut(
+            path,
+            target=r"shell:AppsFolder\Example.App",
+            application_id="Example.App",
+            name="Example",
+        )
+
+    if failure is not None:
+        with pytest.raises(OSError):
+            write()
+        assert path.read_bytes() == b"previous"
+    else:
+        write()
+        assert path.read_bytes() == b""
+    assert freed == [123]
+    assert {entry.resolve() for entry in tmp_path.iterdir()} == {path.resolve()}
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows Shell-link ABI")
 def test_native_shortcut_round_trip_preserves_unicode_and_directory(tmp_path):
     executable = tmp_path / "résumé 日本語.exe"
@@ -92,3 +169,22 @@ def test_native_shortcut_round_trip_preserves_unicode_and_directory(tmp_path):
         path.resolve(),
         executable.resolve(),
     }
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows Shell-link ABI")
+def test_native_namespace_link_saves_its_pidl_target_not_only_the_app_identity(
+    tmp_path,
+):
+    target = tmp_path / "Target résumé 日本語"
+    target.mkdir()
+    path = tmp_path / "Namespace launcher.lnk"
+    shortcuts.write_application_shortcut(
+        path,
+        target=str(target).replace("/", "\\"),
+        application_id="Docking.Owned.Namespace.Test",
+        name="Namespace launcher",
+    )
+    # Read the stored target through the independent GetPath method. The
+    # AppUserModelID can survive even when the wrong ABI call saved no target.
+    saved = shortcuts.read_shortcut(path)
+    assert saved.executable == target

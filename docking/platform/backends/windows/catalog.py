@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 from contextlib import ExitStack
+from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 
 from docking.log import get_logger
@@ -161,21 +162,43 @@ def read_shell_applications() -> tuple[ApplicationInfo, ...]:
         raise OSError("Application folder exceeds the enumeration limit")
 
 
-def read_application_metadata(ids: tuple[str, ...]) -> ApplicationMetadata:
+def read_application_metadata(
+    ids: tuple[str, ...], *, registrations: tuple[ApplicationInfo, ...] = ()
+) -> ApplicationMetadata:
     try:
         applications = read_shell_applications()
     except OSError as exc:
         log.debug("Could not read the native application catalog: %s", exc)
         applications = None
+    if applications is not None:
+        combined = {app.desktop_id: app for app in applications}
+        for app in registrations:
+            previous = combined.get(app.desktop_id)
+            combined[app.desktop_id] = (
+                replace(
+                    previous,
+                    name=app.name,
+                    executable_path=app.executable_path,
+                    launch_target=app.launch_target,
+                    working_directory=app.working_directory,
+                )
+                if previous is not None
+                else app
+            )
+        applications = tuple(combined.values())
     all_ids = set(ids)
     if applications is not None:
         all_ids.update(app.desktop_id for app in applications)
     hidden = hidden_application_ids(all_ids)
+    if applications is not None:
+        from docking.platform.applications.windows_export import (
+            WindowsApplicationExport,
+        )
+
+        applications = WindowsApplicationExport().prepare(
+            tuple(app for app in applications if app.desktop_id not in hidden)
+        )
     return ApplicationMetadata(
         hidden_ids=hidden,
-        applications=(
-            tuple(app for app in applications if app.desktop_id not in hidden)
-            if applications is not None
-            else None
-        ),
+        applications=applications,
     )

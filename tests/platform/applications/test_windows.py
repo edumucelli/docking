@@ -47,6 +47,66 @@ def test_idless_applications_get_distinct_stable_identities():
     assert len(set(first.presentation_order)) == 2
 
 
+def test_shell_export_file_survives_merge_with_a_retained_gio_handle(tmp_path):
+    handle = native_app()
+    native = replace(
+        application("Example.App"),
+        export_file=tmp_path / "Example.lnk",
+        launch_target=r"shell:AppsFolder\Example.App",
+    )
+    result = merge_shell_catalog(discover_windows_applications((handle,)), (native,))
+    assert result.applications[0].export_file == native.export_file
+    assert result.handles["Example.App"] is handle
+
+
+def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
+    tmp_path, monkeypatch
+):
+    selected = replace(
+        application("Example.App"), launch_target=r"C:\private\original.lnk"
+    )
+    prepared = replace(
+        selected,
+        export_file=tmp_path / "Original.lnk",
+        export_data=(("Native file data", b"original-pidl"),),
+    )
+    lookup = SimpleNamespace(
+        hidden_ids=frozenset(), applications=(prepared,), invalidate=MagicMock()
+    )
+    backend = SimpleNamespace(
+        applications=lambda: (selected,),
+        create=MagicMock(return_value=selected.desktop_id),
+        directories=lambda: (),
+    )
+    handle = native_app()
+    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
+    registry = ApplicationRegistry(
+        application_source=lambda: (handle,), executable_registration=backend
+    )
+    registry.refresh()
+    assert registry.get(selected.desktop_id).export_file == prepared.export_file
+
+    selected = replace(selected, launch_target=r"C:\private\replacement.lnk")
+    updated = registry.register_executable(tmp_path / "Selected.lnk")
+    assert updated.launch_target == selected.launch_target
+    assert updated.export_file is None and updated.export_data == ()
+    lookup.invalidate.assert_called_once()
+    assert registry._gio_handle_for(selected.desktop_id) is handle
+
+    lookup.applications = (
+        replace(
+            selected,
+            export_file=tmp_path / "Replacement.lnk",
+            export_data=(("Native file data", b"replacement-pidl"),),
+        ),
+    )
+    registry.refresh()
+    updated = registry.get(selected.desktop_id)
+    assert updated.export_file == tmp_path / "Replacement.lnk"
+    assert updated.export_data == (("Native file data", b"replacement-pidl"),)
+
+
 def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch):
     lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)

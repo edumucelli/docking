@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -35,18 +36,37 @@ def main():
         action="store_true",
         help="Hold real menu artwork and check the unavailable-capture preview",
     )
+    parser.add_argument("--explorer-export", action="store_true")
+    parser.add_argument("--export-directory", type=Path)
+    finish = parser.add_mutually_exclusive_group()
+    finish.add_argument("--cancel-export", action="store_true")
+    finish.add_argument("--close-during-export", action="store_true")
     args = parser.parse_args()
     if args.check_artwork and args.check_visibility:
         parser.error("Choose artwork or visibility acceptance for this run")
     args.trace_surfaces = args.trace_surfaces or args.check_artwork
     if sys.platform != "win32":
         parser.error("Requires native Windows Python")
+    if args.explorer_export and (
+        args.export_directory is None or args.check_visibility or args.check_artwork
+    ):
+        parser.error(
+            "Export requires an owned --export-directory and no other check mode"
+        )
+    if (args.cancel_export or args.close_during_export) and not args.explorer_export:
+        parser.error("Export lifecycle checks require --explorer-export")
     output = args.output.resolve()
     if (output / "result.json").exists():
         parser.error("Choose a fresh output directory")
     output.mkdir(parents=True, exist_ok=True)
-    os.environ["XDG_CONFIG_HOME"] = str(output / "config")
-    os.environ["XDG_CACHE_HOME"] = str(output / "cache")
+    profile = (
+        tempfile.TemporaryDirectory(prefix="docking-export-profile-")
+        if args.explorer_export
+        else None
+    )
+    profile_root = Path(profile.name) if profile is not None else output
+    os.environ["XDG_CONFIG_HOME"] = str(profile_root / "config")
+    os.environ["XDG_CACHE_HOME"] = str(profile_root / "cache")
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
     from docking.launcher import prepare_display
 
@@ -66,7 +86,7 @@ def main():
     from docking.ui.dnd import DnDHandler
     from tools.windows.visual.desktop_driver import WindowsDesktop
 
-    config = output / "config/docking/dock.json"
+    config = profile_root / "config/docking/dock.json"
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(
         json.dumps(
@@ -86,6 +106,12 @@ def main():
         encoding="utf-8",
     )
     native = WindowsDesktop()
+    stack_trace = None
+    if args.explorer_export and args.trace_surfaces:
+        import faulthandler
+
+        stack_trace = (output / "python-stacks.log").open("w", encoding="utf-8")
+        faulthandler.dump_traceback_later(20, repeat=True, file=stack_trace)
     app_name = "Character Map" if args.classic else "Notepad"
     expected_id = (
         r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\charmap.exe"
@@ -106,7 +132,7 @@ def main():
     )
     baseline = native.workarea()
     ready = threading.Event()
-    report, shared, errors = {"baseline_workarea": baseline}, {}, []
+    report, shared, errors = {"baseline_workarea": baseline, "drops": []}, {}, []
     blocked, release = threading.Event(), threading.Event()
     if args.check_artwork:
         from docking.platform.backends.windows import icons
@@ -386,6 +412,26 @@ def main():
                 "Dock did not map",
             )
             shared["dock_hwnd"] = dock["hwnd"]
+            if args.explorer_export:
+                from tools.windows.visual.explorer import ExplorerFolder
+
+                folder = ExplorerFolder(native, args.export_directory)
+                folder.__enter__()
+                shared["export_folder"] = folder
+            if not args.check_visibility:
+                registry = shared["kwargs"]["application_registry"]
+                native.wait_for(
+                    lambda: call(
+                        lambda: (
+                            a
+                            if (a := registry.get(expected_id)) is not None
+                            and a.export_file is not None
+                            else None
+                        )
+                    ),
+                    "Native launcher export was not prepared",
+                    60,
+                )
 
             def point():
                 frame = ui.window.geometry.build_frame(main_cursor=-1.0)
@@ -402,8 +448,16 @@ def main():
                 ] + rect.y + rect.h / 2
 
             time.sleep(2)
-            native.click(1100, 100)
-            if args.classic:
+            if args.explorer_export:
+                folder = shared["export_folder"]
+                folder.window = next(
+                    w for w in native.windows() if w["hwnd"] == folder.window["hwnd"]
+                )
+                left, top, right, _bottom = folder.window["rect"]
+                native.click((left + right) // 2, top + 20)
+            else:
+                native.click(1100, 100)
+            if args.classic and not args.explorer_export:
                 native.key(0x20, control=True, alt=True)
                 search = native.wait_for(
                     lambda: next(
@@ -424,9 +478,14 @@ def main():
 
                 def search_ready():
                     cache = shared["kwargs"]["icon_loader"]._windows_icons
-                    if cache is None or cache._images.get((expected_id, 32)) is None:
+                    info = shared["kwargs"]["application_registry"].get(expected_id)
+                    image = (
+                        cache.get(info, 32)
+                        if cache is not None and info is not None
+                        else None
+                    )
+                    if image is None:
                         return False
-                    image = cache._images[(expected_id, 32)]
                     return any(
                         dict(row.result.metadata).get("desktop_id") == expected_id
                         and row.image.get_pixbuf() is not None
@@ -498,9 +557,7 @@ def main():
 
                 def menu_artwork():
                     cache = shared["kwargs"]["icon_loader"]._windows_icons
-                    native_image = (
-                        cache._images.get((expected_id, 16)) if cache else None
-                    )
+                    native_image = cache.get(application, 16) if cache else None
                     image = row.get_child().get_children()[0]
                     pixbuf = image.get_pixbuf()
                     return (
@@ -521,8 +578,10 @@ def main():
                 report["menu_artwork"] = {**before, "updated_in_place": True}
                 capture("menu-artwork-ready")
             drag_ended = threading.Event()
+            drag_started = threading.Event()
 
             def drag_begin(_row, context):
+                drag_started.set()
                 report["drag_source"] = {
                     "protocol": context.get_protocol().value_nick,
                     "targets": [target.name() for target in context.list_targets()],
@@ -538,6 +597,15 @@ def main():
             call(lambda: row.connect("drag-begin", drag_begin))
             call(lambda: row.connect("drag-end", lambda *_args: drag_ended.set()))
 
+            def drag_failed(_row, context, result):
+                report["drag_failure"] = {
+                    "result": result.value_nick,
+                    "action": int(context.get_selected_action()),
+                }
+                return False
+
+            call(lambda: row.connect("drag-failed", drag_failed))
+
             def row_point():
                 origin = menu.get_window().get_origin()
                 offset = row.translate_coordinates(
@@ -549,6 +617,149 @@ def main():
                 return origin[-2] + offset[0], origin[-1] + offset[1]
 
             sx, sy = call(row_point)
+
+            def begin_row_drag():
+                # Keep sending motion until GTK observes the threshold crossing;
+                # a stopped 12px gesture can leave coalesced Win32 input pending.
+                offset = 0
+                for step in range(1, 25):
+                    offset = step * 2
+                    native.user.SetCursorPos(int(sx + offset), int(sy))
+                    if drag_started.wait(0.05):
+                        break
+                assert drag_started.wait(5), "Native row drag did not start"
+                return offset
+
+            if args.explorer_export:
+                source = application.export_file
+                assert source is not None and source.is_file()
+                folder = shared["export_folder"]
+                bounds = folder.window["rect"]
+                destination = args.export_directory / source.name
+                assert not destination.exists()
+
+                tx, ty = bounds[2] - 80, bounds[1] + 250
+                destination_window = native.window_at(tx, ty)
+                assert destination_window == folder.window["hwnd"], (
+                    "Export destination is covered",
+                    destination_window,
+                    folder.window,
+                )
+                report["export_drag_points"] = {
+                    "source": [sx, sy],
+                    "destination": [tx, ty],
+                    "source_window": native.window_at(sx, sy),
+                    "destination_window": destination_window,
+                    "native_windows": native.windows(os.getpid()),
+                }
+                report["export"] = {
+                    "path": str(destination),
+                    "source": str(source),
+                    "id": expected_id,
+                    "executable": str(application.executable_path)
+                    if application.executable_path is not None
+                    else None,
+                }
+                drag_source = call(
+                    lambda: shared["kwargs"]["surface_service"]._file_drags
+                )
+                assert drag_source is not None
+                native.user.SetCursorPos(int(sx), int(sy))
+                time.sleep(0.3)
+                capture("export-source-ready")
+                native.user.mouse_event(2, 0, 0, 0, 0)
+                try:
+                    # Start within the short menu row before moving vertically
+                    # out of it; a large first jump can leave before GTK sees
+                    # motion beyond its drag threshold.
+                    offset = begin_row_drag()
+                    native.wait_for(
+                        lambda: drag_source._active,
+                        "GTK did not hand off to the native Shell drag",
+                    )
+                    report["native_drag_active"] = True
+                    for step in range(1, 31):
+                        native.user.SetCursorPos(
+                            int(sx + offset + (tx - sx - offset) * step / 30),
+                            int(sy + (ty - sy) * step / 30),
+                        )
+                        time.sleep(0.05)
+                    time.sleep(0.5)
+                    capture("explorer-export-dragging")
+                    if args.cancel_export:
+                        native.key(0x1B)
+                        native.wait_for(
+                            lambda: not drag_source._active,
+                            "Escape did not cancel the active native drag",
+                        )
+                        report["native_drag_cancelled"] = True
+                        assert call(entry.get_text) == app_name
+                    elif args.close_during_export:
+                        # Close our Explorer while GTK still pumps, then close
+                        # Docking with the mouse held and native OLE active.
+                        folder.close()
+                        assert drag_source._active
+                        assert native.user.PostMessageW(dock["hwnd"], 0x10, 0, 0)
+                        native.wait_for(
+                            lambda: (
+                                not native.user.IsWindow(dock["hwnd"])
+                                and not drag_source._active
+                            ),
+                            "Closing Docking did not cancel its active native drag",
+                        )
+                        report["native_close_during_drag"] = True
+                finally:
+                    native.user.mouse_event(4, 0, 0, 0, 0)
+                native.wait_for(
+                    lambda: not drag_source._active,
+                    "Native Shell drag did not finish",
+                )
+                ended = drag_ended.wait(15)
+                (output / "export-live.json").write_text(
+                    json.dumps(report, indent=2), encoding="utf-8"
+                )
+                if not ended:
+                    # Cancel only this owned native test drag before cleanup.
+                    native.key(0x1B)
+                    drag_ended.wait(5)
+                assert ended, "External application drag did not end"
+                if args.cancel_export or args.close_during_export:
+                    assert not destination.exists(), "Cancelled drag copied a file"
+                    assert source.is_file()
+                else:
+                    native.wait_for(
+                        destination.is_file, "Explorer did not receive the shortcut"
+                    )
+                    assert source.is_file()
+                    assert destination.read_bytes() == source.read_bytes()
+                    report["export"]["bytes"] = destination.stat().st_size
+                assert not report["drops"], (
+                    "External export was routed back into the dock"
+                )
+                assert all(
+                    p["kind"] == "applet"
+                    for p in json.loads(config.read_text(encoding="utf-8"))["pinned"]
+                )
+                if args.close_during_export:
+                    # GetWindowText can synchronously message a leftover GTK
+                    # popup after Gtk.main exits. The independent parent checks
+                    # visible windows and shell state after this process exits.
+                    report["ok"] = True
+                    return
+                assert not any(matches_application(w) for w in native.windows())
+                capture("explorer-export-finished")
+                # EnumWindows/GetWindowText can synchronously message our own
+                # GTK surfaces. Finish this observation while GTK still pumps.
+                folder.close()
+                if not args.close_during_export:
+                    native.key(0x1B)
+                    assert native.user.PostMessageW(dock["hwnd"], 0x10, 0, 0)
+                native.wait_for(
+                    lambda: not native.user.IsWindow(dock["hwnd"]),
+                    "Dock did not close after export",
+                )
+                report["ok"] = True
+                return
             frame = call(lambda: ui.window.geometry.build_frame(main_cursor=-1.0))
             rect = frame.item_geometries[-1].draw_rect
             current = next(
@@ -563,9 +774,18 @@ def main():
             time.sleep(0.3)
             native.user.mouse_event(2, 0, 0, 0, 0)
             try:
+                offset = begin_row_drag()
+                file_drags = shared["kwargs"]["surface_service"]._file_drags
+                assert file_drags is not None
+                native.wait_for(
+                    lambda: file_drags._active,
+                    "Internal pin did not use the native file source",
+                )
+                report["native_file_source_active"] = True
                 for step in range(1, 31):
                     native.user.SetCursorPos(
-                        int(sx + (tx - sx) * step / 30), int(sy + (ty - sy) * step / 30)
+                        int(sx + offset + (tx - sx - offset) * step / 30),
+                        int(sy + (ty - sy) * step / 30),
                     )
                     time.sleep(0.05)
                 time.sleep(0.5)
@@ -580,10 +800,17 @@ def main():
                 ),
                 "Application row drag did not pin the native ID",
             )
-            assert (
-                report["drops"][-1]["info"] == 2
-                and report["drops"][-1]["data"] == expected_id
-            )
+            received = report["drops"][-1]
+            if received["info"] == 2:
+                assert received["data"] == expected_id
+            else:
+                from docking.core.paths import local_path_from_uri_or_path
+
+                assert received["info"] == 1
+                uris = [line for line in received["data"].splitlines() if line]
+                assert len(uris) == 1
+                path = local_path_from_uri_or_path(uris[0])
+                assert path is not None and path.samefile(application.export_file)
             assert report["drops"][-1]["protocol"] == "ole2"
             surface_snapshot("drop-finished")
             native.key(0x1B)
@@ -664,7 +891,11 @@ def main():
                     cache = shared["kwargs"]["icon_loader"]._windows_icons
                     size = shared["kwargs"]["config"].scaled_icon_size
                     native_image = (
-                        cache._images.get((expected_id, size)) if cache else None
+                        cache.get(item.application_info, size)
+                        if cache
+                        and item is not None
+                        and item.application_info is not None
+                        else None
                     )
                     if native_image is None or item is None or item.icon is None:
                         return False
@@ -755,11 +986,16 @@ def main():
             report.update(
                 ok=False, error=repr(exc), foreground=native.user.GetForegroundWindow()
             )
-            if "entry" in locals():
+            if "entry" in locals() and native.user.IsWindow(shared.get("dock_hwnd", 0)):
                 report["actual_filter"] = call(entry.get_text)
+            (output / "failure-detail.json").write_text(
+                json.dumps(report, indent=2), encoding="utf-8"
+            )
             capture("failure")
         finally:
             release.set()
+            if "export_folder" in shared:
+                shared["export_folder"].close()
             launched_hwnd = shared.get("launched_hwnd", 0)
             if native.user.IsWindow(launched_hwnd):
                 native.user.PostMessageW(launched_hwnd, 0x10, 0, 0)
@@ -793,6 +1029,11 @@ def main():
         temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
         temporary.replace(output / "result.json")
         print(json.dumps(report, indent=2))
+        if profile is not None:
+            profile.cleanup()
+        if stack_trace is not None:
+            faulthandler.cancel_dump_traceback_later()
+            stack_trace.close()
 
 
 if __name__ == "__main__":

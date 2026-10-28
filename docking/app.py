@@ -226,6 +226,7 @@ def main() -> None:
             window_picker=backend.window_picker,
             idle=backend.idle,
             screen_capture=backend.screen_capture,
+            surface=backend.surface,
         )
         model.set_applet_services(applet_services)
         unity = UnityLauncherListener(

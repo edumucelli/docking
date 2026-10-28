@@ -145,6 +145,65 @@ class TestBuildAppCategories:
 
 
 class TestApplicationsApplet:
+    def test_native_export_row_keeps_private_id_and_offers_copy_uri(
+        self, tmp_path, monkeypatch
+    ):
+        from dataclasses import replace
+
+        self._fake_gtk(monkeypatch)
+        path = tmp_path / "Notepad résumé 日本語.lnk"
+        app = replace(
+            _application("Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "Notepad"),
+            export_file=path,
+            export_data=(("Native file format", b"native file bytes"),),
+        )
+        item = applications_applet_mod._application_menu_item(
+            app_info=app, config=Config(), registry=MagicMock(), launcher=MagicMock()
+        )
+        targets = item.drag_source_args[1]
+        assert [target.target for target in targets] == [
+            "application/x-docking-application-id",
+            "text/uri-list",
+        ]
+        assert int(targets[0].flags) == 1 and int(targets[1].flags) == 0
+        callback, args = item._signals["drag-data-get"][0]
+        selection = MagicMock()
+        callback(item, None, selection, 0, 0, *args)
+        selection.set_uris.assert_called_once_with([path.as_uri()])
+        selection.set.assert_not_called()
+        selection.reset_mock()
+        callback(item, None, selection, 2, 0, *args)
+        selection.set.assert_called_once_with(
+            selection.get_target(), 8, app.desktop_id.encode("utf-8")
+        )
+        selection.set_uris.assert_not_called()
+
+    def test_native_export_row_delegates_prepared_data_to_the_surface(
+        self, tmp_path, monkeypatch
+    ):
+        from dataclasses import replace
+
+        self._fake_gtk(monkeypatch)
+        app = replace(
+            _application("Native.App", "Example"),
+            export_file=tmp_path / "Example.lnk",
+            export_data=(("Native opaque format", b"prepared bytes"),),
+        )
+        surface = MagicMock()
+        surface.prepare_file_drag_source.return_value = True
+        item = applications_applet_mod._application_menu_item(
+            app_info=app,
+            config=Config(),
+            registry=MagicMock(),
+            launcher=MagicMock(),
+            surface=surface,
+        )
+        surface.prepare_file_drag_source.assert_called_once_with(
+            item, application_id=app.desktop_id, data=app.export_data
+        )
+        assert item.drag_source_args is None
+        assert set(item._signals) == {"activate"}
+
     def test_fileless_canonical_row_exports_its_exact_application_id(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         app = _application("Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "Notepad")
@@ -292,6 +351,11 @@ class TestApplicationsApplet:
                 SeparatorMenuItem=_FakeSeparatorMenuItem,
                 Box=_FakeBox,
                 Entry=_FakeEntry,
+                TargetEntry=SimpleNamespace(
+                    new=lambda name, flags, info: SimpleNamespace(
+                        target=name, flags=flags, info=info
+                    )
+                ),
                 Orientation=SimpleNamespace(HORIZONTAL=0),
             ),
         )

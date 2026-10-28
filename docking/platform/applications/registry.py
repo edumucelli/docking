@@ -143,6 +143,7 @@ class ApplicationRegistry:
             on_changed=self._queue_refresh,
             schedule_idle=GLib.idle_add,
             remove_source=GLib.source_remove,
+            registrations=self._executable_registration,
         )
         self._state = replace(
             self._state,
@@ -218,6 +219,17 @@ class ApplicationRegistry:
                 return application
         return None
 
+    def resolve_by_export_file(self, path: Path) -> ApplicationInfo | None:
+        """Read a prepared launcher's canonical identity without filesystem IO."""
+        return next(
+            (
+                app
+                for app in self._state.applications_by_id.values()
+                if app.export_file == path
+            ),
+            None,
+        )
+
     def subscribe(self, callback: RegistryListener) -> Callable[[], None]:
         """Register a listener and return an idempotent unsubscribe."""
         if callback not in self._listeners:
@@ -288,6 +300,8 @@ class ApplicationRegistry:
         )
         if identifier is None:
             return None
+        if self._metadata is not None:
+            self._metadata.invalidate()
         self.refresh()
         application = self.get(identifier)
         if application is None:
@@ -508,6 +522,16 @@ class ApplicationRegistry:
                     aliases=tuple(dict.fromkeys((*app.aliases, *previous.aliases))),
                     working_directory=app.working_directory,
                     launch_target=app.launch_target,
+                    export_file=(
+                        previous.export_file
+                        if previous.launch_target == app.launch_target
+                        else None
+                    ),
+                    export_data=(
+                        previous.export_data
+                        if previous.launch_target == app.launch_target
+                        else ()
+                    ),
                 )
                 registered[index] = app
             else:

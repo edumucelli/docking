@@ -21,6 +21,10 @@ python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --output artifa
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut installed --output artifacts/windows/installed-shortcut
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut unlisted --output artifacts/windows/unlisted-shortcut
 python -m tools.windows.visual.launch_provenance_smoke --output artifacts/windows/launch-provenance
+python -m tools.windows.visual.application_export_smoke --output artifacts/windows/application-export
+python -m tools.windows.visual.application_export_smoke --classic --output artifacts/windows/classic-export
+python -m tools.windows.visual.application_export_smoke --cancel-export --output artifacts/windows/export-cancel
+python -m tools.windows.visual.application_export_smoke --close-during-export --output artifacts/windows/export-close
 ```
 
 The [Windows workflow](../../../.github/workflows/windows.yml) runs the installed

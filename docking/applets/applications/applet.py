@@ -42,7 +42,7 @@ from docking.platform.applications.drag import (
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.listing import (
     activate_listing,
-    listing_desktop_file_uri,
+    listing_drag_file_uri,
     listing_gicon,
 )
 from docking.platform.applications.registry import ApplicationRegistry
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from docking.applets.services import AppletServices
     from docking.core.config import Config
     from docking.platform.application_icons import ApplicationIcons
+    from docking.platform.backends.base import SurfaceService
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 0)
@@ -84,13 +85,18 @@ class ApplicationsApplet(ApplicationServicesApplet):
         )
         self._popup_menu: Gtk.Menu | None = None
         self._application_icons: ApplicationIcons | None = None
+        self._surface: SurfaceService | None = None
         self.present()
 
     def set_services(self, services: AppletServices) -> None:
-        if self._application_icons is not services.application_icons:
+        if (
+            self._application_icons is not services.application_icons
+            or self._surface is not services.surface
+        ):
             if self._popup_menu is not None:
                 self._popup_menu.popdown()
             self._application_icons = services.application_icons
+            self._surface = services.surface
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_icon(size=size)
@@ -165,6 +171,7 @@ class ApplicationsApplet(ApplicationServicesApplet):
                 registry=self._application_registry,
                 launcher=self._application_launcher,
                 artwork=artwork,
+                surface=self._surface,
             )
 
             cat_item.set_submenu(submenu)
@@ -197,6 +204,7 @@ class ApplicationsApplet(ApplicationServicesApplet):
                     registry=self._application_registry,
                     launcher=self._application_launcher,
                     artwork=artwork,
+                    surface=self._surface,
                 )
                 menu.append(result)
                 result.show_all()
@@ -232,6 +240,7 @@ def _populate_app_submenu(
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
     artwork: MenuIcons | None = None,
+    surface: SurfaceService | None = None,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -242,6 +251,7 @@ def _populate_app_submenu(
                 registry=registry,
                 launcher=launcher,
                 artwork=artwork,
+                surface=surface,
             )
         )
     submenu.show_all()
@@ -254,6 +264,7 @@ def _application_menu_item(
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
     artwork: MenuIcons | None = None,
+    surface: SurfaceService | None = None,
 ) -> Gtk.MenuItem:
     image = Gtk.Image() if artwork is not None else None
     menu_item = make_menu_item_with_icon(
@@ -276,6 +287,7 @@ def _application_menu_item(
         config=config,
         registry=registry,
         artwork=artwork,
+        surface=surface,
     )
     return menu_item
 
@@ -287,24 +299,43 @@ def _configure_drag_source(
     config: Config,
     registry: ApplicationRegistry,
     artwork: MenuIcons | None = None,
+    surface: SurfaceService | None = None,
 ) -> None:
     """Offer a desktop URI or a canonical ID for listings without a file."""
     if config.lock_icons:
         return
-    uri = listing_desktop_file_uri(app_info)
+    uri = listing_drag_file_uri(app_info)
+    native_file = (
+        isinstance(app_info, ApplicationInfo) and app_info.export_file is not None
+    )
+    if (
+        native_file
+        and surface is not None
+        and surface.prepare_file_drag_source(
+            menu_item, application_id=app_info.desktop_id, data=app_info.export_data
+        )
+    ):
+        return
     if uri is None and not isinstance(app_info, ApplicationInfo):
         return
     menu_item.drag_source_set(
         Gdk.ModifierType.BUTTON1_MASK,
-        [_URI_TARGET] if uri is not None else [_APPLICATION_TARGET],
+        [_APPLICATION_TARGET, _URI_TARGET]
+        if native_file
+        else [_URI_TARGET]
+        if uri is not None
+        else [_APPLICATION_TARGET],
         Gdk.DragAction.COPY,
     )
     menu_item.connect("drag-begin", _on_drag_begin, app_info, registry, artwork)
-    if uri is not None:
+    if uri is not None and not native_file:
         menu_item.connect("drag-data-get", _on_drag_data_get, uri)
     else:
         menu_item.connect(
-            "drag-data-get", _on_application_drag_data_get, app_info.desktop_id
+            "drag-data-get",
+            _on_application_drag_data_get,
+            app_info.desktop_id,
+            uri,
         )
 
 
@@ -342,11 +373,15 @@ def _on_application_drag_data_get(
     _menu_item: Gtk.MenuItem,
     _context: Gdk.DragContext,
     selection: Gtk.SelectionData,
-    _info: int,
+    info: int,
     _time: int,
     desktop_id: str,
+    uri: str | None = None,
 ) -> None:
-    selection.set(selection.get_target(), 8, desktop_id.encode("utf-8"))
+    if info == APPLICATION_DRAG_INFO:
+        selection.set(selection.get_target(), 8, desktop_id.encode("utf-8"))
+    elif info == 0 and uri is not None:
+        selection.set_uris([uri])
 
 
 def _filter_apps(

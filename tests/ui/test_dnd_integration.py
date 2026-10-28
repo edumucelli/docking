@@ -87,8 +87,9 @@ def _application(
 @pytest.mark.parametrize(
     "identifier", ["Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "windows:résumé"]
 )
+@pytest.mark.parametrize("delivery", ["id", "file"])
 def test_application_id_drop_pins_registry_identity_and_never_opens_or_generates_files(
-    monkeypatch, identifier
+    monkeypatch, tmp_path, identifier, delivery
 ):
     handler = _make_handler(monkeypatch)
     application = _application(identifier)
@@ -98,17 +99,30 @@ def test_application_id_drop_pins_registry_identity_and_never_opens_or_generates
     handler.drop_insert_index = 2
     selection = MagicMock()
     selection.get_data.return_value = identifier.encode("utf-8")
+    info = APPLICATION_DRAG_INFO
+    if delivery == "file":
+        path = tmp_path / "Export résumé 日本語.lnk"
+        selection.get_uris.return_value = [path.as_uri()]
+        handler._application_registry.resolve_by_export_file.return_value = application
+        info = 1
     finish = MagicMock()
     monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
     handler._on_drag_data_received(
-        handler._drawing_area, MagicMock(), 20, 8, selection, APPLICATION_DRAG_INFO, 1
+        handler._drawing_area, MagicMock(), 20, 8, selection, info, 1
     )
     handler._model.insert_pinned_application.assert_called_once_with(
         desktop_id=identifier, index=2
     )
     handler._try_drop_on_applet.assert_not_called()
     handler._try_open_with_launcher.assert_not_called()
-    selection.get_uris.assert_not_called()
+    if delivery == "id":
+        selection.get_uris.assert_not_called()
+    else:
+        handler._application_registry.resolve_by_export_file.assert_called_once_with(
+            path
+        )
+        selection.get_data.assert_not_called()
+    handler._application_registry.register_executable.assert_not_called()
     assert handler.drop_insert_index == -1 and not handler._drop_committed
     assert finish.call_args.args[1] is True
 
@@ -209,6 +223,7 @@ def _make_handler(
         application_registry.get.return_value = None
         application_registry.register_executable.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
+        application_registry.resolve_by_export_file.return_value = None
     application_launcher = application_launcher or MagicMock()
     icon_loader = icon_loader or MagicMock()
     if target_service is None:

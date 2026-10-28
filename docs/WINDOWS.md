@@ -2150,6 +2150,52 @@ The native reader uses [IShellLinkW::GetPath](https://learn.microsoft.com/en-us/
 with stored-path flags and [IPersistFile::Load](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-ipersistfile-load)
 without resolving moved targets or launching them during catalog discovery.
 
+## Application launcher export
+
+The Windows metadata worker prepares standalone `.lnk` files for Applications
+menu rows. AppsFolder entries keep their namespace target and application ID;
+selected private shortcuts keep their original binary contents, including
+arguments, working directory and shell options. Friendly Unicode filenames live
+in a persistent cache so Explorer can finish copying after the drag returns.
+Replacing a selected shortcut invalidates its previous export generation.
+
+The shared menu delegates prepared file drags through `SurfaceService`.
+Unix backends retain the normal GTK desktop-file URI source. The Windows surface
+uses a native Shell data object with worker-prepared Shell IDList, `CF_HDROP` and
+copy-effect values. It reads no launcher files in the GTK drag callback. The
+handoff waits for both GTK's source end and the original Win32 OLE loop's finish;
+the new Shell loop dispatches GTK events through an owned message-only timer
+window. Shutdown removes pending handoffs and releases native capture and timer
+resources. GTK's exported native-dialog bridge leaves Win32 input with OLE while
+the timer dispatches queued GTK work, so Escape and button release are processed
+by the native drag loop.
+Within Docking, an exact export-file URI resolves to its current application
+record, preserving canonical pinning instead of routing the launcher file to an
+applet or opening it with another launcher.
+
+```sh
+python -m tools.windows.visual.application_export_smoke --output artifacts/windows/application-export
+python -m tools.windows.visual.application_export_smoke --classic --output artifacts/windows/classic-export
+python -m tools.windows.visual.application_export_smoke --cancel-export --output artifacts/windows/export-cancel
+python -m tools.windows.visual.application_export_smoke --close-during-export --output artifacts/windows/export-close
+```
+
+These checks require installed Notepad or Character Map on the interactive lab.
+They drag a real menu row into an owned Explorer folder, verify an exact file
+copy without pinning or activating the app, close Docking normally and remove
+its isolated cache. A separate parent process then double-clicks the copied
+shortcut in Explorer and checks its native application identity, foreground
+window and loaded controls before cleanup. Generated captures stay in artifacts.
+Windows CI also exercises saved PIDL target readback and native `CF_HDROP`
+round trips without depending on Store applications. The lifecycle checks hold
+the mouse button until the native drag is active, then cancel with Escape or
+close Docking and verify no file was copied.
+
+References: [namespace shortcut targets](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-setidlist),
+[Shell file formats](https://learn.microsoft.com/en-us/windows/win32/shell/clipboard),
+[native drag operation](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shdodragdrop),
+[GTK 3 Win32 modal integration](https://github.com/GNOME/gtk/blob/gtk-3-24/gdk/win32/gdkevents-win32.c).
+
 ## Shared application artwork
 
 Applications menu rows, their drag images, Search results and unavailable window

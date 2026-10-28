@@ -346,6 +346,16 @@ class SurfaceService(Service):
     def prepare_menu_popup(self, menu: object) -> None:
         """Prepare any platform-specific keyboard focus for a root menu."""
 
+    def prepare_file_drag_source(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> bool:
+        """Own a prepared file drag, or return False to use GTK's default source."""
+        return False
+
     def prepare_capture_overlay(self, overlay: object) -> None:
         """Prepare focus and shutdown handling for an owned input-capture surface."""
 

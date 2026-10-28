@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from pathlib import Path
 
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
@@ -178,6 +179,12 @@ class ApplicationRegistryStub:
 
     def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self._applications.get(desktop_id)
+
+    def resolve_by_export_file(self, path: Path) -> ApplicationInfo | None:
+        return next(
+            (app for app in self._applications.values() if app.export_file == path),
+            None,
+        )
 
     def resolve_all_by_wm_class(
         self,

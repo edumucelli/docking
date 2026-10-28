@@ -2,6 +2,7 @@
 
 import ctypes
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -138,3 +139,34 @@ def test_unavailable_catalog_is_distinct_from_a_successful_empty_catalog(monkeyp
     assert catalog.read_application_metadata(()).applications is None
     monkeypatch.setattr(catalog, "read_shell_applications", lambda: ())
     assert catalog.read_application_metadata(()).applications == ()
+
+
+def test_exports_use_selected_registration_and_never_prepare_hidden_components(
+    monkeypatch,
+):
+    from docking.platform.applications.windows_export import WindowsApplicationExport
+
+    visible, hidden = application("Main"), application("Widget")
+    selected = replace(
+        visible,
+        name="Selected profile",
+        launch_target=r"C:\private\selected.lnk",
+        working_directory=r"C:\profile",
+    )
+    prepared = []
+    monkeypatch.setattr(catalog, "read_shell_applications", lambda: (visible, hidden))
+    monkeypatch.setattr(
+        catalog, "hidden_application_ids", lambda _ids: frozenset(("Widget",))
+    )
+
+    def prepare(_self, apps):
+        prepared.extend(apps)
+        return tuple(replace(app, export_file=Path("prepared.lnk")) for app in apps)
+
+    monkeypatch.setattr(WindowsApplicationExport, "prepare", prepare)
+    result = catalog.read_application_metadata((), registrations=(selected,))
+    assert len(prepared) == 1
+    assert prepared[0].desktop_id == "Main"
+    assert prepared[0].launch_target == selected.launch_target
+    assert prepared[0].working_directory == selected.working_directory
+    assert result.applications[0].export_file == Path("prepared.lnk")

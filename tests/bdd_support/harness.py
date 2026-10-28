@@ -1265,6 +1265,7 @@ class DockHarness:
         application_registry = MagicMock()
         application_registry.get.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
+        application_registry.resolve_by_export_file.return_value = None
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()

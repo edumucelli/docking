@@ -339,6 +339,34 @@ def _write_desktop(
     )
 
 
+def test_export_lookup_uses_current_metadata_without_reading_files(
+    tmp_path, monkeypatch
+):
+    from dataclasses import replace
+
+    from tests.platform.application_fakes import application
+
+    registry = _registry()
+    first, second = tmp_path / "old.lnk", tmp_path / "new.lnk"
+    app = replace(application("Native.App"), export_file=first)
+    registry._state = replace(registry._state, applications_by_id={app.desktop_id: app})
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Export lookup must use prepared metadata without filesystem IO")
+
+    with monkeypatch.context() as isolated:
+        for name in ("stat", "resolve", "read_bytes"):
+            isolated.setattr(Path, name, forbidden)
+        assert registry.resolve_by_export_file(first) is app
+        assert registry.resolve_by_export_file(second) is None
+        updated = replace(app, export_file=second)
+        registry._state = replace(
+            registry._state, applications_by_id={updated.desktop_id: updated}
+        )
+        assert registry.resolve_by_export_file(first) is None
+        assert registry.resolve_by_export_file(second) is updated
+
+
 def test_successful_empty_initial_discovery_publishes_generation():
     registry = _registry()
 

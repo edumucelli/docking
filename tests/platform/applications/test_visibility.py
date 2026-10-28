@@ -231,3 +231,53 @@ def test_periodic_worker_refresh_discovers_changes_without_gio_notifications():
         assert lookup.applications == apps
     finally:
         lookup.stop()
+
+
+def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker(
+    monkeypatch, tmp_path
+):
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    from docking.platform.applications import metadata
+    from docking.platform.backends.windows import catalog
+    from tests.platform.application_fakes import application
+
+    main = threading.get_ident()
+    idle, calls = _Idle(), []
+    selected = application("Native.App")
+
+    def registrations():
+        assert threading.get_ident() != main
+        return (selected,)
+
+    def prepare(ids, *, registrations):
+        assert threading.get_ident() != main
+        calls.append((ids, registrations))
+        return ApplicationMetadata(applications=registrations)
+
+    monkeypatch.setattr(metadata, "is_windows", lambda: True)
+    monkeypatch.setattr(catalog, "read_application_metadata", prepare)
+    lookup = metadata.create_metadata_lookup(
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+        registrations=SimpleNamespace(applications=registrations),
+    )
+    assert lookup is not None
+    try:
+        lookup.start()
+        lookup.request(("Native.App",))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.applications == (selected,)
+        selected = replace(selected, export_file=tmp_path / "Selected.lnk")
+        lookup.invalidate()
+        lookup.request(("Native.App",))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.applications == (selected,)
+        assert len(calls) == 2
+        assert calls[1] == (("Native.App",), (selected,))
+    finally:
+        lookup.stop()
