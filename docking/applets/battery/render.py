@@ -129,7 +129,11 @@ def _draw_battery(
         cr.line_to(cx + bolt * 0.05, cy + bolt * 0.10)
         cr.close_path()
         cr.set_source_rgb(*_BG)
-        cr.fill()
+        cr.fill_preserve()
+        # Keep the white bolt legible on both the green fill and empty body.
+        cr.set_source_rgb(*_GREEN_DARK)
+        cr.set_line_width(max(1.0, size * 0.025))
+        cr.stroke()
 
 
 def _overlay_label(*, state: BatteryState, overlay: str) -> str | None:
