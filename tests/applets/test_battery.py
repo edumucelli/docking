@@ -22,6 +22,7 @@ from docking.applets.battery.peripherals import (
     PeripheralBattery,
     peripheral_label,
 )
+from docking.applets.battery.render import render_icon
 from docking.applets.battery.state import (
     OVERLAY_NONE,
     OVERLAY_PERCENT,
@@ -607,6 +608,25 @@ class TestPowerSettingsLauncher:
 
 
 class TestBatteryAppletRendering:
+    @pytest.mark.parametrize("size", [24, 48, 96])
+    @pytest.mark.parametrize("capacity", [0, 15, 50, 100])
+    def test_charging_marker_is_visible_on_filled_and_empty_battery(
+        self, size, capacity
+    ):
+        state = BatteryState(
+            icon_name="battery-low",
+            capacity=capacity,
+            status="Discharging",
+            seconds_remaining=None,
+        )
+        idle = render_icon(size=size, state=state)
+        charging = render_icon(
+            size=size,
+            state=state._replace(icon_name="battery-low-charging", status="Charging"),
+        )
+        assert idle is not None and charging is not None
+        assert charging.get_pixels() != idle.get_pixels()
+
     def test_renders_valid_pixbuf(self):
         applet = BatteryApplet(48, config=Config())
         pixbuf = applet.create_icon(48)
