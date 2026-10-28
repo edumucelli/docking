@@ -159,11 +159,13 @@ def _recovers_preferred_size(fitted_palette):
     palette.window.hide()
     palette.bounds[0] = Rect(0, 0, 1100, 800)
     palette.window.present()
-    palette.settle()
-    assert tuple(palette.window.window.get_size()) == (
+    expected = (
         window_mod.SEARCH_WINDOW_WIDTH,
         window_mod.SEARCH_WINDOW_HEIGHT,
     )
+    # Resize requests finish asynchronously after the window is presented.
+    palette.settle(expected)
+    assert tuple(palette.window.window.get_size()) == expected
 
 
 def _keeps_user_resize(fitted_palette):
