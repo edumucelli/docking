@@ -293,8 +293,8 @@ launch/minimize/restore/Close desktop check also passed again with reservation
 enabled and normal dock shutdown. The baseline remains one display at 96 DPI.
 A separate native full-screen GTK fixture was tracked as fullscreen (and not
 maximized), with independent Win32 bounds of `[0, 0, 1280, 800]`. Fullscreen
-stacking, restart races and broader application/dialog behavior
-still need desktop acceptance.
+stacking is covered by the transition/startup check below. Restart races and
+broader application/dialog behavior still need desktop acceptance.
 
 Window overlap is evaluated in the dock monitor's GTK coordinate space. Raw
 Win32 geometry is projected relative to the native monitor origin and scale;
@@ -314,6 +314,31 @@ six actual desktop colors correctly at 125%, with clipboard/prefs, Escape,
 native menus and stable GDI resources across 300 repeated reads. The wheel and
 standalone desktop checks also verify the actual dock window's per-monitor-v2 awareness;
 an existing host or manifest DPI setting remains in force.
+
+With screen reservation enabled, the dock lowers its native window when a
+fullscreen application opens, then restores its keep-above setting without
+taking focus. Clearing the topmost flag alone left it over the fullscreen
+window in the normal stacking band. This follows the
+[AppBar fullscreen contract](https://learn.microsoft.com/en-us/windows/win32/shell/abn-fullscreenapp).
+An initial foreground/monitor check also covers starting Docking while another
+application is already fullscreen. A 250 ms native geometry observer runs only
+while fullscreen is active and stops on exit or surface shutdown; it handles
+the missing closing notification in that startup case.
+
+```sh
+python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
+```
+
+The check owns a separate GTK fixture, enters/exits fullscreen with actual F11
+input, and runs both startup orders in fresh processes. Two cycles per startup order
+verify foreground ownership, native stacking flags, exact fixture pixels over
+the clock's actual screen rectangle, restored dock visibility and normal
+fixture/dock shutdown with the original work area. Direct Alt+F4 closure also
+covers an application already fullscreen before Docking starts, and checks that
+the exit observer stops. The Windows workflow runs all scenarios and uploads
+their captures and observations. Native acceptance
+currently covers one Windows 11 display at 96 DPI; other display arrangements,
+exclusive rendering and broader application/modal behavior remain.
 
 ```sh
 python tools/windows/visual/lab.py --share /path/to/shared/artifacts --timeout 600 run \

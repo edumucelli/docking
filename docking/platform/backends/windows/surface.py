@@ -46,6 +46,7 @@ class WindowsSurfaceService(SurfaceService):
         self._changed: Callable[[], None] | None = None
         self._refresh_source = 0
         self._pointer_source = 0
+        self._fullscreen_source = 0
         self._input_rect: Rect | None = None
 
         self._map_source = 0
@@ -164,6 +165,9 @@ class WindowsSurfaceService(SurfaceService):
         if self._pointer_source:
             GLib.source_remove(self._pointer_source)
             self._pointer_source = 0
+        if self._fullscreen_source:
+            GLib.source_remove(self._fullscreen_source)
+            self._fullscreen_source = 0
         if self._map_source:
             GLib.source_remove(self._map_source)
             self._map_source = 0
@@ -247,6 +251,14 @@ class WindowsSurfaceService(SurfaceService):
                 native.move_resize(
                     request.x, request.y, request.size.width, request.size.height
                 )
+                if (
+                    self._appbar is not None
+                    and self._mapping is not None
+                    and self._reservation is not None
+                ):
+                    fullscreen = self._appbar.fullscreen_active(self._mapping)
+                    if fullscreen is not None:
+                        self._fullscreen_changed(fullscreen)
         return False
 
     def set_reservation(self, request: ReservationRequest) -> None:
@@ -257,6 +269,8 @@ class WindowsSurfaceService(SurfaceService):
 
     def clear_reservation(self) -> None:
         self._reservation = None
+        if self._fullscreen_source:
+            self._fullscreen_changed(False)
         if self._appbar is not None:
             self._appbar.clear()
 
@@ -283,6 +297,35 @@ class WindowsSurfaceService(SurfaceService):
     def _fullscreen_changed(self, fullscreen: bool) -> None:
         if self._window is not None:
             self._window.set_keep_above(not fullscreen)
+            if fullscreen:
+                # Removing TOPMOST places the dock at the top of the normal
+                # band, still over the fullscreen application. AppBars must
+                # move to the bottom of the z-order until fullscreen ends.
+                native = self._window.get_window()
+                if native is not None:
+                    native.lower()
+                if (
+                    self._appbar is not None
+                    and self._mapping is not None
+                    and not self._fullscreen_source
+                ):
+                    # A window already fullscreen at AppBar registration may
+                    # produce neither its opening nor its closing notification.
+                    self._fullscreen_source = GLib.timeout_add(
+                        250, self._poll_fullscreen
+                    )
+            elif self._fullscreen_source:
+                GLib.source_remove(self._fullscreen_source)
+                self._fullscreen_source = 0
+
+    def _poll_fullscreen(self) -> bool:
+        if self._appbar is None or self._mapping is None:
+            self._fullscreen_source = 0
+            return False
+        if self._appbar.fullscreen_active(self._mapping) is False:
+            self._fullscreen_changed(False)
+            return False
+        return True
 
     def window_geometry(self, physical: Rect) -> Rect | None:
         """Project a foreign window into this dock monitor's GTK coordinates."""

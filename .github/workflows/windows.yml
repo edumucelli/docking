@@ -77,6 +77,8 @@ jobs:
         run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
       - name: Verify native multiwindow grouping, cycling and restored pins
         run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --output artifacts/windows/multiple-windows
+      - name: Verify fullscreen stacking and startup recovery
+        run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Build the standalone Windows application
         run: |
           python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
@@ -106,6 +108,7 @@ jobs:
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
+            artifacts/windows/fullscreen/
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/

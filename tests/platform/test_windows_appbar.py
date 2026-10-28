@@ -1,5 +1,9 @@
 """AppBar dimensions stay in monitor space across DPI and negative origins."""
 
+import ctypes
+import os
+from ctypes import wintypes
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +13,124 @@ from docking.platform.backends.base import Rect
 from docking.platform.backends.windows import appbar
 from docking.platform.backends.windows.appbar import edge_strip
 from docking.platform.backends.windows.geometry import ScreenMapping
+
+
+@pytest.fixture
+def initial_fullscreen():
+    state = {
+        "owner": os.getpid() + 1,
+        "class": "Owned fullscreen fixture",
+        "rect": (0, 0, 1280, 800),
+    }
+
+    def owner(_window, pointer):
+        ctypes.cast(pointer, ctypes.POINTER(wintypes.DWORD)).contents.value = state[
+            "owner"
+        ]
+        return 123
+
+    def name(_window, buffer, _length):
+        buffer.value = state["class"]
+        return len(buffer.value)
+
+    def rectangle(_window, pointer):
+        result = ctypes.cast(pointer, ctypes.POINTER(wintypes.RECT)).contents
+        result.left, result.top, result.right, result.bottom = state["rect"]
+        return 1
+
+    user = SimpleNamespace(
+        GetForegroundWindow=Mock(return_value=100),
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+        GetClassNameW=Mock(side_effect=name),
+        IsWindowVisible=Mock(return_value=1),
+        IsIconic=Mock(return_value=0),
+        GetWindowRect=Mock(side_effect=rectangle),
+    )
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    bar._user = user
+    bar._on_fullscreen = Mock()
+    mapping = ScreenMapping(
+        Rect(0, 0, 1280, 800), Rect(0, 0, 1280, 800), Rect(0, 0, 1280, 752), 1
+    )
+    return bar, user, state, mapping
+
+
+@pytest.mark.parametrize(
+    "bounds,fullscreen",
+    [
+        ((0, 0, 1280, 800), True),
+        ((60, 60, 676, 479), False),
+        ((1280, 0, 2560, 800), False),
+        ((-100, 0, 1280, 800), True),
+        ((0, 0, 1280, 799), False),
+    ],
+)
+def test_initial_fullscreen_is_scoped_to_the_dock_monitor(
+    initial_fullscreen, bounds, fullscreen
+):
+    bar, _user, state, mapping = initial_fullscreen
+    state["rect"] = bounds
+    assert bar.fullscreen_active(mapping) is fullscreen
+    bar._on_fullscreen.assert_not_called()
+
+
+@pytest.mark.parametrize("kind", ["own", "desktop", "taskbar", "hidden", "minimized"])
+def test_initial_fullscreen_excludes_non_application_surfaces(initial_fullscreen, kind):
+    bar, user, state, mapping = initial_fullscreen
+    if kind == "own":
+        state["owner"] = os.getpid()
+    elif kind == "desktop":
+        state["class"] = "Progman"
+    elif kind == "taskbar":
+        state["class"] = "Shell_TrayWnd"
+    elif kind == "hidden":
+        user.IsWindowVisible.return_value = 0
+    else:
+        user.IsIconic.return_value = 1
+    assert bar.fullscreen_active(mapping) is False
+    bar._on_fullscreen.assert_not_called()
+    user.GetWindowRect.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["foreground", "owner", "class", "rectangle"])
+def test_incomplete_initial_foreground_read_does_not_override_shell_state(
+    initial_fullscreen, failure
+):
+    bar, user, _state, mapping = initial_fullscreen
+    function = {
+        "foreground": user.GetForegroundWindow,
+        "owner": user.GetWindowThreadProcessId,
+        "class": user.GetClassNameW,
+        "rectangle": user.GetWindowRect,
+    }[failure]
+    function.side_effect = None
+    function.return_value = 0
+    assert bar.fullscreen_active(mapping) is None
+    bar._on_fullscreen.assert_not_called()
+
+
+def test_initial_fullscreen_read_uses_physical_negative_monitor_bounds(
+    initial_fullscreen,
+):
+    bar, _user, state, _mapping = initial_fullscreen
+    state["rect"] = (-2560, 0, 0, 1600)
+    mapping = ScreenMapping(
+        Rect(0, 0, 1280, 800),
+        Rect(-2560, 0, 2560, 1600),
+        Rect(-2560, 0, 2560, 1504),
+        2,
+    )
+    assert bar.fullscreen_active(mapping) is True
+    bar._on_fullscreen.assert_not_called()
+
+
+def test_closed_appbar_cannot_read_or_change_initial_stacking(initial_fullscreen):
+    bar, user, _state, mapping = initial_fullscreen
+    bar._closed = True
+    assert bar.fullscreen_active(mapping) is None
+    user.GetForegroundWindow.assert_not_called()
+    bar._on_fullscreen.assert_not_called()
 
 
 @pytest.mark.parametrize(

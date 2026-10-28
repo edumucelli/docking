@@ -213,6 +213,62 @@ class WindowsAppBar:
     def mapping(self, monitor: MonitorSnapshot, display: Gdk.Display) -> ScreenMapping:
         return self._coordinates.mapping(monitor, display)
 
+    def fullscreen_active(self, mapping: ScreenMapping) -> bool | None:
+        """Read the active monitor cover without changing stacking on unknown data."""
+        if self._closed:
+            return None
+        foreground = _bind(self._user, "GetForegroundWindow", wintypes.HWND)()
+        if not foreground:
+            return None
+        owner = wintypes.DWORD()
+        if (
+            not _bind(
+                self._user,
+                "GetWindowThreadProcessId",
+                wintypes.DWORD,
+                wintypes.HWND,
+                ctypes.POINTER(wintypes.DWORD),
+            )(foreground, ctypes.byref(owner))
+            or not owner.value
+        ):
+            return None
+        name = ctypes.create_unicode_buffer(256)
+        if not _bind(
+            self._user,
+            "GetClassNameW",
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.LPWSTR,
+            ctypes.c_int,
+        )(foreground, name, len(name)):
+            return None
+        if (
+            owner.value == os.getpid()
+            or name.value
+            in {"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"}
+            or not _bind(self._user, "IsWindowVisible", wintypes.BOOL, wintypes.HWND)(
+                foreground
+            )
+            or _bind(self._user, "IsIconic", wintypes.BOOL, wintypes.HWND)(foreground)
+        ):
+            return False
+        bounds = wintypes.RECT()
+        if not _bind(
+            self._user,
+            "GetWindowRect",
+            wintypes.BOOL,
+            wintypes.HWND,
+            ctypes.POINTER(wintypes.RECT),
+        )(foreground, ctypes.byref(bounds)):
+            return None
+        monitor = mapping.physical
+        return (
+            bounds.left <= monitor.x
+            and bounds.top <= monitor.y
+            and bounds.right >= monitor.right
+            and bounds.bottom >= monitor.bottom
+        )
+
     @staticmethod
     def _edge_for(position: Position) -> int:
         return {
