@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import sys
 import threading
 from contextlib import ExitStack
 from pathlib import Path
@@ -57,10 +58,13 @@ class Rect(ctypes.Structure):
 
 def loader_path() -> Path:
     override = os.environ.get("DOCKING_WEBVIEW2_LOADER")
+    if override:
+        return Path(override)
+    bundled = Path(sys.prefix) / "share/docking/runtimes/webview2/WebView2Loader.dll"
     return (
-        Path(override)
-        if override
-        else docking_data_dir() / "runtimes" / "webview2" / "WebView2Loader.dll"
+        bundled
+        if bundled.is_file()
+        else (docking_data_dir() / "runtimes" / "webview2" / "WebView2Loader.dll")
     )
 
 

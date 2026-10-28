@@ -39,6 +39,7 @@ jobs:
           install: >-
             gettext
             mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-python-gobject
             mingw-w64-ucrt-x86_64-python-cairo
@@ -73,6 +74,13 @@ jobs:
           python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
       - name: Exercise the installed application on the Windows desktop
         run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
+      - name: Build the standalone Windows application
+        run: |
+          python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
+      - name: Exercise the standalone runtime and native launcher
+        run: |
+          python -m tools.windows.visual.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
+          python -m tools.windows.visual.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -81,6 +89,11 @@ jobs:
             artifacts/windows/environment.json
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
+            artifacts/windows/bundle-preflight/*.json
+            artifacts/windows/bundle-preflight/*.log
+            artifacts/windows/bundle-desktop/
             dist/*.whl
+            dist/*.zip
+            dist/*.zip.sha256
           if-no-files-found: error
           retention-days: 14

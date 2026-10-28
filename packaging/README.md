@@ -2,6 +2,9 @@
 
 Build scripts for distributing Docking in various formats.
 
+The [Windows target](windows/README.md) builds a portable x64 application with
+its own Python, GTK, and multimedia runtime.
+
 ## Translation Ownership
 
 Docking translations have four distinct stages:

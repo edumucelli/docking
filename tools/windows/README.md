@@ -4,6 +4,8 @@ Run these tools from the repository root. Native checks require Windows.
 
 - `ci`: native runtime preflight, Windows/core tests and GTK behavior checks.
 - `webview2_setup`: install the verified Microsoft WebView2 loader.
+- `bundle`: assemble a relocatable application from a wheel and its native runtime;
+  see [Windows packaging](../../packaging/windows/README.md).
 - [`visual/`](visual/README.md): desktop acceptance checks, VM controls, fixtures,
   captures and independent observations, matching the Linux and BSD tool layout.
 

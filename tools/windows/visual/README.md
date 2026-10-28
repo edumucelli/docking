@@ -8,7 +8,8 @@ control the VM from its host.
 - `lab`: submit durable jobs to the interactive Windows lab agent.
 - `vm_input`, `vm_pointer`, `vm_capture`, `vm_audio`: independent input and recording.
 - `desktop_driver`: shared native desktop observations and input.
-- `smoke`: run the complete dock, including an isolated installed wheel.
+- `smoke`: run the complete dock, including an isolated wheel or native bundled launcher.
+- `bundle_smoke`: verify and extract a portable ZIP, then check the isolated runtime.
 - `*_smoke`: feature checks through the running dock.
 - `*_fixture`, `*_capture`, `*_probe`, `*_oracle`: owned providers and independent observations.
 - `camera_source.cpp`: generated-frame camera provider built by `camera_fixture`.
@@ -29,6 +30,8 @@ python -m tools.windows.visual.application_export_smoke --close-during-export --
 
 The [Windows workflow](../../../.github/workflows/windows.yml) runs the installed
 wheel smoke on a native Windows runner and uploads screenshots and logs as
-Actions artifacts. Keep generated captures under `artifacts/`.
+Actions artifacts. It also builds the standalone ZIP and exercises its extracted
+runtime and launcher; see [Windows packaging](../../../packaging/windows/README.md).
+Keep generated captures under `artifacts/`.
 See [Windows support](../../../docs/WINDOWS.md) for lab setup, feature commands,
 evidence and acceptance limits.

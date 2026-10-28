@@ -21,10 +21,16 @@ from typing import ClassVar
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument(
+    installation = parser.add_mutually_exclusive_group()
+    installation.add_argument(
         "--installed-root",
         type=Path,
         help="Exercise a wheel installed here, outside the source checkout",
+    )
+    installation.add_argument(
+        "--bundle",
+        type=Path,
+        help="Exercise Docking.exe with a clean runtime environment",
     )
     args = parser.parse_args()
     if sys.platform != "win32":
@@ -260,6 +266,21 @@ def main() -> None:
         ]
         working_directory = output
         report["installed_root"] = str(installed)
+    if args.bundle is not None:
+        bundle = args.bundle.resolve()
+        command = [str(bundle / "Docking.exe")]
+        working_directory = output
+        for name in tuple(env):
+            if name.startswith(("PYTHON", "GTK_", "GDK_", "GI_", "GST_")) or name in {
+                "MSYSTEM",
+                "MINGW_PREFIX",
+                "PYGI_DLL_PATH",
+                "XDG_DATA_DIRS",
+                "FONTCONFIG_PATH",
+            }:
+                env.pop(name)
+        env["PATH"] = str(Path(os.environ["WINDIR"]) / "System32")
+        report["bundle"] = str(bundle)
     child = None
     dock = None
     try:
@@ -273,24 +294,39 @@ def main() -> None:
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
         deadline = time.monotonic() + 40
+        application_pid = child.pid
         while time.monotonic() < deadline:
             if child.poll() is not None:
                 raise AssertionError(
                     f"Docking exited during startup: {child.returncode}"
                 )
+            if args.bundle is not None:
+                import psutil
+
+                interpreter = args.bundle.resolve() / "runtime/bin/pythonw.exe"
+                processes = psutil.Process(child.pid).children()
+                application_pid = next(
+                    (
+                        process.pid
+                        for process in processes
+                        if Path(process.exe()) == interpreter
+                    ),
+                    child.pid,
+                )
             dock = next(
-                (w for w in windows(child.pid) if w["title"] == "Docking"), None
+                (w for w in windows(application_pid) if w["title"] == "Docking"), None
             )
             if dock:
                 break
             time.sleep(0.25)
         if dock is None:
             raise AssertionError("No visible native Docking window appeared")
+        report["application_pid"] = application_pid
         user32.SetCursorPos(20, 20)
         time.sleep(2)
         resting = ImageGrab.grab(all_screens=True)
         resting.save(output / "startup.png")
-        dock = next(w for w in windows(child.pid) if w["hwnd"] == dock["hwnd"])
+        dock = next(w for w in windows(application_pid) if w["hwnd"] == dock["hwnd"])
         report["window"] = dock
         left, top, right, bottom = dock["rect"]
         if right <= left or bottom <= top:
@@ -311,17 +347,18 @@ def main() -> None:
             difference.convert("L").point(lambda value: bool(value)).histogram()[1]
         )
         report["menu_changed_pixels"] = changed
-        report["windows_after_menu"] = windows(child.pid)
+        report["windows_after_menu"] = windows(application_pid)
         if changed < 1000:
             raise AssertionError(
                 "The native context-menu input produced no substantial visual change"
             )
-        click_menu_row(menu_window(child.pid), 3)
+        click_menu_row(menu_window(application_pid), 3)
         deadline = time.monotonic() + 10
         preferences = None
         while time.monotonic() < deadline:
             preferences = next(
-                (w for w in windows(child.pid) if w["title"] == "Preferences"), None
+                (w for w in windows(application_pid) if w["title"] == "Preferences"),
+                None,
             )
             if preferences:
                 break
@@ -341,7 +378,7 @@ def main() -> None:
         ImageGrab.grab(all_screens=True).save(output / "preferences-edited.png")
         user32.PostMessageW(preferences["hwnd"], 0x0010, 0, 0)
         time.sleep(1)
-        dock = next(w for w in windows(child.pid) if w["hwnd"] == dock["hwnd"])
+        dock = next(w for w in windows(application_pid) if w["hwnd"] == dock["hwnd"])
         left, top, right, bottom = dock["rect"]
         monitor_info = MonitorInfo(size=ctypes.sizeof(MonitorInfo))
         monitor_handle = user32.MonitorFromWindow(dock["hwnd"], 2)
@@ -362,7 +399,7 @@ def main() -> None:
         ImageGrab.grab(all_screens=True).save(output / "resized.png")
         user32.SetCursorPos((left + right) // 2, bottom - 25)
         open_background_menu()
-        click_menu_row(menu_window(child.pid), 0)
+        click_menu_row(menu_window(application_pid), 0)
         report["shutdown_method"] = "menu_quit"
         child.wait(timeout=10)
         report["ok"] = True
@@ -384,6 +421,13 @@ def main() -> None:
                 child.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 report["shutdown_forced"] = True
+                if args.bundle is not None:
+                    import psutil
+
+                    for process in psutil.Process(child.pid).children(recursive=True):
+                        if Path(process.exe()).is_relative_to(args.bundle.resolve()):
+                            process.terminate()
+                            process.wait(timeout=10)
                 child.terminate()
                 child.wait(timeout=10)
         if child is not None:
