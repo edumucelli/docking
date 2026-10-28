@@ -161,10 +161,18 @@ class NotificationListener:
     ) -> tuple[str, int, NotificationEntry]:
         identifier = int(value(notification, 8, ctypes.c_uint32).value)
         created = int(value(notification, 9, ctypes.c_int64).value)
-        application = object_result(scope, notification, 7)
-        # IAppInfo.DisplayInfo -> IAppDisplayInfo.DisplayName.
-        display = object_result(scope, application, 8)
-        name = runtime.text(display, 6)
+        try:
+            application = object_result(scope, notification, 7)
+        except OSError as exc:
+            if exc.errno != 0x80004001:  # E_NOTIMPL.
+                raise
+            # Some unpackaged senders have no IAppInfo. Their toast text and
+            # stable notification ID remain readable without an application.
+            name = ""
+        else:
+            # IAppInfo.DisplayInfo -> IAppDisplayInfo.DisplayName.
+            display = object_result(scope, application, 8)
+            name = runtime.text(display, 6)
         source = object_result(scope, notification, 6)
         visual = object_result(scope, source, 8)
         with runtime.string("ToastGeneric") as template:

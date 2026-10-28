@@ -1,12 +1,98 @@
 """Notification permission, effective DND, identity and clear boundaries."""
 
+import ctypes
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from docking.applets.notifications import windows as mod
 from docking.applets.notifications.state import NotificationEntry
+
+
+@pytest.fixture
+def native_notification(monkeypatch):
+    failures = {}
+    graph = {
+        (1, 7): 2,
+        (2, 8): 3,
+        (1, 6): 4,
+        (4, 8): 5,
+        (5, 9): 6,
+        (6, 11): 7,
+        (7, 6, 0): 8,
+        (7, 6, 1): 9,
+    }
+
+    def object_result(scope, pointer, index, *args):
+        key = (pointer.value, index)
+        if key in failures:
+            raise failures[key]
+        if pointer.value == 7 and index == 6:
+            key += (args[-1],)
+        return ctypes.c_void_p(graph[key])
+
+    def value(pointer, index, kind):
+        return kind({(1, 8): 42, (1, 9): 123456, (7, 7): 2}[(pointer.value, index)])
+
+    @contextmanager
+    def string(text):
+        assert text == "ToastGeneric"
+        yield ctypes.c_void_p(10)
+
+    text = {3: "Known sender", 8: "Generated title", 9: "Résumé body"}
+    runtime = SimpleNamespace(
+        string=string, text=lambda pointer, index: text[pointer.value]
+    )
+    monkeypatch.setattr(mod, "object_result", object_result)
+    monkeypatch.setattr(mod, "value", value)
+
+    def read():
+        with ExitStack() as scope:
+            return mod.NotificationListener._notification(
+                runtime, scope, ctypes.c_void_p(1)
+            )
+
+    return failures, read
+
+
+def test_native_notification_retains_sender_text_and_identity(native_notification):
+    _failures, read = native_notification
+    assert read() == (
+        "42",
+        123456,
+        NotificationEntry("Known sender", "Generated title", "Résumé body"),
+    )
+
+
+def test_unimplemented_sender_metadata_does_not_hide_notification(native_notification):
+    failures, read = native_notification
+    failures[(1, 7)] = OSError(0x80004001, "Unpackaged sender has no IAppInfo")
+    assert read() == (
+        "42",
+        123456,
+        NotificationEntry("", "Generated title", "Résumé body"),
+    )
+
+
+@pytest.mark.parametrize(
+    "key,error",
+    [
+        ((1, 7), OSError(0x80070005, "Permission denied")),
+        ((2, 8), OSError(0x80004001, "Display service failed")),
+        ((1, 6), OSError(0x80004001, "Notification unavailable")),
+    ],
+)
+def test_other_native_notification_failures_still_propagate(
+    native_notification, key, error
+):
+    failures, read = native_notification
+    failures[key] = error
+    with pytest.raises(OSError) as result:
+        read()
+    assert result.value is error
 
 
 @pytest.fixture
