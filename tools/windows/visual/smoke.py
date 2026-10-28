@@ -93,6 +93,12 @@ def main() -> None:
     user32.GetWindowRect.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.RECT))
     user32.GetWindowRect.restype = wintypes.BOOL
     user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.GetWindowDpiAwarenessContext.argtypes = (wintypes.HWND,)
+    user32.GetWindowDpiAwarenessContext.restype = ctypes.c_void_p
+    user32.AreDpiAwarenessContextsEqual.argtypes = (ctypes.c_void_p, ctypes.c_void_p)
+    user32.AreDpiAwarenessContextsEqual.restype = wintypes.BOOL
+    user32.GetDpiForWindow.argtypes = (wintypes.HWND,)
+    user32.GetDpiForWindow.restype = wintypes.UINT
     user32.SetCursorPos.argtypes = (ctypes.c_int, ctypes.c_int)
     user32.PostMessageW.argtypes = (
         wintypes.HWND,
@@ -340,6 +346,14 @@ def main() -> None:
         if dock is None:
             raise AssertionError("No visible native Docking window appeared")
         report["application_pid"] = application_pid
+        report["per_monitor_v2"] = bool(
+            user32.AreDpiAwarenessContextsEqual(
+                user32.GetWindowDpiAwarenessContext(dock["hwnd"]), ctypes.c_void_p(-4)
+            )
+        )
+        report["window_dpi"] = user32.GetDpiForWindow(dock["hwnd"])
+        if not report["per_monitor_v2"]:
+            raise AssertionError("Docking did not create a per-monitor-v2-aware window")
         if args.bundle is not None:
             report["application_executable"] = psutil.Process(application_pid).exe()
         user32.SetCursorPos(20, 20)

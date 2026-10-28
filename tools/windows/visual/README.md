@@ -33,7 +33,9 @@ python -m tools.windows.visual.application_export_smoke --close-during-export --
 
 The [Windows workflow](../../../.github/workflows/windows.yml) runs the installed
 wheel smoke on a native Windows runner and uploads screenshots and logs as
-Actions artifacts. It runs `runtime_pin_smoke --multiple-windows` to check native
+Actions artifacts. Both the wheel and standalone desktop checks require the
+actual dock window to use per-monitor-v2 DPI awareness and record its DPI.
+The workflow runs `runtime_pin_smoke --multiple-windows` to check native
 grouping, repeated cycling, individual window close and restored pin launch in a
 fresh process. It also builds the standalone ZIP and exercises its extracted
 runtime and launcher. The installer check verifies per-user setup, installed-file
