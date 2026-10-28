@@ -330,7 +330,16 @@ def install_wheel(wheel: Path, site: Path) -> tuple[str, tuple[str, ...]]:
                 or any(part.endswith(".data") for part in path.parts)
             ):
                 raise ValueError(f"Unsupported wheel path: {name}")
-        archive.extractall(site)
+        # zipfile joins plain strings using MSYS2's separator, which drops the
+        # extended Win32 namespace. Keep each validated destination as a Path.
+        site = filesystem_path(site)
+        for entry in archive.infolist():
+            target = site / PurePosixPath(entry.filename)
+            if entry.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(archive.read(entry))
     return info["Version"], tuple(info.get_all("Requires-Dist", ()))
 
 

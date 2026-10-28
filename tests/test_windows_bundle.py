@@ -213,3 +213,19 @@ def test_failed_stage_cleans_long_paths_in_an_active_msys_shell(tmp_path):
         assert owned.relative_to(stage).as_posix() == name
         raise RuntimeError("interrupted")
     assert not stage.exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows long-path APIs")
+def test_wheel_extraction_retains_extended_paths_in_an_active_msys_shell(tmp_path):
+    name = "docking/" + "long-directory/" * 15 + "owned.py"
+    wheel = tmp_path / "docking.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr(
+            "docking-1.dist-info/METADATA",
+            "Name: docking\nVersion: 1\nRequires-Dist: requests>=2\n",
+        )
+        archive.writestr(name, b"owned wheel contents")
+    with staging_directory(tmp_path, "wheel-") as stage:
+        site = stage / "site"
+        assert install_wheel(wheel, site) == ("1", ("requests>=2",))
+        assert (site / name).read_bytes() == b"owned wheel contents"

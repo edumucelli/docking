@@ -19,7 +19,7 @@ import pytest
 from docking.applets.aiusage import hook_command
 from docking.platform.backends.windows import installation as install_module
 from docking.platform.backends.windows.installation import installed_hook
-from tools.windows.bundle import native_path, payload_root
+from tools.windows.bundle import filesystem_path, native_path, payload_root
 from tools.windows.installer import build, payload_script, removal_manifest
 
 
@@ -218,7 +218,7 @@ def test_acceptance_resolves_the_active_installed_or_portable_runtime(tmp_path):
 def test_native_removal_handles_payload_paths_beyond_max_path(tmp_path, native_helpers):
     payload = installation(tmp_path)
     name = "runtime/lib/" + "long-directory/" * 15 + "owned.txt"
-    owned = Path("\\\\?\\" + str(payload / name))
+    owned = filesystem_path(payload / name)
     owned.parent.mkdir(parents=True)
     owned.write_text("owned")
     (payload / "uninstall-files.txt").write_bytes(removal_manifest([name]))
