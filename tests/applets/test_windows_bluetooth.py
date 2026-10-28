@@ -142,9 +142,11 @@ def test_provider_failure_never_becomes_success(backend, error):
 def test_windows_settings_are_available_without_hardware_and_no_unix_command(
     backend,
     monkeypatch,
+    tmp_path,
 ):
     client, api = backend
     api.radios = ()
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
     opened = []
     monkeypatch.setattr(mod.os, "startfile", opened.append, raising=False)
     assert client.desktop_actions() == (BluetoothAction.DEVICES,)
@@ -153,6 +155,52 @@ def test_windows_settings_are_available_without_hardware_and_no_unix_command(
     assert not client.open_desktop_action(BluetoothAction.SEND_FILES)
     client.close()
     assert not client.open_desktop_action(BluetoothAction.DEVICES)
+
+
+def test_send_files_uses_system_wizard_and_send_mode_without_hardware(
+    backend, monkeypatch, tmp_path
+):
+    client, api = backend
+    api.radios = ()
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    executable = tmp_path / "System32/fsquirt.exe"
+    executable.parent.mkdir()
+    executable.touch()
+    opened = []
+    monkeypatch.setattr(
+        mod.os,
+        "startfile",
+        lambda target, **kwargs: opened.append((target, kwargs)),
+        raising=False,
+    )
+    assert client.desktop_actions() == (
+        BluetoothAction.SEND_FILES,
+        BluetoothAction.DEVICES,
+    )
+    assert client.open_desktop_action(BluetoothAction.SEND_FILES)
+    assert opened == [(str(executable), {"arguments": "-send"})]
+    assert not client.open_desktop_action(BluetoothAction.LOCAL_SERVICES)
+    executable.unlink()
+    assert not client.open_desktop_action(BluetoothAction.SEND_FILES)
+    assert len(opened) == 1
+    executable.touch()
+    client.close()
+    assert not client.open_desktop_action(BluetoothAction.SEND_FILES)
+    assert client.desktop_actions() == () and len(opened) == 1
+
+
+def test_send_files_reports_denied_launch(backend, monkeypatch, tmp_path):
+    client, _ = backend
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    executable = tmp_path / "System32/fsquirt.exe"
+    executable.parent.mkdir()
+    executable.touch()
+
+    def denied(*args, **kwargs):
+        raise PermissionError("File transfer blocked")
+
+    monkeypatch.setattr(mod.os, "startfile", denied, raising=False)
+    assert not client.open_desktop_action(BluetoothAction.SEND_FILES)
 
 
 def test_bluetooth_structures_match_windows_abi():

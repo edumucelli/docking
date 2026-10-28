@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
+from pathlib import Path
 from typing import Protocol
 
 from docking.applets.bluetooth.backend import (
@@ -43,6 +44,13 @@ def _device_icon(device_class: int) -> str:
         5: "input-keyboard",
         6: "printer",
     }.get((device_class >> 8) & 0x1F, "bluetooth-active-symbolic")
+
+
+def _file_sender() -> Path | None:
+    executable = (
+        Path(os.environ.get("SYSTEMROOT", "C:\\Windows")) / "System32/fsquirt.exe"
+    )
+    return executable if executable.is_file() else None
 
 
 class WindowsBluetoothBackend(BluetoothBackend):
@@ -141,16 +149,27 @@ class WindowsBluetoothBackend(BluetoothBackend):
                 return False
 
     def desktop_actions(self) -> tuple[BluetoothAction, ...]:
-        return () if self._closed.is_set() else (BluetoothAction.DEVICES,)
+        if self._closed.is_set():
+            return ()
+        actions = (BluetoothAction.DEVICES,)
+        if _file_sender() is not None:
+            actions = (BluetoothAction.SEND_FILES, *actions)
+        return actions
 
     def open_desktop_action(self, action: BluetoothAction) -> bool:
         if self._closed.is_set() or action not in self.desktop_actions():
             return False
         try:
-            os.startfile("ms-settings:bluetooth")
+            if action == BluetoothAction.SEND_FILES:
+                executable = _file_sender()
+                if executable is None:
+                    return False
+                os.startfile(str(executable), arguments="-send")
+            else:
+                os.startfile("ms-settings:bluetooth")
             return True
         except OSError as exc:
-            log.debug("Bluetooth Settings unavailable: %s", exc)
+            log.debug("Bluetooth desktop action %s unavailable: %s", action.value, exc)
             return False
 
     def start_discovery(self, adapter_path: str) -> bool:

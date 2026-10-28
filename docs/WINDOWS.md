@@ -1572,6 +1572,15 @@ in-app pairing/removal and discovery controls are omitted by backend capability;
 read-only device rows have no empty submenus. **Devices...** opens the native
 **Bluetooth & devices > Devices** page, including when no radio is installed.
 
+**Send Files to Device...** opens the built-in Windows Bluetooth File Transfer
+wizard directly in send mode. The action is available when
+`%SYSTEMROOT%\System32\fsquirt.exe` is installed and uses that absolute path.
+Windows handles recipient selection, authentication, progress and cancellation.
+Native menu selection and the actual send-page controls, painted wizard and
+normal cancellation have been verified in the adapter-free Windows 11 VM while
+the original dock and Explorer remained running. Sending a file to a physical
+device still needs hardware acceptance.
+
 The owned Windows VM has no Bluetooth adapter. Native WinRT/Win32 queries and an
 independent PnP oracle agree on that absence. Actual menu input, the Devices
 settings page, accessibility metadata, inspected desktop captures, normal close
@@ -1596,7 +1605,8 @@ References: [adapter enumeration](https://learn.microsoft.com/en-us/uwp/api/wind
 [radio access](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.requestaccessasync),
 [radio changes](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.setstateasync),
 [classic device enumeration and LE limitation](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
-[device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params).
+[device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params),
+[Windows file-transfer wizard](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-user-interface).
 
 ## Windows keyboard layouts
 
