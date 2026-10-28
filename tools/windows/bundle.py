@@ -79,6 +79,14 @@ def native_path(path: Path) -> str:
     return str(path).replace("/", "\\")
 
 
+def command_path(path: Path) -> str:
+    """Let GLib derive relocatable resources from an ordinary Win32 filename."""
+    value = native_path(path)
+    if value.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + value[8:]
+    return value.removeprefix("\\\\?\\")
+
+
 class _NativeWindowsPath(WindowsPath):
     # MSYS2 changes pathlib's preferred separator. Extended Win32 paths require
     # backslashes even when ordinary short paths accept the shell's spelling.
@@ -373,6 +381,25 @@ def copy_python_dependencies(
     return versions
 
 
+def write_pixbuf_cache(runtime: Path) -> None:
+    cache = runtime / "lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+    environment = dict(os.environ)
+    environment.pop("GDK_PIXBUF_MODULEDIR", None)
+    environment.pop("GDK_PIXBUF_MODULE_FILE", None)
+    environment["PATH"] = (
+        command_path(runtime / "bin") + os.pathsep + environment.get("PATH", "")
+    )
+    # The query tool's prefix comparison does not recognize the extended Win32
+    # namespace. Launch it by its ordinary filename to emit relative modules.
+    with cache.open("wb") as stream:
+        subprocess.run(
+            [command_path(runtime / "bin/gdk-pixbuf-query-loaders.exe")],
+            env=environment,
+            stdout=stream,
+            check=True,
+        )
+
+
 def build(
     wheel: Path, output: Path, prefix: Path, webview2_package: Path | None = None
 ) -> None:
@@ -410,25 +437,11 @@ def build(
         else:
             sdk = webview2_package.read_bytes()
         webview2_setup.install(sdk, runtime / "share/docking/runtimes/webview2")
-        cache = runtime / "lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
-        environment = dict(os.environ)
-        # The query tool derives relocatable module names from its own DLL.
-        environment.pop("GDK_PIXBUF_MODULEDIR", None)
-        environment.pop("GDK_PIXBUF_MODULE_FILE", None)
-        environment["PATH"] = (
-            str(runtime / "bin") + os.pathsep + environment.get("PATH", "")
-        )
-        with cache.open("wb") as stream:
-            subprocess.run(
-                [str(runtime / "bin/gdk-pixbuf-query-loaders.exe")],
-                env=environment,
-                stdout=stream,
-                check=True,
-            )
+        write_pixbuf_cache(runtime)
         subprocess.run(
             [
-                str(runtime / "bin/glib-compile-schemas.exe"),
-                str(runtime / "share/glib-2.0/schemas"),
+                command_path(runtime / "bin/glib-compile-schemas.exe"),
+                command_path(runtime / "share/glib-2.0/schemas"),
             ],
             check=True,
         )

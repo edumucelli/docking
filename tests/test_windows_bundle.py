@@ -3,9 +3,10 @@
 import hashlib
 import json
 import os
+import shutil
 import sys
 import zipfile
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -17,10 +18,12 @@ from tools.windows.bundle import (
     extract_bundle,
     filesystem_path,
     install_wheel,
+    native_path,
     read_packages,
     relative_package_file,
     runtime_file,
     staging_directory,
+    write_pixbuf_cache,
 )
 
 
@@ -229,3 +232,38 @@ def test_wheel_extraction_retains_extended_paths_in_an_active_msys_shell(tmp_pat
         site = stage / "site"
         assert install_wheel(wheel, site) == ("1", ("requests>=2",))
         assert (site / name).read_bytes() == b"owned wheel contents"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows GdkPixbuf tools")
+def test_pixbuf_cache_keeps_relative_modules_after_moving_extended_path_stage(
+    tmp_path, monkeypatch
+):
+    prefix = Path(sys.base_prefix)
+    if not (prefix / "bin/gdk-pixbuf-query-loaders.exe").is_file():
+        pytest.skip("Requires the UCRT64 GTK runtime used by Windows CI")
+    monkeypatch.setenv(
+        "PATH", native_path(prefix / "bin") + os.pathsep + os.environ.get("PATH", "")
+    )
+    with staging_directory(tmp_path, "pixbuf-") as stage:
+        runtime = stage / "runtime"
+        binary = runtime / "bin"
+        binary.mkdir(parents=True)
+        for name in ("gdk-pixbuf-query-loaders.exe", "libgdk_pixbuf-2.0-0.dll"):
+            shutil.copy2(prefix / "bin" / name, binary / name)
+        loaders = runtime / "lib/gdk-pixbuf-2.0/2.10.0/loaders"
+        loaders.mkdir(parents=True)
+        for path in (prefix / "lib/gdk-pixbuf-2.0/2.10.0/loaders").glob("*.dll"):
+            shutil.copy2(path, loaders / path.name)
+        # Other DLL dependencies remain available from the installed runtime;
+        # this test isolates the copied GdkPixbuf DLL's relocation behavior.
+        write_pixbuf_cache(runtime)
+        relocated = stage / "relocated"
+        runtime.rename(relocated)
+        cache = relocated / "lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+        modules = [
+            PureWindowsPath(json.loads(line))
+            for line in cache.read_text(encoding="utf-8").splitlines()
+            if line.startswith('"') and line.endswith('.dll"')
+        ]
+        assert modules and all(not path.is_absolute() for path in modules)
+        assert all((relocated / path).is_file() for path in modules)
