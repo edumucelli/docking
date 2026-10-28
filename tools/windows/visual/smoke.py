@@ -18,6 +18,18 @@ from pathlib import Path
 from typing import ClassVar
 
 
+def dock_window(rows: list[dict]) -> dict | None:
+    """Ignore GTK tooltip/menu popups that inherit the application's title."""
+    return next(
+        (
+            row
+            for row in rows
+            if row["title"] == "Docking" and row["class"] == "gdkWindowToplevel"
+        ),
+        None,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -77,6 +89,7 @@ def main() -> None:
     user32.IsWindowVisible.argtypes = (wintypes.HWND,)
     user32.IsWindowVisible.restype = wintypes.BOOL
     user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+    user32.GetClassNameW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
     user32.GetWindowRect.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.RECT))
     user32.GetWindowRect.restype = wintypes.BOOL
     user32.GetForegroundWindow.restype = wintypes.HWND
@@ -207,13 +220,16 @@ def main() -> None:
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
             if owner.value == pid and user32.IsWindowVisible(hwnd):
                 title = ctypes.create_unicode_buffer(512)
+                window_class = ctypes.create_unicode_buffer(256)
                 user32.GetWindowTextW(hwnd, title, 512)
+                user32.GetClassNameW(hwnd, window_class, len(window_class))
                 rect = wintypes.RECT()
                 if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
                     rows.append(
                         {
                             "hwnd": hwnd,
                             "title": title.value,
+                            "class": window_class.value,
                             "rect": [rect.left, rect.top, rect.right, rect.bottom],
                         }
                     )
@@ -317,9 +333,7 @@ def main() -> None:
                     ),
                     child.pid,
                 )
-            dock = next(
-                (w for w in windows(application_pid) if w["title"] == "Docking"), None
-            )
+            dock = dock_window(windows(application_pid))
             if dock:
                 break
             time.sleep(0.25)
