@@ -82,6 +82,8 @@ The release workflow stages the accepted Windows CI artifact alongside the
 Linux and BSD assets. It verifies the project version, package checksums and the
 matching successful installer report before copying the ZIP and installer to
 versioned and `docking-latest-windows-x86_64` names, with `SHA256SUMS-windows`.
+The native Windows CI job also runs this staging check before uploading its
+artifact, so pull requests exercise the same release checks with real packages.
 To stage a downloaded `windows-ucrt64-x64` artifact locally:
 
 ```sh

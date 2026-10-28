@@ -86,6 +86,15 @@ jobs:
         run: python -m tools.windows.installer --archive dist/docking-windows-x86_64.zip --output dist/docking-windows-x86_64-setup.exe
       - name: Exercise installation, upgrades, startup and uninstall
         run: python -m tools.windows.visual.installer_smoke --installer dist/docking-windows-x86_64-setup.exe --output artifacts/windows/installer
+      - name: Verify accepted Windows release assets
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          from pathlib import Path
+          from tools.windows.release import stage
+
+          stage(Path("."), version("docking"), Path("artifacts/windows/release-staged"))
+          PY
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -98,6 +107,7 @@ jobs:
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/
             artifacts/windows/installer/
+            artifacts/windows/release-staged/SHA256SUMS-windows
             dist/*.whl
             dist/*.zip
             dist/*.zip.sha256
