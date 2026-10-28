@@ -2,8 +2,8 @@
 
 Build scripts for distributing Docking in various formats.
 
-The [Windows target](windows/README.md) builds a portable x64 application with
-its own Python, GTK, and multimedia runtime.
+The [Windows target](windows/README.md) builds a portable x64 application and
+per-user installer with their own Python, GTK, and multimedia runtime.
 
 ## Translation Ownership
 

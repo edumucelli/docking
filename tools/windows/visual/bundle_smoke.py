@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.windows.bundle import extract_bundle
+from tools.windows.bundle import extract_bundle, payload_root
 
 PROBE = r"""
 import ctypes
@@ -132,7 +132,7 @@ def main() -> None:
         parser.error("Requires a native Windows desktop")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    bundle = (
+    bundle = payload_root(
         extract_bundle(args.archive, output / "extracted/Docking")
         if args.archive is not None
         else args.bundle.resolve()

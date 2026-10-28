@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import sys
 import zipfile
 from pathlib import PurePosixPath
 
@@ -14,6 +15,7 @@ from tools.windows.bundle import (
     NativePackage,
     dependency_closure,
     extract_bundle,
+    filesystem_path,
     install_wheel,
     read_packages,
     relative_package_file,
@@ -177,3 +179,20 @@ def test_portable_artifact_extraction_checks_inventory_before_publishing(
             extract_bundle(archive_path, destination)
         assert not destination.exists()
         assert not (tmp_path / "outside").exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows long-path APIs")
+def test_portable_extraction_handles_long_nested_paths_without_system_policy(tmp_path):
+    name = "runtime/lib/" + "long-directory/" * 15 + "owned.txt"
+    archive_path = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr(
+            "Docking/files.sha256.json",
+            json.dumps({name: hashlib.sha256(b"owned").hexdigest()}),
+        )
+        archive.writestr("Docking/" + name, b"owned")
+    destination = tmp_path / "extracted"
+    assert extract_bundle(archive_path, destination) == destination
+    owned = filesystem_path(destination) / name
+    assert len(str(owned)) > 260
+    assert owned.read_bytes() == b"owned"

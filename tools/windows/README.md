@@ -6,6 +6,7 @@ Run these tools from the repository root. Native checks require Windows.
 - `webview2_setup`: install the verified Microsoft WebView2 loader.
 - `bundle`: assemble a relocatable application from a wheel and its native runtime;
   see [Windows packaging](../../packaging/windows/README.md).
+- `installer`: build per-user setup from a verified portable ZIP using NSIS.
 - [`visual/`](visual/README.md): desktop acceptance checks, VM controls, fixtures,
   captures and independent observations, matching the Linux and BSD tool layout.
 
@@ -21,6 +22,6 @@ python -m tools.windows.ci --stage gtk
 ```
 
 The [Windows workflow](../../.github/workflows/windows.yml) runs these checks
-with MSYS2 UCRT64, builds the wheel, and exercises that installed wheel through
-`smoke --installed-root`. Reports, screenshots and the wheel are uploaded as
+with MSYS2 UCRT64, builds the wheel, portable ZIP and per-user installer, then
+exercises each installation. Reports, screenshots and packages are uploaded as
 Actions artifacts; generated Windows captures do not belong in `images/`.

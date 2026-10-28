@@ -23,7 +23,9 @@ def test_gui_python_uses_console_sibling_for_stdin_hooks(tmp_path, monkeypatch):
     console = tmp_path / "python.exe"
     gui.touch()
     console.touch()
-    monkeypatch.setattr(hook_command, "sys", SimpleNamespace(executable=str(gui)))
+    monkeypatch.setattr(
+        hook_command, "sys", SimpleNamespace(executable=str(gui), prefix=str(tmp_path))
+    )
     argv = hook_command.hook_argv("claude", "Stop")
     assert argv[0] == str(console)
     assert Path(argv[1]).name == "hook_runner.py"

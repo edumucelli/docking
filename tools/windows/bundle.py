@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import hashlib
 import importlib.metadata as metadata
 import json
@@ -69,6 +70,48 @@ _EXECUTABLES = {
     "gspawn-win64-helper-console.exe",
     "gst-inspect-1.0.exe",
 }
+
+
+def filesystem_path(path: Path) -> Path:
+    """Access Windows package files without depending on long-path policy."""
+    if os.name != "nt":
+        return path
+    value = str(path.absolute())
+    if value.startswith("\\\\?\\"):
+        return Path(value)
+    if value.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + value[2:])
+    return Path("\\\\?\\" + value)
+
+
+def payload_root(root: Path) -> Path:
+    """Resolve either a portable bundle or the active per-user installation."""
+    if (root / "runtime/share/docking/runtime.json").is_file():
+        return root
+    from docking.platform.backends.windows.installation import installed_hook
+
+    try:
+        data = (root / "current.ini").read_bytes()
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read_string(
+            data.decode("utf-16" if data.startswith(b"\xff\xfe") else "utf-8-sig")
+        )
+        version = parser.get("Docking", "Current")
+    except (OSError, UnicodeError, configparser.Error) as exc:
+        raise ValueError(f"Incomplete Windows installation: {root}") from exc
+    if (
+        not re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9._-]{0,125}", version)
+        or ".." in version
+        or version.endswith(".")
+    ):
+        raise ValueError("Invalid active Windows runtime version")
+    payload = root / "versions" / version
+    if (
+        installed_hook(payload / "runtime") != root / "docking-hook.exe"
+        or not (payload / "runtime/share/docking/runtime.json").is_file()
+    ):
+        raise ValueError(f"Incomplete Windows installation: {root}")
+    return payload
 
 
 @dataclass(frozen=True)
@@ -175,10 +218,12 @@ def copy_file(source: Path, destination: Path) -> None:
 
 def extract_bundle(archive_path: Path, destination: Path) -> Path:
     """Extract a portable artifact, verifying every payload against its inventory."""
+    requested = destination
+    destination = filesystem_path(destination)
     if destination.exists():
         raise FileExistsError(f"Choose a new extraction destination: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive_path) as archive:
+    with zipfile.ZipFile(filesystem_path(archive_path)) as archive:
         inventory = json.loads(archive.read("Docking/files.sha256.json"))
         files = [entry for entry in archive.infolist() if not entry.is_dir()]
         expected = {"Docking/" + name for name in inventory}
@@ -213,7 +258,7 @@ def extract_bundle(archive_path: Path, destination: Path) -> Path:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
             stage.rename(destination)
-    return destination
+    return requested
 
 
 def install_wheel(wheel: Path, site: Path) -> tuple[str, tuple[str, ...]]:

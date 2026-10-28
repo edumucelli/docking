@@ -266,7 +266,10 @@ def main() -> None:
         working_directory = output
         report["installed_root"] = str(installed)
     if args.bundle is not None:
+        from tools.windows.bundle import payload_root
+
         bundle = args.bundle.resolve()
+        payload = payload_root(bundle)
         command = [str(bundle / "Docking.exe")]
         working_directory = output
         for name in tuple(env):
@@ -280,6 +283,7 @@ def main() -> None:
                 env.pop(name)
         env["PATH"] = str(Path(os.environ["WINDIR"]) / "System32")
         report["bundle"] = str(bundle)
+        report["bundle_payload"] = str(payload)
     report["executable"] = command[0]
     child = None
     dock = None
@@ -303,8 +307,8 @@ def main() -> None:
             if args.bundle is not None:
                 import psutil
 
-                interpreter = args.bundle.resolve() / "runtime/bin/pythonw.exe"
-                processes = psutil.Process(child.pid).children()
+                interpreter = payload / "runtime/bin/pythonw.exe"
+                processes = psutil.Process(child.pid).children(recursive=True)
                 application_pid = next(
                     (
                         process.pid

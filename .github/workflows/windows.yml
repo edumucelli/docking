@@ -40,6 +40,7 @@ jobs:
             gettext
             mingw-w64-ucrt-x86_64-gtk3
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-nsis
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-python-gobject
             mingw-w64-ucrt-x86_64-python-cairo
@@ -81,6 +82,10 @@ jobs:
         run: |
           python -m tools.windows.visual.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
           python -m tools.windows.visual.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
+      - name: Build the per-user Windows installer
+        run: python -m tools.windows.installer --archive dist/docking-windows-x86_64.zip --output dist/docking-windows-x86_64-setup.exe
+      - name: Exercise installation, upgrades, startup and uninstall
+        run: python -m tools.windows.visual.installer_smoke --installer dist/docking-windows-x86_64-setup.exe --output artifacts/windows/installer
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -92,8 +97,11 @@ jobs:
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/
+            artifacts/windows/installer/
             dist/*.whl
             dist/*.zip
             dist/*.zip.sha256
+            dist/*-setup.exe
+            dist/*.exe.sha256
           if-no-files-found: error
           retention-days: 14
