@@ -36,6 +36,9 @@ class RadioAPI(Protocol):
     def snapshot(self) -> tuple[Radio, ...]: ...
     def set_power(self, radio: Radio, powered: bool) -> bool: ...
     def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool: ...
+    def pair_device(
+        self, radio: Radio, device: ClassicDevice, timeout_s: int
+    ) -> bool: ...
     def start_discovery(self, radio: Radio) -> bool: ...
     def stop_discovery(self, identifier: str) -> bool: ...
     def close(self) -> None: ...
@@ -67,7 +70,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
         discovery=True,
         connect=False,
         disconnect=False,
-        pair=False,
+        pair=True,
     )
 
     def __init__(self, *, api: RadioAPI | None = None) -> None:
@@ -216,7 +219,51 @@ class WindowsBluetoothBackend(BluetoothBackend):
     def pair_device(
         self, device_path: str, address: str = "", timeout_s: int = 20
     ) -> bool:
-        return False
+        with self._lock:
+            if (
+                self._closed.is_set()
+                or type(timeout_s) is not int
+                or not 0 < timeout_s <= 120
+            ):
+                return False
+            try:
+                selected = next(
+                    (
+                        (r, d)
+                        for r in self._api.snapshot()
+                        for d in r.devices
+                        if f"{r.identifier}/{d.address:012x}" == device_path
+                    ),
+                    None,
+                )
+                if selected is None or self._closed.is_set():
+                    return False
+                radio, device = selected
+                if radio.state != 1 or (
+                    address and address.lower() != address_text(device.address)
+                ):
+                    return False
+                if device.paired:
+                    return True
+                if (
+                    not self._api.pair_device(radio, device, timeout_s)
+                    or self._closed.is_set()
+                ):
+                    return False
+                return (
+                    any(
+                        r.identifier == radio.identifier
+                        and r.address == radio.address
+                        and d.address == device.address
+                        and d.paired
+                        for r in self._api.snapshot()
+                        for d in r.devices
+                    )
+                    and not self._closed.is_set()
+                )
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                log.debug("Bluetooth pairing failed")
+                return False
 
     def remove_device(self, adapter_path: str, device_path: str) -> bool:
         with self._lock:

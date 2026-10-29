@@ -81,6 +81,8 @@ jobs:
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Verify Search input and shortcut recovery across keyboard layouts
         run: python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts
+      - name: Verify owned pairing prompt cancellation without a radio
+        run: python -m tools.windows.visual.pairing_smoke --output artifacts/windows/pairing
       - name: Build the standalone Windows application
         run: |
           python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
@@ -112,6 +114,7 @@ jobs:
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/
             artifacts/windows/search-layouts/
+            artifacts/windows/pairing/
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/

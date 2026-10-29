@@ -1676,8 +1676,21 @@ finish its bounded native request. Late starts and stopped results cannot re-ena
 or publish newly found unknown devices. This controls Docking's own polling;
 other applications' discovery sessions remain under their control.
 
-Windows does not expose BlueZ trust semantics. Generic connect/disconnect and
-in-app pairing controls are omitted by backend capability.
+Unpaired classic devices expose **Pair** through the shared device menu. The
+backend resolves the exact current adapter/device identity and uses
+`BluetoothAuthenticateDeviceEx` with that radio's open handle. Windows owns the
+PIN/confirmation ceremony; Docking does not receive or store authentication
+codes. An accepted native result must also have matching paired-state readback.
+
+The prompt runs in a helper process assigned to an owned Windows process job
+before it receives its request. Its hidden owner pumps native messages. Timeout
+or applet shutdown requests cancellation and dismisses only windows rooted in
+that owner or created by its authentication thread. The worker reaps the helper;
+GTK shutdown only sets a cancellation event. Stale or powered-off radios,
+missing devices, rejected requests and late replies cannot report a new bond.
+
+Windows does not expose BlueZ trust semantics. Generic connect/disconnect
+controls are omitted by backend capability.
 Device rows without supported actions have no empty submenus. **Devices...**
 opens the native **Bluetooth & devices > Devices** page, including when no radio
 is installed.
@@ -1703,6 +1716,10 @@ physical inquiry results and discovery coverage remain unverified.
 Pairing-removal ABI checks exercise the actual Windows client export and its
 invalid-address error. Successful removal and authentication readback use an
 injected classic-device fixture; physical unpairing remains unverified.
+`tools/windows/visual/pairing_smoke.py` exercises production helper ownership and
+IPC with explicitly synthetic native dialogs: accept, reject, timeout and a GTK
+cancel button. These fixtures make no radio calls. Actual Windows authentication
+ceremonies and successful physical pairing remain unverified.
 
 ```sh
 python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 start \
@@ -1723,6 +1740,7 @@ References: [adapter enumeration](https://learn.microsoft.com/en-us/uwp/api/wind
 [radio changes](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.setstateasync),
 [classic device enumeration and LE limitation](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
 [classic pairing removal](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothremovedevice),
+[classic authentication](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothauthenticatedeviceex),
 [device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params),
 [Windows file-transfer wizard](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-user-interface).
 

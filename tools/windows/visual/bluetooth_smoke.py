@@ -191,6 +191,25 @@ def main():
             )
             return True
 
+        def pair_device(self, radio, device, timeout_s):
+            if self.denied:
+                return False
+            self.radios = tuple(
+                replace(
+                    current,
+                    devices=tuple(
+                        replace(item, paired=True)
+                        if item.address == device.address
+                        else item
+                        for item in current.devices
+                    ),
+                )
+                if current.identifier == radio.identifier
+                else current
+                for current in self.radios
+            )
+            return True
+
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))
 
@@ -399,6 +418,32 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 "readback_unpaired": True,
                 "state": asdict(state()),
                 "scope": "injected classic-device fixture; no physical unpairing",
+            }
+            popup, rows = menu()
+            keyboard = next(
+                row["label"]
+                for row in rows
+                if row["label"].startswith("Fixture keyboard")
+            )
+            submenu = choose(popup, keyboard, submenu=True)
+            actions = call(lambda: [row.get_label() for row in submenu.get_children()])
+            assert actions == ["Pair"]
+            capture("fixture-pair-menu")
+            choose(submenu, "Pair")
+            native.wait_for(
+                lambda: (
+                    idle()
+                    and any(
+                        device.path == keyboard_device.path and device.paired
+                        for device in state().devices
+                    )
+                ),
+                "Fixture pairing readback failed",
+            )
+            report["fixture_pairing"] = {
+                "actions": actions,
+                "readback_paired": True,
+                "scope": "injected device; no physical pairing or authentication",
             }
             native.wait_for(
                 lambda: idle() and state().adapters[0].discovering,

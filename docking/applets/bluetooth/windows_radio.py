@@ -13,10 +13,13 @@ import json
 import os
 import subprocess
 import threading
+from collections.abc import Generator, Iterator
+from contextlib import closing, contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from docking.applets.bluetooth.windows_pairing import PairingOperation
 from docking.platform.backends.windows.ffi import bind
 
 _DWORD = ctypes.c_uint32
@@ -142,13 +145,33 @@ class ClassicInventory:
             for address in inquiry_addresses
         ):
             raise ValueError("Bluetooth inquiry requires valid radio addresses")
+        result = {}
+        with closing(self._radios()) as radios:
+            for info, handle in radios:
+                result[int(info.address)] = self._devices(
+                    handle, inquiry=int(info.address) in inquiry_addresses
+                )
+        return result
+
+    @contextmanager
+    def radio_handle(self, address: int) -> Iterator[_HANDLE | None]:
+        """Keep the selected radio alive for one operation, never all radios."""
+        if type(address) is not int or not 0 < address < 1 << 48:
+            raise ValueError("Bluetooth operation requires a valid radio address")
+        with closing(self._radios()) as radios:
+            for info, handle in radios:
+                if info.address == address:
+                    yield handle
+                    return
+        yield None
+
+    def _radios(self) -> Generator[tuple[_RadioInfo, _HANDLE], None, None]:
         radio = _HANDLE()
         cursor = self._first_radio(ctypes.byref(_DWORD(4)), ctypes.byref(radio))
         try:
             if not cursor:
                 self._end()
-                return {}
-            result = {}
+                return
             for _ in range(256):
                 try:
                     info = _RadioInfo()
@@ -156,16 +179,14 @@ class ClassicInventory:
                     status = self._info(radio, ctypes.byref(info))
                     if status:
                         raise OSError(status, "Bluetooth radio information failed")
-                    result[int(info.address)] = self._devices(
-                        radio, inquiry=int(info.address) in inquiry_addresses
-                    )
+                    yield info, radio
                 finally:
                     if radio.value:
                         self._close_handle(radio)
                         radio = _HANDLE()
                 if not self._next_radio(cursor, ctypes.byref(radio)):
                     self._end()
-                    return result
+                    return
             raise OSError("Bluetooth radio enumeration exceeded its limit")
         finally:
             if radio.value:
@@ -309,15 +330,36 @@ def _request(payload: dict[str, Any]) -> dict[str, Any]:
 class WindowsBluetoothAPI:
     def __init__(self) -> None:
         self._discovery_lock = threading.Lock()
+        self._pairing_lock = threading.Lock()
+        self._pairing: PairingOperation | None = None
         self._closed = threading.Event()
         self._discovering: dict[str, int] = {}
         self._pending: dict[str, object] = {}
 
     def close(self) -> None:
         self._closed.set()
+        with self._pairing_lock:
+            if self._pairing is not None:
+                self._pairing.cancel()
         with self._discovery_lock:
             self._discovering.clear()
             self._pending.clear()
+
+    def pair_device(self, radio: Radio, device: ClassicDevice, timeout_s: int) -> bool:
+        operation = PairingOperation()
+        with self._pairing_lock:
+            if self._closed.is_set() or self._pairing is not None or radio.state != 1:
+                return False
+            self._pairing = operation
+        try:
+            return (
+                operation.run(radio.address, device.address, timeout_s)
+                and not self._closed.is_set()
+            )
+        finally:
+            with self._pairing_lock:
+                if self._pairing is operation:
+                    self._pairing = None
 
     def start_discovery(self, radio: Radio) -> bool:
         if self._closed.is_set() or radio.state != 1:

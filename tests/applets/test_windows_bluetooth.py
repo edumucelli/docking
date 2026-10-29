@@ -35,6 +35,7 @@ class RadioAPI:
         )
         self.writes = []
         self.removals = []
+        self.pairings = []
         self.accept = True
         self.discovery_starts = []
         self.discovery_stops = []
@@ -63,6 +64,23 @@ class RadioAPI:
 
     def snapshot(self):
         return self.radios
+
+    def pair_device(self, target, device, timeout_s):
+        self.pairings.append((target.identifier, device.address, timeout_s))
+        if self.accept:
+            self.radios = tuple(
+                replace(
+                    r,
+                    devices=tuple(
+                        replace(d, paired=True) if d.address == device.address else d
+                        for d in r.devices
+                    ),
+                )
+                if r.identifier == target.identifier
+                else r
+                for r in self.radios
+            )
+        return self.accept
 
     def set_power(self, target, powered):
         self.writes.append((target.identifier, powered))
@@ -794,3 +812,135 @@ def test_native_read_only_bluetooth_inventory():
     state = mod.WindowsBluetoothBackend().get_state()
     assert isinstance(state.available, bool)
     assert not state.available or state.adapters
+
+
+@pytest.mark.parametrize(
+    "mode", ["success", "denied", "no-readback", "radio-replaced", "closed"]
+)
+def test_pairing_targets_fresh_device_and_requires_matching_readback(backend, mode):
+    client, api = backend
+    original = api.radios[0]
+    device = replace(original.devices[0], paired=False)
+    api.radios = (replace(original, devices=(device,)),)
+    pair = api.pair_device
+
+    def perform(radio, target, timeout):
+        if mode == "denied":
+            api.accept = False
+        result = pair(radio, target, timeout)
+        if mode == "no-readback":
+            api.radios = (replace(original, devices=(device,)),)
+        if mode == "radio-replaced":
+            api.radios = (replace(api.radios[0], address=0x221133445566),)
+        if mode == "closed":
+            client.close()
+        return result
+
+    api.pair_device = perform
+    assert client.pair_device("radio/first/aabbccddeeff", "AA:BB:CC:DD:EE:FF", 30) is (
+        mode == "success"
+    )
+    assert api.pairings == [("radio/first", device.address, 30)]
+
+
+@pytest.mark.parametrize(
+    "mode", ["missing", "off", "policy", "address", "timeout", "closed", "paired"]
+)
+def test_invalid_or_already_paired_targets_do_not_launch_a_prompt(backend, mode):
+    client, api = backend
+    first = api.radios[0]
+    device = replace(first.devices[0], paired=mode == "paired")
+    api.radios = (
+        replace(
+            first,
+            state=2 if mode == "off" else 3 if mode == "policy" else 1,
+            devices=(device,),
+        ),
+    )
+    if mode == "closed":
+        client.close()
+    assert client.pair_device(
+        "missing" if mode == "missing" else "radio/first/aabbccddeeff",
+        "00:11:22:33:44:55" if mode == "address" else "",
+        True if mode == "timeout" else 20,
+    ) is (mode == "paired")
+    assert api.pairings == []
+
+
+def selected_inventory():
+    value = inventory()
+
+    def first(_size, output):
+        output._obj.value = 42
+        return 99
+
+    def info(_handle, output):
+        output._obj.address = 0x112233445566
+        return 0
+
+    value._first_radio = first
+    value._info = info
+    value._next_radio = lambda *_args: False
+    return value
+
+
+def test_selected_radio_handle_is_closed_when_the_operation_raises():
+    value = selected_inventory()
+    with pytest.raises(RuntimeError), value.radio_handle(0x112233445566) as handle:
+        assert handle.value == 42
+        assert value.closed == []
+        raise RuntimeError("Operation failed")
+    assert value.closed == [("radio", 42), ("radios", 99)]
+
+
+def test_missing_selected_radio_closes_enumeration_without_global_fallback():
+    value = selected_inventory()
+    with value.radio_handle(0x221133445566) as handle:
+        assert handle is None
+    assert value.closed == [("radio", 42), ("radios", 99)]
+
+
+def test_api_close_cancels_pairing_without_waiting_for_its_worker(monkeypatch):
+    import threading
+    import time
+
+    entered, released = threading.Event(), threading.Event()
+    operation = Mock()
+
+    def run(*_args):
+        entered.set()
+        assert released.wait(5)
+        return True
+
+    operation.run = run
+    monkeypatch.setattr(radio, "PairingOperation", lambda: operation)
+    api = radio.WindowsBluetoothAPI()
+    first = RadioAPI().radios[0]
+    results = []
+    worker = threading.Thread(
+        target=lambda: results.append(api.pair_device(first, first.devices[0], 20))
+    )
+    worker.start()
+    try:
+        assert entered.wait(5)
+        assert not api.pair_device(first, first.devices[0], 20)
+        before = time.monotonic()
+        api.close()
+        assert time.monotonic() - before < 0.25
+        operation.cancel.assert_called_once_with()
+    finally:
+        released.set()
+        worker.join(5)
+    assert not worker.is_alive() and results == [False]
+    assert not api.pair_device(first, first.devices[0], 20)
+
+
+def test_api_pairing_failure_releases_the_operation_slot(monkeypatch):
+    operation = Mock()
+    operation.run.side_effect = [OSError("Prompt unavailable"), True]
+    monkeypatch.setattr(radio, "PairingOperation", lambda: operation)
+    api = radio.WindowsBluetoothAPI()
+    first = RadioAPI().radios[0]
+    with pytest.raises(OSError):
+        api.pair_device(first, first.devices[0], 20)
+    assert api.pair_device(first, first.devices[0], 20)
