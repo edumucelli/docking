@@ -116,6 +116,12 @@ class ClassicInventory:
             ctypes.POINTER(_DeviceInfo),
         )
         self._close_devices = bind(dll, "BluetoothFindDeviceClose", _BOOL, _HANDLE)
+        self._remove = bind(
+            dll,
+            "BluetoothRemoveDevice",
+            _DWORD,
+            ctypes.POINTER(ctypes.c_uint64),
+        )
         self._close_handle = bind(
             ctypes.WinDLL("kernel32"), "CloseHandle", _BOOL, _HANDLE
         )
@@ -191,6 +197,21 @@ class ClassicInventory:
         finally:
             if cursor:
                 self._close_devices(cursor)
+
+    def remove_pairing(self, radio_address: int, device_address: int) -> bool:
+        """Revalidate the remembered classic device before removing its bond."""
+        if any(
+            type(address) is not int or not 0 < address < 1 << 48
+            for address in (radio_address, device_address)
+        ):
+            return False
+        devices = self.snapshot().get(radio_address, ())
+        if not any(d.address == device_address and d.paired for d in devices):
+            return False
+        status = self._remove(ctypes.byref(ctypes.c_uint64(device_address)))
+        if status:
+            raise OSError(status, "Bluetooth pairing removal failed")
+        return True
 
 
 _RADIO_SCRIPT = r"""
@@ -269,6 +290,9 @@ def _request(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class WindowsBluetoothAPI:
+    def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool:
+        return ClassicInventory().remove_pairing(radio.address, device.address)
+
     def snapshot(self) -> tuple[Radio, ...]:
         data = _request({"action": "read"})
         entries = data.get("radios")

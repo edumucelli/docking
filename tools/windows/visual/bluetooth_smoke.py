@@ -40,7 +40,11 @@ def main():
 
     import docking.app as app
     from docking.applets.bluetooth.windows import WindowsBluetoothBackend
-    from docking.applets.bluetooth.windows_radio import ClassicDevice, Radio
+    from docking.applets.bluetooth.windows_radio import (
+        ClassicDevice,
+        Radio,
+        address_text,
+    )
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.powerprofiles_smoke import powershell
 
@@ -122,6 +126,7 @@ def main():
                 ),
             )
             self.writes, self.denied = [], False
+            self.removals = []
 
         def snapshot(self):
             return self.radios
@@ -135,6 +140,26 @@ def main():
                 if r.identifier == radio.identifier
                 else r
                 for r in self.radios
+            )
+            return True
+
+        def remove_pairing(self, radio, device):
+            self.removals.append([radio.identifier, device.address])
+            if self.denied:
+                return False
+            self.radios = tuple(
+                replace(
+                    current,
+                    devices=tuple(
+                        replace(item, paired=False)
+                        if item.address == device.address
+                        else item
+                        for item in current.devices
+                    ),
+                )
+                if current.identifier == radio.identifier
+                else current
+                for current in self.radios
             )
             return True
 
@@ -201,7 +226,7 @@ def main():
                 )
                 return popup, rows
 
-            def choose(popup, label):
+            def choose(popup, label, *, submenu=False):
                 native.key(0x24)
                 for _ in range(40):
                     selected = call(lambda: popup.get_selected_item())
@@ -210,8 +235,17 @@ def main():
                         and call(lambda selected=selected: selected.get_label())
                         == label
                     ):
-                        native.key(0x0D)
-                        return
+                        native.key(0x27 if submenu else 0x0D)
+                        if submenu:
+                            child = call(
+                                lambda selected=selected: selected.get_submenu()
+                            )
+                            native.wait_for(
+                                lambda child=child: call(lambda: child.get_mapped()),
+                                "Device submenu did not map",
+                            )
+                            return child
+                        return None
                     native.key(0x28)
                 raise AssertionError(f"Menu item {label} did not receive selection")
 
@@ -296,13 +330,49 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 and "Recent Connections" not in labels
             )
             assert "Turn Bluetooth Off" in labels and "Devices..." in labels
-            assert all(
-                not row["submenu"] and not row["enabled"]
+            device_rows = [
+                row
                 for row in rows
-                if row["label"].startswith("Fixture ")
-            )
+                if row["label"].startswith(("Fixture headphones", "Fixture keyboard"))
+            ]
+            assert len(device_rows) == 2
+            assert all(row["submenu"] and row["enabled"] for row in device_rows)
             report["fixture_menu"] = rows
             capture("fixture-connected-menu")
+            keyboard = next(
+                row["label"]
+                for row in rows
+                if row["label"].startswith("Fixture keyboard")
+            )
+            keyboard_device = next(
+                device
+                for device in state().devices
+                if device.address == address_text(0xAABBCCDDEE11)
+            )
+            submenu = choose(popup, keyboard, submenu=True)
+            actions = call(lambda: [row.get_label() for row in submenu.get_children()])
+            assert actions == ["Remove Pairing"]
+            capture("fixture-remove-pairing-menu")
+            choose(submenu, "Remove Pairing")
+            native.wait_for(
+                lambda: (
+                    idle()
+                    and any(
+                        device.path == keyboard_device.path and not device.paired
+                        for device in state().devices
+                    )
+                ),
+                "Fixture pairing removal readback failed",
+            )
+            assert fixture.removals == [["explicit-bluetooth-fixture", 0xAABBCCDDEE11]]
+            report["fixture_pairing_removal"] = {
+                "actions": actions,
+                "writes": fixture.removals,
+                "readback_unpaired": True,
+                "state": asdict(state()),
+                "scope": "injected classic-device fixture; no physical unpairing",
+            }
+            popup, _rows = menu()
             choose(popup, "Turn Bluetooth Off")
             native.wait_for(
                 lambda: idle() and not state().adapters[0].powered,

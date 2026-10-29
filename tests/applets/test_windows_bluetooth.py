@@ -7,6 +7,7 @@ import subprocess
 import sys
 from dataclasses import replace
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -33,6 +34,7 @@ class RadioAPI:
             radio.Radio("radio/second", 0x221133445566, "Second", 2),
         )
         self.writes = []
+        self.removals = []
         self.accept = True
 
     def snapshot(self):
@@ -43,6 +45,23 @@ class RadioAPI:
         if self.accept:
             self.radios = tuple(
                 replace(r, state=1 if powered else 2)
+                if r.identifier == target.identifier
+                else r
+                for r in self.radios
+            )
+        return self.accept
+
+    def remove_pairing(self, target, device):
+        self.removals.append((target.identifier, device.address))
+        if self.accept:
+            self.radios = tuple(
+                replace(
+                    r,
+                    devices=tuple(
+                        replace(d, paired=False) if d.address == device.address else d
+                        for d in r.devices
+                    ),
+                )
                 if r.identifier == target.identifier
                 else r
                 for r in self.radios
@@ -108,6 +127,50 @@ def test_successful_request_without_completed_state_change_is_failure(backend):
     client, api = backend
     api.set_power = lambda *args: True
     assert not client.set_adapter_power("radio/first", False)
+
+
+def test_remove_pairing_targets_fresh_device_and_verifies_authentication_readback(
+    backend,
+):
+    client, api = backend
+    device = client.get_state().devices[0]
+    assert client.capabilities.remove_pairing
+    assert client.remove_device(device.adapter_path, device.path)
+    assert api.removals == [("radio/first", 0xAABBCCDDEEFF)]
+    assert not client.get_state().devices[0].paired
+
+
+@pytest.mark.parametrize(
+    "reason", ["wrong-adapter", "stale-device", "unpaired", "closed"]
+)
+def test_remove_pairing_rejects_stale_or_unowned_targets(backend, reason):
+    client, api = backend
+    device = client.get_state().devices[0]
+    adapter, path = device.adapter_path, device.path
+    if reason == "wrong-adapter":
+        adapter = "radio/second"
+    elif reason == "stale-device":
+        path += "0"
+    elif reason == "unpaired":
+        api.radios = (
+            replace(
+                api.radios[0],
+                devices=(replace(api.radios[0].devices[0], paired=False),),
+            ),
+        )
+    else:
+        client.close()
+    assert not client.remove_device(adapter, path)
+    assert api.removals == []
+
+
+def test_removal_success_without_changed_authentication_is_not_reported_as_complete(
+    backend,
+):
+    client, api = backend
+    device = client.get_state().devices[0]
+    api.remove_pairing = lambda *_args: True
+    assert not client.remove_device(device.adapter_path, device.path)
 
 
 def test_removed_adapter_and_closed_client_never_change_another_radio(backend):
@@ -312,14 +375,14 @@ def test_provider_request_is_encoded_bounded_and_never_uses_a_shell(monkeypatch)
     assert radio._request(request)["changed"] is False
 
 
-def test_shared_menu_exposes_only_supported_actions_and_read_only_devices(
+def test_shared_menu_exposes_pairing_removal_without_unsupported_connection_actions(
     backend,
     monkeypatch,
 ):
     from docking.applets.bluetooth import applet as ui
     from docking.core.config import Config
 
-    client, _ = backend
+    client, api = backend
     monkeypatch.setattr(ui, "create_backend", lambda: client)
     applet = ui.BluetoothApplet(48, Config())
     applet._on_poll_result(client.get_state())
@@ -329,9 +392,84 @@ def test_shared_menu_exposes_only_supported_actions_and_read_only_devices(
     assert "Continuous Discovery" not in labels
     assert "Recent Connections" not in labels and "Disconnect Headphones" not in labels
     device = next(row for row in rows if "Headphones" in (row.get_label() or ""))
-    assert device.get_submenu() is None and not device.get_sensitive()
+    submenu = device.get_submenu()
+    assert submenu is not None and device.get_sensitive()
+    actions = submenu.get_children()
+    assert [row.get_label() for row in actions] == ["Remove Pairing"]
+    applet._run_async = lambda task: task()
+    for callback, args in actions[0]._signals["activate"]:
+        callback(actions[0], *args)
+    assert api.removals == [("radio/first", 0xAABBCCDDEEFF)]
+    assert not client.get_state().devices[0].paired
     assert not applet._local_discovery_paths
     applet.stop()
+
+
+def test_closing_during_pairing_removal_does_not_read_or_publish_late_state(backend):
+    client, api = backend
+    device = client.get_state().devices[0]
+
+    def remove(*_args):
+        client.close()
+        api.snapshot = lambda: pytest.fail("Closed client read late device state")
+        return True
+
+    api.remove_pairing = remove
+    assert not client.remove_device(device.adapter_path, device.path)
+
+
+def test_native_removal_revalidates_radio_and_paired_device_before_exact_address_call():
+    value = inventory()
+    device = radio.ClassicDevice(0xAABBCCDDEEFF, "Fixture", 0, True, False)
+    value.snapshot = lambda: {0x112233445566: (device,)}
+    calls = []
+
+    def remove(address):
+        calls.append(address._obj.value)
+        return 0
+
+    value._remove = remove
+    assert value.remove_pairing(0x112233445566, device.address)
+    assert calls == [device.address]
+    assert not value.remove_pairing(0x112233445567, device.address)
+    assert not value.remove_pairing(0x112233445566, device.address + 1)
+    assert calls == [device.address]
+    value.snapshot = lambda: {0x112233445566: (replace(device, paired=False),)}
+    assert not value.remove_pairing(0x112233445566, device.address)
+    assert calls == [device.address]
+
+
+@pytest.mark.parametrize("address", [0, -1, 1 << 48, True])
+def test_native_removal_rejects_invalid_addresses_without_inventory_or_write(address):
+    value = inventory()
+    value.snapshot = Mock(
+        side_effect=AssertionError("Invalid address queried inventory")
+    )
+    value._remove = Mock(side_effect=AssertionError("Invalid address reached Windows"))
+    assert not value.remove_pairing(address, 0xAABBCCDDEEFF)
+    assert not value.remove_pairing(0x112233445566, address)
+
+
+def test_native_removal_preserves_windows_failure_instead_of_reporting_success():
+    value = inventory()
+    device = radio.ClassicDevice(0xAABBCCDDEEFF, "Fixture", 0, True, False)
+    value.snapshot = lambda: {0x112233445566: (device,)}
+    value._remove = lambda _address: 1168
+    with pytest.raises(OSError) as error:
+        value.remove_pairing(0x112233445566, device.address)
+    assert error.value.errno == 1168
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32", reason="Native Windows client Bluetooth ABI"
+)
+def test_native_removal_binding_rejects_an_invalid_device_without_changing_pairings():
+    if sys.getwindowsversion().product_type != 1:
+        pytest.skip("Microsoft supports BluetoothRemoveDevice on Windows clients")
+    value = radio.ClassicInventory()
+    assert value._remove.restype is ctypes.c_uint32
+    assert value._remove.argtypes == (ctypes.POINTER(ctypes.c_uint64),)
+    assert value._remove(ctypes.byref(ctypes.c_uint64(0))) in (87, 1168)
 
 
 def test_shared_menu_keeps_settings_when_no_adapter_exists(backend, monkeypatch):

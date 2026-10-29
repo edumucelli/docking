@@ -1633,10 +1633,20 @@ Win32 cached enumeration supplies paired/connected **classic Bluetooth** devices
 for each local radio address. It does not issue inquiries. Radio, enumeration
 and device-search handles are closed on success, failure and removal. Device
 battery and signal strength stay unknown when the provider cannot supply them.
+Paired classic devices expose **Remove Pairing** through the shared device
+menu. The Windows backend revalidates the selected adapter and device identities
+before calling `BluetoothRemoveDevice`, then reads authentication state again
+before reporting completion. The native function removes the computer's bond
+and cached services for that device address; the adapter identity guards the
+selection but does not make the Windows operation adapter-specific. An absent,
+unpaired or stale device, a rejected request, unchanged authentication or a
+closed backend does not report successful removal.
+
 Windows does not expose BlueZ trust semantics. Generic connect/disconnect,
-in-app pairing/removal and discovery controls are omitted by backend capability;
-read-only device rows have no empty submenus. **Devices...** opens the native
-**Bluetooth & devices > Devices** page, including when no radio is installed.
+in-app pairing and discovery controls are omitted by backend capability.
+Device rows without supported actions have no empty submenus. **Devices...**
+opens the native **Bluetooth & devices > Devices** page, including when no radio
+is installed.
 
 **Send Files to Device...** opens the built-in Windows Bluetooth File Transfer
 wizard directly in send mode. The action is available when
@@ -1653,6 +1663,9 @@ settings page, accessibility metadata, inspected desktop captures, normal close
 and work-area restoration passed. The subsequent connected/paired, on/off,
 denied-change, external-change, policy-disabled and removal scenarios are
 **explicit injected API fixtures**. No physical radio was changed.
+Pairing-removal ABI checks exercise the actual Windows client export and its
+invalid-address error. Successful removal and authentication readback use an
+injected classic-device fixture; physical unpairing remains unverified.
 
 ```sh
 python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 start \
@@ -1662,15 +1675,17 @@ python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 st
 ```
 
 Physical radio/policy/permission behavior, multiple adapters and hotplug, BLE
-inventory, active discovery, pairing, device-specific connection management,
-file transfer and accessories remain part of Windows parity acceptance or
-implementation. The VM fixtures do not establish hardware support.
+inventory, active discovery, pairing and pairing removal, device-specific
+connection management, file transfer and accessories remain part of Windows
+parity acceptance or implementation. The VM fixtures do not establish hardware
+support.
 
 References: [adapter enumeration](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter.getdeviceselector),
 [radio state](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radiostate),
 [radio access](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.requestaccessasync),
 [radio changes](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.setstateasync),
 [classic device enumeration and LE limitation](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
+[classic pairing removal](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothremovedevice),
 [device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params),
 [Windows file-transfer wizard](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-user-interface).
 

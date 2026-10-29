@@ -22,6 +22,7 @@ from docking.applets.bluetooth.state import (
     unavailable_state,
 )
 from docking.applets.bluetooth.windows_radio import (
+    ClassicDevice,
     Radio,
     WindowsBluetoothAPI,
     address_text,
@@ -34,6 +35,7 @@ log = get_logger("bluetooth.windows")
 class RadioAPI(Protocol):
     def snapshot(self) -> tuple[Radio, ...]: ...
     def set_power(self, radio: Radio, powered: bool) -> bool: ...
+    def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool: ...
 
 
 def _device_icon(device_class: int) -> str:
@@ -54,11 +56,11 @@ def _file_sender() -> Path | None:
 
 
 class WindowsBluetoothBackend(BluetoothBackend):
-    # Windows owns trust, pairing and profile-specific connection management.
+    # Windows owns trust, pairing UI and profile-specific connections.
     # Classic cached enumeration is not discovery and does not cover BLE.
     capabilities = BluetoothCapabilities(
         trust=False,
-        remove_pairing=False,
+        remove_pairing=True,
         discovery=False,
         connect=False,
         disconnect=False,
@@ -190,7 +192,48 @@ class WindowsBluetoothBackend(BluetoothBackend):
         return False
 
     def remove_device(self, adapter_path: str, device_path: str) -> bool:
-        return False
+        with self._lock:
+            if self._closed.is_set():
+                return False
+            try:
+                radio = next(
+                    (r for r in self._api.snapshot() if r.identifier == adapter_path),
+                    None,
+                )
+                if radio is None:
+                    return False
+                device = next(
+                    (
+                        d
+                        for d in radio.devices
+                        if f"{radio.identifier}/{d.address:012x}" == device_path
+                        and d.paired
+                    ),
+                    None,
+                )
+                if device is None or self._closed.is_set():
+                    return False
+                if not self._api.remove_pairing(radio, device) or self._closed.is_set():
+                    return False
+                fresh = next(
+                    (
+                        r
+                        for r in self._api.snapshot()
+                        if r.identifier == radio.identifier
+                        and r.address == radio.address
+                    ),
+                    None,
+                )
+                return (
+                    not self._closed.is_set()
+                    and fresh is not None
+                    and not any(
+                        d.address == device.address and d.paired for d in fresh.devices
+                    )
+                )
+            except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+                log.debug("Bluetooth pairing removal failed: %s", exc)
+                return False
 
     def set_trusted(self, device_path: str, trusted: bool) -> bool:
         return False
