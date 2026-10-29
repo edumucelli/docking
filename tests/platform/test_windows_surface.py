@@ -129,6 +129,22 @@ def test_fullscreen_exit_without_a_shell_notification_restores_and_stops(
     assert service._fullscreen_source == 0
 
 
+def test_reentrant_fullscreen_notification_keeps_its_new_exit_observer(fullscreen_poll):
+    service, added, removed = fullscreen_poll
+    added.return_value = 10
+    service._appbar.fullscreen_active.return_value = False
+
+    def changing_z_order(above):
+        if above:
+            service._fullscreen_changed(True)
+
+    service._window.set_keep_above.side_effect = changing_z_order
+    assert service._poll_fullscreen() is False
+    removed.assert_called_once_with(9)
+    assert service._fullscreen_source == 10
+    assert added.call_count == 2
+
+
 def test_surface_stop_removes_its_fullscreen_observer(fullscreen_poll):
     service, _added, removed = fullscreen_poll
     service.stop()

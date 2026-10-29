@@ -215,12 +215,24 @@ def run_scenario(output: Path, scenario: str) -> None:
 
             def observe():
                 rectangle = call(clock_rectangle)
+
+                def stacking():
+                    surface = shared["ui"].window.surface_service
+                    return {
+                        "observer": surface._fullscreen_source,
+                        "foreground_fullscreen": surface._appbar.fullscreen_active(
+                            surface._mapping
+                        ),
+                        "gtk_state": int(shared["ui"].window.get_window().get_state()),
+                    }
+
                 image = ImageGrab.grab(all_screens=True).convert("RGB")
                 crop = image.crop(tuple(rectangle))
                 assert crop.width > 0 and crop.height > 0
                 colors = crop.getcolors(crop.width * crop.height)
                 return {
                     "dock_topmost": bool(style(dock["hwnd"], -20) & 8),
+                    "stacking": call(stacking),
                     "fixture": fixture_window(),
                     "foreground": int(native.user.GetForegroundWindow()),
                     "clock_rectangle": rectangle,
@@ -337,7 +349,8 @@ def run_scenario(output: Path, scenario: str) -> None:
         report["workarea_after"] = native.workarea()
         assert report["workarea_after"] == baseline
         assert native.explorer() == explorer
-        assert errors == []
+        if errors:
+            raise errors[0]
         report["normal_shutdown"] = True
     except Exception as exc:
         report.update(ok=False, error=repr(exc))

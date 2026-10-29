@@ -296,6 +296,12 @@ class WindowsSurfaceService(SurfaceService):
 
     def _fullscreen_changed(self, fullscreen: bool) -> None:
         if self._window is not None:
+            if not fullscreen and self._fullscreen_source:
+                # Changing native z-order can deliver another shell callback
+                # synchronously. Retire this observer before GTK so a nested
+                # fullscreen notification can own a new one.
+                GLib.source_remove(self._fullscreen_source)
+                self._fullscreen_source = 0
             self._window.set_keep_above(not fullscreen)
             if fullscreen:
                 # Removing TOPMOST places the dock at the top of the normal
@@ -314,9 +320,6 @@ class WindowsSurfaceService(SurfaceService):
                     self._fullscreen_source = GLib.timeout_add(
                         250, self._poll_fullscreen
                     )
-            elif self._fullscreen_source:
-                GLib.source_remove(self._fullscreen_source)
-                self._fullscreen_source = 0
 
     def _poll_fullscreen(self) -> bool:
         if self._appbar is None or self._mapping is None:
