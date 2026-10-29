@@ -46,8 +46,8 @@ the dock during an existing fullscreen application, with pixel coverage,
 foreground retention, restored native stacking, direct Alt+F4 closure and normal
 cleanup of both fullscreen and restoration observers.
 The Search input mode checks US/French/Dvorak physical typing and French dead
-keys, live punctuation bindings, unavailable layouts, temporary conflicts and
-shutdown during retry. It restores the original input preferences and loaded
+keys across a cold metadata refresh, live punctuation bindings, unavailable
+layouts, temporary conflicts and shutdown during retry. It restores the original input preferences and loaded
 layouts, and verifies that all tested shortcuts can be registered after exit.
 It also builds the standalone ZIP and exercises its extracted
 runtime and launcher. The installer check verifies per-user setup, installed-file

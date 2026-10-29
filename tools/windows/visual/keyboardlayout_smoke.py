@@ -481,12 +481,46 @@ def main():
                 )
                 close_search()
 
+            def refresh_dead_key_metadata():
+                # A first metadata query must preserve an in-progress
+                # dead key even when layouts have not yet been cached.
+                observed = threading.Event()
+                metadata = {}
+
+                def refresh_metadata():
+                    backend = WindowsKeyboardBackend(api=api)
+                    try:
+                        return backend.query()
+                    finally:
+                        backend.stop()
+
+                def metadata_ready(state):
+                    metadata["layouts"] = {
+                        info.code: info.name for info in state.details
+                    }
+                    observed.set()
+
+                call(
+                    lambda: applet._worker.run(
+                        name="metadata-dead-key",
+                        fn=refresh_metadata,
+                        on_result=metadata_ready,
+                    )
+                )
+                assert observed.wait(20), "Metadata refresh did not complete"
+                metadata["foreground"] = int(native.user.GetForegroundWindow())
+                assert metadata["foreground"] == notepad["hwnd"]
+                assert len(metadata["layouts"]) == len(api.layouts())
+                report["dead_key_metadata"] = metadata
+
             def physical_character(name, expected, scans=(0x10,)):
                 focus_editor()
                 native.key(0x41, control=True)
                 native.key(0x08)
-                for code in scans:
+                for index, code in enumerate(scans):
                     native.scan(code)
+                    if name == "fr-dead" and index == 0:
+                        refresh_dead_key_metadata()
                 native.key(0x53, control=True)
                 native.wait_for(
                     lambda: document.read_text(encoding="utf-8-sig") == expected,

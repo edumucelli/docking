@@ -3,7 +3,9 @@
 import ctypes
 import sys
 import time
+from contextlib import contextmanager
 from ctypes import wintypes
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -89,6 +91,109 @@ def test_same_language_variants_keep_distinct_identities_and_descriptions(keyboa
 
 def test_sign_extended_handles_have_the_same_session_identity():
     assert mod._code(0xFFFFFFFFF0020409) == mod._code(0xF0020409)
+
+
+@pytest.fixture
+def layout_registry(monkeypatch):
+    values = {
+        "00000409": {"Layout Text": "US"},
+        "0000040C": {"Layout Text": "French"},
+        "00010409": {"Layout Id": "0002", "Layout Text": "US-Dvorak"},
+    }
+
+    @contextmanager
+    def opened(hive, path):
+        if hive == 1:
+            assert path == mod._LAYOUTS_KEY or path.startswith(mod._LAYOUTS_KEY + "\\")
+        elif hive != mod._LAYOUTS_KEY:
+            raise FileNotFoundError(path)
+        key = path if path == mod._LAYOUTS_KEY else path.rsplit("\\", 1)[-1]
+        if key != mod._LAYOUTS_KEY and key not in values:
+            raise FileNotFoundError(key)
+        yield key
+
+    def query(key, name):
+        try:
+            return values[key][name], 1
+        except KeyError as exc:
+            raise FileNotFoundError(name) from exc
+
+    monkeypatch.setitem(
+        sys.modules,
+        "winreg",
+        SimpleNamespace(
+            HKEY_LOCAL_MACHINE=1,
+            OpenKey=opened,
+            QueryInfoKey=lambda _key: (len(values), 0, 0),
+            EnumKey=lambda _key, index: list(values)[index],
+            QueryValueEx=query,
+        ),
+    )
+    return values
+
+
+@pytest.mark.parametrize(
+    "handle,expected",
+    [
+        (0x04090409, "00000409"),
+        (0x040C040C, "0000040C"),
+        (0x040C0409, "0000040C"),
+        (0x00000409, "00000409"),
+        (0xF0020409, "00010409"),
+        (0xFFFFFFFFF0020409, "00010409"),
+        (0xF002040C, "00010409"),
+        (0xE0010411, "E0010411"),
+        (0xF1230409, ""),
+    ],
+)
+def test_layout_identity_uses_device_and_registry_variant_id(
+    layout_registry, handle, expected
+):
+    assert mod._layout_id(handle) == expected
+
+
+def test_unreadable_and_malformed_registry_variants_keep_the_handle_identity(
+    layout_registry, monkeypatch
+):
+    api = mod.WindowsKeyboardAPI.__new__(mod.WindowsKeyboardAPI)
+    api._locale_text = lambda _langid, field: "EN" if field == 0x59 else "English"
+    layout_registry["00010409"]["Layout Id"] = "invalid"
+    assert api.describe(0xF0020409).name == "English — win32:f0020409"
+    layout_registry["00010409"]["Layout Id"] = 2
+    assert mod._layout_id(0xF0020409) == ""
+    registry = sys.modules["winreg"]
+    monkeypatch.setattr(registry, "OpenKey", Mock(side_effect=PermissionError))
+    assert mod._layout_id(0xF0020409) == ""
+
+
+def test_native_descriptions_do_not_activate_layouts_or_query_thread_state(
+    layout_registry,
+):
+    api = mod.WindowsKeyboardAPI.__new__(mod.WindowsKeyboardAPI)
+    api.active = Mock(side_effect=AssertionError("metadata queried input state"))
+    api._activate = Mock(side_effect=AssertionError("metadata activated a layout"))
+    api._locale_text = lambda _langid, field: "EN" if field == 0x59 else "English"
+    us = api.describe(0x04090409)
+    dvorak = api.describe(0xF0020409)
+    assert us.name == "English — US"
+    assert dvorak.name == "English — US-Dvorak"
+    api.active.assert_not_called()
+    api._activate.assert_not_called()
+
+
+def test_metadata_cache_tracks_only_loaded_layouts_and_describes_new_arrivals(keyboard):
+    backend, api = keyboard
+    original = api.loaded
+    backend.query()
+    assert api.described == list(original)
+    api.described.clear()
+    backend.query()
+    assert api.described == []
+    api.loaded = original[:2]
+    backend.query()
+    api.loaded = original
+    backend.query()
+    assert api.described == [original[2]]
 
 
 def test_layout_request_is_posted_to_verified_focused_input_window():

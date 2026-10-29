@@ -1689,8 +1689,10 @@ Windows enumerates loaded input locales with `GetKeyboardLayoutList` and reads
 the typing application's input thread with `GetKeyboardLayout`. Session-only
 locale identities keep US and US Dvorak distinct even though both display EN.
 Windows supplies the localized language, layout and variant descriptions. A
-worker resolves the exact KLID on its own thread and restores its previous
-locale before returning; the GTK interaction snapshot does not activate layouts.
+worker resolves physical layout and variant IDs through the keyboard-layout
+registry without activating layouts, preserving foreground dead-key composition.
+Descriptions are cached while their layouts remain loaded; the GTK interaction
+snapshot uses the available cache.
 No locale handles or window identities are saved in applet preferences.
 
 Selection remains bound to the original application HWND/PID/thread identity.

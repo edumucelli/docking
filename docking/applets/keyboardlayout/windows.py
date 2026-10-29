@@ -21,6 +21,38 @@ log = get_logger("keyboardlayout.windows")
 _DWORD = ctypes.c_uint32
 _HWND = ctypes.c_void_p
 _BOOL = ctypes.c_int32
+_LAYOUTS_KEY = "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts"
+
+
+def _layout_id(handle: int) -> str:
+    """Resolve a physical layout without changing any thread's input locale."""
+    device = (handle >> 16) & 0xFFFF
+    if device & 0xF000 != 0xF000:
+        # IME identifiers retain both WORDs; ordinary layouts use the device
+        # language, which can differ from the input language in the low WORD.
+        value = handle & 0xFFFFFFFF if device & 0xF000 == 0xE000 else device
+        return f"{value or (handle & 0xFFFF):08X}"
+
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _LAYOUTS_KEY) as layouts:
+            for index in range(winreg.QueryInfoKey(layouts)[0]):
+                klid = str(winreg.EnumKey(layouts, index))
+                if not re.fullmatch(r"[0-9a-fA-F]{8}", klid):
+                    continue
+                try:
+                    with winreg.OpenKey(layouts, klid) as key:
+                        layout_id, _ = winreg.QueryValueEx(key, "Layout Id")
+                    if not isinstance(layout_id, str):
+                        continue
+                    if int(layout_id, 16) == device & 0x0FFF:
+                        return klid.upper()
+                except (OSError, ValueError):
+                    continue
+    except OSError as exc:
+        log.debug("Keyboard layout identity unavailable: %s", exc)
+    return ""
 
 
 class _Rect(ctypes.Structure):
@@ -101,8 +133,6 @@ class WindowsKeyboardAPI:
             ctypes.POINTER(_HWND),
         )
         self._active = bind(user, "GetKeyboardLayout", _HWND, _DWORD)
-        self._activate = bind(user, "ActivateKeyboardLayout", _HWND, _HWND, _DWORD)
-        self._name = bind(user, "GetKeyboardLayoutNameW", _BOOL, ctypes.c_wchar_p)
         self._post = bind(
             user,
             "PostMessageW",
@@ -277,18 +307,9 @@ class WindowsKeyboardAPI:
         )
 
     def describe(self, handle: int) -> LayoutInfo:
-        # Called only by the background query. Resolve the exact KLID on this
-        # worker thread and restore its previous locale even on read failure.
-        previous = self.active(0)
-        klid = ""
-        try:
-            if previous and self._activate(handle, 0):
-                value = ctypes.create_unicode_buffer(9)
-                if self._name(value):
-                    klid = value.value
-        finally:
-            if previous:
-                self._activate(previous, 0)
+        # Activating layouts even on a worker can interrupt foreground dead-key
+        # composition. Metadata reads must leave the input state untouched.
+        klid = _layout_id(handle)
         name = ""
         if re.fullmatch(r"[0-9a-fA-F]{8}", klid):
             import winreg
@@ -296,7 +317,7 @@ class WindowsKeyboardAPI:
             try:
                 with winreg.OpenKey(
                     winreg.HKEY_LOCAL_MACHINE,
-                    "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\" + klid,
+                    _LAYOUTS_KEY + "\\" + klid,
                 ) as key:
                     try:
                         resource, _ = winreg.QueryValueEx(key, "Layout Display Name")
@@ -383,7 +404,10 @@ class WindowsKeyboardBackend(LayoutBackend):
             return LayoutState("", [])
         details = dict(self._details)
         if describe:
-            details = {_code(handle): self.api.describe(handle) for handle in loaded}
+            details = {}
+            for handle in loaded:
+                code = _code(handle)
+                details[code] = self._details.get(code) or self.api.describe(handle)
             self._details = details
         if self._stopped.is_set() or not self.api.valid(context):
             return LayoutState("", [])
