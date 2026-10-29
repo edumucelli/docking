@@ -467,6 +467,18 @@ class TestPeripheralLabel:
         p = PeripheralBattery("Keychron K8", "Keyboard", 96.0, False, "")
         assert peripheral_label(p) == "Keychron K8: 96%"
 
+    def test_empty_peripheral_displays_zero_percent(self):
+        p = PeripheralBattery("Keychron K8", "Keyboard", 0.0, False, "")
+        assert peripheral_label(p) == "Keychron K8: 0%"
+
+    def test_empty_peripheral_keeps_charging_suffix(self):
+        p = PeripheralBattery("Keychron K8", "Keyboard", 0.0, True, "")
+        assert peripheral_label(p) == "Keychron K8: 0% (charging)"
+
+    def test_zero_placeholder_keeps_the_available_coarse_level(self):
+        p = PeripheralBattery("Headset", "Headset", 0.0, False, "Low")
+        assert peripheral_label(p) == "Headset: Low"
+
     def test_charging_suffix(self):
         p = PeripheralBattery("MX Master", "Mouse", 40.0, True, "")
         assert peripheral_label(p) == "MX Master: 40% (charging)"
