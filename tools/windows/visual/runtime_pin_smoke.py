@@ -137,6 +137,7 @@ def _phase(output: Path, phase: str) -> None:
                     [str(executable), *manifest["argv"]], cwd=executable.parent
                 )
                 program_pid = program.pid
+                report["program_pid"] = program_pid
                 native.wait_for(
                     lambda: call(
                         lambda: shared["model"].find_by_desktop_id(identifier)
@@ -149,6 +150,14 @@ def _phase(output: Path, phase: str) -> None:
                 assert (
                     original_item.application_info.origin is ApplicationOrigin.RUNTIME
                 )
+                if manifest.get("uncataloged"):
+                    candidates = call(
+                        lambda: shared["registry"].resolve_all_by_wm_class(
+                            executable.stem
+                        )
+                    )
+                    assert not candidates, "Uncataloged fixture gained a catalog alias"
+                    report["catalog_aliases"] = 0
                 position = target()
                 native.click(*position, right=True)
 
@@ -374,6 +383,33 @@ def _phase(output: Path, phase: str) -> None:
             ImageGrab.grab(all_screens=True).save(output / f"{phase}-grouped.png")
             report.update(ok=True, pid=program_pid, grouped=True)
         except Exception as exc:
+            if program_pid is not None:
+                report["native_windows"] = native.windows(program_pid)
+                report["tracked_windows"] = call(
+                    lambda: [
+                        {
+                            "hwnd": row.id.value,
+                            "pid": row.pid,
+                            "app_id": row.app_id,
+                            "desktop_id": row.desktop_id,
+                            "class": row.wm_class,
+                            "skip_taskbar": row.skip_taskbar,
+                        }
+                        for row in shared["backend"].windows.list_all_windows()
+                        if row.pid == program_pid
+                    ]
+                )
+                report["catalog_candidates"] = call(
+                    lambda: [
+                        {
+                            "id": application.desktop_id,
+                            "executable": str(application.executable_path),
+                        }
+                        for application in shared["registry"].resolve_all_by_wm_class(
+                            executable.stem
+                        )
+                    ]
+                )
             failures.append(exc)
             report["error"] = repr(exc)
             ImageGrab.grab(all_screens=True).save(output / f"{phase}-failure.png")
@@ -408,10 +444,17 @@ def main() -> None:
     parser.add_argument("--phase", choices=("pin", "drop", "restart"))
     parser.add_argument("--explorer-drop", action="store_true")
     parser.add_argument("--multiple-windows", action="store_true")
+    parser.add_argument(
+        "--uncataloged",
+        action="store_true",
+        help="Create no matching Start menu entries",
+    )
     parser.add_argument("--shortcut", choices=("installed", "unlisted"))
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires a native Windows desktop")
+    if args.uncataloged and args.shortcut:
+        parser.error("--uncataloged cannot use an installed/selected shortcut")
     if args.shortcut and not args.explorer_drop:
         parser.error("--shortcut requires --explorer-drop")
     output = args.output.resolve()
@@ -426,7 +469,12 @@ def main() -> None:
 
     native = WindowsDesktop()
     baseline, explorer = native.workarea(), native.explorer()
-    with ClassicApplications(output) as fixture:
+    with ClassicApplications(output, install_shortcuts=not args.uncataloged) as fixture:
+        if args.uncataloged:
+            original = fixture.executables["Other"]
+            unique = original.with_name(f"Unlisted-{fixture.root.name}.exe")
+            original.rename(unique)
+            fixture.executables["Other"] = unique
         assert not str(fixture.executables["Other"].parent).isascii()
         config_home = fixture.root / "config"
         config = config_home / "docking/dock.json"
@@ -447,7 +495,10 @@ def main() -> None:
         manifest = {
             "executable": str(fixture.executables["Other"]),
             "argv": fixture.arguments("Other"),
+            "uncataloged": args.uncataloged,
         }
+        if args.uncataloged:
+            assert not fixture.links.exists()
         if args.shortcut:
             import shutil
 

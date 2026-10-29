@@ -20,7 +20,7 @@ control the VM from its host.
 python -m tools.windows.visual.lab --share /path/to/shared status
 python -m tools.windows.visual.smoke --output artifacts/windows/smoke
 python -m tools.windows.visual.runtime_pin_smoke --output artifacts/windows/runtime-pin
-python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --output artifacts/windows/multiple-windows
+python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
 python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --output artifacts/windows/explorer-pin
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut installed --output artifacts/windows/installed-shortcut
@@ -36,9 +36,11 @@ The [Windows workflow](../../../.github/workflows/windows.yml) runs the installe
 wheel smoke on a native Windows runner and uploads screenshots and logs as
 Actions artifacts. Both the wheel and standalone desktop checks require the
 actual dock window to use per-monitor-v2 DPI awareness and record its DPI.
-The workflow runs `runtime_pin_smoke --multiple-windows` to check native
+The workflow runs `runtime_pin_smoke --multiple-windows --uncataloged` to check native
 grouping, repeated cycling, individual window close and restored pin launch in a
-fresh process. The fullscreen check verifies native F11 transitions and starting
+fresh process. The fixture uses a unique executable name without installed
+shortcuts and verifies that no catalog alias supplies its runtime identity.
+The fullscreen check verifies native F11 transitions and starting
 the dock during an existing fullscreen application, with pixel coverage,
 foreground retention, restored stacking, direct Alt+F4 closure and normal cleanup.
 It also builds the standalone ZIP and exercises its extracted

@@ -177,6 +177,7 @@ class MatchMethod(Enum):
     DESKTOP_ID = "desktop-id"
     WM_CLASS = "wm-class"
     RUNTIME_PATH_SPLIT = "runtime-path-split"
+    RUNTIME_EXECUTABLE = "runtime-executable"
     APPLICATION_ID = "application-id"
     SANDBOX_ID = "sandbox-id"
     SCRIPT_NAME = "script-name"

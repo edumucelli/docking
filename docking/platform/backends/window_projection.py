@@ -35,12 +35,14 @@ class SnapshotWindowService(WindowService):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
         config: Config | None = None,
+        allow_unlisted_executables: bool = False,
     ) -> None:
         self._model = model
         self._config = config
         self._matcher = AppIdMatcher(
             registry=application_registry,
             process_identity_service=process_identity_service,
+            allow_unlisted_executables=allow_unlisted_executables,
         )
         self._snapshots: dict[WindowId, WindowSnapshot] = {}
         self._changes = WindowChanges()

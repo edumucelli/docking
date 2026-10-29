@@ -495,6 +495,7 @@ class WindowsWindowService(SnapshotWindowService):
             application_registry=application_registry,
             process_identity_service=process_identity_service,
             config=config,
+            allow_unlisted_executables=True,
         )
         self._native = native
         self._workspaces = workspaces

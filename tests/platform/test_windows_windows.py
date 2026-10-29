@@ -522,3 +522,42 @@ def test_capture_identity_includes_own_surfaces_without_changing_taskbar_policy(
     row = native.capture_snapshot(100, expected_pid=os.getpid())
     assert row is not None and row.pid == os.getpid()
     assert native.capture_snapshot(100, expected_pid=os.getpid() + 1) is None
+
+
+def test_uncataloged_native_program_projects_one_item_for_two_windows(tmp_path):
+    from docking.platform.applications.identity import ProcessIdentity
+    from docking.platform.applications.types import ApplicationOrigin
+    from tests.platform.application_fakes import ApplicationRegistryStub
+
+    executable = tmp_path / "Portable.exe"
+    header = bytearray(64)
+    header[:2] = b"MZ"
+    header[0x3C:0x40] = (64).to_bytes(4, "little")
+    executable.write_bytes(header + b"PE\0\0")
+    identity = ProcessIdentity(pid=42, executable_path=executable)
+    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    service = WindowsWindowService(
+        model=model,
+        application_registry=ApplicationRegistryStub(()),
+        process_identity_service=SimpleNamespace(
+            identity_for_pid=lambda _pid: identity
+        ),
+    )
+    service.replace_windows(
+        tuple(
+            WindowSnapshot(
+                id=WindowId(DisplayServer.WINDOWS, handle),
+                desktop_id="",
+                app_id="portable",
+                pid=42,
+            )
+            for handle in (100, 200)
+        )
+    )
+    running = model.update_running.call_args.kwargs["running"]
+    assert len(running) == 1
+    entry = next(iter(running.values()))
+    assert entry.count == 2
+    assert entry.runtime_app.origin is ApplicationOrigin.RUNTIME
+    assert entry.runtime_app.executable_path == executable
+    assert len({row.desktop_id for row in service.list_all_windows()}) == 1

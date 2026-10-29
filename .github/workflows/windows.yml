@@ -76,7 +76,7 @@ jobs:
       - name: Exercise the installed application on the Windows desktop
         run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
       - name: Verify native multiwindow grouping, cycling and restored pins
-        run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --output artifacts/windows/multiple-windows
+        run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Build the standalone Windows application

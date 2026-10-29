@@ -146,8 +146,9 @@ def write_shortcut(path: Path, *, executable: Path, argv: list[str], cwd: Path):
 class ClassicApplications:
     """Same-name programs with two pins, saved history and an unlisted target."""
 
-    def __init__(self, output: Path):
+    def __init__(self, output: Path, *, install_shortcuts: bool = True):
         self.output = output
+        self._install_shortcuts = install_shortcuts
         self.root = Path(tempfile.mkdtemp(prefix="docking-classic-")).resolve()
         nonce = uuid.uuid4().hex[:10]
         self.labels = {
@@ -170,8 +171,9 @@ class ClassicApplications:
 
     def __enter__(self):
         try:
-            self.links.mkdir()
-            self._owns_links = True
+            if self._install_shortcuts:
+                self.links.mkdir()
+                self._owns_links = True
             for path in self.executables.values():
                 path.parent.mkdir()
             for key, path in self.executables.items():
@@ -202,8 +204,9 @@ class ClassicApplications:
             assert compiled.returncode == 0, compiled.stdout + compiled.stderr
             for key in ("Second", "Recent", "Other"):
                 shutil.copyfile(self.executables["First"], self.executables[key])
-            for key in ("First", "Second", "Recent"):
-                self.update(key)
+            if self._install_shortcuts:
+                for key in ("First", "Second", "Recent"):
+                    self.update(key)
             return self
         except BaseException:
             self.close()

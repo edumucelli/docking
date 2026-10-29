@@ -2146,6 +2146,17 @@ it with ordinary desktop path semantics, then restores Explorer's work area and
 removes its owned fixtures. Installer-owned portable bundles and broader file
 associations still require acceptance.
 
+An unpackaged program whose window identity is its executable basename can
+appear without any installed shortcut or catalog alias. The Windows backend opts
+into this executable-based fallback after normal matching fails; a validated
+native image and the owning PID supply the same canonical identity used for
+persistent pins. Other backends keep their existing matching policy, and
+explicit hosted-application IDs keep their catalog matching.
+
+Add `--uncataloged` to create no fixture shortcuts and use a unique executable
+name. The check verifies that no catalog alias provides its runtime identity;
+Windows CI combines it with the multiple-window scenario.
+
 Add `--multiple-windows` to create two independent native top-level windows in
 one process. Before and after restarting Docking, the check verifies one pinned
 item with two windows, four alternating foreground changes through actual pin
