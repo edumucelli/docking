@@ -550,6 +550,9 @@ files use that boundary. Image thumbnails also convert Gio's Windows extension
 content types (such as `.png`) to MIME types before selecting the image loader.
 Default-handler opening uses the native Windows shell association; the lab's
 Gio URI-launch path opened a blank Notepad instead of the requested document.
+The Windows shell boundary normalizes absolute filename separators because
+MSYS2 can emit forward UNC paths that ShellExecute rejects. URI and shell
+namespace targets retain their original spelling.
 Ordinary Windows documents no longer trigger Unix executable-launcher creation.
 
 `tools/windows/visual/file_smoke.py` creates isolated drive and SMB-share fixtures with

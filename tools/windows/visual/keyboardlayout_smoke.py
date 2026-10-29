@@ -134,6 +134,7 @@ def main():
         WindowsKeyboardBackend,
         _code,
     )
+    from docking.platform import targets
     from docking.platform.backends.windows.ffi import bind
     from tools.windows.visual.desktop_driver import WindowsDesktop
 
@@ -287,7 +288,7 @@ def main():
                 publish()
             document = output / "docking-keyboard-native-acceptance.txt"
             document.write_text("", encoding="utf-8")
-            os.startfile(str(document))
+            assert targets.open_target(str(document)), "Owned document did not open"
             notepad = native.wait_for(
                 lambda: next(
                     (

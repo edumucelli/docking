@@ -100,6 +100,10 @@ def open_default_target(target: str) -> bool:
     startfile = getattr(os, "startfile", None)
     if startfile is None:
         return False
+    # MSYS2 pathlib may emit forward UNC separators, which ShellExecute does
+    # not accept. Normalize native filenames while preserving URI schemes.
+    if PureWindowsPath(target).is_absolute():
+        target = target.replace("/", "\\")
     try:
         startfile(target, "open")
         return True
