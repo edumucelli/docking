@@ -4,7 +4,7 @@ import ctypes
 import os
 from ctypes import wintypes
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -201,9 +201,12 @@ def test_native_topmost_repair_ignores_stale_gtk_hint_and_waits_for_confirmation
     bar._set_position = Mock(return_value=1)
 
     assert bar.ensure_keep_above(window) is False
-    bar._set_position.assert_called_once_with(123, -1, 0, 0, 0, 0, 0x13)
+    assert bar._set_position.call_args_list == [
+        call(123, -2, 0, 0, 0, 0, 0x13),
+        call(123, -1, 0, 0, 0, 0, 0x13),
+    ]
     assert bar.ensure_keep_above(window) is True
-    assert bar._set_position.call_count == 1
+    assert bar._set_position.call_count == 2
     style.assert_called_with(123, -20)
     window.present.assert_not_called()
 
@@ -218,3 +221,53 @@ def test_native_topmost_repair_requires_a_live_owned_window(monkeypatch, closed,
     assert bar.ensure_keep_above(Mock()) is False
     bar._set_position.assert_not_called()
     assert bar._user.mock_calls == []
+
+
+def test_native_topmost_repair_resets_a_successful_but_ineffective_promotion(
+    monkeypatch,
+):
+    # Hosted Windows accepted repeated HWND_TOPMOST requests after fullscreen
+    # but left WS_EX_TOPMOST off until an explicit HWND_NOTOPMOST transition.
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: 123)
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    native_style = 0x080800A0
+    reset = False
+
+    def read_style(hwnd, index):
+        assert (hwnd, index) == (123, -20)
+        return native_style
+
+    def position(hwnd, after, x, y, width, height, flags):
+        nonlocal native_style, reset
+        assert hwnd == 123
+        assert (x, y, width, height, flags) == (0, 0, 0, 0, 0x13)
+        if after == -2:
+            reset = True
+            native_style &= ~8
+        elif after == -1 and reset:
+            native_style |= 8
+        return 1
+
+    bar._user = SimpleNamespace(GetWindowLongPtrW=read_style)
+    bar._set_position = position
+    window = Mock()
+    assert bar.ensure_keep_above(window) is False
+    assert native_style & 8
+    assert bar.ensure_keep_above(window) is True
+    window.present.assert_not_called()
+
+
+def test_native_topmost_repair_does_not_promote_after_reentrant_shutdown(monkeypatch):
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: 123)
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    bar._user = SimpleNamespace(GetWindowLongPtrW=Mock(return_value=0))
+
+    def shutdown(*_arguments):
+        bar._closed = True
+        return 1
+
+    bar._set_position = Mock(side_effect=shutdown)
+    assert bar.ensure_keep_above(Mock()) is False
+    bar._set_position.assert_called_once_with(123, -2, 0, 0, 0, 0, 0x13)

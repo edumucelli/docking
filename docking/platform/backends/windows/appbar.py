@@ -230,8 +230,12 @@ class WindowsAppBar:
         )(hwnd, -20)
         if style & 8:  # WS_EX_TOPMOST.
             return True
-        # HWND_TOPMOST; NOSIZE | NOMOVE | NOACTIVATE.
-        self._set_position(hwnd, -1, 0, 0, 0, 0, 0x13)
+        # After fullscreen, HWND_TOPMOST can succeed without restoring its
+        # native flag. Explicitly demote before promoting to reset that state.
+        # HWND_NOTOPMOST / HWND_TOPMOST; NOSIZE | NOMOVE | NOACTIVATE.
+        self._set_position(hwnd, -2, 0, 0, 0, 0, 0x13)
+        if not self._closed:
+            self._set_position(hwnd, -1, 0, 0, 0, 0, 0x13)
         return False
 
     def fullscreen_active(self, mapping: ScreenMapping) -> bool | None:
