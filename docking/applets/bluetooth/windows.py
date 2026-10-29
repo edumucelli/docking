@@ -36,6 +36,9 @@ class RadioAPI(Protocol):
     def snapshot(self) -> tuple[Radio, ...]: ...
     def set_power(self, radio: Radio, powered: bool) -> bool: ...
     def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool: ...
+    def start_discovery(self, radio: Radio) -> bool: ...
+    def stop_discovery(self, identifier: str) -> bool: ...
+    def close(self) -> None: ...
 
 
 def _device_icon(device_class: int) -> str:
@@ -57,11 +60,11 @@ def _file_sender() -> Path | None:
 
 class WindowsBluetoothBackend(BluetoothBackend):
     # Windows owns trust, pairing UI and profile-specific connections.
-    # Classic cached enumeration is not discovery and does not cover BLE.
+    # Classic inquiries do not cover BLE.
     capabilities = BluetoothCapabilities(
         trust=False,
         remove_pairing=True,
-        discovery=False,
+        discovery=True,
         connect=False,
         disconnect=False,
         pair=False,
@@ -73,7 +76,10 @@ class WindowsBluetoothBackend(BluetoothBackend):
         self._closed = threading.Event()
 
     def close(self) -> None:
+        if self._closed.is_set():
+            return
         self._closed.set()
+        self._api.close()
 
     def get_state(self, active_adapter_path: str | None = None) -> BluetoothState:
         with self._lock:
@@ -92,7 +98,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
                     r.name,
                     r.name,
                     None if r.state == 0 else r.state == 1,
-                    False,
+                    r.discovering,
                     address_text(r.address),
                     r.state in (1, 2),
                 )
@@ -175,10 +181,31 @@ class WindowsBluetoothBackend(BluetoothBackend):
             return False
 
     def start_discovery(self, adapter_path: str) -> bool:
-        return False
+        with self._lock:
+            if self._closed.is_set():
+                return False
+            try:
+                radio = next(
+                    (r for r in self._api.snapshot() if r.identifier == adapter_path),
+                    None,
+                )
+                if radio is None or radio.state != 1 or self._closed.is_set():
+                    return False
+                started = self._api.start_discovery(radio)
+                return started and not self._closed.is_set()
+            except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+                log.debug("Bluetooth discovery failed: %s", exc)
+                return False
 
     def stop_discovery(self, adapter_path: str, quiet: bool = False) -> bool:
-        return True  # This client never owns discovery.
+        # Session cancellation only updates local API state. Do not wait for
+        # the poll lock: GTK calls this during stop while an inquiry may run.
+        try:
+            return self._api.stop_discovery(adapter_path)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+            if not quiet:
+                log.debug("Bluetooth discovery cleanup failed: %s", exc)
+            return False
 
     def connect_device(self, device_path: str) -> bool:
         return False

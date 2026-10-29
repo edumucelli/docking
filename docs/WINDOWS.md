@@ -1650,8 +1650,8 @@ is used as a persistent identity. Closing the backend rejects queued work and
 stale replies cannot repaint a removed applet.
 
 Win32 cached enumeration supplies paired/connected **classic Bluetooth** devices
-for each local radio address. It does not issue inquiries. Radio, enumeration
-and device-search handles are closed on success, failure and removal. Device
+for each local radio address. Radio, enumeration and device-search handles are
+closed on success, failure and removal. Device
 battery and signal strength stay unknown when the provider cannot supply them.
 Paired classic devices expose **Remove Pairing** through the shared device
 menu. The Windows backend revalidates the selected adapter and device identities
@@ -1662,8 +1662,22 @@ selection but does not make the Windows operation adapter-specific. An absent,
 unpaired or stale device, a rejected request, unchanged authentication or a
 closed backend does not report successful removal.
 
-Windows does not expose BlueZ trust semantics. Generic connect/disconnect,
-in-app pairing and discovery controls are omitted by backend capability.
+Continuous Discovery owns short classic inquiries on the selected powered
+radio. Each refresh uses that radio's actual handle and a 1.28-second inquiry
+window; other radios use cached enumeration. Unknown devices can appear during
+the owned session. Session identity includes both the WinRT adapter ID and
+radio address, and removal, address changes or power-off invalidate it.
+Ordinary inventory reads retain the cache-only behavior when no session exists.
+BLE discovery requires a separate provider.
+
+The existing applet worker performs the inquiry. Stop and close clear the local
+session without waiting for the poll lock; an in-flight inquiry is allowed to
+finish its bounded native request. Late starts and stopped results cannot re-enable discovery
+or publish newly found unknown devices. This controls Docking's own polling;
+other applications' discovery sessions remain under their control.
+
+Windows does not expose BlueZ trust semantics. Generic connect/disconnect and
+in-app pairing controls are omitted by backend capability.
 Device rows without supported actions have no empty submenus. **Devices...**
 opens the native **Bluetooth & devices > Devices** page, including when no radio
 is installed.
@@ -1683,6 +1697,9 @@ settings page, accessibility metadata, inspected desktop captures, normal close
 and work-area restoration passed. The subsequent connected/paired, on/off,
 denied-change, external-change, policy-disabled and removal scenarios are
 **explicit injected API fixtures**. No physical radio was changed.
+The fixture also exercises the real Continuous Discovery menu, stop, restart
+and owned-session cleanup. Native client checks verify the missing-radio case;
+physical inquiry results and discovery coverage remain unverified.
 Pairing-removal ABI checks exercise the actual Windows client export and its
 invalid-address error. Successful removal and authentication readback use an
 injected classic-device fixture; physical unpairing remains unverified.

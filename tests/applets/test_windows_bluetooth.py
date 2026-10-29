@@ -36,6 +36,30 @@ class RadioAPI:
         self.writes = []
         self.removals = []
         self.accept = True
+        self.discovery_starts = []
+        self.discovery_stops = []
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+        self.radios = tuple(replace(r, discovering=False) for r in self.radios)
+
+    def start_discovery(self, target):
+        self.discovery_starts.append((target.identifier, target.address))
+        if self.accept:
+            self.radios = tuple(
+                replace(r, discovering=True) if r.identifier == target.identifier else r
+                for r in self.radios
+            )
+        return self.accept
+
+    def stop_discovery(self, identifier):
+        self.discovery_stops.append(identifier)
+        self.radios = tuple(
+            replace(r, discovering=False) if r.identifier == identifier else r
+            for r in self.radios
+        )
+        return True
 
     def snapshot(self):
         return self.radios
@@ -44,7 +68,9 @@ class RadioAPI:
         self.writes.append((target.identifier, powered))
         if self.accept:
             self.radios = tuple(
-                replace(r, state=1 if powered else 2)
+                replace(
+                    r, state=1 if powered else 2, discovering=r.discovering and powered
+                )
                 if r.identifier == target.identifier
                 else r
                 for r in self.radios
@@ -96,7 +122,7 @@ def test_inventory_preserves_adapter_identity_and_unknown_metadata(backend):
     assert device.connected and device.paired
     assert not device.trusted
     assert device.battery_percent is None and device.rssi is None
-    assert not client.capabilities.connect and not client.capabilities.discovery
+    assert not client.capabilities.connect and client.capabilities.discovery
 
 
 @pytest.mark.parametrize("state", [0, 3])
@@ -127,6 +153,40 @@ def test_successful_request_without_completed_state_change_is_failure(backend):
     client, api = backend
     api.set_power = lambda *args: True
     assert not client.set_adapter_power("radio/first", False)
+
+
+def test_discovery_uses_the_selected_powered_radio_and_stops_only_its_session(backend):
+    client, api = backend
+    assert client.start_discovery("radio/first")
+    assert api.discovery_starts == [("radio/first", 0x112233445566)]
+    assert [r.discovering for r in client.get_state().adapters] == [True, False]
+    assert not client.start_discovery("radio/second")
+    assert not client.start_discovery("removed-radio")
+    assert client.stop_discovery("radio/first")
+    assert api.discovery_stops == ["radio/first"]
+    assert not any(r.discovering for r in client.get_state().adapters)
+    client.close()
+    assert api.closed and not client.start_discovery("radio/first")
+
+
+def test_closed_discovery_start_does_not_claim_a_live_session(backend):
+    client, api = backend
+
+    def start(_target):
+        client.close()
+        return True
+
+    api.start_discovery = start
+    assert not client.start_discovery("radio/first")
+
+
+def test_discovery_request_failure_can_recover_without_claiming_success(backend):
+    client, api = backend
+    api.accept = False
+    assert not client.start_discovery("radio/first")
+    assert not any(r.discovering for r in client.get_state().adapters)
+    api.accept = True
+    assert client.start_discovery("radio/first")
 
 
 def test_remove_pairing_targets_fresh_device_and_verifies_authentication_readback(
@@ -295,7 +355,8 @@ def test_radio_and_enumeration_handles_close_when_device_read_fails():
     value._first_radio = first
     value._info = lambda *args: 0
 
-    def fail(_radio):
+    def fail(_radio, *, inquiry=False):
+        assert not inquiry
         raise OSError("device disappeared")
 
     value._devices = fail
@@ -336,6 +397,227 @@ def test_device_enumeration_is_cached_scoped_and_closes_after_failure():
     with pytest.raises(OSError):
         value._devices(ctypes.c_void_p(42))
     assert value.closed == [("devices", 55)]
+
+
+def test_inquiry_uses_one_selected_handle_and_keeps_unknown_classic_devices():
+    value = inventory()
+
+    def first(search, output):
+        params = search._obj
+        assert params.radio == 42 and params.inquiry
+        assert params.timeout == 1
+        assert params.authenticated and params.connected and params.remembered
+        assert params.unknown
+        output._obj.address = 0xAABBCCDDEE11
+        output._obj.device_class = 0x0500
+        return 55
+
+    value._first_device = first
+    value._next_device = lambda *_args: False
+    devices = value._devices(ctypes.c_void_p(42), inquiry=True)
+    assert len(devices) == 1 and devices[0].address == 0xAABBCCDDEE11
+    assert not devices[0].paired and not devices[0].connected
+    assert value.closed == [("devices", 55)]
+
+
+def test_inquiry_never_falls_back_to_all_radios_for_a_missing_handle():
+    value = inventory()
+    value._first_device = Mock(side_effect=AssertionError("Global inquiry requested"))
+    with pytest.raises(ValueError, match="selected radio"):
+        value._devices(ctypes.c_void_p(), inquiry=True)
+    value._first_device.assert_not_called()
+
+
+def test_inventory_inquires_only_on_the_requested_radio_and_closes_both_handles():
+    value = inventory()
+
+    def first(_size, output):
+        output._obj.value = 42
+        return 99
+
+    def following(_cursor, output):
+        if output._obj.value == 0 and not calls:
+            pytest.fail("First radio was not read")
+        if len(calls) == 1:
+            output._obj.value = 43
+            return True
+        return False
+
+    def info(handle, output):
+        output._obj.address = {42: 0x112233445566, 43: 0x221133445566}[handle.value]
+        return 0
+
+    calls = []
+    value._first_radio = first
+    value._next_radio = following
+    value._info = info
+    value._devices = lambda handle, *, inquiry: (
+        calls.append((handle.value, inquiry)) or ()
+    )
+    value.snapshot(inquiry_addresses=frozenset((0x221133445566,)))
+    assert calls == [(42, False), (43, True)]
+    assert value.closed == [("radio", 42), ("radio", 43), ("radios", 99)]
+
+
+@pytest.fixture
+def inquiry_api(monkeypatch):
+    state = SimpleNamespace(
+        entries=[
+            {"id": "first", "address": 0x112233445566, "name": "First", "state": 1},
+            {"id": "second", "address": 0x221133445566, "name": "Second", "state": 1},
+        ],
+        calls=[],
+    )
+
+    class Inventory:
+        def snapshot(self, *, inquiry_addresses=frozenset()):
+            state.calls.append(inquiry_addresses)
+            return {0x112233445566: (), 0x221133445566: ()}
+
+    monkeypatch.setattr(radio, "_request", lambda _request: {"radios": state.entries})
+    monkeypatch.setattr(radio, "ClassicInventory", Inventory)
+    return radio.WindowsBluetoothAPI(), state
+
+
+def test_api_default_is_cached_and_owned_discovery_preserves_other_radio_sessions(
+    inquiry_api,
+):
+    api, state = inquiry_api
+    first, second = api.snapshot()
+    assert state.calls == [frozenset()]
+    assert not first.discovering and not second.discovering
+    assert api.start_discovery(first)
+    assert state.calls[-1] == frozenset((first.address,))
+    assert api.start_discovery(second)
+    assert all(r.discovering for r in api.snapshot())
+    assert state.calls[-1] == frozenset((first.address, second.address))
+    assert api.stop_discovery(first.identifier)
+    assert [r.discovering for r in api.snapshot()] == [False, True]
+    assert state.calls[-1] == frozenset((second.address,))
+    api.close()
+    before = list(state.calls)
+    assert api.snapshot() == () and not api.start_discovery(second)
+    assert state.calls == before
+
+
+@pytest.mark.parametrize("change", ["address", "off", "removed"])
+def test_stale_or_powered_off_radio_identity_is_pruned_before_another_inquiry(
+    inquiry_api, change
+):
+    api, state = inquiry_api
+    first = api.snapshot()[0]
+    assert api.start_discovery(first)
+    if change == "address":
+        state.entries[0]["address"] = 0x998877665544
+    elif change == "off":
+        state.entries[0]["state"] = 2
+    else:
+        state.entries = state.entries[1:]
+    state.calls.clear()
+    assert not any(r.discovering for r in api.snapshot())
+    assert all(not addresses for addresses in state.calls)
+
+
+def test_api_closed_during_native_inquiry_does_not_keep_a_discovery_session(
+    inquiry_api, monkeypatch
+):
+    api, _state = inquiry_api
+    first = api.snapshot()[0]
+
+    def snapshot(*, inquiry_addresses):
+        assert inquiry_addresses == frozenset((first.address,))
+        api.close()
+        return {first.address: ()}
+
+    monkeypatch.setattr(
+        radio, "ClassicInventory", lambda: SimpleNamespace(snapshot=snapshot)
+    )
+    assert not api.start_discovery(first)
+    assert api.snapshot() == ()
+
+
+def test_api_stop_during_native_inquiry_cancels_the_pending_start(
+    inquiry_api, monkeypatch
+):
+    api, _state = inquiry_api
+    first = api.snapshot()[0]
+
+    def snapshot(*, inquiry_addresses=frozenset()):
+        if inquiry_addresses:
+            api.stop_discovery(first.identifier)
+        return {first.address: ()}
+
+    monkeypatch.setattr(
+        radio, "ClassicInventory", lambda: SimpleNamespace(snapshot=snapshot)
+    )
+    assert not api.start_discovery(first)
+    assert not any(item.discovering for item in api.snapshot())
+
+
+def test_discovery_cleanup_does_not_wait_for_the_poll_lock(backend):
+    import threading
+
+    client, api = backend
+    done = threading.Event()
+    results = []
+
+    def cleanup():
+        results.append(client.stop_discovery("radio/first"))
+        client.close()
+        done.set()
+
+    with client._lock:
+        worker = threading.Thread(target=cleanup, daemon=True)
+        worker.start()
+        assert done.wait(5), "Discovery cleanup waited for a running poll"
+    worker.join(5)
+    assert results == [True] and api.discovery_stops == ["radio/first"] and api.closed
+
+
+@pytest.mark.parametrize("address", [0, -1, 1 << 48, True])
+def test_invalid_inquiry_addresses_never_reach_radio_enumeration(address):
+    value = inventory()
+    value._first_radio = Mock(side_effect=AssertionError("Invalid inquiry started"))
+    with pytest.raises(ValueError, match="valid radio addresses"):
+        value.snapshot(inquiry_addresses=frozenset((address,)))
+    value._first_radio.assert_not_called()
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32", reason="Native Windows classic inquiry ABI"
+)
+def test_native_missing_radio_cannot_start_a_global_or_owned_inquiry():
+    if sys.getwindowsversion().product_type != 1:
+        pytest.skip("Classic inquiry acceptance targets Windows clients")
+    if radio.ClassicInventory().snapshot():
+        pytest.skip("Missing-radio acceptance needs an adapter-free VM")
+    api = radio.WindowsBluetoothAPI()
+    try:
+        assert not api.start_discovery(
+            radio.Radio("docking-missing-radio-fixture", 0x112233445566, "Fixture", 1)
+        )
+    finally:
+        api.close()
+
+
+def test_stopping_during_poll_discards_unknown_results_and_the_discovering_flag(
+    inquiry_api, monkeypatch
+):
+    api, _state = inquiry_api
+    first = api.snapshot()[0]
+    assert api.start_discovery(first)
+    nearby = radio.ClassicDevice(0xAABBCCDDEE22, "Nearby fixture", 0x0500, False, False)
+
+    def snapshot(*, inquiry_addresses):
+        assert inquiry_addresses == frozenset((first.address,))
+        api.stop_discovery(first.identifier)
+        return {first.address: (nearby,)}
+
+    monkeypatch.setattr(
+        radio, "ClassicInventory", lambda: SimpleNamespace(snapshot=snapshot)
+    )
+    refreshed = api.snapshot()[0]
+    assert not refreshed.discovering and refreshed.devices == ()
 
 
 @pytest.mark.parametrize(
@@ -384,12 +666,14 @@ def test_shared_menu_exposes_pairing_removal_without_unsupported_connection_acti
 
     client, api = backend
     monkeypatch.setattr(ui, "create_backend", lambda: client)
-    applet = ui.BluetoothApplet(48, Config())
+    config = Config()
+    config.applet_prefs["bluetooth"] = {"continuous_discovery": False}
+    applet = ui.BluetoothApplet(48, config)
     applet._on_poll_result(client.get_state())
     rows = applet.get_menu_items()
     labels = [row.get_label() for row in rows]
     assert "Devices..." in labels and "Turn Bluetooth Off" in labels
-    assert "Continuous Discovery" not in labels
+    assert "Continuous Discovery" in labels
     assert "Recent Connections" not in labels and "Disconnect Headphones" not in labels
     device = next(row for row in rows if "Headphones" in (row.get_label() or ""))
     submenu = device.get_submenu()

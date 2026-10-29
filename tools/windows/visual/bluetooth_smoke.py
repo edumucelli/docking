@@ -127,8 +127,36 @@ def main():
             )
             self.writes, self.denied = [], False
             self.removals = []
+            self.discovery_starts, self.discovery_stops = [], []
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+            self.radios = tuple(replace(r, discovering=False) for r in self.radios)
+
+        def start_discovery(self, radio):
+            self.discovery_starts.append([radio.identifier, radio.address])
+            if self.denied:
+                return False
+            self.radios = tuple(
+                replace(r, discovering=True) if r.identifier == radio.identifier else r
+                for r in self.radios
+            )
+            return True
+
+        def stop_discovery(self, identifier):
+            self.discovery_stops.append(identifier)
+            self.radios = tuple(
+                replace(r, discovering=False) if r.identifier == identifier else r
+                for r in self.radios
+            )
+            return True
 
         def snapshot(self):
+            self.radios = tuple(
+                replace(r, discovering=r.discovering and r.state == 1)
+                for r in self.radios
+            )
             return self.radios
 
         def set_power(self, radio, powered):
@@ -312,6 +340,7 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
             publish()
 
             fixture = FixtureRadio()
+            shared["fixture"] = fixture
 
             def install():
                 applet._backend.close()
@@ -326,8 +355,7 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
             popup, rows = menu()
             labels = [row["label"] for row in rows]
             assert (
-                "Continuous Discovery" not in labels
-                and "Recent Connections" not in labels
+                "Continuous Discovery" in labels and "Recent Connections" not in labels
             )
             assert "Turn Bluetooth Off" in labels and "Devices..." in labels
             device_rows = [
@@ -371,6 +399,37 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 "readback_unpaired": True,
                 "state": asdict(state()),
                 "scope": "injected classic-device fixture; no physical unpairing",
+            }
+            native.wait_for(
+                lambda: idle() and state().adapters[0].discovering,
+                "Fixture discovery was not observed",
+                15,
+            )
+            popup, _rows = menu()
+            capture("fixture-discovering-menu")
+            choose(popup, "Continuous Discovery")
+            native.wait_for(
+                lambda: idle() and not state().adapters[0].discovering,
+                "Fixture discovery did not stop",
+                15,
+            )
+            assert fixture.discovery_stops[-1] == "explicit-bluetooth-fixture"
+            popup, _rows = menu()
+            choose(popup, "Continuous Discovery")
+            native.wait_for(
+                lambda: idle() and state().adapters[0].discovering,
+                "Fixture discovery did not restart",
+                15,
+            )
+            assert fixture.discovery_starts[-1] == [
+                "explicit-bluetooth-fixture",
+                0x112233445566,
+            ]
+            report["fixture_discovery"] = {
+                "starts": fixture.discovery_starts,
+                "stops": fixture.discovery_stops,
+                "scope": "explicit injected radio fixture; no physical inquiry",
+                "restarted": True,
             }
             popup, _rows = menu()
             choose(popup, "Turn Bluetooth Off")
@@ -460,6 +519,11 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
         assert not driver.is_alive()
         assert native.workarea() == baseline
         assert shared["applet"]._stopped and shared["applet"]._poll_id == 0
+        if "fixture" in shared:
+            fixture = shared["fixture"]
+            assert fixture.closed and not any(r.discovering for r in fixture.radios)
+            assert not shared["applet"]._local_discovery_paths
+            report["discovery_sessions_released"] = True
         report["normal_shutdown"] = True
         if errors:
             raise errors[0]

@@ -1,8 +1,8 @@
-"""Windows Bluetooth radios and cached classic-device inventory.
+"""Windows Bluetooth radios, classic inventory and owned discovery sessions.
 
 WinRT supplies stable adapter identities and actual radio state, including off
 and policy-disabled radios. Win32 cached device enumeration is scoped to each
-local radio. It never starts an inquiry, pairs, connects or installs services.
+local radio. Explicit discovery sessions issue bounded inquiries on that radio.
 """
 
 from __future__ import annotations
@@ -12,7 +12,8 @@ import ctypes
 import json
 import os
 import subprocess
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -82,6 +83,7 @@ class Radio:
     name: str
     state: int
     devices: tuple[ClassicDevice, ...] = ()
+    discovering: bool = False
 
 
 class ClassicInventory:
@@ -132,7 +134,14 @@ class ClassicInventory:
         if error != 259:  # ERROR_NO_MORE_ITEMS, including no installed radio
             raise OSError(error, "Bluetooth inventory failed")
 
-    def snapshot(self) -> dict[int, tuple[ClassicDevice, ...]]:
+    def snapshot(
+        self, *, inquiry_addresses: frozenset[int] = frozenset()
+    ) -> dict[int, tuple[ClassicDevice, ...]]:
+        if any(
+            type(address) is not int or not 0 < address < 1 << 48
+            for address in inquiry_addresses
+        ):
+            raise ValueError("Bluetooth inquiry requires valid radio addresses")
         radio = _HANDLE()
         cursor = self._first_radio(ctypes.byref(_DWORD(4)), ctypes.byref(radio))
         try:
@@ -147,7 +156,9 @@ class ClassicInventory:
                     status = self._info(radio, ctypes.byref(info))
                     if status:
                         raise OSError(status, "Bluetooth radio information failed")
-                    result[int(info.address)] = self._devices(radio)
+                    result[int(info.address)] = self._devices(
+                        radio, inquiry=int(info.address) in inquiry_addresses
+                    )
                 finally:
                     if radio.value:
                         self._close_handle(radio)
@@ -162,10 +173,16 @@ class ClassicInventory:
             if cursor:
                 self._close_radios(cursor)
 
-    def _devices(self, radio) -> tuple[ClassicDevice, ...]:
+    def _devices(self, radio, *, inquiry: bool = False) -> tuple[ClassicDevice, ...]:
+        if inquiry and not radio.value:
+            raise ValueError("Bluetooth inquiry requires a selected radio handle")
         search = _Search()
         search.size = ctypes.sizeof(search)
         search.authenticated = search.connected = 1
+        search.inquiry = inquiry
+        search.unknown = search.remembered = inquiry
+        # The SDK expresses inquiry timeouts in 1.28-second units.
+        search.timeout = 1 if inquiry else 0
         search.radio = radio.value
         info = _DeviceInfo()
         info.size = ctypes.sizeof(info)
@@ -177,7 +194,7 @@ class ClassicInventory:
             result = {}
             for _ in range(4096):
                 if 0 < info.address < 1 << 48 and (
-                    info.authenticated or info.connected
+                    inquiry or info.authenticated or info.connected
                 ):
                     result[info.address] = ClassicDevice(
                         int(info.address),
@@ -290,15 +307,64 @@ def _request(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class WindowsBluetoothAPI:
+    def __init__(self) -> None:
+        self._discovery_lock = threading.Lock()
+        self._closed = threading.Event()
+        self._discovering: dict[str, int] = {}
+        self._pending: dict[str, object] = {}
+
+    def close(self) -> None:
+        self._closed.set()
+        with self._discovery_lock:
+            self._discovering.clear()
+            self._pending.clear()
+
+    def start_discovery(self, radio: Radio) -> bool:
+        if self._closed.is_set() or radio.state != 1:
+            return False
+        with self._discovery_lock:
+            if self._discovering.get(radio.identifier) == radio.address:
+                return True
+            if radio.identifier in self._pending:
+                return False
+            token = object()
+            self._pending[radio.identifier] = token
+        try:
+            devices = ClassicInventory().snapshot(
+                inquiry_addresses=frozenset((radio.address,))
+            )
+            with self._discovery_lock:
+                if (
+                    self._closed.is_set()
+                    or self._pending.get(radio.identifier) is not token
+                    or radio.address not in devices
+                ):
+                    return False
+                self._discovering[radio.identifier] = radio.address
+                return True
+        finally:
+            with self._discovery_lock:
+                if self._pending.get(radio.identifier) is token:
+                    self._pending.pop(radio.identifier)
+
+    def stop_discovery(self, identifier: str) -> bool:
+        with self._discovery_lock:
+            self._discovering.pop(identifier, None)
+            self._pending.pop(identifier, None)
+        return True
+
     def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool:
+        if self._closed.is_set():
+            return False
         return ClassicInventory().remove_pairing(radio.address, device.address)
 
     def snapshot(self) -> tuple[Radio, ...]:
+        if self._closed.is_set():
+            return ()
         data = _request({"action": "read"})
         entries = data.get("radios")
         if not isinstance(entries, list) or len(entries) > 256:
             raise ValueError("Invalid Bluetooth radios")
-        devices = ClassicInventory().snapshot() if entries else {}
         result = {}
         for entry in entries:
             if not isinstance(entry, dict):
@@ -316,12 +382,47 @@ class WindowsBluetoothAPI:
                 or state not in (0, 1, 2, 3)
             ):
                 raise ValueError("Invalid Bluetooth radio properties")
-            result[identifier] = Radio(
-                identifier, address, name, state, devices.get(address, ())
+            result[identifier] = Radio(identifier, address, name, state)
+        with self._discovery_lock:
+            self._discovering = {
+                identifier: address
+                for identifier, address in self._discovering.items()
+                if identifier in result
+                and result[identifier].address == address
+                and result[identifier].state == 1
+            }
+            active = dict(self._discovering)
+        if self._closed.is_set():
+            return ()
+        devices = (
+            ClassicInventory().snapshot(inquiry_addresses=frozenset(active.values()))
+            if active
+            else ClassicInventory().snapshot()
+            if result
+            else {}
+        )
+        if self._closed.is_set():
+            return ()
+        with self._discovery_lock:
+            active = dict(self._discovering)
+        return tuple(
+            replace(
+                radio,
+                devices=tuple(
+                    device
+                    for device in devices.get(radio.address, ())
+                    if active.get(radio.identifier) == radio.address
+                    or device.paired
+                    or device.connected
+                ),
+                discovering=active.get(radio.identifier) == radio.address,
             )
-        return tuple(result.values())
+            for radio in result.values()
+        )
 
     def set_power(self, radio: Radio, powered: bool) -> bool:
+        if self._closed.is_set():
+            return False
         return (
             _request(
                 {
