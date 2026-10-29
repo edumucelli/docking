@@ -323,7 +323,10 @@ window in the normal stacking band. This follows the
 An initial foreground/monitor check also covers starting Docking while another
 application is already fullscreen. A 250 ms native geometry observer runs only
 while fullscreen is active and stops on exit or surface shutdown; it handles
-the missing closing notification in that startup case.
+the missing closing notification in that startup case. After exit, a separate
+short observer confirms the actual Win32 topmost flag and repairs a stale GTK
+hint without activating the dock. It stops once native stacking is confirmed;
+re-entering fullscreen or removing the reservation/surface cancels it.
 
 ```sh
 python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen

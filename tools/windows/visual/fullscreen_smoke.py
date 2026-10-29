@@ -220,6 +220,7 @@ def run_scenario(output: Path, scenario: str) -> None:
                     surface = shared["ui"].window.surface_service
                     return {
                         "observer": surface._fullscreen_source,
+                        "restoration_observer": surface._topmost_source,
                         "foreground_fullscreen": surface._appbar.fullscreen_active(
                             surface._mapping
                         ),
@@ -318,7 +319,10 @@ def run_scenario(output: Path, scenario: str) -> None:
             )
             native.wait_for(
                 lambda: call(
-                    lambda: shared["ui"].window.surface_service._fullscreen_source == 0
+                    lambda: (
+                        shared["ui"].window.surface_service._fullscreen_source == 0
+                        and shared["ui"].window.surface_service._topmost_source == 0
+                    )
                 ),
                 "Fullscreen exit observer remained active",
             )

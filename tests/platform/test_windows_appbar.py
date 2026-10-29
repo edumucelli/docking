@@ -187,3 +187,34 @@ def test_foreign_window_geometry_rounds_outward_relative_to_the_dock_monitor():
 )
 def test_all_edges_use_the_available_desktop_beyond_external_panels(position, expected):
     assert edge_strip(Rect(-1920, 24, 1920, 1000), position, 60) == expected
+
+
+def test_native_topmost_repair_ignores_stale_gtk_hint_and_waits_for_confirmation(
+    monkeypatch,
+):
+    window = Mock()
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: 123)
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    style = Mock(side_effect=[0x080800A0, 0x080800A8])
+    bar._user = SimpleNamespace(GetWindowLongPtrW=style)
+    bar._set_position = Mock(return_value=1)
+
+    assert bar.ensure_keep_above(window) is False
+    bar._set_position.assert_called_once_with(123, -1, 0, 0, 0, 0, 0x13)
+    assert bar.ensure_keep_above(window) is True
+    assert bar._set_position.call_count == 1
+    style.assert_called_with(123, -20)
+    window.present.assert_not_called()
+
+
+@pytest.mark.parametrize("closed,hwnd", [(True, 123), (False, None)])
+def test_native_topmost_repair_requires_a_live_owned_window(monkeypatch, closed, hwnd):
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: hwnd)
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = closed
+    bar._user = Mock()
+    bar._set_position = Mock()
+    assert bar.ensure_keep_above(Mock()) is False
+    bar._set_position.assert_not_called()
+    assert bar._user.mock_calls == []

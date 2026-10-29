@@ -18,7 +18,7 @@ from docking.log import get_logger
 from docking.platform.backends.base import MonitorSnapshot, Rect
 
 from .ffi import bind as _bind
-from .ffi import explorer_tray
+from .ffi import explorer_tray, window_handle
 from .geometry import ScreenMapping, WindowsMonitorGeometry
 
 if TYPE_CHECKING:
@@ -212,6 +212,27 @@ class WindowsAppBar:
 
     def mapping(self, monitor: MonitorSnapshot, display: Gdk.Display) -> ScreenMapping:
         return self._coordinates.mapping(monitor, display)
+
+    def ensure_keep_above(self, window: Gdk.Window) -> bool:
+        """Confirm native stacking, repairing stale GTK hints without activation.
+
+        A repair needs a subsequent observation: the closing fullscreen window
+        may still be changing native z-order while the shell callback runs.
+        """
+        if self._closed or not (hwnd := window_handle(window)):
+            return False
+        style = _bind(
+            self._user,
+            "GetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+        )(hwnd, -20)
+        if style & 8:  # WS_EX_TOPMOST.
+            return True
+        # HWND_TOPMOST; NOSIZE | NOMOVE | NOACTIVATE.
+        self._set_position(hwnd, -1, 0, 0, 0, 0, 0x13)
+        return False
 
     def fullscreen_active(self, mapping: ScreenMapping) -> bool | None:
         """Read the active monitor cover without changing stacking on unknown data."""

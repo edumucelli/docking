@@ -42,7 +42,8 @@ fresh process. The fixture uses a unique executable name without installed
 shortcuts and verifies that no catalog alias supplies its runtime identity.
 The fullscreen check verifies native F11 transitions and starting
 the dock during an existing fullscreen application, with pixel coverage,
-foreground retention, restored stacking, direct Alt+F4 closure and normal cleanup.
+foreground retention, restored native stacking, direct Alt+F4 closure and normal
+cleanup of both fullscreen and restoration observers.
 It also builds the standalone ZIP and exercises its extracted
 runtime and launcher. The installer check verifies per-user setup, installed-file
 integrity, in-use rejection, upgrades, startup and removal; see

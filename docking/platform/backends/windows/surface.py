@@ -47,6 +47,7 @@ class WindowsSurfaceService(SurfaceService):
         self._refresh_source = 0
         self._pointer_source = 0
         self._fullscreen_source = 0
+        self._topmost_source = 0
         self._input_rect: Rect | None = None
 
         self._map_source = 0
@@ -168,6 +169,9 @@ class WindowsSurfaceService(SurfaceService):
         if self._fullscreen_source:
             GLib.source_remove(self._fullscreen_source)
             self._fullscreen_source = 0
+        if self._topmost_source:
+            GLib.source_remove(self._topmost_source)
+            self._topmost_source = 0
         if self._map_source:
             GLib.source_remove(self._map_source)
             self._map_source = 0
@@ -269,6 +273,9 @@ class WindowsSurfaceService(SurfaceService):
 
     def clear_reservation(self) -> None:
         self._reservation = None
+        if self._topmost_source:
+            GLib.source_remove(self._topmost_source)
+            self._topmost_source = 0
         if self._fullscreen_source:
             self._fullscreen_changed(False)
         if self._appbar is not None:
@@ -296,6 +303,9 @@ class WindowsSurfaceService(SurfaceService):
 
     def _fullscreen_changed(self, fullscreen: bool) -> None:
         if self._window is not None:
+            if fullscreen and self._topmost_source:
+                GLib.source_remove(self._topmost_source)
+                self._topmost_source = 0
             if not fullscreen and self._fullscreen_source:
                 # Changing native z-order can deliver another shell callback
                 # synchronously. Retire this observer before GTK so a nested
@@ -320,6 +330,41 @@ class WindowsSurfaceService(SurfaceService):
                     self._fullscreen_source = GLib.timeout_add(
                         250, self._poll_fullscreen
                     )
+
+            elif (
+                self._appbar is not None
+                and self._mapping is not None
+                and self._reservation is not None
+                and not self._fullscreen_source
+                and not self._topmost_source
+            ):
+                self._topmost_source = GLib.timeout_add(250, self._poll_topmost)
+
+    def _poll_topmost(self) -> bool:
+        if (
+            self._window is None
+            or self._appbar is None
+            or self._mapping is None
+            or self._reservation is None
+        ):
+            self._topmost_source = 0
+            return False
+        fullscreen = self._appbar.fullscreen_active(self._mapping)
+        if fullscreen is None:
+            return True
+        if fullscreen:
+            self._fullscreen_changed(True)
+            return False
+        self._window.set_keep_above(True)
+        # A native call can synchronously start fullscreen again and cancel
+        # this restoration. Leave the newly owned fullscreen observer intact.
+        if not self._topmost_source:
+            return False
+        native = self._window.get_window()
+        if native is not None and self._appbar.ensure_keep_above(native):
+            self._topmost_source = 0
+            return False
+        return bool(self._topmost_source)
 
     def _poll_fullscreen(self) -> bool:
         if self._appbar is None or self._mapping is None:
