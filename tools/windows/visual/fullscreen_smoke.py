@@ -61,7 +61,7 @@ def run_scenario(output: Path, scenario: str) -> None:
     from PIL import ImageGrab
 
     import docking.app as app
-    from docking.platform.backends.windows.ffi import MonitorInfo, bind
+    from docking.platform.backends.windows.ffi import MonitorInfo, bind, window_handle
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.smoke import dock_window
 
@@ -192,6 +192,33 @@ def run_scenario(output: Path, scenario: str) -> None:
                 lambda: dock_window(native.windows(os.getpid())), "Dock did not map"
             )
 
+            def trace_native_stacking():
+                surface = shared["ui"].window.surface_service
+                ensure = surface._appbar.ensure_keep_above
+                report["native_stacking_attempts"] = []
+
+                def traced(window):
+                    hwnd = window_handle(window)
+                    record = {
+                        "hwnd": hwnd,
+                        "expected_dock_hwnd": dock["hwnd"],
+                        "before_topmost": bool(style(hwnd, -20) & 8) if hwnd else None,
+                    }
+                    ctypes.set_last_error(0)
+                    confirmed = ensure(window)
+                    record.update(
+                        confirmed=confirmed,
+                        win32_error=ctypes.get_last_error(),
+                        after_topmost=bool(style(hwnd, -20) & 8) if hwnd else None,
+                    )
+                    if len(report["native_stacking_attempts"]) < 128:
+                        report["native_stacking_attempts"].append(record)
+                    return confirmed
+
+                surface._appbar.ensure_keep_above = traced
+
+            call(trace_native_stacking)
+
             def clock_rectangle():
                 window = shared["ui"].window
                 frame = window.geometry.build_frame(main_cursor=-1.0)
@@ -218,7 +245,26 @@ def run_scenario(output: Path, scenario: str) -> None:
 
                 def stacking():
                     surface = shared["ui"].window.surface_service
+                    handle = window_handle(shared["ui"].window.get_window())
+                    source = (
+                        GLib.MainContext.default().find_source_by_id(
+                            surface._topmost_source
+                        )
+                        if surface._topmost_source
+                        else None
+                    )
                     return {
+                        "native_hwnd": handle,
+                        "native_hwnd_topmost": bool(style(handle, -20) & 8)
+                        if handle
+                        else None,
+                        "reservation_active": surface._reservation is not None,
+                        "restoration_source_alive": source is not None,
+                        "restoration_due_ms": (
+                            (source.get_ready_time() - GLib.get_monotonic_time()) / 1000
+                            if source is not None
+                            else None
+                        ),
                         "observer": surface._fullscreen_source,
                         "restoration_observer": surface._topmost_source,
                         "foreground_fullscreen": surface._appbar.fullscreen_active(
