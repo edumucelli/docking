@@ -109,7 +109,10 @@ class _Native:
     def activation(self):
         self.read_count += 1
         try:
-            return self.events.get_nowait()
+            event = self.events.get_nowait()
+            if isinstance(event, Exception):
+                raise event
+            return event
         except Empty:
             return None
 
@@ -226,6 +229,50 @@ def test_conflict_has_no_binding_and_can_be_retried_after_stop():
     finally:
         service.stop()
     assert natives[1].released.is_set()
+
+
+def test_initial_conflict_recovers_without_restarting_or_changing_preferences():
+    error = OSError("Already registered")
+    error.winerror = 1409
+    native, idle = _Native(error=error), _Idle()
+    activated, statuses = [], []
+    service = _service(lambda: native, idle, activated, statuses)
+    try:
+        service.start()
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.ERROR)
+        owner = native.owner
+        native.error = None
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.BOUND)
+        assert native.owner == owner
+        native.events.put(321)
+        _flush_until(idle, lambda: bool(activated))
+        assert activated[0][1].timestamp == 321
+    finally:
+        service.stop()
+    assert native.released.is_set()
+
+
+@pytest.mark.parametrize(
+    "error", [ValueError("unavailable layout"), OSError("conflict")]
+)
+def test_layout_rebind_errors_are_reported_and_recover_on_the_same_worker(error):
+    native, idle = _Native(), _Idle()
+    activated, statuses = [], []
+    service = _service(lambda: native, idle, activated, statuses)
+    try:
+        service.start()
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.BOUND)
+        native.events.put(error)
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.ERROR)
+        assert service.status.binding is None
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.BOUND)
+        assert not native.released.is_set()
+        native.events.put(456)
+        _flush_until(idle, lambda: bool(activated))
+        assert activated[0][1].timestamp == 456
+    finally:
+        service.stop()
+    assert native.release_owner == native.owner
 
 
 def test_stop_during_registration_releases_late_grab_without_publishing_bound():

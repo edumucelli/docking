@@ -85,6 +85,7 @@ class WindowsKeyboardAPI:
             user, "GetGUIThreadInfo", _BOOL, _DWORD, ctypes.POINTER(_GuiThreadInfo)
         )
         self._window = bind(user, "IsWindow", _BOOL, _HWND)
+        self._visible = bind(user, "IsWindowVisible", _BOOL, _HWND)
         self._child = bind(user, "IsChild", _BOOL, _HWND, _HWND)
         self._text = bind(
             user, "GetWindowTextW", ctypes.c_int, _HWND, ctypes.c_wchar_p, ctypes.c_int
@@ -202,7 +203,7 @@ class WindowsKeyboardAPI:
         return current
 
     def _context_for_root(self, root: int) -> InputContext | None:
-        if not root:
+        if not root or not self._visible(root):
             return None
         pid = _DWORD()
         thread = self._thread(root, ctypes.byref(pid))
@@ -340,6 +341,7 @@ class WindowsKeyboardBackend(LayoutBackend):
     def __init__(self, *, api: KeyboardAPI | None = None) -> None:
         self._api = api
         self._target: InputContext | None = None
+        self._contexts: tuple[InputContext, ...] = ()
         self._details: dict[str, LayoutInfo] = {}
         self._lock = threading.Lock()
         self._stopped = threading.Event()
@@ -353,13 +355,21 @@ class WindowsKeyboardBackend(LayoutBackend):
             return None
         current = self.api.foreground()
         # GDK's non-activating mouse handling can clear foreground ownership.
-        # Retain the verified typing window only on the active input desktop.
+        # Keep a bounded history of typing windows on the active input desktop.
+        # A hidden Search window must not replace the preceding visible source
+        # during the native foreground gap caused by opening a dock menu.
         if current is not None and not current.control_surface:
-            self._target = current
-        elif self._target is not None:
-            self._target = self.api.refresh(self._target)
-        target = self._target
-        return target if target is not None and self.api.valid(target) else None
+            recent = tuple(
+                saved for saved in self._contexts if saved.key != current.key
+            )[-7:]
+            self._contexts = (*recent, current)
+        self._target = None
+        for saved in reversed(self._contexts):
+            refreshed = self.api.refresh(saved)
+            if refreshed is not None and self.api.valid(refreshed):
+                self._target = refreshed
+                break
+        return self._target
 
     def _query(self, *, describe: bool) -> LayoutState:
         if self._stopped.is_set():

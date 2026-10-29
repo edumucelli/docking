@@ -610,11 +610,28 @@ binding advertised. Disabling Search and normal Quit release the owned hotkey.
 The Windows path does not attempt the XDG portal or X11 fallback.
 
 Captured GDK key names map to native virtual keys or characters translated in
-the foreground keyboard layout. F12 is reserved by Windows for debuggers and
+the foreground keyboard layout. Character bindings follow live layout changes;
+unchanged translations retain their registration. A changed mapping releases
+the old key and retires its queued messages before registering the replacement.
+An unavailable character or competing owner advertises no binding, and the
+same worker retries until the layout or ownership permits registration again.
+Stopping cancels these retries. F12 is reserved by Windows for debuggers and
 is rejected. The XDG `NUM` modifier has no Win32 registration equivalent.
-The desktop acceptance uses the lab's US keyboard layout; broader keyboard
-layouts, dead keys, remote sessions and Windows-reserved combinations still
-need acceptance.
+The keyboard backend retains a bounded history of verified typing windows so
+a hidden Search window cannot displace the preceding visible source during a
+dock-menu foreground gap. A new foreground application still invalidates an
+older menu request.
+
+`python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts`
+checks physical scan-code typing in Notepad and Search under US, French and
+Dvorak, including French dead-key composition. It switches a semicolon shortcut
+between US and French while already bound, verifies unavailable-character and
+conflict recovery without changing preferences, and quits during an unavailable
+layout. It restores the original loaded layouts, input preferences and work
+area, then independently reacquires every tested shortcut. Windows CI runs this
+mode and uploads the reports and captures. Other layouts, broader dead keys,
+AltGr/IME and per-app input policies, remote sessions and Windows-reserved
+combinations still need acceptance.
 
 `tools/windows/visual/shortcut_smoke.py` runs the complete application composition and GTK
 main loop with isolated settings. Its driver sends native `SendInput` events

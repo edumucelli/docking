@@ -4,6 +4,7 @@ import ctypes
 import sys
 import time
 from ctypes import wintypes
+from unittest.mock import Mock
 
 import pytest
 
@@ -157,6 +158,58 @@ def test_menu_handoff_retains_previous_input_window_but_search_can_be_targeted(
     api.window = mod.InputContext(1000, 1001, 1002, 1003)
     actual = backend.prepare_interaction(state)
     assert actual.context == api.window.key and actual.context != state.context
+
+
+def test_hidden_search_context_restores_the_preceding_visible_typing_target(keyboard):
+    backend, api = keyboard
+    source = api.window
+    source_state = backend.query()
+    search = mod.InputContext(1000, 1001, 1002, 1003)
+    api.window = search
+    assert backend.query().context == search.key
+    api.window = mod.InputContext(900, 900, 901, 902, control_surface=True)
+    api.refresh = lambda context: None if context.key == search.key else context
+    assert backend.prepare_interaction(source_state).context == source.key
+    backend.switch(source_state.available[1], context=source.key)
+    assert api.requests == [(source, 0xF0020409)]
+
+
+def test_hidden_context_fallback_never_overrides_a_new_foreground_application(keyboard):
+    backend, api = keyboard
+    original = backend.query()
+    search = mod.InputContext(1000, 1001, 1002, 1003)
+    api.window = search
+    backend.query()
+    api.window = mod.InputContext(900, 900, 901, 902, control_surface=True)
+    api.refresh = lambda context: None if context.key == search.key else context
+    restored = backend.prepare_interaction(original)
+    api.window = mod.InputContext(2000, 2001, 2002, 2003)
+    backend.switch(restored.available[1], context=restored.context)
+    assert api.requests == []
+
+
+def test_native_context_rejects_hidden_windows_before_querying_typing_focus():
+    api = mod.WindowsKeyboardAPI.__new__(mod.WindowsKeyboardAPI)
+    api._visible = Mock(return_value=False)
+
+    def thread(_window, pointer):
+        pointer._obj.value = 301
+        return 201
+
+    api._thread = Mock(side_effect=thread)
+    api._gui = Mock(return_value=False)
+    api._text = Mock(
+        side_effect=lambda _window, text, _length: setattr(
+            text, "value", "Docking Search"
+        )
+    )
+    api._class = Mock(
+        side_effect=lambda _window, text, _length: setattr(
+            text, "value", "gdkWindowToplevel"
+        )
+    )
+    assert api._context_for_root(100) is None
+    api._thread.assert_not_called()
 
 
 def test_interaction_snapshot_does_not_activate_or_describe_layouts_on_gtk_thread(

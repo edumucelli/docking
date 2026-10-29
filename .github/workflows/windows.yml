@@ -79,6 +79,8 @@ jobs:
         run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
+      - name: Verify Search input and shortcut recovery across keyboard layouts
+        run: python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts
       - name: Build the standalone Windows application
         run: |
           python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip

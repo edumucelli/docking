@@ -109,6 +109,11 @@ function RegValues($path) {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--search-input",
+        action="store_true",
+        help="Check Search typing, dead keys and shortcut recovery across layouts",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test VM")
@@ -136,6 +141,12 @@ def main():
     )
     from docking.platform import targets
     from docking.platform.backends.windows.ffi import bind
+    from docking.platform.backends.windows.hotkeys import (
+        MOD_ALT,
+        MOD_CONTROL,
+        WindowsHotkeyAPI,
+    )
+    from docking.search.services.global_shortcuts import GlobalShortcutsState
     from tools.windows.visual.desktop_driver import WindowsDesktop
 
     native = WindowsDesktop()
@@ -219,6 +230,8 @@ def main():
                 "show_recent_apps": False,
                 "startup_tips_enabled": False,
                 "update_check_enabled": False,
+                "global_search_enabled": True,
+                "global_search_shortcut": "CTRL+ALT+space",
             }
         ),
         encoding="utf-8",
@@ -417,11 +430,63 @@ def main():
                     5,
                 )
 
-            def physical_character(name, expected):
+            def search_window():
+                return next(
+                    (
+                        w
+                        for w in native.windows(os.getpid())
+                        if w["title"] == "Docking Search"
+                    ),
+                    None,
+                )
+
+            def open_search(key, *, shift=False):
+                native.key(key, control=True, alt=True, shift=shift)
+                window = native.wait_for(search_window, "Shortcut did not open Search")
+                native.wait_for(
+                    lambda: native.user.GetForegroundWindow() == window["hwnd"],
+                    "Search did not gain foreground",
+                )
+
+            def close_search():
+                native.key(0x1B)
+                native.wait_for(lambda: not search_window(), "Search did not dismiss")
+                native.wait_for(
+                    lambda: native.user.GetForegroundWindow() == notepad["hwnd"],
+                    "Search did not restore Notepad foreground",
+                )
+
+            def search_character(name, expected, scans):
+                search = shared["ui"].search
+                open_search(0x20)
+                observed = oracle()
+                native.key(0x41, control=True)
+                native.key(0x08)
+                for code in scans:
+                    native.scan(code)
+
+                def text():
+                    return call(lambda: search.window.search_entry.get_text())
+
+                native.wait_for(
+                    lambda: text() == expected,
+                    "Search physical input mismatch: " + name,
+                )
+                report.setdefault("search_characters", {})[name] = {
+                    "text": text(),
+                    "os": observed,
+                }
+                ImageGrab.grab(all_screens=True).save(
+                    output / ("search-" + name + ".png")
+                )
+                close_search()
+
+            def physical_character(name, expected, scans=(0x10,)):
                 focus_editor()
                 native.key(0x41, control=True)
                 native.key(0x08)
-                native.scan(0x10)  # US Q key position, not a Unicode/VK character.
+                for code in scans:
+                    native.scan(code)
                 native.key(0x53, control=True)
                 native.wait_for(
                     lambda: document.read_text(encoding="utf-8-sig") == expected,
@@ -429,6 +494,8 @@ def main():
                     20,
                 )
                 report["characters"][name] = document.read_text(encoding="utf-8-sig")
+                if args.search_input:
+                    search_character(name, expected, scans)
                 publish()
 
             def aim_keyboard():
@@ -453,7 +520,89 @@ def main():
             for name, expected in (("fr", "a"), ("dvorak", "'"), ("us", "q")):
                 select(wanted[name], "select-" + name)
                 physical_character(name, expected)
+                if args.search_input and name == "fr":
+                    physical_character("fr-dead", "ê", (0x1A, 0x12))
                 snapshot("native-" + name)
+            if args.search_input:
+                search = shared["ui"].search
+                key_scan = bind(
+                    user,
+                    "VkKeyScanExW",
+                    ctypes.c_short,
+                    ctypes.c_wchar,
+                    ctypes.c_void_p,
+                )
+
+                def configure(shortcut):
+                    def apply():
+                        search._config.global_search_shortcut = shortcut
+                        search.refresh_settings()
+
+                    call(apply)
+
+                def wait_status(state):
+                    native.wait_for(
+                        lambda: call(
+                            lambda: (
+                                search.shortcut_status is not None
+                                and search.shortcut_status.state is state
+                            )
+                        ),
+                        "Search shortcut did not reach " + state.value,
+                    )
+
+                def activate_character(character):
+                    context = api.foreground()
+                    translated = int(key_scan(character, api.active(context.thread)))
+                    assert translated != -1
+                    open_search(translated & 255, shift=bool(translated & 256))
+                    close_search()
+                    return translated
+
+                configure("CTRL+ALT+semicolon")
+                wait_status(GlobalShortcutsState.BOUND)
+                report["punctuation_keys"] = {"us": activate_character(";")}
+                for name in ("fr", "us"):
+                    select(wanted[name], "punctuation-" + name)
+                    report["punctuation_keys"][name] = activate_character(";")
+                    publish()
+                configure("CTRL+ALT+eacute")
+                wait_status(GlobalShortcutsState.ERROR)
+                assert call(lambda: search.shortcut_status.binding) is None
+                select(wanted["fr"], "unavailable-recovery-fr")
+                wait_status(GlobalShortcutsState.BOUND)
+                report["recovered_character_key"] = activate_character("é")
+                select(wanted["us"], "unavailable-us")
+                wait_status(GlobalShortcutsState.ERROR)
+                native.key(0x32, control=True, alt=True)
+                time.sleep(0.3)
+                assert not search_window(), "Unavailable layout retained its old key"
+                select(wanted["fr"], "unavailable-recovery-fr-again")
+                wait_status(GlobalShortcutsState.BOUND)
+                activate_character("é")
+                report["unavailable_layout_recovered"] = True
+
+                competitor = WindowsHotkeyAPI()
+                competitor.register(MOD_CONTROL | MOD_ALT, 0x20)
+                try:
+                    configure("CTRL+ALT+space")
+                    wait_status(GlobalShortcutsState.ERROR)
+                    assert call(lambda: search.shortcut_status.binding) is None
+                    assert call(lambda: search.shortcut_status.message) == (
+                        "shortcut is already in use"
+                    )
+                finally:
+                    competitor.unregister()
+                wait_status(GlobalShortcutsState.BOUND)
+                open_search(0x20)
+                close_search()
+                report["conflict_recovered"] = True
+                select(wanted["us"], "shutdown-unavailable-us")
+                configure("CTRL+ALT+eacute")
+                wait_status(GlobalShortcutsState.ERROR)
+                report["shutdown_with_unavailable_layout"] = True
+                report["ok"] = True
+                return
             # Mouse click and both wheel directions use the real current list.
             native.click(*call(point))
             wait_layout(wanted["fr"])
@@ -531,6 +680,20 @@ def main():
                     return {
                         "state": shared["applet"]._layout._asdict(),
                         "target": target.__dict__ if target else None,
+                        "target_visible": (
+                            bool(native.user.IsWindowVisible(target.root))
+                            if target
+                            else None
+                        ),
+                        "recent_contexts": [
+                            {
+                                "context": context.__dict__,
+                                "visible": bool(
+                                    native.user.IsWindowVisible(context.root)
+                                ),
+                            }
+                            for context in backend._contexts
+                        ],
                         "valid": api.valid(target) if target else False,
                         "foreground": foreground.__dict__ if foreground else None,
                         "input_desktop_active": api.input_desktop_active(),
@@ -630,8 +793,26 @@ def main():
             and shared["applet"]._stopped
             and shared["applet"]._timer_id == 0
         )
+        if args.search_input:
+            report["search_shortcuts_released"] = True
+            for key in (0x20, 0xBA, 0xBE, 0x32):
+                probe = WindowsHotkeyAPI()
+                try:
+                    probe.register(MOD_CONTROL | MOD_ALT, key)
+                    probe.unregister()
+                except OSError as exc:
+                    errors.append(exc)
+                    report.update(
+                        ok=False,
+                        search_shortcuts_released=False,
+                        shortcut_release_error=repr(exc),
+                    )
+                    break
         publish()
         print(json.dumps(report, indent=2))
+        if errors:
+            raise errors[0]
+        assert report["normal_shutdown"]
         assert (
             report["owned_layouts_released"]
             and report["loaded_set_restored"]

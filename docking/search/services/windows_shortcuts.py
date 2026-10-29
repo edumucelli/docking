@@ -207,15 +207,33 @@ class WindowsGlobalShortcutsService:
     ) -> None:
         native = None
         registered = False
+        last_status: tuple[GlobalShortcutsState, str | None] | None = None
         try:
             native = self._native_factory()
             if closed.is_set():
                 return
-            native.register(modifiers, key)
-            registered = True
-            self._post(generation, self._publish, GlobalShortcutsState.BOUND)
             while not closed.is_set():
-                timestamp = native.activation()
+                try:
+                    if not registered:
+                        native.register(modifiers, key)
+                        registered = True
+                    timestamp = native.activation()
+                except (OSError, ValueError) as exc:
+                    message = (
+                        "shortcut is already in use"
+                        if getattr(exc, "winerror", None) == 1409
+                        else str(exc)
+                    )
+                    status = GlobalShortcutsState.ERROR, message
+                    if last_status != status:
+                        self._post(generation, self._publish, *status)
+                        last_status = status
+                    closed.wait(0.25)
+                    continue
+                status = GlobalShortcutsState.BOUND, None
+                if last_status != status:
+                    self._post(generation, self._publish, *status)
+                    last_status = status
                 if timestamp is not None:
                     self._post(
                         generation,

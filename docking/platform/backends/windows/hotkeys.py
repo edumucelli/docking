@@ -32,6 +32,8 @@ class WindowsHotkeyAPI:
     """Create, read and release one hotkey on the calling worker thread."""
 
     def __init__(self) -> None:
+        self._preferred: tuple[int, int | str] | None = None
+        self._binding: tuple[int, int] | None = None
         user = ctypes.WinDLL("user32", use_last_error=True)
         self._register = _bind(
             user,
@@ -78,6 +80,12 @@ class WindowsHotkeyAPI:
 
     def register(self, modifiers: int, key: int | str) -> None:
         """Register a virtual key or a character in the foreground input layout."""
+        self._preferred = modifiers, key
+        # Peek creates this thread's queue before any messages can be posted.
+        self._peek(ctypes.byref(Message()), None, 0, 0, 0)
+        self._refresh()
+
+    def _translate(self, modifiers: int, key: int | str) -> tuple[int, int]:
         if isinstance(key, str):
             hwnd = self._foreground()
             thread = self._window_thread(hwnd, None) if hwnd else 0
@@ -91,13 +99,37 @@ class WindowsHotkeyAPI:
                 | (MOD_CONTROL if shift & 2 else 0)
                 | (MOD_ALT if shift & 4 else 0)
             )
-        # Peek creates this thread's queue before any messages can be posted.
-        self._peek(ctypes.byref(Message()), None, 0, 0, 0)
+        return modifiers, key
+
+    def _refresh(self) -> None:
+        if self._preferred is None:
+            return
+        try:
+            binding = self._translate(*self._preferred)
+        except ValueError:
+            # Do not leave an unrelated key active when this layout cannot
+            # represent the configured character. The worker retries later.
+            self._release()
+            raise
+        if binding == self._binding:
+            return
+        self._release()
+        # The old registration can have queued activations. Retire those before
+        # reusing its ID, including when a previously unavailable key recovers.
+        while self._peek(ctypes.byref(Message()), None, WM_HOTKEY, WM_HOTKEY, 1):
+            pass
+        modifiers, key = binding
         if not self._register(None, HOTKEY_ID, modifiers | MOD_NOREPEAT, key):
             raise ctypes.WinError(ctypes.get_last_error())
+        self._binding = binding
 
     def activation(self) -> int | None:
-        """Remove one native activation, returning its Windows event timestamp."""
+        """Refresh the foreground mapping and return one current activation."""
+        if self._preferred is None:
+            return None
+        self._refresh()
+        if self._binding is None:
+            return None
         message = Message()
         if (
             self._peek(ctypes.byref(message), None, WM_HOTKEY, WM_HOTKEY, 1)
@@ -108,5 +140,12 @@ class WindowsHotkeyAPI:
 
     def unregister(self) -> None:
         """Release the hotkey on the same thread that registered it."""
+        self._preferred = None
+        self._release()
+
+    def _release(self) -> None:
+        if self._binding is None:
+            return
         if not self._unregister(None, HOTKEY_ID):
             raise ctypes.WinError(ctypes.get_last_error())
+        self._binding = None
