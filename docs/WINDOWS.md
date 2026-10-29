@@ -108,8 +108,8 @@ Battery follows `BatteryBackend` for aggregate readings, power, peripherals and
 Power Settings. The shared UI keeps one backend instance and passes no sysfs
 paths to it. Linux owns its device/path configuration; Linux and BSD use the
 UPower implementation for accessories. Windows uses its power APIs and native
-Settings action; accessory discovery remains incomplete. Shared battery state
-and tooltip formatting contain no OS access.
+Settings action and published Windows device-container battery properties.
+Shared battery state and tooltip formatting contain no OS access.
 
 Volume's `VolumeBackend` supplies optional audio controls and settings actions.
 Linux, BSD and Windows construct the same contract, so Sound Settings remain
@@ -976,8 +976,23 @@ and an unknown percentage remains distinct from zero and from no battery.
 Unknown readings show a question mark and an unknown tooltip. Unknown time
 and rate sentinels are omitted; the discharge-time estimate is not reused as
 a time-to-full estimate. Power Settings opens `ms-settings:powersleep` through
-the native shell association. Windows does not attempt UPower peripheral
-discovery; native accessory battery discovery remains pending.
+the native shell association.
+
+Accessory readings use WinRT `DeviceInformation` to query installed device
+containers and their published `System.Devices.BatteryLife` and
+`System.Devices.ChargingState` properties. Only connected, external containers
+with a known percentage are shown; the computer's own container is excluded.
+Container IDs deduplicate interfaces, and readings are sorted by percentage.
+Unknown Byte values above 100 are omitted, zero remains a valid reading, and
+only charging state 1 adds a charging indication. Available device names and
+categories supply the labels. Actual accessory reporting depends on the
+properties supplied by Windows and the device's driver.
+
+Peripheral queries run through the shared applet worker, keeping process and
+device enumeration work off GTK. The initial and periodic requests coalesce;
+stopped or restarted applets and replaced backends reject old replies. The
+frequent native power reading keeps its existing timer. The shared zero-percent
+tooltip correction is isolated in [PR #479](https://github.com/edumucelli/docking/pull/479).
 
 `tools/windows/visual/battery_smoke.py` runs the full dock and compares the native readings
 with Windows Forms' power-status interface and `Win32_Battery` enumeration.
@@ -991,7 +1006,9 @@ native Windows and 214 on Linux, with the native API case skipped on Linux.
 
 The optional `--exercise-fixtures` mode then injects clearly labeled PowerAPI
 snapshots through the real backend and applet pipeline. Desktop captures check
-discharge/remaining time, charging, plugged-in idle, watts and unknown readings.
+discharge/remaining time, charging, plugged-in idle, watts, unknown readings and
+explicit accessory-property fixtures. A delayed peripheral fixture exercises
+native menu input while the worker is pending.
 These are rendering and control acceptance, not physical battery evidence.
 Physical batteries, multiple batteries, UPS behavior, unplug/replug, resume and
 wireless accessory charge readings still need hardware acceptance.
@@ -1016,6 +1033,9 @@ python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 st
 References: [system power status](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-system_power_status),
 [native battery rate](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_battery_state),
 [power information query](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-callntpowerinformation),
+[device-container properties](https://learn.microsoft.com/en-us/windows/uwp/devices-sensors/device-information-properties),
+[device battery percentage](https://learn.microsoft.com/en-us/windows/win32/properties/props-system-devices-batterylife),
+[device charging state](https://learn.microsoft.com/en-us/windows/win32/properties/props-system-devices-chargingstate),
 [Settings URI reference](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 
 ## Native Network monitoring, Wi-Fi and settings

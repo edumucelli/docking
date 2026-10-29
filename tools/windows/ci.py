@@ -22,6 +22,7 @@ _SHARED_TESTS = (
     "tests/platform/test_application_icons.py",
     "tests/search/test_icons.py",
     "tests/applets/test_applications.py",
+    "tests/applets/test_battery.py",
     "tests/ui/test_application_menu_icons.py",
     "tests/ui/test_hover_integration.py",
     "tests/ui/test_preview.py",

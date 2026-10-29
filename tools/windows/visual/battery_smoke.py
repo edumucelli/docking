@@ -218,7 +218,7 @@ def main():
                 assert report["hover_points"][name]["gtk"]["item"] == "applet://battery"
                 assert report["hover_points"][name]["gtk"]["tooltip_visible"]
 
-            def choose(label):
+            def choose(label, *, capture_name=None):
                 native.click(*call(point), right=True)
                 menu = native.wait_for(
                     lambda: call(
@@ -240,6 +240,8 @@ def main():
                     ]
                 )
                 report["menu_labels"] = labels
+                if capture_name is not None:
+                    capture(capture_name)
                 index = labels.index(label)
                 native.key(0x24)
                 for _ in range(index):
@@ -260,7 +262,32 @@ def main():
                     "states": [],
                 }
 
-                def inject(name, *, percent, flags, ac, seconds, rate):
+                def inject(
+                    name,
+                    *,
+                    percent,
+                    flags,
+                    ac,
+                    seconds,
+                    rate,
+                    peripherals=(),
+                    delayed=False,
+                ):
+                    native.wait_for(
+                        lambda: call(lambda: not battery._worker._active_keys),
+                        "Previous peripheral query did not finish",
+                        20,
+                    )
+                    query_started, query_release = threading.Event(), threading.Event()
+
+                    def read_peripherals():
+                        if delayed:
+                            query_started.set()
+                            assert query_release.wait(20), (
+                                "Slow fixture was not released"
+                            )
+                        return list(peripherals)
+
                     fake = SimpleNamespace(
                         power_status=lambda: windows.SystemPowerStatus(
                             ACLineStatus=ac,
@@ -272,14 +299,31 @@ def main():
                         battery_state=lambda: windows.SystemBatteryState(
                             BatteryPresent=1, Rate=rate
                         ),
+                        peripheral_batteries=read_peripherals,
                     )
 
                     def poll():
                         windows._native_api = lambda: fake
                         battery._tick()
-                        return battery._state._asdict(), battery.item.name
+                        return battery._state._asdict()
 
-                    value, tooltip = call(poll)
+                    value = call(poll)
+                    if delayed:
+                        assert query_started.wait(5), "Peripheral worker did not start"
+                        try:
+                            choose(
+                                "No overlay", capture_name="fixture-query-pending-menu"
+                            )
+                            assert call(lambda: battery._overlay) == "none"
+                            report["menu_while_peripheral_query_pending"] = True
+                        finally:
+                            query_release.set()
+                    native.wait_for(
+                        lambda: call(lambda: not battery._worker._active_keys),
+                        "Peripheral query did not reach the UI",
+                        20,
+                    )
+                    tooltip = call(lambda: battery.item.name)
                     report["fixtures"]["states"].append(
                         {"name": name, "state": value, "tooltip": tooltip}
                     )
@@ -295,6 +339,50 @@ def main():
                     rate=-7600,
                 )
                 assert value["capacity"] == 67 and value["power_watts"] == 7.6
+                from docking.applets.battery.windows_peripherals import _parse_response
+
+                peripherals = _parse_response(
+                    {
+                        "devices": [
+                            {
+                                "id": "00000000-0000-0000-0000-000000000001",
+                                "name": "Fixture mouse",
+                                "connected": True,
+                                "local_machine": False,
+                                "percent": 10,
+                                "charging": 0,
+                                "categories": ["Mouse"],
+                            },
+                            {
+                                "id": "00000000-0000-0000-0000-000000000002",
+                                "name": "Fixture headset",
+                                "connected": True,
+                                "local_machine": False,
+                                "percent": 25,
+                                "charging": 1,
+                                "categories": ["Headset"],
+                            },
+                        ]
+                    }
+                )
+                inject(
+                    "fixture-peripheral-batteries",
+                    percent=67,
+                    flags=1,
+                    ac=0,
+                    seconds=8040,
+                    rate=-7600,
+                    peripherals=peripherals,
+                    delayed=True,
+                )
+                tooltip = call(lambda: battery.item.name)
+                assert "Fixture mouse: 10%" in tooltip
+                assert "Fixture headset: 25% (charging)" in tooltip
+                report["fixtures"]["peripherals"] = {
+                    "source": "Device-container properties injected through PowerAPI",
+                    "readings": [item._asdict() for item in peripherals],
+                    "tooltip": tooltip,
+                }
                 choose("Power (W)")
                 assert call(lambda: battery._power_timer_id) > 0
                 hover("fixture-power-overlay")

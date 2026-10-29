@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import ctypes
+import subprocess
 from functools import lru_cache
 from typing import Protocol
 
 from docking.applets.battery.backend import BatteryBackend
 from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
+from docking.applets.battery.windows_peripherals import read_peripheral_batteries
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind as _bind
 from docking.platform.backends.windows.power import SystemPowerStatus
@@ -39,6 +41,7 @@ class SystemBatteryState(ctypes.Structure):
 class PowerAPI(Protocol):
     def power_status(self) -> SystemPowerStatus | None: ...
     def battery_state(self) -> SystemBatteryState | None: ...
+    def peripheral_batteries(self) -> list[PeripheralBattery]: ...
 
 
 class WindowsPowerAPI:
@@ -76,6 +79,9 @@ class WindowsPowerAPI:
             )
             return None
         return value
+
+    def peripheral_batteries(self) -> list[PeripheralBattery]:
+        return read_peripheral_batteries()
 
 
 @lru_cache(maxsize=1)
@@ -147,8 +153,12 @@ class WindowsBatteryBackend(BatteryBackend):
         return abs(int(reading.Rate)) / 1000.0
 
     def read_peripherals(self) -> list[PeripheralBattery]:
-        # Native accessory discovery remains a separate Windows parity task.
-        return []
+        api = self._api if self._api is not None else _native_api()
+        try:
+            return api.peripheral_batteries()
+        except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+            log.debug("Windows peripheral battery query unavailable: %s", exc)
+            return []
 
     def settings_available(self) -> bool:
         return True

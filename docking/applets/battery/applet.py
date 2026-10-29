@@ -41,6 +41,7 @@ from docking.applets.battery.state import (
     tooltip_text,
 )
 from docking.applets.menu import menu_sections, radio_menu_items
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
 if TYPE_CHECKING:
@@ -66,8 +67,11 @@ class BatteryApplet(Applet):
         prefs = config.applet_prefs.get(meta.id, {})
         self._overlay = overlay_from_prefs(prefs)
         self._backend = create_backend()
+        self._worker = BackgroundWorker()
+        self._stopped = False
+        self._generation = 0
         self._state: BatteryState | None = self._backend.read_battery()
-        self._peripherals: list[PeripheralBattery] = self._backend.read_peripherals()
+        self._peripherals: list[PeripheralBattery] = []
         super().__init__(icon_size=icon_size, config=config)
         self.present()
 
@@ -84,13 +88,17 @@ class BatteryApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start the slow full-state poll plus the power overlay poll if needed."""
         super().start(notify=notify)
-        self._peripherals = self._backend.read_peripherals()
+        self._stopped = False
+        self._generation += 1
+        self._refresh_peripherals()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
         self.present()
 
     def stop(self) -> None:
         """Stop the polling timers."""
+        self._stopped = True
+        self._generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -140,13 +148,39 @@ class BatteryApplet(Applet):
 
     def _tick(self) -> bool:
         """Re-read system battery and peripherals and refresh the icon."""
+        if self._stopped:
+            return False
         self._state = self._backend.read_battery()
-        self._peripherals = self._backend.read_peripherals()
+        self._refresh_peripherals()
         self.present()
         return True
 
+    def _refresh_peripherals(self) -> None:
+        if self._stopped:
+            return
+        backend, generation = self._backend, self._generation
+
+        def ready(peripherals: list[PeripheralBattery]) -> bool:
+            if (
+                not self._stopped
+                and generation == self._generation
+                and backend is self._backend
+            ):
+                self._peripherals = peripherals
+                self.present()
+            return False
+
+        self._worker.run_guarded(
+            key=f"peripherals:{generation}",
+            name="battery-peripherals",
+            fn=backend.read_peripherals,
+            on_result=ready,
+        )
+
     def _power_tick(self) -> bool:
         """Refresh the live power reading without a subprocess."""
+        if self._stopped:
+            return False
         if self._state is not None:
             self._state = self._state._replace(
                 power_watts=self._backend.read_power_watts()

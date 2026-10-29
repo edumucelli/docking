@@ -14,7 +14,9 @@ from docking.platform import environment
 
 def _backend(*, power=None, battery=None):
     api = SimpleNamespace(
-        power_status=Mock(return_value=power), battery_state=Mock(return_value=battery)
+        power_status=Mock(return_value=power),
+        battery_state=Mock(return_value=battery),
+        peripheral_batteries=Mock(return_value=[]),
     )
     return windows.WindowsBatteryBackend(api=api), api
 
@@ -152,8 +154,99 @@ def test_windows_does_not_attempt_upower_peripheral_discovery(monkeypatch):
     monkeypatch.setattr(environment, "is_windows", lambda: True)
     bus = Mock()
     monkeypatch.setattr(upower.Gio, "bus_get_sync", bus)
+    _value, api = _backend()
+    monkeypatch.setattr(windows, "_native_api", lambda: api)
     assert backend.create_backend().read_peripherals() == []
+    api.peripheral_batteries.assert_called_once_with()
     bus.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [OSError("unavailable"), ValueError("bad response")])
+def test_peripheral_query_failure_recovers_on_the_next_poll(error):
+    from docking.applets.battery.peripherals import PeripheralBattery
+
+    value, api = _backend()
+    peripheral = PeripheralBattery("Fixture keyboard", "Keyboard", 0, False, "")
+    api.peripheral_batteries.side_effect = [error, [peripheral]]
+    assert value.read_peripherals() == []
+    assert value.read_peripherals() == [peripheral]
+
+
+@pytest.mark.parametrize("lifecycle", ["active", "stopped", "replaced"])
+def test_peripheral_queries_run_off_gtk_and_late_replies_cannot_repaint(
+    monkeypatch, lifecycle
+):
+    import threading
+    from queue import Queue
+
+    from docking.applets.battery import applet as ui
+    from docking.applets.battery.peripherals import PeripheralBattery
+    from docking.applets.worker import BackgroundWorker
+    from docking.core.config import Config
+
+    value, api = _backend()
+    monkeypatch.setattr(ui, "create_backend", lambda: value)
+    entered, release = threading.Event(), threading.Event()
+    callbacks = Queue()
+    threads = []
+    peripheral = PeripheralBattery("Fixture keyboard", "Keyboard", 25, False, "")
+
+    def read():
+        threads.append(threading.get_ident())
+        entered.set()
+        assert release.wait(5)
+        return [peripheral]
+
+    api.peripheral_batteries.side_effect = read
+    applet = ui.BatteryApplet(48, Config())
+    api.peripheral_batteries.assert_not_called()
+    applet._worker = BackgroundWorker(
+        idle_add=lambda callback, *args: callbacks.put((callback, args))
+    )
+    try:
+        applet._refresh_peripherals()
+        assert entered.wait(5)
+        applet._refresh_peripherals()
+        assert len(threads) == 1 and threads[0] != threading.get_ident()
+        if lifecycle == "stopped":
+            applet.stop()
+        elif lifecycle == "replaced":
+            applet._backend, _api = _backend()
+        release.set()
+        callback, args = callbacks.get(timeout=5)
+        assert applet._peripherals == []
+        callback(*args)
+        assert applet._peripherals == ([peripheral] if lifecycle == "active" else [])
+        assert not applet._worker._active_keys
+    finally:
+        release.set()
+        applet.stop()
+
+
+def test_peripheral_reply_from_a_previous_start_cannot_replace_current_readings(
+    monkeypatch,
+):
+    from docking.applets.battery import applet as ui
+    from docking.applets.battery.peripherals import PeripheralBattery
+    from docking.core.config import Config
+
+    value, _api = _backend()
+    monkeypatch.setattr(ui, "create_backend", lambda: value)
+    monkeypatch.setattr(ui.GLib, "timeout_add_seconds", lambda *_args: 77)
+    monkeypatch.setattr(ui.GLib, "source_remove", lambda _source: None)
+    applet = ui.BatteryApplet(48, Config())
+    applet._worker = Mock()
+    applet.start(lambda: None)
+    previous = applet._worker.run_guarded.call_args.kwargs["on_result"]
+    applet.stop()
+    applet.start(lambda: None)
+    current = applet._worker.run_guarded.call_args.kwargs["on_result"]
+    old = PeripheralBattery("Previous device", "Keyboard", 10, False, "")
+    new = PeripheralBattery("Current device", "Mouse", 50, False, "")
+    current([new])
+    previous([old])
+    assert applet._peripherals == [new]
+    applet.stop()
 
 
 def test_sdk_structure_layout_and_signed_rate_match_both_windows_abis():
