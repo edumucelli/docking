@@ -195,19 +195,41 @@ def run_scenario(output: Path, scenario: str) -> None:
             def trace_native_stacking():
                 surface = shared["ui"].window.surface_service
                 ensure = surface._appbar.ensure_keep_above
+                position = surface._appbar._set_position
                 report["native_stacking_attempts"] = []
+                report["native_position_attempts"] = []
+
+                def positioned(*arguments):
+                    ctypes.set_last_error(0)
+                    result = position(*arguments)
+                    record = {
+                        "arguments": list(arguments),
+                        "result": int(result),
+                        "win32_error": ctypes.get_last_error(),
+                    }
+                    if len(report["native_position_attempts"]) < 128:
+                        report["native_position_attempts"].append(record)
+                    return result
+
+                surface._appbar._set_position = positioned
 
                 def traced(window):
                     hwnd = window_handle(window)
                     record = {
                         "hwnd": hwnd,
                         "expected_dock_hwnd": dock["hwnd"],
+                        "appbar_closed": surface._appbar._closed,
+                        "window_style": int(style(hwnd, -16)) if hwnd else None,
+                        "position_calls_before": len(
+                            report["native_position_attempts"]
+                        ),
                         "before_topmost": bool(style(hwnd, -20) & 8) if hwnd else None,
                     }
                     ctypes.set_last_error(0)
                     confirmed = ensure(window)
                     record.update(
                         confirmed=confirmed,
+                        position_calls_after=len(report["native_position_attempts"]),
                         win32_error=ctypes.get_last_error(),
                         after_topmost=bool(style(hwnd, -20) & 8) if hwnd else None,
                     )
@@ -380,6 +402,45 @@ def run_scenario(output: Path, scenario: str) -> None:
             errors.append(exc)
             report.update(ok=False, error=repr(exc))
             ImageGrab.grab(all_screens=True).save(output / "failure.png")
+            if dock is not None:
+
+                def probe_positioning():
+                    # The assertion already failed. Probe only this check's
+                    # owned dock before cleanup; keep the failure unchanged.
+                    position = bind(
+                        native.user,
+                        "SetWindowPos",
+                        wintypes.BOOL,
+                        wintypes.HWND,
+                        wintypes.HWND,
+                        ctypes.c_int,
+                        ctypes.c_int,
+                        ctypes.c_int,
+                        ctypes.c_int,
+                        wintypes.UINT,
+                    )
+                    observations = []
+                    for label, after, flags in (
+                        ("topmost", -1, 0x13),
+                        ("notopmost", -2, 0x13),
+                        ("topmost_after_demotion", -1, 0x13),
+                        ("topmost_no_owner_change", -1, 0x213),
+                        ("topmost_no_changing_message", -1, 0x413),
+                    ):
+                        ctypes.set_last_error(0)
+                        result = position(dock["hwnd"], after, 0, 0, 0, 0, flags)
+                        observations.append(
+                            {
+                                "label": label,
+                                "result": int(result),
+                                "error": ctypes.get_last_error(),
+                                "topmost": bool(style(dock["hwnd"], -20) & 8),
+                                "foreground": int(native.user.GetForegroundWindow()),
+                            }
+                        )
+                    return observations
+
+                report["post_failure_positioning"] = call(probe_positioning)
         finally:
             close_fixture()
             if dock is not None:
