@@ -111,6 +111,7 @@ jobs:
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/
+            artifacts/windows/search-layouts/
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/
