@@ -14,6 +14,7 @@ import pytest
 from docking.applets.bluetooth import windows as mod
 from docking.applets.bluetooth import windows_radio as radio
 from docking.applets.bluetooth.backend import BluetoothAction, create_backend
+from docking.applets.bluetooth.windows_le import LowEnergySnapshot
 from docking.platform import environment
 
 
@@ -477,12 +478,50 @@ def test_inventory_inquires_only_on_the_requested_radio_and_closes_both_handles(
     assert value.closed == [("radio", 42), ("radio", 43), ("radios", 99)]
 
 
+class EmptyLowEnergy:
+    def snapshot(self):
+        return LowEnergySnapshot("", 0, ())
+
+    def close(self):
+        pass
+
+    def discover(self, cancelled, adapter):
+        raise AssertionError("Unexpected LE inquiry")
+
+    def stop_discovery(self):
+        pass
+
+    def release_connections(self):
+        pass
+
+    def unpair(self, device, adapter):
+        raise AssertionError("Unexpected LE removal")
+
+    def connect(self, device, adapter):
+        raise AssertionError("Unexpected LE connection")
+
+    def disconnect(self, device, adapter):
+        raise AssertionError("Unexpected LE disconnection")
+
+
 @pytest.fixture
 def inquiry_api(monkeypatch):
     state = SimpleNamespace(
         entries=[
-            {"id": "first", "address": 0x112233445566, "name": "First", "state": 1},
-            {"id": "second", "address": 0x221133445566, "name": "Second", "state": 1},
+            {
+                "id": "first",
+                "address": 0x112233445566,
+                "name": "First",
+                "state": 1,
+                "classic": True,
+            },
+            {
+                "id": "second",
+                "address": 0x221133445566,
+                "name": "Second",
+                "state": 1,
+                "classic": True,
+            },
         ],
         calls=[],
     )
@@ -494,7 +533,7 @@ def inquiry_api(monkeypatch):
 
     monkeypatch.setattr(radio, "_request", lambda _request: {"radios": state.entries})
     monkeypatch.setattr(radio, "ClassicInventory", Inventory)
-    return radio.WindowsBluetoothAPI(), state
+    return radio.WindowsBluetoothAPI(low_energy=EmptyLowEnergy()), state
 
 
 def test_api_default_is_cached_and_owned_discovery_preserves_other_radio_sessions(
@@ -570,6 +609,47 @@ def test_api_stop_during_native_inquiry_cancels_the_pending_start(
     )
     assert not api.start_discovery(first)
     assert not any(item.discovering for item in api.snapshot())
+
+
+@pytest.mark.parametrize("change", ["off", "removed", "replaced"])
+def test_external_radio_loss_releases_le_connections_without_a_discovery_session(
+    inquiry_api, change
+):
+    api, state = inquiry_api
+    first = api.snapshot()[0]
+    provider = Mock(spec=EmptyLowEnergy)
+    provider.snapshot.return_value = LowEnergySnapshot(
+        first.identifier, first.address, ()
+    )
+    api._le = provider
+    api.snapshot()
+    provider.release_connections.assert_not_called()
+    if change == "off":
+        state.entries[0]["state"] = 2
+    elif change == "removed":
+        state.entries = state.entries[1:]
+    else:
+        state.entries[0]["address"] = 0x998877665544
+    api.snapshot()
+    provider.release_connections.assert_called_once()
+
+
+def test_stop_after_le_start_but_before_session_commit_releases_the_scan(inquiry_api):
+    api, _state = inquiry_api
+    first = api.snapshot()[0]
+    provider = Mock(spec=EmptyLowEnergy)
+    provider.snapshot.return_value = LowEnergySnapshot(
+        first.identifier, first.address, ()
+    )
+
+    def discover(_cancelled, _adapter):
+        api.stop_discovery(first.identifier)
+        return True
+
+    provider.discover.side_effect = discover
+    api._le = provider
+    assert not api.start_discovery(first)
+    provider.stop_discovery.assert_called_once()
 
 
 def test_discovery_cleanup_does_not_wait_for_the_poll_lock(backend):
@@ -944,3 +1024,266 @@ def test_api_pairing_failure_releases_the_operation_slot(monkeypatch):
     with pytest.raises(OSError):
         api.pair_device(first, first.devices[0], 20)
     assert api.pair_device(first, first.devices[0], 20)
+
+
+def test_le_and_classic_addresses_have_distinct_stable_identity_and_controls(backend):
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
+
+    client, api = backend
+    first = api.radios[0]
+    target = LowEnergyDevice(
+        "explicit-endpoint",
+        first.devices[0].address,
+        "LE keyboard",
+        True,
+        False,
+        True,
+        appearance=961,
+        battery_percent=0,
+        rssi=-55,
+    )
+    api.radios = (replace(first, devices=(*first.devices, target)),)
+    state = client.get_state()
+    assert len({d.path for d in state.devices}) == 2
+    le = next(d for d in state.devices if d.name == "LE keyboard")
+    classic = next(d for d in state.devices if d.name == "Headphones")
+    assert (
+        le.icon_name == "input-keyboard" and le.battery_percent == 0 and le.rssi == -55
+    )
+    assert client.device_capabilities(le.path).connect
+    assert not client.device_capabilities(classic.path).connect
+    assert not client.device_capabilities("removed").pair
+    assert client.get_state().devices == state.devices
+
+
+@pytest.mark.parametrize(
+    "mode", ["success", "denied", "no-readback", "replaced", "closed", "external"]
+)
+def test_le_connection_requests_require_identity_and_owned_readback(backend, mode):
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
+
+    client, api = backend
+    first = api.radios[0]
+    target = LowEnergyDevice(
+        "explicit-endpoint", 0xAABBCCDDEE11, "LE keyboard", True, False, False
+    )
+    api.radios = (replace(first, devices=(target,)),)
+    calls = []
+
+    def connect(radio, selected):
+        calls.append((radio.identifier, selected.identifier))
+        if mode == "denied":
+            return False
+        fresh = replace(
+            selected,
+            connected=mode != "no-readback",
+            owned_connection=mode != "external",
+        )
+        api.radios = (
+            replace(
+                radio,
+                address=radio.address + 1 if mode == "replaced" else radio.address,
+                devices=(fresh,),
+            ),
+        )
+        if mode == "closed":
+            client.close()
+        return True
+
+    api.connect_device = connect
+    path = client.get_state().devices[0].path
+    assert client.connect_device(path) is (mode == "success")
+    assert calls == [(first.identifier, target.identifier)]
+
+
+def test_le_disconnect_releases_only_a_connection_owned_by_docking(backend):
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
+
+    client, api = backend
+    first = api.radios[0]
+    target = LowEnergyDevice(
+        "explicit-endpoint",
+        0xAABBCCDDEE11,
+        "LE keyboard",
+        True,
+        True,
+        False,
+        owned_connection=False,
+    )
+    api.radios = (replace(first, devices=(target,)),)
+    calls = []
+
+    def disconnect(radio, selected):
+        calls.append(selected.identifier)
+        # Another application's connection remains active after ours is released.
+        api.radios = (
+            replace(radio, devices=(replace(selected, owned_connection=False),)),
+        )
+        return True
+
+    api.disconnect_device = disconnect
+    path = client.get_state().devices[0].path
+    assert not client.disconnect_device(path) and calls == []
+    api.radios = (replace(first, devices=(replace(target, owned_connection=True),)),)
+    assert client.disconnect_device(path)
+    assert calls == [target.identifier]
+    assert client.get_state().devices[0].connected
+    assert not client.device_capabilities(path).disconnect
+
+
+@pytest.mark.parametrize("low_energy", [True, False])
+def test_lost_owned_link_can_be_released_from_the_shared_menu(
+    backend, monkeypatch, low_energy
+):
+    from docking.applets.bluetooth import applet as ui
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
+    from docking.core.config import Config
+
+    client, api = backend
+    first = api.radios[0]
+    target = LowEnergyDevice(
+        "explicit-owned-endpoint",
+        first.devices[0].address,
+        "Lost owned link",
+        True,
+        False,
+        False,
+        owned_connection=True,
+        low_energy=low_energy,
+        audio_endpoint="" if low_energy else "explicit-audio-endpoint",
+    )
+    selected = (
+        target
+        if low_energy
+        else replace(first.devices[0], connected=False, endpoint=target)
+    )
+    api.radios = (replace(first, devices=(selected,)),)
+
+    def disconnect(radio, device):
+        endpoint = replace(target, owned_connection=False)
+        api.radios = (
+            replace(
+                radio,
+                devices=(
+                    endpoint if low_energy else replace(device, endpoint=endpoint),
+                ),
+            ),
+        )
+        return True
+
+    api.disconnect_device = disconnect
+    monkeypatch.setattr(ui, "create_backend", lambda: client)
+    config = Config()
+    config.applet_prefs["bluetooth"] = {"continuous_discovery": False}
+    applet = ui.BluetoothApplet(48, config)
+    try:
+        state = client.get_state()
+        assert state.devices[0].connection_owned and not state.devices[0].connected
+        applet._on_poll_result(state)
+        rows = applet._device_group("Paired", list(state.devices))
+        actions = rows[1].get_submenu().get_children()
+        assert actions[0].get_label() == (
+            "Release Connection" if low_energy else "Disconnect Audio"
+        )
+        applet._run_async = lambda task: task()
+        for callback, args in actions[0]._signals["activate"]:
+            callback(actions[0], *args)
+        assert not client.get_state().devices[0].connection_owned
+    finally:
+        applet.stop()
+
+
+def test_le_metadata_is_attached_only_to_its_actual_default_adapter(inquiry_api):
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice, LowEnergySnapshot
+
+    api, _state = inquiry_api
+    target = LowEnergyDevice(
+        "explicit-endpoint", 0xAABBCCDDEE11, "LE keyboard", True, False, False
+    )
+    api._le.snapshot = lambda: LowEnergySnapshot("second", 0x221133445566, (target,))
+    first, second = api.snapshot()
+    assert first.devices == () and second.devices == (target,)
+    api._le.snapshot = lambda: LowEnergySnapshot("second", 0x112233445566, (target,))
+    assert all(not radio.devices for radio in api.snapshot())
+
+
+def test_audio_controls_require_a_native_endpoint_and_keep_classic_identity(backend):
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
+
+    client, api = backend
+    first = api.radios[0]
+    metadata = LowEnergyDevice(
+        "audio-aep",
+        0xAABBCCDDEEFF,
+        "Audio source",
+        True,
+        False,
+        False,
+        low_energy=False,
+        audio_endpoint="audio-interface",
+    )
+    target = replace(first.devices[0], connected=False, endpoint=metadata)
+    api.radios = (replace(first, devices=(target,)),)
+    state = client.get_state()
+    path = state.devices[0].path
+    assert path == "radio/first/aabbccddeeff"
+    assert client.device_capabilities(path).connect_label == "Connect Audio"
+
+    def connect(radio, selected):
+        api.radios = (
+            replace(
+                radio,
+                devices=(
+                    replace(
+                        selected,
+                        connected=True,
+                        endpoint=replace(
+                            selected.endpoint, connected=True, owned_connection=True
+                        ),
+                    ),
+                ),
+            ),
+        )
+        return True
+
+    api.connect_device = connect
+    assert client.connect_device(path)
+    client.get_state()
+    assert client.device_capabilities(path).disconnect_label == "Disconnect Audio"
+    api.radios = (
+        replace(
+            first,
+            devices=(replace(target, endpoint=replace(metadata, audio_endpoint="")),),
+        ),
+    )
+    client.get_state()
+    assert not client.device_capabilities(path).connect
+
+
+def test_le_only_radio_never_uses_the_classic_inquiry(inquiry_api, monkeypatch):
+    from docking.applets.bluetooth.windows_le import LowEnergySnapshot
+
+    api, state = inquiry_api
+    state.entries = [dict(state.entries[0], classic=False)]
+
+    class LE(EmptyLowEnergy):
+        active = False
+
+        def snapshot(self):
+            return LowEnergySnapshot("first", 0x112233445566, (), self.active)
+
+        def discover(self, cancelled, adapter):
+            self.active = not cancelled.is_set()
+            return self.active
+
+        def stop_discovery(self):
+            self.active = False
+
+    api._le = LE()
+    first = api.snapshot()[0]
+    assert not first.classic_supported
+    assert api.start_discovery(first)
+    assert api.snapshot()[0].discovering
+    assert state.calls == []
+    assert api.stop_discovery(first.identifier)
+    assert not api.snapshot()[0].discovering

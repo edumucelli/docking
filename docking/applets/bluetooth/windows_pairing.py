@@ -39,6 +39,9 @@ class PairingOperation:
         timeout_s: int,
         *,
         on_ready: Callable[[int, int], None] | None = None,
+        endpoint: str = "",
+        adapter_id: str = "",
+        address_type: int | None = None,
     ) -> bool:
         if (
             any(
@@ -49,6 +52,21 @@ class PairingOperation:
             or not 0 < timeout_s <= 120
         ):
             raise ValueError("Invalid Bluetooth pairing request")
+        if not isinstance(endpoint, str) or (
+            endpoint
+            and (
+                len(endpoint) > 32768
+                or "\0" in endpoint
+                or not isinstance(adapter_id, str)
+                or not 0 < len(adapter_id) <= 32768
+                or "\0" in adapter_id
+                or (
+                    address_type is not None
+                    and (type(address_type) is not int or address_type not in (0, 1, 2))
+                )
+            )
+        ):
+            raise ValueError("Invalid Bluetooth endpoint pairing request")
         if self._cancelled.is_set():
             return False
         deadline = time.monotonic() + timeout_s
@@ -77,6 +95,8 @@ class PairingOperation:
         )
         messages: queue.Queue[str | None] = queue.Queue(maxsize=8)
         malformed = threading.Event()
+        send_failed = threading.Event()
+        writers: list[threading.Thread] = []
         reader = None
         job = None
         try:
@@ -91,11 +111,30 @@ class PairingOperation:
                 return False
             # The child waits for input before creating a window or touching a
             # radio. Its process tree is already assigned to our Windows job.
-            process.stdin.write(
-                json.dumps({"radio": radio, "device": device, "timeout": timeout_s})
-                + "\n"
-            )
-            process.stdin.flush()
+            request: dict[str, object] = {
+                "radio": radio,
+                "device": device,
+                "timeout": timeout_s,
+            }
+            if endpoint:
+                request.update(
+                    endpoint=endpoint, adapter=adapter_id, address_type=address_type
+                )
+            input_pipe = process.stdin
+
+            def send(text: str) -> None:
+                def write() -> None:
+                    try:
+                        input_pipe.write(text)
+                        input_pipe.flush()
+                    except (OSError, ValueError):
+                        send_failed.set()
+
+                writer = threading.Thread(target=write, daemon=True)
+                writers.append(writer)
+                writer.start()
+
+            send(json.dumps(request) + "\n")
             output = process.stdout
 
             def receive() -> None:
@@ -124,11 +163,9 @@ class PairingOperation:
                 if (self._cancelled.is_set() or now >= deadline) and not cancelling:
                     cancelling = True
                     deadline = now + 1
-                    try:
-                        process.stdin.write("cancel\n")
-                        process.stdin.flush()
-                    except (BrokenPipeError, OSError):
-                        return False
+                    send("cancel\n")
+                if send_failed.is_set():
+                    return False
                 if malformed.is_set():
                     raise ValueError("Invalid Bluetooth pairing reply")
                 if cancelling and now >= deadline:
@@ -162,6 +199,17 @@ class PairingOperation:
                 else:
                     raise ValueError("Invalid Bluetooth pairing reply")
         finally:
+            # A stuck child can leave a large endpoint request blocked in a
+            # pipe writer. Kill the owned tree before taking that pipe's lock.
+            for writer in writers:
+                writer.join(timeout=0.05)
+            if any(writer.is_alive() for writer in writers):
+                if job is not None:
+                    job.close()
+                if process.poll() is None:
+                    process.terminate()
+                for writer in writers:
+                    writer.join(timeout=1)
             if process.stdin is not None:
                 with suppress(OSError):
                     process.stdin.close()
@@ -393,7 +441,7 @@ def serve(action: Callable[[int, int, int], int]) -> None:
     """Read a bounded request and cancel if the owning parent's pipe closes."""
     if not environment.is_windows():
         raise SystemExit("Requires Windows")
-    value = json.loads(sys.stdin.readline(4097))
+    value = json.loads(sys.stdin.readline(512 * 1024))
     if not isinstance(value, dict):
         raise ValueError("Invalid Bluetooth pairing request")
     radio, device, timeout = (
@@ -414,9 +462,48 @@ def serve(action: Callable[[int, int, int], int]) -> None:
         cancelled.set()  # Explicit cancellation, or the owning parent exited.
 
     threading.Thread(target=control, daemon=True).start()
-    status = PairingWindow().run(
-        lambda owner: action(owner, radio, device), timeout, cancelled
-    )
+
+    def execute(owner):
+        if not value.get("endpoint") or action is not authenticate:
+            return action(owner, radio, device)
+        from docking.applets.bluetooth.windows_le import EndpointAPI, LowEnergyDevice
+        from docking.applets.bluetooth.windows_pairing_ui import pairing_prompt
+        from docking.platform.backends.windows.winrt import WindowsRuntime
+
+        endpoint, adapter, address_type = (
+            value.get("endpoint"),
+            value.get("adapter"),
+            value.get("address_type"),
+        )
+        if (
+            not isinstance(endpoint, str)
+            or not 0 < len(endpoint) <= 32768
+            or "\0" in endpoint
+            or not isinstance(adapter, str)
+            or not 0 < len(adapter) <= 32768
+            or "\0" in adapter
+            or (
+                address_type is not None
+                and (type(address_type) is not int or address_type not in (0, 1, 2))
+            )
+        ):
+            return 87
+        with WindowsRuntime() as runtime:
+            api = EndpointAPI(runtime, cancelled)
+            try:
+                if api.default_adapter() != (adapter, radio):
+                    return 1168
+                target = LowEnergyDevice(
+                    endpoint, device, "", False, False, True, address_type
+                )
+                paired = api.pair(
+                    target, timeout, lambda kind, pin: pairing_prompt(owner, kind, pin)
+                )
+                return 0 if paired and not cancelled.is_set() else 1223
+            finally:
+                api.close()
+
+    status = PairingWindow().run(execute, timeout, cancelled)
     print(json.dumps({"phase": "result", "status": status}), flush=True)
 
 

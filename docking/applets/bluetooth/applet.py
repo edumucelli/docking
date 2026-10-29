@@ -391,9 +391,14 @@ class BluetoothApplet(Applet):
             label = device_menu_label(device)
             device_item = Gtk.MenuItem(label=label)
             options: list[Gtk.MenuItem] = []
+            capabilities = self._backend.device_capabilities(device.path)
 
-            if device.connected and self._backend.capabilities.disconnect:
-                disconnect = Gtk.MenuItem(label=_("Disconnect"))
+            if capabilities.disconnect and (
+                device.connected or device.connection_owned
+            ):
+                disconnect = Gtk.MenuItem(
+                    label=capabilities.disconnect_label or _("Disconnect")
+                )
                 disconnect.connect(
                     "activate",
                     lambda _w, p=device.path: self._run_async(
@@ -401,8 +406,8 @@ class BluetoothApplet(Applet):
                     ),
                 )
                 options.append(disconnect)
-            elif not device.connected and self._backend.capabilities.connect:
-                connect = Gtk.MenuItem(label=_("Connect"))
+            elif capabilities.connect:
+                connect = Gtk.MenuItem(label=capabilities.connect_label or _("Connect"))
                 connect.connect(
                     "activate",
                     lambda _w, d=device: self._run_async(
@@ -411,7 +416,7 @@ class BluetoothApplet(Applet):
                 )
                 options.append(connect)
 
-            if not device.paired and self._backend.capabilities.pair:
+            if not device.paired and capabilities.pair:
                 pair = Gtk.MenuItem(label=_("Pair"))
                 pair.connect(
                     "activate",
@@ -425,7 +430,7 @@ class BluetoothApplet(Applet):
                 )
                 options.append(pair)
 
-            if device.paired and self._backend.capabilities.remove_pairing:
+            if device.paired and capabilities.remove_pairing:
                 remove = Gtk.MenuItem(label=_("Remove Pairing"))
                 remove.connect(
                     "activate",
@@ -438,7 +443,7 @@ class BluetoothApplet(Applet):
                 )
                 options.append(remove)
 
-            if self._backend.capabilities.trust:
+            if capabilities.trust:
                 trust = Gtk.CheckMenuItem(label=_("Trusted"))
                 trust.set_active(device.trusted)
                 trust.connect(

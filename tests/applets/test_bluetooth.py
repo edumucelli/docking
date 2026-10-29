@@ -738,6 +738,9 @@ class TestLinuxBluetoothBackend:
 
 
 class _StubBackend:
+    def device_capabilities(self, device_path):
+        return self.capabilities
+
     def close(self):
         pass
 

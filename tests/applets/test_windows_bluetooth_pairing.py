@@ -226,3 +226,29 @@ def test_native_helper_reports_a_missing_radio_and_destroys_its_owner():
     assert owners
     exists = bind(ctypes.WinDLL("user32"), "IsWindow", ctypes.c_int32, ctypes.c_void_p)
     assert not any(exists(owner) for owner in owners)
+
+
+def test_large_endpoint_request_cannot_block_the_pairing_deadline(monkeypatch):
+    processes = []
+    original = subprocess.Popen
+
+    def spawn(*args, **kwargs):
+        process = original(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    monkeypatch.setattr(mod.subprocess, "Popen", spawn)
+    operation = mod.PairingOperation(
+        command=(sys.executable, "-c", "import time;time.sleep(30)")
+    )
+    before = time.monotonic()
+    assert not operation.run(
+        0x112233445566,
+        0xAABBCCDDEEFF,
+        1,
+        endpoint="e" * 32768,
+        adapter_id="a" * 32768,
+        address_type=0,
+    )
+    assert time.monotonic() - before < 5
+    assert processes and all(p.poll() is not None for p in processes)

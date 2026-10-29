@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
 import ctypes
 
 from docking.applets.bluetooth.windows_pairing import serve
+from docking.applets.bluetooth.windows_pairing_ui import pairing_prompt
 from docking.platform.backends.windows.ffi import bind
 
 
@@ -28,4 +30,17 @@ def prompt(owner: int, _radio: int, _device: int) -> int:
 
 
 if __name__ == "__main__":
-    serve(prompt)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ceremony", choices=("pin", "display", "match"))
+    args = parser.parse_args()
+    if args.ceremony:
+        kind = {"pin": 4, "display": 2, "match": 8}[args.ceremony]
+
+        def ceremony(owner, _radio, _device):
+            answer = pairing_prompt(owner, kind, "246810")
+            accepted = answer == "135790" if kind == 4 else answer is not None
+            return 0 if accepted else 1223
+
+        serve(ceremony)
+    else:
+        serve(prompt)

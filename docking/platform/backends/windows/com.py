@@ -70,7 +70,7 @@ def value(pointer, index: int, kind):
     return result
 
 
-def object_result(stack: ExitStack, pointer, index: int, *arguments):
+def object_result(stack: ExitStack, pointer, index: int, *arguments) -> ctypes.c_void_p:
     if not pointer.value:
         raise OSError("Missing COM interface")
     result = ctypes.c_void_p()
@@ -87,7 +87,7 @@ def object_result(stack: ExitStack, pointer, index: int, *arguments):
     return result
 
 
-def query(stack: ExitStack, pointer, interface: GUID):
+def query(stack: ExitStack, pointer, interface: GUID) -> ctypes.c_void_p:
     return object_result(
         stack, pointer, 0, ctypes.POINTER(GUID), ctypes.byref(interface)
     )

@@ -19,6 +19,11 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from docking.applets.bluetooth.windows_le import (
+    LowEnergyClient,
+    LowEnergyDevice,
+    LowEnergyProvider,
+)
 from docking.applets.bluetooth.windows_pairing import PairingOperation
 from docking.platform.backends.windows.ffi import bind
 
@@ -77,6 +82,9 @@ class ClassicDevice:
     device_class: int
     paired: bool
     connected: bool
+    battery_percent: int | None = None
+    rssi: int | None = None
+    endpoint: LowEnergyDevice | None = None
 
 
 @dataclass(frozen=True)
@@ -85,8 +93,9 @@ class Radio:
     address: int
     name: str
     state: int
-    devices: tuple[ClassicDevice, ...] = ()
+    devices: tuple[ClassicDevice | LowEnergyDevice, ...] = ()
     discovering: bool = False
+    classic_supported: bool = True
 
 
 class ClassicInventory:
@@ -292,7 +301,7 @@ foreach($info in $infos) {
   }
  }
  $entries+=@{id=[string]$info.Id;address=[long]$adapter.BluetoothAddress;
-  name=[string]$info.Name;state=[int]$radio.State};
+  name=[string]$info.Name;state=[int]$radio.State;classic=[bool]$adapter.IsClassicSupported};
 }
 @{radios=@($entries);changed=$changed} | ConvertTo-Json -Depth 4 -Compress
 """
@@ -328,30 +337,51 @@ def _request(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class WindowsBluetoothAPI:
-    def __init__(self) -> None:
+    def __init__(self, *, low_energy: LowEnergyProvider | None = None) -> None:
         self._discovery_lock = threading.Lock()
         self._pairing_lock = threading.Lock()
         self._pairing: PairingOperation | None = None
         self._closed = threading.Event()
         self._discovering: dict[str, int] = {}
-        self._pending: dict[str, object] = {}
+        self._pending: dict[str, threading.Event] = {}
+        self._le = low_energy if low_energy is not None else LowEnergyClient()
+        self._le_discovering: tuple[str, int] | None = None
 
     def close(self) -> None:
         self._closed.set()
+        self._le.close()
         with self._pairing_lock:
             if self._pairing is not None:
                 self._pairing.cancel()
         with self._discovery_lock:
             self._discovering.clear()
+            for token in self._pending.values():
+                token.set()
             self._pending.clear()
 
-    def pair_device(self, radio: Radio, device: ClassicDevice, timeout_s: int) -> bool:
+    def pair_device(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice, timeout_s: int
+    ) -> bool:
         operation = PairingOperation()
         with self._pairing_lock:
             if self._closed.is_set() or self._pairing is not None or radio.state != 1:
                 return False
             self._pairing = operation
         try:
+            if isinstance(device, LowEnergyDevice):
+                if not device.can_pair:
+                    return False
+                return (
+                    operation.run(
+                        radio.address,
+                        device.address,
+                        timeout_s,
+                        endpoint=device.identifier,
+                        adapter_id=radio.identifier,
+                        address_type=device.address_type,
+                    )
+                    and not self._closed.is_set()
+                )
             return (
                 operation.run(radio.address, device.address, timeout_s)
                 and not self._closed.is_set()
@@ -369,20 +399,35 @@ class WindowsBluetoothAPI:
                 return True
             if radio.identifier in self._pending:
                 return False
-            token = object()
+            token = threading.Event()
             self._pending[radio.identifier] = token
         try:
-            devices = ClassicInventory().snapshot(
-                inquiry_addresses=frozenset((radio.address,))
+            devices = (
+                ClassicInventory().snapshot(
+                    inquiry_addresses=frozenset((radio.address,))
+                )
+                if radio.classic_supported
+                else {}
             )
+            le = self._le.snapshot()
+            le_started = False
+            if (
+                le.adapter_id == radio.identifier
+                and le.adapter_address == radio.address
+            ):
+                le_started = self._le.discover(token, (radio.identifier, radio.address))
             with self._discovery_lock:
                 if (
                     self._closed.is_set()
                     or self._pending.get(radio.identifier) is not token
-                    or radio.address not in devices
+                    or (radio.address not in devices and not le_started)
                 ):
+                    if le_started:
+                        self._le.stop_discovery()
                     return False
                 self._discovering[radio.identifier] = radio.address
+                if le_started:
+                    self._le_discovering = radio.identifier, radio.address
                 return True
         finally:
             with self._discovery_lock:
@@ -392,13 +437,47 @@ class WindowsBluetoothAPI:
     def stop_discovery(self, identifier: str) -> bool:
         with self._discovery_lock:
             self._discovering.pop(identifier, None)
-            self._pending.pop(identifier, None)
+            token = self._pending.pop(identifier, None)
+            if token is not None:
+                token.set()
+            if (
+                self._le_discovering is not None
+                and self._le_discovering[0] == identifier
+            ):
+                self._le.stop_discovery()
+                self._le_discovering = None
         return True
 
-    def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool:
+    def remove_pairing(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
+    ) -> bool:
         if self._closed.is_set():
             return False
+        if isinstance(device, LowEnergyDevice):
+            return self._le.unpair(device, (radio.identifier, radio.address))
+        if device.endpoint is not None and device.endpoint.owned_connection:
+            self._le.disconnect(device.endpoint, (radio.identifier, radio.address))
         return ClassicInventory().remove_pairing(radio.address, device.address)
+
+    def connect_device(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
+    ) -> bool:
+        target = device if isinstance(device, LowEnergyDevice) else device.endpoint
+        if target is None:
+            return False
+        return not self._closed.is_set() and self._le.connect(
+            target, (radio.identifier, radio.address)
+        )
+
+    def disconnect_device(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
+    ) -> bool:
+        target = device if isinstance(device, LowEnergyDevice) else device.endpoint
+        if target is None:
+            return False
+        return not self._closed.is_set() and self._le.disconnect(
+            target, (radio.identifier, radio.address)
+        )
 
     def snapshot(self) -> tuple[Radio, ...]:
         if self._closed.is_set():
@@ -413,6 +492,7 @@ class WindowsBluetoothAPI:
                 raise ValueError("Invalid Bluetooth radio")
             identifier, address = entry.get("id"), entry.get("address")
             name, state = entry.get("name"), entry.get("state")
+            classic = entry.get("classic")
             if (
                 not isinstance(identifier, str)
                 or not 0 < len(identifier) <= 32768
@@ -422,9 +502,12 @@ class WindowsBluetoothAPI:
                 or not isinstance(name, str)
                 or type(state) is not int
                 or state not in (0, 1, 2, 3)
+                or type(classic) is not bool
             ):
                 raise ValueError("Invalid Bluetooth radio properties")
-            result[identifier] = Radio(identifier, address, name, state)
+            result[identifier] = Radio(
+                identifier, address, name, state, classic_supported=classic
+            )
         with self._discovery_lock:
             self._discovering = {
                 identifier: address
@@ -434,38 +517,95 @@ class WindowsBluetoothAPI:
                 and result[identifier].state == 1
             }
             active = dict(self._discovering)
+            if (
+                self._le_discovering is not None
+                and active.get(self._le_discovering[0]) != self._le_discovering[1]
+            ):
+                self._le.stop_discovery()
+                self._le.release_connections()
+                self._le_discovering = None
         if self._closed.is_set():
             return ()
+        inquiries = frozenset(
+            r.address
+            for r in result.values()
+            if r.classic_supported and active.get(r.identifier) == r.address
+        )
         devices = (
-            ClassicInventory().snapshot(inquiry_addresses=frozenset(active.values()))
-            if active
+            ClassicInventory().snapshot(inquiry_addresses=inquiries)
+            if inquiries
             else ClassicInventory().snapshot()
-            if result
+            if any(r.classic_supported for r in result.values())
             else {}
         )
         if self._closed.is_set():
             return ()
+        le = self._le.snapshot() if result else None
+        if le is None or not any(
+            r.identifier == le.adapter_id
+            and r.address == le.adapter_address
+            and r.state == 1
+            for r in result.values()
+        ):
+            # External power-off/removal also releases maintained connections
+            # when Docking has no discovery session to invalidate.
+            self._le.release_connections()
         with self._discovery_lock:
+            if self._le_discovering is not None and (
+                le is None
+                or (le.adapter_id, le.adapter_address) != self._le_discovering
+                or not le.discovering
+            ):
+                identifier, _address = self._le_discovering
+                self._le.stop_discovery()
+                self._le_discovering = None
+                if identifier in result and not result[identifier].classic_supported:
+                    self._discovering.pop(identifier, None)
             active = dict(self._discovering)
-        return tuple(
-            replace(
-                radio,
-                devices=tuple(
-                    device
-                    for device in devices.get(radio.address, ())
-                    if active.get(radio.identifier) == radio.address
-                    or device.paired
-                    or device.connected
-                ),
-                discovering=active.get(radio.identifier) == radio.address,
+        output: list[Radio] = []
+        for radio in result.values():
+            endpoints = (
+                le.devices
+                if le is not None
+                and le.adapter_id == radio.identifier
+                and le.adapter_address == radio.address
+                else ()
             )
-            for radio in result.values()
-        )
+            telemetry = {d.address: d for d in endpoints if not d.low_energy}
+            scanning = active.get(radio.identifier) == radio.address
+            classic = tuple(
+                replace(
+                    d,
+                    battery_percent=telemetry[d.address].battery_percent,
+                    rssi=telemetry[d.address].rssi,
+                    endpoint=telemetry[d.address],
+                    connected=(d.connected or telemetry[d.address].connected)
+                    and radio.state not in (2, 3),
+                )
+                if d.address in telemetry
+                else d
+                for d in devices.get(radio.address, ())
+                if scanning or d.paired or d.connected
+            )
+            low_energy = tuple(
+                replace(
+                    d,
+                    connected=d.connected and radio.state == 1,
+                    owned_connection=d.owned_connection and radio.state == 1,
+                )
+                for d in endpoints
+                if d.low_energy
+                and (d.paired or (radio.state == 1 and (scanning or d.connected)))
+            )
+            output.append(
+                replace(radio, devices=classic + low_energy, discovering=scanning)
+            )
+        return tuple(output)
 
     def set_power(self, radio: Radio, powered: bool) -> bool:
         if self._closed.is_set():
             return False
-        return (
+        changed = (
             _request(
                 {
                     "action": "power",
@@ -476,3 +616,7 @@ class WindowsBluetoothAPI:
             ).get("changed")
             is True
         )
+        if changed and not powered:
+            self.stop_discovery(radio.identifier)
+            self._le.release_connections()
+        return changed

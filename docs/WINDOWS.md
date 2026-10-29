@@ -1634,115 +1634,119 @@ References: [notification area](https://learn.microsoft.com/en-us/windows/win32/
 
 ## Windows Bluetooth
 
-Bluetooth uses the shared `BluetoothBackend` contract for snapshots, radio
-changes, capabilities and desktop actions. Shared state contains values and
-presentation helpers. Linux/BSD desktop commands live in `unix_desktop.py` and
-are selected by their implementations. Windows selects `windows.py` and its
-radio implementation without loading BlueZ or Unix desktop tools.
+Bluetooth uses the shared `BluetoothBackend` contract. Windows supplies native
+radio, endpoint and desktop implementations; Linux/BSD keep their existing
+implementations. Device capabilities are published with each snapshot so GTK
+can build menus without device I/O. Changes are delivered as a complete domain:
+map the required APIs and ownership rules, implement the connected behaviors,
+then exercise the integrated backend, menus, cancellation and Windows CI.
+Use this same domain-wide sequence for the remaining Windows parity work.
 
-WinRT enumerates Bluetooth adapters by their device IDs and reads their actual
-radio state. Off, unknown and policy-disabled states are distinct; unknown or
-disabled radios cannot be toggled. The Windows implementation runs its WinRT
-requests in a hidden, bounded PowerShell process. Only an explicit user radio
-change requests access. It revalidates the exact adapter ID/address, checks the
-access result and reads state again before reporting success. No adapter index
-is used as a persistent identity. Closing the backend rejects queued work and
-stale replies cannot repaint a removed applet.
+| Behavior | Windows APIs and ownership |
+| --- | --- |
+| Adapter inventory and power | `BluetoothAdapter`, `Radio.State`, `Radio.RequestAccessAsync` and `Radio.SetStateAsync`; exact adapter ID/address validation and state readback |
+| Classic inventory and discovery | `BluetoothFindFirstRadio` / `BluetoothFindFirstDevice`; cached reads normally, bounded inquiries using the selected radio's open handle during owned discovery |
+| LE inventory and live changes | `DeviceInformation` AssociationEndpoint `DeviceWatcher`; explicit classic/LE protocol filters, Added/Updated/Removed events and bounded retained argument queues |
+| LE advertisements and RSSI | Owned `BluetoothLEAdvertisementWatcher` during discovery; active scan responses, public/random address identity, expiration and read-only beacon rows |
+| Classic pairing and removal | `BluetoothAuthenticateDeviceEx` with the selected radio handle; `BluetoothRemoveDevice` followed by authentication readback |
+| LE pairing and removal | `DeviceInformationCustomPairing.PairAsync`, explicit ConfirmOnly/DisplayPin/ProvidePin/ConfirmPinMatch handling, `UnpairAsync` and fresh paired-state readback |
+| LE connection ownership | `BluetoothLEDevice.FromBluetoothAddressAsync` with address type, full returned endpoint identity validation, `BluetoothDeviceId` and `GattSession.MaintainConnection`; success requires an active session, release closes only Docking's session |
+| Incoming classic audio | `AudioPlaybackConnection` selector, `TryCreateFromId`, `StartAsync` and `OpenAsync`; matching device-container identity and opened-state readback |
+| Accessory battery | Connected non-local `DeviceContainer` battery property, joined by container GUID; standard GATT Battery Service/Level reads on an already owned LE connection |
+| Native desktop actions | `ms-settings:bluetooth` and the absolute system `fsquirt.exe -send` file-transfer wizard |
+| Shutdown and cancellation | One owned MTA endpoint worker, cancellable async operations, scoped handles/interfaces/events, and a pairing helper assigned to a kill-on-close Windows process job before receiving input |
 
-Win32 cached enumeration supplies paired/connected **classic Bluetooth** devices
-for each local radio address. Radio, enumeration and device-search handles are
-closed on success, failure and removal. Device
-battery and signal strength stay unknown when the provider cannot supply them.
-Paired classic devices expose **Remove Pairing** through the shared device
-menu. The Windows backend revalidates the selected adapter and device identities
-before calling `BluetoothRemoveDevice`, then reads authentication state again
-before reporting completion. The native function removes the computer's bond
-and cached services for that device address; the adapter identity guards the
-selection but does not make the Windows operation adapter-specific. An absent,
-unpaired or stale device, a rejected request, unchanged authentication or a
-closed backend does not report successful removal.
+Radio states distinguish off, unknown and policy-disabled. Only an explicit
+radio change requests access. Radio queries use a hidden, bounded PowerShell
+process; endpoint interfaces stay in one MTA worker. Immutable records cross
+into the applet. GTK shutdown sets cancellation flags without waiting for native
+queries, discovery or prompts. Late results cannot repaint a removed applet.
 
-Continuous Discovery owns short classic inquiries on the selected powered
-radio. Each refresh uses that radio's actual handle and a 1.28-second inquiry
-window; other radios use cached enumeration. Unknown devices can appear during
-the owned session. Session identity includes both the WinRT adapter ID and
-radio address, and removal, address changes or power-off invalidate it.
-Ordinary inventory reads retain the cache-only behavior when no session exists.
-BLE discovery requires a separate provider.
+Classic discovery is scoped to the selected radio. WinRT LE discovery and GATT
+operations use the actual Windows default LE adapter: both its device ID and
+address must match the selected radio. A different default, removal, power-off
+or backend shutdown invalidates owned discovery and connections. LE-only radios
+do not issue classic inquiries. Other applications' scans remain under their
+control. Periodic endpoint rescan recovers missed updates; advertisement queues
+and collections are bounded, and observations expire after 45 seconds.
 
-The existing applet worker performs the inquiry. Stop and close clear the local
-session without waiting for the poll lock; an in-flight inquiry is allowed to
-finish its bounded native request. Late starts and stopped results cannot re-enable discovery
-or publish newly found unknown devices. This controls Docking's own polling;
-other applications' discovery sessions remain under their control.
+Classic and LE endpoints retain separate logical identities even when their
+addresses match. LE public/random address types must match before advertisements
+supply endpoint telemetry. An advertisement alone cannot become a pairable
+endpoint. Optional name, appearance, RSSI and battery data remain unknown when
+unavailable. A known **0%** battery remains visible. Container metadata is joined
+by GUID, never by display name. GATT battery reads have one shared 1.5-second
+budget per poll, refresh at most one already owned accessory, and never open a
+new device or establish a connection from an inventory read.
 
-Unpaired classic devices expose **Pair** through the shared device menu. The
-backend resolves the exact current adapter/device identity and uses
-`BluetoothAuthenticateDeviceEx` with that radio's open handle. Windows owns the
-PIN/confirmation ceremony; Docking does not receive or store authentication
-codes. An accepted native result must also have matching paired-state readback.
+Unpaired endpoints expose **Pair** when supported. Pairing runs in an owned
+helper with a native modal owner. Classic Windows authentication owns its
+ceremony; custom LE pairing supports native PIN entry, PIN display and matching.
+PINs stay inside the helper's native UI and are never logged, stored or sent
+over IPC. User rejection, timeout and applet shutdown cancel the operation,
+dismiss only its owned windows and reap the helper. Native success must be
+followed by matching paired-state readback. Removal clears Docking's own
+connection first. Classic bond removal is system-wide for that device address;
+the adapter identity protects selection but does not make that Windows API
+adapter-specific.
 
-The prompt runs in a helper process assigned to an owned Windows process job
-before it receives its request. Its hidden owner pumps native messages. Timeout
-or applet shutdown requests cancellation and dismisses only windows rooted in
-that owner or created by its authentication thread. The worker reaps the helper;
-GTK shutdown only sets a cancellation event. Stale or powered-off radios,
-missing devices, rejected requests and late replies cannot report a new bond.
+Windows has no independent BlueZ **Trusted** property or universal profile
+connect/disconnect API. Controls reflect the operations Windows actually
+provides. Paired LE endpoints expose **Keep Connected** and **Release Connection**
+for Docking's GATT session. Supported incoming audio endpoints expose **Connect
+Audio** and **Disconnect Audio** for remote-source audio played on this PC.
+That API does not reconnect headset output or unrelated HID/profile links.
+Releasing Docking's ownership can leave a device connected through Windows or
+another application; the UI uses actual state. Native **Devices...** remains
+available for Windows-managed profiles, including when no adapter is installed.
+An owned session remains releasable if its link drops while Windows is trying
+to reconnect; ownership is separate from the device's current connected state.
 
-Windows does not expose BlueZ trust semantics. Generic connect/disconnect
-controls are omitted by backend capability.
-Device rows without supported actions have no empty submenus. **Devices...**
-opens the native **Bluetooth & devices > Devices** page, including when no radio
-is installed.
+**Send Files to Device...** opens the installed system Bluetooth File Transfer
+wizard in send mode. Windows owns recipient selection, authentication, progress
+and cancellation. Actual menu selection, painted send-page controls and normal
+cancellation passed in the adapter-free Windows 11 VM. Physical transfer remains
+hardware acceptance.
 
-**Send Files to Device...** opens the built-in Windows Bluetooth File Transfer
-wizard directly in send mode. The action is available when
-`%SYSTEMROOT%\System32\fsquirt.exe` is installed and uses that absolute path.
-Windows handles recipient selection, authentication, progress and cancellation.
-Native menu selection and the actual send-page controls, painted wizard and
-normal cancellation have been verified in the adapter-free Windows 11 VM while
-the original dock and Explorer remained running. Sending a file to a physical
-device still needs hardware acceptance.
+The owned Windows 11 VM has no Bluetooth radio. Native WinRT/Win32 inventory and
+an independent PnP oracle agree on its absence. Native activation, endpoint
+watchers, actual PnP Added callback delivery, typed event registration and COM
+reference cleanup are exercised without altering hardware. The full menu probe
+also opens the actual Devices settings page and checks normal shutdown and
+work-area restoration. Classic/LE/audio connections, pairing, metadata including
+0% battery, radio power/denial/policy/removal and discovery are **explicit injected
+API fixtures**. They exercise real GTK input and shared menus without RF writes.
 
-The owned Windows VM has no Bluetooth adapter. Native WinRT/Win32 queries and an
-independent PnP oracle agree on that absence. Actual menu input, the Devices
-settings page, accessibility metadata, inspected desktop captures, normal close
-and work-area restoration passed. The subsequent connected/paired, on/off,
-denied-change, external-change, policy-disabled and removal scenarios are
-**explicit injected API fixtures**. No physical radio was changed.
-The fixture also exercises the real Continuous Discovery menu, stop, restart
-and owned-session cleanup. Native client checks verify the missing-radio case;
-physical inquiry results and discovery coverage remain unverified.
-Pairing-removal ABI checks exercise the actual Windows client export and its
-invalid-address error. Successful removal and authentication readback use an
-injected classic-device fixture; physical unpairing remains unverified.
-`tools/windows/visual/pairing_smoke.py` exercises production helper ownership and
-IPC with explicitly synthetic native dialogs: accept, reject, timeout and a GTK
-cancel button. These fixtures make no radio calls. Actual Windows authentication
-ceremonies and successful physical pairing remain unverified.
+`tools/windows/visual/pairing_smoke.py` exercises production helper IPC,
+process ownership and native dialogs in twelve cases: accept/reject,
+GTK cancellation, timeout, PIN accept/reject/stop/timeout, displayed PIN
+accept/reject and matching PIN accept/reject. These are explicitly synthetic
+ceremonies. Hosted Windows CI runs the same menu fixtures and pairing probes,
+with captures uploaded as artifacts; its fixture-only menu mode does not depend
+on Windows 11 Settings being installed on the server runner.
 
 ```sh
-python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 start \
-  'C:\msys64\ucrt64\bin\pythonw.exe' \
-  '\\host.lan\Data\repo\tools\windows\visual\bluetooth_smoke.py' \
-  --output '\\host.lan\Data\lab\bluetooth-acceptance'
+python -m tools.windows.visual.bluetooth_smoke --output artifacts/windows/bluetooth
+python -m tools.windows.visual.pairing_smoke --output artifacts/windows/pairing
 ```
 
-Physical radio/policy/permission behavior, multiple adapters and hotplug, BLE
-inventory, active discovery, pairing and pairing removal, device-specific
-connection management, file transfer and accessories remain part of Windows
-parity acceptance or implementation. The VM fixtures do not establish hardware
-support.
+Physical radio/policy/permissions, multiple-adapter hotplug/default changes,
+classic inquiries, LE advertisements, real pairing/removal, GATT/audio links,
+accessory batteries and file transfer still require hardware acceptance. Native
+factories and fixtures do not establish successful physical device operation.
 
 References: [adapter enumeration](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter.getdeviceselector),
-[radio state](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radiostate),
-[radio access](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.requestaccessasync),
 [radio changes](https://learn.microsoft.com/en-us/uwp/api/windows.devices.radios.radio.setstateasync),
-[classic device enumeration and LE limitation](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
-[classic pairing removal](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothremovedevice),
+[device enumeration](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/enumerate-devices),
+[LE advertisements](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementwatcher),
+[classic inventory](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothfindfirstdevice),
+[classic removal](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothremovedevice),
 [classic authentication](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/nf-bluetoothapis-bluetoothauthenticatedeviceex),
-[device search parameters](https://learn.microsoft.com/en-us/windows/win32/api/bluetoothapis/ns-bluetoothapis-bluetooth_device_search_params),
-[Windows file-transfer wizard](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-user-interface).
+[custom pairing](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/pair-devices),
+[GATT connection ownership](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattsession.maintainconnection),
+[GATT battery reads](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattcharacteristic.readvalueasync),
+[incoming audio playback](https://learn.microsoft.com/en-us/uwp/api/windows.media.audio.audioplaybackconnection),
+[Windows file transfer](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-user-interface).
 
 ## Windows keyboard layouts
 
@@ -3209,7 +3213,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Displays | Per-monitor-v2 startup and live Windows scaling | Native 100% → 125% transition, taskbar separation, reservation, Search and Color Picker accepted on one display; multiple monitors, negative origins, mixed DPI, other scales and display removal pending |
 | Previews and overlays | Native Windows graphics capture and asynchronous UI | Occluded/live/resized source pixels and Notepad hover/focus/minimize/activation verified; menu/Search previews and typing focus verified; ghost/original surface switching, stale-target rejection and recovery captures verified; static/minimized source reuse across thumbnail sizes and real recovered hover images verified; shared memory budget and source-resolution limits tested; indicator, outlines, first uncached minimized source and broader display/content cases pending |
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
-| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings Bluetooth radio/classic-inventory, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native absence/settings and labeled radio/device fixtures verified; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; broader tray providers/hover/WOW64/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
+| System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings, Bluetooth classic/LE inventory/discovery/pairing/GATT/audio, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native factories/watchers/absence/settings, classic/LE/audio menu ownership and twelve pairing-dialog cases verified with labeled API fixtures; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; broader tray providers/hover/WOW64/restart races/display acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
 | Packaging and updates | Portable ZIP and per-user NSIS setup with versioned runtimes and stable launchers | Native installation, complete payload hashes, installed desktop, in-use rejection, upgrades, startup-choice preservation/disabling and uninstall with preferences/unknown files retained verified; interrupted-copy ownership tested; release signing, automatic update delivery and broader startup-performance acceptance pending |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |

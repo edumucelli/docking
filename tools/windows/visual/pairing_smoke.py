@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import sys
 import threading
@@ -31,6 +32,7 @@ def main() -> None:
     from PIL import ImageGrab
 
     from docking.applets.bluetooth.windows_pairing import PairingOperation
+    from docking.platform.backends.windows.ffi import bind
     from tools.windows.visual.desktop_driver import WindowsDesktop
 
     native = WindowsDesktop()
@@ -75,12 +77,19 @@ def main() -> None:
             )
 
             def exercise(mode):
+                ceremony = (
+                    mode.split("-", 1)[0]
+                    if mode.startswith(("pin-", "display-", "match-"))
+                    else ""
+                )
+                arguments = ("--ceremony", ceremony) if ceremony else ()
                 operation = PairingOperation(
                     command=(
                         str(executable),
                         "-u",
                         "-m",
                         "tools.windows.visual.pairing_fixture",
+                        *arguments,
                     )
                 )
                 current[:] = [operation]
@@ -97,7 +106,7 @@ def main() -> None:
                             operation.run(
                                 0x112233445566,
                                 0xAABBCCDDEEFF,
-                                8 if mode == "timeout" else 30,
+                                8 if mode.endswith("timeout") else 30,
                                 on_ready=on_ready,
                             )
                         )
@@ -113,7 +122,7 @@ def main() -> None:
                             (
                                 w
                                 for w in native.windows(child[0].pid)
-                                if w["title"] == "Docking pairing fixture"
+                                if w["class"] == "#32770"
                             ),
                             None,
                         ),
@@ -123,17 +132,50 @@ def main() -> None:
                     time.sleep(0.3)
                     assert ticks[0] > before, "GTK stopped servicing events"
                     ImageGrab.grab(all_screens=True).save(output / f"{mode}-prompt.png")
-                    target = controller if mode == "gtk-cancel" else dialog
+                    target = (
+                        controller
+                        if mode == "gtk-cancel" or mode.endswith("-stop")
+                        else dialog
+                    )
                     left, top, right, bottom = target["rect"]
                     native.click((left + right) / 2, (top + bottom) / 2)
                     if mode in ("accept", "reject"):
                         native.key(0x0D if mode == "accept" else 0x1B)
+                    elif mode == "pin-accept":
+                        from ctypes import wintypes
+
+                        edit = bind(
+                            native.user,
+                            "GetDlgItem",
+                            ctypes.c_void_p,
+                            ctypes.c_void_p,
+                            ctypes.c_int32,
+                        )(dialog["hwnd"], 100)
+                        rectangle = wintypes.RECT()
+                        assert edit and native.user.GetWindowRect(
+                            edit, ctypes.byref(rectangle)
+                        )
+                        native.click(
+                            (rectangle.left + rectangle.right) / 2,
+                            (rectangle.top + rectangle.bottom) / 2,
+                        )
+                        native.type_text("135790")
+                        native.key(0x0D)
+                    elif mode == "match-reject":
+                        native.key(0x09)
+                        native.key(0x0D)
+                    elif mode.endswith("-accept"):
+                        native.key(0x0D)
+                    elif mode.endswith("-reject"):
+                        native.key(0x1B)
                     worker.join(15)
                     assert not worker.is_alive(), (
                         "Owned pairing helper outlived its bound"
                     )
                     assert not errors, errors
-                    assert values == [mode == "accept"], values
+                    assert values == [mode == "accept" or mode.endswith("-accept")], (
+                        values
+                    )
                     # Windows may retain a PID while another handle references
                     # the exited process. Wait on its exit, rather than PID presence.
                     exit_code = child[0].wait(timeout=2)
@@ -153,7 +195,20 @@ def main() -> None:
                     operation.cancel()
                     worker.join(10)
 
-            for mode in ("accept", "reject", "gtk-cancel", "timeout"):
+            for mode in (
+                "accept",
+                "reject",
+                "gtk-cancel",
+                "timeout",
+                "pin-accept",
+                "pin-reject",
+                "pin-stop",
+                "pin-timeout",
+                "display-accept",
+                "display-reject",
+                "match-accept",
+                "match-reject",
+            ):
                 exercise(mode)
             assert native.workarea() == baseline
             assert native.explorer() == explorer

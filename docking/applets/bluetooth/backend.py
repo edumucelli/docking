@@ -22,6 +22,8 @@ class BluetoothCapabilities:
     connect: bool = True
     disconnect: bool = True
     pair: bool = True
+    connect_label: str | None = None
+    disconnect_label: str | None = None
 
 
 class BluetoothAction(Enum):
@@ -33,6 +35,10 @@ class BluetoothAction(Enum):
 
 class BluetoothBackend(ABC):
     capabilities = BluetoothCapabilities()
+
+    def device_capabilities(self, device_path: str) -> BluetoothCapabilities:
+        """Read controls from published state, without device IO on GTK."""
+        return self.capabilities
 
     def desktop_actions(self) -> tuple[BluetoothAction, ...]:
         return ()

@@ -19,6 +19,11 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--fixtures-only",
+        action="store_true",
+        help="Exercise menus without opening OS Settings",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test VM")
@@ -40,6 +45,7 @@ def main():
 
     import docking.app as app
     from docking.applets.bluetooth.windows import WindowsBluetoothBackend
+    from docking.applets.bluetooth.windows_le import LowEnergyDevice
     from docking.applets.bluetooth.windows_radio import (
         ClassicDevice,
         Radio,
@@ -127,6 +133,7 @@ def main():
             )
             self.writes, self.denied = [], False
             self.removals = []
+            self.connections = []
             self.discovery_starts, self.discovery_stops = [], []
             self.closed = False
 
@@ -209,6 +216,41 @@ def main():
                 for current in self.radios
             )
             return True
+
+        def _connection(self, radio, device, connected):
+            self.connections.append([device.name, connected])
+            if self.denied:
+                return False
+
+            def change(item):
+                if item != device:
+                    return item
+                if isinstance(item, LowEnergyDevice):
+                    return replace(
+                        item, connected=connected, owned_connection=connected
+                    )
+                assert item.endpoint is not None
+                return replace(
+                    item,
+                    connected=connected,
+                    endpoint=replace(
+                        item.endpoint, connected=connected, owned_connection=connected
+                    ),
+                )
+
+            self.radios = tuple(
+                replace(r, devices=tuple(change(item) for item in r.devices))
+                if r.identifier == radio.identifier
+                else r
+                for r in self.radios
+            )
+            return True
+
+        def connect_device(self, radio, device):
+            return self._connection(radio, device, True)
+
+        def disconnect_device(self, radio, device):
+            return self._connection(radio, device, False)
 
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))
@@ -296,67 +338,74 @@ def main():
                     native.key(0x28)
                 raise AssertionError(f"Menu item {label} did not receive selection")
 
-            # Independent PnP oracle, without writing adapter or pairing state.
-            pnp = powershell(r"""
-$rows=@(Get-CimInstance Win32_PnPEntity | Where-Object {$_.PNPClass -eq 'Bluetooth'} |
- ForEach-Object {@{name=$_.Name;id=$_.PNPDeviceID;status=$_.Status}});
-ConvertTo-Json -InputObject $rows -Compress
-""")
-            assert pnp == [], "This verifier requires a VM without Bluetooth hardware"
-            report["pnp_oracle"] = pnp
-            native.wait_for(idle, "Native Bluetooth discovery did not finish", 25)
-            assert not state().available and not state().error
-            report["states"]["native"] = asdict(state())
-            popup, rows = menu()
-            assert any(
-                r["label"] == "Bluetooth unavailable" and not r["enabled"] for r in rows
-            )
-            assert any(r["label"] == "Devices..." and r["enabled"] for r in rows)
-            report["native_menu"] = rows
-            capture("native-unavailable-menu")
-            assert not any(w["title"] == "Settings" for w in native.windows())
-            choose(popup, "Devices...")
-            settings = native.wait_for(
-                lambda: next(
-                    (w for w in native.windows() if w["title"] == "Settings"), None
-                ),
-                "Bluetooth Settings did not open",
-                30,
-            )
-            time.sleep(2)
-            controls = powershell(
-                r"""
-Add-Type -AssemblyName UIAutomationClient;Add-Type -AssemblyName UIAutomationTypes;
-$root=[System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]HWND);
-$nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
- [System.Windows.Automation.Condition]::TrueCondition);
-$rows=@();foreach($node in $nodes){$v=$node.Current;
- $rows+=@{name=$v.Name;id=$v.AutomationId;type=$v.ControlType.ProgrammaticName}}
-ConvertTo-Json -InputObject $rows -Depth 3 -Compress
-""".replace("HWND", str(settings["hwnd"]))
-            )
-            report["settings_controls"] = controls
-            assert any(
-                "bluetooth" in row["name"].lower() and row["type"] == "ControlType.Text"
-                for row in controls
-            ), "Settings did not reach a Bluetooth page"
-            assert any(
-                r["name"] == "Devices" and r["type"] == "ControlType.Text"
-                for r in controls
-            )
-            assert any(
-                r["id"] == "SystemSettings_Device_Discovery_Button" for r in controls
-            )
-            capture("native-bluetooth-settings")
-            native.user.PostMessageW(settings["hwnd"], 0x10, 0, 0)
-            native.wait_for(
-                lambda: (
-                    not any(w["hwnd"] == settings["hwnd"] for w in native.windows())
-                ),
-                "Owned Settings did not close",
-            )
-            settings = None
-            publish()
+            if not args.fixtures_only:
+                # Independent PnP oracle, without writing adapter or pairing state.
+                pnp = powershell(r"""
+    $rows=@(Get-CimInstance Win32_PnPEntity |
+     Where-Object {$_.PNPClass -eq 'Bluetooth'} |
+     ForEach-Object {@{name=$_.Name;id=$_.PNPDeviceID;status=$_.Status}});
+    ConvertTo-Json -InputObject $rows -Compress
+    """)
+                assert pnp == [], (
+                    "This verifier requires a VM without Bluetooth hardware"
+                )
+                report["pnp_oracle"] = pnp
+                native.wait_for(idle, "Native Bluetooth discovery did not finish", 25)
+                assert not state().available and not state().error
+                report["states"]["native"] = asdict(state())
+                popup, rows = menu()
+                assert any(
+                    r["label"] == "Bluetooth unavailable" and not r["enabled"]
+                    for r in rows
+                )
+                assert any(r["label"] == "Devices..." and r["enabled"] for r in rows)
+                report["native_menu"] = rows
+                capture("native-unavailable-menu")
+                assert not any(w["title"] == "Settings" for w in native.windows())
+                choose(popup, "Devices...")
+                settings = native.wait_for(
+                    lambda: next(
+                        (w for w in native.windows() if w["title"] == "Settings"), None
+                    ),
+                    "Bluetooth Settings did not open",
+                    30,
+                )
+                time.sleep(2)
+                controls = powershell(
+                    r"""
+    Add-Type -AssemblyName UIAutomationClient;Add-Type -AssemblyName UIAutomationTypes;
+    $root=[System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]HWND);
+    $nodes=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+     [System.Windows.Automation.Condition]::TrueCondition);
+    $rows=@();foreach($node in $nodes){$v=$node.Current;
+     $rows+=@{name=$v.Name;id=$v.AutomationId;type=$v.ControlType.ProgrammaticName}}
+    ConvertTo-Json -InputObject $rows -Depth 3 -Compress
+    """.replace("HWND", str(settings["hwnd"]))
+                )
+                report["settings_controls"] = controls
+                assert any(
+                    "bluetooth" in row["name"].lower()
+                    and row["type"] == "ControlType.Text"
+                    for row in controls
+                ), "Settings did not reach a Bluetooth page"
+                assert any(
+                    r["name"] == "Devices" and r["type"] == "ControlType.Text"
+                    for r in controls
+                )
+                assert any(
+                    r["id"] == "SystemSettings_Device_Discovery_Button"
+                    for r in controls
+                )
+                capture("native-bluetooth-settings")
+                native.user.PostMessageW(settings["hwnd"], 0x10, 0, 0)
+                native.wait_for(
+                    lambda: (
+                        not any(w["hwnd"] == settings["hwnd"] for w in native.windows())
+                    ),
+                    "Owned Settings did not close",
+                )
+                settings = None
+                publish()
 
             fixture = FixtureRadio()
             shared["fixture"] = fixture
@@ -444,6 +493,170 @@ ConvertTo-Json -InputObject $rows -Depth 3 -Compress
                 "actions": actions,
                 "readback_paired": True,
                 "scope": "injected device; no physical pairing or authentication",
+            }
+            le = LowEnergyDevice(
+                "explicit-LE-endpoint",
+                0xAABBCCDDEE22,
+                "Fixture LE keyboard",
+                False,
+                False,
+                True,
+                address_type=1,
+                appearance=961,
+                rssi=-49,
+                battery_percent=0,
+            )
+            audio_meta = LowEnergyDevice(
+                "explicit-audio-aep",
+                0xAABBCCDDEE33,
+                "Fixture audio source",
+                True,
+                False,
+                False,
+                low_energy=False,
+                audio_endpoint="explicit-audio-interface",
+            )
+            audio = ClassicDevice(
+                audio_meta.address,
+                audio_meta.name,
+                0x0200,
+                True,
+                False,
+                endpoint=audio_meta,
+            )
+            fixture.radios = (
+                replace(
+                    fixture.radios[0], devices=(*fixture.radios[0].devices, le, audio)
+                ),
+            )
+            call(applet._refresh_now)
+            native.wait_for(
+                lambda: idle() and len(state().devices) == 4,
+                "Combined Bluetooth fixture did not publish",
+            )
+
+            def select_device(prefix, action, expected):
+                popup, rows = menu()
+                label = next(
+                    row["label"] for row in rows if row["label"].startswith(prefix)
+                )
+                submenu = choose(popup, label, submenu=True)
+                actions = call(
+                    lambda: [
+                        row.get_label()
+                        for row in submenu.get_children()
+                        if row.get_sensitive()
+                    ]
+                )
+                if prefix == "Fixture LE keyboard":
+                    assert call(
+                        lambda: any(
+                            row.get_label() == "Battery: 0%" and not row.get_sensitive()
+                            for row in submenu.get_children()
+                        )
+                    )
+                assert actions == expected, actions
+                capture("fixture-" + action.lower().replace(" ", "-"))
+                choose(submenu, action)
+                native.wait_for(idle, "Bluetooth device action did not finish", 20)
+
+            def lose_link(name):
+                def change(device):
+                    if device.name != name:
+                        return device
+                    if isinstance(device, LowEnergyDevice):
+                        return replace(device, connected=False)
+                    assert device.endpoint is not None
+                    return replace(
+                        device,
+                        connected=False,
+                        endpoint=replace(device.endpoint, connected=False),
+                    )
+
+                fixture.radios = tuple(
+                    replace(radio, devices=tuple(change(d) for d in radio.devices))
+                    for radio in fixture.radios
+                )
+                call(applet._refresh_now)
+                native.wait_for(
+                    lambda: (
+                        idle()
+                        and any(
+                            d.name == name and not d.connected and d.connection_owned
+                            for d in state().devices
+                        )
+                    ),
+                    "Lost link did not preserve its owned session",
+                )
+
+            select_device("Fixture LE keyboard", "Pair", ["Pair"])
+            native.wait_for(
+                lambda: any(d.name == le.name and d.paired for d in state().devices),
+                "BLE pair readback failed",
+            )
+            select_device(
+                "Fixture LE keyboard",
+                "Keep Connected",
+                ["Keep Connected", "Remove Pairing"],
+            )
+            native.wait_for(
+                lambda: any(d.name == le.name and d.connected for d in state().devices),
+                "BLE connection readback failed",
+            )
+            lose_link(le.name)
+            select_device(
+                "Fixture LE keyboard",
+                "Release Connection",
+                ["Release Connection", "Remove Pairing"],
+            )
+            native.wait_for(
+                lambda: any(
+                    d.name == le.name and not d.connected for d in state().devices
+                ),
+                "BLE release readback failed",
+            )
+            select_device(
+                "Fixture LE keyboard",
+                "Remove Pairing",
+                ["Keep Connected", "Remove Pairing"],
+            )
+            native.wait_for(
+                lambda: any(
+                    d.name == le.name and not d.paired for d in state().devices
+                ),
+                "BLE removal readback failed",
+            )
+            select_device(
+                "Fixture audio source",
+                "Connect Audio",
+                ["Connect Audio", "Remove Pairing"],
+            )
+            native.wait_for(
+                lambda: any(
+                    d.name == audio.name and d.connected for d in state().devices
+                ),
+                "Audio connection readback failed",
+            )
+            lose_link(audio.name)
+            select_device(
+                "Fixture audio source",
+                "Disconnect Audio",
+                ["Disconnect Audio", "Remove Pairing"],
+            )
+            native.wait_for(
+                lambda: any(
+                    d.name == audio.name and not d.connected for d in state().devices
+                ),
+                "Audio release readback failed",
+            )
+            report["fixture_domain"] = {
+                "scope": "injected classic, BLE and audio endpoints; no radio writes",
+                "connections": fixture.connections,
+                "ble_pair_and_remove": True,
+                "known_zero_percent": True,
+                "signal_strength": -49,
+                "audio_connect_and_disconnect": True,
+                "lost_owned_links_released": True,
             }
             native.wait_for(
                 lambda: idle() and state().adapters[0].discovering,

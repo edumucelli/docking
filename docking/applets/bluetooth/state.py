@@ -44,6 +44,7 @@ class BluetoothDeviceState:
     connected: bool
     battery_percent: int | None
     rssi: int | None
+    connection_owned: bool = False
 
 
 @dataclass(frozen=True, slots=True)

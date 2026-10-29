@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import threading
@@ -21,12 +22,14 @@ from docking.applets.bluetooth.state import (
     adapter_from_state,
     unavailable_state,
 )
+from docking.applets.bluetooth.windows_le import LowEnergyDevice
 from docking.applets.bluetooth.windows_radio import (
     ClassicDevice,
     Radio,
     WindowsBluetoothAPI,
     address_text,
 )
+from docking.i18n import _
 from docking.log import get_logger
 
 log = get_logger("bluetooth.windows")
@@ -35,9 +38,17 @@ log = get_logger("bluetooth.windows")
 class RadioAPI(Protocol):
     def snapshot(self) -> tuple[Radio, ...]: ...
     def set_power(self, radio: Radio, powered: bool) -> bool: ...
-    def remove_pairing(self, radio: Radio, device: ClassicDevice) -> bool: ...
+    def remove_pairing(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
+    ) -> bool: ...
     def pair_device(
-        self, radio: Radio, device: ClassicDevice, timeout_s: int
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice, timeout_s: int
+    ) -> bool: ...
+    def connect_device(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
+    ) -> bool: ...
+    def disconnect_device(
+        self, radio: Radio, device: ClassicDevice | LowEnergyDevice
     ) -> bool: ...
     def start_discovery(self, radio: Radio) -> bool: ...
     def stop_discovery(self, identifier: str) -> bool: ...
@@ -52,6 +63,48 @@ def _device_icon(device_class: int) -> str:
         5: "input-keyboard",
         6: "printer",
     }.get((device_class >> 8) & 0x1F, "bluetooth-active-symbolic")
+
+
+def _device_path(radio: Radio, device: ClassicDevice | LowEnergyDevice) -> str:
+    if isinstance(device, LowEnergyDevice):
+        digest = hashlib.sha256(device.identifier.encode()).hexdigest()[:32]
+        return f"{radio.identifier}/le/{digest}"
+    return f"{radio.identifier}/{device.address:012x}"
+
+
+def _icon(device: ClassicDevice | LowEnergyDevice) -> str:
+    if isinstance(device, ClassicDevice):
+        return _device_icon(device.device_class)
+    return {
+        961: "input-keyboard",
+        962: "input-mouse",
+        64: "phone",
+        128: "computer",
+    }.get(device.appearance, "bluetooth-active-symbolic")
+
+
+def _endpoint(device: ClassicDevice | LowEnergyDevice) -> LowEnergyDevice | None:
+    return device if isinstance(device, LowEnergyDevice) else device.endpoint
+
+
+def _controls(
+    radio: Radio, device: ClassicDevice | LowEnergyDevice
+) -> BluetoothCapabilities:
+    endpoint = _endpoint(device)
+    if endpoint is None or (not endpoint.low_energy and not endpoint.audio_endpoint):
+        return WindowsBluetoothBackend.capabilities
+    return BluetoothCapabilities(
+        trust=False,
+        connect=device.paired and radio.state == 1,
+        disconnect=endpoint.owned_connection and radio.state == 1,
+        pair=endpoint.can_pair and radio.state == 1,
+        connect_label=_("Keep Connected")
+        if endpoint.low_energy
+        else _("Connect Audio"),
+        disconnect_label=_("Release Connection")
+        if endpoint.low_energy
+        else _("Disconnect Audio"),
+    )
 
 
 def _file_sender() -> Path | None:
@@ -77,6 +130,21 @@ class WindowsBluetoothBackend(BluetoothBackend):
         self._api = api if api is not None else WindowsBluetoothAPI()
         self._lock = threading.Lock()
         self._closed = threading.Event()
+        self._device_controls: dict[str, BluetoothCapabilities] = {}
+
+    def device_capabilities(self, device_path: str) -> BluetoothCapabilities:
+        return self._device_controls.get(
+            device_path,
+            BluetoothCapabilities(
+                trust=False,
+                remove_pairing=False,
+                power=False,
+                discovery=False,
+                connect=False,
+                disconnect=False,
+                pair=False,
+            ),
+        )
 
     def close(self) -> None:
         if self._closed.is_set():
@@ -95,6 +163,9 @@ class WindowsBluetoothBackend(BluetoothBackend):
                 return unavailable_state("Windows Bluetooth query failed")
             if self._closed.is_set():
                 return unavailable_state()
+            self._device_controls = {
+                _device_path(r, d): _controls(r, d) for r in radios for d in r.devices
+            }
             adapters = tuple(
                 BluetoothAdapterState(
                     r.identifier,
@@ -111,17 +182,19 @@ class WindowsBluetoothBackend(BluetoothBackend):
                 sorted(
                     (
                         BluetoothDeviceState(
-                            f"{r.identifier}/{d.address:012x}",
+                            _device_path(r, d),
                             r.identifier,
                             d.name,
                             d.name,
                             address_text(d.address),
-                            _device_icon(d.device_class),
+                            _icon(d),
                             d.paired,
                             False,
                             d.connected,
-                            None,
-                            None,
+                            d.battery_percent,
+                            d.rssi,
+                            connection_owned=(endpoint := _endpoint(d)) is not None
+                            and endpoint.owned_connection,
                         )
                         for r in radios
                         for d in r.devices
@@ -211,10 +284,63 @@ class WindowsBluetoothBackend(BluetoothBackend):
             return False
 
     def connect_device(self, device_path: str) -> bool:
-        return False
+        return self._connection(device_path, connect=True)
 
     def disconnect_device(self, device_path: str) -> bool:
-        return False
+        return self._connection(device_path, connect=False)
+
+    def _connection(self, device_path: str, *, connect: bool) -> bool:
+        with self._lock:
+            if self._closed.is_set():
+                return False
+            try:
+                selected = next(
+                    (
+                        (r, d)
+                        for r in self._api.snapshot()
+                        for d in r.devices
+                        if _endpoint(d) is not None
+                        and _device_path(r, d) == device_path
+                    ),
+                    None,
+                )
+                if selected is None or self._closed.is_set():
+                    return False
+                radio, device = selected
+                endpoint = _endpoint(device)
+                if (
+                    radio.state != 1
+                    or not device.paired
+                    or endpoint is None
+                    or (not connect and not endpoint.owned_connection)
+                ):
+                    return False
+                accepted = (
+                    self._api.connect_device(radio, device)
+                    if connect
+                    else self._api.disconnect_device(radio, device)
+                )
+                if not accepted or self._closed.is_set():
+                    return False
+                return (
+                    any(
+                        r.identifier == radio.identifier
+                        and r.address == radio.address
+                        and _device_path(r, d) == device_path
+                        and (endpoint := _endpoint(d)) is not None
+                        and (
+                            (d.connected and endpoint.owned_connection)
+                            if connect
+                            else not endpoint.owned_connection
+                        )
+                        for r in self._api.snapshot()
+                        for d in r.devices
+                    )
+                    and not self._closed.is_set()
+                )
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                log.debug("Bluetooth connection change failed")
+                return False
 
     def pair_device(
         self, device_path: str, address: str = "", timeout_s: int = 20
@@ -232,7 +358,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
                         (r, d)
                         for r in self._api.snapshot()
                         for d in r.devices
-                        if f"{r.identifier}/{d.address:012x}" == device_path
+                        if _device_path(r, d) == device_path
                     ),
                     None,
                 )
@@ -254,7 +380,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
                     any(
                         r.identifier == radio.identifier
                         and r.address == radio.address
-                        and d.address == device.address
+                        and _device_path(r, d) == device_path
                         and d.paired
                         for r in self._api.snapshot()
                         for d in r.devices
@@ -280,8 +406,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
                     (
                         d
                         for d in radio.devices
-                        if f"{radio.identifier}/{d.address:012x}" == device_path
-                        and d.paired
+                        if _device_path(radio, d) == device_path and d.paired
                     ),
                     None,
                 )
@@ -302,7 +427,8 @@ class WindowsBluetoothBackend(BluetoothBackend):
                     not self._closed.is_set()
                     and fresh is not None
                     and not any(
-                        d.address == device.address and d.paired for d in fresh.devices
+                        _device_path(fresh, d) == device_path and d.paired
+                        for d in fresh.devices
                     )
                 )
             except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
