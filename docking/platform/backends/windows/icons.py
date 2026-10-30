@@ -11,7 +11,6 @@ import ctypes
 from collections import OrderedDict
 from collections.abc import Callable
 from ctypes import wintypes
-from dataclasses import dataclass
 from queue import Empty, Full, Queue
 from threading import Event, Thread
 
@@ -19,18 +18,12 @@ from gi.repository import GLib
 
 from docking.log import get_logger
 from docking.platform.applications.types import ApplicationInfo
+from docking.platform.icon_source import IconPixels
 
 from .com import GUID, HRESULT, apartment, method, release
 from .ffi import bind as _bind
 
 log = get_logger("windows.icons")
-
-
-@dataclass(frozen=True)
-class NativeIcon:
-    pixels: bytes
-    width: int
-    height: int
 
 
 class _Size(ctypes.Structure):
@@ -65,7 +58,7 @@ class _BitmapHeader(ctypes.Structure):
     ]
 
 
-def _bitmap_pixels(bitmap: wintypes.HBITMAP) -> NativeIcon | None:
+def _bitmap_pixels(bitmap: wintypes.HBITMAP) -> IconPixels | None:
     gdi = ctypes.WinDLL("gdi32", use_last_error=True)
     user = ctypes.WinDLL("user32", use_last_error=True)
     get_object = _bind(
@@ -120,10 +113,10 @@ def _bitmap_pixels(bitmap: wintypes.HBITMAP) -> NativeIcon | None:
                 min(255, channel * 255 // alpha) for channel in (red, green, blue)
             )
         rgba[offset : offset + 4] = bytes((red, green, blue, alpha))
-    return NativeIcon(bytes(rgba), width, height)
+    return IconPixels(bytes(rgba), width, height)
 
 
-def extract_icon(target: str, size: int) -> NativeIcon | None:
+def extract_icon(target: str, size: int) -> IconPixels | None:
     """Blocking extraction; callers must use a background thread."""
     with apartment():
         shell = ctypes.WinDLL("shell32", use_last_error=True)
@@ -167,7 +160,7 @@ class WindowsIconCache:
 
     def __init__(self, on_ready: Callable[[str], None]) -> None:
         self._on_ready = on_ready
-        self._images: OrderedDict[tuple[str, int, str], NativeIcon | None] = (
+        self._images: OrderedDict[tuple[str, int, str], IconPixels | None] = (
             OrderedDict()
         )
         self._pending: set[tuple[str, int, str]] = set()
@@ -178,7 +171,7 @@ class WindowsIconCache:
                 target=self._worker, name=f"windows-icons-{index}", daemon=True
             ).start()
 
-    def get(self, info: ApplicationInfo, size: int) -> NativeIcon | None:
+    def get(self, info: ApplicationInfo, size: int) -> IconPixels | None:
         target = (
             info.launch_target
             if info.launch_target
@@ -220,7 +213,7 @@ class WindowsIconCache:
             if not self._closed.is_set():
                 GLib.idle_add(self._publish, key, image)
 
-    def _publish(self, key: tuple[str, int, str], image: NativeIcon | None) -> bool:
+    def _publish(self, key: tuple[str, int, str], image: IconPixels | None) -> bool:
         if self._closed.is_set():
             return False
         self._pending.discard(key)

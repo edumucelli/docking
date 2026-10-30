@@ -2281,6 +2281,15 @@ path; stop and lifecycle invalidation reject late replies. Unchanged immutable
 launcher exports and their drag formats are reused only within one worker
 lifetime, with file identity and metadata checks before reuse.
 
+Application catalog and launch contracts live in
+`platform/applications/catalog_backend.py` and `launch_backend.py`. The shared
+registry owns generations and debounce, the metadata worker owns cancellation
+and publication, and the shared launcher owns selection and process provenance.
+Unix adapters retain desktop-entry/Gio/Flatpak handling; the concrete Windows
+adapters, discovery, export cache, registration and process evidence live under
+`platform/applications/windows/`. Win32 and COM primitives remain under
+`platform/backends/windows/`.
+
 Native catalog entries record their shell application-folder target. Activation
 passes that target to Windows rather than reconstructing the shortcut command,
 arguments or working directory. Packaged entries retain activation-manager

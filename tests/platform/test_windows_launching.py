@@ -225,7 +225,13 @@ def test_same_executable_launchers_match_the_process_they_actually_started(
     processes = [SimpleNamespace(pid=pid, poll=lambda: None) for pid in (42, 43)]
     activate = Mock(side_effect=[LaunchOutcome(True, process) for process in processes])
     monkeypatch.setattr(shell, "launch_application_target", activate)
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    from docking.platform.applications.windows.launch import (
+        WindowsApplicationLaunchBackend,
+    )
+
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     launcher = ApplicationLauncher(registry, store)
     identity = ProcessIdentityService(
         store, executable_resolver=lambda _pid: executable

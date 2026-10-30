@@ -17,9 +17,9 @@ from docking.platform.backends.windows.appresolver import shortcut_application_i
 from docking.platform.backends.windows.shortcuts import read_shortcut, write_shortcut
 from docking.platform.environment import docking_config_dir
 
-from .constants import FALLBACK_ICON
-from .registration import executable_format
-from .types import ApplicationInfo, ApplicationLocation, ApplicationOrigin
+from ..constants import FALLBACK_ICON
+from ..registration import executable_format
+from ..types import ApplicationInfo, ApplicationLocation, ApplicationOrigin
 
 log = get_logger("windows.executable_registration")
 

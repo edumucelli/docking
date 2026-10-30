@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 
@@ -17,3 +18,4 @@ class LaunchedProcess(Protocol):
 class LaunchOutcome:
     started: bool
     process: LaunchedProcess | None = None
+    executable_path: Path | None = None

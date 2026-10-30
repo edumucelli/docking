@@ -27,7 +27,7 @@ from .properties import APP_ID, PropertyKey
 log = get_logger("windows.catalog")
 
 if TYPE_CHECKING:
-    from docking.platform.applications.windows_export import WindowsApplicationExport
+    from docking.platform.applications.windows.export import WindowsApplicationExport
 
 _APPS_FOLDER = GUID.parse("1e87508d-89c2-42f0-8a7e-645a0f50ca58")
 _SHELL_ITEM = GUID.parse("43826d1e-e718-42ee-bc55-a1e261c37bfe")
@@ -207,7 +207,7 @@ def read_application_metadata(
     if cancelled():
         return ApplicationMetadata()
     if applications is not None:
-        from docking.platform.applications.windows_export import (
+        from docking.platform.applications.windows.export import (
             WindowsApplicationExport,
         )
 

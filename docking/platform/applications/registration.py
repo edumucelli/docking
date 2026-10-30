@@ -36,7 +36,7 @@ def executable_format(path: Path) -> Literal["elf", "pe"] | None:
 
 def executable_application_id(path: Path) -> str:
     if is_windows():
-        from .windows_registration import executable_id
+        from .windows.registration import executable_id
 
         return executable_id(path)
     return entries.generated_desktop_id_for_path(path)
@@ -44,7 +44,7 @@ def executable_application_id(path: Path) -> str:
 
 def create_registration_backend() -> ExecutableRegistrationBackend:
     if is_windows():
-        from .windows_registration import WindowsExecutableRegistration
+        from .windows.registration import WindowsExecutableRegistration
 
         return WindowsExecutableRegistration()
     from .unix_registration import UnixExecutableRegistration

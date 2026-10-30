@@ -38,28 +38,6 @@ ActivationCallback = Callable[[int], None]
 IdleScheduler = Callable[..., int]
 
 
-class ShortcutFallback(Protocol):
-    """Controller-facing lifecycle contract for a non-portal shortcut."""
-
-    @property
-    def active(self) -> bool:
-        """Return whether the fallback currently owns its global grab."""
-        ...
-
-    @property
-    def error(self) -> str | None:
-        """Return the latest startup error, if any."""
-        ...
-
-    def start(self) -> bool:
-        """Start the fallback and report whether its grab became active."""
-        ...
-
-    def stop(self) -> None:
-        """Release the global grab and invalidate queued activations."""
-        ...
-
-
 class ShortcutWorker(Protocol):
     """Process-worker contract isolated for deterministic lifecycle tests."""
 
@@ -489,7 +467,6 @@ __all__ = [
     "MOD2_MASK",
     "MOD4_MASK",
     "SHIFT_MASK",
-    "ShortcutFallback",
     "ShortcutWorker",
     "X11GlobalShortcutService",
     "is_x11_session",

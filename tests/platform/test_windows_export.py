@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from docking.platform.applications import windows_export as export
+from docking.platform.applications.windows import export as export
 from tests.platform.application_fakes import application
 
 

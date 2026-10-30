@@ -12,7 +12,7 @@ from typing import Protocol
 
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.applications.windows_process import WindowsProcessBackend
+from docking.platform.applications.windows.process import WindowsProcessBackend
 from docking.platform.backends.base import Rect
 from docking.platform.tray.state import (
     TrayFocusRequest,

@@ -11,9 +11,9 @@ from collections.abc import Iterable
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 
-from .constants import FALLBACK_ICON
-from .discovery import DiscoveryResult, safe_call
-from .types import (
+from ..constants import FALLBACK_ICON
+from ..discovery import DiscoveryResult, safe_call
+from ..types import (
     ApplicationDiagnostic,
     ApplicationInfo,
     ApplicationLocation,

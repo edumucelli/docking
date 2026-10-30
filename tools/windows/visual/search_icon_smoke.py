@@ -231,9 +231,10 @@ def main():
             release.set()
 
             def native_ready():
-                cache = kwargs["icon_loader"]._windows_icons
+                cache = kwargs["icon_loader"]._application_icon_source
+                assert isinstance(cache, icons.WindowsIconCache)
                 row = shared["held_row"]
-                image = cache._images.get((app_id, 32)) if cache else None
+                image = cache._images.get((app_id, 32))
                 return (
                     image is not None
                     and fingerprint(row.image.get_pixbuf()) != before["image"]
@@ -279,7 +280,8 @@ def main():
             query("notepad")
 
             def live_ready():
-                cache = kwargs["icon_loader"]._windows_icons
+                cache = kwargs["icon_loader"]._application_icon_source
+                assert isinstance(cache, icons.WindowsIconCache)
                 return bool(rows("windows", app_id)) and any(
                     key[0] == app_id and key[1] != 32 and image is not None
                     for key, image in cache._images.items()
@@ -318,7 +320,8 @@ def main():
             )
 
             def clock_native_ready():
-                cache = kwargs["icon_loader"]._windows_icons
+                cache = kwargs["icon_loader"]._application_icon_source
+                assert isinstance(cache, icons.WindowsIconCache)
                 row = next(
                     row
                     for row in rows("applications")

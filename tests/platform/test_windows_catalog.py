@@ -144,7 +144,7 @@ def test_unavailable_catalog_is_distinct_from_a_successful_empty_catalog(monkeyp
 def test_exports_use_selected_registration_and_never_prepare_hidden_components(
     monkeypatch,
 ):
-    from docking.platform.applications.windows_export import WindowsApplicationExport
+    from docking.platform.applications.windows.export import WindowsApplicationExport
 
     visible, hidden = application("Main"), application("Widget")
     selected = replace(
@@ -180,7 +180,7 @@ def test_stop_between_native_catalog_phases_prevents_subsequent_export_work(
     from threading import Event
     from unittest.mock import Mock
 
-    from docking.platform.applications.windows_export import WindowsApplicationExport
+    from docking.platform.applications.windows.export import WindowsApplicationExport
 
     closed = Event()
     visible = replace(

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -137,7 +138,7 @@ def test_canonical_application_file_uri_artwork_keeps_unicode_and_literal_uri_ch
     source.fill(0x32A864FF)
     source.savev(str(path), "png", [], [])
     loader = IconLoader()
-    monkeypatch.setattr(loader, "_windows_desktop_icon", lambda *_args: None)
+    monkeypatch.setattr(loader, "_source_application_icon", lambda *_args: None)
     actual = loader.load_desktop_icon(_application(declared_icon=path.as_uri()), 32)
     assert actual is not None
     assert (actual.get_width(), actual.get_height()) == (32, 32)
@@ -245,6 +246,42 @@ def test_host_icon_candidates_and_theme_search_paths(tmp_path, monkeypatch):
     assert icons_mod._host_icon_file_candidates("example") == []
     assert icons_mod._create_icon_theme() is theme
     theme.append_search_path.assert_called_once_with(str(pixmaps))
+
+
+@pytest.mark.parametrize(
+    "flavour,separator,target,expected",
+    [
+        (PurePosixPath, "/", "relative/icon.png", []),
+        (
+            PurePosixPath,
+            "/",
+            "/opt/icon.png",
+            ["/opt/icon.png", "/run/host/opt/icon.png"],
+        ),
+        (PurePosixPath, "/", "/run/host/opt/icon.png", ["/run/host/opt/icon.png"]),
+        (PureWindowsPath, "\\", r"C:\Icons\résumé.png", [r"C:\Icons\résumé.png"]),
+        (
+            PureWindowsPath,
+            "\\",
+            r"\\server\share\icon.png",
+            [r"\\server\share\icon.png"],
+        ),
+        (PureWindowsPath, "\\", r"relative\icon.png", []),
+        (PureWindowsPath, "\\", r"C:Icons\icon.png", []),
+        (PureWindowsPath, "\\", r"\Icons\icon.png", []),
+    ],
+)
+def test_file_candidates_preserve_posix_drive_unc_and_relative_semantics(
+    monkeypatch, flavour, separator, target, expected
+):
+    # Pure path flavours let each host verify both filesystem grammars without
+    # changing the process OS or touching the filesystem.
+    monkeypatch.setattr(icons_mod, "Path", flavour)
+    monkeypatch.setattr(icons_mod, "os", SimpleNamespace(sep=separator))
+    monkeypatch.setattr(icons_mod, "HOST_FILESYSTEM_ROOT", flavour("/run/host"))
+    assert icons_mod._host_icon_file_candidates(target) == [
+        flavour(name) for name in expected
+    ]
 
 
 def test_gicon_lookup_is_cached_by_string_identity(monkeypatch):

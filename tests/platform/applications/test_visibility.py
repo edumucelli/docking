@@ -287,6 +287,9 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
     from types import SimpleNamespace
 
     from docking.platform.applications import metadata
+    from docking.platform.applications.windows.catalog import (
+        WindowsApplicationCatalogBackend,
+    )
     from docking.platform.backends.windows import catalog
     from tests.platform.application_fakes import application
 
@@ -307,13 +310,14 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
         calls.append((ids, registrations))
         return ApplicationMetadata(applications=registrations)
 
-    monkeypatch.setattr(metadata, "is_windows", lambda: True)
     monkeypatch.setattr(catalog, "read_application_metadata", prepare)
     lookup = metadata.create_metadata_lookup(
         on_changed=lambda: None,
         schedule_idle=idle.add,
         remove_source=idle.remove,
-        registrations=SimpleNamespace(applications=registrations),
+        resolve_factory=WindowsApplicationCatalogBackend().metadata_resolver_factory(
+            SimpleNamespace(applications=registrations)
+        ),
     )
     assert lookup is not None
     try:

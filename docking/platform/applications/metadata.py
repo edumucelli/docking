@@ -12,9 +12,7 @@ from threading import Event, RLock, Thread
 from typing import Protocol
 
 from docking.log import get_logger
-from docking.platform.environment import is_windows
 
-from .registration import ExecutableRegistrationBackend
 from .types import ApplicationInfo
 
 log = get_logger("application_metadata")
@@ -32,20 +30,6 @@ class ApplicationChangeMonitor(Protocol):
 
 
 MetadataResolver = Callable[[tuple[str, ...], Callable[[], bool]], ApplicationMetadata]
-
-
-def create_change_monitor(
-    changed: Callable[[], None],
-) -> ApplicationChangeMonitor | None:
-    if not is_windows():
-        return None
-    from docking.platform.backends.windows.catalog_monitor import CatalogChangeMonitor
-
-    try:
-        return CatalogChangeMonitor(changed)
-    except OSError as exc:
-        log.warning("Could not watch native application changes (error %s)", exc.errno)
-        return None  # The existing periodic complete catalog remains available.
 
 
 class ApplicationMetadataLookup:
@@ -205,31 +189,12 @@ def create_metadata_lookup(
     on_changed: Callable[[], None],
     schedule_idle: Callable[..., int],
     remove_source: Callable[[int], bool],
-    registrations: ExecutableRegistrationBackend,
+    resolve_factory: Callable[[], MetadataResolver] | None,
 ) -> ApplicationMetadataLookup | None:
-    if not is_windows():
+    if resolve_factory is None:
         return None
-    from docking.platform.backends.windows.catalog import read_application_metadata
-
-    from .windows_export import WindowsApplicationExport
-
-    def resolver() -> MetadataResolver:
-        exporter = WindowsApplicationExport()
-
-        def resolve(
-            ids: tuple[str, ...], cancelled: Callable[[], bool]
-        ) -> ApplicationMetadata:
-            return read_application_metadata(
-                ids,
-                registrations=registrations.applications(),
-                cancelled=cancelled,
-                exporter=exporter,
-            )
-
-        return resolve
-
     return ApplicationMetadataLookup(
-        resolve_factory=resolver,
+        resolve_factory=resolve_factory,
         on_changed=on_changed,
         schedule_idle=schedule_idle,
         remove_source=remove_source,

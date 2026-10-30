@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+from collections.abc import Callable
 from ctypes import wintypes
 from pathlib import PureWindowsPath
 
@@ -132,7 +133,7 @@ class WindowsSearchFocus:
         self._idle = 0
         self._expiry = 0
 
-    def before_present(self):
+    def before_present(self) -> None:
         self.cancel()
         self._origin = self._native.foreground()
         if self._native.shell_origin(self._origin):
@@ -141,7 +142,7 @@ class WindowsSearchFocus:
             self._native.start(self._changed)
             self._expiry = GLib.timeout_add(750, self._expire)
 
-    def after_present(self, *, title, visible):
+    def after_present(self, *, title: str, visible: Callable[[], bool]) -> None:
         if not self._pending:
             return
         self._target = self._native.target(title)
@@ -195,7 +196,7 @@ class WindowsSearchFocus:
         self.cancel()
         return False
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._pending = False
         self._native.stop()
         if self._idle:

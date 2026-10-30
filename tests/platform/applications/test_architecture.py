@@ -54,7 +54,12 @@ def test_registry_delegates_desktop_discovery_and_parsing() -> None:
         / "registry.py"
     ).read_text(encoding="utf-8")
 
-    assert "discovery.discover(" in source
+    assert "self._catalog_backend.discover(" in source
+    unix = (
+        Path(__file__).resolve().parents[3]
+        / "docking/platform/applications/unix_catalog.py"
+    ).read_text(encoding="utf-8")
+    assert "discovery.discover(" in unix
     assert "load_desktop_key_file" not in source
     assert "class _FileFacts" not in source
 

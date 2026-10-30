@@ -2,6 +2,7 @@
 
 from docking.platform import icons
 from docking.platform.backends.windows import icons as native_icons
+from docking.platform.icon_source import IconPixels
 from tests.platform.application_fakes import application
 
 
@@ -21,9 +22,9 @@ def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatc
         def stop(self):
             self.stopped = True
 
-    monkeypatch.setattr(icons, "is_windows", lambda: True)
-    monkeypatch.setattr(native_icons, "WindowsIconCache", Cache)
+    monkeypatch.setattr(icons, "create_application_icon_source", Cache)
     loader = icons.IconLoader()
+    assert caches == []
     fallback = object()
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lambda **_kw: None)
     monkeypatch.setattr(loader, "_try_load_fallback_icon", lambda **_kw: fallback)
@@ -33,13 +34,13 @@ def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatc
     assert loader.load_desktop_icon(app, 2) is fallback
 
     cache = caches[0]
-    cache.image = native_icons.NativeIcon(bytes((255, 0, 0, 128)) * 4, 2, 2)
+    cache.image = IconPixels(bytes((255, 0, 0, 128)) * 4, 2, 2)
     cache.on_ready(app.desktop_id)
     pixbuf = loader.load_desktop_icon(app, 2)
     assert pixbuf.get_width() == pixbuf.get_height() == 2
     assert bytes(pixbuf.get_pixels())[:4] == bytes((255, 0, 0, 128))
     assert changes == [app.desktop_id]
-    cache.image = native_icons.NativeIcon(bytes((0, 0, 255, 255)) * 4, 2, 2)
+    cache.image = IconPixels(bytes((0, 0, 255, 255)) * 4, 2, 2)
     cache.on_ready(app.desktop_id)
     updated = loader.load_desktop_icon(app, 2)
     assert bytes(updated.get_pixels())[:4] == bytes((0, 0, 255, 255))
@@ -54,7 +55,7 @@ def test_classic_application_artwork_uses_its_native_shell_item(monkeypatch):
     from dataclasses import replace
 
     posted, callbacks, targets = threading.Event(), [], []
-    image = native_icons.NativeIcon(bytes((255, 0, 0, 255)) * 4, 2, 2)
+    image = IconPixels(bytes((255, 0, 0, 255)) * 4, 2, 2)
 
     def extract(target, _size):
         targets.append(target)
@@ -88,8 +89,8 @@ def test_changed_shortcut_target_extracts_fresh_artwork_for_the_same_id(monkeypa
     from dataclasses import replace
 
     posted, callbacks, targets = threading.Event(), [], []
-    red = native_icons.NativeIcon(bytes((255, 0, 0, 255)), 1, 1)
-    blue = native_icons.NativeIcon(bytes((0, 0, 255, 255)), 1, 1)
+    red = IconPixels(bytes((255, 0, 0, 255)), 1, 1)
+    blue = IconPixels(bytes((0, 0, 255, 255)), 1, 1)
 
     def extract(target, _size):
         targets.append(target)
@@ -119,3 +120,73 @@ def test_changed_shortcut_target_extracts_fresh_artwork_for_the_same_id(monkeypa
         assert cache.get(previous, 1) is red
     finally:
         cache.stop()
+
+
+def test_stopped_worker_discards_inflight_pixels_and_queued_notifications(monkeypatch):
+    import threading
+
+    threads, callbacks, changes = [], [], []
+    entered, release = threading.Event(), threading.Event()
+
+    def thread(**kwargs):
+        worker = threading.Thread(**kwargs)
+        threads.append(worker)
+        return worker
+
+    def extract(_target, _size):
+        entered.set()
+        assert release.wait(2)
+        return IconPixels(bytes((0, 0, 255, 255)), 1, 1)
+
+    monkeypatch.setattr(native_icons, "Thread", thread)
+    monkeypatch.setattr(native_icons, "extract_icon", extract)
+    monkeypatch.setattr(
+        native_icons.GLib, "idle_add", lambda *args: callbacks.append(args) or 1
+    )
+    cache = native_icons.WindowsIconCache(changes.append)
+    try:
+        assert cache.get(application("Native.Package!App"), 1) is None
+        assert entered.wait(2)
+        cache.stop()
+    finally:
+        cache.stop()
+        release.set()
+        for worker in threads:
+            worker.join(2)
+            assert not worker.is_alive()
+    assert callbacks == [] and changes == []
+
+
+def test_stopped_cache_rejects_an_already_queued_main_loop_publication(monkeypatch):
+    import threading
+
+    threads, callbacks, changes = [], [], []
+    posted = threading.Event()
+
+    def thread(**kwargs):
+        worker = threading.Thread(**kwargs)
+        threads.append(worker)
+        return worker
+
+    def idle(callback, *args):
+        callbacks.append(lambda: callback(*args))
+        posted.set()
+        return 1
+
+    monkeypatch.setattr(native_icons, "Thread", thread)
+    monkeypatch.setattr(
+        native_icons, "extract_icon", lambda *_args: IconPixels(b"\0" * 4, 1, 1)
+    )
+    monkeypatch.setattr(native_icons.GLib, "idle_add", idle)
+    cache = native_icons.WindowsIconCache(changes.append)
+    app = application("Native.Package!App")
+    try:
+        assert cache.get(app, 1) is None and posted.wait(2)
+        cache.stop()
+        assert callbacks.pop()() is False
+        assert changes == [] and cache.get(app, 1) is None
+    finally:
+        cache.stop()
+        for worker in threads:
+            worker.join(2)
+            assert not worker.is_alive()

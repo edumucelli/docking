@@ -106,6 +106,20 @@ class SearchShortcutService(Protocol):
     def stop(self) -> None: ...
 
 
+class ShortcutFallback(Protocol):
+    """Optional fallback transport used when the primary service is unavailable."""
+
+    @property
+    def active(self) -> bool: ...
+
+    @property
+    def error(self) -> str | None: ...
+
+    def start(self) -> bool: ...
+
+    def stop(self) -> None: ...
+
+
 class GioConnectionAdapter:
     """Create the real session-bus connection only when the service starts."""
 

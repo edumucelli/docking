@@ -10,11 +10,14 @@ from pathlib import Path
 import pytest
 
 from docking.platform.applications import registry as registry_module
-from docking.platform.applications import windows_registration as registration
 from docking.platform.applications.identity import ProcessIdentity
 from docking.platform.applications.matcher import AppIdMatcher
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationOrigin
+from docking.platform.applications.windows import registration as registration
+from docking.platform.applications.windows.catalog import (
+    WindowsApplicationCatalogBackend,
+)
 from docking.platform.backends.windows.shortcuts import ShellLink
 
 
@@ -64,7 +67,9 @@ def test_import_preserves_native_identity_and_selected_binary_after_source_remov
         registration, "shortcut_application_id", lambda _p: "Native.App"
     )
     backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     registry = ApplicationRegistry(
         application_source=lambda: (), executable_registration=backend
     )
@@ -94,7 +99,9 @@ def test_imported_shortcut_overrides_launch_options_without_losing_catalog_metad
     monkeypatch.setattr(
         registration, "shortcut_application_id", lambda _p: "Native.App"
     )
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
     handle = GioApplicationFake(
         "Native.App", name="Catalog", commandline=str(executable)
@@ -287,7 +294,9 @@ def test_persistent_registration_is_idempotent_and_matches_the_actual_executable
 ):
     executable = _executable(tmp_path / "résumé 日本語" / "Shared.exe")
     backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
 
     def fresh_registry():
         return ApplicationRegistry(
@@ -410,7 +419,7 @@ def test_native_identity_is_stable_from_python_and_an_active_msys2_shell(tmp_pat
     target = _executable(tmp_path / "résumé 日本語" / "App.exe")
     script = (
         "import sys; from pathlib import Path; "
-        "from docking.platform.applications.windows_registration import executable_id; "
+        "from docking.platform.applications.windows.registration import executable_id; "
         "print(executable_id(Path(sys.argv[1])))"
     )
     identifiers = []

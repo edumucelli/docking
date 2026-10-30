@@ -17,7 +17,7 @@ from docking.platform.backends.windows.drag import file_drag_formats
 from docking.platform.backends.windows.shortcuts import write_application_shortcut
 from docking.platform.environment import docking_cache_dir
 
-from .types import ApplicationInfo
+from ..types import ApplicationInfo
 
 log = get_logger("windows.application_export")
 _PREPARED_LIMIT = 256

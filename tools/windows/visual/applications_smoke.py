@@ -86,7 +86,7 @@ def main():
 
     runtime = select_runtime(args.installed_root, args.wheel)
     if args.launcher_source is not None:
-        from docking.platform.applications.windows_registration import (
+        from docking.platform.applications.windows.registration import (
             WindowsExecutableRegistration,
         )
 
@@ -517,7 +517,7 @@ def main():
                 native.type_text(app_name)
 
                 def search_ready():
-                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    cache = shared["kwargs"]["icon_loader"]._application_icon_source
                     info = shared["kwargs"]["application_registry"].get(expected_id)
                     image = (
                         cache.get(info, 32)
@@ -596,7 +596,7 @@ def main():
                 }
 
                 def menu_artwork():
-                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    cache = shared["kwargs"]["icon_loader"]._application_icon_source
                     native_image = cache.get(application, 16) if cache else None
                     image = row.get_child().get_children()[0]
                     pixbuf = image.get_pixbuf()
@@ -928,7 +928,7 @@ def main():
 
                 def preview_artwork():
                     item = model.find_by_desktop_id(expected_id)
-                    cache = shared["kwargs"]["icon_loader"]._windows_icons
+                    cache = shared["kwargs"]["icon_loader"]._application_icon_source
                     size = shared["kwargs"]["config"].scaled_icon_size
                     native_image = (
                         cache.get(item.application_info, size)

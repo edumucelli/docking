@@ -6,7 +6,7 @@ import os
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import NamedTuple, cast
 
 import gi
 
@@ -20,10 +20,10 @@ from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PREFIX
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
-from docking.platform.environment import is_windows
-
-if TYPE_CHECKING:
-    from docking.platform.backends.windows.icons import WindowsIconCache
+from docking.platform.icon_source import (
+    ApplicationIconSource,
+    create_application_icon_source,
+)
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
 HOST_XDG_DATA_DIRS = desktop_entries.HOST_XDG_DATA_DIRS
@@ -54,7 +54,8 @@ def _host_icon_file_candidates(icon_name: str) -> list[Path]:
     )
     if icon_path is None or not icon_path.is_absolute():
         return []
-    if is_windows():
+    if icon_path.drive:
+        # Drive and UNC paths have no POSIX host-filesystem counterpart.
         return [icon_path]
 
     candidates = [icon_path]
@@ -112,7 +113,8 @@ class IconLoader:
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
         ] = {}
-        self._windows_icons: WindowsIconCache | None = None
+        self._application_icon_source: ApplicationIconSource | None = None
+        self._icon_source_selected = False
         self._listeners: list[Callable[[str], None]] = []
 
     def subscribe(self, callback: Callable[[str], None]) -> Callable[[], None]:
@@ -127,8 +129,8 @@ class IconLoader:
 
     def stop(self) -> None:
         self._listeners.clear()
-        if self._windows_icons is not None:
-            self._windows_icons.stop()
+        if self._application_icon_source is not None:
+            self._application_icon_source.stop()
 
     def _native_icon_ready(self, desktop_id: str) -> None:
         for key in tuple(self._icon_cache):
@@ -139,14 +141,17 @@ class IconLoader:
         for callback in tuple(self._listeners):
             callback(desktop_id)
 
-    def _windows_desktop_icon(
+    def _source_application_icon(
         self, info: ApplicationInfo, size: int
     ) -> GdkPixbuf.Pixbuf | None:
-        from docking.platform.backends.windows.icons import WindowsIconCache
-
-        if self._windows_icons is None:
-            self._windows_icons = WindowsIconCache(self._native_icon_ready)
-        image = self._windows_icons.get(info, size)
+        if not self._icon_source_selected:
+            self._application_icon_source = create_application_icon_source(
+                self._native_icon_ready
+            )
+            self._icon_source_selected = True
+        if self._application_icon_source is None:
+            return None
+        image = self._application_icon_source.get(info, size)
         if image is None:
             return None
         key = (f"native:{info.desktop_id}", size)
@@ -196,10 +201,9 @@ class IconLoader:
         gicon: Gio.Icon | None = None,
     ) -> GdkPixbuf.Pixbuf | None:
         """Load an application icon from canonical metadata with fallbacks."""
-        if is_windows():
-            native_icon = self._windows_desktop_icon(info, size)
-            if native_icon is not None:
-                return native_icon
+        source_icon = self._source_application_icon(info, size)
+        if source_icon is not None:
+            return source_icon
         if gicon is not None:
             retained = self.load_gicon(gicon=gicon, size=size)
             if retained is not None:

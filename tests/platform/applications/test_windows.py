@@ -4,15 +4,22 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from gi.repository import Gio
+
 from docking.platform.applications import launcher as launcher_module
 from docking.platform.applications import registry as registry_module
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
-from docking.platform.applications.windows import (
+from docking.platform.applications.windows import catalog as windows_catalog_module
+from docking.platform.applications.windows.catalog import (
+    WindowsApplicationCatalogBackend,
+)
+from docking.platform.applications.windows.discovery import (
     discover_windows_applications,
     merge_shell_catalog,
 )
+from docking.platform.applications.windows.launch import WindowsApplicationLaunchBackend
 from tests.platform.application_fakes import application
 
 
@@ -82,7 +89,9 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
         directories=lambda: (),
     )
     handle = native_app()
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
     registry = ApplicationRegistry(
         application_source=lambda: (handle,), executable_registration=backend
@@ -114,7 +123,9 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
 def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch):
     lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     registry = ApplicationRegistry(application_source=lambda: ())
     assert registry.initial_discovery_pending
     assert registry.refresh()
@@ -135,7 +146,9 @@ def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch
 def test_failed_refresh_preserves_published_discovery_readiness(monkeypatch):
     lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     source = MagicMock(return_value=())
     registry = ApplicationRegistry(application_source=source)
     assert registry.refresh()
@@ -151,7 +164,9 @@ def test_failed_refresh_preserves_published_discovery_readiness(monkeypatch):
 
 def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
     handle = native_app()
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     monkeypatch.setattr(
         registry_module,
         "Gio",
@@ -160,6 +175,7 @@ def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
             AppInfoMonitor=SimpleNamespace(get=lambda: None),
         ),
     )
+    monkeypatch.setattr(windows_catalog_module, "Gio", registry_module.Gio)
     registry = ApplicationRegistry()
     assert registry.refresh()
     assert registry.generation == 1
@@ -187,11 +203,14 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
         return lookup
 
     monkeypatch.setattr(registry_module, "create_metadata_lookup", create_lookup)
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     registry = ApplicationRegistry(
         application_source=lambda: (main, widget), desktop_directories_source=lambda: ()
     )
     registry._app_monitor_factory = lambda: None
+    registry._change_monitor_factory = lambda _changed: None
     timers = []
     registry._schedule_timeout = lambda _delay, callback: (
         timers.append(callback) or len(timers)
@@ -224,13 +243,15 @@ def test_windows_launch_uses_native_handle_instead_of_posix_exec(monkeypatch):
     app = discover_windows_applications([handle]).applications[0]
     registry = SimpleNamespace(get=lambda _id: app, _gio_handle_for=lambda _id: handle)
     popen = MagicMock(side_effect=AssertionError("Windows commands need native launch"))
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     launcher = ApplicationLauncher(registry, LaunchProvenanceStore(), popen=popen)
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
     assert launcher.launch(app.desktop_id)
     handle.launch.assert_called_once()
     files, context = handle.launch.call_args.args
     assert files == []
-    assert isinstance(context, launcher_module.Gio.AppLaunchContext)
+    assert isinstance(context, Gio.AppLaunchContext)
     popen.assert_not_called()
 
 
@@ -274,7 +295,9 @@ def test_native_catalog_launcher_needs_no_gio_handle_or_command_parser(monkeypat
     )
     registry = SimpleNamespace(get=lambda _id: app)
     launch = MagicMock(return_value=True)
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     monkeypatch.setattr(shell, "activate_application_target", launch)
     launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
     assert launcher.launch(app.desktop_id)
@@ -293,7 +316,9 @@ def test_native_menu_catalog_keeps_association_only_clients_but_hides_components
         hidden_ids=frozenset(("Package!Hidden",)),
         applications=(main,),
     )
-    monkeypatch.setattr(registry_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
+    )
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
     registry = ApplicationRegistry(application_source=lambda: (client, hidden))
     registry.refresh()
@@ -325,7 +350,9 @@ def test_packaged_launch_delegates_foreground_permission_without_double_launch(
     )
     registry = SimpleNamespace(get=lambda _id: app, _gio_handle_for=lambda _id: handle)
     native = MagicMock(return_value=False)
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     monkeypatch.setattr(shell, "activate_packaged_application", native)
     launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
 
@@ -335,7 +362,7 @@ def test_packaged_launch_delegates_foreground_permission_without_double_launch(
 
 
 def test_windows_process_identity_handles_inaccessible_processes(monkeypatch):
-    from docking.platform.applications import windows_process
+    from docking.platform.applications.windows import process as windows_process
 
     def inaccessible(pid):
         raise PermissionError(pid)
@@ -355,7 +382,7 @@ def test_windows_process_identity_handles_inaccessible_processes(monkeypatch):
 
 
 def test_windows_script_identity_uses_windows_path_rules(monkeypatch):
-    from docking.platform.applications import windows_process
+    from docking.platform.applications.windows import process as windows_process
 
     process = SimpleNamespace(
         cmdline=lambda: [

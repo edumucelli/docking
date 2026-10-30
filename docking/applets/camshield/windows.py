@@ -16,7 +16,7 @@ from docking.applets.camshield.windows_control import (
 )
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.applications.windows_process import WindowsProcessBackend
+from docking.platform.applications.windows.process import WindowsProcessBackend
 
 log = get_logger("camshield.windows")
 

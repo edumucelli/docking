@@ -16,13 +16,16 @@ gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.log import get_logger, with_context
-from docking.platform.environment import is_windows
 
 from . import discovery
 from . import entries as desktop_entries
+from .catalog_backend import (
+    ApplicationCatalogBackend,
+    CatalogRequest,
+    create_catalog_backend,
+)
 from .metadata import (
     ApplicationChangeMonitor,
-    create_change_monitor,
     create_metadata_lookup,
 )
 from .registration import ExecutableRegistrationBackend, create_registration_backend
@@ -102,12 +105,15 @@ class ApplicationRegistry:
         desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
         steam_source: Callable[[], SteamDiscoveryResult] | None = None,
         executable_registration: ExecutableRegistrationBackend | None = None,
+        catalog_backend: ApplicationCatalogBackend | None = None,
     ) -> None:
-        default_source = (
-            Gio.AppInfo.get_all if is_windows() else discovery.default_gio_applications
+        self._catalog_backend = (
+            create_catalog_backend() if catalog_backend is None else catalog_backend
         )
         self._application_source = (
-            default_source if application_source is None else application_source
+            self._catalog_backend.default_source
+            if application_source is None
+            else application_source
         )
         self._steam_source = steam_source
         self._executable_registration = (
@@ -141,7 +147,7 @@ class ApplicationRegistry:
 
         self._app_monitor: object | None = None
         self._change_monitor: ApplicationChangeMonitor | None = None
-        self._change_monitor_factory = create_change_monitor
+        self._change_monitor_factory = self._catalog_backend.create_change_monitor
         self._app_monitor_handler: object | None = None
         self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
         self._debounce_source_id: int | None = None
@@ -149,7 +155,9 @@ class ApplicationRegistry:
             on_changed=self._queue_refresh,
             schedule_idle=GLib.idle_add,
             remove_source=GLib.source_remove,
-            registrations=self._executable_registration,
+            resolve_factory=self._catalog_backend.metadata_resolver_factory(
+                self._executable_registration
+            ),
         )
         self._state = replace(
             self._state,
@@ -499,23 +507,18 @@ class ApplicationRegistry:
         return self._content_gio_handles.get(listing_key)
 
     def _discover(self, *, handle_epoch: int) -> _RegistryState:
-        if is_windows():
-            from .windows import discover_windows_applications, merge_shell_catalog
-
-            result = discover_windows_applications(self._application_source())
-            catalog = (
-                self._metadata.applications if self._metadata is not None else None
-            )
-            if catalog is not None:
-                result = merge_shell_catalog(result, catalog)
-        else:
-            result = discovery.discover(
+        result = self._catalog_backend.discover(
+            CatalogRequest(
                 application_source=self._application_source,
                 desktop_directories_source=self._desktop_directories_source,
                 desktop_app_info_for_id=self._desktop_app_info_for_id,
                 desktop_app_info_from_filename=self._desktop_app_info_from_filename,
                 handle_epoch=handle_epoch,
+                catalog=self._metadata.applications
+                if self._metadata is not None
+                else None,
             )
+        )
         registered = list(result.applications)
         diagnostics = list(result.diagnostics)
         order = list(result.presentation_order)

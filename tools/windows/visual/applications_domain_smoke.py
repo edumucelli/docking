@@ -343,7 +343,7 @@ def main() -> None:
 
     import docking
     from docking.platform.applications import launcher
-    from docking.platform.applications.windows_registration import (
+    from docking.platform.applications.windows.registration import (
         WindowsExecutableRegistration,
     )
     from docking.platform.backends.windows import catalog, documents

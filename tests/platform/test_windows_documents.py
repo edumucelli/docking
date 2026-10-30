@@ -12,6 +12,7 @@ from docking.platform.applications import launcher as launcher_module
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launched_process import LaunchOutcome
 from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.windows.launch import WindowsApplicationLaunchBackend
 from docking.platform.backends.windows import documents
 from tests.platform.application_fakes import ApplicationRegistryStub, application
 
@@ -120,7 +121,9 @@ def test_selected_windows_pin_overrides_gio_and_records_only_owned_provenance(
     registry._gio_handle_for = Mock(return_value=handle)
     process = SimpleNamespace(pid=42, poll=lambda: None) if success else None
     invoke = Mock(return_value=LaunchOutcome(success, process))
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     monkeypatch.setattr(documents, "launch_application_uris", invoke)
     store = LaunchProvenanceStore()
     launcher = ApplicationLauncher(registry, store)
@@ -146,7 +149,9 @@ def test_native_only_windows_pin_does_not_require_a_gio_handle(monkeypatch):
         has_gio_source=False,
     )
     registry = ApplicationRegistryStub((selected,))
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     monkeypatch.setattr(
         documents, "launch_application_uris", lambda _target, _uris: LaunchOutcome(True)
     )
@@ -166,7 +171,9 @@ def test_installed_classic_files_use_prepared_source_without_changing_normal_act
         has_gio_source=False,
     )
     registry = ApplicationRegistryStub((selected,))
-    monkeypatch.setattr(launcher_module, "is_windows", lambda: True)
+    monkeypatch.setattr(
+        launcher_module, "create_launch_backend", WindowsApplicationLaunchBackend
+    )
     invoke = Mock(return_value=LaunchOutcome(True))
     monkeypatch.setattr(documents, "launch_application_uris", invoke)
     launcher = ApplicationLauncher(registry, LaunchProvenanceStore())

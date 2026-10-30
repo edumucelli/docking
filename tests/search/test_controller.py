@@ -814,29 +814,34 @@ def test_windows_shortcut_conflict_uses_existing_actionable_feedback(monkeypatch
     assert controller.shortcut_status_summary() == "Conflict"
 
 
-def test_windows_shortcut_factory_uses_native_service_without_portal_or_x11(
-    monkeypatch,
-):
-    import docking.search.services.windows_shortcuts as native
-
-    factory = MagicMock()
-    monkeypatch.setattr(controller_mod, "is_windows", lambda: True)
-    monkeypatch.setattr(controller_mod, "is_x11_session", lambda: True)
-    monkeypatch.setattr(native, "WindowsGlobalShortcutsService", factory)
-    portal = MagicMock(
-        side_effect=AssertionError("Windows must not contact the portal")
-    )
-    monkeypatch.setattr(controller_mod, "GlobalShortcutsService", portal)
+def test_shortcut_composition_uses_shared_platform_factories(monkeypatch):
+    primary, fallback = MagicMock(), MagicMock()
+    monkeypatch.setattr(controller_mod, "create_shortcut_service", primary)
+    monkeypatch.setattr(controller_mod, "create_shortcut_fallback", fallback)
     controller = SimpleNamespace(
         _config=Config(),
         _on_global_shortcut=MagicMock(),
         _on_shortcut_status=MagicMock(),
+        _on_fallback_shortcut=MagicMock(),
         _schedule_idle=MagicMock(),
     )
     assert (
-        GlobalSearchController._new_shortcut_service(controller) is factory.return_value
+        GlobalSearchController._new_shortcut_service(controller) is primary.return_value
     )
-    assert GlobalSearchController._new_shortcut_fallback(controller) is None
-    assert factory.call_args.kwargs["preferred_trigger"] == "CTRL+ALT+space"
-    assert factory.call_args.kwargs["trigger_description"] == "Ctrl+Alt+Space"
-    portal.assert_not_called()
+    assert (
+        GlobalSearchController._new_shortcut_fallback(controller)
+        is fallback.return_value
+    )
+    assert primary.call_args.kwargs == {
+        "preferred_trigger": "CTRL+ALT+space",
+        "trigger_description": "Ctrl+Alt+Space",
+        "on_activated": controller._on_global_shortcut,
+        "on_status_changed": controller._on_shortcut_status,
+        "schedule_idle": controller._schedule_idle,
+        "remove_source": controller_mod.GLib.source_remove,
+    }
+    assert fallback.call_args.kwargs == {
+        "shortcut": "CTRL+ALT+space",
+        "on_activated": controller._on_fallback_shortcut,
+        "schedule_idle": controller._schedule_idle,
+    }

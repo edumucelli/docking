@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import PureWindowsPath
 
 from docking.log import get_logger
-from docking.platform.applications.windows_process import WindowsProcessBackend
+from docking.platform.applications.windows.process import WindowsProcessBackend
 from docking.platform.backends.windows.com import (
     GUID,
     HRESULT,

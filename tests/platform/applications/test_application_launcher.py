@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import docking.platform.applications.launcher as launcher_mod
+import docking.platform.applications.desktop_launch as launcher_mod
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.types import (
     ActionSource,

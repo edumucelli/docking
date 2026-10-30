@@ -34,10 +34,8 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
-from docking.platform.environment import is_windows
 from docking.platform.icons import IconLoader
 from docking.platform.targets import TargetService
-from docking.search.app_identity import application_id
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
@@ -65,17 +63,17 @@ from docking.search.providers import (
 from docking.search.services.currency_rates import CurrencyRatesCatalog
 from docking.search.services.global_shortcuts import (
     GlobalShortcutActivation,
-    GlobalShortcutsService,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
     SearchShortcutService,
+    ShortcutFallback,
+)
+from docking.search.services.platform import (
+    create_focus_factory,
+    create_shortcut_fallback,
+    create_shortcut_service,
 )
 from docking.search.services.recent_files import RecentFilesCatalog
-from docking.search.services.x11_shortcuts import (
-    ShortcutFallback,
-    X11GlobalShortcutService,
-    is_x11_session,
-)
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -191,11 +189,6 @@ class GlobalSearchController:
         }
         self._enabled_provider_ids: tuple[str, ...] = ()
         self._coordinator = self._new_coordinator()
-        window_focus_factory = None
-        if is_windows():
-            from docking.search.services.windows_focus import WindowsSearchFocus
-
-            window_focus_factory = WindowsSearchFocus
         self.window = SearchWindow(
             icon_loader=self._icon_loader,
             result_icons=SearchResultIcons(
@@ -212,7 +205,7 @@ class GlobalSearchController:
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
             refresh_dynamic_previews=self._preview_service.asynchronous is True,
-            window_focus_factory=window_focus_factory,
+            window_focus_factory=create_focus_factory(),
             monitor_workarea=monitor_workarea,
         )
         self._global_shortcuts = self._new_shortcut_service()
@@ -423,30 +416,17 @@ class GlobalSearchController:
             self._search(self._current_query)
 
     def _new_shortcut_service(self) -> SearchShortcutService:
-        if is_windows():
-            from docking.search.services.windows_shortcuts import (
-                WindowsGlobalShortcutsService,
-            )
-
-            return WindowsGlobalShortcutsService(
-                preferred_trigger=self._config.global_search_shortcut,
-                trigger_description=shortcut_label(self._config.global_search_shortcut),
-                on_activated=self._on_global_shortcut,
-                on_status_changed=self._on_shortcut_status,
-                schedule_idle=self._schedule_idle,
-                remove_source=GLib.source_remove,
-            )
-        return GlobalShortcutsService(
-            app_id=application_id(),
+        return create_shortcut_service(
             preferred_trigger=self._config.global_search_shortcut,
+            trigger_description=shortcut_label(self._config.global_search_shortcut),
             on_activated=self._on_global_shortcut,
             on_status_changed=self._on_shortcut_status,
+            schedule_idle=self._schedule_idle,
+            remove_source=GLib.source_remove,
         )
 
     def _new_shortcut_fallback(self) -> ShortcutFallback | None:
-        if is_windows() or not is_x11_session():
-            return None
-        return X11GlobalShortcutService(
+        return create_shortcut_fallback(
             shortcut=self._config.global_search_shortcut,
             on_activated=self._on_fallback_shortcut,
             schedule_idle=self._schedule_idle,

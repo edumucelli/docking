@@ -18,7 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.applications.launcher as launcher_mod
+import docking.platform.applications.desktop_launch as desktop_launch_mod
 import docking.ui.dnd as dnd_mod
 from docking.core.config import Config, PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
@@ -316,9 +316,9 @@ def test_host_uri_drop_flows_through_real_launcher_without_pinning(
         LaunchProvenanceStore(),
         popen=popen,
     )
-    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+    monkeypatch.setattr(desktop_launch_mod, "is_flatpak", lambda: True)
     monkeypatch.setattr(
-        launcher_mod.flatpak,
+        desktop_launch_mod.flatpak,
         "host_command",
         lambda argv: ["flatpak-spawn", "--host", *argv],
     )
