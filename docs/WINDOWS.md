@@ -1854,6 +1854,12 @@ saved text for all eight variants. A composition mismatch is collected only
 after the owned target, profile, IME restoration, caller state and return to US
 are verified; other failures stop the fixture. Every variant must produce `â`.
 
+Both input tools accept `--owned-amd64-editor` to use a bounded AMD64 Forms
+editor with explicit process-architecture checks. Windows 11 client CI uses
+this mode with UCRT64 through x64 emulation on `windows-11-arm`, retaining the
+independent x86 editor and the same strict composition/preedit assertions.
+Compiler diagnostics are retained in bounded, redacted build reports.
+
 CI runs the source Search checks and installed native editor checks in fresh
 processes through `python -m tools.windows.ci --stage input --installed-root
 artifacts/windows/runtime`. It collects both results in

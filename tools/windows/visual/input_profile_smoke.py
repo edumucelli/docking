@@ -12,56 +12,17 @@ import argparse
 import ctypes
 import json
 import os
-import subprocess
 import sys
 import threading
 import time
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from dataclasses import asdict
 from functools import partial
 from pathlib import Path
 
-_X86_EDITOR = r"""
-using System;
-using System.IO;
-using System.Text;
-using System.Windows.Forms;
-using System.Threading;
-using System.Runtime.InteropServices;
-public sealed class PauseForm : Form {
- [DllImport("user32.dll", CharSet=CharSet.Unicode)]
- static extern int RegisterWindowMessage(string name);
- readonly int message=RegisterWindowMessage("Docking.OwnedInputFixture.Pause");
- readonly EventWaitHandle gate;
- readonly string journal;
- public PauseForm(string name,string path) {
-  gate=EventWaitHandle.OpenExisting(name);journal=path;
- }
- protected override void WndProc(ref Message m) {
-  if(m.Msg==message) {
-   File.WriteAllText(journal,"paused");gate.WaitOne(30000);return;
-  }
-  base.WndProc(ref m);
- }
- protected override void Dispose(bool disposing) {
-  if(disposing)gate.Dispose();base.Dispose(disposing);
- }
-}
-public static class InputFixture {
- [STAThread] public static void Main(string[] args) {
-  var form=new PauseForm(args[2],args[3]);
-  form.Text=args[0];form.Width=520;form.Height=300;
-  var entry=new TextBox();entry.Multiline=true;entry.Dock=DockStyle.Fill;
-  entry.TextChanged += delegate {
-   File.WriteAllText(args[1],entry.Text,new UTF8Encoding(false));
-  };
-  form.Controls.Add(entry);form.Shown += delegate { entry.Focus(); };
-  Application.Run(form);
- }
-}
-"""
+from tools.windows.visual.desktop_driver import write_shared_json
+from tools.windows.visual.input_editor import OwnedInputEditor
 
 
 def _observe_composition(document: Path, *, seconds: float = 10) -> str:
@@ -239,6 +200,11 @@ def main(monitor) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--installed-root", type=Path)
+    parser.add_argument(
+        "--owned-amd64-editor",
+        action="store_true",
+        help="Use an explicitly AMD64 Forms editor instead of stock Notepad",
+    )
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test desktop")
@@ -257,7 +223,7 @@ def main(monitor) -> None:
     from docking.platform.backends.windows.ffi import bind
     from docking.platform.backends.windows.input_profiles import TextProfiles
     from docking.platform.backends.windows.input_service import WindowsInputService
-    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
+    from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.input_environment import (
         runtime_snapshot,
         target_modules,
@@ -280,6 +246,8 @@ def main(monitor) -> None:
         "scope": "owned input fixtures only",
         "text_services": monitor,
         "text_services_report": "text-services.json",
+        "editor_mode": "owned-amd64" if args.owned_amd64_editor else "stock-notepad",
+        "owned_editors": [],
     }
 
     def save() -> None:
@@ -348,6 +316,7 @@ def main(monitor) -> None:
         owned_classic = None
         editor = None
         process = None
+        owned_editor = None
 
         def record_fixture_layouts():
             # These two built-in profiles use the exact Vietnamese compatibility
@@ -403,7 +372,7 @@ def main(monitor) -> None:
             for architecture in (64, 32):
                 document = output / f"input-{architecture}.txt"
                 document.write_text("", encoding="utf-8")
-                if architecture == 64:
+                if architecture == 64 and not args.owned_amd64_editor:
                     assert not any("Notepad" in w["title"] for w in native.windows()), (
                         "An unrelated Notepad is open"
                     )
@@ -422,59 +391,19 @@ def main(monitor) -> None:
                         40,
                     )
                 else:
-                    source, executable = output / "editor.cs", output / "editor32.exe"
-                    source.write_text(_X86_EDITOR, encoding="utf-8")
-                    compiler = (
-                        Path(os.environ["SYSTEMROOT"])
-                        / "Microsoft.NET/Framework/v4.0.30319/csc.exe"
+                    owned_editor = OwnedInputEditor(
+                        native,
+                        output / f"editor-{architecture}",
+                        document,
+                        bits=architecture,
+                        machine=WindowsInputService()._thread._machine,
                     )
-                    subprocess.run(
-                        [
-                            str(compiler),
-                            "/nologo",
-                            "/target:winexe",
-                            "/platform:x86",
-                            "/reference:System.Windows.Forms.dll",
-                            f"/out:{executable}",
-                            str(source),
-                        ],
-                        check=True,
-                        capture_output=True,
-                        timeout=30,
-                    )
-                    title = "Docking owned x86 input fixture"
-                    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-                    gate_name = "Local\\DockingInputFixture." + uuid.uuid4().hex
-                    gate = bind(
-                        kernel,
-                        "CreateEventW",
-                        ctypes.c_void_p,
-                        ctypes.c_void_p,
-                        ctypes.c_int32,
-                        ctypes.c_int32,
-                        ctypes.c_wchar_p,
-                    )(None, True, False, gate_name)
-                    assert gate
-                    scope.callback(
-                        bind(kernel, "CloseHandle", ctypes.c_int32, ctypes.c_void_p),
-                        gate,
-                    )
-                    marker = output / "editor-paused.txt"
-                    process = subprocess.Popen(
-                        [str(executable), title, str(document), gate_name, str(marker)]
-                    )
-                    editor = native.wait_for(
-                        lambda process=process, title=title: next(
-                            (
-                                w
-                                for w in native.windows()
-                                if w["pid"] == process.pid and w["title"] == title
-                            ),
-                            None,
-                        ),
-                        "Owned x86 editor did not open",
-                        30,
-                    )
+                    report["owned_editors"].append(owned_editor.journal)
+                    save()
+                    editor = owned_editor.start()
+                    process = owned_editor.process
+                    gate, marker = owned_editor.gate, owned_editor.marker
+                    assert gate is not None
                 left, top, _right, _bottom = editor["rect"]
 
                 def focus(left=left, top=top, editor=editor):
@@ -766,14 +695,20 @@ def main(monitor) -> None:
                         native, context, profiles, gate, marker, layout=classic
                     )
                     save()
-                native.user.PostMessageW(editor["hwnd"], 0x10, 0, 0)
-                native.wait_for(
-                    lambda editor=editor: (
-                        not any(w["hwnd"] == editor["hwnd"] for w in native.windows())
-                    ),
-                    "Owned input window did not close",
-                    30,
-                )
+                if owned_editor is not None:
+                    owned_editor.close()
+                    owned_editor = None
+                else:
+                    native.user.PostMessageW(editor["hwnd"], 0x10, 0, 0)
+                    native.wait_for(
+                        lambda editor=editor: (
+                            not any(
+                                w["hwnd"] == editor["hwnd"] for w in native.windows()
+                            )
+                        ),
+                        "Owned input window did not close",
+                        30,
+                    )
                 editor = None
                 if process is not None:
                     assert process.wait(timeout=10) == 0
@@ -792,7 +727,11 @@ def main(monitor) -> None:
         finally:
             backend.stop()
             try:
-                if editor is not None:
+                if owned_editor is not None:
+                    owned_editor.close()
+                    owned_editor = None
+                    editor, process = None, None
+                elif editor is not None:
                     native.user.PostMessageW(editor["hwnd"], 0x10, 0, 0)
                     native.wait_for(
                         lambda: (
@@ -889,8 +828,6 @@ if __name__ == "__main__":
                 main(monitor)
         finally:
             if "output_directory" in monitor:
-                from tools.windows.visual.desktop_driver import write_shared_json
-
                 write_shared_json(
                     Path(monitor["output_directory"]) / "text-services.json", monitor
                 )

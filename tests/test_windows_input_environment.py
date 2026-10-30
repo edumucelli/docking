@@ -68,12 +68,15 @@ def test_fixture_pairs_successful_monitor_even_when_composition_fails(native):
 @pytest.mark.parametrize(
     "reason", ["existing-desktop-monitor", "monitor-desktop-unknown"]
 )
-def test_existing_or_ambiguous_monitor_is_never_owned_or_stopped(native, reason):
+@pytest.mark.parametrize("machine", ["x64", "arm64", "arm64x"])
+def test_existing_or_ambiguous_monitor_is_never_owned_or_stopped(
+    native, reason, machine
+):
     native.inventory["items"] = [
         {
             "name": "ctfmon.exe",
             "session": 3,
-            "machine": "x64",
+            "machine": machine,
             "desktops": ["Default"] if reason == "existing-desktop-monitor" else [],
             "desktop_scan_complete": reason == "existing-desktop-monitor",
         }
@@ -91,6 +94,8 @@ def test_existing_or_ambiguous_monitor_is_never_owned_or_stopped(native, reason)
         {"session": 4, "machine": "x64", "desktops": ["Default"]},
         {"session": 3, "machine": "x86", "desktops": ["Default"]},
         {"session": 3, "machine": "x64", "desktops": ["Other"]},
+        {"session": 4, "machine": "arm64", "desktops": ["Default"]},
+        {"session": 3, "machine": "arm64x", "desktops": ["Other"]},
     ],
 )
 def test_another_session_architecture_or_desktop_does_not_claim_our_monitor(
@@ -194,15 +199,20 @@ def test_non_windows_diagnostics_do_not_load_windows_or_docking(monkeypatch):
     factory.assert_not_called()
 
 
-def test_pe_reader_has_bounded_offsets_and_reports_actual_architecture(tmp_path):
+@pytest.mark.parametrize(
+    ("machine", "name"), [(0x14C, "x86"), (0xAA64, "arm64"), (0xA64E, "arm64x")]
+)
+def test_pe_reader_has_bounded_offsets_and_reports_actual_architecture(
+    tmp_path, machine, name
+):
     file = tmp_path / "owned.dll"
     data = bytearray(134)
     data[:2] = b"MZ"
     struct.pack_into("<I", data, 60, 128)
     data[128:132] = b"PE\0\0"
-    struct.pack_into("<H", data, 132, 0x14C)
+    struct.pack_into("<H", data, 132, machine)
     file.write_bytes(data)
-    assert environment._machine(file) == "x86"
+    assert environment._machine(file) == name
     struct.pack_into("<I", data, 60, 0xFFFFFFFF)
     file.write_bytes(data)
     with pytest.raises(ValueError, match="bound"):

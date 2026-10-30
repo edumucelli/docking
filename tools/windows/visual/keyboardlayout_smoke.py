@@ -112,6 +112,11 @@ def main(monitor):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--owned-amd64-editor",
+        action="store_true",
+        help="Use an explicitly AMD64 Forms editor instead of stock Notepad",
+    )
+    parser.add_argument(
         "--search-input",
         action="store_true",
         help="Check Search typing, dead keys and shortcut recovery across layouts",
@@ -152,6 +157,7 @@ def main(monitor):
     from docking.platform.backends.windows.input_service import WindowsInputService
     from docking.search.services.global_shortcuts import GlobalShortcutsState
     from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
+    from tools.windows.visual.input_editor import OwnedInputEditor
     from tools.windows.visual.input_environment import (
         runtime_snapshot,
         target_modules,
@@ -192,6 +198,7 @@ def main(monitor):
         "characters": {},
         "text_services": monitor,
         "text_services_report": "text-services.json",
+        "editor_mode": "owned-amd64" if args.owned_amd64_editor else "stock-notepad",
     }
     from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
     from docking.platform.backends.windows.menus import WindowsMenuFocus
@@ -290,6 +297,7 @@ def main(monitor):
     # captured by the same durable result and the normal app shutdown path.
     def drive():
         notepad = None
+        owned_editor = None
         owned_windows = []
         try:
             assert ready.wait(90)
@@ -319,19 +327,31 @@ def main(monitor):
                 publish()
             document = output / "docking-keyboard-native-acceptance.txt"
             document.write_text("", encoding="utf-8")
-            assert targets.open_target(str(document)), "Owned document did not open"
-            notepad = native.wait_for(
-                lambda: next(
-                    (
-                        w
-                        for w in native.windows()
-                        if document.name in w["title"] and "Notepad" in w["title"]
+            if args.owned_amd64_editor:
+                owned_editor = OwnedInputEditor(
+                    native,
+                    output / "editor-64",
+                    document,
+                    bits=64,
+                    machine=WindowsInputService()._thread._machine,
+                )
+                report["owned_editor"] = owned_editor.journal
+                publish()
+                notepad = owned_editor.start()
+            else:
+                assert targets.open_target(str(document)), "Owned document did not open"
+                notepad = native.wait_for(
+                    lambda: next(
+                        (
+                            w
+                            for w in native.windows()
+                            if document.name in w["title"] and "Notepad" in w["title"]
+                        ),
+                        None,
                     ),
-                    None,
-                ),
-                "Owned Notepad did not map",
-                30,
-            )
+                    "Owned Notepad did not map",
+                    30,
+                )
 
             def focus_editor():
                 window = next(
@@ -352,6 +372,10 @@ def main(monitor):
 
             focus_editor()
             editor_context = api.foreground()
+            assert editor_context is not None
+            machine = WindowsInputService()._thread._machine(editor_context.pid)
+            assert machine == 0x8664, "Reference typing window must be an AMD64 process"
+            report["editor_machine"] = f"0x{machine:04x}"
             editor_original = api.active(editor_context.thread)
             shared.update(
                 editor_context=editor_context, editor_original=editor_original
@@ -1308,39 +1332,48 @@ def main(monitor):
                         lambda: api.active(context.thread) == shared["editor_original"],
                         "Notepad input layout did not restore",
                     )
-                    native.key(0x53, control=True)
-                    # Close only this verifier's saved tabs, including its
-                    # previous owned runs restored by Notepad's session history.
-                    for _ in range(20):
-                        current = next(
-                            (
-                                w
-                                for w in native.windows()
-                                if w["hwnd"] == notepad["hwnd"]
-                            ),
-                            None,
-                        )
-                        if (
-                            current is None
-                            or "docking-keyboard-native-acceptance.txt"
-                            not in current["title"]
-                        ):
-                            break
-                        native.key(0x57, control=True)
-                    native.user.PostMessageW(notepad["hwnd"], 0x10, 0, 0)
-                    native.wait_for(
-                        lambda: (
-                            not any(
-                                w["hwnd"] == notepad["hwnd"] for w in native.windows()
+                    if owned_editor is None:
+                        native.key(0x53, control=True)
+                        # Close only this verifier's saved tabs, including its
+                        # previous owned runs restored by Notepad's session history.
+                        for _ in range(20):
+                            current = next(
+                                (
+                                    w
+                                    for w in native.windows()
+                                    if w["hwnd"] == notepad["hwnd"]
+                                ),
+                                None,
                             )
-                        ),
-                        "Owned Notepad did not close",
-                        20,
-                    )
-                    report["notepad_closed"] = True
+                            if (
+                                current is None
+                                or "docking-keyboard-native-acceptance.txt"
+                                not in current["title"]
+                            ):
+                                break
+                            native.key(0x57, control=True)
+                        native.user.PostMessageW(notepad["hwnd"], 0x10, 0, 0)
+                        native.wait_for(
+                            lambda: (
+                                not any(
+                                    w["hwnd"] == notepad["hwnd"]
+                                    for w in native.windows()
+                                )
+                            ),
+                            "Owned Notepad did not close",
+                            20,
+                        )
+                        report["notepad_closed"] = True
                 except Exception as exc:
                     errors.append(exc)
                     report.update(ok=False, notepad_cleanup_error=repr(exc))
+            if owned_editor is not None:
+                try:
+                    owned_editor.close()
+                    report["editor_closed"] = True
+                except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+                    errors.append(exc)
+                    report.update(ok=False, editor_cleanup_error=repr(exc))
             if ready.is_set():
 
                 def close():

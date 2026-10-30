@@ -1205,6 +1205,14 @@ jobs:
     permissions:
       contents: read
 
+  windows-client-input:
+    name: Windows 11 input
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
+    uses: ./.github/workflows/windows-input.yml
+    permissions:
+      contents: read
+
   release:
     name: Release
     runs-on: ubuntu-22.04
@@ -1235,6 +1243,7 @@ jobs:
       - build-nix-arm64
       - bsd-desktops
       - windows-desktop
+      - windows-client-input
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write

@@ -99,7 +99,7 @@ def _machine(path: Path) -> str:
     if len(signature) != 6 or signature[:4] != b"PE\0\0":
         raise ValueError("Missing PE signature")
     machine = struct.unpack_from("<H", signature, 4)[0]
-    return {0x14C: "x86", 0x8664: "x64", 0xAA64: "arm64"}.get(
+    return {0x14C: "x86", 0x8664: "x64", 0xAA64: "arm64", 0xA64E: "arm64x"}.get(
         machine, f"0x{machine:04x}"
     )
 
@@ -699,7 +699,7 @@ def _monitor_reason(desktop: dict, processes: dict) -> str | None:
             continue
         if "machine" not in item:
             return "monitor-identity-incomplete"
-        if item["machine"] != "x64":
+        if item["machine"] not in ("x64", "arm64", "arm64x"):
             continue
         desktops = item.get("desktops", ())
         if desktop["desktop"] in desktops:
