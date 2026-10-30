@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -18,7 +19,7 @@ import urllib.request
 import uuid
 import zipfile
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from email.parser import Parser
 from pathlib import Path, PurePosixPath, WindowsPath
@@ -109,19 +110,49 @@ def filesystem_path(path: Path) -> Path:
     return _NativeWindowsPath("\\\\?\\" + value)
 
 
-def walk_tree(root: Path) -> Iterator[Path]:
+def walk_tree(root: Path, *, follow_reparse: bool = True) -> Iterator[Path]:
     """Retain native paths while enumerating, including under an MSYS2 shell."""
     # pathlib's globber joins plain strings with the MSYS2 separator, losing
     # extended-path support before it reaches the filesystem operation.
     with os.scandir(root) as entries:
-        children = [
-            (root / entry.name, entry.is_dir(follow_symlinks=False))
-            for entry in entries
-        ]
+        children = []
+        for entry in entries:
+            directory = entry.is_dir(follow_symlinks=False)
+            if directory and not follow_reparse and os.name == "nt":
+                directory = not (
+                    entry.stat(follow_symlinks=False).st_file_attributes
+                    & stat.FILE_ATTRIBUTE_REPARSE_POINT
+                )
+            children.append((root / entry.name, directory))
     for path, directory in children:
         yield path
         if directory:
-            yield from walk_tree(path)
+            yield from walk_tree(path, follow_reparse=follow_reparse)
+
+
+def _unlink_stage_file(path: Path) -> None:
+    try:
+        path.unlink()
+    except PermissionError as error:
+        if (
+            sys.platform != "win32"
+            or error.winerror != 5
+            or os.chmod not in os.supports_follow_symlinks
+        ):
+            raise
+        state = path.lstat()
+        if (
+            not stat.S_ISREG(state.st_mode)
+            or state.st_nlink != 1
+            or not state.st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+            or state.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            raise
+        # Only newly created, single-link regular staging files qualify. On
+        # Windows Python <3.13 no safe no-follow chmod is advertised; preserve
+        # the original failure there instead of changing another file's flags.
+        path.chmod(state.st_mode | stat.S_IWRITE, follow_symlinks=False)
+        path.unlink()
 
 
 @contextmanager
@@ -135,13 +166,21 @@ def staging_directory(parent: Path, prefix: str) -> Iterator[Path]:
         # tempfile/shutil join child names using MSYS2's separator, which breaks
         # the extended prefix. These are only files in this newly created stage.
         if stage.exists():
+            state = stage.lstat()
+            if stat.S_ISLNK(state.st_mode) or (
+                os.name == "nt"
+                and state.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+            ):
+                raise ValueError("Refuse cleanup through a linked staging root")
             for path in sorted(
-                walk_tree(stage), key=lambda item: len(item.parts), reverse=True
+                walk_tree(stage, follow_reparse=False),
+                key=lambda item: len(item.parts),
+                reverse=True,
             ):
                 if path.is_dir() and not path.is_symlink():
                     path.rmdir()
                 else:
-                    path.unlink()
+                    _unlink_stage_file(path)
             stage.rmdir()
 
 
@@ -277,6 +316,73 @@ def copy_file(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def verify_archive(
+    archive: zipfile.ZipFile, destination: Path | None = None
+) -> tuple[dict[str, str], bytes]:
+    """Verify the same portable contract with or without an empty owned stage."""
+    if archive.getinfo("Docking/files.sha256.json").file_size > 8 * 1024 * 1024:
+        raise ValueError("Portable file inventory exceeds its size limit")
+    inventory_bytes = archive.read("Docking/files.sha256.json")
+
+    def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Portable inventory contains duplicate paths")
+            result[key] = value
+        return result
+
+    value = json.loads(inventory_bytes, object_pairs_hook=unique_object)
+    if not isinstance(value, dict) or not value:
+        raise ValueError("Portable archive lacks its file inventory")
+    inventory: dict[str, str] = {}
+    aliases = set()
+    for name, checksum in value.items():
+        if not isinstance(name, str) or not isinstance(checksum, str):
+            raise ValueError("Invalid portable file inventory")
+        path = PurePosixPath(name)
+        if (
+            not path.parts
+            or path.is_absolute()
+            or path.as_posix() != name
+            or ".." in path.parts
+            or "\\" in name
+            or ":" in name
+            or name == "files.sha256.json"
+            or name.casefold() in aliases
+            or re.fullmatch("[0-9a-f]{64}", checksum) is None
+        ):
+            raise ValueError(f"Invalid portable archive path or checksum: {name}")
+        aliases.add(name.casefold())
+        inventory[name] = checksum
+    files = [entry for entry in archive.infolist() if not entry.is_dir()]
+    expected = {"Docking/" + name for name in inventory}
+    expected.add("Docking/files.sha256.json")
+    if len(files) != len(expected) or {entry.filename for entry in files} != expected:
+        raise ValueError("Portable archive does not match its file inventory")
+    if destination is not None and any(destination.iterdir()):
+        raise ValueError("Portable extraction requires an empty owned stage")
+    for entry in files:
+        if entry.external_attr >> 16 & 0o170000 == 0o120000:
+            raise ValueError("Portable archive contains a symbolic link")
+        relative = PurePosixPath(entry.filename).relative_to("Docking")
+        target = destination / relative if destination is not None else None
+        if target is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(entry) as source, ExitStack() as resources:
+            output = resources.enter_context(target.open("wb")) if target else None
+            checksum = hashlib.sha256()
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                checksum.update(block)
+                if output is not None:
+                    output.write(block)
+        if entry.filename != "Docking/files.sha256.json" and (
+            checksum.hexdigest() != inventory[relative.as_posix()]
+        ):
+            raise ValueError(f"Portable file checksum mismatch: {relative}")
+    return inventory, inventory_bytes
+
+
 def extract_bundle(archive_path: Path, destination: Path) -> Path:
     """Extract a portable artifact, verifying every payload against its inventory."""
     requested = destination
@@ -284,38 +390,12 @@ def extract_bundle(archive_path: Path, destination: Path) -> Path:
     if destination.exists():
         raise FileExistsError(f"Choose a new extraction destination: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(filesystem_path(archive_path)) as archive:
-        inventory = json.loads(archive.read("Docking/files.sha256.json"))
-        files = [entry for entry in archive.infolist() if not entry.is_dir()]
-        expected = {"Docking/" + name for name in inventory}
-        expected.add("Docking/files.sha256.json")
-        if (
-            len(files) != len(expected)
-            or {entry.filename for entry in files} != expected
-        ):
-            raise ValueError("Portable archive does not match its file inventory")
-        for entry in files:
-            path = PurePosixPath(entry.filename)
-            if (
-                path.is_absolute()
-                or ".." in path.parts
-                or "\\" in entry.filename
-                or ":" in entry.filename
-                or path.parts[0] != "Docking"
-            ):
-                raise ValueError(f"Invalid portable archive path: {entry.filename}")
-        with staging_directory(destination.parent, "docking-extract-") as stage:
-            for entry in files:
-                data = archive.read(entry)
-                relative = PurePosixPath(entry.filename).relative_to("Docking")
-                if entry.filename != "Docking/files.sha256.json":
-                    digest = hashlib.sha256(data).hexdigest()
-                    if digest != inventory[relative.as_posix()]:
-                        raise ValueError(f"Portable file checksum mismatch: {relative}")
-                target = stage / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(data)
-            stage.rename(destination)
+    with (
+        zipfile.ZipFile(filesystem_path(archive_path)) as archive,
+        staging_directory(destination.parent, "docking-extract-") as stage,
+    ):
+        verify_archive(archive, stage)
+        stage.rename(destination)
     return requested
 
 

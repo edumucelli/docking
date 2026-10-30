@@ -15,7 +15,7 @@ from functools import partial
 from pathlib import Path
 
 from tools.windows.bundle import command_path, staging_directory
-from tools.windows.release import validate_tray_report
+from tools.windows.release import validate_applications_report, validate_tray_report
 from tools.windows.visual.desktop_driver import write_shared_json
 
 _SHARED_TESTS = (
@@ -218,11 +218,36 @@ def tray_domain(root: Path, output: Path, installed: Path, wheel: Path) -> int:
     )
 
 
+def applications_domain(root: Path, output: Path, installed: Path, wheel: Path) -> int:
+    """Require selected-document, catalog and Explorer acceptance for this wheel."""
+    checksum = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    return _run_domain(
+        root,
+        output,
+        "applications",
+        (
+            (
+                "applications-explorer",
+                "tools.windows.visual.applications_domain_smoke",
+                "installed-wheel",
+                [
+                    "--installed-root",
+                    command_path(installed.resolve()),
+                    "--wheel",
+                    command_path(wheel.resolve()),
+                    "--restart-explorer",
+                ],
+                partial(validate_applications_report, wheel_sha256=checksum),
+            ),
+        ),
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--stage",
-        choices=("preflight", "tests", "gtk", "input", "tray"),
+        choices=("preflight", "tests", "gtk", "input", "tray", "applications"),
         default="tests",
     )
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows"))
@@ -231,7 +256,9 @@ def main() -> None:
         type=Path,
         help="Installed wheel for native domain acceptance",
     )
-    parser.add_argument("--wheel", type=Path, help="Wheel exercised by the tray stage")
+    parser.add_argument(
+        "--wheel", type=Path, help="Wheel exercised by the native domain"
+    )
     parser.add_argument("--list", action="store_true", help="List native test targets")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
@@ -245,7 +272,7 @@ def main() -> None:
     os.environ.setdefault("GDK_BACKEND", "win32")
     os.environ.setdefault("GSETTINGS_BACKEND", "memory")
     os.environ.setdefault("GTK_THEME", "Adwaita")
-    if args.stage in ("input", "tray"):
+    if args.stage in ("input", "tray", "applications"):
         if args.installed_root is None:
             parser.error(f"The {args.stage} stage requires --installed-root")
         # Each child selects its own source/installed implementation before
@@ -254,8 +281,9 @@ def main() -> None:
             status = input_domain(root, output, args.installed_root)
         else:
             if args.wheel is None:
-                parser.error("The tray stage requires --wheel")
-            status = tray_domain(root, output, args.installed_root, args.wheel)
+                parser.error(f"The {args.stage} stage requires --wheel")
+            domain = tray_domain if args.stage == "tray" else applications_domain
+            status = domain(root, output, args.installed_root, args.wheel)
         raise SystemExit(status)
     from docking.launcher import prepare_display
 

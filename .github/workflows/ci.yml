@@ -1622,6 +1622,7 @@ jobs:
       - name: Stage verified Windows release assets
         if: steps.release_check.outputs.should_release == 'true'
         run: |
+          python3 -m pip install --disable-pip-version-check packaging
           python3 -m tools.windows.release --version "${{ steps.version.outputs.version }}" \
             --directory artifacts/windows-release --output artifacts/release
 

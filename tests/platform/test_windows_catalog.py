@@ -159,7 +159,8 @@ def test_exports_use_selected_registration_and_never_prepare_hidden_components(
         catalog, "hidden_application_ids", lambda _ids: frozenset(("Widget",))
     )
 
-    def prepare(_self, apps):
+    def prepare(_self, apps, *, cancelled):
+        assert not cancelled()
         prepared.extend(apps)
         return tuple(replace(app, export_file=Path("prepared.lnk")) for app in apps)
 
@@ -170,3 +171,45 @@ def test_exports_use_selected_registration_and_never_prepare_hidden_components(
     assert prepared[0].launch_target == selected.launch_target
     assert prepared[0].working_directory == selected.working_directory
     assert result.applications[0].export_file == Path("prepared.lnk")
+
+
+@pytest.mark.parametrize("stage", ["catalog", "hidden", "sources", "documents"])
+def test_stop_between_native_catalog_phases_prevents_subsequent_export_work(
+    monkeypatch, stage
+):
+    from threading import Event
+    from unittest.mock import Mock
+
+    from docking.platform.applications.windows_export import WindowsApplicationExport
+
+    closed = Event()
+    visible = replace(
+        application("Native.App"), launch_target=r"shell:AppsFolder\Native.App"
+    )
+
+    def finish(phase, value):
+        if phase == stage:
+            closed.set()
+        return value
+
+    monkeypatch.setattr(
+        catalog, "read_shell_applications", lambda: finish("catalog", (visible,))
+    )
+    monkeypatch.setattr(
+        catalog, "hidden_application_ids", lambda _ids: finish("hidden", frozenset())
+    )
+    monkeypatch.setattr(
+        catalog,
+        "read_shortcut_sources",
+        lambda _ids, *, cancelled: finish("sources", {}),
+    )
+    monkeypatch.setattr(
+        WindowsApplicationExport,
+        "prepare_documents",
+        lambda _self, apps, _sources, *, cancelled: finish("documents", apps),
+    )
+    export = Mock(side_effect=AssertionError("No native export after stop"))
+    monkeypatch.setattr(WindowsApplicationExport, "prepare", export)
+    result = catalog.read_application_metadata((), cancelled=closed.is_set)
+    assert closed.is_set() and result.applications is None
+    export.assert_not_called()

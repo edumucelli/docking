@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import ctypes
+import subprocess
 import weakref
+from collections.abc import Sequence
+from pathlib import PureWindowsPath
 
 from docking.platform.applications.launched_process import LaunchOutcome
 
@@ -77,8 +80,18 @@ class WindowsLaunchedProcess:
         return self._status
 
 
-def launch_shortcut(target: str) -> LaunchOutcome:
+def launch_shortcut(target: str, *, arguments: Sequence[str] = ()) -> LaunchOutcome:
     """Delegate shortcut semantics to the shell and retain its optional handle."""
+    if "\0" in target or any("\0" in value for value in arguments):
+        return LaunchOutcome(False)
+    if PureWindowsPath(target).is_absolute():
+        target = target.replace("/", "\\")
+    parameters = subprocess.list2cmdline(arguments) if arguments else None
+    if (
+        parameters is not None
+        and len(parameters.encode("utf-16-le", errors="surrogatepass")) // 2 >= 32767
+    ):
+        return LaunchOutcome(False)
     with apartment():
         shell = ctypes.WinDLL("shell32", use_last_error=True)
         execute = bind(
@@ -86,9 +99,12 @@ def launch_shortcut(target: str) -> LaunchOutcome:
         )
         info = ShellExecuteInfo(
             size=ctypes.sizeof(ShellExecuteInfo),
-            mask=0x40,  # SEE_MASK_NOCLOSEPROCESS; no input-idle wait.
+            # NOCLOSEPROCESS | FLAG_NO_UI: return errors without a modal Shell
+            # dialog blocking GTK. Security prompts retain their native behavior.
+            mask=0x40 | 0x400,
             verb="open",
             file=target,
+            parameters=parameters,
             show=1,
         )
         if not execute(ctypes.byref(info)):

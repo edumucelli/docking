@@ -180,7 +180,7 @@ def test_cancelled_input_stage_journals_and_does_not_start_another_desktop_tool(
     assert len(calls) == 1 and report["cancelled"] and not report["ok"]
 
 
-@pytest.mark.parametrize("stage", ["input", "tray"])
+@pytest.mark.parametrize("stage", ["input", "tray", "applications"])
 def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
     tmp_path, monkeypatch, stage
 ):
@@ -198,7 +198,7 @@ def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
         "--output",
         str(output),
     ]
-    if stage == "tray":
+    if stage != "input":
         command += ["--wheel", str(wheel)]
     monkeypatch.setattr(ci.sys, "argv", command)
     monkeypatch.setattr(
@@ -215,7 +215,7 @@ def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
         ci.main()
     assert result.value.code == 1
     expected = (Path(ci.__file__).resolve().parents[2], output, installed)
-    assert calls == [(*expected, wheel) if stage == "tray" else expected]
+    assert calls == [(*expected, wheel) if stage != "input" else expected]
 
 
 def test_input_stage_requires_explicit_installed_wheel_root(tmp_path, monkeypatch):
@@ -367,13 +367,14 @@ def test_tray_stage_cancellation_stops_new_desktop_children(tmp_path, monkeypatc
     assert len(calls) == 1 and report["cancelled"] and not report["ok"]
 
 
+@pytest.mark.parametrize("stage", ["tray", "applications"])
 @pytest.mark.parametrize("missing", ["--installed-root", "--wheel"])
 def test_tray_stage_requires_both_explicit_runtime_inputs(
-    tmp_path, monkeypatch, missing
+    tmp_path, monkeypatch, missing, stage
 ):
     monkeypatch.setattr(ci, "os", SimpleNamespace(name="nt", environ={}))
     monkeypatch.setattr(ci.sys, "platform", "win32")
-    command = ["windows-ci", "--stage", "tray", "--output", str(tmp_path)]
+    command = ["windows-ci", "--stage", stage, "--output", str(tmp_path)]
     command += (
         ["--wheel", str(tmp_path / "fixture.whl")]
         if missing == "--installed-root"
@@ -381,8 +382,57 @@ def test_tray_stage_requires_both_explicit_runtime_inputs(
     )
     monkeypatch.setattr(ci.sys, "argv", command)
     monkeypatch.setattr(
-        ci, "tray_domain", lambda *args: pytest.fail("Unspecified runtime")
+        ci, stage + "_domain", lambda *args: pytest.fail("Unspecified runtime")
     )
     with pytest.raises(SystemExit) as result:
         ci.main()
     assert result.value.code == 2
+
+
+@pytest.mark.parametrize("defect", [None, "wheel", "phase", "cleanup", "documents"])
+def test_applications_stage_requires_same_wheel_complete_native_acceptance(
+    tmp_path, monkeypatch, defect
+):
+    from tests.test_windows_release import WHEEL_SHA256, applications_report
+
+    wheel = tmp_path / "accepted.whl"
+    wheel.write_bytes(b"accepted application wheel")
+    checksum = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    installed, output = tmp_path / "installed wheel", tmp_path / "reports"
+    calls = []
+
+    def run(command, *, cwd):
+        calls.append(command)
+        report = json.loads(
+            json.dumps(applications_report()).replace(WHEEL_SHA256, checksum)
+        )
+        if defect == "wheel":
+            report["acceptance"]["wheel_sha256"] = "0" * 64
+        elif defect == "phase":
+            report["checks"].pop("inventory-changes")
+        elif defect == "cleanup":
+            report["fixture_cleanup"] = False
+        elif defect == "documents":
+            report["checks"]["documents-installed"]["result"]["document_drops"].pop()
+        destination = Path(command[command.index("--output") + 1].replace("\\", "/"))
+        destination.mkdir(parents=True)
+        (destination / "result.json").write_text(json.dumps(report))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(ci.subprocess, "run", run)
+    assert ci.applications_domain(tmp_path, output, installed, wheel) == int(
+        defect is not None
+    )
+    assert len(calls) == 1
+    command = calls[0]
+    assert command[2] == "tools.windows.visual.applications_domain_smoke"
+    assert "--restart-explorer" in command
+    assert command[command.index("--installed-root") + 1] == ci.command_path(
+        installed.resolve()
+    )
+    assert command[command.index("--wheel") + 1] == ci.command_path(wheel.resolve())
+    result = json.loads((output / "applications-domain.json").read_text())
+    assert result["checks"][0]["implementation"] == "installed-wheel"
+    assert result["checks"][0]["passed"] is (defect is None)
+    if defect is not None:
+        assert "validation_error" in result["checks"][0]

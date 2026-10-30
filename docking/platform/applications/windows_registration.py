@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -65,6 +66,7 @@ class WindowsExecutableRegistration:
         return identifier
 
     def _import_shortcut(self, source: Path) -> str | None:
+        before = source.stat()
         link = read_shortcut(source)
         target = link.executable
         if target is not None:
@@ -102,6 +104,22 @@ class WindowsExecutableRegistration:
             # Preserve the native binary, including arguments, working directory,
             # icon, shell target, elevation and other Windows launch options.
             shutil.copyfile(source, generation)
+            after = source.stat()
+            if (
+                before.st_dev,
+                before.st_ino,
+                before.st_size,
+                before.st_mtime_ns,
+            ) != (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+            ):
+                # Identity/validation and the persisted binary must describe one
+                # source instance. Retain the last registration when Explorer or
+                # an installer replaces the selected link during this operation.
+                raise OSError(errno.EAGAIN, "Shortcut changed during import")
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 encoding="utf-8",

@@ -2,13 +2,116 @@
 
 import hashlib
 import json
+import subprocess
+import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 
 from tools.windows import release
 
 WHEEL_SHA256 = hashlib.sha256(b"accepted wheel fixture").hexdigest()
+
+
+def applications_report():
+    runtime = {"implementation": "installed-wheel", "wheel_sha256": WHEEL_SHA256}
+    before = {"pid": 100, "window": 200, "style": 300}
+    after = {"pid": 101, "window": 201, "style": 300}
+    return {
+        "schema": 1,
+        "ok": True,
+        "normal_shutdown": True,
+        "fixture_cleanup": True,
+        "associations_restored": True,
+        "workarea_restored": True,
+        "explorer_recovered": True,
+        "explorer_before": before,
+        "explorer_after": after,
+        "options": {"restart_explorer": True},
+        "acceptance": {"schema": 1, **runtime, "profile": "applications-explorer"},
+        "runtime": {
+            **runtime,
+            "origins": {
+                "docking": "docking/__init__.py",
+                "launcher": "docking/platform/applications/launcher.py",
+                "catalog": "docking/platform/backends/windows/catalog.py",
+                "documents": "docking/platform/backends/windows/documents.py",
+            },
+        },
+        "checks": {
+            **{
+                "documents-" + route: {
+                    "passed": True,
+                    "evidence": route + "/documents.json",
+                    "result": {
+                        "phase": "documents",
+                        "ok": True,
+                        "normal_shutdown": True,
+                        "physical_document_input": True,
+                        "id": "Owned." + route,
+                        "runtime": {**runtime, "origins": {"app": "docking/app.py"}},
+                        "document_drops": [
+                            {
+                                "count": count,
+                                "protocol": "ole2",
+                                "desktop_id": "Owned." + route,
+                            }
+                            for count in (1, 2)
+                        ],
+                    },
+                }
+                for route in ("installed", "generated", "selected")
+            },
+            "association-default": {"passed": True},
+            "association-explicit": {"passed": True},
+            "association-absence": {"passed": True, "lookup_only": True},
+            "selected-launcher-export": {
+                "passed": True,
+                "actual_explorer_copy": True,
+                "independent_explorer_launch": True,
+                "source_cache_removed": True,
+                "binary_preserved": True,
+            },
+            "inventory-changes": {
+                "passed": True,
+                "evidence": "inventory/result.json",
+                "result": {
+                    "schema": 1,
+                    "ok": True,
+                    "observer_stopped": True,
+                    "owned_shortcuts_removed": True,
+                    "workarea_restored": True,
+                    "explorer_recovered": True,
+                    "forced_refresh": False,
+                    "options": {"restart_explorer": True},
+                    "native_notifications": 3,
+                    "runtime": {
+                        **runtime,
+                        "origins": {
+                            "registry": "docking/platform/applications/registry.py"
+                        },
+                    },
+                    "phases": [
+                        {"action": action, "passed": True, "native_notifications": 1}
+                        for action in ("rename", "delete", "recreate")
+                    ],
+                    "explorer_recovery": {
+                        "passed": True,
+                        "held_actual_read": True,
+                        "cached_source_activation": True,
+                        "after_restart_change": True,
+                        "old_process_exited": True,
+                        "replacement_owned": True,
+                        "shell_recovered": True,
+                        "before": before,
+                        "after": after,
+                    },
+                },
+            },
+            "explorer-recovery": {"passed": True, "evidence": "inventory/result.json"},
+        },
+    }
 
 
 def tray_report(profile):
@@ -112,6 +215,58 @@ def checksum_file(path):
     )
 
 
+def readiness_report(identity):
+    shutdown = {
+        "normal_shutdown": True,
+        "close_requested": True,
+        "exit_code": 0,
+        "forced": False,
+        "owned_remaining": [],
+        "errors": [],
+    }
+    samples = [
+        {
+            "elapsed_seconds": elapsed,
+            "responsive": True,
+            "rss_bytes": 1000,
+            "private_bytes": 800,
+            "threads": 2,
+            "handles": 20,
+            "gdi": 5,
+            "user": 5,
+            "processes": [
+                {
+                    "pid": 7,
+                    "created": 1.0,
+                    "cpu_seconds": elapsed / 100,
+                    "rss_bytes": 1000,
+                    "private_bytes": 800,
+                    "threads": 2,
+                    "handles": 20,
+                    "gdi": 5,
+                    "user": 5,
+                }
+            ],
+        }
+        for elapsed in (0.0, 60.0, 120.0)
+    ]
+    return {
+        "ok": True,
+        "acceptance": {"schema": 1, "implementation": "portable-bundle", **identity},
+        "measurement": {"startup_cycles": 3, "requested_seconds": 120},
+        "startups": [
+            {**shutdown, "visible_seconds": 1.0, "responsive_seconds": 1.1}
+            for _ in range(3)
+        ],
+        "session": {
+            **shutdown,
+            "samples": samples,
+            "startup": {"visible_seconds": 1.0, "responsive_seconds": 1.1},
+            "summary": release.summarize_samples(samples),
+        },
+    }
+
+
 def write_archive(path, *, version="1.2.3", inventory=None, wheel_sha256=WHEEL_SHA256):
     files = {
         "Docking.exe": b"portable unit fixture",
@@ -144,7 +299,27 @@ def incoming(tmp_path):
     report.write_text(
         json.dumps(
             {
+                "acceptance_schema": 1,
                 "installer_sha256": hashlib.sha256(setup.read_bytes()).hexdigest(),
+                "candidate": {
+                    **release.archive_identity(packages / "docking-windows-x86_64.zip"),
+                    "installer_sha256": hashlib.sha256(setup.read_bytes()).hexdigest(),
+                },
+                "previous": {
+                    "version": "1.2.2",
+                    "payload_files": 3,
+                    **{
+                        key: hashlib.sha256(key.encode()).hexdigest()
+                        for key in (
+                            "archive_sha256",
+                            "installer_sha256",
+                            "payload_inventory_sha256",
+                            "wheel_sha256",
+                        )
+                    },
+                },
+                "previous_verified_payload_files": 3,
+                "distinct_version_upgrade": True,
                 "verified_payload_files": 2,
                 "in_use_upgrade_rejected": True,
                 "in_use_uninstall_rejected": True,
@@ -157,6 +332,19 @@ def incoming(tmp_path):
         ),
         encoding="utf-8",
     )
+    readiness = directory / "artifacts/windows/release-readiness/result.json"
+    readiness.parent.mkdir(parents=True)
+    readiness.write_text(
+        json.dumps(
+            readiness_report(
+                release.archive_identity(packages / "docking-windows-x86_64.zip")
+            )
+        ),
+        encoding="utf-8",
+    )
+    applications = directory / "artifacts/windows/applications-explorer/result.json"
+    applications.parent.mkdir(parents=True)
+    applications.write_text(json.dumps(applications_report()), encoding="utf-8")
     for profile in ("explorer", "backend", "gtk-v0-v4", "gtk-v3-v4-guid"):
         path = tray_path(directory, profile)
         path.parent.mkdir(parents=True)
@@ -259,6 +447,7 @@ def test_invalid_or_unaccepted_packages_do_not_enter_the_release(
         "startup_disabled",
         "installed_desktop",
         "uninstall_preserved_preferences_and_unknown_files",
+        "distinct_version_upgrade",
     ],
 )
 def test_each_installer_acceptance_phase_must_have_passed(incoming, tmp_path, check):
@@ -277,6 +466,241 @@ def test_invalid_release_version_does_not_create_destination(incoming, tmp_path)
     with pytest.raises(ValueError, match="version"):
         release.stage(incoming, "../1.2.3", destination)
     assert not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "field", ["archive_sha256", "payload_inventory_sha256", "wheel_sha256", "version"]
+)
+def test_installer_acceptance_binds_exact_candidate_not_only_count(
+    incoming, tmp_path, field
+):
+    path = incoming / "artifacts/windows/installer/result.json"
+    report = json.loads(path.read_text())
+    report["candidate"][field] = "different"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ValueError, match="matching installer"):
+        release.stage(incoming, "1.2.3", tmp_path / "release")
+    assert not (tmp_path / "release").exists()
+
+
+@pytest.mark.parametrize("version", ["1.2.3", "1.2.4", "invalid"])
+def test_reinstall_or_newer_fixture_cannot_claim_upgrade(incoming, tmp_path, version):
+    path = incoming / "artifacts/windows/installer/result.json"
+    report = json.loads(path.read_text())
+    report["previous"]["version"] = version
+    path.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ValueError, match="version"):
+        release.stage(incoming, "1.2.3", tmp_path / "release")
+    assert not (tmp_path / "release").exists()
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "missing",
+        "stale-archive",
+        "short",
+        "cycles",
+        "unresponsive",
+        "forced",
+        "remaining",
+        "summary",
+        "resources",
+        "cpu-regression",
+        "duplicate-process",
+        "schema-bool",
+        "timing",
+    ],
+)
+def test_startup_session_coverage_is_bound_and_recomputed(incoming, tmp_path, defect):
+    path = incoming / "artifacts/windows/release-readiness/result.json"
+    report = json.loads(path.read_text())
+    if defect == "stale-archive":
+        report["acceptance"]["archive_sha256"] = "0" * 64
+    elif defect == "short":
+        report["measurement"]["requested_seconds"] = 119
+    elif defect == "cycles":
+        report["startups"].pop()
+    elif defect == "unresponsive":
+        report["session"]["samples"][1]["responsive"] = False
+    elif defect == "forced":
+        report["startups"][0]["forced"] = True
+    elif defect == "remaining":
+        report["session"]["owned_remaining"] = [7]
+    elif defect == "summary":
+        report["session"]["summary"]["rss_bytes_delta"] = 1
+    elif defect == "resources":
+        report["session"]["samples"][1]["handles"] += 1
+    elif defect == "cpu-regression":
+        report["session"]["samples"][2]["processes"][0]["cpu_seconds"] = 0
+    elif defect == "duplicate-process":
+        row = report["session"]["samples"][1]["processes"]
+        row.append(dict(row[0]))
+    elif defect == "schema-bool":
+        report["acceptance"]["schema"] = True
+    elif defect == "timing":
+        report["startups"][0]["responsive_seconds"] = 0.5
+    path.write_text(json.dumps(report), encoding="utf-8")
+    if defect == "missing":
+        path.unlink()
+    with pytest.raises(ValueError):
+        release.stage(incoming, "1.2.3", tmp_path / "release")
+    assert not (tmp_path / "release").exists()
+
+
+def test_session_cpu_summary_keeps_exited_children_and_distinguishes_pid_reuse():
+    rows = []
+    for elapsed, processes in (
+        (0, [(7, 1, 10)]),
+        (60, [(7, 1, 11), (8, 2, 2)]),
+        (120, [(7, 1, 12), (8, 3, 1)]),
+    ):
+        rows.append(
+            {
+                "elapsed_seconds": elapsed,
+                "processes": [
+                    {"pid": pid, "created": created, "cpu_seconds": cpu}
+                    for pid, created, cpu in processes
+                ],
+                **dict.fromkeys(
+                    ("rss_bytes", "private_bytes", "handles", "gdi", "user"), 0
+                ),
+            }
+        )
+    summary = release.summarize_samples(rows)
+    assert summary["observed_cpu_seconds"] == 5
+    assert summary["observed_process_instances"] == 3
+    assert summary["cpu_percent_one_core"] == pytest.approx(5 / 120 * 100)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "documents-installed",
+        "documents-generated",
+        "documents-selected",
+        "association-default",
+        "association-explicit",
+        "association-absence",
+        "selected-launcher-export",
+        "inventory-changes",
+        "explorer-recovery",
+    ],
+)
+def test_application_gate_requires_each_complete_named_workflow(name):
+    report = applications_report()
+    del report["checks"][name]
+    with pytest.raises(ValueError, match="complete"):
+        release.validate_applications_report(report, wheel_sha256=WHEEL_SHA256)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "missing",
+        "candidate",
+        "child-wheel",
+        "source-origin",
+        "no-physical",
+        "wrong-id",
+        "one-file-only",
+        "unclean-child",
+        "unclean-fixture",
+        "association",
+        "export",
+        "no-notification",
+        "incomplete-inventory",
+        "same-shell",
+        "foreign-shell",
+        "old-alive",
+        "unowned-replacement",
+        "unrecovered",
+        "dependency-skipped",
+        "schema-bool",
+    ],
+)
+def test_application_gate_rejects_stale_or_incomplete_evidence_before_staging(
+    incoming, tmp_path, defect
+):
+    path = incoming / "artifacts/windows/applications-explorer/result.json"
+    report = applications_report()
+    check = report["checks"]
+    document = check["documents-selected"]["result"]
+    inventory = check["inventory-changes"]["result"]
+    recovery = inventory["explorer_recovery"]
+    if defect == "candidate":
+        report["acceptance"]["wheel_sha256"] = "0" * 64
+    elif defect == "child-wheel":
+        document["runtime"]["wheel_sha256"] = "0" * 64
+    elif defect == "source-origin":
+        document["runtime"]["origins"]["app"] = "source/docking/app.py"
+    elif defect == "no-physical":
+        document["document_drops"][0]["protocol"] = "local"
+    elif defect == "wrong-id":
+        document["document_drops"][1]["desktop_id"] = "Another.App"
+    elif defect == "one-file-only":
+        document["document_drops"].pop()
+    elif defect == "unclean-child":
+        document["normal_shutdown"] = False
+    elif defect == "unclean-fixture":
+        report["fixture_cleanup"] = False
+    elif defect == "association":
+        report["associations_restored"] = False
+    elif defect == "export":
+        check["selected-launcher-export"]["binary_preserved"] = False
+    elif defect == "no-notification":
+        inventory["phases"][1]["native_notifications"] = 0
+    elif defect == "incomplete-inventory":
+        inventory["phases"].pop()
+    elif defect == "same-shell":
+        recovery["after"]["pid"] = recovery["before"]["pid"]
+    elif defect == "foreign-shell":
+        report["explorer_after"] = {"pid": 999, "window": 999, "style": 300}
+    elif defect == "old-alive":
+        recovery["old_process_exited"] = False
+    elif defect == "unowned-replacement":
+        recovery["replacement_owned"] = False
+    elif defect == "unrecovered":
+        recovery["shell_recovered"] = False
+    elif defect == "dependency-skipped":
+        check["association-default"] = {"passed": False, "status": "dependency-skipped"}
+    elif defect == "schema-bool":
+        report["schema"] = True
+    path.write_text(json.dumps(report), encoding="utf-8")
+    if defect == "missing":
+        path.unlink()
+    destination = tmp_path / "release"
+    with pytest.raises(ValueError):
+        release.stage(incoming, "1.2.3", destination)
+    assert not destination.exists()
+
+
+def test_same_wheel_application_report_passes_shared_pure_consumer():
+    release.validate_applications_report(
+        applications_report(), wheel_sha256=WHEEL_SHA256
+    )
+
+
+def test_application_consumer_is_shared_and_imports_without_docking_or_build_tools():
+    from tools.windows.application_acceptance import validate_applications_report
+
+    assert release.validate_applications_report is validate_applications_report
+    module = (
+        Path(__file__).resolve().parents[1] / "tools/windows/application_acceptance.py"
+    )
+    script = (
+        "import runpy,sys,json;runpy.run_path(sys.argv[1]);"
+        "print(json.dumps([name for name in sys.modules if name.split('.')[0] "
+        "in ('docking','gi','packaging')]))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", script, str(module)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert json.loads(completed.stdout) == []
 
 
 @pytest.mark.parametrize(

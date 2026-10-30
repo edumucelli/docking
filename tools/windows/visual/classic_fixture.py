@@ -15,6 +15,7 @@ from .desktop_driver import WindowsDesktop, read_shared_json
 
 _SOURCE = r"""
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -30,12 +31,20 @@ public static class ClassicFixture {
     public static void Main(string[] args) {
         var process = Process.GetCurrentProcess();
         var directory = Path.GetDirectoryName(process.MainModule.FileName);
-        var factsPath = args.Length >= 2 ? args[0] :
+        var settings = Path.Combine(directory, "selected-documents.json");
+        var selected = File.Exists(settings) ?
+            new JavaScriptSerializer().Deserialize<Dictionary<string,string>>(
+                File.ReadAllText(settings)) : null;
+        var factsPath = selected != null ? selected["facts"] :
+            args.Length >= 2 ? args[0] :
             Path.Combine(directory, "facts-generated.json");
-        var title = args.Length >= 2 ? args[1] :
+        var title = selected != null ? selected["title"] :
+            args.Length >= 2 ? args[1] :
             File.ReadAllText(Path.Combine(directory, "fixture-title.txt"));
-        var payload = new string[Math.Max(0, args.Length - 2)];
-        if (payload.Length > 0) Array.Copy(args, 2, payload, 0, payload.Length);
+        var payload = selected != null ? args :
+            new string[Math.Max(0, args.Length - 2)];
+        if (selected == null && payload.Length > 0)
+            Array.Copy(args, 2, payload, 0, payload.Length);
         var facts = new {
             pid = process.Id,
             executable = process.MainModule.FileName,
@@ -88,7 +97,14 @@ def _quoted(value: Path) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def write_shortcut(path: Path, *, executable: Path, argv: list[str], cwd: Path):
+def write_shortcut(
+    path: Path,
+    *,
+    executable: Path,
+    argv: list[str],
+    cwd: Path,
+    application_id: str | None = None,
+):
     """Use IShellLinkW, independent of the production AppsFolder reader."""
     from docking.platform.backends.windows.com import (
         GUID,
@@ -99,6 +115,12 @@ def write_shortcut(path: Path, *, executable: Path, argv: list[str], cwd: Path):
         release,
     )
     from docking.platform.backends.windows.ffi import bind
+    from docking.platform.backends.windows.properties import (
+        APP_ID,
+        PROPERTY_STORE,
+        PropertyKey,
+        PropertyVariant,
+    )
 
     with apartment() as ole, ExitStack() as stack:
         clsid = GUID.parse("00021401-0000-0000-c000-000000000046")
@@ -124,6 +146,22 @@ def write_shortcut(path: Path, *, executable: Path, argv: list[str], cwd: Path):
         arguments = subprocess.list2cmdline(argv)
         for index, text in ((20, str(executable)), (11, arguments), (9, str(cwd))):
             assert method(pointer, index, HRESULT, ctypes.c_wchar_p)(pointer, text) >= 0
+        if application_id is not None:
+            store = query(stack, pointer, PROPERTY_STORE)
+            identity = PropertyVariant()
+            identity.vt = 31
+            identity.data.string = application_id
+            assert (
+                method(
+                    store,
+                    6,
+                    HRESULT,
+                    ctypes.POINTER(PropertyKey),
+                    ctypes.POINTER(PropertyVariant),
+                )(store, ctypes.byref(APP_ID), ctypes.byref(identity))
+                >= 0
+            )
+            assert method(store, 7, HRESULT)(store) >= 0
         persistence = query(
             stack, pointer, GUID.parse("0000010b-0000-0000-c000-000000000046")
         )
@@ -200,6 +238,7 @@ class ClassicApplications:
                 text=True,
                 encoding="utf-8",
                 timeout=90,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             assert compiled.returncode == 0, compiled.stdout + compiled.stderr
             for key in ("Second", "Recent", "Other"):

@@ -13,7 +13,34 @@ from contextlib import suppress
 from pathlib import Path
 
 
-def _phase(output: Path, phase: str) -> None:
+def document_application(native, observe, route: str, report: dict):
+    """Separate asynchronous initial discovery from a genuinely missing pin."""
+    started, selected = time.monotonic(), None
+    state = report["catalog_readiness"] = {}
+
+    def complete():
+        nonlocal selected
+        pending, selected = observe()
+        state.update(
+            pending=pending,
+            resolved=selected is not None,
+            has_document_target=bool(selected and selected.document_target),
+        )
+        return not pending
+
+    try:
+        native.wait_for(complete, "Initial application catalog did not complete", 60)
+        assert selected is not None, "Selected application pin did not resolve"
+        if route == "installed":
+            assert selected.document_target, (
+                "Installed exact-ID document source was not prepared"
+            )
+        return selected
+    finally:
+        state["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+
+
+def _phase(output: Path, phase: str, runtime) -> None:
     from docking.launcher import prepare_display
 
     prepare_display()
@@ -31,6 +58,7 @@ def _phase(output: Path, phase: str) -> None:
     from tools.windows.visual.desktop_driver import WindowsDesktop, read_shared_json
     from tools.windows.visual.explorer import ExplorerFolder
     from tools.windows.visual.smoke import dock_window
+    from tools.windows.visual.tray_acceptance import runtime_origins
 
     manifest = read_shared_json(output / "manifest.json")
     executable = Path(manifest["executable"])
@@ -39,7 +67,19 @@ def _phase(output: Path, phase: str) -> None:
     identifier = manifest.get("identifier") or executable_application_id(executable)
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
-    shared, report, failures = {}, {"phase": phase, "id": identifier}, []
+    shared, report, failures = (
+        {},
+        {
+            "phase": phase,
+            "id": identifier,
+            "runtime": {
+                "implementation": "installed-wheel" if runtime.installed else "source",
+                "wheel_sha256": runtime.wheel_sha256,
+                "origins": runtime_origins(runtime.root, {"app": app.__file__}),
+            },
+        },
+        [],
+    )
     ready = threading.Event()
     build = app.build_dock_window
 
@@ -64,7 +104,7 @@ def _phase(output: Path, phase: str) -> None:
         return ui
 
     app.build_dock_window = observe_build
-    if phase == "drop":
+    if phase in ("drop", "documents"):
         from docking.ui.dnd import DnDHandler
 
         receive = DnDHandler._on_drag_data_received
@@ -97,7 +137,7 @@ def _phase(output: Path, phase: str) -> None:
         return values[0]
 
     def drive():
-        dock, program_pid = None, None
+        dock, program_pid, explorer_folder = None, None, None
         try:
             assert ready.wait(90)
             dock = native.wait_for(
@@ -263,6 +303,95 @@ def _phase(output: Path, phase: str) -> None:
                     )
                 report.update(ok=True, actual_explorer_drop=True)
                 return
+            elif phase == "documents":
+                import psutil
+
+                files = [Path(value) for value in manifest["documents"]]
+                facts_path = Path(manifest["facts"])
+                selected = document_application(
+                    native,
+                    lambda: call(
+                        lambda: (
+                            shared["registry"].initial_discovery_pending,
+                            shared["registry"].get(identifier),
+                        )
+                    ),
+                    manifest["route"],
+                    report,
+                )
+                report["document_drops"] = []
+                for count in (1, 2):
+                    facts_path.unlink(missing_ok=True)
+                    report.pop("native_drop", None)
+                    explorer_folder = ExplorerFolder(native, files[0].parent)
+                    with explorer_folder as folder:
+                        rectangle = folder.file_rectangle(files[0])
+                        source_point = (
+                            rectangle["x"] + rectangle["width"] / 2,
+                            rectangle["y"] + 20,
+                        )
+                        if count == 2:
+                            native.click(*source_point)
+                            native.key(ord("A"), control=True)
+                        destination = call(point)
+                        native.drag(source_point, destination)
+                        native.wait_for(
+                            facts_path.is_file,
+                            "Selected application did not report document arguments",
+                            30,
+                        )
+                        facts = read_shared_json(facts_path)
+                        program_pid = facts["pid"]
+                        assert Path(facts["executable"]).samefile(executable)
+                        assert Path(facts["cwd"]).samefile(manifest["cwd"])
+                        received = report["native_drop"]
+                        assert (
+                            received["protocol"] == "ole2"
+                            and len(received["uris"]) == count
+                        )
+                        actual_files = [
+                            local_path_from_uri_or_path(uri) for uri in received["uris"]
+                        ]
+                        assert all(path is not None for path in actual_files)
+                        assert {path.resolve() for path in actual_files} == {
+                            path.resolve() for path in files[:count]
+                        }
+                        assert facts["argv"] == manifest["argv"] + [
+                            str(path).replace("/", "\\") for path in actual_files
+                        ]
+                        rows = native.wait_for(
+                            lambda current_pid=program_pid: call(
+                                lambda: [
+                                    row
+                                    for row in shared[
+                                        "backend"
+                                    ].windows.list_all_windows()
+                                    if row.pid == current_pid
+                                ]
+                            ),
+                            "Document-opened window did not group under its pin",
+                        )
+                        assert len(rows) == 1 and rows[0].desktop_id == identifier
+                        report["document_drops"].append(
+                            {
+                                "count": count,
+                                "protocol": received["protocol"],
+                                "facts": facts,
+                                "desktop_id": rows[0].desktop_id,
+                                "selected_target": selected.launch_target,
+                            }
+                        )
+                        ImageGrab.grab(all_screens=True).save(
+                            output / f"documents-{count}.png"
+                        )
+                        process = psutil.Process(program_pid)
+                        assert Path(process.exe()).samefile(executable)
+                        for window in native.windows(program_pid):
+                            assert native.user.PostMessageW(window["hwnd"], 0x10, 0, 0)
+                        assert process.wait(20) == 0
+                        program_pid = None
+                report.update(ok=True, physical_document_input=True)
+                return
             else:
                 item = native.wait_for(
                     lambda: call(
@@ -383,6 +512,8 @@ def _phase(output: Path, phase: str) -> None:
             ImageGrab.grab(all_screens=True).save(output / f"{phase}-grouped.png")
             report.update(ok=True, pid=program_pid, grouped=True)
         except Exception as exc:
+            if explorer_folder is not None and explorer_folder.cleanup_failure:
+                report["explorer_cleanup_failure"] = explorer_folder.cleanup_failure
             if program_pid is not None:
                 report["native_windows"] = native.windows(program_pid)
                 report["tracked_windows"] = call(
@@ -434,6 +565,10 @@ def _phase(output: Path, phase: str) -> None:
     app.main()
     driver.join(30)
     assert not driver.is_alive()
+    report["normal_shutdown"] = True
+    (output / f"{phase}.json").write_text(
+        json.dumps(report, indent=2), encoding="utf-8"
+    )
     if failures:
         raise failures[0]
 
@@ -441,7 +576,9 @@ def _phase(output: Path, phase: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--phase", choices=("pin", "drop", "restart"))
+    parser.add_argument("--installed-root", type=Path)
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--phase", choices=("pin", "drop", "restart", "documents"))
     parser.add_argument("--explorer-drop", action="store_true")
     parser.add_argument("--multiple-windows", action="store_true")
     parser.add_argument(
@@ -453,13 +590,16 @@ def main() -> None:
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires a native Windows desktop")
+    from tools.windows.visual.tray_acceptance import select_runtime
+
+    runtime = select_runtime(args.installed_root, args.wheel)
     if args.uncataloged and args.shortcut:
         parser.error("--uncataloged cannot use an installed/selected shortcut")
     if args.shortcut and not args.explorer_drop:
         parser.error("--shortcut requires --explorer-drop")
     output = args.output.resolve()
     if args.phase:
-        _phase(output, args.phase)
+        _phase(output, args.phase, runtime)
         return
     if output.exists() and any(output.iterdir()):
         parser.error("Choose a fresh output directory")
@@ -570,16 +710,21 @@ def main() -> None:
                 # desktop launch, where Python uses backslash separators.
                 env.pop("MSYSTEM", None)
             with (output / f"{phase}.log").open("wb") as stream:
+                command = [
+                    sys.executable,
+                    "-m",
+                    "tools.windows.visual.runtime_pin_smoke",
+                    "--output",
+                    str(output),
+                    "--phase",
+                    phase,
+                ]
+                if args.installed_root is not None:
+                    command.extend(("--installed-root", str(args.installed_root)))
+                if args.wheel is not None:
+                    command.extend(("--wheel", str(args.wheel)))
                 subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "tools.windows.visual.runtime_pin_smoke",
-                        "--output",
-                        str(output),
-                        "--phase",
-                        phase,
-                    ],
+                    command,
                     env=env,
                     stdout=stream,
                     stderr=subprocess.STDOUT,

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import ctypes
+from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
+from typing import TYPE_CHECKING
 
 from docking.log import get_logger
 from docking.platform.applications.constants import FALLBACK_ICON
@@ -16,12 +18,16 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 
+from .catalog_shortcuts import read_shortcut_sources
 from .com import GUID, HRESULT, apartment, method, object_result, query, release
 from .ffi import bind
 from .packages import hidden_application_ids
 from .properties import APP_ID, PropertyKey
 
 log = get_logger("windows.catalog")
+
+if TYPE_CHECKING:
+    from docking.platform.applications.windows_export import WindowsApplicationExport
 
 _APPS_FOLDER = GUID.parse("1e87508d-89c2-42f0-8a7e-645a0f50ca58")
 _SHELL_ITEM = GUID.parse("43826d1e-e718-42ee-bc55-a1e261c37bfe")
@@ -163,13 +169,21 @@ def read_shell_applications() -> tuple[ApplicationInfo, ...]:
 
 
 def read_application_metadata(
-    ids: tuple[str, ...], *, registrations: tuple[ApplicationInfo, ...] = ()
+    ids: tuple[str, ...],
+    *,
+    registrations: tuple[ApplicationInfo, ...] = (),
+    cancelled: Callable[[], bool] = lambda: False,
+    exporter: WindowsApplicationExport | None = None,
 ) -> ApplicationMetadata:
+    if cancelled():
+        return ApplicationMetadata()
     try:
         applications = read_shell_applications()
     except OSError as exc:
         log.debug("Could not read the native application catalog: %s", exc)
         applications = None
+    if cancelled():
+        return ApplicationMetadata()
     if applications is not None:
         combined = {app.desktop_id: app for app in applications}
         for app in registrations:
@@ -190,14 +204,33 @@ def read_application_metadata(
     if applications is not None:
         all_ids.update(app.desktop_id for app in applications)
     hidden = hidden_application_ids(all_ids)
+    if cancelled():
+        return ApplicationMetadata()
     if applications is not None:
         from docking.platform.applications.windows_export import (
             WindowsApplicationExport,
         )
 
-        applications = WindowsApplicationExport().prepare(
-            tuple(app for app in applications if app.desktop_id not in hidden)
+        visible = tuple(app for app in applications if app.desktop_id not in hidden)
+        identifiers = frozenset(
+            app.desktop_id
+            for app in visible
+            if app.launch_target.startswith("shell:AppsFolder\\")
+            and "!" not in app.desktop_id
         )
+        try:
+            sources = read_shortcut_sources(identifiers, cancelled=cancelled)
+        except OSError as exc:
+            log.debug("Could not read application shortcut sources: %s", exc)
+            sources = {}
+        if cancelled():
+            return ApplicationMetadata()
+        if exporter is None:
+            exporter = WindowsApplicationExport()
+        prepared = exporter.prepare_documents(visible, sources, cancelled=cancelled)
+        if cancelled():
+            return ApplicationMetadata()
+        applications = exporter.prepare(prepared, cancelled=cancelled)
     return ApplicationMetadata(
         hidden_ids=hidden,
         applications=applications,

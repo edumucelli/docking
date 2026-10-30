@@ -20,7 +20,11 @@ from docking.platform.environment import is_windows
 
 from . import discovery
 from . import entries as desktop_entries
-from .metadata import create_metadata_lookup
+from .metadata import (
+    ApplicationChangeMonitor,
+    create_change_monitor,
+    create_metadata_lookup,
+)
 from .registration import ExecutableRegistrationBackend, create_registration_backend
 from .steam import SteamDiscoveryResult, steam_app_id_from_exec
 from .types import (
@@ -136,6 +140,8 @@ class ApplicationRegistry:
         self._content_gio_handles: dict[str, object] = {}
 
         self._app_monitor: object | None = None
+        self._change_monitor: ApplicationChangeMonitor | None = None
+        self._change_monitor_factory = create_change_monitor
         self._app_monitor_handler: object | None = None
         self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
         self._debounce_source_id: int | None = None
@@ -316,6 +322,13 @@ class ApplicationRegistry:
         self._lifecycle_token += 1
         if self._metadata is not None:
             self._metadata.start()
+        lifecycle = self._lifecycle_token
+
+        def native_changed() -> None:
+            if self._started and lifecycle == self._lifecycle_token:
+                self._on_registry_changed()
+
+        self._change_monitor = self._change_monitor_factory(native_changed)
         self._connect_app_monitor()
         self._sync_directory_monitors()
         self.refresh()
@@ -328,6 +341,9 @@ class ApplicationRegistry:
         self._lifecycle_token += 1
         self._cancel_pending_refresh()
         self._disconnect_app_monitor()
+        if self._change_monitor is not None:
+            self._change_monitor.close()
+            self._change_monitor = None
         self._cancel_directory_monitors()
         if self._metadata is not None:
             self._metadata.stop()
@@ -522,6 +538,7 @@ class ApplicationRegistry:
                     aliases=tuple(dict.fromkeys((*app.aliases, *previous.aliases))),
                     working_directory=app.working_directory,
                     launch_target=app.launch_target,
+                    document_target=app.document_target,
                     export_file=(
                         previous.export_file
                         if previous.launch_target == app.launch_target

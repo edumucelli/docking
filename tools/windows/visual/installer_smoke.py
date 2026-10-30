@@ -16,9 +16,12 @@ import uuid
 from contextlib import suppress
 from pathlib import Path
 
+from packaging.version import Version
+
 from docking.platform.backends.windows.shortcuts import read_shortcut
 from tools.windows.bundle import filesystem_path, native_path, payload_root, walk_tree
 from tools.windows.installer import removal_manifest
+from tools.windows.release import archive_identity, digest
 
 APP_ID = "org.docking.Docking"
 UNINSTALL_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{APP_ID}"
@@ -80,20 +83,37 @@ def programs_directory() -> Path:
     return Path(result.value)
 
 
-def verify_installation(root: Path) -> tuple[Path, int]:
+def verify_installation(
+    root: Path, expected: dict[str, str | int] | None = None
+) -> tuple[Path, int]:
     payload = payload_root(root)
-    inventory = json.loads((payload / "files.sha256.json").read_text(encoding="utf-8"))
+    inventory_bytes = (payload / "files.sha256.json").read_bytes()
+    inventory = json.loads(inventory_bytes)
     removal_manifest(list(inventory))
-    for name, digest in inventory.items():
+    for name, checksum in inventory.items():
         actual = hashlib.sha256(
             filesystem_path(payload / name).read_bytes()
         ).hexdigest()
-        if actual != digest:
+        if actual != checksum:
             raise AssertionError(f"Installed file does not match the artifact: {name}")
     registered = registry_value(UNINSTALL_KEY, "InstallLocation")
-    assert registered is not None and Path(registered) == root
+    assert registered is not None and Path(registered).samefile(root)
     shortcut = programs_directory() / "Docking/Docking.lnk"
-    assert read_shortcut(shortcut).executable == root / "Docking.exe"
+    assert read_shortcut(shortcut).executable.samefile(root / "Docking.exe")
+    if expected is not None:
+        metadata = json.loads(
+            (payload / "runtime/share/docking/runtime.json").read_text(encoding="utf-8")
+        )
+        actual = {
+            "payload_inventory_sha256": hashlib.sha256(inventory_bytes).hexdigest(),
+            "wheel_sha256": metadata["wheel_sha256"],
+            "version": metadata["version"],
+            "payload_files": len(inventory),
+        }
+        assert all(actual[key] == expected[key] for key in actual), (
+            "Installed payload differs from the supplied portable archive"
+        )
+        assert registry_value(UNINSTALL_KEY, "DisplayVersion") == expected["version"]
     return payload, len(inventory)
 
 
@@ -114,7 +134,15 @@ def uninstall(root: Path, output: Path) -> int:
             ).returncode
 
 
-def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
+def exercise(
+    installer: Path,
+    output: Path,
+    report: dict[str, object],
+    *,
+    archive: Path,
+    previous_installer: Path,
+    previous_archive: Path,
+) -> None:
     import psutil
 
     assert registry_value(UNINSTALL_KEY, "InstallLocation") is None, (
@@ -123,6 +151,15 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
     assert registry_value(RUN_KEY, APP_ID) is None, (
         "Preserve the existing startup entry"
     )
+    candidate = {**archive_identity(archive), "installer_sha256": digest(installer)}
+    previous = {
+        **archive_identity(previous_archive),
+        "installer_sha256": digest(previous_installer),
+    }
+    assert Version(str(previous["version"])) < Version(str(candidate["version"])), (
+        "Upgrade acceptance requires a distinct older installed version"
+    )
+    report.update(acceptance_schema=1, candidate=candidate, previous=previous)
     root = (
         Path(os.environ["LOCALAPPDATA"])
         / "Programs"
@@ -132,9 +169,9 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
     report["root"] = str(root)
     report["installer"] = str(installer)
     report["installer_sha256"] = hashlib.sha256(installer.read_bytes()).hexdigest()
-    assert run_setup(installer, root, startup=True) == 0
-    first, count = verify_installation(root)
-    report["verified_payload_files"] = count
+    assert run_setup(previous_installer, root, startup=True) == 0
+    first, count = verify_installation(root, previous)
+    report["previous_verified_payload_files"] = count
     expected_startup = '"' + native_path(root / "Docking.exe") + '"'
     assert registry_value(RUN_KEY, APP_ID) == expected_startup
     root_note = root / "acceptance-user-note.txt"
@@ -177,13 +214,15 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
     report["in_use_uninstall_rejected"] = True
 
     assert run_setup(installer, root) == 0
-    second = payload_root(root)
+    second, count = verify_installation(root, candidate)
+    report["verified_payload_files"] = count
     assert second != first and (first / "Docking.exe").is_file()
     assert registry_value(RUN_KEY, APP_ID) == expected_startup
     assert payload_note.read_text(encoding="utf-8") == "Preserve unknown files"
     report["upgrade_preserved_startup_and_previous_payload"] = True
+    report["distinct_version_upgrade"] = True
     assert run_setup(installer, root, startup=False) == 0
-    final, count = verify_installation(root)
+    final, count = verify_installation(root, candidate)
     assert final != second and registry_value(RUN_KEY, APP_ID) is None
     report["startup_disabled"] = True
     report["verified_final_payload_files"] = count
@@ -225,11 +264,22 @@ def exercise(installer: Path, output: Path, report: dict[str, object]) -> None:
             with suppress(OSError):
                 path.rmdir()
     root.rmdir()
+    assert archive_identity(archive) == {
+        key: value for key, value in candidate.items() if key != "installer_sha256"
+    }
+    assert digest(installer) == candidate["installer_sha256"]
+    assert archive_identity(previous_archive) == {
+        key: value for key, value in previous.items() if key != "installer_sha256"
+    }
+    assert digest(previous_installer) == previous["installer_sha256"]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installer", type=Path, required=True)
+    parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--previous-installer", type=Path, required=True)
+    parser.add_argument("--previous-archive", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if sys.platform != "win32":
@@ -242,7 +292,14 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     report: dict[str, object] = {}
     try:
-        exercise(args.installer.resolve(), output, report)
+        exercise(
+            args.installer.resolve(),
+            output,
+            report,
+            archive=args.archive.resolve(),
+            previous_installer=args.previous_installer.resolve(),
+            previous_archive=args.previous_archive.resolve(),
+        )
     except (
         AssertionError,
         OSError,

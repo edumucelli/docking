@@ -2274,9 +2274,12 @@ pins. Association-only clients remain usable through their actual Gio handles;
 their absence from the Start menu does not make their file associations unusable.
 Discovery uses canonical IDs, without merging equal names or guessing identities
 from command strings. Failed catalog reads retain the last complete native
-snapshot, with Gio as the initial fallback. The owned metadata worker also
-refreshes every 30 seconds, covering shortcut changes without Gio notifications;
-stop and lifecycle invalidation reject late replies.
+snapshot, with Gio as the initial fallback. Native shell-change subscriptions
+watch the user and common Start-menu folders and AppsFolder, feeding the existing
+metadata worker and debounce. The complete 30-second refresh remains a recovery
+path; stop and lifecycle invalidation reject late replies. Unchanged immutable
+launcher exports and their drag formats are reused only within one worker
+lifetime, with file identity and metadata checks before reuse.
 
 Native catalog entries record their shell application-folder target. Activation
 passes that target to Windows rather than reconstructing the shortcut command,
@@ -2416,6 +2419,37 @@ multi-user behavior still require acceptance.
 
 The [ShellExecuteEx process-handle contract](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shellexecuteinfow)
 defines when the shell returns a handle and requires the caller to close it.
+
+Selected documents use a separate native launch route. Generated executable
+pins and selected shortcut pins pass literal arguments through `ShellExecuteExW`
+without replacing the shortcut's stored arguments, working directory or options.
+For installed classic applications, the metadata worker matches the exact native
+application ID to Start-menu shortcuts and snapshots the original binary. It
+rejects differing shortcuts that share an ID. Normal application activation
+continues to use AppsFolder; direct AppsFolder activation and namespace-link
+activation were independently observed to ignore additional file arguments.
+Packaged applications receive an owned Shell item array through the activation
+manager. An unavailable selected-document route never opens another application
+as a fallback.
+
+The whole-domain acceptance command runs three document-drop routes, default and
+explicit associations plus an absent-association lookup, selected-shortcut export,
+live catalog changes and Explorer recovery:
+
+```sh
+python -m tools.windows.visual.applications_domain_smoke \
+  --output artifacts/windows/applications-explorer \
+  --installed-root path/to/installed --wheel path/to/docking.whl --restart-explorer
+```
+
+Use an owned interactive test desktop: `--restart-explorer` replaces its exact
+validated shell process. The command uses isolated pins and temporary application
+shortcuts, creates only new association keys, records all nine check outcomes and
+embeds child evidence in `result.json`. Independent cases continue after a failed
+check only when owned cleanup is verified. The report binds its runtime to the
+provided wheel and records shell identity and work-area restoration. Native SDK
+proofs verified literal selected-file forwarding and original shortcut options;
+the complete installed-wheel domain sequence remains a separate acceptance run.
 
 The native reader uses [IShellLinkW::GetPath](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-getpath)
 with stored-path flags and [IPersistFile::Load](https://learn.microsoft.com/en-us/windows/win32/api/objidl/nf-objidl-ipersistfile-load)
@@ -3306,7 +3340,7 @@ References: [window subclass callbacks](https://learn.microsoft.com/en-us/window
 | Search and file workflows | Native drive/UNC targets, shell associations, path Search, shared folder UI, native global hotkey, shell handoff and shared canonical/live artwork | Unicode drive/SMB metadata, previews, default-opened Notepad contents, folder stack, native Search Copy Path and Explorer file drop verified; native binding/capture/rebind/cancel, conflict, disable/enable and shutdown release verified; asynchronous native/painted artwork and same-process startup focus verified; regular shell activation with independent input, arbitrary executable/shortcut identity and broader keyboard/file/network acceptance pending |
 | System applets | Native Core Audio volume, shell Recycle Bin, aggregate Battery/power, Network monitoring/Wi-Fi/VPN/settings, Bluetooth classic/LE inventory/discovery/pairing/GATT/audio, Mic Shield capture, Cam Shield activity/policy and native notification-area backends | Volume controls, Windows keys, Sound settings and audio verified; Trash notification/recycle/restore/empty and cleanup verified; Battery native absence/oracle, overlays, Power Settings and shutdown verified, with labeled state-rendering fixtures; Network native wired metadata/counters, actual SMB traffic, selection/overlays/settings and cleanup verified; Wi-Fi profiles/radio/permissions exercised with labeled API fixtures; native IKEv2 VPN/profile menus/dialer/data/disconnect verified; Mic Shield actual two-input WASAPI capture/PID/mute/non-default input/poll/Settings verified with generated audio; Bluetooth native factories/watchers/absence/settings, classic/LE/audio menu ownership and twelve pairing-dialog cases verified with labeled API fixtures; Cam Shield native generated-frame/two-client capture/PID/stop/idle/pulse/Settings, policy Lock/Unlock, denied new capture, continued existing capture, backend restart/recovery and restored capture verified; physical cameras and actual UAC consent remain pending; System Tray real legacy/GUID icons, startup seed, pixels, double-click/activation/native menus, updates/hide/show/delete, Task Manager and Explorer handoff verified; two actual Explorer restarts with tray/AppBar/Trash recovery and exact handoff verified; SDK icon rectangles, movement/fallback and provider menu placement verified; independent x86/x64 ANSI/Unicode/GUID/version/structure-size matrices, rich hover, keyboard actions and guarded focus return verified locally and in hosted CI; broader providers, restart races, policy restrictions and physical display/DPI acceptance pending; physical Bluetooth, BLE/discovery/pairing/connections, physical wireless, global networking controls, other VPN authentication/server policies, physical batteries/accessories, other backends and broader devices pending |
 | Portable applets | AI Usage native update lock and hooks; Ambient GStreamer/WASAPI playback; native Session, Power Profiles and hardware Brightness backends; shared rendering | AI Usage fixture ingestion and UI verified; Ambient all seven OGG sounds, both noise modes, native controls, volume/mute/stop and actual audio capture verified on the baseline; Session native lock, sign out, restart and power off verified with external OS state; sleep unsupported on this VM; Power Profiles native modes/effective state, Energy Saver override, custom-plan behavior and cleanup verified; Brightness unavailable state and labeled DDC/WMI fixture controls verified on the VM, physical brightness pending; full catalog, other audio devices and live provider sessions pending |
-| Packaging and updates | Portable ZIP and per-user NSIS setup with versioned runtimes and stable launchers | Native installation, complete payload hashes, installed desktop, in-use rejection, upgrades, startup-choice preservation/disabling and uninstall with preferences/unknown files retained verified; interrupted-copy ownership tested; release signing, automatic update delivery and broader startup-performance acceptance pending |
+| Packaging and updates | Unsigned preview ZIP and per-user NSIS setup with versioned runtimes and stable launchers; shared update notifications open the release page for manual installation | Native installation, complete payload hashes, installed desktop, in-use rejection, upgrades, startup-choice preservation/disabling and uninstall with preferences/unknown files retained verified; interrupted-copy ownership tested; CI requires a distinct older-version upgrade, three measured starts and a two-minute idle session; native acceptance of these new checks is pending; signing is deferred |
 | Existing platforms | Initial regression tests pass | Keep Linux/BSD tests and desktop behavior working |
 
 The first milestone is a visibly working basic dock. Native services and applet

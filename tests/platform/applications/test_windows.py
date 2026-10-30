@@ -53,9 +53,11 @@ def test_shell_export_file_survives_merge_with_a_retained_gio_handle(tmp_path):
         application("Example.App"),
         export_file=tmp_path / "Example.lnk",
         launch_target=r"shell:AppsFolder\Example.App",
+        document_target=r"C:\cache\source.lnk",
     )
     result = merge_shell_catalog(discover_windows_applications((handle,)), (native,))
     assert result.applications[0].export_file == native.export_file
+    assert result.applications[0].document_target == native.document_target
     assert result.handles["Example.App"] is handle
 
 
@@ -67,6 +69,7 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
     )
     prepared = replace(
         selected,
+        document_target=r"C:\cache\catalog-source.lnk",
         export_file=tmp_path / "Original.lnk",
         export_data=(("Native file data", b"original-pidl"),),
     )
@@ -90,6 +93,7 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
     selected = replace(selected, launch_target=r"C:\private\replacement.lnk")
     updated = registry.register_executable(tmp_path / "Selected.lnk")
     assert updated.launch_target == selected.launch_target
+    assert not updated.document_target
     assert updated.export_file is None and updated.export_data == ()
     lookup.invalidate.assert_called_once()
     assert registry._gio_handle_for(selected.desktop_id) is handle

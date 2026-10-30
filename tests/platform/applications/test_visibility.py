@@ -42,7 +42,9 @@ def _wait(predicate):
 
 def _lookup(resolve, idle, changed):
     return ApplicationMetadataLookup(
-        resolve=lambda ids: ApplicationMetadata(hidden_ids=resolve(ids)),
+        resolve_factory=lambda: (
+            lambda ids, _cancelled: ApplicationMetadata(hidden_ids=resolve(ids))
+        ),
         on_changed=changed,
         schedule_idle=idle.add,
         remove_source=idle.remove,
@@ -177,6 +179,47 @@ def test_restarting_cannot_publish_a_stopped_workers_result():
         lookup.stop()
 
 
+def test_catalog_io_cancel_callback_belongs_to_its_original_lifetime():
+    idle, entered, release, finished = (
+        _Idle(),
+        threading.Event(),
+        threading.Event(),
+        threading.Event(),
+    )
+    observations = []
+
+    def resolve(ids, cancelled):
+        if ids == ("old",):
+            entered.set()
+            assert release.wait(2)
+            observations.append(cancelled())
+            finished.set()
+        return ApplicationMetadata(hidden_ids=frozenset(ids))
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    try:
+        lookup.start()
+        lookup.request(("old",))
+        assert entered.wait(1)
+        lookup.stop()
+        lookup.start()
+        lookup.request(("new",))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        release.set()
+        assert finished.wait(1)
+        assert observations == [True]
+        assert lookup.hidden_ids == {"new"}
+    finally:
+        release.set()
+        lookup.stop()
+
+
 def test_failed_catalog_read_preserves_the_last_complete_native_listing():
     from tests.platform.application_fakes import application
 
@@ -188,7 +231,7 @@ def test_failed_catalog_read_preserves_the_last_complete_native_listing():
         return ApplicationMetadata(applications=apps if len(calls) == 1 else None)
 
     lookup = ApplicationMetadataLookup(
-        resolve=resolve,
+        resolve_factory=lambda: lambda ids, _cancelled: resolve(ids),
         on_changed=lambda: None,
         schedule_idle=idle.add,
         remove_source=idle.remove,
@@ -213,7 +256,11 @@ def test_periodic_worker_refresh_discovers_changes_without_gio_notifications():
     idle, called = _Idle(), threading.Event()
     apps = (application("Added"),)
     lookup = ApplicationMetadataLookup(
-        resolve=lambda _ids: called.set() or ApplicationMetadata(applications=apps),
+        resolve_factory=lambda: (
+            lambda _ids, _cancelled: (
+                called.set() or ApplicationMetadata(applications=apps)
+            )
+        ),
         on_changed=lambda: None,
         schedule_idle=idle.add,
         remove_source=idle.remove,
@@ -246,13 +293,17 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
     main = threading.get_ident()
     idle, calls = _Idle(), []
     selected = application("Native.App")
+    exporters = []
 
     def registrations():
         assert threading.get_ident() != main
         return (selected,)
 
-    def prepare(ids, *, registrations):
+    def prepare(ids, *, registrations, cancelled, exporter):
         assert threading.get_ident() != main
+        assert not cancelled()
+        assert exporter is not None
+        exporters.append(exporter)
         calls.append((ids, registrations))
         return ApplicationMetadata(applications=registrations)
 
@@ -278,6 +329,13 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
         idle.flush()
         assert lookup.applications == (selected,)
         assert len(calls) == 2
+        assert exporters[0] is exporters[1]
+        lookup.stop()
+        lookup.start()
+        lookup.request(("Native.App",))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert exporters[2] is not exporters[0]
         assert calls[1] == (("Native.App",), (selected,))
     finally:
         lookup.stop()

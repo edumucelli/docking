@@ -64,10 +64,71 @@ def test_shell_retains_literal_shortcut_semantics_and_an_optional_process(native
     info = library.ShellExecuteExW.call_args.args[0]._obj
     assert info.file == target and info.verb == "open"
     assert info.parameters is None and info.directory is None
-    assert info.mask == 0x40 and info.size == ctypes.sizeof(info)
+    assert info.mask == 0x440 and info.size == ctypes.sizeof(info)
     assert outcome.process.poll() is None
     kernel.WaitForSingleObject.assert_called_once_with(71, 0)
     kernel.CloseHandle.assert_not_called()
+
+
+def test_selected_file_parameters_are_literal_and_do_not_replace_link_options(native):
+    import subprocess
+
+    _kernel, library = native
+    target = r"C:\Pins\selected profile.lnk"
+    paths = (r"C:\Documents\résumé & #100%.txt", r"\\fileserver\team\日本語.txt")
+    assert launching.launch_shortcut(target, arguments=paths).started
+    info = library.ShellExecuteExW.call_args.args[0]._obj
+    assert info.file == target
+    assert info.parameters == subprocess.list2cmdline(paths)
+    assert info.directory is None and info.show == 1
+
+
+@pytest.mark.parametrize(
+    "target,expected",
+    [
+        ("C:/Pins/résumé & #100%.lnk", r"C:\Pins\résumé & #100%.lnk"),
+        ("//server/share/selected profile.lnk", r"\\server\share\selected profile.lnk"),
+        (r"C:\Pins\literal #100%.lnk", r"C:\Pins\literal #100%.lnk"),
+        (
+            "https://example.com/a/b?path=C:/literal",
+            "https://example.com/a/b?path=C:/literal",
+        ),
+    ],
+)
+def test_shell_normalizes_only_absolute_native_targets(native, target, expected):
+    _kernel, library = native
+    assert launching.launch_shortcut(target).started
+    info = library.ShellExecuteExW.call_args.args[0]._obj
+    assert info.file == expected
+    assert info.mask == 0x440
+    assert info.parameters is None and info.directory is None
+
+
+def test_failed_shell_launch_has_no_error_dialog_and_closes_its_returned_handle(native):
+    kernel, library = native
+
+    def denied(pointer):
+        info = pointer._obj
+        assert info.mask == 0x440 and info.file == r"\\server\share\missing.lnk"
+        info.process = 71
+        return 0
+
+    library.ShellExecuteExW.side_effect = denied
+    assert launching.launch_shortcut(
+        "//server/share/missing.lnk", arguments=(r"C:\literal & #100%.txt",)
+    ) == LaunchOutcome(False)
+    kernel.CloseHandle.assert_called_once_with(71)
+
+
+@pytest.mark.parametrize("arguments", [("bad\0.txt",), ("x" * 32767,), ("😀" * 16384,)])
+def test_invalid_or_overlong_file_arguments_never_start_a_partial_launch(
+    native, arguments
+):
+    _kernel, library = native
+    assert launching.launch_shortcut(
+        r"C:\Pins\Selected.lnk", arguments=arguments
+    ) == LaunchOutcome(False)
+    library.ShellExecuteExW.assert_not_called()
 
 
 def test_signaled_process_can_really_exit_with_still_active_numeric_status(native):

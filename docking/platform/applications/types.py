@@ -69,6 +69,9 @@ class ApplicationInfo:
     steam_manifest: Path | None = None
     # A source-owned native target; activation must preserve its shell semantics.
     launch_target: str = ""
+    # Optional source-owned target for selected-document activation. The shell's
+    # ordinary application target need not forward file parameters.
+    document_target: str = ""
     # An already-prepared native launch file for external COPY drags.
     export_file: Path | None = None
     export_data: tuple[tuple[str, bytes], ...] = ()

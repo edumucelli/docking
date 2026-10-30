@@ -19,8 +19,173 @@ import pytest
 from docking.applets.aiusage import hook_command
 from docking.platform.backends.windows import installation as install_module
 from docking.platform.backends.windows.installation import installed_hook
+from tools.windows import installer as installer_tool
 from tools.windows.bundle import filesystem_path, native_path, payload_root
 from tools.windows.installer import build, payload_script, removal_manifest
+from tools.windows.visual import installer_smoke
+
+
+@pytest.mark.parametrize("different", [False, True])
+def test_installed_identity_uses_payload_bytes_not_matching_file_count(
+    tmp_path, monkeypatch, different
+):
+    payload = installation(tmp_path, "candidate")
+    metadata = payload / "runtime/share/docking/runtime.json"
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(json.dumps({"version": "1.2.3", "wheel_sha256": "1" * 64}))
+    (tmp_path / "Docking.exe").write_bytes(b"stable launcher")
+    (tmp_path / "docking-hook.exe").touch()
+    original = {
+        "runtime/share/docking/runtime.json": hashlib.sha256(
+            metadata.read_bytes()
+        ).hexdigest()
+    }
+    inventory = payload / "files.sha256.json"
+    inventory.write_text(json.dumps(original))
+    expected = {
+        "payload_inventory_sha256": hashlib.sha256(inventory.read_bytes()).hexdigest(),
+        "wheel_sha256": "1" * 64,
+        "version": "1.2.3",
+        "payload_files": 1,
+    }
+    if different:
+        # A coherent, same-count payload must still match the accepted archive.
+        metadata.write_text(json.dumps({"version": "1.2.3", "wheel_sha256": "2" * 64}))
+        original["runtime/share/docking/runtime.json"] = hashlib.sha256(
+            metadata.read_bytes()
+        ).hexdigest()
+        inventory.write_text(json.dumps(original))
+    monkeypatch.setattr(
+        installer_smoke,
+        "registry_value",
+        lambda _key, name: str(tmp_path) if name == "InstallLocation" else "1.2.3",
+    )
+    monkeypatch.setattr(
+        installer_smoke, "programs_directory", lambda: tmp_path / "Start"
+    )
+    monkeypatch.setattr(
+        installer_smoke,
+        "read_shortcut",
+        lambda _path: SimpleNamespace(executable=tmp_path / "Docking.exe"),
+    )
+    if different:
+        with pytest.raises(AssertionError, match="differs"):
+            installer_smoke.verify_installation(tmp_path, expected)
+    else:
+        assert installer_smoke.verify_installation(tmp_path, expected) == (payload, 1)
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_upgrade_fixture_changes_only_project_version_and_is_strictly_older(newline):
+    text = newline.join(
+        (
+            "[project]",
+            'name = "docking"',
+            'version = "2.28.0"',
+            "[tool.other]",
+            'version = "keep"',
+            "",
+        )
+    )
+    changed, current, previous = installer_tool.upgrade_fixture_project(text)
+    assert (current, previous) == ("2.28.0", "2.28.0.dev0")
+    assert changed == text.replace('version = "2.28.0"', 'version = "2.28.0.dev0"')
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '[project]\ndynamic = ["version"]\n',
+        '[tool.other]\nversion = "2.28.0"\n',
+        '[project]\nversion = "2.28.0.dev0"\n',
+    ],
+)
+def test_upgrade_fixture_requires_a_real_older_static_version(text):
+    with pytest.raises(ValueError):
+        installer_tool.upgrade_fixture_project(text)
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
+    tmp_path, monkeypatch, failed
+):
+    source, output = tmp_path / "checkout", tmp_path / "upgrade-fixture"
+    source.mkdir()
+    original = '[project]\nname = "docking"\nversion = "2.28.0"\n'
+    (source / "pyproject.toml").write_text(original, encoding="utf-8")
+    for name in (
+        "setup.py",
+        "setup.cfg",
+        "MANIFEST.in",
+        "README.md",
+        "LICENSE",
+        "requirements-windows-browser.txt",
+        "tools/windows/__init__.py",
+        "tools/windows/input_runtime.py",
+        "docking/__init__.py",
+        "docking/locale/en.mo",
+        "docking/__pycache__/old.pyc",
+        "docking/helper.dll",
+        ".private/unrelated",
+    ):
+        path = source / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"source fixture")
+    observed = []
+
+    def compile_wheel(command, *, cwd, check):
+        assert check is True
+        copied = Path(cwd)
+        assert copied != source
+        assert 'version = "2.28.0.dev0"' in (copied / "pyproject.toml").read_text()
+        assert not (copied / ".private").exists()
+        assert not (copied / "docking/helper.dll").exists()
+        assert not (copied / "docking/__pycache__").exists()
+        assert (copied / "docking/locale/en.mo").read_bytes() == b"source fixture"
+        observed.append(copied)
+        if failed:
+            raise subprocess.CalledProcessError(1, command)
+        wheels = Path(command[command.index("--outdir") + 1])
+        wheels.mkdir()
+        (wheels / "docking-2.28.0.dev0-py3-none-win_amd64.whl").write_bytes(
+            b"old wheel"
+        )
+
+    def bundle(wheel, destination, prefix, webview):
+        assert wheel.read_bytes() == b"old wheel"
+        assert prefix == tmp_path / "runtime-prefix"
+        assert webview is None
+        destination.mkdir()
+        (destination / "Docking.exe").write_bytes(b"old launcher")
+
+    def setup(archive, destination, prefix):
+        with zipfile.ZipFile(archive) as zipped:
+            assert zipped.read("Docking/Docking.exe") == b"old launcher"
+        destination.write_bytes(b"old setup")
+
+    monkeypatch.setattr(installer_tool.subprocess, "run", compile_wheel)
+    # The fake compiler reads host paths; native subprocess path conversion is
+    # covered by the Windows packaging checks.
+    monkeypatch.setattr(installer_tool, "command_path", str)
+    monkeypatch.setattr(installer_tool, "build_bundle", bundle)
+    monkeypatch.setattr(installer_tool, "build", setup)
+    if failed:
+        with pytest.raises(subprocess.CalledProcessError):
+            installer_tool.build_upgrade_fixture(
+                source, output, tmp_path / "runtime-prefix"
+            )
+        assert not output.exists()
+    else:
+        installer_tool.build_upgrade_fixture(
+            source, output, tmp_path / "runtime-prefix"
+        )
+        record = json.loads((output / "fixture.json").read_text())
+        assert record["fixture_version"] == "2.28.0.dev0"
+        assert record["historical_release_compatibility"] is False
+        assert record["wheel_sha256"] == hashlib.sha256(b"old wheel").hexdigest()
+    assert (source / "pyproject.toml").read_text() == original
+    assert observed and not observed[0].exists()
+    assert not list(tmp_path.glob("docking-upgrade-*"))
 
 
 @pytest.mark.parametrize(

@@ -19,6 +19,7 @@ class ExplorerFolder:
         self.native = native
         self.directory = directory.resolve()
         self.window = None
+        self.cleanup_failure = None
 
     def __enter__(self):
         initial = {window["hwnd"] for window in self.native.windows()}
@@ -41,8 +42,8 @@ class ExplorerFolder:
             self.native.click((x1 + x2) // 2, y1 + 20)
             self.native.key(ord("2"), control=True, shift=True)
             time.sleep(1)
-        except BaseException:
-            self.close()
+        except BaseException as error:
+            self._cleanup(error)
             raise
         return self
 
@@ -109,5 +110,16 @@ $rows[0]|ConvertTo-Json -Compress
                 )
             self.window = None
 
-    def __exit__(self, *_exception):
-        self.close()
+    def _cleanup(self, primary):
+        try:
+            self.close()
+        except (AssertionError, OSError) as error:
+            self.cleanup_failure = {
+                "class": type(error).__name__,
+                "errno": error.errno if isinstance(error, OSError) else None,
+            }
+            if primary is None:
+                raise
+
+    def __exit__(self, _kind, error, _traceback):
+        self._cleanup(error)

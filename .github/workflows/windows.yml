@@ -83,24 +83,56 @@ jobs:
       - name: Verify the complete Windows keyboard and input domain
         run: python -m tools.windows.ci --stage input --installed-root artifacts/windows/runtime
       - name: Verify the complete Windows notification icon domain
+        id: tray
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage tray --installed-root artifacts/windows/runtime --wheel dist/*.whl
+      - name: Verify application documents, inventory and Explorer recovery
+        id: applications
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.ci --stage applications --installed-root artifacts/windows/runtime --wheel dist/*.whl
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
           python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
           python -m tools.windows.visual.pairing_smoke --output artifacts/windows/pairing
       - name: Build the standalone Windows application
+        id: bundle
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: |
           python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
       - name: Exercise the standalone runtime and native launcher
+        id: bundle_smoke
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
         run: |
           python -m tools.windows.visual.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
           python -m tools.windows.visual.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
       - name: Build the per-user Windows installer
+        id: installer
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
         run: python -m tools.windows.installer --archive dist/docking-windows-x86_64.zip --output dist/docking-windows-x86_64-setup.exe
+      - name: Build the older-version upgrade fixture
+        id: upgrade_fixture
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: python -m tools.windows.installer --fixture-source . --output artifacts/windows/upgrade-fixture
       - name: Exercise installation, upgrades, startup and uninstall
-        run: python -m tools.windows.visual.installer_smoke --installer dist/docking-windows-x86_64-setup.exe --output artifacts/windows/installer
+        id: installer_smoke
+        if: ${{ !cancelled() && steps.installer.outcome == 'success' && steps.upgrade_fixture.outcome == 'success' }}
+        run: >-
+          python -m tools.windows.visual.installer_smoke
+          --installer dist/docking-windows-x86_64-setup.exe
+          --archive dist/docking-windows-x86_64.zip
+          --previous-installer artifacts/windows/upgrade-fixture/previous-setup.exe
+          --previous-archive artifacts/windows/upgrade-fixture/previous.zip
+          --output artifacts/windows/installer
+      - name: Measure installed startup and bounded session stability
+        id: release_readiness
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' && steps.bundle_smoke.outcome == 'success' }}
+        run: >-
+          python -m tools.windows.visual.release_smoke
+          --archive dist/docking-windows-x86_64.zip
+          --bundle artifacts/windows/bundle-preflight/extracted/Docking
+          --output artifacts/windows/release-readiness
       - name: Verify accepted Windows release assets
+        if: ${{ !cancelled() && steps.installer_smoke.outcome == 'success' && steps.release_readiness.outcome == 'success' && steps.tray.outcome == 'success' && steps.applications.outcome == 'success' }}
         run: |
           python - <<'PY'
           from importlib.metadata import version
@@ -117,6 +149,7 @@ jobs:
             artifacts/windows/environment.json
             artifacts/windows/input-domain.json
             artifacts/windows/tray-domain.json
+            artifacts/windows/applications-domain.json
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
@@ -124,12 +157,16 @@ jobs:
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/
             artifacts/windows/tray/
+            artifacts/windows/applications-explorer/
             artifacts/windows/pairing/
             artifacts/windows/bluetooth/
             artifacts/windows/bundle-preflight/*.json
             artifacts/windows/bundle-preflight/*.log
             artifacts/windows/bundle-desktop/
             artifacts/windows/installer/
+            artifacts/windows/upgrade-fixture/*.json
+            artifacts/windows/upgrade-fixture/*.log
+            artifacts/windows/release-readiness/
             artifacts/windows/release-staged/SHA256SUMS-windows
             dist/*.whl
             dist/*.zip

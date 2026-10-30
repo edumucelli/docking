@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from threading import Event, RLock, Thread
+from typing import Protocol
 
 from docking.log import get_logger
 from docking.platform.environment import is_windows
@@ -26,19 +27,40 @@ class ApplicationMetadata:
     applications: tuple[ApplicationInfo, ...] | None = None
 
 
+class ApplicationChangeMonitor(Protocol):
+    def close(self) -> None: ...
+
+
+MetadataResolver = Callable[[tuple[str, ...], Callable[[], bool]], ApplicationMetadata]
+
+
+def create_change_monitor(
+    changed: Callable[[], None],
+) -> ApplicationChangeMonitor | None:
+    if not is_windows():
+        return None
+    from docking.platform.backends.windows.catalog_monitor import CatalogChangeMonitor
+
+    try:
+        return CatalogChangeMonitor(changed)
+    except OSError as exc:
+        log.warning("Could not watch native application changes (error %s)", exc.errno)
+        return None  # The existing periodic complete catalog remains available.
+
+
 class ApplicationMetadataLookup:
     """Coalesce metadata reads and reject callbacks from obsolete requests."""
 
     def __init__(
         self,
         *,
-        resolve: Callable[[tuple[str, ...]], ApplicationMetadata],
+        resolve_factory: Callable[[], MetadataResolver],
         on_changed: Callable[[], None],
         schedule_idle: Callable[..., int],
         remove_source: Callable[[int], bool],
         refresh_interval: float = 30.0,
     ) -> None:
-        self._resolve = resolve
+        self._resolve_factory = resolve_factory
         self._on_changed = on_changed
         self._schedule_idle = schedule_idle
         self._remove_source = remove_source
@@ -106,6 +128,9 @@ class ApplicationMetadataLookup:
             self._sources.clear()
 
     def _serve(self, epoch: int, closed: Event, wake: Event) -> None:
+        if closed.is_set():
+            return
+        resolve = self._resolve_factory()
         while not closed.is_set():
             signaled = wake.wait(self._refresh_interval)
             wake.clear()
@@ -126,7 +151,7 @@ class ApplicationMetadataLookup:
                 continue
             generation, ids = pending
             try:
-                metadata = self._resolve(ids)
+                metadata = resolve(ids, closed.is_set)
             except OSError as exc:
                 log.debug("Could not read application metadata: %s", exc)
                 continue
@@ -186,10 +211,25 @@ def create_metadata_lookup(
         return None
     from docking.platform.backends.windows.catalog import read_application_metadata
 
+    from .windows_export import WindowsApplicationExport
+
+    def resolver() -> MetadataResolver:
+        exporter = WindowsApplicationExport()
+
+        def resolve(
+            ids: tuple[str, ...], cancelled: Callable[[], bool]
+        ) -> ApplicationMetadata:
+            return read_application_metadata(
+                ids,
+                registrations=registrations.applications(),
+                cancelled=cancelled,
+                exporter=exporter,
+            )
+
+        return resolve
+
     return ApplicationMetadataLookup(
-        resolve=lambda ids: read_application_metadata(
-            ids, registrations=registrations.applications()
-        ),
+        resolve_factory=resolver,
         on_changed=on_changed,
         schedule_idle=schedule_idle,
         remove_source=remove_source,

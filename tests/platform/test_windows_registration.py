@@ -144,6 +144,53 @@ def test_failed_shortcut_update_preserves_previous_registration(
     assert {p.resolve(): p.read_bytes() for p in backend.directory.iterdir()} == files
 
 
+@pytest.mark.parametrize("stage", ["metadata", "identity", "copy"])
+def test_replaced_source_cannot_mix_validation_identity_and_persisted_binary(
+    tmp_path, monkeypatch, links, stage
+):
+    executable = _executable(tmp_path / "Shared.exe")
+    source = _shortcut(tmp_path / "Selected.lnk", executable)
+    monkeypatch.setattr(
+        registration, "shortcut_application_id", lambda _p: "Native.App"
+    )
+    backend = registration.WindowsExecutableRegistration(tmp_path / "launchers")
+    backend.create(source, startup_wm_class="")
+    previous = backend.applications()
+    retained = {p.resolve(): p.read_bytes() for p in backend.directory.iterdir()}
+    replacement = _shortcut(tmp_path / "replacement.lnk", tmp_path / "document.txt")
+    read, copy = registration.read_shortcut, registration.shutil.copyfile
+
+    def read_replaced(path):
+        link = read(path)
+        replacement.replace(source)
+        return link
+
+    def identity_replaced(_path):
+        replacement.replace(source)
+        return "Other.App"
+
+    def copy_replaced(origin, destination):
+        result = copy(origin, destination)
+        replacement.replace(source)
+        return result
+
+    if stage == "metadata":
+        monkeypatch.setattr(registration, "read_shortcut", read_replaced)
+    elif stage == "identity":
+        monkeypatch.setattr(registration, "shortcut_application_id", identity_replaced)
+    else:
+        monkeypatch.setattr(registration.shutil, "copyfile", copy_replaced)
+
+    with pytest.raises(OSError, match="Shortcut changed during import"):
+        backend.create(source, startup_wm_class="")
+    monkeypatch.setattr(registration, "read_shortcut", read)
+    assert backend.applications() == previous
+    assert {
+        p.resolve(): p.read_bytes() for p in backend.directory.iterdir()
+    } == retained
+    assert registration.read_shortcut(source).executable == tmp_path / "document.txt"
+
+
 def test_updating_shortcut_changes_target_but_retains_previous_generation(
     tmp_path, monkeypatch, links
 ):

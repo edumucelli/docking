@@ -69,7 +69,7 @@ def focus_desktop():
     native.user.WindowFromPoint = Mock(
         side_effect=lambda point: native.window_at(point.x, point.y)
     )
-    native.user.GetAncestor = Mock(side_effect=lambda hwnd, flag: hwnd)
+    native.user.GetAncestor = Mock(side_effect=lambda hwnd, _flag: hwnd)
     native.user.GetWindowThreadProcessId = Mock(side_effect=owner)
     native.user.GetClassNameW = Mock(side_effect=cls)
     native.user.GetWindowRect = Mock(side_effect=rect)

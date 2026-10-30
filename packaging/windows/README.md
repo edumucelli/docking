@@ -9,6 +9,9 @@ Evergreen WebView2 Runtime. The separate experimental Qt browser is not bundled.
 The installer defaults to `%LOCALAPPDATA%\Programs\Docking`, adds a Start menu
 shortcut and an Installed Apps entry, and offers an optional launch-at-login
 checkbox. Windows Startup Apps policy continues to apply.
+These are unsigned preview packages. Authenticode signing is deferred; release
+checksums identify the published bytes but do not provide a publisher signature.
+See the [Windows install and update instructions](../../docs/INSTALLATION.md#windows-preview).
 The GStreamer plugin set covers Ambient's OGG playback and generated noise;
 Windows web playback uses WebView2.
 
@@ -29,6 +32,10 @@ python -m tools.windows.visual.bundle_smoke --archive dist/docking-2.28.0-window
 python -m tools.windows.visual.smoke \
   --bundle artifacts/windows/bundle-preflight/extracted/Docking \
   --output artifacts/windows/bundle-desktop
+python -m tools.windows.visual.release_smoke \
+  --archive dist/docking-2.28.0-windows-x86_64.zip \
+  --bundle artifacts/windows/bundle-preflight/extracted/Docking \
+  --output artifacts/windows/release-readiness
 ```
 
 The destination must not exist. The builder follows the installed pacman runtime
@@ -79,8 +86,13 @@ Run the complete installer check on an interactive Windows desktop with no other
 Docking instance or existing installed copy:
 
 ```sh
+python -m tools.windows.installer --fixture-source . \
+  --output artifacts/windows/upgrade-fixture
 python -m tools.windows.visual.installer_smoke \
   --installer dist/docking-2.28.0-windows-x86_64-setup.exe \
+  --archive dist/docking-2.28.0-windows-x86_64.zip \
+  --previous-installer artifacts/windows/upgrade-fixture/previous-setup.exe \
+  --previous-archive artifacts/windows/upgrade-fixture/previous.zip \
   --output artifacts/windows/installer
 ```
 
@@ -90,10 +102,42 @@ preservation and disabling, the installed desktop, and uninstall with retained
 preferences and unknown files. Windows CI builds and uploads the ZIP, installer,
 checksums, reports, logs and desktop captures.
 
+The upgrade fixture builds a real older-version wheel, portable archive and
+installer from an owned temporary source copy. Only that copy's project version
+changes, to the current release's `.dev0` version. Both installations are checked
+against their own exact inventory, wheel and version; their file counts may
+differ. This proves a distinct-version installation transition with current
+code, rather than compatibility with every earlier published release. The
+original checkout remains unchanged. The fixture can use the same offline
+`--webview2-package` option as the bundle builder.
+
+`release_smoke` records launcher-to-visible and launcher-to-responsive times for
+three separate starts and normal closes, then samples one 120-second idle session
+with Applications, Clock, Calendar, Calculator and Hydration pinned. Each sample
+checks native window responsiveness and captures owned-process CPU time, working
+set, private bytes, threads, handles and GDI/USER object counts. The report retains
+the raw samples, process creation identities, resource deltas, normal exits and
+cleanup failures. It isolates configuration and removes development runtime
+paths. Measurements follow payload verification, so cache state is uncontrolled;
+they do not measure cold boot, login, arbitrary applet workloads or all-day use.
+There is no performance SLA or leak-free claim. `--cycles`, `--seconds` and
+`--interval` allow investigation, but release staging requires at least three
+startup cycles, 120 seconds, complete samples and clean shutdowns.
+
 The release workflow stages the accepted Windows CI artifact alongside the
 Linux and BSD assets. It verifies the project version, package checksums and the
 matching successful installer report before copying the ZIP and installer to
 versioned and `docking-latest-windows-x86_64` names, with `SHA256SUMS-windows`.
+Acceptance binds the exact archive, installer, raw payload inventory and wheel
+SHA-256 digests plus version, and requires the older-version upgrade and bounded
+startup/session reports. A matching file count alone cannot authorize a package.
+It requires `artifacts/windows/applications-explorer/result.json` for the same
+installed wheel: all three one-file/two-file document-drop routes, the default,
+explicit and absent association checks, launcher export, native inventory
+changes and Explorer replacement. Embedded child reports must retain physical
+input, exact application grouping, normal shutdown and cleanup, plus the old and
+replacement shell identities. CI and release staging use the same validator;
+missing or dependency-skipped workflows cannot authorize publication.
 It also requires both complete 40-case native tray API matrices and both GTK
 interaction profiles under `artifacts/windows/tray/`. The installed backend and
 GTK reports must match the ZIP's wheel checksum and record successful physical
@@ -108,5 +152,7 @@ python -m tools.windows.release --directory path/to/downloaded-artifact \
   --version 2.28.0 --output artifacts/release
 ```
 
-Release signing, automatic update delivery and broader startup-performance
-acceptance remain pending.
+Windows previews remain unsigned. Docking's shared update notice opens the
+release page; installation is manual, as with direct Linux/BSD downloads. Close
+Docking and its usage-hook processes before running the new installer. Signing
+and broader long-session/performance coverage are deferred.

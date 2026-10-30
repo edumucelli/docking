@@ -15,6 +15,11 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--installed-root", type=Path)
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--application-id")
+    parser.add_argument("--application-name")
+    parser.add_argument("--launcher-source", type=Path)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--check-visibility",
@@ -42,6 +47,15 @@ def main():
     finish.add_argument("--cancel-export", action="store_true")
     finish.add_argument("--close-during-export", action="store_true")
     args = parser.parse_args()
+    if bool(args.application_id) != bool(args.application_name):
+        parser.error(
+            "Custom acceptance needs both --application-id and --application-name"
+        )
+    if args.application_id and (args.classic or args.check_visibility):
+        parser.error("Choose the owned application or an installed default fixture")
+    if args.launcher_source is not None and not args.application_id:
+        parser.error("--launcher-source requires an exact owned application ID")
+    args.classic = args.classic or bool(args.application_id)
     if args.check_artwork and args.check_visibility:
         parser.error("Choose artwork or visibility acceptance for this run")
     args.trace_surfaces = args.trace_surfaces or args.check_artwork
@@ -68,6 +82,20 @@ def main():
     os.environ["XDG_CONFIG_HOME"] = str(profile_root / "config")
     os.environ["XDG_CACHE_HOME"] = str(profile_root / "cache")
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from tools.windows.visual.tray_acceptance import runtime_origins, select_runtime
+
+    runtime = select_runtime(args.installed_root, args.wheel)
+    if args.launcher_source is not None:
+        from docking.platform.applications.windows_registration import (
+            WindowsExecutableRegistration,
+        )
+
+        assert (
+            WindowsExecutableRegistration().create(
+                args.launcher_source, startup_wm_class=""
+            )
+            == args.application_id
+        )
     from docking.launcher import prepare_display
 
     prepare_display()
@@ -112,8 +140,8 @@ def main():
 
         stack_trace = (output / "python-stacks.log").open("w", encoding="utf-8")
         faulthandler.dump_traceback_later(20, repeat=True, file=stack_trace)
-    app_name = "Character Map" if args.classic else "Notepad"
-    expected_id = (
+    app_name = args.application_name or ("Character Map" if args.classic else "Notepad")
+    expected_id = args.application_id or (
         r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\charmap.exe"
         if args.classic
         else "Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"
@@ -132,7 +160,19 @@ def main():
     )
     baseline = native.workarea()
     ready = threading.Event()
-    report, shared, errors = {"baseline_workarea": baseline, "drops": []}, {}, []
+    report, shared, errors = (
+        {
+            "baseline_workarea": baseline,
+            "drops": [],
+            "runtime": {
+                "implementation": "installed-wheel" if runtime.installed else "source",
+                "wheel_sha256": runtime.wheel_sha256,
+                "origins": runtime_origins(runtime.root, {"app": app.__file__}),
+            },
+        },
+        {},
+        [],
+    )
     blocked, release = threading.Event(), threading.Event()
     if args.check_artwork:
         from docking.platform.backends.windows import icons

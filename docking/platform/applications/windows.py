@@ -109,6 +109,7 @@ def merge_shell_catalog(
                 aliases=tuple(dict.fromkeys((*native.aliases, *previous.aliases))),
                 visible=native.visible,
                 launch_target=native.launch_target,
+                document_target=native.document_target,
                 export_file=native.export_file,
                 export_data=native.export_data,
             )

@@ -5,12 +5,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import shutil
 import zipfile
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
+from packaging.version import InvalidVersion, Version
+
+from tools.windows.application_acceptance import validate_applications_report
+from tools.windows.bundle import verify_archive
 from tools.windows.visual.tray_provider import provider_cases
 
 REQUIRED_CHECKS = (
@@ -20,9 +25,249 @@ REQUIRED_CHECKS = (
     "startup_disabled",
     "installed_desktop",
     "uninstall_preserved_preferences_and_unknown_files",
+    "distinct_version_upgrade",
 )
 
 _TRAY_PROFILES = ("explorer", "backend", "gtk-v0-v4", "gtk-v3-v4-guid")
+
+
+class ResourceTotals(TypedDict):
+    rss_bytes: int
+    private_bytes: int
+    threads: int
+    handles: int
+    gdi: int
+    user: int
+
+
+class ProcessSample(ResourceTotals):
+    pid: int
+    created: float
+    cpu_seconds: float
+
+
+class SessionSample(ResourceTotals):
+    elapsed_seconds: float
+    responsive: bool
+    processes: list[ProcessSample]
+
+
+def archive_identity(path: Path) -> dict[str, str | int]:
+    """Verify portable bytes without extraction and identify the tested payload."""
+    archive_sha256 = digest(path)
+    with zipfile.ZipFile(path) as archive:
+        inventory, inventory_bytes = verify_archive(archive)
+        if archive.getinfo("Docking/runtime/share/docking/runtime.json").file_size > (
+            8 * 1024 * 1024
+        ):
+            raise ValueError("Windows runtime metadata exceeds its size limit")
+        metadata = json.loads(
+            archive.read("Docking/runtime/share/docking/runtime.json")
+        )
+    if not isinstance(metadata, dict):
+        raise ValueError("Windows package lacks its version")
+    version = metadata.get("version")
+    if not isinstance(version, str) or not version:
+        raise ValueError("Windows package lacks its version")
+    wheel = metadata.get("wheel_sha256")
+    if not isinstance(wheel, str) or not re.fullmatch("[0-9a-f]{64}", wheel):
+        raise ValueError("Windows package lacks its wheel digest")
+    if digest(path) != archive_sha256:
+        raise ValueError("Windows archive changed during verification")
+    return {
+        "archive_sha256": archive_sha256,
+        "payload_inventory_sha256": hashlib.sha256(inventory_bytes).hexdigest(),
+        "wheel_sha256": wheel,
+        "version": version,
+        "payload_files": len(inventory),
+    }
+
+
+def validate_installer_report(
+    report: object, candidate: dict[str, str | int], installer_sha256: str
+) -> None:
+    """Bind native upgrade acceptance to both actual package identities."""
+    expected = {**candidate, "installer_sha256": installer_sha256}
+    if (
+        not isinstance(report, dict)
+        or "error" in report
+        or type(report.get("acceptance_schema")) is not int
+        or report["acceptance_schema"] != 1
+        or report.get("installer_sha256") != installer_sha256
+        or report.get("candidate") != expected
+        or any(report.get(check) is not True for check in REQUIRED_CHECKS)
+        or any(
+            type(report.get(check)) is not int
+            or report[check] != candidate["payload_files"]
+            for check in ("verified_payload_files", "verified_final_payload_files")
+        )
+    ):
+        raise ValueError("Windows packages lack matching installer acceptance")
+    previous = report.get("previous")
+    if (
+        not isinstance(previous, dict)
+        or not isinstance(previous.get("version"), str)
+        or any(
+            not isinstance(previous.get(key), str)
+            or re.fullmatch("[0-9a-f]{64}", previous[key]) is None
+            for key in (
+                "archive_sha256",
+                "installer_sha256",
+                "payload_inventory_sha256",
+                "wheel_sha256",
+            )
+        )
+        or type(previous.get("payload_files")) is not int
+        or previous["payload_files"] <= 0
+        or type(report.get("previous_verified_payload_files")) is not int
+        or report.get("previous_verified_payload_files") != previous["payload_files"]
+        or any(
+            previous[key] == expected[key]
+            for key in (
+                "archive_sha256",
+                "installer_sha256",
+                "payload_inventory_sha256",
+                "wheel_sha256",
+            )
+        )
+    ):
+        raise ValueError("Windows installer lacks previous-version acceptance")
+    try:
+        older = Version(previous["version"]) < Version(str(candidate["version"]))
+    except InvalidVersion as exc:
+        raise ValueError("Windows installer upgrade versions are invalid") from exc
+    if not older:
+        raise ValueError("Windows installer did not upgrade a distinct older version")
+
+
+def summarize_samples(samples: list[SessionSample]) -> dict[str, float | int]:
+    """Summarize bounded observations without combining reused process IDs."""
+    if len(samples) < 2:
+        raise ValueError("Session measurements require at least two samples")
+    previous = -1.0
+    cpu: dict[tuple[int, float], float] = {}
+    for sample in samples:
+        elapsed = sample["elapsed_seconds"]
+        if (
+            type(elapsed) not in (int, float)
+            or not math.isfinite(elapsed)
+            or elapsed < 0
+            or elapsed <= previous
+        ):
+            raise ValueError("Session sample times must increase")
+        previous = elapsed
+        seen = set()
+        for process in sample["processes"]:
+            key = process["pid"], process["created"]
+            value = process["cpu_seconds"]
+            if (
+                type(key[0]) is not int
+                or key[0] <= 0
+                or type(key[1]) not in (int, float)
+                or not math.isfinite(key[1])
+                or key[1] <= 0
+                or key in seen
+                or type(value) not in (int, float)
+                or not math.isfinite(value)
+                or value < cpu.get(key, 0)
+            ):
+                raise ValueError("Process CPU measurements regressed")
+            seen.add(key)
+            cpu[key] = value
+    first, last = samples[0], samples[-1]
+    elapsed = last["elapsed_seconds"] - first["elapsed_seconds"]
+    observed_cpu = sum(cpu.values()) - sum(
+        process["cpu_seconds"] for process in first["processes"]
+    )
+    return {
+        "elapsed_seconds": elapsed,
+        "observed_cpu_seconds": observed_cpu,
+        "cpu_percent_one_core": observed_cpu / elapsed * 100,
+        "rss_bytes_delta": last["rss_bytes"] - first["rss_bytes"],
+        "private_bytes_delta": last["private_bytes"] - first["private_bytes"],
+        "handles_delta": last["handles"] - first["handles"],
+        "gdi_delta": last["gdi"] - first["gdi"],
+        "user_delta": last["user"] - first["user"],
+        "observed_process_instances": len(cpu),
+    }
+
+
+def validate_readiness_report(report: object, identity: dict[str, str | int]) -> None:
+    """Require the declared three-startup/two-minute release coverage, not an SLA."""
+    if (
+        not isinstance(report, dict)
+        or report.get("ok") is not True
+        or "error" in report
+        or not isinstance(report.get("acceptance"), dict)
+        or type(report["acceptance"].get("schema")) is not int
+        or report.get("acceptance")
+        != {
+            "schema": 1,
+            "implementation": "portable-bundle",
+            **identity,
+        }
+    ):
+        raise ValueError("Windows packages lack matching startup/session acceptance")
+    try:
+        measurement, startups, session = (
+            report["measurement"],
+            report["startups"],
+            report["session"],
+        )
+        if (
+            type(measurement["startup_cycles"]) is not int
+            or measurement["startup_cycles"] < 3
+            or len(startups) != measurement["startup_cycles"]
+            or not math.isfinite(measurement["requested_seconds"])
+            or measurement["requested_seconds"] < 120
+            or len(session["samples"]) < 3
+        ):
+            raise ValueError("Windows startup/session coverage is incomplete")
+        for row in [*startups, session]:
+            if (
+                row["normal_shutdown"] is not True
+                or row["close_requested"] is not True
+                or row["forced"] is not False
+                or type(row["exit_code"]) is not int
+                or row["exit_code"] != 0
+                or row["owned_remaining"] != []
+                or row["errors"] != []
+            ):
+                raise ValueError("Windows startup/session cleanup was incomplete")
+        for row in [*startups, session["startup"]]:
+            if not (
+                math.isfinite(row["visible_seconds"])
+                and math.isfinite(row["responsive_seconds"])
+                and 0 <= row["visible_seconds"] <= row["responsive_seconds"]
+            ):
+                raise ValueError("Invalid Windows startup timing")
+        for sample in session["samples"]:
+            if sample["responsive"] is not True or not sample["processes"]:
+                raise ValueError("Windows session did not remain responsive")
+            for key in (
+                "rss_bytes",
+                "private_bytes",
+                "threads",
+                "handles",
+                "gdi",
+                "user",
+            ):
+                if type(sample[key]) is not int or sample[key] < 0:
+                    raise ValueError("Invalid Windows resource measurement")
+                if any(
+                    type(process[key]) is not int or process[key] < 0
+                    for process in sample["processes"]
+                ) or sample[key] != sum(
+                    process[key] for process in sample["processes"]
+                ):
+                    raise ValueError("Windows resource totals differ from processes")
+        summary = summarize_samples(session["samples"])
+        if summary != session["summary"] or (
+            summary["elapsed_seconds"] < measurement["requested_seconds"] - 0.1
+        ):
+            raise ValueError("Windows session duration or summary differs from samples")
+    except (KeyError, TypeError, OverflowError) as exc:
+        raise ValueError("Incomplete Windows startup/session acceptance") from exc
 
 
 def _record(value: object) -> dict[str, object]:
@@ -255,11 +500,7 @@ def stage(directory: Path, version: str, destination: Path) -> None:
             ):
                 raise ValueError(f"Windows package checksum mismatch: {package.name}")
             packages.append((package, suffix, checksum))
-        with zipfile.ZipFile(packages[0][0]) as archive:
-            metadata = json.loads(
-                archive.read("Docking/runtime/share/docking/runtime.json")
-            )
-            inventory = json.loads(archive.read("Docking/files.sha256.json"))
+        identity = archive_identity(packages[0][0])
         report = json.loads(
             (directory / "artifacts/windows/installer/result.json").read_text(
                 encoding="utf-8"
@@ -267,23 +508,33 @@ def stage(directory: Path, version: str, destination: Path) -> None:
         )
     except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
         raise ValueError("Incomplete Windows release artifacts") from exc
-    if not isinstance(metadata, dict) or metadata.get("version") != version:
+    if identity["archive_sha256"] != packages[0][2]:
+        raise ValueError("Windows archive changed after its checksum was checked")
+    if identity["version"] != version:
         raise ValueError("Windows package does not match the release version")
-    if not isinstance(inventory, dict) or not inventory:
-        raise ValueError("Windows package lacks its file inventory")
-    if (
-        not isinstance(report, dict)
-        or "error" in report
-        or report.get("installer_sha256") != packages[1][2]
-        or any(report.get(check) is not True for check in REQUIRED_CHECKS)
-        or any(
-            type(report.get(check)) is not int or report[check] != len(inventory)
-            for check in ("verified_payload_files", "verified_final_payload_files")
-        )
-    ):
-        raise ValueError("Windows packages lack matching installer acceptance")
+    validate_installer_report(report, identity, packages[1][2])
     try:
-        _tray_acceptance(directory, metadata.get("wheel_sha256"))
+        readiness = json.loads(
+            (directory / "artifacts/windows/release-readiness/result.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        validate_readiness_report(readiness, identity)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Incomplete Windows startup/session acceptance") from exc
+    try:
+        applications = json.loads(
+            (
+                directory / "artifacts/windows/applications-explorer/result.json"
+            ).read_text(encoding="utf-8")
+        )
+        validate_applications_report(
+            applications, wheel_sha256=str(identity["wheel_sha256"])
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Incomplete Windows applications acceptance") from exc
+    try:
+        _tray_acceptance(directory, identity["wheel_sha256"])
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError("Incomplete Windows tray acceptance artifacts") from exc
     # Preflight every input before adding anything to the shared release folder.

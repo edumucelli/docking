@@ -6,15 +6,21 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import struct
 import subprocess
 import sys
 import sysconfig
+import zipfile
 from pathlib import Path, PurePosixPath
 
 from packaging.version import Version
 
 from tools.windows.bundle import (
+    build as build_bundle,
+)
+from tools.windows.bundle import (
+    command_path,
     extract_bundle,
     filesystem_path,
     native_path,
@@ -23,6 +29,127 @@ from tools.windows.bundle import (
 )
 
 MANIFEST_HEADER = "Docking-Install-Manifest-1\r\n"
+
+
+def upgrade_fixture_project(content: str) -> tuple[str, str, str]:
+    """Version only an owned source copy; the result is an upgrade test fixture."""
+    section = re.search(r"(?ms)^\[project\]\s*\n(.*?)(?=^\[|\Z)", content)
+    if section is None:
+        raise ValueError("Upgrade fixture requires project metadata")
+    value = re.search(r'(?m)^version\s*=\s*"([^"\n]+)"\s*$', section[1])
+    if value is None:
+        raise ValueError("Upgrade fixture requires a static project version")
+    current = Version(value[1])
+    older = Version(current.base_version + ".dev0")
+    if older >= current:
+        raise ValueError("Upgrade fixture requires a version newer than its dev0 seed")
+    start, end = section.start(1) + value.start(1), section.start(1) + value.end(1)
+    return content[:start] + str(older) + content[end:], str(current), str(older)
+
+
+def build_upgrade_fixture(
+    source: Path,
+    output: Path,
+    prefix: Path,
+    webview2_package: Path | None = None,
+) -> None:
+    """Build a real older-version wheel/bundle/setup without changing the source.
+
+    This current-source fixture verifies installation transitions. It is not
+    evidence of compatibility with code from an earlier published release.
+    """
+    if output.exists():
+        raise FileExistsError(f"Choose a new fixture destination: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    original_bytes = (source / "pyproject.toml").read_bytes()
+    original = original_bytes.decode("utf-8")
+    changed, current_version, fixture_version = upgrade_fixture_project(original)
+    with staging_directory(output.parent, "docking-upgrade-") as stage:
+        copied = stage / "source"
+        copied.mkdir()
+        inputs = (
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "MANIFEST.in",
+            "README.md",
+            "LICENSE",
+            "requirements-windows-browser.txt",
+            "tools/windows/__init__.py",
+            "tools/windows/input_runtime.py",
+        )
+        for name in inputs:
+            destination = copied / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source / name, destination)
+        for path in walk_tree(source / "docking"):
+            relative = path.relative_to(source)
+            if "__pycache__" in relative.parts or path.suffix in {".pyc", ".dll"}:
+                continue
+            if path.is_symlink():
+                raise ValueError("Upgrade source fixture cannot include symbolic links")
+            destination = copied / relative
+            if path.is_dir():
+                destination.mkdir(parents=True, exist_ok=True)
+            else:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+        (copied / "pyproject.toml").write_bytes(changed.encode("utf-8"))
+        wheels = stage / "wheels"
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "build",
+                "--wheel",
+                "--no-isolation",
+                "--outdir",
+                command_path(wheels),
+            ],
+            cwd=command_path(copied),
+            check=True,
+        )
+        candidates = [path for path in walk_tree(wheels) if path.suffix == ".whl"]
+        if len(candidates) != 1:
+            raise ValueError("Upgrade fixture did not produce exactly one wheel")
+        payload = stage / "Docking"
+        build_bundle(candidates[0], payload, prefix, webview2_package)
+        result = stage / "result"
+        result.mkdir()
+        archive = result / "previous.zip"
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as target:
+            for path in sorted(walk_tree(payload)):
+                if path.is_file():
+                    target.write(
+                        path, "Docking/" + path.relative_to(payload).as_posix()
+                    )
+        archive_hash = hashlib.sha256(archive.read_bytes()).hexdigest()
+        archive.with_suffix(".zip.sha256").write_text(
+            f"{archive_hash}  {archive.name}\n", encoding="utf-8"
+        )
+        build(archive, result / "previous-setup.exe", prefix)
+        (result / "fixture.json").write_text(
+            json.dumps(
+                {
+                    "kind": "current-source-older-version",
+                    "source_version": current_version,
+                    "fixture_version": fixture_version,
+                    "source_pyproject_sha256": hashlib.sha256(
+                        original_bytes
+                    ).hexdigest(),
+                    "wheel_sha256": hashlib.sha256(
+                        candidates[0].read_bytes()
+                    ).hexdigest(),
+                    "historical_release_compatibility": False,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        if (source / "pyproject.toml").read_bytes() != original_bytes:
+            raise ValueError("Original project metadata changed during fixture build")
+        result.rename(output)
 
 
 def removal_manifest(files: list[str]) -> bytes:
@@ -203,7 +330,14 @@ def build(archive: Path, output: Path, prefix: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--archive", type=Path, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--archive", type=Path)
+    inputs.add_argument(
+        "--fixture-source",
+        type=Path,
+        help="Build a labeled older-version upgrade fixture from an owned source copy",
+    )
+    parser.add_argument("--webview2-package", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if (
@@ -215,9 +349,19 @@ def main() -> None:
         parser.error(
             "Build with MSYS2 UCRT64 Python on Windows x64, including GCC and NSIS"
         )
-    build(
-        args.archive.resolve(), args.output.resolve(), Path(sys.base_prefix).resolve()
-    )
+    if args.fixture_source is not None:
+        build_upgrade_fixture(
+            args.fixture_source.resolve(),
+            args.output.resolve(),
+            Path(sys.base_prefix).resolve(),
+            args.webview2_package,
+        )
+    else:
+        build(
+            args.archive.resolve(),
+            args.output.resolve(),
+            Path(sys.base_prefix).resolve(),
+        )
 
 
 if __name__ == "__main__":

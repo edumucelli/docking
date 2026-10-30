@@ -170,6 +170,23 @@ class ApplicationLauncher:
         if application is None:
             return False
 
+        if is_windows() and application.launch_target:
+            from docking.platform.backends.windows.documents import (
+                launch_application_uris,
+            )
+
+            outcome = launch_application_uris(
+                application.document_target or application.launch_target, launchable
+            )
+            if outcome is not None:
+                if outcome.started and outcome.process is not None:
+                    self._provenance_store.record_launch(
+                        process=outcome.process,
+                        desktop_id=application.desktop_id,
+                        executable_path=application.executable_path,
+                    )
+                return outcome.started
+
         if application.location is ApplicationLocation.HOST and is_flatpak():
             return self._launch_host_app_uris(
                 application=application,

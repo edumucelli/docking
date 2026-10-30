@@ -4,14 +4,18 @@ import hashlib
 import json
 import os
 import shutil
+import stat
+import subprocess
 import sys
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import SimpleNamespace
 
 import pytest
 
 from docking.platform.backends.windows.startup import _prepare_bundle
 from docking.platform.backends.windows.webview import loader_path
+from tools.windows import bundle as bundle_tool
 from tools.windows.bundle import (
     NativePackage,
     dependency_closure,
@@ -23,6 +27,7 @@ from tools.windows.bundle import (
     relative_package_file,
     runtime_file,
     staging_directory,
+    verify_archive,
     write_pixbuf_cache,
 )
 
@@ -185,6 +190,36 @@ def test_portable_artifact_extraction_checks_inventory_before_publishing(
         assert not (tmp_path / "outside").exists()
 
 
+@pytest.mark.parametrize(
+    "mode", ["duplicate-member", "duplicate-json", "alias", "hash"]
+)
+def test_release_and_extraction_share_strict_archive_validation(tmp_path, mode):
+    path = tmp_path / "portable.zip"
+    checksum = hashlib.sha256(b"payload").hexdigest()
+    inventory = json.dumps({"Docking.exe": checksum})
+    if mode == "duplicate-json":
+        inventory = (
+            '{"Docking.exe":"' + checksum + '","Docking.exe":"' + checksum + '"}'
+        )
+    elif mode == "alias":
+        inventory = json.dumps({"Docking.exe": checksum, "DOCKING.EXE": checksum})
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("Docking/files.sha256.json", inventory)
+        archive.writestr(
+            "Docking/Docking.exe", b"changed" if mode == "hash" else b"payload"
+        )
+        if mode == "duplicate-member":
+            with pytest.warns(UserWarning, match="Duplicate name"):
+                archive.writestr("Docking/Docking.exe", b"payload")
+        elif mode == "alias":
+            archive.writestr("Docking/DOCKING.EXE", b"payload")
+    with zipfile.ZipFile(path) as archive, pytest.raises(ValueError):
+        verify_archive(archive)
+    with pytest.raises(ValueError):
+        extract_bundle(path, tmp_path / "extracted")
+    assert not (tmp_path / "extracted").exists()
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows long-path APIs")
 def test_portable_extraction_handles_long_nested_paths_without_system_policy(tmp_path):
     name = "runtime/lib/" + "long-directory/" * 15 + "owned.txt"
@@ -216,6 +251,118 @@ def test_failed_stage_cleans_long_paths_in_an_active_msys_shell(tmp_path):
         assert owned.relative_to(stage).as_posix() == name
         raise RuntimeError("interrupted")
     assert not stage.exists()
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        None,
+        "not-windows",
+        "sharing",
+        "writable",
+        "link",
+        "reparse",
+        "hardlink",
+        "unsupported",
+        "retry-denied",
+    ],
+)
+def test_stage_only_recovers_single_owned_readonly_windows_files(monkeypatch, defect):
+    original = PermissionError("owned file denied")
+    original.winerror = 32 if defect == "sharing" else 5
+    second = PermissionError("still denied after clearing read-only")
+    calls = []
+
+    class File:
+        def chmod(self, mode, *, follow_symlinks):
+            chmod(self, mode, follow_symlinks=follow_symlinks)
+
+        def unlink(self):
+            calls.append("unlink")
+            if calls.count("unlink") == 1:
+                raise original
+            if defect == "retry-denied":
+                raise second
+
+        def lstat(self):
+            return SimpleNamespace(
+                st_mode=stat.S_IFLNK
+                if defect == "link"
+                else stat.S_IFREG | stat.S_IREAD,
+                st_nlink=2 if defect == "hardlink" else 1,
+                st_file_attributes=(
+                    0 if defect == "writable" else stat.FILE_ATTRIBUTE_READONLY
+                )
+                | (stat.FILE_ATTRIBUTE_REPARSE_POINT if defect == "reparse" else 0),
+            )
+
+    def chmod(path, mode, *, follow_symlinks):
+        assert path is owned and mode & stat.S_IWRITE
+        assert follow_symlinks is False
+        calls.append("chmod")
+
+    owned = File()
+    monkeypatch.setattr(
+        bundle_tool,
+        "sys",
+        SimpleNamespace(platform="linux" if defect == "not-windows" else "win32"),
+    )
+    monkeypatch.setattr(bundle_tool.os, "chmod", chmod)
+    monkeypatch.setattr(
+        bundle_tool.os,
+        "supports_follow_symlinks",
+        set() if defect == "unsupported" else {chmod},
+    )
+    if defect is None:
+        bundle_tool._unlink_stage_file(owned)
+        assert calls == ["unlink", "chmod", "unlink"]
+    else:
+        with pytest.raises(PermissionError) as raised:
+            bundle_tool._unlink_stage_file(owned)
+        assert raised.value is (second if defect == "retry-denied" else original)
+        assert calls == (
+            ["unlink", "chmod", "unlink"] if defect == "retry-denied" else ["unlink"]
+        )
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows file attributes")
+def test_stage_removes_readonly_long_path_files_in_an_active_msys_shell(tmp_path):
+    if os.chmod not in os.supports_follow_symlinks:
+        pytest.skip("Requires Windows no-follow chmod support")
+    with staging_directory(tmp_path, "readonly-") as stage:
+        path = stage / ("nested-directory/" * 18) / "Buenos_Aires"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"owned runtime timezone data")
+        path.chmod(stat.S_IREAD, follow_symlinks=False)
+        assert path.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+        assert len(str(path)) > 260
+    assert not stage.exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows directory junction")
+def test_stage_cleanup_never_traverses_a_directory_junction(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "sentinel.txt"
+    sentinel.write_bytes(b"keep outside content and attributes")
+    original = sentinel.stat()
+    with staging_directory(tmp_path, "junction-") as stage:
+        subprocess.run(
+            [
+                "cmd.exe",
+                "/d",
+                "/c",
+                "mklink",
+                "/J",
+                native_path(stage / "linked"),
+                native_path(outside),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    assert not stage.exists()
+    assert sentinel.read_bytes() == b"keep outside content and attributes"
+    assert sentinel.stat().st_file_attributes == original.st_file_attributes
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows long-path APIs")
