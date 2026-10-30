@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import ExitStack, contextmanager, suppress
 from ctypes import wintypes
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PureWindowsPath
 
 from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
@@ -29,6 +29,7 @@ _VALUE = "DisablePrivacyExperience"
 _CLOUD = "Microsoft.Windows.CloudExperienceHost_cw5n1h2txyewy"
 _START = "Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy"
 _TERMINAL = "Microsoft.WindowsTerminal_8wekyb3d8bbwe"
+_WSL_UPDATE_ARGS = ("--update", "--confirm", "--prompt-before-exit")
 _NAMES = frozenset(
     (
         "useroobebroker.exe",
@@ -36,6 +37,7 @@ _NAMES = frozenset(
         "startmenuexperiencehost.exe",
         "systempropertiesperformance.exe",
         "windowsterminal.exe",
+        "wsl.exe",
     )
 )
 
@@ -70,6 +72,16 @@ def _path(value):
     return str(PureWindowsPath(value)).casefold()
 
 
+def matches_wsl_update(root, image, arguments):
+    expected = PureWindowsPath(root) / "System32/wsl.exe"
+    return (
+        _path(image) == _path(expected)
+        and len(arguments) == 4
+        and _path(arguments[0]) in ("wsl.exe", _path(expected))
+        and tuple(arguments[1:]) == _WSL_UPDATE_ARGS
+    )
+
+
 @dataclass(frozen=True)
 class Identity:
     handle: int
@@ -80,9 +92,10 @@ class Identity:
     path: str
     family: str | None = None
     package_error: int = 0
+    wsl_update: bool = False
 
     def journal(self):
-        return {
+        result = {
             "pid": self.pid,
             "session": self.session,
             "created": self.created,
@@ -90,6 +103,9 @@ class Identity:
             "family": self.family,
             "package_error": self.package_error,
         }
+        if self.name == "wsl.exe":
+            result["update_arguments_verified"] = self.wsl_update
+        return result
 
 
 def action_for(identity, window, *, root, session, foreground):
@@ -99,6 +115,12 @@ def action_for(identity, window, *, root, session, foreground):
     if PureWindowsPath(identity.path).name.casefold() != identity.name:
         raise PreparationError("Candidate process name differs from its image path")
     system = PureWindowsPath(root) / "System32"
+    if identity.name == "wsl.exe":
+        return (
+            "stop-wsl-update"
+            if identity.wsl_update and _path(identity.path) == _path(system / "wsl.exe")
+            else None
+        )
     expected = {
         "useroobebroker.exe": system / "oobe/UserOOBEBroker.exe",
         "wwahost.exe": system / "WWAHost.exe",
@@ -227,6 +249,124 @@ class NativeDesktop:
         status = query(handle, c.byref(needed), value)
         return (value.value, 0) if status == 0 else (None, status)
 
+    def _image(self, handle):
+        path, length = c.create_unicode_buffer(32768), _U(32768)
+        self.check(
+            bind(
+                self.kernel,
+                "QueryFullProcessImageNameW",
+                _B,
+                _P,
+                _U,
+                c.c_wchar_p,
+                c.POINTER(_U),
+            )(handle, 0, path, c.byref(length)),
+            "QueryFullProcessImageNameW",
+        )
+        return path.value
+
+    def _created(self, handle):
+        times = [_FileTime() for _ in range(4)]
+        self.check(
+            bind(self.kernel, "GetProcessTimes", _B, _P, *([c.POINTER(_FileTime)] * 4))(
+                handle, *(c.byref(value) for value in times)
+            ),
+            "GetProcessTimes",
+        )
+        return times[0].low | (times[0].high << 32)
+
+    def _live_wsl(self, identity, handle):
+        status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 0)
+        if status == 0:
+            return False
+        if status != 258:
+            raise PreparationError("WSL updater process wait", c.get_last_error())
+        if (
+            bind(self.kernel, "GetProcessId", _U, _P)(handle) != identity.pid
+            or self.session_of(identity.pid) != self.session
+            or identity.session != self.session
+            or self._created(handle) != identity.created
+            or _path(self._image(handle)) != _path(identity.path)
+            or _path(identity.path)
+            != _path(PureWindowsPath(self.root) / "System32/wsl.exe")
+        ):
+            raise PreparationError("WSL updater process identity changed")
+        return True
+
+    def _wsl_arguments(self, pid):
+        import psutil
+
+        try:
+            arguments = psutil.Process(pid).cmdline()
+        except psutil.NoSuchProcess:
+            raise PreparationError("WSL updater command line unavailable", 87) from None
+        except psutil.AccessDenied:
+            raise PreparationError("WSL updater command line unavailable", 5) from None
+        if not isinstance(arguments, list) or not all(
+            isinstance(argument, str) for argument in arguments
+        ):
+            raise PreparationError("Invalid WSL updater command line")
+        return arguments
+
+    def _is_wsl_update(self, identity, handle):
+        if not self._live_wsl(identity, handle):
+            return False
+        try:
+            arguments = self._wsl_arguments(identity.pid)
+        except PreparationError:
+            if not self._live_wsl(identity, handle):
+                return False
+            raise
+        if not self._live_wsl(identity, handle):
+            return False
+        return matches_wsl_update(self.root, identity.path, arguments)
+
+    def _stop_wsl_update(self, identity, record):
+        if (
+            action_for(
+                identity, None, root=self.root, session=self.session, foreground=0
+            )
+            != "stop-wsl-update"
+        ):
+            raise PreparationError("Unproven WSL updater")
+        if not self._is_wsl_update(identity, identity.handle):
+            if not self._live_wsl(identity, identity.handle):
+                return "already-exited"
+            raise PreparationError("WSL updater arguments changed")
+        # Read-only classification precedes requesting termination rights.
+        handle = bind(self.kernel, "OpenProcess", _P, _U, _B, _U)(
+            0x101001, False, identity.pid
+        )
+        if not handle:
+            error = c.get_last_error()
+            if not self._live_wsl(identity, identity.handle):
+                return "already-exited"
+            raise PreparationError("Open verified WSL updater", error)
+        try:
+            if not self._live_wsl(identity, identity.handle):
+                return "already-exited"
+            if not self._is_wsl_update(identity, handle):
+                if not self._live_wsl(identity, handle):
+                    return "already-exited"
+                raise PreparationError("WSL updater arguments changed")
+            if not self._live_wsl(identity, identity.handle):
+                return "already-exited"
+            if not bind(self.kernel, "TerminateProcess", _B, _P, _U)(handle, 0):
+                error = c.get_last_error()
+                if bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 0) == 0:
+                    return "already-exited"
+                raise PreparationError("Terminate verified WSL updater", error)
+            if bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 2000) != 0:
+                raise PreparationError("Verified WSL updater did not exit", 1460)
+            if record is not None:
+                record["updater_stopped"] = True
+            return "dismissed"
+        finally:
+            self.check(
+                bind(self.kernel, "CloseHandle", _B, _P)(handle),
+                "Close WSL updater handle",
+            )
+
     @contextmanager
     def processes(self):
         import psutil
@@ -259,30 +399,7 @@ class NativeDesktop:
                 handles.callback(bind(self.kernel, "CloseHandle", _B, _P), handle)
                 if self.session_of(process.pid) != self.session:
                     continue
-                path, length = c.create_unicode_buffer(32768), _U(32768)
-                self.check(
-                    bind(
-                        self.kernel,
-                        "QueryFullProcessImageNameW",
-                        _B,
-                        _P,
-                        _U,
-                        c.c_wchar_p,
-                        c.POINTER(_U),
-                    )(handle, 0, path, c.byref(length)),
-                    "QueryFullProcessImageNameW",
-                )
-                times = [_FileTime() for _ in range(4)]
-                self.check(
-                    bind(
-                        self.kernel,
-                        "GetProcessTimes",
-                        _B,
-                        _P,
-                        *([c.POINTER(_FileTime)] * 4),
-                    )(handle, *(c.byref(value) for value in times)),
-                    "GetProcessTimes",
-                )
+                path, created = self._image(handle), self._created(handle)
                 family, error = (
                     self.package(handle)
                     if name
@@ -293,18 +410,23 @@ class NativeDesktop:
                     )
                     else (None, 0)
                 )
-                rows.append(
-                    Identity(
-                        handle,
-                        process.pid,
-                        self.session,
-                        times[0].low | (times[0].high << 32),
-                        name,
-                        path.value,
-                        family,
-                        error,
-                    )
+                discovered = Identity(
+                    handle,
+                    process.pid,
+                    self.session,
+                    created,
+                    name,
+                    path,
+                    family,
+                    error,
                 )
+                if name == "wsl.exe" and _path(path) == _path(
+                    PureWindowsPath(self.root) / "System32/wsl.exe"
+                ):
+                    discovered = replace(
+                        discovered, wsl_update=self._is_wsl_update(discovered, handle)
+                    )
+                rows.append(discovered)
             yield rows
 
     def windows(self, pid):
@@ -399,6 +521,8 @@ class NativeDesktop:
             raise PreparationError("First-login process wait", c.get_last_error())
         if bind(self.kernel, "GetProcessId", _U, _P)(identity.handle) != identity.pid:
             raise PreparationError("First-login process identity changed")
+        if action == "stop-wsl-update":
+            return self._stop_wsl_update(identity, record)
         if action == "terminate":
             self.check(
                 bind(self.kernel, "TerminateProcess", _B, _P, _U)(identity.handle, 0),
@@ -653,7 +777,12 @@ def sweep(api, journal, *, allow_pending_wsl=False):
         journal["exited"] = list(api.exited)
         # Retain the complete known inventory before a rejected classification
         # or an action can obscure the other first-login UI identities.
-        for identity, windows in inventory:
+        updater_stopped = False
+        for identity, windows in sorted(
+            inventory, key=lambda row: not row[0].wsl_update
+        ):
+            if updater_stopped and identity.name == "windowsterminal.exe":
+                windows = api.windows(identity.pid)
             for window in windows or [None]:
                 action = action_for(
                     identity,
@@ -697,7 +826,9 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                     entry.update(after="pending", verification=_error(error))
                 entry["foreground_after"] = api.foreground()
                 count += 1
-                if action == "terminate":
+                if action == "stop-wsl-update":
+                    updater_stopped = True
+                if action in ("terminate", "stop-wsl-update"):
                     break
     return count
 

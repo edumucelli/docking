@@ -1362,6 +1362,387 @@ def test_pending_exception_for_another_action_is_not_deferred():
 
 
 @pytest.fixture
+def updater_api(monkeypatch):
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session, api.exited = ROOT, 3, []
+    original = SimpleNamespace(
+        pid=20,
+        path=ROOT + r"\System32\wsl.exe",
+        created=0x1234567800000040,
+        live=True,
+    )
+    state = SimpleNamespace(
+        handles={10: original, 11: original},
+        session=3,
+        wait_timeout=False,
+        on_open=None,
+        close_failed=False,
+    )
+    api.session_of = Mock(side_effect=lambda _pid: state.session)
+    api.package = Mock(return_value=(None, 0))
+    api.windows = Mock(return_value=[])
+    api.foreground = Mock(return_value=999)
+
+    def image(handle, _flags, path, size):
+        path.value = state.handles[handle].path
+        size._obj.value = len(path.value)
+        return 1
+
+    def times(handle, created, *_others):
+        value = state.handles[handle].created
+        created._obj.low, created._obj.high = value & 0xFFFFFFFF, value >> 32
+        return 1
+
+    def wait(handle, timeout):
+        if timeout == 2000 and state.wait_timeout:
+            return 258
+        return 258 if state.handles[handle].live else 0
+
+    def opened(access, inherit, pid):
+        assert not inherit and pid == 20
+        assert access in (0x101000, 0x101001)
+        if access == 0x101001 and state.on_open:
+            state.on_open()
+        return 11 if access == 0x101001 else 10
+
+    def terminate(handle, exitcode):
+        assert handle == 11 and exitcode == 0
+        state.handles[handle].live = False
+        return 1
+
+    api.kernel = SimpleNamespace(
+        QueryFullProcessImageNameW=Mock(side_effect=image),
+        GetProcessTimes=Mock(side_effect=times),
+        WaitForSingleObject=Mock(side_effect=wait),
+        GetProcessId=Mock(side_effect=lambda handle: state.handles[handle].pid),
+        OpenProcess=Mock(side_effect=opened),
+        CloseHandle=Mock(
+            side_effect=lambda handle: int(not (handle == 11 and state.close_failed))
+        ),
+        TerminateProcess=Mock(side_effect=terminate),
+    )
+    api._wsl_arguments = Mock(return_value=["wsl.exe", *hosted._WSL_UPDATE_ARGS])
+    process = SimpleNamespace(pid=20, info={"name": "wsl.exe"})
+    fake_psutil = SimpleNamespace(
+        process_iter=lambda _attrs: [process] if original.live else []
+    )
+    monkeypatch.setitem(sys.modules, "psutil", fake_psutil)
+    monkeypatch.setattr(hosted.c, "get_last_error", lambda: 5, raising=False)
+    return api, state, original
+
+
+@pytest.mark.parametrize("program", ["wsl.exe", ROOT + r"\System32\wsl.exe"])
+def test_only_exact_known_wsl_update_arguments_are_authorized(program):
+    assert hosted.matches_wsl_update(
+        ROOT, ROOT + r"\System32\wsl.exe", [program, *hosted._WSL_UPDATE_ARGS]
+    )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        [],
+        ["wsl.exe"],
+        ["wsl.exe", "--update"],
+        ["wsl.exe", "--install", "--confirm", "--prompt-before-exit"],
+        ["wsl.exe", "--confirm", "--update", "--prompt-before-exit"],
+        ["wsl.exe", *hosted._WSL_UPDATE_ARGS, "--web-download"],
+        ["wsl.exe", "--update", "--update", "--prompt-before-exit"],
+        [r"C:\unrelated\wsl.exe", *hosted._WSL_UPDATE_ARGS],
+    ],
+)
+def test_unknown_wsl_arguments_get_no_termination_handle(updater_api, arguments):
+    api, _state, _original = updater_api
+    api._wsl_arguments.return_value = arguments
+    with api.processes() as rows:
+        assert not rows[0].wsl_update
+        assert (
+            hosted.action_for(rows[0], None, root=ROOT, session=3, foreground=0) is None
+        )
+    assert [call.args[0] for call in api.kernel.OpenProcess.call_args_list] == [
+        0x101000
+    ]
+    api.kernel.TerminateProcess.assert_not_called()
+    api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+@pytest.mark.parametrize("mismatch", ("image", "session"))
+def test_wrong_wsl_image_or_session_is_never_queried_for_arguments(
+    updater_api, mismatch
+):
+    api, state, original = updater_api
+    if mismatch == "image":
+        original.path = r"C:\unrelated\wsl.exe"
+    else:
+        state.session = 4
+    with api.processes() as rows:
+        assert not rows or not rows[0].wsl_update
+    api._wsl_arguments.assert_not_called()
+    api.kernel.TerminateProcess.assert_not_called()
+
+
+def test_exact_updater_uses_verified_termination_handle_and_redacted_journal(
+    updater_api,
+):
+    api, _state, _original = updater_api
+    with api.processes() as rows:
+        (process,) = rows
+        assert process.wsl_update and process.created == 0x1234567800000040
+        record = process.journal()
+        assert (
+            api.perform(process, "stop-wsl-update", None, record=record) == "dismissed"
+        )
+        assert record["updater_stopped"]
+        assert api._wsl_arguments.call_count == 3  # Discovery and both pinned handles.
+        assert all(argument not in str(record) for argument in hosted._WSL_UPDATE_ARGS)
+        api.kernel.CloseHandle.assert_called_once_with(11)
+    assert [call.args[0] for call in api.kernel.CloseHandle.call_args_list] == [11, 10]
+    api.kernel.TerminateProcess.assert_called_once_with(11, 0)
+
+
+@pytest.mark.parametrize("phase", ("before-rights", "after-rights"))
+def test_updater_argument_change_prevents_termination_and_closes_handles(
+    updater_api, phase
+):
+    api, _state, _original = updater_api
+    known = ["wsl.exe", *hosted._WSL_UPDATE_ARGS]
+    private = ["wsl.exe", "private-user-command"]
+    api._wsl_arguments.side_effect = (
+        [known, private] if phase == "before-rights" else [known, known, private]
+    )
+    with api.processes() as rows:
+        with pytest.raises(hosted.PreparationError, match="arguments changed"):
+            api.perform(rows[0], "stop-wsl-update", None, record={})
+        assert "private-user-command" not in str(rows[0].journal())
+    api.kernel.TerminateProcess.assert_not_called()
+    assert [call.args[0] for call in api.kernel.CloseHandle.call_args_list] == (
+        [10] if phase == "before-rights" else [11, 10]
+    )
+
+
+@pytest.mark.parametrize("changed", ("pid", "created", "path", "session"))
+def test_second_handle_must_be_the_original_process_instance(updater_api, changed):
+    api, state, original = updater_api
+
+    def replace_process():
+        replacement = SimpleNamespace(**vars(original))
+        state.handles[11] = replacement
+        if changed == "session":
+            state.session = 4
+        else:
+            setattr(
+                replacement,
+                changed,
+                {
+                    "pid": 303,
+                    "created": original.created + 1,
+                    "path": r"C:\unrelated\wsl.exe",
+                }[changed],
+            )
+
+    state.on_open = replace_process
+    with (
+        api.processes() as rows,
+        pytest.raises(hosted.PreparationError, match="identity changed"),
+    ):
+        api.perform(rows[0], "stop-wsl-update", None, record={})
+    api.kernel.TerminateProcess.assert_not_called()
+    assert [call.args[0] for call in api.kernel.CloseHandle.call_args_list] == [11, 10]
+
+
+@pytest.mark.parametrize("phase", ("query", "open", "terminate"))
+def test_updater_exit_races_never_terminate_a_reused_pid(updater_api, phase):
+    api, state, original = updater_api
+    with api.processes() as rows:
+        if phase == "query":
+
+            def arguments(_pid):
+                original.live = False
+                return ["wsl.exe", *hosted._WSL_UPDATE_ARGS]
+
+            api._wsl_arguments.side_effect = arguments
+        elif phase == "open":
+            state.on_open = lambda: setattr(original, "live", False)
+        else:
+
+            def exited(_handle, _code):
+                original.live = False
+                return 0
+
+            api.kernel.TerminateProcess.side_effect = exited
+        assert (
+            api.perform(rows[0], "stop-wsl-update", None, record={}) == "already-exited"
+        )
+    if phase != "terminate":
+        api.kernel.TerminateProcess.assert_not_called()
+    assert [call.args[0] for call in api.kernel.CloseHandle.call_args_list] == (
+        [10] if phase == "query" else [11, 10]
+    )
+
+
+@pytest.mark.parametrize("failure", ("open", "terminate", "wait", "close", "query"))
+def test_updater_native_failures_remain_fatal_and_close_every_opened_handle(
+    updater_api, failure
+):
+    api, state, _original = updater_api
+    with api.processes() as rows:
+        if failure == "open":
+            api.kernel.OpenProcess.side_effect = lambda *_args: 0
+        elif failure == "terminate":
+            api.kernel.TerminateProcess.side_effect = lambda *_args: 0
+        elif failure == "wait":
+            state.wait_timeout = True
+        elif failure == "close":
+            state.close_failed = True
+        else:
+            api._wsl_arguments.side_effect = hosted.PreparationError(
+                "Read updater arguments", 5
+            )
+        with pytest.raises(hosted.PreparationError):
+            api.perform(rows[0], "stop-wsl-update", None, record={})
+    assert [call.args[0] for call in api.kernel.CloseHandle.call_args_list] == (
+        [10] if failure in ("open", "query") else [11, 10]
+    )
+
+
+@pytest.mark.parametrize("arguments", ("raw private command", ["wsl.exe", None]))
+def test_invalid_commandline_api_data_is_not_logged(monkeypatch, arguments):
+    fake = SimpleNamespace(
+        Process=lambda _pid: SimpleNamespace(cmdline=lambda: arguments),
+        NoSuchProcess=ProcessLookupError,
+        AccessDenied=PermissionError,
+    )
+    monkeypatch.setitem(sys.modules, "psutil", fake)
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    with pytest.raises(hosted.PreparationError) as failed:
+        api._wsl_arguments(20)
+    assert "private" not in str(failed.value)
+
+
+@pytest.mark.parametrize(
+    "error,code", [(ProcessLookupError(), 87), (PermissionError(), 5)]
+)
+def test_commandline_query_errors_keep_only_safe_numeric_context(
+    monkeypatch, error, code
+):
+    def command():
+        raise error
+
+    fake = SimpleNamespace(
+        Process=lambda _pid: SimpleNamespace(cmdline=command),
+        NoSuchProcess=ProcessLookupError,
+        AccessDenied=PermissionError,
+    )
+    monkeypatch.setitem(sys.modules, "psutil", fake)
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    with pytest.raises(hosted.PreparationError) as failed:
+        api._wsl_arguments(20)
+    assert failed.value.code == code
+
+
+def test_initial_gate_stops_windowless_updater_then_requires_two_quiet_sweeps(
+    updater_api,
+):
+    api, _state, original = updater_api
+    journal = {"actions": []}
+    hosted.settle_desktop(api, journal, pause=lambda _seconds: None)
+    assert not original.live and journal["quiet_sweeps"] == 2
+    assert [row["action"] for row in journal["actions"]] == ["stop-wsl-update"]
+
+
+@pytest.mark.parametrize("status", (0, 1))
+def test_recurring_exact_updater_stops_during_collection_without_changing_child_status(
+    updater_api, tmp_path, status
+):
+    api, _state, original = updater_api
+    original.live = False
+    api.capture = Mock()
+    child = SimpleNamespace(returncode=None, poll=lambda: child.returncode)
+    child.wait = lambda *, timeout: setattr(child, "returncode", status)
+    journal = {}
+
+    @contextmanager
+    def collect():
+        assert journal["prepared"]
+        original.live = True
+        journal.update(collector_started=True, collector_stopped=False)
+        try:
+            yield child
+        finally:
+            assert child.returncode == status
+            journal["collector_stopped"] = True
+
+    assert (
+        hosted.run_prepared(api, Registry((0, 4)), tmp_path, collect, journal) == status
+    )
+    assert not original.live and journal["input_status"] == status
+    assert journal["policy"]["restored"] and journal["collector_stopped"]
+    assert journal["actions"][0]["action"] == "stop-wsl-update"
+    assert journal["actions"][0]["after"] == "dismissed"
+    api.kernel.TerminateProcess.assert_called_once_with(11, 0)
+
+
+@pytest.mark.parametrize("code", (5, 13, 87))
+def test_updater_discovery_query_failure_closes_the_read_only_handle(updater_api, code):
+    api, _state, _original = updater_api
+    api._wsl_arguments.side_effect = hosted.PreparationError(
+        "Read updater arguments", code
+    )
+    with pytest.raises(hosted.PreparationError), api.processes():
+        pytest.fail("Unverified discovery must not authorize an action")
+    api.kernel.CloseHandle.assert_called_once_with(10)
+    api.kernel.TerminateProcess.assert_not_called()
+
+
+def test_updater_exit_during_failed_command_query_is_a_normal_no_action(updater_api):
+    api, _state, original = updater_api
+    with api.processes() as rows:
+
+        def gone(_pid):
+            original.live = False
+            raise hosted.PreparationError("WSL updater command line unavailable", 87)
+
+        api._wsl_arguments.side_effect = gone
+        assert api.perform(rows[0], "stop-wsl-update", None) == "already-exited"
+    api.kernel.TerminateProcess.assert_not_called()
+    api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+def test_updater_stops_before_terminal_fallback_and_refreshes_closed_windows():
+    terminal = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+        pid=30,
+    )
+    updater = identity("wsl.exe", ROOT + r"\System32\wsl.exe", wsl_update=True)
+    remaining, calls = [[window(title=ROOT + r"\System32\wsl.exe")]], []
+
+    @contextmanager
+    def processes():
+        yield [terminal, updater]
+
+    def perform(process, action, _window, *, record):
+        assert process is updater and action == "stop-wsl-update"
+        calls.append(action)
+        remaining[0] = []
+        return "dismissed"
+
+    api = SimpleNamespace(
+        root=ROOT,
+        session=3,
+        exited=[],
+        processes=processes,
+        windows=lambda pid: list(remaining[0]) if pid == 30 else [],
+        foreground=lambda: 100,
+        perform=perform,
+    )
+    journal = {"actions": []}
+    assert hosted.sweep(api, journal, allow_pending_wsl=True) == 1
+    assert calls == ["stop-wsl-update"] and not journal["known_visible_blockers"]
+
+
+@pytest.fixture
 def window_reader():
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.desktop = SimpleNamespace(windows=Mock(side_effect=lambda _pid: [window()]))
