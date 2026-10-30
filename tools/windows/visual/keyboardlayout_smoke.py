@@ -15,6 +15,7 @@ import threading
 import time
 from contextlib import ExitStack
 from dataclasses import asdict
+from functools import partial
 from pathlib import Path
 
 from tools.windows.visual.input_oracle import oracle
@@ -103,7 +104,9 @@ def main(monitor):
     from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
     from tools.windows.visual.input_requests import (
         CleanupJournal,
+        fixture_cleanup,
         request_controls,
+        restore_owned_keyboard,
         trace_requests,
     )
 
@@ -729,13 +732,30 @@ def main(monitor):
                 search = shared["ui"].search
                 input_service = WindowsInputService()
 
-                def restore_keyboard():
-                    state = applet._backend.query()
-                    applet._backend.switch(wanted["us"], context=state.context)
-                    native.wait_for(
-                        lambda: applet._backend.query().active == wanted["us"],
-                        "Profile fixture did not restore the initial keyboard",
+                def restore_keyboard(context, entry, mapped, attempt):
+                    def focus():
+                        click_editor(
+                            native,
+                            mapped,
+                            journal=attempt.setdefault("reset_focus", {}),
+                        )
+                        native.wait_for(
+                            lambda: call(entry.has_focus),
+                            "Owned reset entry did not receive GTK focus",
+                        )
+                        return api.foreground()
+
+                    restore_owned_keyboard(
+                        context=context,
+                        focus=focus,
+                        api=api,
+                        backend=applet._backend,
+                        service=input_service,
+                        wait_for=native.wait_for,
+                        journal=attempt.setdefault("keyboard_restore", {}),
+                        ui_readback=lambda: call(lambda: applet._layout),
                     )
+                    publish()
 
                 def exercise(profile, entry, window, mapped, attempt):
                     mode_scope = ExitStack()
@@ -950,6 +970,34 @@ def main(monitor):
                             publish()
                             call(lambda: entry.disconnect(subscription))
 
+                def hide_owned_search(attempt):
+                    call(search.hide)
+                    native.wait_for(
+                        lambda: not search_window(),
+                        "Owned Search cleanup did not hide its window",
+                    )
+                    attempt["search_hidden"] = True
+
+                def close_owned_search(context, attempt):
+                    # Keep physical Escape on the accepted path, while any
+                    # failed reset still closes only our known GTK widget.
+                    with fixture_cleanup(
+                        partial(hide_owned_search, attempt), attempt, "search-hide"
+                    ):
+                        if not attempt.get("keyboard_restore", {}).get(
+                            "restored", False
+                        ):
+                            attempt["search_close_mode"] = "gtk-cleanup"
+                            return
+                        attempt["search_close_mode"] = "physical-escape"
+                        assert (
+                            api.valid(context)
+                            and api.input_desktop_active()
+                            and api.foreground() == context
+                        ), "Owned Search lost focus before Escape"
+                        close_search()
+                        attempt["search_closed_physically"] = True
+
                 def build_reference():
                     # This control has only GTK's default key/IME handlers. It
                     # shares the initialized process, never Search's handlers.
@@ -978,7 +1026,11 @@ def main(monitor):
                         journal["composition"].append(attempt)
                         publish()
                         reference_window, reference_entry = call(build_reference)
-                        try:
+                        with fixture_cleanup(
+                            partial(call, reference_window.destroy),
+                            attempt["reference"],
+                            "reference-close",
+                        ):
                             mapped = native.wait_for(
                                 lambda: next(
                                     (
@@ -991,25 +1043,64 @@ def main(monitor):
                                 ),
                                 "Plain SearchEntry reference did not map",
                             )
-                            left, top, right, bottom = mapped["rect"]
-                            native.click((left + right) / 2, (top + bottom) / 2)
-                            exercise(
-                                profile,
-                                reference_entry,
-                                reference_window,
+                            click_editor(
+                                native,
                                 mapped,
-                                attempt["reference"],
+                                journal=attempt.setdefault("reference_focus", {}),
                             )
-                        finally:
-                            try:
-                                restore_keyboard()
-                            finally:
-                                call(reference_window.destroy)
+                            reference_context = api.foreground()
+                            assert (
+                                reference_context
+                                and reference_context.root == mapped["hwnd"]
+                                and reference_context.pid == os.getpid()
+                            )
+                            with fixture_cleanup(
+                                partial(
+                                    restore_keyboard,
+                                    reference_context,
+                                    reference_entry,
+                                    mapped,
+                                    attempt["reference"],
+                                ),
+                                attempt["reference"],
+                                "reference-keyboard",
+                            ):
+                                exercise(
+                                    profile,
+                                    reference_entry,
+                                    reference_window,
+                                    mapped,
+                                    attempt["reference"],
+                                )
                         focus_editor()
                         open_search(0x20)
-                        try:
-                            mapped = search_window()
-                            assert mapped is not None
+                        mapped = search_window()
+                        assert mapped is not None
+                        search_context = api.foreground()
+                        assert (
+                            search_context
+                            and search_context.root == mapped["hwnd"]
+                            and search_context.pid == os.getpid()
+                        )
+
+                        with (
+                            fixture_cleanup(
+                                partial(close_owned_search, search_context, attempt),
+                                attempt,
+                                "search-close",
+                            ),
+                            fixture_cleanup(
+                                partial(
+                                    restore_keyboard,
+                                    search_context,
+                                    search.window.search_entry,
+                                    mapped,
+                                    attempt,
+                                ),
+                                attempt,
+                                "search-keyboard",
+                            ),
+                        ):
                             exercise(
                                 profile,
                                 search.window.search_entry,
@@ -1032,9 +1123,6 @@ def main(monitor):
                             ImageGrab.grab(all_screens=True).save(
                                 output / f"search-profile-{profile.identifier}.png"
                             )
-                        finally:
-                            restore_keyboard()
-                            close_search()
                         publish()
 
             def refresh_dead_key_metadata():

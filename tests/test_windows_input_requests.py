@@ -4,6 +4,7 @@ import ctypes
 import struct
 import threading
 from dataclasses import asdict
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -39,6 +40,243 @@ def test_cleanup_records_every_outcome_and_keeps_original_failure():
     ]
     assert events == ["publish", "done", "publish"]
     assert report["ok"] is False
+
+
+def test_fixture_cleanup_retains_exercise_error_and_runs_later_release():
+    original, cleanup = AssertionError("composition"), OSError(5, "reset")
+    journal, released = {}, Mock()
+    with (
+        pytest.raises(AssertionError) as failed,
+        mod.fixture_cleanup(released, journal, "close"),
+        mod.fixture_cleanup(Mock(side_effect=cleanup), journal, "keyboard"),
+    ):
+        raise original
+    assert failed.value is original
+    released.assert_called_once_with()
+    assert journal["exercise_error"] == {"type": "AssertionError"}
+    assert journal["cleanup_errors"] == [
+        {"phase": "keyboard", "type": "OSError", "code": 5}
+    ]
+
+
+def test_fixture_cleanup_failure_is_fatal_after_successful_exercise():
+    error, journal = OSError(5, "reset"), {}
+    with (
+        pytest.raises(OSError) as failed,
+        mod.fixture_cleanup(Mock(side_effect=error), journal, "keyboard"),
+    ):
+        pass
+    assert failed.value is error
+    assert journal["cleanup_errors"][0]["phase"] == "keyboard"
+
+
+def test_independent_close_and_reset_failures_never_replace_the_exercise_error():
+    original, journal = AssertionError("composition"), {}
+    with (
+        pytest.raises(AssertionError) as failed,
+        mod.fixture_cleanup(Mock(side_effect=OSError(6, "close")), journal, "close"),
+        mod.fixture_cleanup(Mock(side_effect=OSError(5, "reset")), journal, "reset"),
+    ):
+        raise original
+    assert failed.value is original
+    assert journal["cleanup_errors"] == [
+        {"phase": "reset", "type": "OSError", "code": 5},
+        {"phase": "close", "type": "OSError", "code": 6},
+    ]
+
+
+def test_fixture_cancellation_still_closes_owned_window_and_preserves_cancellation():
+    original, close, journal = KeyboardInterrupt(), Mock(), {}
+    with (
+        pytest.raises(KeyboardInterrupt) as failed,
+        mod.fixture_cleanup(close, journal, "close"),
+        mod.fixture_cleanup(Mock(side_effect=OSError(5, "reset")), journal, "reset"),
+    ):
+        raise original
+    assert failed.value is original
+    close.assert_called_once_with()
+    assert journal["exercise_error"] == {"type": "KeyboardInterrupt"}
+
+
+@pytest.fixture
+def reset_fixture():
+    from docking.applets.keyboardlayout.state import LayoutState
+    from docking.platform.backends.windows.input_profiles import InputProfile
+
+    context, foreign = InputContext(1, 2, 3, 4), InputContext(10, 20, 30, 40)
+    wanted = "win32:04090409"
+    profile = InputProfile(2, 0x409, "", "", "", 0, 0x04090409, 3)
+    observed = native.InputSnapshot(profile, 0x04090409, "en-US", True, False, 0, 1, 0)
+    selected = LayoutState(wanted, [wanted], context=context.key)
+    state = [LayoutState("tsf:fixture", [wanted], context=context.key)]
+    current, calls = [foreign], []
+
+    def focus():
+        calls.append("physical-focus")
+        current[0] = context
+        return context
+
+    def query():
+        calls.append("query")
+        return state[0]
+
+    def switch(code, *, context):
+        calls.append(("switch", code, context))
+        state[0] = selected
+
+    api = SimpleNamespace(
+        foreground=Mock(side_effect=lambda: current[0]),
+        valid=Mock(return_value=True),
+        input_desktop_active=Mock(return_value=True),
+        active=Mock(return_value=0x04090409),
+    )
+    backend = SimpleNamespace(
+        query=Mock(side_effect=query), switch=Mock(side_effect=switch)
+    )
+    service = SimpleNamespace(read=Mock(return_value=observed))
+    ui = Mock(side_effect=lambda: state[0])
+
+    def wait(predicate, message):
+        for _ in range(3):
+            if predicate():
+                return
+        raise AssertionError(message)
+
+    kwargs = {
+        "context": context,
+        "focus": focus,
+        "api": api,
+        "backend": backend,
+        "service": service,
+        "wait_for": wait,
+        "journal": {},
+        "ui_readback": ui,
+    }
+    return SimpleNamespace(
+        kwargs=kwargs,
+        context=context,
+        foreign=foreign,
+        current=current,
+        calls=calls,
+        state=state,
+        selected=selected,
+        snapshot=observed,
+    )
+
+
+def test_reset_physically_refocuses_pinned_owned_context_before_switch(reset_fixture):
+    fixture = reset_fixture
+    result = mod.restore_owned_keyboard(**fixture.kwargs)
+    assert fixture.calls[:3] == [
+        "physical-focus",
+        "query",
+        ("switch", "win32:04090409", fixture.context.key),
+    ]
+    assert result == asdict(fixture.snapshot)
+    fixture.kwargs["service"].read.assert_called_once()
+    assert fixture.kwargs["service"].read.call_args.args[0] == fixture.context
+    assert fixture.kwargs["journal"]["restored"]
+    assert fixture.kwargs["journal"]["foreground_before"] == asdict(fixture.foreign)
+
+
+def test_reset_waits_for_real_gtk_state_without_retargeting_or_repeating_switch(
+    reset_fixture,
+):
+    fixture, kwargs = reset_fixture, reset_fixture.kwargs
+    kwargs["ui_readback"].side_effect = [
+        fixture.selected._replace(active="tsf:fixture"),
+        fixture.selected,
+    ]
+    mod.restore_owned_keyboard(**kwargs)
+    assert kwargs["service"].read.call_count == 2
+    kwargs["backend"].switch.assert_called_once_with(
+        "win32:04090409", context=fixture.context.key
+    )
+    assert kwargs["journal"]["restored"]
+
+
+@pytest.mark.parametrize(
+    "boundary", ["invalid", "desktop", "wrong-focus", "wrong-query"]
+)
+def test_reset_never_switches_an_unknown_or_changed_target(reset_fixture, boundary):
+    fixture, kwargs = reset_fixture, reset_fixture.kwargs
+    if boundary == "invalid":
+        kwargs["api"].valid.return_value = False
+    elif boundary == "desktop":
+        kwargs["api"].input_desktop_active.return_value = False
+    elif boundary == "wrong-focus":
+        kwargs["focus"] = lambda: fixture.foreign
+    else:
+        fixture.state[0] = fixture.state[0]._replace(context=fixture.foreign.key)
+    with pytest.raises(AssertionError):
+        mod.restore_owned_keyboard(**kwargs)
+    kwargs["backend"].switch.assert_not_called()
+    kwargs["service"].read.assert_not_called()
+    assert kwargs["journal"]["restored"] is False
+
+
+@pytest.mark.parametrize("boundary", ["foreground", "invalid", "desktop"])
+def test_reset_rechecks_identity_after_query_before_dispatch(reset_fixture, boundary):
+    fixture, kwargs = reset_fixture, reset_fixture.kwargs
+    original = kwargs["backend"].query.side_effect
+
+    def changed():
+        result = original()
+        if boundary == "foreground":
+            fixture.current[0] = fixture.foreign
+        elif boundary == "invalid":
+            kwargs["api"].valid.return_value = False
+        else:
+            kwargs["api"].input_desktop_active.return_value = False
+        return result
+
+    kwargs["backend"].query.side_effect = changed
+    with pytest.raises(AssertionError):
+        mod.restore_owned_keyboard(**kwargs)
+    kwargs["backend"].switch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "boundary", ["snapshot", "profile", "hkl", "backend", "ui", "context"]
+)
+def test_reset_requires_matching_native_backend_and_gtk_readback(
+    reset_fixture, boundary
+):
+    fixture, kwargs = reset_fixture, reset_fixture.kwargs
+    if boundary == "snapshot":
+        kwargs["service"].read.return_value = None
+    elif boundary == "profile":
+        kwargs["service"].read.return_value = native.InputSnapshot(
+            None, 0x04090409, "", True, False, 0, 1, 0
+        )
+    elif boundary == "hkl":
+        kwargs["api"].active.return_value = 0x042A042A
+    elif boundary == "backend":
+        kwargs["backend"].switch.side_effect = None
+    elif boundary == "ui":
+        kwargs["ui_readback"].side_effect = lambda: fixture.selected._replace(
+            active="tsf:fixture"
+        )
+    else:
+        kwargs["ui_readback"].side_effect = lambda: fixture.selected._replace(
+            context=fixture.foreign.key
+        )
+    with pytest.raises(AssertionError, match="did not restore"):
+        mod.restore_owned_keyboard(**kwargs)
+    assert kwargs["journal"]["restored"] is False
+
+
+def test_reset_rejects_foreground_change_while_reading_native_snapshot(reset_fixture):
+    fixture, kwargs = reset_fixture, reset_fixture.kwargs
+
+    def read(*_args):
+        fixture.current[0] = fixture.foreign
+        return fixture.snapshot
+
+    kwargs["service"].read.side_effect = read
+    with pytest.raises(AssertionError, match="lost foreground"):
+        mod.restore_owned_keyboard(**kwargs)
+    assert not kwargs["journal"]["restored"]
 
 
 def test_failed_cleanup_journal_write_does_not_stop_later_releases():

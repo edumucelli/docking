@@ -71,7 +71,7 @@ class CleanupJournal:
                 self.report["ok"] = False
 
 
-def _error(error: Exception) -> dict:
+def _error(error: BaseException) -> dict:
     result = {"type": type(error).__name__}
     if isinstance(error, OSError):
         # WinError is an external exception boundary: its C errno can differ
@@ -453,3 +453,90 @@ def record_input_origins(root: Path, journal: dict, names: tuple[str, ...]) -> N
             {name: sys.modules[name].__file__ for name in names},
         )
     )
+
+
+@contextmanager
+def fixture_cleanup(
+    operation: Callable[[], object], journal: dict, phase: str
+) -> Iterator[None]:
+    """Restore a known fixture without replacing its original exercise error."""
+    failure = None
+    try:
+        yield
+    except BaseException as error:
+        failure = error
+        journal.setdefault("exercise_error", _error(error))
+        raise
+    finally:
+        try:
+            operation()
+        except Exception as error:
+            journal.setdefault("cleanup_errors", []).append(
+                {"phase": phase, **_error(error)}
+            )
+            if failure is None:
+                raise
+
+
+def restore_owned_keyboard(
+    *,
+    context,
+    focus: Callable,
+    api,
+    backend,
+    service,
+    wait_for: Callable,
+    journal: dict,
+    ui_readback: Callable | None = None,
+) -> dict:
+    """Physically refocus and reset exactly one still-live owned fixture target."""
+    wanted, code = 0x04090409, "win32:04090409"
+    journal.update(target=asdict(context), restored=False)
+    current = api.foreground()
+    journal["foreground_before"] = asdict(current) if current else None
+    assert api.valid(context) and api.input_desktop_active(), (
+        "Owned reset target is no longer valid"
+    )
+    assert focus() == context, "Physical reset focus reached a different target"
+
+    def validate():
+        assert api.valid(context) and api.input_desktop_active(), (
+            "Owned reset target became invalid"
+        )
+        assert api.foreground() == context, "Owned reset target lost foreground"
+
+    validate()
+    state = backend.query()
+    journal["before"] = state._asdict()
+    assert state.context == context.key, "Keyboard UI targets a different fixture"
+    validate()
+    backend.switch(code, context=context.key)
+    observed = None
+
+    def restored():
+        nonlocal observed
+        validate()
+        observed = service.read(context, threading.Event())
+        journal["snapshot"] = asdict(observed) if observed else None
+        state = backend.query()
+        ui = ui_readback() if ui_readback is not None else state
+        journal["backend"] = state._asdict()
+        journal["ui"] = ui._asdict()
+        validate()
+        return bool(
+            observed
+            and observed.profile
+            and observed.profile.kind == 2
+            and observed.profile.code == code
+            and observed.layout & 0xFFFFFFFF == wanted
+            and api.active(context.thread) & 0xFFFFFFFF == wanted
+            and state.active == code
+            and state.context == context.key
+            and ui.active == code
+            and ui.context == context.key
+        )
+
+    wait_for(restored, "Owned profile fixture did not restore the initial keyboard")
+    assert observed is not None
+    journal["restored"] = True
+    return asdict(observed)

@@ -543,7 +543,12 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
     import hashlib
 
     native, window, foreground = focus_desktop
-    created, raised, late_cover = [123], [False], [False]
+    window["rect"] = [156, 156, 676, 456]
+    cover = {"hwnd": 999, "pid": 909, "rect": [31, 156, 1024, 675]}
+    background = {"hwnd": 888, "pid": 808, "rect": [0, 0, 1024, 768]}
+    windows = [cover, window, background]
+    original = list(window["rect"])
+    created, late_cover = [123], [False]
     owner = mod.OwnedInputEditor(
         native, tmp_path, tmp_path / "input.txt", bits=64, machine=lambda _: 0x8664
     )
@@ -568,17 +573,53 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
     owner._kernel = SimpleNamespace(
         GetProcessId=Mock(return_value=202), GetProcessTimes=Mock(side_effect=times)
     )
-    native.window_at.side_effect = lambda *_: (
-        101 if raised[0] and not late_cover[0] else 999
-    )
-    native.user.GetWindow = Mock(return_value=999)
-    native.user.GetWindowLongW = Mock(return_value=0)
+    native.windows.side_effect = lambda pid=None: [
+        row for row in windows if pid is None or row["pid"] == pid
+    ]
+    native.workarea = Mock(return_value=[0, 0, 1024, 768])
 
-    def position(hwnd, after, x, y, width, height, flags):
-        assert hwnd == 101 and (x, y, width, height, flags) == (0, 0, 0, 0, 0x213)
-        raised[0] = after == 0
+    def at(x, y):
+        if late_cover[0]:
+            return 999
+        return next(
+            (
+                row["hwnd"]
+                for row in windows
+                if row["rect"][0] <= x < row["rect"][2]
+                and row["rect"][1] <= y < row["rect"][3]
+            ),
+            0,
+        )
+
+    def identity(hwnd, pid):
+        pid._obj.value = next(row["pid"] for row in windows if row["hwnd"] == hwnd)
+        return 303 if hwnd == 101 else 910
+
+    def rect(hwnd, output):
+        bounds = next(row["rect"] for row in windows if row["hwnd"] == hwnd)
+        output._obj.left, output._obj.top, output._obj.right, output._obj.bottom = (
+            bounds
+        )
         return 1
 
+    def position(hwnd, after, x, y, width, height, flags):
+        assert hwnd == 101 and (after, width, height, flags) == (0, 0, 0, 0x215)
+        w, h = (
+            window["rect"][2] - window["rect"][0],
+            window["rect"][3] - window["rect"][1],
+        )
+        window["rect"] = [x, y, x + w, y + h]
+        return 1
+
+    native.window_at.side_effect = at
+    native.user.GetWindowThreadProcessId.side_effect = identity
+    native.user.GetWindowRect.side_effect = rect
+    native.user.GetWindow = Mock(
+        side_effect=lambda hwnd, relation: (
+            {999: 101, 101: 888, 888: 0}[hwnd] if relation == 2 else 0
+        )
+    )
+    native.user.GetWindowLongW = Mock(return_value=0)
     native.user.SetWindowPos = Mock(side_effect=position)
     monkeypatch.setattr(ctypes, "set_last_error", lambda _: None, raising=False)
     monkeypatch.setattr(ctypes, "get_last_error", lambda: 0, raising=False)
@@ -591,55 +632,131 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
         window=window,
         foreground=foreground,
         created=created,
-        raised=raised,
         late_cover=late_cover,
+        windows=windows,
+        original=original,
+        cover=cover,
     )
 
 
-def test_covered_owned_editor_is_raised_once_without_activation_before_physical_click(
-    exposure,
-):
+def test_covered_owned_editor_moves_once_without_activation_or_z_order_change(exposure):
     native, journal = exposure.native, {}
     point = mod.focus_editor(
         native, exposure.window, owned=exposure.owner, journal=journal
     )
-    native.user.SetWindowPos.assert_called_once_with(101, 0, 0, 0, 0, 0, 0x213)
+    native.user.SetWindowPos.assert_called_once_with(101, 0, 0, 0, 0, 0, 0x215)
     native.click.assert_called_once_with(
         *point, before_press=native.click.call_args.kwargs["before_press"]
     )
     attempt = journal["attempts"][0]
     assert (
-        attempt["raise"]["foreground_before"]
-        == attempt["raise"]["foreground_after"]
+        attempt["placement"]["foreground_before"]
+        == attempt["placement"]["foreground_after"]
         == 999
     )
     assert attempt["activated"] and exposure.foreground[0] == 101
-    assert attempt["identity_before_raise"]["created"] == 123
-    assert attempt["identity_before_raise"]["pe_machine"] == "0x8664"
-    assert len(attempt["identity_before_raise"]["image_sha256"]) == 64
+    assert attempt["identity_before_placement"]["created"] == 123
+    assert attempt["identity_before_placement"]["pe_machine"] == "0x8664"
+    assert len(attempt["identity_before_placement"]["image_sha256"]) == 64
     initial = [p for p in attempt["points"] if p["phase"] == "initial"]
     assert len(initial) == 16 and all(p["hit"]["pid"] == 909 for p in initial)
-    assert initial[0]["hit"]["class"] == "Cover" and "bounds" in initial[0]["root"]
+    assert attempt["placement"]["after"] == [0, 0, 520, 300]
     assert attempt["before_press"]["root"]["hwnd"] == 101
-    assert "z_order_restored" not in attempt["raise"]
+    assert "geometry_restored" not in attempt["placement"]
+    assert exposure.cover["rect"] == [31, 156, 1024, 675]
+    assert [row["hwnd"] for row in exposure.windows] == [999, 101, 888]
 
 
-def test_unsuccessful_owned_raise_restores_original_z_order_without_click(exposure):
+def test_placement_refuses_full_workarea_occlusion_without_moving_or_clicking(exposure):
+    exposure.cover["rect"] = [0, 0, 1024, 768]
+    with pytest.raises(AssertionError, match="No observed exposed placement"):
+        mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    exposure.native.click.assert_not_called()
+
+
+def test_placement_does_not_assume_enumwindows_order(exposure):
+    exposure.native.windows.side_effect = lambda pid=None: [
+        row for row in reversed(exposure.windows) if pid is None or row["pid"] == pid
+    ]
+    mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_called_once_with(101, 0, 0, 0, 0, 0, 0x215)
+
+
+def test_placement_uses_negative_workarea_coordinates_without_resize(exposure):
+    exposure.native.workarea.return_value = [-1024, 0, 0, 768]
+    for row in exposure.windows:
+        row["rect"] = [
+            row["rect"][0] - 1024,
+            row["rect"][1],
+            row["rect"][2] - 1024,
+            row["rect"][3],
+        ]
+    mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_called_once_with(
+        101, 0, -1024, 0, 0, 0, 0x215
+    )
+    assert exposure.window["rect"] == [-1024, 0, -504, 300]
+
+
+def test_already_exposed_owned_editor_never_changes_geometry(exposure):
+    exposure.cover["rect"] = [900, 156, 1024, 675]
+    mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    assert exposure.window["rect"] == exposure.original
+
+
+def test_cyclic_z_order_cannot_authorize_unknown_placement(exposure):
+    exposure.native.user.GetWindow.side_effect = lambda hwnd, _: hwnd
+    with pytest.raises(AssertionError, match="No observed exposed placement"):
+        mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    assert exposure.native.user.GetWindow.call_count == 1
+
+
+def test_unknown_background_identity_is_not_treated_as_free_placement(exposure):
+    exposure.native.window_at.side_effect = lambda x, y: 999 if y >= 156 else 777
+    exposure.native.user.GetWindowThreadProcessId.side_effect = lambda hwnd, pid: (
+        setattr(
+            pid._obj, "value", 707 if hwnd == 777 else (202 if hwnd == 101 else 909)
+        )
+        or 303
+    )
+    old_rect = exposure.native.user.GetWindowRect.side_effect
+    exposure.native.user.GetWindowRect.side_effect = lambda hwnd, out: old_rect(
+        888 if hwnd == 777 else hwnd, out
+    )
+    with pytest.raises(AssertionError, match="No observed exposed placement"):
+        mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    exposure.native.click.assert_not_called()
+
+
+def test_cover_appearing_after_placement_restores_geometry_without_click(exposure):
     native, journal = exposure.native, {}
-    exposure.late_cover[0] = True
+    position = native.user.SetWindowPos.side_effect
+
+    def covered(*args):
+        result = position(*args)
+        exposure.late_cover[0] = True
+        return result
+
+    native.user.SetWindowPos.side_effect = covered
     with pytest.raises(AssertionError, match="no exposed input point"):
         mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
-    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
-        0,
-        999,
+    assert [call.args[2:4] for call in native.user.SetWindowPos.call_args_list] == [
+        (0, 0),
+        (156, 156),
     ]
-    assert journal["attempts"][0]["raise"]["z_order_restored"]
+    assert journal["attempts"][0]["placement"]["geometry_restored"]
     native.click.assert_not_called()
-    assert exposure.foreground[0] == 999 and not exposure.raised[0]
+    assert (
+        exposure.foreground[0] == 999 and exposure.window["rect"] == exposure.original
+    )
 
 
 @pytest.mark.parametrize("change", ["process", "creation", "hwnd", "pe", "image"])
-def test_owned_raise_refuses_identity_change_before_positioning(exposure, change):
+def test_owned_placement_refuses_identity_change_before_positioning(exposure, change):
     owner = exposure.owner
     if change == "process":
         owner._kernel.GetProcessId.return_value = 999
@@ -660,9 +777,7 @@ def test_owned_raise_refuses_identity_change_before_positioning(exposure, change
     exposure.native.click.assert_not_called()
 
 
-def test_owned_raise_settle_failure_restores_order_before_propagating(
-    exposure, monkeypatch
-):
+def test_owned_placement_settle_failure_restores_geometry(exposure, monkeypatch):
     from tools.windows.visual import desktop_driver
 
     native, journal = exposure.native, {}
@@ -675,24 +790,26 @@ def test_owned_raise_settle_failure_restores_order_before_propagating(
     with pytest.raises(AssertionError, match="covered before click"):
         mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
     native._send.assert_not_called()
-    assert journal["attempts"][0]["raise"]["z_order_restored"]
-    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
-        0,
-        999,
-    ]
+    assert journal["attempts"][0]["placement"]["geometry_restored"]
+    assert exposure.window["rect"] == exposure.original
 
 
-def test_failed_z_order_restoration_retains_original_focus_failure(exposure):
+def test_failed_geometry_restoration_retains_original_focus_failure(exposure):
     native, journal = exposure.native, {}
-    exposure.late_cover[0] = True
-    original = native.user.SetWindowPos.side_effect
-    native.user.SetWindowPos.side_effect = lambda *args: (
-        original(*args) if args[1] == 0 else 0
-    )
+    position = native.user.SetWindowPos.side_effect
+
+    def covered(*args):
+        if args[2:4] == (156, 156):
+            return 0
+        result = position(*args)
+        exposure.late_cover[0] = True
+        return result
+
+    native.user.SetWindowPos.side_effect = covered
     with pytest.raises(AssertionError, match="no exposed input point"):
         mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
-    assert journal["attempts"][0]["raise"]["restore_error"] == "AssertionError"
-    assert "z_order_restored" not in journal["attempts"][0]["raise"]
+    assert journal["attempts"][0]["placement"]["restore_error"] == "AssertionError"
+    assert "geometry_restored" not in journal["attempts"][0]["placement"]
 
 
 def test_creation_time_uses_fixed_width_filetime_and_keeps_all_64_bits(owned):
@@ -705,58 +822,34 @@ def test_creation_time_uses_fixed_width_filetime_and_keeps_all_64_bits(owned):
 
 
 @pytest.mark.parametrize("topmost", [False, True])
-def test_failed_owned_raise_preserves_original_topmost_band(exposure, topmost):
+def test_owned_placement_preserves_topmost_band(exposure, topmost):
     native, journal = exposure.native, {}
     native.user.GetWindowLongW.return_value = 8 if topmost else 0
-    exposure.late_cover[0] = True
-    with pytest.raises(AssertionError, match="no exposed input point"):
-        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
-    attempt = journal["attempts"][0]
-    assert attempt["raise"]["topmost"] is topmost
-    assert attempt["raise"]["z_order_restored"]
-    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
-        0,
-        999,
-    ]
+    mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    assert journal["attempts"][0]["placement"]["topmost"] is topmost
     assert all(
-        call.args[-1] == 0x213 for call in native.user.SetWindowPos.call_args_list
+        call.args[-1] == 0x215 for call in native.user.SetWindowPos.call_args_list
     )
 
 
-def test_topmost_predecessor_never_promotes_normal_owned_editor_on_restore(exposure):
+def test_owned_placement_does_not_continue_if_foreground_changes(exposure):
     native, journal = exposure.native, {}
-    native.user.GetWindowLongW.side_effect = lambda hwnd, _: 8 if hwnd == 999 else 0
-    exposure.late_cover[0] = True
-    with pytest.raises(AssertionError, match="no exposed input point"):
-        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
-    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [0, 0]
-    assert journal["attempts"][0]["raise"]["z_order_restored"]
-
-
-def test_owned_raise_does_not_continue_if_foreground_changes(exposure):
-    native = exposure.native
     position = native.user.SetWindowPos.side_effect
 
     def changed(*args):
         result = position(*args)
-        if args[1] == 0:
-            exposure.foreground[0] = 555
+        exposure.foreground[0] = 555
         return result
 
     native.user.SetWindowPos.side_effect = changed
     with pytest.raises(AssertionError, match="changed foreground"):
-        mod.focus_editor(native, exposure.window, owned=exposure.owner)
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
     native.click.assert_not_called()
     assert exposure.foreground[0] == 555
-    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
-        0,
-        999,
-    ]
+    assert journal["attempts"][0]["placement"]["geometry_restored"]
 
 
-def test_owned_identity_change_during_raise_prevents_click_or_restore_mutation(
-    exposure,
-):
+def test_owned_identity_change_during_placement_prevents_click_and_restore(exposure):
     native, journal = exposure.native, {}
     position = native.user.SetWindowPos.side_effect
 
@@ -770,19 +863,27 @@ def test_owned_identity_change_during_raise_prevents_click_or_restore_mutation(
         mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
     native.click.assert_not_called()
     assert native.user.SetWindowPos.call_count == 1
-    assert journal["attempts"][0]["raise"]["restore_error"] == "AssertionError"
+    assert journal["attempts"][0]["placement"]["restore_error"] == "AssertionError"
 
 
-def test_owned_raise_native_rejection_does_not_send_physical_input(exposure):
+def test_owned_placement_native_rejection_never_clicks(exposure):
     native, journal = exposure.native, {}
     position = native.user.SetWindowPos.side_effect
     native.user.SetWindowPos.side_effect = lambda *args: (
-        0 if args[1] == 0 else position(*args)
+        0 if args[2:4] == (0, 0) else position(*args)
     )
-    with pytest.raises(AssertionError, match="raise failed"):
+    with pytest.raises(AssertionError, match="placement failed"):
         mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
     native.click.assert_not_called()
-    assert journal["attempts"][0]["raise"]["z_order_restored"]
+    assert journal["attempts"][0]["placement"]["geometry_restored"]
+
+
+def test_placement_rejects_editor_larger_than_workarea(exposure):
+    exposure.native.workarea.return_value = [0, 0, 500, 200]
+    with pytest.raises(AssertionError, match="does not fit"):
+        mod.focus_editor(exposure.native, exposure.window, owned=exposure.owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    exposure.native.click.assert_not_called()
 
 
 def test_creation_query_failure_rolls_back_owned_process_and_event(owned, monkeypatch):

@@ -258,6 +258,7 @@ def main(monitor) -> None:
     from tools.windows.visual.input_requests import (
         CleanupJournal,
         release_fixture_layouts,
+        restore_owned_keyboard,
         trace_requests,
     )
 
@@ -663,6 +664,8 @@ def main(monitor) -> None:
                             context=context,
                             input_service=input_service,
                             validate_profile=validate_profile,
+                            focus=focus,
+                            variant=variant,
                         ):
                             validate_profile()
                             stage["keyboard_profiles"] = [
@@ -679,25 +682,18 @@ def main(monitor) -> None:
                                     "Disabled synthetic keyboard was offered"
                                 )
                                 stage["synthetic_layout_hidden"] = True
-                            backend.switch("win32:04090409", context=state.context)
-                            native.wait_for(
-                                lambda: backend.query().active == "win32:04090409",
-                                "Switching from a text service back to US "
-                                "did not complete",
+                            restored = restore_owned_keyboard(
+                                context=context,
+                                focus=focus,
+                                api=api,
+                                backend=backend,
+                                service=input_service,
+                                wait_for=native.wait_for,
+                                journal=variant.setdefault("keyboard_restore", {}),
                             )
-                            assert api.foreground() == context, (
-                                "Classic reset changed the owned typing window"
-                            )
-                            snapshot = input_service.read(context, threading.Event())
-                            assert (
-                                snapshot
-                                and snapshot.layout & 0xFFFFFFFF == 0x04090409
-                                and snapshot.profile
-                                and snapshot.profile.kind == 2
-                            ), "Classic reset did not restore the target input thread"
                             caller_unchanged()
                             stage["returned_to_classic"] = True
-                            return asdict(snapshot)
+                            return restored
 
                         try:
                             _collect_reference(
