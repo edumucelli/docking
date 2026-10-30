@@ -1859,6 +1859,9 @@ editor with explicit process-architecture checks. Windows 11 client CI uses
 this mode with UCRT64 through x64 emulation on `windows-11-arm`, retaining the
 independent x86 editor and the same strict composition/preedit assertions.
 Compiler diagnostics are retained in bounded, redacted build reports.
+On an ARM host, a non-WOW64 process can still use the AMD64 ABI. The input hook
+selector resolves that ambiguity with `GetProcessInformation` and
+`ProcessMachineTypeInfo` before choosing an x86 or AMD64 helper.
 
 CI runs the source Search checks and installed native editor checks in fresh
 processes through `python -m tools.windows.ci --stage input --installed-root

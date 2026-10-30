@@ -20,7 +20,7 @@ from typing import cast
 from docking.log import get_logger
 
 from .com import GUID, HRESULT
-from .ffi import bind
+from .ffi import bind, process_machine
 from .input_context import InputContext
 from .input_profiles import InputProfile, NativeProfile, profile_value
 from .process_job import ProcessJob
@@ -202,17 +202,7 @@ class InputThread:
         if not handle:
             raise ctypes.WinError(ctypes.get_last_error())
         try:
-            process, native = ctypes.c_uint16(), ctypes.c_uint16()
-            if not bind(
-                kernel,
-                "IsWow64Process2",
-                ctypes.c_int32,
-                _P,
-                ctypes.POINTER(ctypes.c_uint16),
-                ctypes.POINTER(ctypes.c_uint16),
-            )(handle, ctypes.byref(process), ctypes.byref(native)):
-                raise ctypes.WinError(ctypes.get_last_error())
-            machine = process.value or native.value
+            machine = process_machine(kernel, handle)
             if machine not in (0x14C, 0x8664):
                 raise OSError("Unsupported input-thread architecture")
             return machine

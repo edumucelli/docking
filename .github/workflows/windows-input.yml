@@ -63,6 +63,7 @@ jobs:
           import sys
           import winreg
           from pathlib import Path
+          from tools.windows.visual.input_environment import process_architecture
 
           def token_snapshot():
               # GetTokenInformation returns only this process's mandatory label
@@ -169,33 +170,33 @@ jobs:
 
           kernel = ctypes.WinDLL("kernel32", use_last_error=True)
           current = kernel.GetCurrentProcess
+          current.argtypes = ()
           current.restype = ctypes.c_void_p
-          architecture = kernel.IsWow64Process2
-          architecture.argtypes = (
-              ctypes.c_void_p,
-              ctypes.POINTER(ctypes.c_uint16),
-              ctypes.POINTER(ctypes.c_uint16),
-          )
-          architecture.restype = ctypes.c_int32
-          process, native = ctypes.c_uint16(), ctypes.c_uint16()
-          if not architecture(current(), ctypes.byref(process), ctypes.byref(native)):
-              raise ctypes.WinError(ctypes.get_last_error())
+          architecture = process_architecture(kernel, current(), details=True)
           windows = sys.getwindowsversion()
           facts = {
-              "process_machine": process.value,
-              "native_machine": native.value,
+              "process_machine": architecture["wow64"].get("process_machine"),
+              "native_machine": architecture["wow64"].get("native_machine"),
+              "actual_process_machine": architecture["machine"],
+              "process_architecture": architecture,
               "pointer_bits": ctypes.sizeof(ctypes.c_void_p) * 8,
               "windows_build": windows.build,
               "windows_product_type": windows.product_type,
               "msystem": os.environ["MSYSTEM"],
-              "token": token_snapshot(),
-              "uac": uac_snapshot(),
           }
           output = Path("artifacts/windows/client-environment.json")
           output.parent.mkdir(parents=True, exist_ok=True)
+          # Retain exact ABI API/result/error before any later assertion or
+          # independent token query can fail. x64 on Arm is not a WOW64 process.
+          output.write_text(json.dumps(facts, indent=2) + "\n", encoding="utf-8")
+          facts["token"] = token_snapshot()
+          facts["uac"] = uac_snapshot()
           output.write_text(json.dumps(facts, indent=2) + "\n", encoding="utf-8")
           assert facts["pointer_bits"] == 64
-          assert process.value == 0x8664 and native.value == 0xAA64
+          assert architecture["wow64"]["success"]
+          assert architecture["process_type"]["success"]
+          assert facts["actual_process_machine"] == 0x8664
+          assert facts["native_machine"] == 0xAA64
           assert windows.product_type == 1 and windows.build >= 22000
           assert facts["msystem"] == "UCRT64"
           PY

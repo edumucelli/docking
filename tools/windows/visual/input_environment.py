@@ -59,6 +59,16 @@ class _ContextStatus(c.Structure):
     _fields_ = [("dynamic", _U), ("static", _U)]
 
 
+class _ProcessMachineInformation(c.Structure):
+    # Independent diagnostic binding: keep installed-wheel selection free of
+    # source-package imports. SDK processthreadsapi.h, class 9, build 22000+.
+    _fields_ = [
+        ("machine", c.c_uint16),
+        ("reserved", c.c_uint16),
+        ("attributes", _U),
+    ]
+
+
 def bind(library, name, result, *arguments):
     # Standalone ABI boundary: importing docking here would preload the source
     # package before --installed-root acceptance selects its installed wheel.
@@ -66,6 +76,61 @@ def bind(library, name, result, *arguments):
     function.restype = result
     function.argtypes = arguments
     return function
+
+
+def process_architecture(kernel, process: int, *, details: bool = False):
+    """Passively record a borrowed process handle's ABI and exact query failures."""
+    guest, native = c.c_uint16(), c.c_uint16()
+    raw = {"api": "IsWow64Process2", "success": False}
+    facts = {"wow64": raw, "machine": None, "source": None}
+    try:
+        wow = bind(
+            kernel,
+            "IsWow64Process2",
+            _B,
+            _P,
+            c.POINTER(c.c_uint16),
+            c.POINTER(c.c_uint16),
+        )
+    except AttributeError:
+        raw["error"] = "unavailable"
+        return facts
+    if not wow(process, c.byref(guest), c.byref(native)):
+        raw["winerror"] = c.get_last_error()
+        return facts
+    raw.update(success=True, process_machine=guest.value, native_machine=native.value)
+    ambiguous = guest.value == 0 and native.value == 0xAA64
+    if not ambiguous:
+        facts.update(machine=guest.value or native.value, source="IsWow64Process2")
+    if not details and not ambiguous:
+        return facts
+    query = {
+        "api": "GetProcessInformation",
+        "information_class": 9,
+        "structure_size": c.sizeof(_ProcessMachineInformation),
+        "success": False,
+    }
+    facts["process_type"] = query
+    try:
+        read = bind(
+            kernel,
+            "GetProcessInformation",
+            _B,
+            _P,
+            c.c_int32,
+            c.POINTER(_ProcessMachineInformation),
+            _U,
+        )
+    except AttributeError:
+        query["error"] = "unavailable"
+        return facts
+    info = _ProcessMachineInformation()
+    if not read(process, 9, c.byref(info), c.sizeof(info)):
+        query["winerror"] = c.get_last_error()
+        return facts
+    query.update(success=True, machine=info.machine, attributes=info.attributes)
+    facts.update(machine=info.machine, source="GetProcessInformation")
+    return facts
 
 
 def method(pointer, index, result, *arguments):
@@ -393,19 +458,17 @@ class _Environment:
         if not process:
             return {**result, **_error(c.WinError(c.get_last_error()))}
         try:
-            machine, native = c.c_uint16(), c.c_uint16()
-            if bind(
-                self.kernel,
-                "IsWow64Process2",
-                _B,
-                _P,
-                c.POINTER(c.c_uint16),
-                c.POINTER(c.c_uint16),
-            )(process, c.byref(machine), c.byref(native)):
-                value = machine.value or native.value
-                result["machine"] = {0x14C: "x86", 0x8664: "x64", 0xAA64: "arm64"}.get(
-                    value, f"0x{value:04x}"
-                )
+            architecture = process_architecture(self.kernel, process)
+            result["architecture"] = architecture
+            value = architecture["machine"]
+            if value is not None:
+                result["machine"] = {
+                    0x14C: "x86",
+                    0x8664: "x64",
+                    0xAA64: "arm64",
+                    0xA641: "arm64ec",
+                    0xA64E: "arm64x",
+                }.get(value, f"0x{value:04x}")
             session = _U()
             if bind(self.kernel, "ProcessIdToSessionId", _B, _U, c.POINTER(_U))(
                 pid, c.byref(session)

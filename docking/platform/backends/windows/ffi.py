@@ -16,11 +16,58 @@ class MonitorInfo(ctypes.Structure):
     ]
 
 
+class ProcessMachineInformation(ctypes.Structure):
+    # SDK processthreadsapi.h, ProcessMachineTypeInfo (9), Windows build 22000+.
+    _fields_ = [
+        ("machine", ctypes.c_uint16),
+        ("reserved", ctypes.c_uint16),
+        ("attributes", ctypes.c_uint32),
+    ]
+
+
 def bind(library: Any, name: str, result: Any, *arguments: Any) -> Any:
     function = getattr(library, name)
     function.restype = result
     function.argtypes = arguments
     return function
+
+
+def process_machine(kernel: Any, process: int) -> int:
+    """Read a borrowed process handle's ABI, including AMD64 emulation on Arm.
+
+    x64 on Arm uses the host namespace, not WOW64, so UNKNOWN/native ARM64
+    cannot identify its ABI. Resolve that case with ProcessMachineTypeInfo;
+    older unambiguous x86/AMD64 results keep their existing Windows API floor.
+    An unavailable or failed query never authorizes a guessed hook architecture.
+    """
+    guest, native = ctypes.c_uint16(), ctypes.c_uint16()
+    if not bind(
+        kernel,
+        "IsWow64Process2",
+        ctypes.c_int32,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_uint16),
+        ctypes.POINTER(ctypes.c_uint16),
+    )(process, ctypes.byref(guest), ctypes.byref(native)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    if guest.value or native.value != 0xAA64:
+        return guest.value or native.value
+    info = ProcessMachineInformation()
+    try:
+        query = bind(
+            kernel,
+            "GetProcessInformation",
+            ctypes.c_int32,
+            ctypes.c_void_p,
+            ctypes.c_int32,
+            ctypes.POINTER(ProcessMachineInformation),
+            ctypes.c_uint32,
+        )
+    except AttributeError:
+        raise OSError("Process machine type query is unavailable") from None
+    if not query(process, 9, ctypes.byref(info), ctypes.sizeof(info)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return int(info.machine)
 
 
 def window_handle(window: object) -> int | None:

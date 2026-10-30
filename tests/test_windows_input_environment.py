@@ -915,6 +915,7 @@ def test_runtime_session_query_is_skipped_when_core_session_identity_is_unknown(
 
 def test_modern_system_input_modules_are_visible_without_com_registration(monkeypatch):
     monkeypatch.setenv("SYSTEMROOT", r"C:\Windows")
+    monkeypatch.setattr(environment.c, "get_last_error", lambda: 5, raising=False)
     native = object.__new__(environment._Environment)
     native.kernel = "kernel"
     paths = {
@@ -967,3 +968,130 @@ def test_modern_system_input_modules_are_visible_without_com_registration(monkey
     assert "ModernTip.dll" in serialized and "MsCtfMonitor.dll" in serialized
     assert "private-server" not in serialized and "Private" not in serialized
     assert facts["modules"][-1] == {"path": "<outside-system-directory>"}
+
+
+@pytest.fixture
+def architecture_kernel(monkeypatch):
+    state = SimpleNamespace(guest=0, native=0xAA64, actual=0x8664)
+
+    def wow(process, guest, native):
+        guest._obj.value, native._obj.value = state.guest, state.native
+        return 1
+
+    def query(process, kind, output, size):
+        assert process == 55 and kind == 9 and size == 8
+        output._obj.machine = state.actual
+        output._obj.attributes = 1
+        return 1
+
+    library = SimpleNamespace(
+        IsWow64Process2=Mock(side_effect=wow),
+        GetProcessInformation=Mock(side_effect=query),
+    )
+    monkeypatch.setattr(environment.c, "get_last_error", lambda: 87, raising=False)
+    return library, state
+
+
+@pytest.mark.parametrize("actual", [0x8664, 0x14C, 0xAA64, 0xA641, 0])
+def test_architecture_diagnostic_reports_exact_abi_and_raw_wow_without_importing_docking(
+    architecture_kernel, actual
+):
+    library, state = architecture_kernel
+    state.actual = actual
+    before = set(sys.modules)
+    facts = environment.process_architecture(library, 55)
+    assert not any(name.startswith("docking") for name in set(sys.modules) - before)
+    assert facts["machine"] == actual and facts["source"] == "GetProcessInformation"
+    assert facts["wow64"] == {
+        "api": "IsWow64Process2",
+        "success": True,
+        "process_machine": 0,
+        "native_machine": 0xAA64,
+    }
+    assert facts["process_type"] == {
+        "api": "GetProcessInformation",
+        "information_class": 9,
+        "structure_size": 8,
+        "success": True,
+        "machine": actual,
+        "attributes": 1,
+    }
+    assert environment.c.sizeof(environment._ProcessMachineInformation) == 8
+    assert environment._ProcessMachineInformation.attributes.offset == 4
+    json.dumps(facts)
+
+
+@pytest.mark.parametrize("failure", ["missing", "error"])
+def test_ambiguous_architecture_diagnostic_never_calls_arm_host_an_amd64_process(
+    architecture_kernel, failure
+):
+    library, _state = architecture_kernel
+    if failure == "missing":
+        del library.GetProcessInformation
+    else:
+        library.GetProcessInformation.side_effect = None
+        library.GetProcessInformation.return_value = 0
+    facts = environment.process_architecture(library, 55)
+    assert facts["machine"] is None and facts["source"] is None
+    assert not facts["process_type"]["success"]
+    if failure == "missing":
+        assert facts["process_type"]["error"] == "unavailable"
+    else:
+        assert facts["process_type"]["winerror"] == 87
+
+
+def test_optional_detailed_abi_query_keeps_older_unambiguous_result_on_query_failure(
+    architecture_kernel,
+):
+    library, state = architecture_kernel
+    state.native = 0x8664
+    library.GetProcessInformation.side_effect = None
+    library.GetProcessInformation.return_value = 0
+    ordinary = environment.process_architecture(library, 55)
+    assert ordinary["machine"] == 0x8664 and "process_type" not in ordinary
+    library.GetProcessInformation.assert_not_called()
+    detailed = environment.process_architecture(library, 55, details=True)
+    assert detailed["machine"] == 0x8664 and detailed["source"] == "IsWow64Process2"
+    assert detailed["process_type"]["winerror"] == 87
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_failed_raw_wow_query_is_recorded_without_an_architecture_guess(
+    architecture_kernel, missing
+):
+    library, _state = architecture_kernel
+    if missing:
+        del library.IsWow64Process2
+    else:
+        library.IsWow64Process2.side_effect = None
+        library.IsWow64Process2.return_value = 0
+    facts = environment.process_architecture(library, 55, details=True)
+    assert facts["machine"] is None and not facts["wow64"]["success"]
+    assert "process_type" not in facts
+    if missing:
+        assert facts["wow64"]["error"] == "unavailable"
+    else:
+        assert facts["wow64"]["winerror"] == 87
+    library.GetProcessInformation.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("actual", "name"), [(0x8664, "x64"), (0xAA64, "arm64"), (0xA641, "arm64ec")]
+)
+def test_module_inventory_projects_actual_arm_host_process_abi_and_closes_handle(
+    architecture_kernel, actual, name
+):
+    library, state = architecture_kernel
+    state.actual = actual
+    library.OpenProcess = Mock(return_value=55)
+    library.CloseHandle = Mock(return_value=1)
+    library.ProcessIdToSessionId = Mock(return_value=0)
+    library.K32EnumProcessModulesEx = Mock(return_value=1)
+    native = environment._Environment.__new__(environment._Environment)
+    native.kernel = library
+    native.registration = list
+    facts = native.modules(77)
+    assert facts["machine"] == name
+    assert facts["architecture"]["machine"] == actual
+    assert facts["architecture"]["wow64"]["native_machine"] == 0xAA64
+    library.CloseHandle.assert_called_once_with(55)
