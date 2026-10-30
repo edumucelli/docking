@@ -48,6 +48,47 @@ def test_shared_report_persistent_denial_propagates(tmp_path, monkeypatch):
     assert replace.call_count == 20
 
 
+def test_click_guard_runs_after_movement_settles_before_any_button_or_modifier(
+    monkeypatch,
+):
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    events = []
+    desktop.user = Mock()
+    desktop.user.SetCursorPos.side_effect = lambda *_: events.append("move") or 1
+    monkeypatch.setattr(mod.time, "sleep", lambda _: events.append("settled"))
+    desktop._send = Mock()
+
+    def changed():
+        assert events == ["move", "settled"]
+        raise AssertionError("Target was covered during movement")
+
+    with pytest.raises(AssertionError, match="covered during movement"):
+        desktop.click(100, 200, control=True, before_press=changed)
+    desktop._send.assert_not_called()
+
+
+def test_pointer_move_failure_never_injects_click(monkeypatch):
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    desktop.user.SetCursorPos.return_value = 0
+    desktop._send = Mock()
+    monkeypatch.setattr(mod.time, "sleep", Mock())
+    with pytest.raises(AssertionError, match="Pointer did not move"):
+        desktop.click(100, 200)
+    desktop._send.assert_not_called()
+
+
+@pytest.mark.parametrize("right,flags", [(False, [2, 4]), (True, [8, 16])])
+def test_default_click_keeps_one_button_press_and_release(monkeypatch, right, flags):
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    events = []
+    desktop._send = lambda values: events.extend(v.data.mouse.flags for v in values)
+    monkeypatch.setattr(mod.time, "sleep", lambda _: None)
+    desktop.click(100, 200, right=right)
+    assert events == flags
+
+
 def test_drag_emits_one_press_and_release_without_a_trailing_double_click(monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)
     desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)

@@ -22,7 +22,7 @@ from functools import partial
 from pathlib import Path
 
 from tools.windows.visual.desktop_driver import write_shared_json
-from tools.windows.visual.input_editor import OwnedInputEditor
+from tools.windows.visual.input_editor import OwnedInputEditor, focus_editor
 
 
 def _observe_composition(document: Path, *, seconds: float = 10) -> str:
@@ -404,10 +404,9 @@ def main(monitor) -> None:
                     process = owned_editor.process
                     gate, marker = owned_editor.gate, owned_editor.marker
                     assert gate is not None
-                left, top, _right, _bottom = editor["rect"]
 
-                def focus(left=left, top=top, editor=editor):
-                    native.click(left + 150, top + 160)
+                def focus(editor=editor):
+                    focus_editor(native, editor)
                     context = api.foreground()
                     assert context and context.root == editor["hwnd"]
                     return context

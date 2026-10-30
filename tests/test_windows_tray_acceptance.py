@@ -25,7 +25,10 @@ from tools.windows.visual.tray_fixture import decode_callback, rich_popup_positi
 from tools.windows.visual.tray_interactions import (
     connect_hover_trace,
     disconnect_hover_trace,
+    hover_motion_inputs,
+    hover_motion_reached,
     keyboard_focus_ready,
+    traverse_hover,
     visible_control_point,
 )
 from tools.windows.visual.tray_provider import (
@@ -37,6 +40,185 @@ from tools.windows.visual.tray_provider import (
 )
 from tools.windows.visual.tray_provider_smoke import OwnedWireTrace
 from tools.windows.visual.tray_smoke import physical_dock_click
+
+
+@pytest.mark.parametrize(
+    "point,size,desktop",
+    [
+        ((239, 568), (24, 36), (0, 0, 1024, 768)),
+        ((-100, -200), (24, 36), (-1920, -1080, 3840, 2160)),
+        ((0, 0), (24, 36), (0, 0, 1024, 768)),
+        ((1023, 767), (24, 36), (0, 0, 1024, 768)),
+        ((239, 568), (1, 3), (0, 0, 1024, 768)),
+    ],
+)
+def test_hover_motion_traverses_distinct_interior_pixels_without_native_coalescing(
+    point, size, desktop
+):
+    path, inputs = hover_motion_inputs(point, size, desktop)
+    assert len(path) == len(inputs) == 2 and path[-1] == point
+    assert abs(path[0][0] - point[0]) + abs(path[0][1] - point[1]) == 1
+    left, top, width, height = desktop
+    delivered = []
+    for event in inputs:
+        mouse = event.data.mouse
+        assert event.type == 0 and mouse.flags == 0xE001
+        assert mouse.data == mouse.time == mouse.extra == 0
+        assert 0 <= mouse.x <= 65535 and 0 <= mouse.y <= 65535
+        delivered.append(
+            (left + mouse.x * width // 65536, top + mouse.y * height // 65536)
+        )
+    assert tuple(delivered) == path
+
+
+@pytest.mark.parametrize(
+    "point,size,desktop",
+    [
+        ((10, 10), (2, 2), (0, 0, 1024, 768)),
+        ((-1, 10), (24, 36), (0, 0, 1024, 768)),
+        ((10, 10), (24, 36), (0, 0, 0, 768)),
+    ],
+)
+def test_hover_motion_rejects_unusable_geometry_before_injecting(point, size, desktop):
+    with pytest.raises(AssertionError):
+        hover_motion_inputs(point, size, desktop)
+
+
+def test_v4_hover_requires_a_motion_callback_at_the_final_physical_point():
+    point = (-100, -200)
+
+    def callback(event, x, y):
+        return {"event": event, "first": (x & 0xFFFF) | ((y & 0xFFFF) << 16)}
+
+    intermediate = callback(0x200, -101, -200)
+    enter = callback(0x406, *point)
+    assert not hover_motion_reached([intermediate, enter], 4, point)
+    assert hover_motion_reached([intermediate], 3, point)
+    assert hover_motion_reached(
+        [intermediate, enter, callback(0x200, *point)], 4, point
+    )
+
+
+@pytest.mark.parametrize("version", (0, 4))
+def test_hover_waits_for_each_provider_ack_before_sending_the_next_point(
+    monkeypatch, version
+):
+    from tools.windows.visual import tray_interactions as mod
+
+    now, sent, rows, trace, budgets = [100.0], [], [], [], []
+    monkeypatch.setattr(mod.time, "monotonic", lambda: now[0])
+    path, inputs = hover_motion_inputs((239, 568), (24, 36), (0, 0, 1024, 768))
+
+    def send(values):
+        assert len(values) == 1
+        sent.extend(values)
+        trace.append(("send", len(sent)))
+
+    def wait(predicate, _message, seconds):
+        budgets.append(seconds)
+        assert not predicate()  # The previous phase cannot acknowledge this move.
+        trace.append(("wait", len(sent)))
+        now[0] += 2
+        x, y = path[len(sent) - 1]
+        row = {
+            "sequence": len(rows) + 1,
+            "event": 0x200,
+            "first": x | (y << 16),
+        }
+        rows.append(row)
+        assert predicate() is row
+        trace.append(("ack", len(sent)))
+        return row
+
+    attempt = {}
+    traverse_hover(
+        SimpleNamespace(_send=send, wait_for=wait),
+        path,
+        inputs,
+        version=version,
+        sequence=lambda: len(rows),
+        callbacks=lambda after: [row for row in rows if row["sequence"] > after],
+        attempt=attempt,
+    )
+    assert trace == [
+        ("send", 1),
+        ("wait", 1),
+        ("ack", 1),
+        ("send", 2),
+        ("wait", 2),
+        ("ack", 2),
+    ]
+    assert budgets == [15, 13] and sent == inputs
+    assert attempt["motion_deadline_s"] == 15
+    phases = attempt["motion_phases"]
+    assert [phase["stage"] for phase in phases] == ["acknowledged"] * 2
+    assert [phase["startseq"] for phase in phases] == [0, 1]
+    assert [phase["callback_sequence"] for phase in phases] == [1, 2]
+    assert [phase["send_elapsed_ms"] for phase in phases] == [0, 2000]
+    assert [phase["ack_elapsed_ms"] for phase in phases] == [2000, 4000]
+
+
+@pytest.mark.parametrize("first_ack,spent", [(False, 15), (True, 15), (True, 2)])
+def test_hover_failure_never_retries_or_sends_after_the_shared_deadline(
+    monkeypatch, first_ack, spent
+):
+    from tools.windows.visual import tray_interactions as mod
+
+    now, sent, rows, waits = [100.0], [], [], []
+    monkeypatch.setattr(mod.time, "monotonic", lambda: now[0])
+    path, inputs = hover_motion_inputs((239, 568), (24, 36), (0, 0, 1024, 768))
+
+    def wait(_predicate, _message, seconds):
+        waits.append(seconds)
+        if first_ack and len(waits) == 1:
+            now[0] += spent
+            row = {"sequence": 1, "event": 0x200, "first": 238 | (568 << 16)}
+            rows.append(row)
+            return row
+        raise AssertionError("provider motion missing")
+
+    attempt = {}
+    with pytest.raises(AssertionError):
+        traverse_hover(
+            SimpleNamespace(_send=lambda values: sent.extend(values), wait_for=wait),
+            path,
+            inputs,
+            version=4,
+            sequence=lambda: len(rows),
+            callbacks=lambda _after: rows,
+            attempt=attempt,
+        )
+    assert len(sent) == (2 if first_ack and spent < 15 else 1)
+    assert waits == ([15, 13] if first_ack and spent < 15 else [15])
+    if first_ack and spent == 15:
+        assert attempt["motion_phases"][-1]["stage"] == "deadline"
+
+
+def test_hover_does_not_inject_if_sequence_observation_exhausts_the_deadline(
+    monkeypatch,
+):
+    from tools.windows.visual import tray_interactions as mod
+
+    now, sent = [100.0], []
+    monkeypatch.setattr(mod.time, "monotonic", lambda: now[0])
+    path, inputs = hover_motion_inputs((239, 568), (24, 36), (0, 0, 1024, 768))
+
+    def slow_sequence():
+        now[0] += 15
+        return 0
+
+    attempt = {}
+    with pytest.raises(AssertionError, match="shared deadline"):
+        traverse_hover(
+            SimpleNamespace(_send=lambda values: sent.extend(values)),
+            path,
+            inputs,
+            version=4,
+            sequence=slow_sequence,
+            callbacks=lambda _after: [],
+            attempt=attempt,
+        )
+    assert not sent and attempt["motion_phases"][0]["stage"] == "deadline"
 
 
 class HoverTarget:

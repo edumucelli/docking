@@ -71,6 +71,7 @@ def main(monitor):
     from docking.search.services.global_shortcuts import GlobalShortcutsState
     from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
     from tools.windows.visual.input_editor import OwnedInputEditor
+    from tools.windows.visual.input_editor import focus_editor as click_editor
     from tools.windows.visual.input_environment import (
         runtime_snapshot,
         target_modules,
@@ -267,14 +268,7 @@ def main(monitor):
                 )
 
             def focus_editor():
-                window = next(
-                    w for w in native.windows() if w["hwnd"] == notepad["hwnd"]
-                )
-                left, top, right, bottom = window["rect"]
-                native.click(
-                    left + min(150, (right - left) / 2),
-                    top + min(200, (bottom - top) * 0.6),
-                )
+                click_editor(native, notepad)
                 native.wait_for(
                     lambda: (
                         api.foreground() is not None

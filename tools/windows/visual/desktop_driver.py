@@ -261,8 +261,10 @@ class WindowsDesktop:
         )
         time.sleep(0.15)
 
-    def click(self, x, y, *, right=False, control=False):
-        self.user.SetCursorPos(int(x), int(y))
+    def click(self, x, y, *, right=False, control=False, before_press=None):
+        assert self.user.SetCursorPos(int(x), int(y)), (
+            "Pointer did not move before click"
+        )
         time.sleep(0.3)
         values = []
         if control:
@@ -275,6 +277,8 @@ class WindowsDesktop:
             values.append(
                 _Input(type=1, data=_Data(keyboard=_Keyboard(key=0x11, flags=2)))
             )
+        if before_press is not None:
+            before_press()
         self._send(values)
         time.sleep(0.3)
 

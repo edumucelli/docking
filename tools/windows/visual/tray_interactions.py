@@ -14,11 +14,115 @@ import uuid
 import zlib
 from ctypes import wintypes
 
+from tools.windows.visual.desktop_driver import _Data, _Input, _Mouse
 from tools.windows.visual.tray_provider import (
     NativeProvider,
     ProviderCase,
     build_provider,
 )
+
+
+def hover_motion_inputs(point, size, desktop):
+    """Encode two interior pixels as noncoalesced native mouse input."""
+    x, y = point
+    width, height = size
+    left, top, screen_width, screen_height = desktop
+
+    def inside(px, py):
+        return left <= px < left + screen_width and top <= py < top + screen_height
+
+    if screen_width <= 0 or screen_height <= 0 or not inside(x, y):
+        raise AssertionError("Tray hover point is outside the virtual desktop")
+    candidates = ([(x - 1, y), (x + 1, y)] if width >= 3 else []) + (
+        [(x, y - 1), (x, y + 1)] if height >= 3 else []
+    )
+    intermediate = next((p for p in candidates if inside(*p)), None)
+    if intermediate is None:
+        raise AssertionError("Tray icon has no interior mouse traversal")
+    path = (intermediate, (x, y))
+    values = []
+    for px, py in path:
+        # Aim at the physical pixel center within SendInput's normalized space.
+        dx = ((2 * (px - left) + 1) * 65536) // (2 * screen_width)
+        dy = ((2 * (py - top) + 1) * 65536) // (2 * screen_height)
+        values.append(
+            _Input(
+                type=0,
+                data=_Data(
+                    mouse=_Mouse(
+                        x=dx,
+                        y=dy,
+                        # MOVE | MOVE_NOCOALESCE | VIRTUALDESK | ABSOLUTE.
+                        flags=0xE001,
+                    )
+                ),
+            )
+        )
+    return path, values
+
+
+def hover_motion_reached(rows, version, point):
+    return any(
+        row["event"] == 0x200
+        and (
+            version != 4
+            or (
+                c.c_int16(row["first"] & 0xFFFF).value,
+                c.c_int16((row["first"] >> 16) & 0xFFFF).value,
+            )
+            == point
+        )
+        for row in rows
+    )
+
+
+def traverse_hover(native, path, inputs, *, version, sequence, callbacks, attempt):
+    """Acknowledge each real move within one shared acceptance deadline."""
+    started = time.monotonic()
+    deadline = started + 15
+    attempt["motion_deadline_s"] = 15
+    phases = attempt["motion_phases"] = []
+    for name, point, value in zip(("intermediate", "final"), path, inputs, strict=True):
+        phase = {"phase": name, "point": point, "stage": "not-sent"}
+        phases.append(phase)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            phase["stage"] = "deadline"
+            raise AssertionError("Real pointer motion exceeded its shared deadline")
+        after = sequence()
+        sent = time.monotonic()
+        if sent >= deadline:
+            phase["stage"] = "deadline"
+            raise AssertionError("Real pointer motion exceeded its shared deadline")
+        phase.update(
+            stage="sent",
+            startseq=after,
+            send_elapsed_ms=round((sent - started) * 1000),
+        )
+        # Input insertion is not an acknowledgement of GTK/provider dispatch.
+        # Do not queue the return until the first physical point was observed.
+        native._send([value])
+
+        def delivered(after=after, point=point):
+            return next(
+                (
+                    row
+                    for row in callbacks(after)
+                    if hover_motion_reached([row], version, point)
+                ),
+                None,
+            )
+
+        received = native.wait_for(
+            delivered,
+            "Real pointer motion did not reach the provider",
+            max(0, deadline - time.monotonic()),
+        )
+        phase.update(
+            stage="acknowledged",
+            callback_sequence=received["sequence"],
+            ack_elapsed_ms=round((time.monotonic() - started) * 1000),
+        )
 
 
 def keyboard_focus_ready(snapshot, pid):
@@ -129,6 +233,8 @@ def verify_interactions(
 
     user = native.user
     move = bind(user, "SetCursorPos", c.c_int32, c.c_int, c.c_int)
+    metrics = bind(user, "GetSystemMetrics", c.c_int, c.c_int)
+    desktop_bounds = tuple(metrics(index) for index in (76, 77, 78, 79))
     foreground = user.GetForegroundWindow
     visible = user.IsWindowVisible
     evidence = report["interactions"] = {
@@ -334,17 +440,28 @@ def verify_interactions(
                 )
                 attempt["stage"] = "before-move"
                 attempt["before_move"] = hover_observation(which, target)
-                assert move(
-                    *map(int, call(lambda which=which: button_point(ids[which], None)))
+                point, size = call(
+                    lambda which=which, target=target: (
+                        tuple(map(int, button_point(ids[which], None))),
+                        (target.get_allocated_width(), target.get_allocated_height()),
+                    )
+                )
+                # GDK Win32 suppresses motion at its last recorded coordinates.
+                # Leaving for another process need not update that cache. A real,
+                # noncoalesced traversal inside this row changes it before return.
+                path, inputs = hover_motion_inputs(point, size, desktop_bounds)
+                attempt["motion_path"] = path
+                attempt["stage"] = "provider-motion"
+                traverse_hover(
+                    native,
+                    path,
+                    inputs,
+                    version=version,
+                    sequence=sequence,
+                    callbacks=lambda after, which=which: callbacks(which, after),
+                    attempt=attempt,
                 )
                 attempt["after_move"] = hover_observation(which, target)
-                attempt["stage"] = "provider-motion"
-                native.wait_for(
-                    lambda which=which, start=start: any(
-                        row["event"] == 0x200 for row in callbacks(which, start)
-                    ),
-                    "Real pointer motion did not reach the provider",
-                )
                 attempt["stage"] = "tooltip-visible"
                 if standard:
                     native.wait_for(
@@ -369,17 +486,12 @@ def verify_interactions(
                     )
                     assert any(row["event"] == 0x406 for row in callbacks(which, start))
                 if version == 4:
-                    point = wintypes.POINT()
+                    position = wintypes.POINT()
                     assert bind(
                         user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT)
-                    )(c.byref(point))
-                    motion = next(
-                        row for row in callbacks(which, start) if row["event"] == 0x200
-                    )
-                    assert (
-                        c.c_int16(motion["first"] & 0xFFFF).value,
-                        c.c_int16((motion["first"] >> 16) & 0xFFFF).value,
-                    ) == (point.x, point.y)
+                    )(c.byref(position))
+                    assert (position.x, position.y) == point
+                    assert hover_motion_reached(callbacks(which, start), version, point)
                 assert foreground() == before, (
                     "Passive tray hover changed native foreground"
                 )

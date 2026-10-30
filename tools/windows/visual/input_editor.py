@@ -9,6 +9,7 @@ import subprocess
 import uuid
 from collections.abc import Callable
 from contextlib import ExitStack
+from ctypes import wintypes
 from pathlib import Path
 
 from tools.windows.bundle import command_path
@@ -16,6 +17,61 @@ from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_jso
 from tools.windows.visual.input_environment import bind
 
 _EDITOR_LOG_LIMIT = 16_384
+
+
+def focus_editor(native: WindowsDesktop, editor: dict) -> tuple[int, int]:
+    """Click an exposed part of the exact editor, then verify actual foreground.
+
+    A fixed client coordinate can belong to a shell popup covering the editor.
+    Inspect alternative client points before sending one physical click; never
+    dismiss an unidentified window or force foreground activation.
+    """
+    hwnd, pid = editor["hwnd"], editor["pid"]
+    current = next((row for row in native.windows(pid) if row["hwnd"] == hwnd), None)
+    if current is None or current["pid"] != pid:
+        raise AssertionError("Owned input editor is no longer visible")
+    left, top, right, bottom = current["rect"]
+    width, height = right - left, bottom - top
+    if width <= 0 or height <= 0:
+        raise AssertionError("Owned input editor has no client area")
+    points = [
+        (int(left + min(150, width / 2)), int(top + min(200, height * 0.6))),
+        *(
+            (int(left + width * x), int(top + height * y))
+            for y in (0.6, 0.8, 0.4)
+            for x in (0.1, 0.25, 0.5, 0.75, 0.9)
+        ),
+    ]
+    for x, y in dict.fromkeys(points):
+        if native.window_at(x, y) != hwnd:
+            continue
+
+        def verify(x=x, y=y):
+            # Check after movement settles, immediately before button injection.
+            position = wintypes.POINT()
+            if not bind(
+                native.user,
+                "GetCursorPos",
+                ctypes.c_int32,
+                ctypes.POINTER(wintypes.POINT),
+            )(ctypes.byref(position)) or (position.x, position.y) != (x, y):
+                raise AssertionError("Pointer moved away from the owned input editor")
+            current = next(
+                (row for row in native.windows(pid) if row["hwnd"] == hwnd), None
+            )
+            if current is None or current["pid"] != pid:
+                raise AssertionError("Owned input editor identity changed before click")
+            if native.window_at(x, y) != hwnd:
+                raise AssertionError("Owned input editor was covered before click")
+
+        native.click(x, y, before_press=verify)
+        native.wait_for(
+            lambda: native.user.GetForegroundWindow() == hwnd,
+            "Owned input editor did not receive foreground",
+        )
+        return x, y
+    raise AssertionError("Owned input editor has no exposed input point")
+
 
 _EDITOR_SOURCE = r"""
 using System;

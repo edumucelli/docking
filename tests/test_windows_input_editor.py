@@ -12,6 +12,145 @@ import pytest
 from tools.windows.visual import input_editor as mod
 
 
+@pytest.fixture
+def focus_desktop():
+    editor = {"hwnd": 101, "pid": 202, "rect": [65, 50, 585, 350]}
+    foreground = [999]
+    position = [0, 0]
+    pressed = Mock()
+
+    def move(x, y):
+        position[:] = x, y
+        return 1
+
+    def cursor(output):
+        output._obj.x, output._obj.y = position
+        return 1
+
+    def click(x, y, *, before_press):
+        move(x, y)
+        before_press()
+        pressed()
+        foreground[0] = 101
+
+    def wait(predicate, message):
+        assert predicate(), message
+
+    native = SimpleNamespace(
+        windows=Mock(return_value=[editor]),
+        window_at=Mock(return_value=101),
+        click=Mock(side_effect=click),
+        wait_for=wait,
+        user=SimpleNamespace(
+            GetForegroundWindow=lambda: foreground[0],
+            GetCursorPos=Mock(side_effect=cursor),
+            SetCursorPos=Mock(side_effect=move),
+        ),
+        _send=pressed,
+    )
+    return native, editor, foreground
+
+
+def test_editor_focus_avoids_covering_popup_and_sends_one_verified_click(focus_desktop):
+    native, editor, foreground = focus_desktop
+    # The hosted Start popup covers x>=190; the editor's left client area is free.
+    native.window_at.side_effect = lambda x, _y: 999 if x >= 190 else 101
+    x, y = mod.focus_editor(native, editor)
+    assert 65 < x < 190 and 50 < y < 350 and foreground[0] == 101
+    assert native.click.call_count == 1 and native.click.call_args.args == (x, y)
+    assert all(call.args == (202,) for call in native.windows.call_args_list)
+
+
+def test_fully_covered_editor_never_clicks_an_unrelated_window(focus_desktop):
+    native, editor, foreground = focus_desktop
+    native.window_at.return_value = 999
+    with pytest.raises(AssertionError, match="no exposed input point"):
+        mod.focus_editor(native, editor)
+    native.click.assert_not_called()
+    assert foreground[0] == 999
+
+
+@pytest.mark.parametrize("later", [[], [{"hwnd": 101, "pid": 303}]])
+def test_editor_reuse_or_disappearance_before_click_is_fatal(focus_desktop, later):
+    native, editor, _foreground = focus_desktop
+    native.windows.side_effect = [[editor], later]
+    with pytest.raises(AssertionError, match="identity changed"):
+        mod.focus_editor(native, editor)
+    native._send.assert_not_called()
+
+
+def test_editor_covered_between_hit_tests_is_not_clicked(focus_desktop):
+    native, editor, _foreground = focus_desktop
+    native.window_at.side_effect = [101, 999]
+    with pytest.raises(AssertionError, match="covered before click"):
+        mod.focus_editor(native, editor)
+    native._send.assert_not_called()
+
+
+def test_editor_covered_during_pointer_settle_aborts_before_button_injection(
+    focus_desktop, monkeypatch
+):
+    from tools.windows.visual import desktop_driver
+
+    native, editor, _foreground = focus_desktop
+    covered = [False]
+    native.window_at.side_effect = lambda *_: 999 if covered[0] else 101
+    monkeypatch.setattr(
+        desktop_driver.time, "sleep", lambda _seconds: covered.__setitem__(0, True)
+    )
+    native.click = lambda *args, **kw: desktop_driver.WindowsDesktop.click(
+        native, *args, **kw
+    )
+    with pytest.raises(AssertionError, match="covered before click"):
+        mod.focus_editor(native, editor)
+    native._send.assert_not_called()
+
+
+def test_pointer_moving_during_settle_aborts_before_button_injection(
+    focus_desktop, monkeypatch
+):
+    from tools.windows.visual import desktop_driver
+
+    native, editor, _foreground = focus_desktop
+    monkeypatch.setattr(
+        desktop_driver.time, "sleep", lambda _seconds: native.user.SetCursorPos(10, 10)
+    )
+    native.click = lambda *args, **kw: desktop_driver.WindowsDesktop.click(
+        native, *args, **kw
+    )
+    with pytest.raises(AssertionError, match="Pointer moved away"):
+        mod.focus_editor(native, editor)
+    native._send.assert_not_called()
+
+
+def test_physical_editor_click_must_really_acquire_foreground(focus_desktop):
+    native, editor, _foreground = focus_desktop
+    native.click.side_effect = None
+    with pytest.raises(AssertionError, match="did not receive foreground"):
+        mod.focus_editor(native, editor)
+    native.click.assert_called_once()
+
+
+def test_focus_uses_current_editor_geometry(focus_desktop):
+    native, editor, _foreground = focus_desktop
+    native.windows.return_value = [dict(editor, rect=[-700, 100, -200, 500])]
+    x, y = mod.focus_editor(native, editor)
+    assert -700 < x < -200 and 100 < y < 500
+    assert native.click.call_count == 1 and native.click.call_args.args == (x, y)
+
+
+@pytest.mark.parametrize("rows", [[], [{"hwnd": 101, "pid": 303}]])
+def test_focus_rejects_editor_that_is_not_the_visible_owned_process(
+    focus_desktop, rows
+):
+    native, editor, _foreground = focus_desktop
+    native.windows.return_value = rows
+    with pytest.raises(AssertionError, match="no longer visible"):
+        mod.focus_editor(native, editor)
+    native.window_at.assert_not_called()
+    native.click.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("root", "expected"),
     [
