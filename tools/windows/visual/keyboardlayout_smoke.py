@@ -15,6 +15,7 @@ import subprocess
 import sys
 import threading
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 _ORACLE = r"""
@@ -106,7 +107,7 @@ function RegValues($path) {
     return json.loads(result.stdout)
 
 
-def main():
+def main(monitor):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -121,6 +122,7 @@ def main():
     if (output / "result.json").exists():
         parser.error("Use a fresh output directory")
     output.mkdir(parents=True, exist_ok=True)
+    monitor["output_directory"] = str(output)
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -146,8 +148,15 @@ def main():
         MOD_CONTROL,
         WindowsHotkeyAPI,
     )
+    from docking.platform.backends.windows.input_service import WindowsInputService
     from docking.search.services.global_shortcuts import GlobalShortcutsState
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
+    from tools.windows.visual.input_environment import (
+        runtime_snapshot,
+        target_modules,
+        thread_snapshot,
+    )
+    from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
 
     native = WindowsDesktop()
     assert not any(
@@ -174,7 +183,14 @@ def main():
         ctypes.c_void_p,
         ctypes.c_uint32,
     )
-    report = {"baseline": before, "owned_layouts": [], "states": {}, "characters": {}}
+    report = {
+        "baseline": before,
+        "owned_layouts": [],
+        "states": {},
+        "characters": {},
+        "text_services": monitor,
+        "text_services_report": "text-services.json",
+    }
     from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
     from docking.platform.backends.windows.menus import WindowsMenuFocus
 
@@ -238,9 +254,7 @@ def main():
     )
 
     def publish():
-        temporary = output / "result.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
 
     original = app.build_dock_window
 
@@ -277,6 +291,8 @@ def main():
         owned_windows = []
         try:
             assert ready.wait(90)
+            report["input_runtime"] = runtime_snapshot()
+            publish()
             applet = call(lambda: shared["model"].get_applet("applet://keyboardlayout"))
             shared["applet"] = applet
             assert isinstance(applet._backend, WindowsKeyboardBackend)
@@ -701,6 +717,7 @@ def main():
                 journal = {"composition": []}
                 report["search_profiles"] = journal
                 search = shared["ui"].search
+                input_service = WindowsInputService()
 
                 def restore_keyboard():
                     state = applet._backend.query()
@@ -738,10 +755,44 @@ def main():
                             and call(entry.has_focus)
                         )
 
+                    def observe_input(stage):
+                        context = api.foreground()
+                        facts = {
+                            "context": asdict(context) if context else None,
+                            "modules": target_modules(os.getpid()),
+                            "foreground_is_fixture": bool(
+                                context
+                                and context.root == mapped["hwnd"]
+                                and context.pid == os.getpid()
+                            ),
+                        }
+                        try:
+                            if context is not None and facts["foreground_is_fixture"]:
+                                snapshot = input_service.read(
+                                    context, threading.Event()
+                                )
+                                facts["target_snapshot"] = (
+                                    asdict(snapshot) if snapshot else None
+                                )
+                        except OSError as error:
+                            facts["target_snapshot_error"] = repr(error)
+                        try:
+                            facts["ui"] = call(
+                                lambda: {
+                                    "thread": thread_snapshot(mapped["hwnd"]),
+                                    "gtk": gtk_input_snapshot(entry),
+                                }
+                            )
+                        except (OSError, RuntimeError) as error:
+                            facts["ui_observation_error"] = repr(error)
+                        attempt.setdefault("input_observations", {})[stage] = facts
+                        publish()
+
                     try:
                         native.wait_for(
                             focused, "IME fixture did not own native/GTK focus"
                         )
+                        observe_input("before_selection")
                         state = applet._backend.query()
                         applet._backend.switch(profile.code, context=state.context)
                         native.wait_for(
@@ -751,6 +802,7 @@ def main():
                         native.wait_for(
                             focused, "Profile activation changed fixture focus"
                         )
+                        observe_input("after_activation")
                         attempt["profile_readback"] = applet._backend.query().active
                         attempt["foreground_hwnd"] = int(
                             native.user.GetForegroundWindow()
@@ -764,6 +816,7 @@ def main():
                         native.scan(
                             0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
                         )
+                        observe_input("after_first_keys")
                         native.wait_for(
                             lambda: call(lambda: bool(preedit and preedit[-1])),
                             "IME fixture did not compose before Return",
@@ -840,6 +893,9 @@ def main():
                             stage="complete",
                         )
                         publish()
+                    except Exception:
+                        observe_input("failure")
+                        raise
                     finally:
                         attempt["final_observation"] = observation()
                         publish()
@@ -1314,4 +1370,19 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.platform != "win32":
+        main({})
+    else:
+        from tools.windows.visual.input_environment import text_services
+
+        monitor = {}
+        try:
+            with text_services() as monitor:
+                main(monitor)
+        finally:
+            if "output_directory" in monitor:
+                from tools.windows.visual.desktop_driver import write_shared_json
+
+                write_shared_json(
+                    Path(monitor["output_directory"]) / "text-services.json", monitor
+                )

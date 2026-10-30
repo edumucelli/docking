@@ -22,6 +22,21 @@ def read_shared_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
+def write_shared_json(path: Path, value: dict) -> None:
+    """Publish atomically while an SMB observer briefly holds the old report."""
+    temporary = path.with_suffix(".tmp")
+    data = json.dumps(value, indent=2) + "\n"
+    for attempt in range(20):
+        try:
+            temporary.write_text(data, encoding="utf-8")
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.01)
+
+
 class _Mouse(ctypes.Structure):
     _fields_ = [
         ("x", wintypes.LONG),

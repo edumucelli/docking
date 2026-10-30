@@ -50,7 +50,13 @@ The Search input mode checks US/French/Dvorak physical typing and French dead
 keys across a cold metadata refresh, live punctuation bindings, unavailable
 layouts, temporary conflicts and shutdown during retry. It restores the original input preferences and loaded
 layouts, and verifies that all tested shortcuts can be registered after exit.
-It also builds the standalone ZIP and exercises its extracted
+The input checks compare Search composition with a plain GTK entry and exercise
+Telex/VNI in x64 and x86 editors using the installed wheel. They restore the
+temporary profiles and input preferences. Runtime observations appear in
+`result.json`, with monitor ownership and cleanup in `text-services.json`.
+The fixtures preserve existing or ambiguous desktop monitors and pair any
+monitor they initialize with cleanup on the same thread and desktop.
+The workflow also builds the standalone ZIP and exercises its extracted
 runtime and launcher. The installer check verifies per-user setup, installed-file
 integrity, in-use rejection, upgrades, startup and removal; see
 [Windows packaging](../../../packaging/windows/README.md).

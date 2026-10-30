@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from dataclasses import asdict
 from functools import partial
@@ -179,7 +180,7 @@ def _cancel_queued(native, context, profiles, gate, marker, *, layout=None):
     }
 
 
-def main() -> None:
+def main(monitor) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--installed-root", type=Path)
@@ -190,6 +191,7 @@ def main() -> None:
     if output.exists():
         parser.error("Use a fresh output directory")
     output.mkdir(parents=True)
+    monitor["output_directory"] = str(output)
     if args.installed_root:
         sys.path.insert(0, str(args.installed_root.resolve()))
     from docking.applets.keyboardlayout.windows import (
@@ -200,7 +202,12 @@ def main() -> None:
     from docking.platform.backends.windows.ffi import bind
     from docking.platform.backends.windows.input_profiles import TextProfiles
     from docking.platform.backends.windows.input_service import WindowsInputService
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
+    from tools.windows.visual.input_environment import (
+        runtime_snapshot,
+        target_modules,
+        thread_snapshot,
+    )
     from tools.windows.visual.input_profile_fixture import (
         TELEX_IDENTIFIER,
         is_fixture_profile,
@@ -209,12 +216,38 @@ def main() -> None:
     )
     from tools.windows.visual.keyboardlayout_smoke import oracle
 
-    report: dict = {"stages": [], "scope": "owned input fixtures only"}
+    report: dict = {
+        "stages": [],
+        "scope": "owned input fixtures only",
+        "text_services": monitor,
+        "text_services_report": "text-services.json",
+    }
 
     def save() -> None:
-        temporary = output / "result.tmp"
-        temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
+
+    with ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix="input-environment"
+    ) as pool:
+        report["input_runtime"] = pool.submit(runtime_snapshot).result(timeout=60)
+    save()
+
+    def target_facts(context, input_service):
+        facts = {
+            "context": asdict(context),
+            "foreground_is_fixture": bool(
+                editor is not None and context.root == editor["hwnd"]
+            ),
+        }
+        if not facts["foreground_is_fixture"]:
+            return facts
+        facts["modules"] = target_modules(context.pid)
+        try:
+            snapshot = input_service.read(context, threading.Event())
+            facts["target_snapshot"] = asdict(snapshot) if snapshot else None
+        except OSError as error:
+            facts["target_snapshot_error"] = repr(error)
+        return facts
 
     native = WindowsDesktop()
     api = WindowsKeyboardAPI()
@@ -239,6 +272,8 @@ def main() -> None:
     report["caller_layout_before"] = f"{caller_layout & 0xFFFFFFFF:08x}"
     save()
     with apartment(), ExitStack() as scope:
+        report["controller_thread"] = thread_snapshot(0)
+        save()
         service = TextProfiles(scope)
         caller = service.active()
         profiles = tuple(p for p in service.profiles() if is_fixture_profile(p))
@@ -395,6 +430,7 @@ def main() -> None:
                     {
                         "architecture": architecture,
                         "initial": asdict(initial) if initial else None,
+                        "initial_environment": target_facts(context, input_service),
                         "profiles": [],
                     }
                 )
@@ -429,7 +465,15 @@ def main() -> None:
                 for profile in sorted(
                     profiles, key=lambda p: p.identifier != TELEX_IDENTIFIER
                 ):
-                    focus()
+                    context = focus()
+                    profile_result = {
+                        "requested": profile.code,
+                        "input_observations": {
+                            "before_selection": target_facts(context, input_service)
+                        },
+                    }
+                    stage["profiles"].append(profile_result)
+                    save()
                     state = None
 
                     def profile_available(code=profile.code):
@@ -462,6 +506,15 @@ def main() -> None:
                         raise
                     backend.switch(profile.code, context=state.context)
                     actual = backend.query()
+                    context = api.foreground()
+                    assert context is not None
+                    profile_result["input_observations"]["after_activation"] = (
+                        target_facts(context, input_service)
+                    )
+                    save()
+                    assert context.root == editor["hwnd"], (
+                        "Profile activation changed fixture foreground"
+                    )
                     assert actual.active == profile.code, (profile.code, actual.active)
                     # Legacy multiline Windows Forms editors do not uniformly
                     # implement Ctrl+A. Select the document with native navigation.
@@ -472,6 +525,10 @@ def main() -> None:
                     native.scan(
                         0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
                     )
+                    profile_result["input_observations"]["after_first_keys"] = (
+                        target_facts(context, input_service)
+                    )
+                    save()
                     native.key(0x20)
                     if architecture == 64:
                         native.key(0x53, control=True)
@@ -490,12 +547,9 @@ def main() -> None:
                     )
                     assert service.active() == caller, "Caller input profile changed"
                     record_fixture_layouts()
-                    stage["profiles"].append(
-                        {
-                            "requested": profile.code,
-                            "readback": asdict(snapshot),
-                            "text": document.read_text(encoding="utf-8-sig"),
-                        }
+                    profile_result.update(
+                        readback=asdict(snapshot),
+                        text=document.read_text(encoding="utf-8-sig"),
                     )
                     save()
                 stage["keyboard_profiles"] = [
@@ -550,6 +604,11 @@ def main() -> None:
             report["ok"] = True
         except Exception as error:
             report["ok"], report["error"] = False, repr(error)
+            context = api.foreground()
+            if context is not None:
+                report["failure_environment"] = target_facts(
+                    context, WindowsInputService()
+                )
             save()
             raise
         finally:
@@ -630,4 +689,19 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if sys.platform != "win32":
+        main({})
+    else:
+        from tools.windows.visual.input_environment import text_services
+
+        monitor = {}
+        try:
+            with text_services() as monitor:
+                main(monitor)
+        finally:
+            if "output_directory" in monitor:
+                from tools.windows.visual.desktop_driver import write_shared_json
+
+                write_shared_json(
+                    Path(monitor["output_directory"]) / "text-services.json", monitor
+                )
