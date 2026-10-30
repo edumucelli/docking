@@ -37,7 +37,7 @@ from tools.windows.visual import bundle_smoke
 def deployed_input_helper(tmp_path, monkeypatch):
     import tempfile
 
-    root = tmp_path / "standalone/runtime"
+    root = tmp_path / "msys64/tmp/standalone/runtime"
     source = (
         root / "lib/site-packages/docking/platform/backends/windows/input-thread-64.dll"
     )

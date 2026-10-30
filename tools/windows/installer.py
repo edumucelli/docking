@@ -11,6 +11,7 @@ import struct
 import subprocess
 import sys
 import sysconfig
+import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -21,6 +22,7 @@ from tools.windows.bundle import (
 )
 from tools.windows.bundle import (
     command_path,
+    copy_file,
     extract_bundle,
     filesystem_path,
     native_path,
@@ -64,7 +66,9 @@ def build_upgrade_fixture(
     original_bytes = (source / "pyproject.toml").read_bytes()
     original = original_bytes.decode("utf-8")
     changed, current_version, fixture_version = upgrade_fixture_project(original)
-    with staging_directory(output.parent, "docking-upgrade-") as stage:
+    # Setuptools creates relative build paths that still obey MAX_PATH under
+    # MSYS2. Keep the source build independent of the caller's output depth.
+    with staging_directory(Path(tempfile.gettempdir()), "du-") as stage:
         copied = stage / "source"
         copied.mkdir()
         inputs = (
@@ -149,7 +153,13 @@ def build_upgrade_fixture(
         )
         if (source / "pyproject.toml").read_bytes() != original_bytes:
             raise ValueError("Original project metadata changed during fixture build")
-        result.rename(output)
+        # Publish on the output volume, including when TEMP is on another drive.
+        # A failed copy leaves no partial fixture at the requested destination.
+        with staging_directory(output.parent, "docking-upgrade-") as published:
+            for path in walk_tree(result):
+                if path.is_file():
+                    copy_file(path, published / path.relative_to(result))
+            published.rename(filesystem_path(output))
 
 
 def removal_manifest(files: list[str]) -> bytes:

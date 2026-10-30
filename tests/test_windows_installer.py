@@ -105,11 +105,15 @@ def test_upgrade_fixture_requires_a_real_older_static_version(text):
         installer_tool.upgrade_fixture_project(text)
 
 
-@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("failure", [None, "build", "publish"])
 def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
-    tmp_path, monkeypatch, failed
+    tmp_path, monkeypatch, failure
 ):
-    source, output = tmp_path / "checkout", tmp_path / "upgrade-fixture"
+    source = tmp_path / "checkout"
+    output = tmp_path / "deep" / ("output" * 12) / "upgrade-fixture"
+    temporary = tmp_path / "os-temp"
+    temporary.mkdir()
+    monkeypatch.setattr(installer_tool.tempfile, "gettempdir", lambda: str(temporary))
     source.mkdir()
     original = '[project]\nname = "docking"\nversion = "2.28.0"\n'
     (source / "pyproject.toml").write_text(original, encoding="utf-8")
@@ -137,13 +141,15 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
         assert check is True
         copied = Path(cwd)
         assert copied != source
+        assert copied.parent.parent == temporary
+        assert not copied.is_relative_to(output.parent)
         assert 'version = "2.28.0.dev0"' in (copied / "pyproject.toml").read_text()
         assert not (copied / ".private").exists()
         assert not (copied / "docking/helper.dll").exists()
         assert not (copied / "docking/__pycache__").exists()
         assert (copied / "docking/locale/en.mo").read_bytes() == b"source fixture"
         observed.append(copied)
-        if failed:
+        if failure == "build":
             raise subprocess.CalledProcessError(1, command)
         wheels = Path(command[command.index("--outdir") + 1])
         wheels.mkdir()
@@ -169,8 +175,18 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
     monkeypatch.setattr(installer_tool, "command_path", str)
     monkeypatch.setattr(installer_tool, "build_bundle", bundle)
     monkeypatch.setattr(installer_tool, "build", setup)
-    if failed:
-        with pytest.raises(subprocess.CalledProcessError):
+    copy_file = installer_tool.copy_file
+
+    def publish(source, destination):
+        assert destination.parent.parent == output.parent
+        copy_file(source, destination)
+        if failure == "publish":
+            raise OSError("Fixture publication failed")
+
+    monkeypatch.setattr(installer_tool, "copy_file", publish)
+    if failure:
+        error = subprocess.CalledProcessError if failure == "build" else OSError
+        with pytest.raises(error):
             installer_tool.build_upgrade_fixture(
                 source, output, tmp_path / "runtime-prefix"
             )
@@ -185,7 +201,8 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
         assert record["wheel_sha256"] == hashlib.sha256(b"old wheel").hexdigest()
     assert (source / "pyproject.toml").read_text() == original
     assert observed and not observed[0].exists()
-    assert not list(tmp_path.glob("docking-upgrade-*"))
+    assert not list(temporary.iterdir())
+    assert not list(output.parent.glob("docking-upgrade-*"))
 
 
 @pytest.mark.parametrize(

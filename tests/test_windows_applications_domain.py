@@ -190,3 +190,100 @@ def test_tool_import_does_not_select_or_import_a_docking_runtime():
         check=True,
     )
     assert json.loads(result.stdout) == []
+
+
+def test_failure_diagnostics_keep_source_location_without_exception_paths_or_messages():
+    from tools.windows.visual.applications_domain_smoke import failure_details
+
+    try:
+        raise ValueError("private document C:/private/hidden.txt")
+    except ValueError as error:
+        details = failure_details(error)
+    assert details["class"] == "ValueError" and details["errno"] is None
+    assert (
+        details["frames"][-1]["function"]
+        == "test_failure_diagnostics_keep_source_location_without_exception_paths_or_messages"
+    )
+    assert details["frames"][-1]["file"] == Path(__file__).name
+    assert details["frames"][-1]["line"] > 0
+    assert "private" not in json.dumps(details)
+
+
+@pytest.mark.parametrize("failure", ["binary", "independent-launch"])
+def test_export_diagnostics_distinguish_copy_failure_from_later_independent_launch(
+    tmp_path, monkeypatch, failure
+):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from tools.windows.visual import applications_domain_smoke as smoke
+    from tools.windows.visual import explorer
+
+    selected = tmp_path / "Selected.lnk"
+    selected.write_bytes(b"literal original shortcut options")
+    copied = tmp_path / "Copied launcher résumé 日本語" / "Selected.lnk"
+    observed, lifecycle = {}, {"closed": True}
+
+    def run(_command, **_options):
+        copied.write_bytes(
+            b"different options" if failure == "binary" else selected.read_bytes()
+        )
+        case = tmp_path / "selected-export"
+        case.mkdir()
+        (case / "result.json").write_text(
+            json.dumps(
+                {
+                    "ok": True,
+                    "normal_shutdown": True,
+                    "export": {
+                        "path": str(copied),
+                        "source": str(tmp_path / "removed-cache.lnk"),
+                    },
+                }
+            )
+        )
+
+    @contextmanager
+    def folder(_native, directory):
+        assert directory == copied.parent
+        yield SimpleNamespace(
+            file_rectangle=lambda _path: {"x": 1, "y": 2, "width": 100}
+        )
+
+    monkeypatch.setattr(smoke.subprocess, "run", run)
+    monkeypatch.setattr(explorer, "ExplorerFolder", folder)
+    monkeypatch.setattr(
+        smoke,
+        "finish_program",
+        Mock(
+            side_effect=AssertionError("Owned application did not report its arguments")
+        ),
+    )
+    native = SimpleNamespace(double_click=Mock())
+    fixture = SimpleNamespace(
+        root=tmp_path,
+        labels={"Second": "Selected"},
+        executables={"Second": tmp_path / "Owned.exe"},
+    )
+    with pytest.raises(AssertionError):
+        smoke.export_check(
+            native,
+            fixture,
+            tmp_path,
+            selected,
+            "Owned.App",
+            [],
+            expected_cwd=tmp_path,
+            lifecycle=lifecycle,
+            installed_root=None,
+            wheel=None,
+            observed=observed,
+        )
+    assert observed["child_shutdown"] and observed["source_cache_removed"]
+    assert observed["binary_preserved"] is (failure != "binary")
+    assert observed["stage"] == (
+        "copied-launcher" if failure == "binary" else "independent-launch"
+    )
+    assert lifecycle["closed"] is (failure == "binary")
+    assert native.double_click.call_count == (0 if failure == "binary" else 1)

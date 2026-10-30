@@ -20,7 +20,8 @@ def _foreign_msys_modules(
     import tempfile
 
     source = bundled_helper.resolve(strict=True)
-    assert source.is_relative_to(root.resolve(strict=True))
+    runtime = root.resolve(strict=True)
+    assert source.is_relative_to(runtime)
     assert source.name == "input-thread-64.dll"
     checksum = hashlib.sha256(source.read_bytes()).hexdigest()
     expected = (
@@ -42,7 +43,9 @@ def _foreign_msys_modules(
         [
             name
             for name in paths
-            if "msys64" in name.casefold() and Path(name).resolve() != deployed
+            if "msys64" in name.casefold()
+            and not Path(name).resolve().is_relative_to(runtime)
+            and Path(name).resolve() != deployed
         ],
         checksum,
     )
