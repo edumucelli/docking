@@ -45,6 +45,11 @@ standard Windows x64 Python and MSYS2 UCRT64 Python without a Python-version ABI
 dependency. Editable source installs also compile both helpers; source archives
 and Linux/BSD wheels exclude generated Windows DLLs.
 
+Windows source builds require setuptools 64.0+ for editable output mappings and
+wheel 0.38.2+ for combined Windows/MSYS2 platform tags. The `dev` extra installs
+these tools on every OS so the packaging tests exercise the same commands.
+Isolated Windows builds resolve these requirements from `pyproject.toml`.
+
 The native launcher uses the interpreter beside it, in isolated mode. Runtime
 resources are located relative to that interpreter, including after moving the
 application directory. Camera and AI usage helpers keep a real Python executable.

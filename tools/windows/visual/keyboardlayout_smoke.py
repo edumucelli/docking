@@ -652,15 +652,44 @@ def main():
                     )
                     ImageGrab.grab(all_screens=True).save(output / "native-altgr.png")
                 finally:
+                    cleanup = {
+                        "foreground_before": int(
+                            native.user.GetForegroundWindow() or 0
+                        ),
+                        "editor_hwnd": notepad["hwnd"],
+                    }
+                    attempt["cleanup"] = cleanup
+                    publish()
                     if capture_window is not None:
                         call(capture_window.destroy)
+                    # Destroying the transient capture reactivates its parent.
+                    # Hide that keep-above palette before clicking the editor:
+                    # CI's editor and Search rectangles can overlap.
+                    call(search.window.hide)
+                    native.wait_for(
+                        lambda: (
+                            not any(
+                                w["title"]
+                                in {"Docking Search", "Docking owned shortcut capture"}
+                                for w in native.windows(os.getpid())
+                            )
+                        ),
+                        "AltGr fixture windows did not close before editor focus",
+                    )
+                    cleanup["owned_overlays_closed"] = True
+                    cleanup["foreground_after_close"] = int(
+                        native.user.GetForegroundWindow() or 0
+                    )
+                    publish()
                     focus_editor()
+                    cleanup["foreground_after_editor_focus"] = int(
+                        native.user.GetForegroundWindow() or 0
+                    )
+                    publish()
                     call(lambda: configure("CTRL+ALT+space"))
                     native.wait_for(
                         bound, "Search shortcut did not restore after AltGr"
                     )
-                    if search_window() is not None:
-                        call(search.window.hide)
                 publish()
 
             def verify_search_profiles():

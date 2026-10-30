@@ -9,10 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import setuptools
 from packaging.tags import Tag, parse_tag
-
-setuptools = pytest.importorskip("setuptools")
-pytest.importorskip("wheel")
 from setuptools import errors
 
 _ROOT = Path(__file__).resolve().parents[1]
