@@ -713,6 +713,7 @@ def main(monitor):
             def verify_search_profiles():
                 from tools.windows.visual.input_profile_fixture import (
                     TELEX_IDENTIFIER,
+                    VIETNAMESE_CONVERSION_MODE,
                     text_profile_fixtures,
                 )
 
@@ -837,6 +838,7 @@ def main(monitor):
                                 journal=attempt["ime_mode"],
                                 dispatch=call,
                                 validate=validate_profile,
+                                conversion=VIETNAMESE_CONVERSION_MODE,
                             )
                         )
                         observe_input("after_mode_setup")

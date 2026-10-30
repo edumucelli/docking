@@ -30,6 +30,9 @@ _GUID = c.c_ubyte * 16
 _THREAD_MANAGER_EX = _GUID.from_buffer_copy(
     uuid.UUID("3e90ade3-7594-4cb0-bb58-69628f5f458c").bytes_le
 )
+_KEYSTROKE_MANAGER = _GUID.from_buffer_copy(
+    uuid.UUID("aa80e7f0-2021-11d2-93e0-0060b067b86e").bytes_le
+)
 _KNOWN_PROCESSES = frozenset(("ctfmon.exe", "textinputhost.exe", "tabtip.exe"))
 _KNOWN_MODULES = frozenset(
     (
@@ -48,6 +51,12 @@ _P, _U, _B = c.c_void_p, c.c_uint32, c.c_int32
 HRESULT = c.c_int32
 _OWNED: dict[tuple, int] = {}
 _OWNED_LOCK = threading.Lock()
+
+
+class _ContextStatus(c.Structure):
+    # TF_STATUS aliases TS_STATUS: two DWORDs, also on 64-bit Windows.
+    # https://learn.microsoft.com/windows/win32/api/textstor/ns-textstor-ts_status
+    _fields_ = [("dynamic", _U), ("static", _U)]
 
 
 def bind(library, name, result, *arguments):
@@ -132,6 +141,76 @@ class _Environment:
             "desktop": self._name(desktop),
             "window_station": self._name(station),
         }
+
+    def session_context(self, session: int) -> dict[str, object]:
+        """Worker-only connection facts: local WTS queries may perform RPC.
+
+        Only WTSConnectState is queried, never user/client names or addresses.
+        https://learn.microsoft.com/windows/win32/api/wtsapi32/ne-wtsapi32-wts_info_class
+        """
+        facts: dict[str, object] = {"session": session}
+        try:
+            facts["remote_session"] = bool(
+                bind(self.user, "GetSystemMetrics", c.c_int32, c.c_int32)(0x1000)
+            )
+        except OSError as exc:
+            facts["remote_session_error"] = _error(exc)
+        try:
+            console = bind(self.kernel, "WTSGetActiveConsoleSessionId", _U)()
+            facts["active_console_session"] = None if console == 0xFFFFFFFF else console
+            facts["matches_active_console"] = console == session
+        except OSError as exc:
+            facts["active_console_error"] = _error(exc)
+        try:
+            wts = c.WinDLL("wtsapi32", use_last_error=True)
+            buffer, length = _P(), _U()
+            try:
+                sent = bind(
+                    wts,
+                    "WTSQuerySessionInformationW",
+                    _B,
+                    _P,
+                    _U,
+                    c.c_int32,
+                    c.POINTER(_P),
+                    c.POINTER(_U),
+                )(None, session, 8, c.byref(buffer), c.byref(length))
+                if not sent:
+                    facts["wts_error"] = {
+                        "error": "WTSQuerySessionInformationW",
+                        "winerror": c.get_last_error(),
+                    }
+                elif not buffer.value or length.value != c.sizeof(c.c_int32):
+                    facts["wts_error"] = {
+                        "error": "invalid-connect-state-buffer",
+                        "bytes": length.value,
+                    }
+                else:
+                    state = c.cast(buffer, c.POINTER(c.c_int32)).contents.value
+                    names = (
+                        "WTSActive",
+                        "WTSConnected",
+                        "WTSConnectQuery",
+                        "WTSShadow",
+                        "WTSDisconnected",
+                        "WTSIdle",
+                        "WTSListen",
+                        "WTSReset",
+                        "WTSDown",
+                        "WTSInit",
+                    )
+                    facts.update(
+                        wts_connection_state=state,
+                        wts_connection_name=names[state]
+                        if 0 <= state < len(names)
+                        else "unknown",
+                    )
+            finally:
+                if buffer.value:
+                    bind(wts, "WTSFreeMemory", None, _P)(buffer)
+        except OSError as exc:
+            facts["wts_error"] = _error(exc)
+        return facts
 
     def _system_path(self, path: str) -> tuple[Path | None, str]:
         # Registry paths are untrusted. Never inspect UNC/external files, or
@@ -443,6 +522,39 @@ class _Environment:
                 scope.callback(release, manager)
             if status < 0 or not manager.value:
                 return facts
+            # SDK msctf.h includes IUnknown's three vtable slots. Only getters
+            # on the existing manager/context are used; no keys are tested or
+            # dispatched and no TSF focus, sink or compartment is changed.
+            # https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/msctf.h
+            focused = _B()
+            status = method(manager, 10, HRESULT, c.POINTER(_B))(
+                manager, c.byref(focused)
+            )
+            facts["tsf_thread_focus_hresult"] = _hr(status)
+            if status == 0:
+                facts["tsf_thread_focus"] = bool(focused.value)
+            keys = _P()
+            status = method(manager, 0, HRESULT, c.POINTER(_GUID), c.POINTER(_P))(
+                manager, c.byref(_KEYSTROKE_MANAGER), c.byref(keys)
+            )
+            facts.update(
+                tsf_keystroke_hresult=_hr(status),
+                tsf_keystroke_manager=bool(keys.value),
+            )
+            if keys.value:
+                scope.callback(release, keys)
+            if status >= 0 and keys.value:
+                clsid = _GUID()
+                status = method(keys, 5, HRESULT, c.POINTER(_GUID))(
+                    keys, c.byref(clsid)
+                )
+                facts["tsf_foreground_hresult"] = _hr(status)
+                if status == 0:
+                    facts["tsf_foreground_clsid"] = str(
+                        uuid.UUID(bytes_le=bytes(clsid))
+                    )
+                elif status == 1:  # S_FALSE explicitly means no foreground TIP.
+                    facts["tsf_foreground_clsid"] = None
             extended = _P()
             status = method(manager, 0, HRESULT, c.POINTER(_GUID), c.POINTER(_P))(
                 manager, c.byref(_THREAD_MANAGER_EX), c.byref(extended)
@@ -477,6 +589,39 @@ class _Environment:
                 )
                 if context.value:
                     scope.callback(release, context)
+                if status >= 0 and context.value:
+                    context_status = _ContextStatus()
+                    status = method(context, 11, HRESULT, c.POINTER(_ContextStatus))(
+                        context, c.byref(context_status)
+                    )
+                    facts["tsf_status_hresult"] = _hr(status)
+                    if status == 0:
+                        facts.update(
+                            tsf_dynamic_flags=context_status.dynamic,
+                            tsf_static_flags=context_status.static,
+                        )
+                    view = _P()
+                    status = method(context, 9, HRESULT, c.POINTER(_P))(
+                        context, c.byref(view)
+                    )
+                    facts.update(
+                        tsf_view_hresult=_hr(status), tsf_view=bool(view.value)
+                    )
+                    if view.value:
+                        scope.callback(release, view)
+                    if status >= 0 and view.value:
+                        handle = _P()
+                        status = method(view, 6, HRESULT, c.POINTER(_P))(
+                            view, c.byref(handle)
+                        )
+                        facts["tsf_view_window_hresult"] = _hr(status)
+                        if status == 0:
+                            # A windowless document may validly return NULL.
+                            facts.update(
+                                tsf_view_window=handle.value,
+                                tsf_view_matches_window=bool(handle.value)
+                                and handle.value == window,
+                            )
         return facts
 
     def initialize(self) -> int:
@@ -513,6 +658,12 @@ def runtime_snapshot() -> dict:
             result[name] = read()
         except OSError as exc:
             result[name] = _error(exc)
+    if "session" in result["desktop"]:
+        result["session_context"] = environment.session_context(
+            result["desktop"]["session"]
+        )
+    else:
+        result["session_context"] = {"error": "desktop-session-unavailable"}
     result["modules"] = environment.modules(os.getpid())
     return result
 

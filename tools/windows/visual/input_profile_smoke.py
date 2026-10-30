@@ -211,6 +211,7 @@ def main(monitor) -> None:
     from tools.windows.visual.input_fixture import IMEMode, ime_conversion
     from tools.windows.visual.input_profile_fixture import (
         TELEX_IDENTIFIER,
+        VIETNAMESE_CONVERSION_MODE,
         is_fixture_profile,
         profile_enabled,
         set_profile_enabled,
@@ -544,6 +545,7 @@ def main(monitor) -> None:
                             thread=context.thread,
                             journal=profile_result["ime_mode"],
                             readback=mode_readback,
+                            conversion=VIETNAMESE_CONVERSION_MODE,
                         ):
                             profile_result["input_observations"]["after_mode_setup"] = (
                                 target_facts(context, input_service)

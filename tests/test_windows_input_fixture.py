@@ -92,11 +92,19 @@ def test_already_open_mode_is_preserved_and_body_mode_changes_are_restored(mode_
     assert journal["restore_attempted"] and journal["restored"]
 
 
-def test_explicit_conversion_request_is_verified_then_restored(mode_api):
+@pytest.mark.parametrize("opened", [False, True])
+@pytest.mark.parametrize("conversion", [9, 17])
+def test_explicit_conversion_request_is_verified_then_restored(
+    mode_api, opened, conversion
+):
+    mode_api.mode = fixture.IMEMode(opened, 1, 8)
     journal = {}
-    with scope(journal, conversion=17):
-        assert mode_api.mode == fixture.IMEMode(True, 17, 2)
-    assert mode_api.mode == fixture.IMEMode(False, 1, 2)
+    with scope(journal, conversion=conversion):
+        assert mode_api.mode == fixture.IMEMode(True, conversion, 8)
+    assert mode_api.mode == fixture.IMEMode(opened, 1, 8)
+    assert journal["before"] == {"open": opened, "conversion": 1, "sentence": 8}
+    assert journal["after"]["conversion"] == conversion
+    assert journal["after_restore"] == journal["before"]
     assert journal["restored"]
 
 

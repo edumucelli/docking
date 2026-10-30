@@ -203,6 +203,7 @@ def ime_conversion(
     Foreign ``readback`` must use the existing input-thread snapshot and reject
     unknown IME state or a changed selected profile. Conversion remains as the
     IME chooses on opening unless the fixture explicitly requests a value.
+    Only a fixture for a known profile should request specific conversion bits.
     ``validate`` checks the selected TSF profile on the controller thread,
     outside UI dispatch, so an input-thread read can service its UI callback.
     """

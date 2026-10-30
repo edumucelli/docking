@@ -15,6 +15,8 @@ LANGUAGE_ID = 0x042A
 TELEX_IDENTIFIER = "5fb02ec5-0a77-4684-b4fa-def8a2195628"
 VNI_IDENTIFIER = "591ae943-56be-48f6-8966-06b43915cc5a"
 IDENTIFIERS = frozenset((TELEX_IDENTIFIER, VNI_IDENTIFIER))
+# IMM IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE, scoped to these built-in fixtures.
+VIETNAMESE_CONVERSION_MODE = 0x0001 | 0x0008
 
 
 def is_fixture_profile(profile: InputProfile) -> bool:
