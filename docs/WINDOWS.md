@@ -1848,6 +1848,12 @@ python -m tools.windows.visual.input_profile_smoke \
   --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
 ```
 
+The independent reference matrix compares scan-code input and layout-mapped
+virtual keys for both profiles in both editor architectures. It records exact
+saved text for all eight variants. A composition mismatch is collected only
+after the owned target, profile, IME restoration, caller state and return to US
+are verified; other failures stop the fixture. Every variant must produce `â`.
+
 CI runs the source Search checks and installed native editor checks in fresh
 processes through `python -m tools.windows.ci --stage input --installed-root
 artifacts/windows/runtime`. It collects both results in

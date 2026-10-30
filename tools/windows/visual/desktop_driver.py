@@ -116,6 +116,12 @@ class WindowsDesktop:
             ctypes.c_int,
         )
         self.user.SendInput.restype = wintypes.UINT
+        self.user.MapVirtualKeyExW.argtypes = (
+            wintypes.UINT,
+            wintypes.UINT,
+            wintypes.HKL,
+        )
+        self.user.MapVirtualKeyExW.restype = wintypes.UINT
         self._dwm = ctypes.WinDLL("dwmapi")
         self._dwm.DwmGetWindowAttribute.argtypes = (
             wintypes.HWND,
@@ -335,19 +341,60 @@ class WindowsDesktop:
         self._send([_Input(type=0, data=_Data(mouse=_Mouse(data=amount, flags=0x800)))])
         time.sleep(0.2)
 
-    def scan(self, code, *, extended=False, altgr=False):
-        """Press a physical key position, allowing the active layout to map it."""
-        flags = 8 | int(extended)  # KEYEVENTF_SCANCODE, optional extended key.
+    def scan(self, code, *, extended=False, altgr=False, mapped_vk=False, layout=None):
+        """Press a key position, optionally comparing layout-mapped VK routing.
+
+        The default uses KEYEVENTF_SCANCODE with wVk=0. The comparison uses
+        MapVirtualKeyExW on the caller-supplied target HKL and retains wScan,
+        without KEYEVENTF_SCANCODE (which would make Windows ignore wVk).
+        """
+        if mapped_vk and not layout:
+            raise ValueError("Mapped virtual keys require the selected target layout")
+
+        def key(scan, is_extended):
+            if not mapped_vk:
+                return 0
+            value = self.user.MapVirtualKeyExW(
+                scan | (0xE000 if is_extended else 0), 3, layout
+            )  # MAPVK_VSC_TO_VK_EX preserves left/right modifier identity.
+            if not 1 <= value <= 254:
+                raise ValueError("The target layout did not map the physical key")
+            return int(value)
+
+        flags = (0 if mapped_vk else 8) | int(extended)
+        virtual = key(code, extended)
         events = [
-            _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags))),
-            _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags | 2))),
+            _Input(
+                type=1,
+                data=_Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags)),
+            ),
+            _Input(
+                type=1,
+                data=_Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags | 2)),
+            ),
         ]
         if altgr:
+            modifier, modifier_flags = key(0x38, True), (0 if mapped_vk else 8) | 1
             events.insert(
-                0, _Input(type=1, data=_Data(keyboard=_Keyboard(scan=0x38, flags=9)))
+                0,
+                _Input(
+                    type=1,
+                    data=_Data(
+                        keyboard=_Keyboard(
+                            key=modifier, scan=0x38, flags=modifier_flags
+                        )
+                    ),
+                ),
             )
             events.append(
-                _Input(type=1, data=_Data(keyboard=_Keyboard(scan=0x38, flags=11)))
+                _Input(
+                    type=1,
+                    data=_Data(
+                        keyboard=_Keyboard(
+                            key=modifier, scan=0x38, flags=modifier_flags | 2
+                        )
+                    ),
+                )
             )
         self._send(events)
         time.sleep(0.2)

@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
@@ -61,6 +62,60 @@ public static class InputFixture {
  }
 }
 """
+
+
+def _observe_composition(document: Path, *, seconds: float = 10) -> str:
+    """Keep the strict expected text while retaining a settled mismatch as evidence."""
+    deadline = time.monotonic() + seconds
+    while True:
+        text = document.read_text(encoding="utf-8-sig")
+        if text.strip() == "â" or time.monotonic() >= deadline:
+            return text
+        time.sleep(0.1)
+
+
+def _collect_reference(*, result, mode, exercise, validate, reset) -> None:
+    """Collect only text mismatches after every ownership/restoration check passes.
+
+    No exception is recoverable here: setup, input, readback, identity and mode
+    restoration failures stop the entire fixture. A known text mismatch becomes
+    a completed failed row only after its context and classic reset are proven.
+    """
+    with mode:
+        result["text"] = exercise()
+        result["readback"] = validate()
+    if result["ime_mode"].get("restored") is not True:
+        raise RuntimeError("Owned IME mode restoration was not verified")
+    result["after_restore"] = validate()
+    result["classic_reset"] = reset()
+    result["passed"] = result["text"].strip() == "â"
+
+
+def _composition_failures(stages) -> list[dict[str, object]]:
+    """Require the complete independent matrix and retain each strict failure."""
+    if [stage["architecture"] for stage in stages] != [64, 32]:
+        raise AssertionError("Independent x64/x86 input matrix is incomplete")
+    failures: list[dict[str, object]] = []
+    for stage in stages:
+        profiles = stage["profiles"]
+        if len(profiles) != 2 or len({p["requested"] for p in profiles}) != 2:
+            raise AssertionError("Independent Telex/VNI input matrix is incomplete")
+        for profile in profiles:
+            variants = profile["variants"]
+            if [row["routing"] for row in variants] != ["scan-code", "mapped-vk"]:
+                raise AssertionError("Independent key-routing matrix is incomplete")
+            for row in variants:
+                if not row["passed"]:
+                    failures.append(
+                        {
+                            "architecture": stage["architecture"],
+                            "profile": profile["requested"],
+                            "routing": row["routing"],
+                            "expected": "â",
+                            "text": row["text"],
+                        }
+                    )
+    return failures
 
 
 def _cancel_queued(native, context, profiles, gate, marker, *, layout=None):
@@ -210,6 +265,7 @@ def main(monitor) -> None:
     )
     from tools.windows.visual.input_fixture import IMEMode, ime_conversion
     from tools.windows.visual.input_profile_fixture import (
+        IDENTIFIERS,
         TELEX_IDENTIFIER,
         VIETNAMESE_CONVERSION_MODE,
         is_fixture_profile,
@@ -219,6 +275,7 @@ def main(monitor) -> None:
     from tools.windows.visual.keyboardlayout_smoke import oracle
 
     report: dict = {
+        "ok": False,
         "stages": [],
         "scope": "owned input fixtures only",
         "text_services": monitor,
@@ -316,6 +373,9 @@ def main(monitor) -> None:
             ]
 
         try:
+            assert {profile.identifier for profile in profiles} == IDENTIFIERS, (
+                "Both built-in Vietnamese fixture profiles are required"
+            )
             classic = load("0000040C", 0)
             assert classic, "Owned French layout did not load"
             if classic & 0xFFFFFFFF not in loaded_before:
@@ -464,157 +524,233 @@ def main(monitor) -> None:
                         }
                     )
                     save()
+
+                def caller_unchanged():
+                    assert api.active(0) & 0xFFFFFFFF == caller_layout & 0xFFFFFFFF, (
+                        "Reference input changed caller layout"
+                    )
+                    assert service.active() == caller, (
+                        "Reference input changed caller profile"
+                    )
+
                 for profile in sorted(
                     profiles, key=lambda p: p.identifier != TELEX_IDENTIFIER
                 ):
-                    context = focus()
-                    profile_result = {
-                        "requested": profile.code,
-                        "input_observations": {
-                            "before_selection": target_facts(context, input_service)
-                        },
-                    }
+                    profile_result = {"requested": profile.code, "variants": []}
                     stage["profiles"].append(profile_result)
-                    save()
-                    state = None
-
-                    def profile_available(code=profile.code):
-                        nonlocal state
-                        state = backend.query()
-                        record_fixture_layouts()
-                        return state if code in state.available else None
-
-                    try:
-                        state = native.wait_for(
-                            profile_available,
-                            "Enabled fixture did not reach the available input catalog",
-                            15,
+                    for routing in ("scan-code", "mapped-vk"):
+                        context = focus()
+                        # Clear the previous route while the owned editor uses
+                        # classic US, before entering a new IME conversion scope.
+                        assert api.active(context.thread) & 0xFFFFFFFF == 0x04090409
+                        caller_unchanged()
+                        native.key(0x24, control=True)
+                        native.key(0x23, control=True, shift=True)
+                        native.key(0x08)
+                        if architecture == 64:
+                            native.key(0x53, control=True)
+                        native.wait_for(
+                            lambda document=document: (
+                                document.read_text(encoding="utf-8-sig") == ""
+                            ),
+                            "Owned reference document did not reset to empty",
+                            10,
                         )
-                    except AssertionError:
-                        stage["profile_catalog_timeout"] = {
-                            "requested": profile.code,
-                            "state": state._asdict() if state is not None else None,
-                            "enabled": {p.code: enabled(p) for p in profiles},
-                            "profiles": [
-                                asdict(p)
-                                for p in service.profiles()
-                                if is_fixture_profile(p)
-                            ],
-                            "loaded": [
-                                f"{handle & 0xFFFFFFFF:08x}" for handle in api.layouts()
-                            ],
+                        assert api.foreground() == context, (
+                            "Reference reset changed the owned typing window"
+                        )
+                        variant = {
+                            "routing": routing,
+                            "expected": "â",
+                            "document_reset": True,
+                            "ime_mode": {},
+                            "input_observations": {
+                                "before_selection": target_facts(context, input_service)
+                            },
                         }
+                        profile_result["variants"].append(variant)
                         save()
-                        raise
-                    backend.switch(profile.code, context=state.context)
-                    actual = backend.query()
-                    context = api.foreground()
-                    assert context is not None
-                    profile_result["input_observations"]["after_activation"] = (
-                        target_facts(context, input_service)
-                    )
-                    save()
-                    assert context.root == editor["hwnd"], (
-                        "Profile activation changed fixture foreground"
-                    )
-                    assert actual.active == profile.code, (profile.code, actual.active)
+                        state = None
 
-                    def mode_readback(
-                        context=context, profile=profile, input_service=input_service
-                    ):
-                        if api.foreground() != context:
-                            raise RuntimeError("Owned IME target changed during setup")
-                        snapshot = input_service.read(context, threading.Event())
-                        if (
-                            snapshot is None
-                            or not snapshot.ime_known
-                            or snapshot.profile is None
-                            or snapshot.profile.code != profile.code
-                        ):
-                            raise RuntimeError("Owned IME profile/state is unknown")
-                        return IMEMode(
-                            snapshot.ime_open, snapshot.conversion, snapshot.sentence
+                        def profile_available(code=profile.code):
+                            nonlocal state
+                            state = backend.query()
+                            record_fixture_layouts()
+                            return state if code in state.available else None
+
+                        try:
+                            state = native.wait_for(
+                                profile_available,
+                                "Enabled fixture did not reach "
+                                "the available input catalog",
+                                15,
+                            )
+                        except AssertionError:
+                            stage["profile_catalog_timeout"] = {
+                                "requested": profile.code,
+                                "state": state._asdict() if state is not None else None,
+                                "enabled": {p.code: enabled(p) for p in profiles},
+                                "profiles": [
+                                    asdict(p)
+                                    for p in service.profiles()
+                                    if is_fixture_profile(p)
+                                ],
+                                "loaded": [
+                                    f"{handle & 0xFFFFFFFF:08x}"
+                                    for handle in api.layouts()
+                                ],
+                            }
+                            save()
+                            raise
+                        backend.switch(profile.code, context=state.context)
+                        actual = backend.query()
+                        selected = api.foreground()
+                        assert selected == context, (
+                            "Profile activation changed the owned typing window"
                         )
+                        assert actual.active == profile.code, (
+                            profile.code,
+                            actual.active,
+                        )
+                        variant["input_observations"]["after_activation"] = (
+                            target_facts(context, input_service)
+                        )
+                        layout = api.active(context.thread)
+                        variant["target_layout"] = f"{layout & 0xFFFFFFFF:08x}"
+                        save()
 
-                    profile_result["ime_mode"] = {}
-                    try:
-                        with ime_conversion(
-                            window=context.window,
-                            root=context.root,
-                            pid=context.pid,
-                            thread=context.thread,
-                            journal=profile_result["ime_mode"],
-                            readback=mode_readback,
-                            conversion=VIETNAMESE_CONVERSION_MODE,
+                        def validate_profile(
+                            context=context,
+                            input_service=input_service,
+                            profile=profile,
+                            layout=layout,
                         ):
-                            profile_result["input_observations"]["after_mode_setup"] = (
-                                target_facts(context, input_service)
-                            )
-                            save()
-                            # Legacy multiline Forms editors do not uniformly
-                            # implement Ctrl+A; use native document navigation.
-                            native.key(0x24, control=True)
-                            native.key(0x23, control=True, shift=True)
-                            native.key(0x08)
-                            native.scan(0x1E)
-                            native.scan(
-                                0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
-                            )
-                            profile_result["input_observations"]["after_first_keys"] = (
-                                target_facts(context, input_service)
-                            )
-                            save()
-                            native.key(0x20)
-                            if architecture == 64:
-                                native.key(0x53, control=True)
-                            native.wait_for(
-                                lambda document=document: (
-                                    document.read_text(encoding="utf-8-sig").strip()
-                                    == "â"
-                                ),
-                                "Selected profile did not compose physical input",
-                                10,
-                            )
-                            snapshot = input_service.read(
-                                api.foreground(), threading.Event()
-                            )
+                            if api.foreground() != context:
+                                raise RuntimeError(
+                                    "Owned reference typing window changed"
+                                )
+                            snapshot = input_service.read(context, threading.Event())
                             assert (
                                 snapshot
                                 and snapshot.profile
                                 and snapshot.profile.code == profile.code
-                            )
-                            assert service.active() == caller, (
-                                "Caller input profile changed"
-                            )
+                                and snapshot.layout & 0xFFFFFFFF == layout & 0xFFFFFFFF
+                            ), "Owned reference profile/layout readback changed"
+                            caller_unchanged()
                             record_fixture_layouts()
-                            profile_result.update(
-                                readback=asdict(snapshot),
-                                text=document.read_text(encoding="utf-8-sig"),
+                            return asdict(snapshot)
+
+                        def mode_readback(validate_profile=validate_profile):
+                            snapshot = validate_profile()
+                            if not snapshot["ime_known"]:
+                                raise RuntimeError("Owned IME state is unknown")
+                            return IMEMode(
+                                snapshot["ime_open"],
+                                snapshot["conversion"],
+                                snapshot["sentence"],
                             )
-                    finally:
-                        save()
-                stage["keyboard_profiles"] = [
-                    asdict(p) for p in service.profiles() if p.kind == 2
-                ]
-                state = backend.query()
-                plain = f"win32:{api.active(context.thread) & 0xFFFFFFFF:08x}"
-                if not any(
-                    p["layout"] & 0xFFFFFFFF == api.active(context.thread) & 0xFFFFFFFF
-                    and p["flags"] & 2
-                    for p in stage["keyboard_profiles"]
-                ):
-                    assert plain not in state.available, (
-                        "Disabled synthetic keyboard was offered"
+
+                        def exercise(
+                            variant=variant,
+                            context=context,
+                            input_service=input_service,
+                            routing=routing,
+                            layout=layout,
+                            profile=profile,
+                            architecture=architecture,
+                            document=document,
+                            validate_profile=validate_profile,
+                        ):
+                            variant["input_observations"]["after_mode_setup"] = (
+                                target_facts(context, input_service)
+                            )
+                            save()
+                            validate_profile()
+                            native.scan(
+                                0x1E, mapped_vk=routing == "mapped-vk", layout=layout
+                            )
+                            validate_profile()
+                            native.scan(
+                                0x1E
+                                if profile.identifier == TELEX_IDENTIFIER
+                                else 0x07,
+                                mapped_vk=routing == "mapped-vk",
+                                layout=layout,
+                            )
+                            variant["input_observations"]["after_first_keys"] = (
+                                target_facts(context, input_service)
+                            )
+                            save()
+                            validate_profile()
+                            native.key(0x20)
+                            if architecture == 64:
+                                native.key(0x53, control=True)
+                            return _observe_composition(document)
+
+                        def reset_classic(
+                            stage=stage,
+                            layout=layout,
+                            context=context,
+                            input_service=input_service,
+                            validate_profile=validate_profile,
+                        ):
+                            validate_profile()
+                            stage["keyboard_profiles"] = [
+                                asdict(p) for p in service.profiles() if p.kind == 2
+                            ]
+                            state = backend.query()
+                            plain = f"win32:{layout & 0xFFFFFFFF:08x}"
+                            if not any(
+                                p["layout"] & 0xFFFFFFFF == layout & 0xFFFFFFFF
+                                and p["flags"] & 2
+                                for p in stage["keyboard_profiles"]
+                            ):
+                                assert plain not in state.available, (
+                                    "Disabled synthetic keyboard was offered"
+                                )
+                                stage["synthetic_layout_hidden"] = True
+                            backend.switch("win32:04090409", context=state.context)
+                            native.wait_for(
+                                lambda: backend.query().active == "win32:04090409",
+                                "Switching from a text service back to US "
+                                "did not complete",
+                            )
+                            assert api.foreground() == context, (
+                                "Classic reset changed the owned typing window"
+                            )
+                            snapshot = input_service.read(context, threading.Event())
+                            assert (
+                                snapshot
+                                and snapshot.layout & 0xFFFFFFFF == 0x04090409
+                                and snapshot.profile
+                                and snapshot.profile.kind == 2
+                            ), "Classic reset did not restore the target input thread"
+                            caller_unchanged()
+                            stage["returned_to_classic"] = True
+                            return asdict(snapshot)
+
+                        try:
+                            _collect_reference(
+                                result=variant,
+                                mode=ime_conversion(
+                                    window=context.window,
+                                    root=context.root,
+                                    pid=context.pid,
+                                    thread=context.thread,
+                                    journal=variant["ime_mode"],
+                                    readback=mode_readback,
+                                    conversion=VIETNAMESE_CONVERSION_MODE,
+                                ),
+                                exercise=exercise,
+                                validate=validate_profile,
+                                reset=reset_classic,
+                            )
+                        finally:
+                            save()
+                    profile_result["passed"] = all(
+                        variant["passed"] for variant in profile_result["variants"]
                     )
-                    stage["synthetic_layout_hidden"] = True
-                state = backend.query()
-                backend.switch("win32:04090409", context=state.context)
-                native.wait_for(
-                    lambda: backend.query().active == "win32:04090409",
-                    "Switching from a text service back to US did not complete",
-                )
-                stage["returned_to_classic"] = True
-                save()
+                    save()
                 if architecture == 32:
                     context = focus()
                     report["queued_cancellation"] = _cancel_queued(
@@ -642,7 +778,8 @@ def main(monitor) -> None:
                 if process is not None:
                     assert process.wait(timeout=10) == 0
                     process = None
-            report["ok"] = True
+            report["composition_failures"] = _composition_failures(report["stages"])
+            save()
         except Exception as error:
             report["ok"], report["error"] = False, repr(error)
             context = api.foreground()
@@ -720,12 +857,23 @@ def main(monitor) -> None:
                     for key in ("default", "preload", "substitutes", "wheel_route")
                 )
                 save()
-    assert report["preferences_restored"]
-    assert report["owned_classic_released"] and report["profiles_restored"]
-    assert report["independent_loaded_set_restored"]
-    assert not report["unexpected_controller_layouts"]
-    assert not report["missing_controller_layouts"]
-    assert report["caller_layout_restored"]
+    try:
+        assert report["preferences_restored"]
+        assert report["owned_classic_released"] and report["profiles_restored"]
+        assert report["independent_loaded_set_restored"]
+        assert not report["unexpected_controller_layouts"]
+        assert not report["missing_controller_layouts"]
+        assert report["caller_layout_restored"]
+        assert not report["composition_failures"], (
+            f"{len(report['composition_failures'])}/8 independent input references "
+            "did not compose physical input as â"
+        )
+    except AssertionError as error:
+        report["error"] = repr(error)
+        save()
+        raise
+    report["ok"] = True
+    save()
     print(json.dumps(report, indent=2))
 
 
