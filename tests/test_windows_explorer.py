@@ -72,12 +72,13 @@ def test_failed_entry_preserves_observation_error_even_when_cleanup_also_fails(
     primary = OSError(5, "Owned window observation failed")
     row = folder.window.copy()
     folder.window = None
-    folder.native.windows.side_effect = [[], [row]]
+    folder.native.windows.side_effect = [[], [row], [row]]
     folder.native.wait_for.side_effect = [
         row,
         AssertionError("Owned folder stayed open"),
     ]
     folder.native.click.side_effect = primary
+    folder.focus = Mock()  # This test isolates cleanup after the physical click.
     monkeypatch.setattr(explorer.os, "startfile", Mock(), raising=False)
     with pytest.raises(OSError) as caught:
         folder.__enter__()
@@ -229,3 +230,122 @@ def test_selection_observation_is_read_only_and_does_not_change_existing_geometr
         folder.file_rectangle(folder.directory / "Owned.lnk", selection=selection)
         == expected
     )
+
+
+@pytest.mark.parametrize(
+    "failure", [None, "missing", "replaced", "denied", "unfocused"]
+)
+def test_owned_cabinet_foreground_preparation_never_targets_a_foreign_window(
+    folder, monkeypatch, failure
+):
+    from types import SimpleNamespace
+
+    from docking.platform.backends.base import ActionResult
+    from docking.platform.backends.windows import windows
+
+    state = {"foreground": 999}
+    snapshot = SimpleNamespace(id=SimpleNamespace(value=91), pid=42)
+    folder.native.user.GetForegroundWindow.side_effect = lambda: state["foreground"]
+
+    def wait(predicate, message):
+        assert predicate(), message
+
+    folder.native.wait_for.side_effect = wait
+
+    def inventory():
+        if failure == "missing":
+            return [SimpleNamespace(id=SimpleNamespace(value=999), pid=42)]
+        if failure == "replaced":
+            folder.native.windows.return_value = [{**folder.window, "pid": 99}]
+        return [snapshot]
+
+    def activate(target, action):
+        assert target is snapshot and action == "activate"
+        if failure == "denied":
+            return ActionResult.FAILED
+        if failure != "unfocused":
+            state["foreground"] = 91
+        return ActionResult.OK
+
+    api = SimpleNamespace(windows=inventory, perform=Mock(side_effect=activate))
+    monkeypatch.setattr(windows, "Win32WindowAPI", lambda: api)
+    if failure:
+        with pytest.raises(AssertionError):
+            folder.focus()
+        if failure in ("missing", "replaced"):
+            api.perform.assert_not_called()
+    else:
+        folder.focus()
+        api.perform.assert_called_once_with(snapshot, "activate")
+        assert folder.foreground_observations[-1]["after"] == 91
+    folder.native.click.assert_not_called()
+    folder.native.key.assert_not_called()
+    folder.native.user.SetForegroundWindow.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "failure", [None, "covered", "moved", "foreground", "moved-during-focus"]
+)
+def test_entry_proves_owned_caption_and_foreground_before_view_keys(
+    folder, monkeypatch, failure
+):
+    row = folder.window.copy()
+    folder.window = None
+    calls = []
+
+    def inventory(_pid=None):
+        calls.append("windows")
+        return [] if len(calls) == 1 else [row.copy()]
+
+    def wait(predicate, message):
+        value = predicate()
+        assert value, message
+        return value
+
+    def click(x, y, *, before_press):
+        assert (x, y) == ((400, 170) if failure == "moved-during-focus" else (300, 120))
+        if failure == "moved":
+            row["rect"] = [101, 100, 501, 500]
+        before_press()
+        calls.append("physical-click")
+        if failure == "foreground":
+            folder.native.user.GetForegroundWindow.return_value = 999
+
+    original_focus = folder.focus
+
+    def focus():
+        original_focus()
+        if failure == "moved-during-focus":
+            row["rect"] = [200, 150, 600, 550]
+
+    folder.focus = focus
+    folder.native.windows.side_effect = inventory
+    folder.native.wait_for.side_effect = wait
+    folder.native.click.side_effect = click
+    folder.native.user.GetForegroundWindow.return_value = 91
+    folder.native.window_at.return_value = 999 if failure == "covered" else 91
+    folder.native.user.IsWindow.return_value = False
+    monkeypatch.setattr(explorer.os, "startfile", Mock(), raising=False)
+    monkeypatch.setattr(explorer.time, "sleep", lambda _seconds: None)
+    if failure not in (None, "moved-during-focus"):
+        with pytest.raises(AssertionError):
+            folder.__enter__()
+        folder.native.key.assert_not_called()
+        if failure in ("covered", "moved"):
+            assert "physical-click" not in calls
+    else:
+        assert folder.__enter__() is folder
+        folder.native.key.assert_called_once_with(ord("2"), control=True, shift=True)
+        assert "physical-click" in calls
+        folder.close()
+    folder.native.user.PostMessageW.assert_called_once_with(91, 0x10, 0, 0)
+
+
+def test_enter_dispatch_failure_is_marked_before_input_can_launch(folder):
+    activation_fixture(folder)
+    folder.native.key.side_effect = AssertionError("Owned Enter input was incomplete")
+    observed = {}
+    with pytest.raises(AssertionError, match="Enter input was incomplete"):
+        folder.activate(folder.directory / "Owned.lnk", observed)
+    assert observed["physical_enter_started"] is True
+    assert "physical_enter" not in observed

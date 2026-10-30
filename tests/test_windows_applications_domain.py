@@ -217,7 +217,9 @@ def test_failure_diagnostics_keep_source_location_without_exception_paths_or_mes
     assert "private" not in json.dumps(details)
 
 
-@pytest.mark.parametrize("failure", ["binary", "independent-launch"])
+@pytest.mark.parametrize(
+    "failure", ["binary", "independent-launch", "selection", "enter-dispatch"]
+)
 def test_export_diagnostics_distinguish_copy_failure_from_later_independent_launch(
     tmp_path, monkeypatch, failure
 ):
@@ -254,7 +256,14 @@ def test_export_diagnostics_distinguish_copy_failure_from_later_independent_laun
             )
         )
 
-    activated = Mock()
+    def activate(_copied, evidence):
+        if failure == "selection":
+            raise AssertionError("Owned Explorer item is covered")
+        evidence["physical_enter_started"] = True
+        if failure == "enter-dispatch":
+            raise AssertionError("Owned Enter input was incomplete")
+
+    activated = Mock(side_effect=activate)
 
     @contextmanager
     def folder(_native, directory):
@@ -302,7 +311,9 @@ def test_export_diagnostics_distinguish_copy_failure_from_later_independent_laun
     assert observed["stage"] == (
         "copied-launcher" if failure == "binary" else "independent-launch"
     )
-    assert lifecycle["closed"] is (failure == "binary")
+    assert lifecycle["closed"] is (
+        failure not in ("independent-launch", "enter-dispatch")
+    )
     assert activated.call_count == (0 if failure == "binary" else 1)
 
 

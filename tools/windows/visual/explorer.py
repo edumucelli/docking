@@ -22,6 +22,7 @@ class ExplorerFolder:
         self.directory = directory.resolve()
         self.window = None
         self.cleanup_failure = None
+        self.foreground_observations = []
 
     def __enter__(self):
         initial = {window["hwnd"] for window in self.native.windows()}
@@ -40,14 +41,82 @@ class ExplorerFolder:
                 ),
                 "Owned Explorer folder did not open",
             )
-            x1, y1, x2, _y2 = self.window["rect"]
-            self.native.click((x1 + x2) // 2, y1 + 20)
+            self.focus()
+            current = self._current_window()
+            hwnd, bounds = current["hwnd"], current["rect"]
+            x1, y1, x2, _y2 = bounds
+            point = ((x1 + x2) // 2, y1 + 20)
+
+            def before_caption_press():
+                assert self._current_window()["rect"] == bounds, (
+                    "Owned Explorer caption moved before input"
+                )
+                assert self.native.window_at(*point) == hwnd, (
+                    "Owned Explorer caption is covered"
+                )
+
+            self.native.click(*point, before_press=before_caption_press)
+            self.native.wait_for(
+                lambda: self.native.user.GetForegroundWindow() == hwnd,
+                "Owned Explorer caption did not receive foreground",
+            )
+            self._current_window()
             self.native.key(ord("2"), control=True, shift=True)
             time.sleep(1)
         except BaseException as error:
             self._cleanup(error)
             raise
         return self
+
+    def _current_window(self):
+        assert self.window is not None
+        current = next(
+            (
+                row
+                for row in self.native.windows(self.window["pid"])
+                if row["hwnd"] == self.window["hwnd"]
+            ),
+            None,
+        )
+        assert current is not None and all(
+            current[key] == self.window[key]
+            for key in ("hwnd", "pid", "class", "title")
+        ), "Owned Explorer window identity changed"
+        return current
+
+    def focus(self):
+        """Prepare only this verified Cabinet before physical fixture input."""
+        current = self._current_window()
+        observed = {
+            "before": self.native.user.GetForegroundWindow(),
+            "hwnd": current["hwnd"],
+            "pid": current["pid"],
+        }
+        self.foreground_observations.append(observed)
+        if observed["before"] != current["hwnd"]:
+            from docking.platform.backends.base import ActionResult
+            from docking.platform.backends.windows.windows import Win32WindowAPI
+
+            api = Win32WindowAPI()
+            snapshot = next(
+                (
+                    row
+                    for row in api.windows()
+                    if row.id.value == current["hwnd"] and row.pid == current["pid"]
+                ),
+                None,
+            )
+            assert snapshot is not None, "Owned Explorer activation target disappeared"
+            self._current_window()
+            status = api.perform(snapshot, "activate")
+            observed["result"] = status.value
+            assert status is ActionResult.OK, "Owned Explorer foreground request failed"
+        self.native.wait_for(
+            lambda: self.native.user.GetForegroundWindow() == current["hwnd"],
+            "Owned Explorer did not receive foreground",
+        )
+        self._current_window()
+        observed["after"] = self.native.user.GetForegroundWindow()
 
     def file_rectangle(self, path: Path, *, selection=False):
         assert path.parent.samefile(self.directory)
@@ -106,6 +175,8 @@ $rows[0]|ConvertTo-Json -Compress
         """Select the exact owned Explorer item physically, then press Enter."""
         assert self.window is not None
         source = self.window
+        observed["foreground_preparation"] = self.foreground_observations
+        self.focus()
 
         def observe(stage):
             item = self.file_rectangle(path, selection=True)
@@ -176,6 +247,7 @@ $rows[0]|ConvertTo-Json -Compress
             and state["item"]["focused"]
             and state["foreground"] == source["hwnd"]
         ), "Explorer activation context changed before Enter"
+        observed["physical_enter_started"] = True
         self.native.key(0x0D)
         observed["physical_enter"] = True
 

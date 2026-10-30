@@ -266,6 +266,7 @@ def finish_program(
     *,
     lifecycle=None,
     observed: dict[str, object] | None = None,
+    file_arguments: tuple[int, ...] = (),
 ) -> dict:
     import psutil
 
@@ -281,7 +282,15 @@ def finish_program(
     process = psutil.Process(facts["pid"])
     assert Path(process.exe()).samefile(executable)
     try:
-        assert facts["argv"] == argv
+        actual, expected = list(facts["argv"]), list(argv)
+        assert len(actual) == len(expected), "Owned application changed argument count"
+        for index in file_arguments:
+            assert 0 <= index < len(expected)
+            # Gio's Windows URI expansion returns GFile's native path, which
+            # uses forward separators on MSYS2. Preserve all other characters.
+            actual[index] = actual[index].replace("/", "\\")
+            expected[index] = expected[index].replace("/", "\\")
+        assert actual == expected, "Owned application changed document arguments"
         native.wait_for(
             lambda: native.windows(process.pid), "Owned application did not map"
         )
@@ -379,6 +388,10 @@ def export_check(
                 observed=observed,
             )
         except Exception:
+            if not observed["explorer_activation"].get("physical_enter_started"):
+                # A rejected selection cannot have started the PE. The folder
+                # context and outer native-window guard still verify cleanup.
+                lifecycle["closed"] = True
             from PIL import ImageGrab
 
             try:
@@ -457,6 +470,7 @@ def _registered_association_checks(
             executable,
             [str(document).replace("/", "\\")],
             lifecycle=lifecycle,
+            file_arguments=(0,) if mode == "explicit" else (),
         )
 
     document = fixture.root / ("Association résumé 日本語" + extension)

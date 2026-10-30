@@ -136,6 +136,8 @@ def _choose_placement(
     before: list[int],
     workarea: list[int],
     journal: dict,
+    *,
+    phase: str,
 ) -> list[int] | None:
     """Predict one placement using current occluders and actual Z-ordered hits."""
     left, top, right, bottom = workarea
@@ -168,7 +170,7 @@ def _choose_placement(
     blockers = {
         tuple(value["root"]["bounds"])
         for value in journal["points"]
-        if value["phase"] == "initial"
+        if value["phase"] == phase
         and "bounds" in value["root"]
         and value["root"]["hwnd"] != window["hwnd"]
     }
@@ -245,8 +247,18 @@ def focus_editor(
         return None
 
     point = exposed("initial")
-    if point is None and owned is None:
-        raise AssertionError("Owned input editor has no exposed input point")
+    if point is None:
+        if owned is None:
+            raise AssertionError("Owned input editor has no exposed input point")
+        owned.activate_for_focus(editor, row)
+        current = next(
+            (value for value in native.windows(pid) if value["hwnd"] == hwnd), None
+        )
+        assert current is not None and current["pid"] == pid, (
+            "Owned editor disappeared after activation"
+        )
+        points = _editor_points(current["rect"])
+        point = exposed("after_activation")
     scope = owned.place_for_focus(editor, row) if point is None else nullcontext()
     with scope:
         if point is None:
@@ -723,6 +735,51 @@ class OwnedInputEditor:
             "image_sha256": self._image_hash,
         }
 
+    def activate_for_focus(self, window, journal) -> None:
+        """Normally activate only this pinned child before physical test input."""
+        from docking.platform.backends.base import ActionResult
+        from docking.platform.backends.windows.windows import Win32WindowAPI
+
+        hwnd, user = window["hwnd"], self.native.user
+        row = journal["owned_activation"] = {
+            "identity_before": self.verify_identity(window),
+            "foreground_before": int(user.GetForegroundWindow() or 0),
+            "bounds_before": _window_facts(user, hwnd)["bounds"],
+            "topmost_before": _topmost(user, hwnd),
+        }
+        api = Win32WindowAPI()
+        snapshot = api.capture_snapshot(hwnd, expected_pid=window["pid"])
+        assert (
+            snapshot is not None
+            and snapshot.id.value == hwnd
+            and snapshot.pid == window["pid"]
+        ), "Owned editor activation snapshot changed"
+        row["identity_before_request"] = self.verify_identity(window)
+        status = api.perform(snapshot, "activate")
+        row["result"] = status.value
+        row["foreground_immediate"] = int(user.GetForegroundWindow() or 0)
+        assert status is ActionResult.OK, "Owned editor normal activation failed"
+
+        def foreground():
+            self.verify_identity(window)
+            row["foreground_after"] = int(user.GetForegroundWindow() or 0)
+            return row["foreground_after"] == hwnd
+
+        # Cross-input-queue SetForegroundWindow activation is asynchronous.
+        # Wait for the one accepted request; never attach queues or retry it.
+        self.native.wait_for(
+            foreground, "Owned editor normal activation did not receive foreground"
+        )
+        row["identity_after"] = self.verify_identity(window)
+        row["bounds_after"] = _window_facts(user, hwnd)["bounds"]
+        row["topmost_after"] = _topmost(user, hwnd)
+        assert row["bounds_after"] == row["bounds_before"], (
+            "Owned editor normal activation changed geometry"
+        )
+        assert row["topmost_after"] == row["topmost_before"], (
+            "Owned editor normal activation changed topmost state"
+        )
+
     @contextmanager
     def place_for_focus(self, window: dict, journal: dict):
         """Move one owned window into observed free space without changing Z order."""
@@ -730,7 +787,9 @@ class OwnedInputEditor:
         journal["identity_before_placement"] = self.verify_identity(window)
         before = _window_facts(user, hwnd)["bounds"]
         workarea = self.native.workarea()
-        chosen = _choose_placement(self.native, window, before, workarea, journal)
+        chosen = _choose_placement(
+            self.native, window, before, workarea, journal, phase="after_activation"
+        )
         assert chosen is not None, "No observed exposed placement for owned editor"
         topmost = _topmost(user, hwnd)
         foreground = int(user.GetForegroundWindow() or 0)

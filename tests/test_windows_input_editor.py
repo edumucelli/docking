@@ -545,7 +545,11 @@ def test_both_input_tools_expose_explicit_optional_amd64_editor_mode(module):
 def exposure(focus_desktop, tmp_path, monkeypatch):
     import hashlib
 
+    from docking.platform.backends.base import ActionResult
+    from docking.platform.backends.windows import windows as native_windows
+
     native, window, foreground = focus_desktop
+    native.wait_for = Mock(side_effect=native.wait_for)
     window["rect"] = [156, 156, 676, 456]
     cover = {"hwnd": 999, "pid": 909, "rect": [31, 156, 1024, 675]}
     background = {"hwnd": 888, "pid": 808, "rect": [0, 0, 1024, 768]}
@@ -624,6 +628,18 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
     )
     native.user.GetWindowLongW = Mock(return_value=0)
     native.user.SetWindowPos = Mock(side_effect=position)
+    snapshot = SimpleNamespace(id=SimpleNamespace(value=101), pid=202)
+
+    def activate(target, action):
+        assert target is snapshot and action == "activate"
+        foreground[0] = 101
+        return ActionResult.OK
+
+    api = SimpleNamespace(
+        capture_snapshot=Mock(return_value=snapshot), perform=Mock(side_effect=activate)
+    )
+    constructor = Mock(return_value=api)
+    monkeypatch.setattr(native_windows, "Win32WindowAPI", constructor)
     monkeypatch.setattr(ctypes, "set_last_error", lambda _: None, raising=False)
     monkeypatch.setattr(ctypes, "get_last_error", lambda: 0, raising=False)
     monkeypatch.setattr(
@@ -639,10 +655,15 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
         windows=windows,
         original=original,
         cover=cover,
+        activation=api,
+        activation_constructor=constructor,
+        snapshot=snapshot,
     )
 
 
-def test_covered_owned_editor_moves_once_without_activation_or_z_order_change(exposure):
+def test_covered_owned_editor_moves_once_after_normal_activation_without_changing_z_order(
+    exposure,
+):
     native, journal = exposure.native, {}
     point = mod.focus_editor(
         native, exposure.window, owned=exposure.owner, journal=journal
@@ -655,7 +676,7 @@ def test_covered_owned_editor_moves_once_without_activation_or_z_order_change(ex
     assert (
         attempt["placement"]["foreground_before"]
         == attempt["placement"]["foreground_after"]
-        == 999
+        == 101
     )
     assert attempt["activated"] and exposure.foreground[0] == 101
     assert attempt["identity_before_placement"]["created"] == 123
@@ -754,7 +775,7 @@ def test_cover_appearing_after_placement_restores_geometry_without_click(exposur
     assert journal["attempts"][0]["placement"]["geometry_restored"]
     native.click.assert_not_called()
     assert (
-        exposure.foreground[0] == 999 and exposure.window["rect"] == exposure.original
+        exposure.foreground[0] == 101 and exposure.window["rect"] == exposure.original
     )
 
 
@@ -1306,3 +1327,252 @@ def test_pre_key_entry_readback_does_not_touch_lazy_gdk_keymap(monkeypatch):
     entry.get_window.assert_not_called()
     trace.close()
     assert trace.journal["disconnected"]
+
+
+def test_full_workarea_start_overlay_yields_to_only_owned_normal_activation(exposure):
+    f = exposure
+    f.cover["rect"] = [0, 0, 1024, 768]
+    activate = f.activation.perform.side_effect
+
+    def foreground(target, action):
+        result = activate(target, action)
+        # Model ordinary activation putting the owned window above the panel.
+        f.windows[:] = [f.window, f.cover, f.windows[-1]]
+        return result
+
+    f.activation.perform.side_effect = foreground
+    journal = {}
+    point = mod.focus_editor(f.native, f.window, owned=f.owner, journal=journal)
+    f.activation.capture_snapshot.assert_called_once_with(101, expected_pid=202)
+    f.activation.perform.assert_called_once_with(f.snapshot, "activate")
+    f.native.user.SetWindowPos.assert_not_called()
+    f.native.click.assert_called_once_with(
+        *point, before_press=f.native.click.call_args.kwargs["before_press"]
+    )
+    row = journal["attempts"][0]
+    assert row["owned_activation"]["foreground_before"] == 999
+    assert row["owned_activation"]["foreground_after"] == 101
+    assert (
+        row["owned_activation"]["identity_before"]
+        == row["owned_activation"]["identity_after"]
+    )
+    assert (
+        row["owned_activation"]["bounds_before"]
+        == row["owned_activation"]["bounds_after"]
+        == f.original
+    )
+    assert (
+        row["owned_activation"]["topmost_before"]
+        is row["owned_activation"]["topmost_after"]
+        is False
+    )
+    assert all(
+        p["root"]["hwnd"] == 999 for p in row["points"] if p["phase"] == "initial"
+    )
+    assert (
+        row["points"][-1]["phase"] == "after_activation"
+        and row["points"][-1]["root"]["hwnd"] == 101
+    )
+    assert row["activated"] and "placement" not in row
+
+
+def test_placement_after_activation_uses_fresh_cover_bounds_not_initial_full_panel(
+    exposure,
+):
+    f = exposure
+    f.cover["rect"] = [0, 0, 1024, 768]
+    activate = f.activation.perform.side_effect
+
+    def foreground(target, action):
+        result = activate(target, action)
+        f.cover["rect"] = [31, 156, 1024, 675]
+        return result
+
+    f.activation.perform.side_effect = foreground
+    journal = {}
+    mod.focus_editor(f.native, f.window, owned=f.owner, journal=journal)
+    row = journal["attempts"][0]
+    assert len([p for p in row["points"] if p["phase"] == "after_activation"]) == 16
+    assert all(
+        p["root"]["bounds"] == [0, 0, 1024, 768]
+        for p in row["points"]
+        if p["phase"] == "initial"
+    )
+    assert any(c["exposed_points"] for c in row["placement_candidates"])
+    assert row["placement"]["after"] == [0, 0, 520, 300]
+    f.activation.perform.assert_called_once()
+    assert f.native.click.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "denied",
+        "false-success",
+        "changed-identity",
+        "geometry",
+        "topmost",
+        "native-error",
+    ],
+)
+def test_owned_normal_activation_failure_never_falls_back_or_clicks(exposure, failure):
+    from docking.platform.backends.base import ActionResult
+
+    f = exposure
+    activate = f.activation.perform.side_effect
+
+    def perform(target, action):
+        if failure == "denied":
+            return ActionResult.FAILED
+        if failure == "false-success":
+            return ActionResult.OK
+        if failure == "native-error":
+            raise OSError(5, "Owned normal activation failed")
+        result = activate(target, action)
+        if failure == "changed-identity":
+            f.created[0] = 124
+        elif failure == "geometry":
+            f.window["rect"] = [157, 156, 677, 456]
+        else:
+            f.native.user.GetWindowLongW.return_value = 8
+        return result
+
+    f.activation.perform.side_effect = perform
+    journal = {}
+    with pytest.raises((AssertionError, OSError)):
+        mod.focus_editor(f.native, f.window, owned=f.owner, journal=journal)
+    f.activation.perform.assert_called_once_with(f.snapshot, "activate")
+    f.native.user.SetWindowPos.assert_not_called()
+    f.native.click.assert_not_called()
+    assert "placement_candidates" not in journal["attempts"][0]
+    if failure in ("denied", "native-error"):
+        f.native.wait_for.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["missing", "window", "pid", "creation"])
+def test_owned_activation_revalidates_snapshot_and_popen_before_request(
+    exposure, failure
+):
+    f = exposure
+    if failure == "missing":
+        f.activation.capture_snapshot.return_value = None
+    elif failure == "window":
+        f.activation.capture_snapshot.return_value = SimpleNamespace(
+            id=SimpleNamespace(value=777), pid=202
+        )
+    elif failure == "pid":
+        f.activation.capture_snapshot.return_value = SimpleNamespace(
+            id=SimpleNamespace(value=101), pid=909
+        )
+    else:
+
+        def snapshot(*_args, **_kwargs):
+            f.created[0] = 124
+            return f.snapshot
+
+        f.activation.capture_snapshot.side_effect = snapshot
+    with pytest.raises(AssertionError):
+        mod.focus_editor(f.native, f.window, owned=f.owner)
+    f.activation.perform.assert_not_called()
+    f.native.user.SetWindowPos.assert_not_called()
+    f.native.click.assert_not_called()
+
+
+@pytest.mark.parametrize("owned", [False, True])
+def test_normal_activation_permission_is_never_used_for_stock_or_exposed_editor(
+    exposure, owned
+):
+    f = exposure
+    if owned:
+        f.cover["rect"] = [900, 156, 1024, 675]
+        mod.focus_editor(f.native, f.window, owned=f.owner)
+        assert f.native.click.call_count == 1
+    else:
+        with pytest.raises(AssertionError, match="no exposed input point"):
+            mod.focus_editor(f.native, f.window)
+        f.native.click.assert_not_called()
+    f.activation_constructor.assert_not_called()
+    f.activation.perform.assert_not_called()
+
+
+def test_normal_activation_waits_for_cross_queue_foreground_without_repeating_request(
+    exposure,
+):
+    from docking.platform.backends.base import ActionResult
+
+    f = exposure
+    f.activation.perform.side_effect = None
+    f.activation.perform.return_value = ActionResult.OK
+    waiting = f.native.wait_for.side_effect
+    polls = []
+
+    def wait(predicate, message):
+        if message == "Owned editor normal activation did not receive foreground":
+            polls.append(predicate())
+            assert polls == [False]
+            f.foreground[0] = 101
+            f.windows[:] = [f.window, f.cover, f.windows[-1]]
+            polls.append(predicate())
+            assert polls == [False, True]
+            return True
+        return waiting(predicate, message)
+
+    f.native.wait_for.side_effect = wait
+    journal = {}
+    mod.focus_editor(f.native, f.window, owned=f.owner, journal=journal)
+    f.activation.perform.assert_called_once_with(f.snapshot, "activate")
+    row = journal["attempts"][0]["owned_activation"]
+    assert row["foreground_immediate"] == 999 and row["foreground_after"] == 101
+    assert row["identity_before"] == row["identity_after"]
+    f.native.user.SetWindowPos.assert_not_called()
+    assert f.native.click.call_count == 1
+
+
+def test_normal_activation_false_success_expires_existing_wait_budget_without_fallback(
+    exposure, monkeypatch
+):
+    from docking.platform.backends.base import ActionResult
+    from tools.windows.visual import desktop_driver
+
+    f = exposure
+    now = [0.0]
+    monkeypatch.setattr(desktop_driver.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(
+        desktop_driver.time,
+        "sleep",
+        lambda seconds: now.__setitem__(0, now[0] + seconds),
+    )
+    f.activation.perform.side_effect = None
+    f.activation.perform.return_value = ActionResult.OK
+    f.native.wait_for.side_effect = desktop_driver.WindowsDesktop.wait_for
+    journal = {}
+    with pytest.raises(
+        AssertionError, match="normal activation did not receive foreground"
+    ):
+        mod.focus_editor(f.native, f.window, owned=f.owner, journal=journal)
+    assert 15 <= now[0] < 15.2
+    f.activation.perform.assert_called_once_with(f.snapshot, "activate")
+    assert journal["attempts"][0]["owned_activation"]["foreground_after"] == 999
+    f.native.user.SetWindowPos.assert_not_called()
+    f.native.click.assert_not_called()
+
+
+def test_normal_activation_wait_stops_if_owned_identity_changes(exposure):
+    from docking.platform.backends.base import ActionResult
+
+    f = exposure
+    f.activation.perform.side_effect = None
+    f.activation.perform.return_value = ActionResult.OK
+
+    def wait(predicate, _message):
+        assert predicate() is False
+        f.created[0] = 124
+        predicate()
+        pytest.fail("Changed target must stop the accepted activation wait")
+
+    f.native.wait_for.side_effect = wait
+    with pytest.raises(AssertionError, match="creation time changed"):
+        mod.focus_editor(f.native, f.window, owned=f.owner)
+    f.activation.perform.assert_called_once()
+    f.native.user.SetWindowPos.assert_not_called()
+    f.native.click.assert_not_called()

@@ -265,9 +265,11 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
 
     monkeypatch.setattr(ffi, "bind", bind)
 
-    def completed(_native, _facts, actual_executable, argv, *, lifecycle):
+    def completed(
+        _native, _facts, actual_executable, argv, *, lifecycle, file_arguments
+    ):
         assert actual_executable == executable
-        assert len(argv) == 1
+        assert len(argv) == 1 and file_arguments == (0,)
         lifecycle["closed"] = True
         return {"argv": argv}
 
@@ -628,3 +630,66 @@ smoke._association_child(sys.argv[2])
     assert result["checks"]["association-explicit"]["observed"][
         "canonical_id"
     ].endswith("Docking.Acceptance.owned")
+
+
+@pytest.mark.parametrize(
+    "actual,file_arguments,passes",
+    [
+        (["C:/Owned/résumé 日本語 #100%.txt", "literal /argument", ""], (0,), True),
+        (["C:/Owned/résumé 日本語 #100%.txt", "literal /argument", ""], (), False),
+        (["C:/Owned/résumé 日本語 #100%.txt", "literal \\argument", ""], (0,), False),
+        (["C:/Other/résumé 日本語 #100%.txt", "literal /argument", ""], (0,), False),
+        (["C:/Owned/RÉSUMÉ 日本語 #100%.txt", "literal /argument", ""], (0,), False),
+        (["literal /argument", "C:/Owned/résumé 日本語 #100%.txt", ""], (0,), False),
+        (["C:/Owned/résumé 日本語 #100%.txt", "literal /argument"], (0,), False),
+    ],
+)
+def test_gio_file_argument_accepts_only_separator_variants_and_always_closes(
+    tmp_path, monkeypatch, actual, file_arguments, passes
+):
+    import json
+    import sys
+
+    executable = tmp_path / "Owned.exe"
+    executable.write_bytes(b"owned fixture")
+    path = tmp_path / "facts.json"
+    facts = {"executable": str(executable), "pid": 123, "argv": actual}
+    path.write_text(json.dumps(facts))
+    process = SimpleNamespace(
+        exe=lambda: str(executable), pid=123, wait=Mock(return_value=0)
+    )
+    monkeypatch.setitem(
+        sys.modules, "psutil", SimpleNamespace(Process=lambda pid: process)
+    )
+    native = SimpleNamespace(
+        wait_for=lambda predicate, _message, *_timeout: predicate(),
+        windows=lambda pid: [{"hwnd": 456}],
+        user=SimpleNamespace(PostMessageW=Mock(return_value=True)),
+    )
+    lifecycle = {"closed": False}
+    expected = [r"C:\Owned\résumé 日本語 #100%.txt", "literal /argument", ""]
+    if passes:
+        assert (
+            smoke.finish_program(
+                native,
+                path,
+                executable,
+                expected,
+                lifecycle=lifecycle,
+                file_arguments=file_arguments,
+            )
+            == facts
+        )
+    else:
+        with pytest.raises(AssertionError):
+            smoke.finish_program(
+                native,
+                path,
+                executable,
+                expected,
+                lifecycle=lifecycle,
+                file_arguments=file_arguments,
+            )
+    assert lifecycle["closed"]
+    native.user.PostMessageW.assert_called_once_with(456, 0x10, 0, 0)
+    process.wait.assert_called_once_with(20)
