@@ -208,6 +208,7 @@ def main(monitor) -> None:
         target_modules,
         thread_snapshot,
     )
+    from tools.windows.visual.input_fixture import IMEMode, ime_conversion
     from tools.windows.visual.input_profile_fixture import (
         TELEX_IDENTIFIER,
         is_fixture_profile,
@@ -516,42 +517,80 @@ def main(monitor) -> None:
                         "Profile activation changed fixture foreground"
                     )
                     assert actual.active == profile.code, (profile.code, actual.active)
-                    # Legacy multiline Windows Forms editors do not uniformly
-                    # implement Ctrl+A. Select the document with native navigation.
-                    native.key(0x24, control=True)
-                    native.key(0x23, control=True, shift=True)
-                    native.key(0x08)
-                    native.scan(0x1E)
-                    native.scan(
-                        0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
-                    )
-                    profile_result["input_observations"]["after_first_keys"] = (
-                        target_facts(context, input_service)
-                    )
-                    save()
-                    native.key(0x20)
-                    if architecture == 64:
-                        native.key(0x53, control=True)
-                    native.wait_for(
-                        lambda document=document: (
-                            document.read_text(encoding="utf-8-sig").strip() == "â"
-                        ),
-                        "Selected profile did not compose the expected physical input",
-                        10,
-                    )
-                    snapshot = input_service.read(api.foreground(), threading.Event())
-                    assert (
-                        snapshot
-                        and snapshot.profile
-                        and snapshot.profile.code == profile.code
-                    )
-                    assert service.active() == caller, "Caller input profile changed"
-                    record_fixture_layouts()
-                    profile_result.update(
-                        readback=asdict(snapshot),
-                        text=document.read_text(encoding="utf-8-sig"),
-                    )
-                    save()
+
+                    def mode_readback(
+                        context=context, profile=profile, input_service=input_service
+                    ):
+                        if api.foreground() != context:
+                            raise RuntimeError("Owned IME target changed during setup")
+                        snapshot = input_service.read(context, threading.Event())
+                        if (
+                            snapshot is None
+                            or not snapshot.ime_known
+                            or snapshot.profile is None
+                            or snapshot.profile.code != profile.code
+                        ):
+                            raise RuntimeError("Owned IME profile/state is unknown")
+                        return IMEMode(
+                            snapshot.ime_open, snapshot.conversion, snapshot.sentence
+                        )
+
+                    profile_result["ime_mode"] = {}
+                    try:
+                        with ime_conversion(
+                            window=context.window,
+                            root=context.root,
+                            pid=context.pid,
+                            thread=context.thread,
+                            journal=profile_result["ime_mode"],
+                            readback=mode_readback,
+                        ):
+                            profile_result["input_observations"]["after_mode_setup"] = (
+                                target_facts(context, input_service)
+                            )
+                            save()
+                            # Legacy multiline Forms editors do not uniformly
+                            # implement Ctrl+A; use native document navigation.
+                            native.key(0x24, control=True)
+                            native.key(0x23, control=True, shift=True)
+                            native.key(0x08)
+                            native.scan(0x1E)
+                            native.scan(
+                                0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
+                            )
+                            profile_result["input_observations"]["after_first_keys"] = (
+                                target_facts(context, input_service)
+                            )
+                            save()
+                            native.key(0x20)
+                            if architecture == 64:
+                                native.key(0x53, control=True)
+                            native.wait_for(
+                                lambda document=document: (
+                                    document.read_text(encoding="utf-8-sig").strip()
+                                    == "â"
+                                ),
+                                "Selected profile did not compose physical input",
+                                10,
+                            )
+                            snapshot = input_service.read(
+                                api.foreground(), threading.Event()
+                            )
+                            assert (
+                                snapshot
+                                and snapshot.profile
+                                and snapshot.profile.code == profile.code
+                            )
+                            assert service.active() == caller, (
+                                "Caller input profile changed"
+                            )
+                            record_fixture_layouts()
+                            profile_result.update(
+                                readback=asdict(snapshot),
+                                text=document.read_text(encoding="utf-8-sig"),
+                            )
+                    finally:
+                        save()
                 stage["keyboard_profiles"] = [
                     asdict(p) for p in service.profiles() if p.kind == 2
                 ]

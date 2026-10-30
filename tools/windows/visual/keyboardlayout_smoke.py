@@ -15,6 +15,7 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import ExitStack
 from dataclasses import asdict
 from pathlib import Path
 
@@ -156,6 +157,7 @@ def main(monitor):
         target_modules,
         thread_snapshot,
     )
+    from tools.windows.visual.input_fixture import ime_conversion
     from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
 
     native = WindowsDesktop()
@@ -728,6 +730,7 @@ def main(monitor):
                     )
 
                 def exercise(profile, entry, window, mapped, attempt):
+                    mode_scope = ExitStack()
                     preedit = []
                     subscription = call(
                         lambda: entry.connect(
@@ -803,6 +806,40 @@ def main(monitor):
                             focused, "Profile activation changed fixture focus"
                         )
                         observe_input("after_activation")
+                        context = api.foreground()
+                        assert (
+                            context is not None
+                            and context.root == mapped["hwnd"]
+                            and context.pid == os.getpid()
+                        ), "IME setup lost the owned fixture target"
+
+                        def validate_profile():
+                            # This runs on the driver, outside GTK dispatch:
+                            # reading the actual input thread needs its UI loop.
+                            if api.foreground() != context:
+                                raise RuntimeError("Owned IME target changed")
+                            snapshot = input_service.read(context, threading.Event())
+                            if (
+                                snapshot is None
+                                or not snapshot.ime_known
+                                or snapshot.profile is None
+                                or snapshot.profile.code != profile.code
+                            ):
+                                raise RuntimeError("Owned IME profile changed")
+
+                        attempt["ime_mode"] = {}
+                        mode_scope.enter_context(
+                            ime_conversion(
+                                window=context.window,
+                                root=context.root,
+                                pid=context.pid,
+                                thread=context.thread,
+                                journal=attempt["ime_mode"],
+                                dispatch=call,
+                                validate=validate_profile,
+                            )
+                        )
+                        observe_input("after_mode_setup")
                         attempt["profile_readback"] = applet._backend.query().active
                         attempt["foreground_hwnd"] = int(
                             native.user.GetForegroundWindow()
@@ -897,9 +934,12 @@ def main(monitor):
                         observe_input("failure")
                         raise
                     finally:
-                        attempt["final_observation"] = observation()
-                        publish()
-                        call(lambda: entry.disconnect(subscription))
+                        try:
+                            mode_scope.close()
+                        finally:
+                            attempt["final_observation"] = observation()
+                            publish()
+                            call(lambda: entry.disconnect(subscription))
 
                 def build_reference():
                     # This control has only GTK's default key/IME handlers. It
