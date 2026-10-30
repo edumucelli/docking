@@ -145,7 +145,7 @@ class _Environment:
             return None, "<outside-system-directory>"
         if ".." in relative.parts:
             return None, "<outside-system-directory>"
-        return Path(expanded), "%SystemRoot%\\" + str(relative)
+        return Path(expanded), "%SystemRoot%\\" + "\\".join(relative.parts)
 
     def _version(self, path: Path) -> str | None:
         version = c.WinDLL("version", use_last_error=True)
@@ -196,7 +196,7 @@ class _Environment:
             else:
                 result["registered_path"] = label
                 path = root / "SysWOW64" / relative
-                result["path"] = "%SystemRoot%\\SysWOW64\\" + str(relative)
+                result["path"] = "%SystemRoot%\\SysWOW64\\" + "\\".join(relative.parts)
         try:
             result.update(machine=_machine(path), version=self._version(path))
         except OSError as exc:

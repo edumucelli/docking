@@ -294,7 +294,9 @@ def test_bootstrap_uses_sdk_language_bar_off_flag_without_other_initialization(
     monkeypatch.setattr(environment.c, "WinDLL", load, raising=False)
     assert native.initialize() == 0 and native.uninitialize() == 0
     assert calls == [("InitLocalMsCtfMonitor", (2,)), ("UninitLocalMsCtfMonitor", ())]
-    assert libraries == [r"C:\Windows\System32\MsCtfMonitor.dll"] * 2
+    assert [PureWindowsPath(path) for path in libraries] == [
+        PureWindowsPath(r"C:\Windows\System32\MsCtfMonitor.dll")
+    ] * 2
 
 
 @pytest.mark.parametrize("disappeared", [False, True])
@@ -514,7 +516,9 @@ def test_modern_system_input_modules_are_visible_without_com_registration(monkey
     )
     facts = native.modules(19)
     assert len(facts["modules"]) == 5
-    assert inspected == list(paths.values())[:4]
+    assert [PureWindowsPath(path) for path in inspected] == [
+        PureWindowsPath(path) for path in list(paths.values())[:4]
+    ]
     serialized = json.dumps(facts)
     assert "ModernTip.dll" in serialized and "MsCtfMonitor.dll" in serialized
     assert "private-server" not in serialized and "Private" not in serialized
