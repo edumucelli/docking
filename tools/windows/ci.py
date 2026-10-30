@@ -130,8 +130,15 @@ def _input_result(result: dict[str, object]) -> None:
         raise ValueError("Input smoke report did not pass")
 
 
-def input_domain(root: Path, output: Path, installed: Path) -> int:
+def input_domain(
+    root: Path,
+    output: Path,
+    installed: Path,
+    *,
+    owned_amd64_editor: bool = False,
+) -> int:
     """Collect GTK and independent Win32 input results before failing the batch."""
+    editor = ["--owned-amd64-editor"] if owned_amd64_editor else []
     return _run_domain(
         root,
         output,
@@ -141,14 +148,14 @@ def input_domain(root: Path, output: Path, installed: Path) -> int:
                 "search-layouts",
                 "tools.windows.visual.keyboardlayout_smoke",
                 "source",
-                ["--search-input"],
+                ["--search-input", *editor],
                 _input_result,
             ),
             (
                 "input-profiles",
                 "tools.windows.visual.input_profile_smoke",
                 "installed-wheel",
-                ["--installed-root", command_path(installed.resolve())],
+                [*editor, "--installed-root", command_path(installed.resolve())],
                 _input_result,
             ),
         ),

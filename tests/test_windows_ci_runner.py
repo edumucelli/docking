@@ -67,8 +67,9 @@ def test_runner_removes_long_path_stage_and_preserves_child_status(
 
 
 @pytest.mark.parametrize("statuses", [(0, 0), (1, 0), (1, 3), (0, 2)])
+@pytest.mark.parametrize("owned_editor", [False, True])
 def test_input_stage_runs_complete_domain_and_retains_both_results(
-    tmp_path, monkeypatch, statuses
+    tmp_path, monkeypatch, statuses, owned_editor
 ):
     root = Path(ci.__file__).resolve().parents[2]
     output = tmp_path / "reports with spaces"
@@ -87,7 +88,8 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         return subprocess.CompletedProcess(command, statuses[index])
 
     monkeypatch.setattr(ci.subprocess, "run", run)
-    status = ci.input_domain(root, output, installed)
+    options = {"owned_amd64_editor": True} if owned_editor else {}
+    status = ci.input_domain(root, output, installed, **options)
     assert status == (0 if statuses == (0, 0) else 1)
     assert len(calls) == 2
     assert calls[0] == [
@@ -95,6 +97,7 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         "-m",
         "tools.windows.visual.keyboardlayout_smoke",
         "--search-input",
+        *(["--owned-amd64-editor"] if owned_editor else []),
         "--output",
         ci.command_path(output / "search-layouts"),
     ]
@@ -102,6 +105,7 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         sys.executable,
         "-m",
         "tools.windows.visual.input_profile_smoke",
+        *(["--owned-amd64-editor"] if owned_editor else []),
         "--installed-root",
         ci.command_path(installed.resolve()),
         "--output",

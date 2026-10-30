@@ -214,12 +214,9 @@ jobs:
       - name: Verify GTK and native input dependencies
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage preflight
-      - name: Verify Search composition and classic input controls
+      - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
-        run: python -m tools.windows.visual.keyboardlayout_smoke --search-input --owned-amd64-editor --output artifacts/windows/search-layouts
-      - name: Verify the installed Telex and VNI matrix in AMD64 and x86 editors
-        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
-        run: python -m tools.windows.visual.input_profile_smoke --owned-amd64-editor --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
+        run: python -m tools.windows.visual.hosted_desktop --installed-root artifacts/windows/runtime --output artifacts/windows
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -227,6 +224,9 @@ jobs:
           path: |
             artifacts/windows/client-environment.json
             artifacts/windows/environment.json
+            artifacts/windows/desktop-preparation.json
+            artifacts/windows/desktop-*.png
+            artifacts/windows/input-domain.json
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/
             dist/*.whl
