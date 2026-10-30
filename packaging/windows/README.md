@@ -94,6 +94,11 @@ The release workflow stages the accepted Windows CI artifact alongside the
 Linux and BSD assets. It verifies the project version, package checksums and the
 matching successful installer report before copying the ZIP and installer to
 versioned and `docking-latest-windows-x86_64` names, with `SHA256SUMS-windows`.
+It also requires both complete 40-case native tray API matrices and both GTK
+interaction profiles under `artifacts/windows/tray/`. The installed backend and
+GTK reports must match the ZIP's wheel checksum and record successful physical
+input, focus routing and cleanup. Captures remain labeled as not visually
+reviewed. See [native tray acceptance](../../docs/WINDOWS_TRAY_ACCEPTANCE.md).
 The native Windows CI job also runs this staging check before uploading its
 artifact, so pull requests exercise the same release checks with real packages.
 To stage a downloaded `windows-ucrt64-x64` artifact locally:

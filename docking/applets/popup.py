@@ -142,9 +142,11 @@ def wrap_popup(content: Gtk.Widget) -> Gtk.Frame:
     return frame
 
 
-def create_popup_window() -> Gtk.Window:
+def create_popup_window(*, managed: bool = False) -> Gtk.Window:
     """Create a transient, undecorated applet popup window."""
-    window = Gtk.Window(type=Gtk.WindowType.POPUP)
+    window = Gtk.Window(
+        type=Gtk.WindowType.TOPLEVEL if managed else Gtk.WindowType.POPUP
+    )
     window.set_decorated(False)
     window.set_skip_taskbar_hint(True)
     window.set_resizable(False)

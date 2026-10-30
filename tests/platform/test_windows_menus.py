@@ -3,12 +3,41 @@
 from __future__ import annotations
 
 import ctypes
+import os
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from docking.platform.backends.windows import close_hook, menus
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [None, "changed-foreground", "reused-source", "foreign-target", "rejected", "lost"],
+)
+def test_popup_return_never_activates_after_foreground_or_ownership_changes(failure):
+    source, target = (10, 91), (20, os.getpid())
+    native = menus.WindowsMenuFocus.__new__(menus.WindowsMenuFocus)
+    identities = {source[0]: source, target[0]: target}
+    if failure == "reused-source":
+        identities[source[0]] = (source[0], source[1] + 1)
+    if failure == "foreign-target":
+        identities[target[0]] = (target[0], target[1] + 1)
+    native.identity = Mock(side_effect=identities.get)
+    native.foreground = Mock(
+        side_effect=[
+            (30, 92) if failure == "changed-foreground" else source,
+            source if failure == "lost" else target,
+        ]
+    )
+    native._set_foreground = Mock(return_value=failure != "rejected")
+
+    assert native.focus_if_current(target[0], source) is (failure is None)
+    if failure in ("changed-foreground", "reused-source", "foreign-target"):
+        native._set_foreground.assert_not_called()
+    else:
+        native._set_foreground.assert_called_once_with(target[0])
 
 
 class Menu:

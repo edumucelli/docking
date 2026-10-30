@@ -20,10 +20,20 @@ def test_linux_actions_send_the_presented_icon_anchor_without_ui_bus_calls():
     anchor = Rect(-200, 400, 24, 24)
     adapter.set_geometry({"item": anchor})
     assert not provider.mock_calls
-    adapter.activate("item", anchor=anchor)
+    adapter.activate("item", anchor=anchor, keyboard=True)
     provider.activate.assert_called_once_with("item", x=-200, y=424)
-    adapter.context_menu("item", anchor=anchor)
+    adapter.context_menu("item", anchor=anchor, keyboard=True)
     provider.context_menu.assert_called_once_with("item", x=-200, y=424)
+
+
+def test_linux_hover_and_native_focus_capabilities_do_not_contact_sni():
+    provider = Mock(spec=StatusNotifierBackend)
+    adapter = LinuxTrayBackend(backend=provider)
+    adapter.set_focus_handler(lambda _request: None)
+    assert not adapter.pointer("item", point=(12, 15), anchor=Rect(10, 10, 24, 24))
+    assert not adapter.pointer(None)
+    adapter.set_focus_handler(None)
+    assert not provider.mock_calls
 
 
 def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui():
@@ -68,6 +78,7 @@ def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui():
     assert projected.effective_icon_name == "attention"
     assert projected.icon_pixmap.rgba == bytes((10, 20, 30, 255))
     assert projected.tooltip_title == "Tooltip" and projected.tooltip_text == "Detail"
+    assert projected.show_tooltip
     assert not hasattr(projected, "service") and not hasattr(projected, "menu_path")
     provider.menu_client.reset_mock()
     menu = adapter.menu_client(item.identifier)

@@ -63,6 +63,9 @@ class _Backend:
         self.close_calls = 0
         self.get_state_calls = 0
 
+    def set_focus_handler(self, handler) -> None:
+        self.focus_handler = handler
+
     def get_state(self) -> StatusTrayState:
         self.get_state_calls += 1
         return self.state

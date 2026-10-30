@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, cast
 
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from .appbar import WindowsAppBar
     from .drag_source import WindowsFileDragSource
     from .geometry import ScreenMapping
-    from .menus import WindowsMenuSession
+    from .menus import WindowsMenuFocus, WindowsMenuSession
     from .workspaces import WindowsWorkspaceService
 
 
@@ -54,7 +55,13 @@ class WindowsSurfaceService(SurfaceService):
         self._map_handler = 0
         self._placement: PlacementRequest | None = None
         self._menus: WindowsMenuSession | None = None
+        self._popup_focus: WindowsMenuFocus | None = None
         self._file_drags: WindowsFileDragSource | None = None
+
+    def popups_require_managed_windows(self) -> bool:
+        # Win32 GDK temporary windows refuse mouse activation and always map
+        # without activation. An interactive tray pane needs a GTK toplevel.
+        return True
 
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
         from docking.platform.backends.gtk_geometry import logical_screen_rectangle
@@ -116,6 +123,69 @@ class WindowsSurfaceService(SurfaceService):
             self._menus = WindowsMenuSession(self._window)
         self._menus.prepare(menu)
 
+    def restore_popup_focus(
+        self,
+        window: object,
+        claim: Callable[[], bool],
+        *,
+        validate: Callable[[], bool],
+    ) -> bool:
+        """Consume a live native return request before mapping an owned popup."""
+        if self._window is None or self._appbar is None:
+            return False
+        from .ffi import window_handle
+        from .menus import WindowsMenuFocus
+
+        native_window = window.get_window()
+        handle = window_handle(native_window) if native_window is not None else None
+        if not handle:
+            return False
+        if self._popup_focus is None:
+            self._popup_focus = WindowsMenuFocus()
+        focus = self._popup_focus
+        expected = focus.foreground()
+        if expected is None:
+            return False
+        if expected[1] == os.getpid():
+            # A delayed action may have observed another Docking surface after
+            # its tray popup hid. Search/Preferences cannot authorize this return.
+            dock_window = self._window.get_window()
+            dock_handle = (
+                window_handle(dock_window) if dock_window is not None else None
+            )
+            if expected[0] not in (handle, dock_handle):
+                return False
+        if not validate() or not claim():
+            return False
+
+        # Mapping may invoke GTK callbacks. Suppress automatic activation, then
+        # check the same foreground again at the final native focus boundary.
+        focus_on_map = window.get_focus_on_map()
+        accept_focus = window.get_accept_focus()
+        window.set_focus_on_map(False)
+        try:
+            # Win32 GDK raises a toplevel before mapping it. That raise uses
+            # accept_focus, even when GTK's focus_on_map is disabled.
+            try:
+                window.set_accept_focus(False)
+                window.show()
+            finally:
+                window.set_accept_focus(accept_focus)
+            if (
+                self._appbar is None
+                or self._popup_focus is not focus
+                or not window.get_visible()
+                or window.get_window() is not native_window
+                or window_handle(native_window) != handle
+                or not validate()
+                or not focus.focus_if_current(handle, expected)
+            ):
+                window.hide()
+                return False
+            return True
+        finally:
+            window.set_focus_on_map(focus_on_map)
+
     def prepare_file_drag_source(
         self,
         widget: object,
@@ -155,6 +225,9 @@ class WindowsSurfaceService(SurfaceService):
         overlay.present()
 
     def stop(self) -> None:
+        if self._popup_focus is not None:
+            self._popup_focus.stop()
+            self._popup_focus = None
         if self._file_drags is not None:
             self._file_drags.stop()
             self._file_drags = None

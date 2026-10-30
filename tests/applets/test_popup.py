@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.popup as popup
 from docking.core.position import Position
 from docking.ui.display import ScreenPosition
@@ -290,13 +292,18 @@ def test_wrap_popup_applies_theme_class_and_adds_child(monkeypatch):
     ensure_popup_css.assert_called_once_with()
 
 
-def test_create_popup_window_configures_transient_surface(monkeypatch):
+@pytest.mark.parametrize("managed", [False, True])
+def test_create_popup_window_configures_transient_surface(monkeypatch, managed):
     window = _FakePopupWindow()
-    monkeypatch.setattr(popup.Gtk, "Window", lambda **_kwargs: window)
+    factory = MagicMock(return_value=window)
+    monkeypatch.setattr(popup.Gtk, "Window", factory)
 
-    created = popup.create_popup_window()
+    created = popup.create_popup_window(managed=managed)
 
     assert created is window
+    factory.assert_called_once_with(
+        type=popup.Gtk.WindowType.TOPLEVEL if managed else popup.Gtk.WindowType.POPUP
+    )
     assert window.decorated is False
     assert window.skip_taskbar is True
     assert window.resizable is False

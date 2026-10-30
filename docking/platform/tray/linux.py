@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from docking.platform.backends.base import Rect
 from docking.platform.status_notifier.backend import StatusNotifierBackend
 from docking.platform.status_notifier.dbusmenu import DBusMenuClient, DBusMenuItem
 from docking.platform.tray.menu import TrayMenuItem, TrayMenuLayout
-from docking.platform.tray.state import TrayIconPixmap, TrayItem, TrayState
+from docking.platform.tray.state import (
+    TrayFocusRequest,
+    TrayIconPixmap,
+    TrayItem,
+    TrayState,
+)
 
 
 def _menu(item: DBusMenuItem) -> TrayMenuItem:
@@ -88,14 +93,34 @@ class LinuxTrayBackend:
         # SNI receives the invocation point directly in each action.
         pass
 
-    def activate(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+    def pointer(
+        self,
+        identifier: str | None,
+        *,
+        point: tuple[int, int] | None = None,
+        anchor: Rect | None = None,
+    ) -> bool:
+        # SNI has no provider hover protocol; GTK owns its standard tooltip.
+        return False
+
+    def set_focus_handler(
+        self, handler: Callable[[TrayFocusRequest], None] | None
+    ) -> None:
+        # SNI menus do not send native focus-return requests.
+        pass
+
+    def activate(
+        self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
+    ) -> bool:
         return (
             self._backend.activate(identifier, x=anchor.x, y=anchor.bottom)
             if anchor
             else self._backend.activate(identifier)
         )
 
-    def context_menu(self, identifier: str, *, anchor: Rect | None = None) -> bool:
+    def context_menu(
+        self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
+    ) -> bool:
         return (
             self._backend.context_menu(identifier, x=anchor.x, y=anchor.bottom)
             if anchor

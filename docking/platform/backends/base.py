@@ -343,8 +343,28 @@ class WindowService(Service):
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
+    def popups_require_managed_windows(self) -> bool:
+        """Use GTK toplevels when temporary windows cannot receive keyboard focus."""
+        return False
+
     def prepare_menu_popup(self, menu: object) -> None:
         """Prepare any platform-specific keyboard focus for a root menu."""
+
+    def restore_popup_focus(
+        self,
+        window: object,
+        claim: Callable[[], bool],
+        *,
+        validate: Callable[[], bool],
+    ) -> bool:
+        """Restore an owned popup only after claiming a current provider request.
+
+        Called on the GTK thread. Implementations must invoke ``claim`` at the
+        final focus boundary, before mapping, presenting or foregrounding the
+        popup. Recheck ``validate`` after mapping, immediately before focusing.
+        Return False without showing it when the claim is rejected.
+        """
+        return False
 
     def prepare_file_drag_source(
         self,

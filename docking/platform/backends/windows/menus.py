@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import os
 from collections import deque
 from ctypes import wintypes
 from weakref import WeakSet
@@ -100,6 +101,18 @@ class WindowsMenuFocus:
 
     def active(self):
         return self.identity(self._active())
+
+    def focus_if_current(self, target: int, expected: tuple[int, int]) -> bool:
+        """Focus our popup only while the checked foreground identity survives."""
+        identity = self.identity(target)
+        if (
+            identity is None
+            or identity[1] != os.getpid()
+            or self.foreground() != expected
+            or self.identity(expected[0]) != expected
+        ):
+            return False
+        return bool(self._set_foreground(target)) and self.foreground() == identity
 
     def restore(self, previous, parent):
         if (

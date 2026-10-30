@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -10,6 +11,15 @@ class TrayIconPixmap:
     width: int
     height: int
     rgba: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class TrayFocusRequest:
+    """A provider's one-use, revalidated request to return to its tray icon."""
+
+    identifier: str
+    claim: Callable[[], bool]
+    validate: Callable[[], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +35,7 @@ class TrayItem:
     icon_pixmap: TrayIconPixmap | None = None
     tooltip_title: str = ""
     tooltip_text: str = ""
+    show_tooltip: bool = True
     item_is_menu: bool = False
     item_id: str = ""
     can_activate: bool = True

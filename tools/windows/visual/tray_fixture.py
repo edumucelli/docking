@@ -19,11 +19,47 @@ import uuid
 from pathlib import Path
 
 
+def decode_callback(first: int, second: int, versions: dict[str, int]):
+    """Decode only identities established by our actual provider registrations."""
+    identities = {500: "legacy", 501: "modern"}
+    packed_uid = (second >> 16) & 0xFFFF
+    packed = identities.get(packed_uid)
+    if packed is not None and versions[packed] == 4:
+        return packed, packed_uid, second & 0xFFFF, 4
+    uid = first & 0xFFFFFFFF
+    which = identities.get(uid)
+    if which is not None and versions[which] != 4 and 0 <= second <= 0xFFFF:
+        return which, uid, second & 0xFFFFFFFF, versions[which]
+    return None, uid, second & 0xFFFFFFFF, None
+
+
+def rich_popup_position(icon, work, width=230, height=72):
+    """Keep owned hover UI on its monitor without covering its trigger icon."""
+    left, top, right, bottom = icon
+    for x, y in (
+        (left, top - height - 4),
+        (left, bottom + 4),
+        (right + 4, top),
+        (left - width - 4, top),
+    ):
+        x = max(work[0], min(x, work[2] - width))
+        y = max(work[1], min(y, work[3] - height))
+        if (
+            x + width <= work[2]
+            and y + height <= work[3]
+            and (x + width <= left or x >= right or y + height <= top or y >= bottom)
+        ):
+            return x, y
+    raise ValueError("No unobstructed rich popup space")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seconds", type=float, default=300)
     parser.add_argument("--use-icon-rect", action="store_true")
+    parser.add_argument("--legacy-version", type=int, choices=(0, 3, 4), default=0)
+    parser.add_argument("--modern-version", type=int, choices=(0, 3, 4), default=4)
     args = parser.parse_args()
     if sys.platform != "win32" or not 0 < args.seconds <= 600:
         parser.error("Requires Windows and a lifetime of at most 600 seconds")
@@ -111,12 +147,16 @@ def main():
         "stage": "creating",
         "icons": {},
         "callbacks": [],
+        "callback_sequence": 0,
+        "focus_returns": [],
+        "popups": {},
         "activations": 0,
         "menu_actions": 0,
         "menus": 0,
         "command_revision": 0,
     }
-    handles, icons = [], {}
+    handles, icons, popups = [], {}, {}
+    versions = {"legacy": args.legacy_version, "modern": args.modern_version}
     default = bind(user, "DefWindowProcW", result_type, p, u, w, result_type)
     notify = bind(shell, "Shell_NotifyIconW", c.c_int32, u, c.POINTER(IconData))
     taskbar = bind(user, "RegisterWindowMessageW", u, c.c_wchar_p)("TaskbarCreated")
@@ -158,12 +198,133 @@ def main():
         # Existing Explorer icons can already exist after a host handoff.
         if not accepted:
             accepted = bool(notify(1, c.byref(data)))
-        if which == "modern":
-            data.version = 4
-            accepted = bool(notify(4, c.byref(data))) and accepted
+        data.version = versions[which]
+        version_accepted = bool(notify(4, c.byref(data)))
+        report["icons"][which]["version_accepted"] = version_accepted
+        # An unsupported explicit zero still leaves the SDK's default legacy
+        # protocol. Versions 3/4 must be negotiated successfully.
+        accepted = (version_accepted or versions[which] == 0) and accepted
         report["icons"][which]["registered"] = accepted
         report["icons"][which]["adds"] = report["icons"][which].get("adds", 0) + 1
         return accepted
+
+    def return_focus(which):
+        data = icons[which]
+        identity = IconData(
+            size=c.sizeof(IconData),
+            window=data.window,
+            uid=data.uid,
+            flags=0x20 if which == "modern" else 0,
+            guid=data.guid,
+        )
+        foreground = bind(user, "GetForegroundWindow", p)
+        before = foreground()
+        accepted = bool(notify(3, c.byref(identity)))
+        report["focus_returns"].append(
+            {
+                "which": which,
+                "accepted": accepted,
+                "before": before,
+                "after": foreground(),
+                "window": data.window,
+                "uid": data.uid,
+            }
+        )
+        publish()
+
+    def rich_popup(which, visible):
+        window = popups.get(which)
+        if visible:
+            geometry = bounds(which)
+            assert geometry["status"] == 0
+
+            class MonitorInfo(c.Structure):
+                _fields_ = [
+                    ("size", u),
+                    ("monitor", wintypes.RECT),
+                    ("work", wintypes.RECT),
+                    ("flags", u),
+                ]
+
+            rect = wintypes.RECT(*geometry["rect"])
+            monitor = bind(user, "MonitorFromRect", p, c.POINTER(wintypes.RECT), u)(
+                c.byref(rect),
+                2,
+            )
+            info = MonitorInfo(size=c.sizeof(MonitorInfo))
+            assert bind(user, "GetMonitorInfoW", c.c_int32, p, c.POINTER(MonitorInfo))(
+                monitor,
+                c.byref(info),
+            )
+            x, y = rich_popup_position(
+                geometry["rect"],
+                (info.work.left, info.work.top, info.work.right, info.work.bottom),
+            )
+            if window is None:
+                window = bind(
+                    user,
+                    "CreateWindowExW",
+                    p,
+                    u,
+                    c.c_wchar_p,
+                    c.c_wchar_p,
+                    u,
+                    c.c_int,
+                    c.c_int,
+                    c.c_int,
+                    c.c_int,
+                    p,
+                    p,
+                    p,
+                    p,
+                )(
+                    0x08000088,  # NOACTIVATE | TOOLWINDOW | TOPMOST.
+                    "STATIC",
+                    "Owned rich tray popup " + which,
+                    0x80800001,
+                    x,
+                    y,
+                    230,
+                    72,
+                    hwnd,
+                    None,
+                    None,
+                    None,
+                )
+                assert window
+                popups[which] = window
+            assert bind(
+                user,
+                "SetWindowPos",
+                c.c_int32,
+                p,
+                p,
+                c.c_int,
+                c.c_int,
+                c.c_int,
+                c.c_int,
+                u,
+            )(
+                window,
+                c.c_void_p(-1),  # HWND_TOPMOST, above the host's popup surface.
+                x,
+                y,
+                0,
+                0,
+                0x11,  # NOSIZE | NOACTIVATE; update z-order deliberately.
+            )
+            before = bind(user, "GetForegroundWindow", p)()
+            bind(user, "ShowWindow", c.c_int32, p, c.c_int)(window, 4)
+            assert bind(user, "UpdateWindow", c.c_int32, p)(window)
+            report["popups"][which] = {
+                "window": window,
+                "visible": True,
+                "foreground_unchanged": bind(user, "GetForegroundWindow", p)()
+                == before,
+            }
+        elif window is not None:
+            bind(user, "ShowWindow", c.c_int32, p, c.c_int)(window, 0)
+            report["popups"][which]["visible"] = False
 
     def context(which, x, y):
         if args.use_icon_rect:
@@ -198,6 +359,10 @@ def main():
             bind(user, "PostMessageW", c.c_int32, p, u, w, result_type)(hwnd, 0, 0, 0)
         finally:
             bind(user, "DestroyMenu", c.c_int32, p)(menu)
+        if report["icons"][which]["defer_focus"]:
+            report["focus_deferred"] = which
+        else:
+            return_focus(which)
         publish()
 
     def command(value):
@@ -252,6 +417,21 @@ def main():
                 bind(user, "DestroyIcon", c.c_int32, p)(old)
                 handles.remove(old)
                 row.update(title=data.tip, color=list(color))
+            elif action in ("showtip-on", "showtip-off"):
+                data.flags = (0x80 if action == "showtip-on" else 0) | (
+                    0x20 if which == "modern" else 0
+                )
+                assert request(1)
+                row["show_tip"] = action == "showtip-on"
+            elif action in ("focus-defer-on", "focus-defer-off"):
+                row["defer_focus"] = action == "focus-defer-on"
+            elif action == "focus":
+                return_focus(which)
+            elif action in ("balloon", "balloon-clear"):
+                data.flags = 0x10 | (0x20 if which == "modern" else 0)
+                data.info = "Owned tray notification" if action == "balloon" else ""
+                data.title, data.info_flags = "Owned tray fixture", 0x91
+                assert request(1)
             elif action in ("hide", "show"):
                 data.flags = 8 | (0x20 if which == "modern" else 0)
                 data.state = 1 if action == "hide" else 0
@@ -262,6 +442,7 @@ def main():
                 data.flags = 0x20 if which == "modern" else 0
                 assert request(2)
                 row["registered"] = False
+                rich_popup(which, False)
             elif action == "add":
                 assert add(which)
             else:
@@ -274,15 +455,16 @@ def main():
     def procedure(window, message, first, second):
         try:
             if message == 0x8001:
-                modern = (second >> 16) & 0xFFFF == 501
-                uid = (second >> 16) & 0xFFFF if modern else first
-                which = "modern" if modern else "legacy"
-                event = second & 0xFFFF if modern else second
+                which, uid, event, version = decode_callback(first, second, versions)
+                report["callback_sequence"] += 1
                 report["callbacks"] = (
                     report["callbacks"]
                     + [
                         {
                             "which": which,
+                            "sequence": report["callback_sequence"],
+                            "window": window,
+                            "version": version,
                             "uid": uid,
                             "event": event,
                             "first": first,
@@ -290,7 +472,14 @@ def main():
                         }
                     ]
                 )[-256:]
-                if event in (0x202, 0x203, 0x400, 0x401):
+                if which is None:
+                    publish()
+                    return 0
+                if event == 0x406:
+                    rich_popup(which, True)
+                elif event == 0x407:
+                    rich_popup(which, False)
+                elif event in (0x202, 0x203, 0x400, 0x401):
                     if event == 0x203:
                         report["double_clicks"] = report.get("double_clicks", 0) + 1
                     report["activations"] += 1
@@ -308,8 +497,12 @@ def main():
                     bind(user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT))(
                         c.byref(point)
                     )
-                    x = c.c_int16(first & 0xFFFF).value if modern else point.x
-                    y = c.c_int16((first >> 16) & 0xFFFF).value if modern else point.y
+                    x = c.c_int16(first & 0xFFFF).value if version == 4 else point.x
+                    y = (
+                        c.c_int16((first >> 16) & 0xFFFF).value
+                        if version == 4
+                        else point.y
+                    )
                     context(which, x, y)
                 publish()
                 return 0
@@ -423,6 +616,9 @@ def main():
                 "color": list(color),
                 "registered": False,
                 "hidden": False,
+                "version": versions[which],
+                "show_tip": False,
+                "defer_focus": False,
             }
             assert add(which)
         assert bind(user, "SetTimer", w, p, w, u, p)(hwnd, 1, 100, None)
@@ -442,6 +638,8 @@ def main():
                 c.byref(message)
             )
     finally:
+        for window in popups.values():
+            bind(user, "DestroyWindow", c.c_int32, p)(window)
         for which, data in icons.items():
             data.flags = 0x20 if which == "modern" else 0
             notify(2, c.byref(data))

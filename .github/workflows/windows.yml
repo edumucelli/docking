@@ -17,7 +17,7 @@ jobs:
   native:
     name: UCRT64 (x64)
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         shell: msys2 {0}
@@ -70,6 +70,7 @@ jobs:
       - name: Native GTK allocation and preview checks
         run: python -m tools.windows.ci --stage gtk
       - name: Build and install the wheel in an isolated directory
+        id: wheel
         run: |
           python -m build --wheel --no-isolation
           python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
@@ -81,6 +82,9 @@ jobs:
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Verify the complete Windows keyboard and input domain
         run: python -m tools.windows.ci --stage input --installed-root artifacts/windows/runtime
+      - name: Verify the complete Windows notification icon domain
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.ci --stage tray --installed-root artifacts/windows/runtime --wheel dist/*.whl
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
           python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
@@ -112,12 +116,14 @@ jobs:
           path: |
             artifacts/windows/environment.json
             artifacts/windows/input-domain.json
+            artifacts/windows/tray-domain.json
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/
+            artifacts/windows/tray/
             artifacts/windows/pairing/
             artifacts/windows/bluetooth/
             artifacts/windows/bundle-preflight/*.json

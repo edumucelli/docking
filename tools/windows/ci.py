@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from tools.windows.bundle import command_path, staging_directory
+from tools.windows.release import validate_tray_report
 from tools.windows.visual.desktop_driver import write_shared_json
 
 _SHARED_TESTS = (
@@ -51,30 +55,22 @@ def test_paths(root: Path) -> list[str]:
     return sorted(paths)
 
 
-def input_domain(root: Path, output: Path, installed: Path) -> int:
-    """Collect GTK and independent Win32 input results before failing the batch."""
+_DomainCheck = tuple[str, str, str, list[str], Callable[[dict[str, object]], None]]
+
+
+def _run_domain(
+    root: Path, output: Path, domain: str, selected: tuple[_DomainCheck, ...]
+) -> int:
+    """Collect independent native results before failing the whole domain."""
     output.mkdir(parents=True, exist_ok=True)
     checks: list[dict[str, object]] = []
     report: dict[str, object] = {"ok": False, "cancelled": False, "checks": checks}
 
     def save() -> None:
-        write_shared_json(output / "input-domain.json", report)
+        write_shared_json(output / f"{domain}-domain.json", report)
 
     save()
-    for name, module, implementation, arguments in (
-        (
-            "search-layouts",
-            "tools.windows.visual.keyboardlayout_smoke",
-            "source",
-            ["--search-input"],
-        ),
-        (
-            "input-profiles",
-            "tools.windows.visual.input_profile_smoke",
-            "installed-wheel",
-            ["--installed-root", command_path(installed.resolve())],
-        ),
-    ):
+    for name, module, implementation, arguments, validate in selected:
         result_path = output / name / "result.json"
         command = [
             sys.executable,
@@ -113,7 +109,12 @@ def input_domain(root: Path, output: Path, installed: Path) -> int:
                 check["result_error"] = "not-an-object"
             else:
                 check["result"] = {"ok": result.get("ok"), "error": result.get("error")}
-                check["passed"] = check["returncode"] == 0 and result.get("ok") is True
+                try:
+                    validate(result)
+                except ValueError as error:
+                    check["validation_error"] = str(error)
+                else:
+                    check["passed"] = check["returncode"] == 0
         except OSError as error:
             check["result_error"] = {"type": type(error).__name__, "errno": error.errno}
         except json.JSONDecodeError:
@@ -124,15 +125,101 @@ def input_domain(root: Path, output: Path, installed: Path) -> int:
     return 0 if report["ok"] else 1
 
 
+def _input_result(result: dict[str, object]) -> None:
+    if result.get("ok") is not True:
+        raise ValueError("Input smoke report did not pass")
+
+
+def input_domain(root: Path, output: Path, installed: Path) -> int:
+    """Collect GTK and independent Win32 input results before failing the batch."""
+    return _run_domain(
+        root,
+        output,
+        "input",
+        (
+            (
+                "search-layouts",
+                "tools.windows.visual.keyboardlayout_smoke",
+                "source",
+                ["--search-input"],
+                _input_result,
+            ),
+            (
+                "input-profiles",
+                "tools.windows.visual.input_profile_smoke",
+                "installed-wheel",
+                ["--installed-root", command_path(installed.resolve())],
+                _input_result,
+            ),
+        ),
+    )
+
+
+def tray_domain(root: Path, output: Path, installed: Path, wheel: Path) -> int:
+    """Collect both API matrices and both installed GTK interaction profiles."""
+    checksum = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    runtime = [
+        "--installed-root",
+        command_path(installed.resolve()),
+        "--wheel",
+        command_path(wheel.resolve()),
+    ]
+    return _run_domain(
+        root,
+        output,
+        "tray",
+        tuple(
+            (
+                "tray/" + profile,
+                "tools.windows.visual." + module,
+                "source" if profile == "explorer" else "installed-wheel",
+                arguments,
+                partial(validate_tray_report, profile=profile, wheel_sha256=checksum),
+            )
+            for profile, module, arguments in (
+                ("explorer", "tray_provider_smoke", ["--mode", "explorer", "--all"]),
+                (
+                    "backend",
+                    "tray_provider_smoke",
+                    ["--mode", "backend", "--all", *runtime],
+                ),
+                (
+                    "gtk-v0-v4",
+                    "tray_smoke",
+                    [*runtime, "--verify-geometry", "--verify-interactions"],
+                ),
+                (
+                    "gtk-v3-v4-guid",
+                    "tray_smoke",
+                    [
+                        *runtime,
+                        "--verify-interactions",
+                        "--legacy-version",
+                        "3",
+                        "--modern-version",
+                        "4",
+                        "--guid-only-updates",
+                    ],
+                ),
+            )
+        ),
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--stage", choices=("preflight", "tests", "gtk", "input"), default="tests"
+        "--stage",
+        choices=("preflight", "tests", "gtk", "input", "tray"),
+        default="tests",
     )
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows"))
     parser.add_argument(
-        "--installed-root", type=Path, help="Installed wheel for the input stage"
+        "--installed-root",
+        type=Path,
+        help="Installed wheel for native domain acceptance",
     )
+    parser.add_argument("--wheel", type=Path, help="Wheel exercised by the tray stage")
     parser.add_argument("--list", action="store_true", help="List native test targets")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
@@ -146,12 +233,18 @@ def main() -> None:
     os.environ.setdefault("GDK_BACKEND", "win32")
     os.environ.setdefault("GSETTINGS_BACKEND", "memory")
     os.environ.setdefault("GTK_THEME", "Adwaita")
-    if args.stage == "input":
+    if args.stage in ("input", "tray"):
         if args.installed_root is None:
-            parser.error("The input stage requires --installed-root")
+            parser.error(f"The {args.stage} stage requires --installed-root")
         # Each child selects its own source/installed implementation before
         # importing Docking. Do not preload the controller's launcher or GI.
-        raise SystemExit(input_domain(root, output, args.installed_root))
+        if args.stage == "input":
+            status = input_domain(root, output, args.installed_root)
+        else:
+            if args.wheel is None:
+                parser.error("The tray stage requires --wheel")
+            status = tray_domain(root, output, args.installed_root, args.wheel)
+        raise SystemExit(status)
     from docking.launcher import prepare_display
 
     prepare_display()

@@ -17,10 +17,11 @@ from docking.platform.tray.service import (
     TrayService as StatusNotifierService,
 )
 from docking.platform.tray.state import (
-    TrayState as StatusTrayState,
+    TrayFocusRequest,
+    unavailable_state,
 )
 from docking.platform.tray.state import (
-    unavailable_state,
+    TrayState as StatusTrayState,
 )
 
 
@@ -31,12 +32,71 @@ def test_presentation_geometry_and_action_anchor_are_forwarded_then_rejected_on_
     service.set_geometry({"icon": rect})
     backend.set_geometry.assert_called_once_with({"icon": rect})
     assert service.context_menu("icon", anchor=rect)
-    backend.context_menu.assert_called_once_with("icon", anchor=rect)
+    backend.context_menu.assert_called_once_with("icon", anchor=rect, keyboard=False)
     service.stop()
     backend.reset_mock()
     service.set_geometry({"icon": rect})
     assert not service.activate("icon", anchor=rect)
     assert not backend.mock_calls
+
+
+def test_pointer_and_keyboard_origin_forward_exact_physical_geometry():
+    backend = Mock()
+    service = StatusNotifierService(backend=backend)
+    rect = Rect(-120, 420, 24, 24)
+    assert service.pointer("icon", point=(-115, 425), anchor=rect)
+    backend.pointer.assert_called_once_with("icon", point=(-115, 425), anchor=rect)
+    assert service.activate("icon", anchor=rect, keyboard=True)
+    backend.activate.assert_called_once_with("icon", anchor=rect, keyboard=True)
+    assert service.context_menu("icon", anchor=rect, keyboard=True)
+    backend.context_menu.assert_called_once_with("icon", anchor=rect, keyboard=True)
+    service.stop()
+    backend.reset_mock()
+    assert not service.pointer(None)
+    assert not backend.mock_calls
+
+
+@pytest.mark.parametrize(
+    "command", ["pointer", "activate", "context_menu", "double_click"]
+)
+def test_queued_commands_reject_a_restarted_service_generation(timers, command):
+    backend = Mock()
+    service = _service(backend=backend)
+    service.start()
+    generation = service.generation
+    service.stop()
+    service.start()
+    backend.reset_mock()
+
+    assert not getattr(service, command)("icon", generation=generation)
+    assert not backend.mock_calls
+
+
+@pytest.mark.parametrize(
+    "command", ["pointer", "activate", "context_menu", "double_click"]
+)
+def test_command_backend_is_pinned_before_the_final_generation_check(
+    timers, monkeypatch, command
+):
+    first, second = Mock(), Mock()
+    backends = iter((first, second))
+    monkeypatch.setattr(service_mod, "create_backend", lambda: next(backends))
+    service = StatusNotifierService(worker=_ImmediateWorker())
+    service.start()
+    generation = service.generation
+    check = service._command_current
+
+    def restart_after_check(expected):
+        accepted = check(expected)
+        service.stop()
+        service.start()
+        return accepted
+
+    monkeypatch.setattr(service, "_command_current", restart_after_check)
+    getattr(service, command)("icon", generation=generation)
+
+    getattr(first, command).assert_called_once()
+    getattr(second, command).assert_not_called()
 
 
 def _available_state() -> StatusTrayState:
@@ -55,16 +115,26 @@ class _Backend:
         self.close_calls = 0
         self.activated: list[str] = []
         self.context_menus: list[str] = []
+        self.focus_handler = None
+
+    def set_focus_handler(self, handler) -> None:
+        self.focus_handler = handler
+
+    def set_geometry(self, bounds) -> None:
+        self.bounds = dict(bounds)
+
+    def pointer(self, identifier, *, point=None, anchor=None) -> bool:
+        return False
 
     def get_state(self) -> StatusTrayState:
         self.get_state_calls += 1
         return self.state
 
-    def activate(self, identifier: str) -> bool:
+    def activate(self, identifier: str, *, anchor=None, keyboard=False) -> bool:
         self.activated.append(identifier)
         return True
 
-    def context_menu(self, identifier: str) -> bool:
+    def context_menu(self, identifier: str, *, anchor=None, keyboard=False) -> bool:
         self.context_menus.append(identifier)
         return True
 
@@ -295,6 +365,79 @@ class TestListeners:
         service._on_state_result(_available_state())
 
         assert received == [_available_state()]
+
+
+class TestFocusRequests:
+    def test_native_callback_waits_for_main_loop_then_revalidates_at_claim(
+        self, timers, monkeypatch
+    ):
+        idle, backend = _IdleQueue(), _Backend()
+        monkeypatch.setattr(service_mod.GLib, "idle_add", idle)
+        service = _service(backend=backend)
+        received = []
+        service.add_focus_listener(received.append)
+        service.start()
+        claim = Mock(return_value=True)
+
+        backend.focus_handler(TrayFocusRequest("icon", claim, lambda: True))
+
+        assert not received
+        claim.assert_not_called()
+        idle.flush()
+        assert len(received) == 1 and received[0].identifier == "icon"
+        claim.assert_not_called()
+        assert received[0].validate() and received[0].validate()
+        assert received[0].claim()
+        claim.assert_called_once_with()
+
+    @pytest.mark.parametrize("deliver_before_remove", [False, True])
+    def test_removing_listener_invalidates_queued_and_detached_claims(
+        self, timers, monkeypatch, deliver_before_remove
+    ):
+        idle, backend = _IdleQueue(), _Backend()
+        monkeypatch.setattr(service_mod.GLib, "idle_add", idle)
+        service = _service(backend=backend)
+        received = []
+        service.add_focus_listener(received.append)
+        service.start()
+        claim = Mock(return_value=True)
+        old_handler = backend.focus_handler
+        old_handler(TrayFocusRequest("icon", claim, lambda: True))
+        if deliver_before_remove:
+            idle.flush()
+
+        service.remove_focus_listener(received.append)
+        assert backend.focus_handler is None
+        service.add_focus_listener(received.append)
+        old_handler(TrayFocusRequest("icon", claim, lambda: True))
+        idle.flush()
+
+        if deliver_before_remove:
+            assert len(received) == 1
+            assert not received[0].validate() and not received[0].claim()
+        else:
+            assert not received
+        claim.assert_not_called()
+
+    def test_stop_and_restart_reject_old_host_callback(self, timers, monkeypatch):
+        idle, backend = _IdleQueue(), _Backend()
+        monkeypatch.setattr(service_mod.GLib, "idle_add", idle)
+        service = _service(backend=backend)
+        received = []
+        service.add_focus_listener(received.append)
+        service.start()
+        old_handler = backend.focus_handler
+        claim = Mock(return_value=True)
+        old_handler(TrayFocusRequest("icon", claim, lambda: True))
+        service.stop()
+        assert backend.focus_handler is None
+        service.start()
+        service.add_focus_listener(received.append)
+        old_handler(TrayFocusRequest("icon", claim, lambda: True))
+        idle.flush()
+
+        assert not received
+        claim.assert_not_called()
 
 
 class TestLifecycle:

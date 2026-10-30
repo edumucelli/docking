@@ -2,20 +2,34 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from docking.platform import environment
 from docking.platform.backends.base import Rect
 from docking.platform.tray.menu import TrayMenuClient
-from docking.platform.tray.state import TrayState
+from docking.platform.tray.state import TrayFocusRequest, TrayState
 
 
 class TrayBackend(Protocol):
     def get_state(self) -> TrayState: ...
     def set_geometry(self, bounds: Mapping[str, Rect]) -> None: ...
-    def activate(self, identifier: str, *, anchor: Rect | None = None) -> bool: ...
-    def context_menu(self, identifier: str, *, anchor: Rect | None = None) -> bool: ...
+    def pointer(
+        self,
+        identifier: str | None,
+        *,
+        point: tuple[int, int] | None = None,
+        anchor: Rect | None = None,
+    ) -> bool: ...
+    def set_focus_handler(
+        self, handler: Callable[[TrayFocusRequest], None] | None
+    ) -> None: ...
+    def activate(
+        self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
+    ) -> bool: ...
+    def context_menu(
+        self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
+    ) -> bool: ...
     def double_click(self, identifier: str, *, anchor: Rect | None = None) -> bool: ...
     def menu_client(self, identifier: str) -> TrayMenuClient | None: ...
     def close(self) -> None: ...

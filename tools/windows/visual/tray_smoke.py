@@ -18,18 +18,65 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import zlib
 from contextlib import suppress
 from ctypes import wintypes
 from pathlib import Path
 
 
+def physical_dock_click(
+    *, observe, move, press, wait_for, record, clock=time.monotonic
+):
+    """Follow live hover geometry before one verified physical button press."""
+    stable, since = None, None
+
+    def ready():
+        nonlocal stable, since
+        current = observe()
+        record["observed"] = current
+        if current["cursor"] != current["point"]:
+            assert move(*current["point"])
+            stable, since = None, None
+            return False
+        if (
+            current["selected"] != "applet://systemtray"
+            or current["native_window"] != current["dock_window"]
+        ):
+            stable, since = None, None
+            return False
+        now = clock()
+        if current != stable:
+            stable, since = current, now
+            return False
+        return current if now - since >= 0.4 else False
+
+    settled = wait_for(ready, "System Tray dock target did not settle under the cursor")
+    final = record["before_press"] = observe()
+    assert final == settled, "System Tray dock target changed before the physical press"
+    # The ordinary desktop click moves then sleeps, invalidating a checked hover
+    # frame. Send the same real button events at the already verified cursor.
+    press()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--installed-root", type=Path)
+    parser.add_argument("--wheel", type=Path)
     parser.add_argument("--task-manager", action="store_true")
     parser.add_argument("--verify-geometry", action="store_true")
     parser.add_argument("--guid-only-updates", action="store_true")
+    parser.add_argument("--verify-interactions", action="store_true")
+    parser.add_argument(
+        "--notification-point",
+        type=int,
+        nargs=2,
+        metavar=("X", "Y"),
+        help="With --verify-interactions, click the owned Explorer balloon here",
+    )
+    parser.add_argument("--legacy-version", type=int, choices=(0, 3, 4), default=0)
+    parser.add_argument("--modern-version", type=int, choices=(0, 3, 4), default=4)
     parser.add_argument(
         "--restart-explorer",
         action="store_true",
@@ -38,6 +85,19 @@ def main():
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires an owned interactive Windows desktop")
+    profile = (
+        "gtk-v0-v4"
+        if args.legacy_version == 0
+        and args.modern_version == 4
+        and not args.guid_only_updates
+        else "gtk-v3-v4-guid"
+        if args.legacy_version == 3
+        and args.modern_version == 4
+        and args.guid_only_updates
+        else None
+    )
+    if args.wheel is not None and profile is None:
+        parser.error("Unsupported installed-wheel tray acceptance profile")
     output = args.output.resolve()
     if output.exists() and any(output.iterdir()):
         parser.error("Use a fresh output directory")
@@ -68,6 +128,12 @@ def main():
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from tools.windows.visual.tray_acceptance import runtime_origins, select_runtime
+
+    runtime = select_runtime(args.installed_root, args.wheel)
+    import docking
+
+    origins = runtime_origins(runtime.root, {"docking": docking.__file__})
     from docking.launcher import prepare_display
 
     prepare_display()
@@ -78,10 +144,31 @@ def main():
     from PIL import ImageGrab
 
     import docking.app as app
+    import docking.applets.systemtray.applet as tray_applet
+    import docking.platform.backends.windows.surface as win_surface
     from docking.platform.backends.windows.ffi import bind
     from docking.platform.tray.windows import WindowsTrayBackend
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import (
+        WindowsDesktop,
+        _Data,
+        _Input,
+        _Mouse,
+        write_shared_json,
+    )
 
+    origins.update(
+        runtime_origins(
+            runtime.root,
+            {
+                "docking.app": app.__file__,
+                "docking.applets.systemtray.applet": tray_applet.__file__,
+                "docking.platform.backends.windows.surface": win_surface.__file__,
+                WindowsTrayBackend.__module__: sys.modules[
+                    WindowsTrayBackend.__module__
+                ].__file__,
+            },
+        )
+    )
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
     baseline = native.workarea()
@@ -102,7 +189,11 @@ def main():
             "--output",
             str(fixture_root),
             "--seconds",
-            "300",
+            "600" if args.verify_interactions else "300",
+            "--legacy-version",
+            str(args.legacy_version),
+            "--modern-version",
+            str(args.modern_version),
             *(["--use-icon-rect"] if args.verify_geometry else []),
         ],
         stdout=fixture_log,
@@ -151,11 +242,25 @@ def main():
         )
     )
     report = {
+        "runtime": "installed" if runtime.installed else "source",
+        "module_origins": origins,
+        "options": {
+            "legacy_version": args.legacy_version,
+            "modern_version": args.modern_version,
+            "verify_interactions": args.verify_interactions,
+            "verify_geometry": args.verify_geometry,
+            "guid_only_updates": args.guid_only_updates,
+        },
         "fixture_pid": fixture.pid,
         "fixture_before_dock": fixture_initial,
         "workarea_before": baseline,
         "states": {},
     }
+    if args.wheel is not None:
+        assert profile is not None, (
+            "Unsupported installed-wheel tray acceptance profile"
+        )
+        report["acceptance"] = runtime.acceptance(profile)
     ready = threading.Event()
     shared = {}
     errors = []
@@ -170,9 +275,7 @@ def main():
     app.build_dock_window = build
 
     def publish():
-        temporary = output / "result.tmp"
-        temporary.write_text(json.dumps(report, indent=2))
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
 
     def call(callback):
         done = threading.Event()
@@ -369,26 +472,61 @@ def main():
                 for which, row in fixture_initial["icons"].items()
             }
 
-            def point():
-                window = next(
-                    w for w in native.windows(os.getpid()) if w["hwnd"] == dock["hwnd"]
-                )
-                frame = shared["ui"].window.geometry.build_frame(main_cursor=-1.0)
+            def dock_target():
+                window = shared["ui"].window
+                frame = window._current_or_build_geometry_frame()
                 rect = next(
                     g.draw_rect
                     for g in frame.item_geometries
                     if g.item.desktop_id == "applet://systemtray"
                 )
-                return window["rect"][0] + rect.x + rect.w / 2, window["rect"][
-                    1
-                ] + rect.y + rect.h / 2
+                bounds, cursor = wintypes.RECT(), wintypes.POINT()
+                assert native.user.GetWindowRect(dock["hwnd"], ctypes.byref(bounds))
+                assert bind(
+                    user, "GetCursorPos", ctypes.c_int32, ctypes.POINTER(wintypes.POINT)
+                )(ctypes.byref(cursor))
+                scale = window.get_scale_factor()
+                selected = frame.item_at_point(
+                    (cursor.x - bounds.left) / scale,
+                    (cursor.y - bounds.top) / scale,
+                )
+                return {
+                    "point": [
+                        int(bounds.left + (rect.x + rect.w / 2) * scale),
+                        int(bounds.top + (rect.y + rect.h / 2) * scale),
+                    ],
+                    "cursor": [cursor.x, cursor.y],
+                    "rect": [
+                        round(value, 2) for value in (rect.x, rect.y, rect.w, rect.h)
+                    ],
+                    "item_count": len(frame.item_geometries),
+                    "selected": selected.desktop_id if selected is not None else None,
+                    "native_window": native.window_at(cursor.x, cursor.y),
+                    "dock_window": dock["hwnd"],
+                }
+
+            def click_dock():
+                record = {}
+                report.setdefault("dock_clicks", []).append(record)
+                physical_dock_click(
+                    observe=lambda: call(dock_target),
+                    move=native.user.SetCursorPos,
+                    press=lambda: native._send(
+                        [
+                            _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+                            for flag in (2, 4)
+                        ]
+                    ),
+                    wait_for=native.wait_for,
+                    record=record,
+                )
 
             def popup():
                 visible = call(
                     lambda: applet._popup is not None and applet._popup.get_visible()
                 )
                 if not visible:
-                    native.click(*call(point))
+                    click_dock()
                 native.wait_for(
                     lambda: call(
                         lambda: (
@@ -598,7 +736,7 @@ def main():
                 capture("native-moved-popup")
                 call(lambda: applet._popup.move(*original_position))
                 verify_geometry()
-                native.click(*call(point))
+                click_dock()
                 native.wait_for(
                     lambda: not call(lambda: applet._popup.get_visible()),
                     "Tray popup did not hide",
@@ -614,6 +752,25 @@ def main():
             checks = {which: verify_pixels(which) for which in ids}
             report["native_icon_crc"] = checks
             snapshot("native-initial-popup")
+            if args.verify_interactions:
+                from tools.windows.visual.tray_interactions import verify_interactions
+
+                verify_interactions(
+                    native=native,
+                    call=call,
+                    applet=applet,
+                    backend=backend,
+                    ids=ids,
+                    fixture_state=fixture_state,
+                    command=command,
+                    popup=popup,
+                    button_point=button_point,
+                    capture=capture,
+                    report=report,
+                    output=output,
+                    notification_point=args.notification_point,
+                )
+                publish()
             for which in ("legacy", "modern"):
                 popup()
                 before_double = fixture_state().get("double_clicks", 0)

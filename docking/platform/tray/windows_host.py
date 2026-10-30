@@ -52,11 +52,14 @@ class WindowsTrayHost:
         self._notify_window = 0
         self._mirror_rect: tuple[int, int, int, int] | None = None
         self._announced_explorer: tuple[int, int] | None = None
+        self._shell_changed: Callable[[], None] | None = None
 
     def start(
         self,
         on_message: Callable[[NotifyMessage], bool],
         icon_bounds: Callable[[IconQuery], Rect | None] | None = None,
+        *,
+        shell_changed: Callable[[], None] | None = None,
     ) -> None:
         with self._start_lock:
             if self._stopped.is_set():
@@ -64,6 +67,7 @@ class WindowsTrayHost:
             if self._thread is None:
                 self._on_message = on_message
                 self._icon_bounds = icon_bounds
+                self._shell_changed = shell_changed
                 self._thread = threading.Thread(
                     target=self._run, name="windows-tray", daemon=True
                 )
@@ -107,6 +111,54 @@ class WindowsTrayHost:
     def authorize(self, pid: int) -> None:
         if self._user is not None:
             bind(self._user, "AllowSetForegroundWindow", c.c_int32, _U)(pid)
+
+    def foreground(self) -> tuple[int, int] | None:
+        if self._user is None:
+            return None
+        window = bind(self._user, "GetForegroundWindow", _P)()
+        owner = self.owner(window) if window else 0
+        return (int(window), owner) if window and owner else None
+
+    def hover_settings(self) -> tuple[int, int, int]:
+        if self._user is None:
+            raise OSError("Notification host has not started")
+        query = bind(self._user, "SystemParametersInfoW", c.c_int32, _U, _U, _P, _U)
+        settings = []
+        for operation in (0x66, 0x62, 0x64):  # Time, width and height of mouse hover.
+            value = _U()
+            if not query(operation, 0, c.byref(value), 0):
+                raise c.WinError(c.get_last_error())
+            settings.append(int(value.value))
+        return settings[0], settings[1], settings[2]
+
+    def _project_notification(self, payload: bytes) -> tuple[bool, bool]:
+        decoded = decode_message(payload)
+        handled = (
+            decoded is not None
+            and self._on_message is not None
+            and self._on_message(decoded)
+        )
+        # An explicit Docking action can return focus to its own presentation.
+        # Unowned NIM_SETFOCUS and all notification/balloon packets go on to
+        # Explorer; forwarding a claimed focus request would race our GTK handoff.
+        return handled, bool(handled and decoded is not None and decoded.operation == 3)
+
+    def _dispatch_notification(
+        self, window: int, first: int, second: int, payload: bytes
+    ) -> int:
+        handled = False
+        try:
+            handled, local_focus = self._project_notification(payload)
+            if local_focus:
+                return 1
+        except Exception as exc:
+            # Native window procedures must not leak Python exceptions.
+            log.debug("Notification projection failed: %s", exc)
+        forwarded = self._forward(window, 0x4A, first, second, handled=handled)
+        # Same-owner TaskbarCreated reseeding remains accepted even when
+        # Explorer rejects its duplicate ADD. Foreign live collisions never
+        # become handled locally, so Explorer's rejection passes through.
+        return 1 if handled else forwarded
 
     def close(self) -> None:
         self._stopped.set()
@@ -206,6 +258,8 @@ class WindowsTrayHost:
         # Record before broadcasting: clients and our own windows can respond
         # synchronously. Reseed once after replacement routing is established.
         self._announced_explorer = identity
+        if self._shell_changed is not None:
+            self._shell_changed()
         self._announce()
 
     def _forward(
@@ -298,20 +352,12 @@ class WindowsTrayHost:
                                     if reply is not None:
                                         return reply
                         if data.kind == 1 and data.data and 160 <= data.size <= 8192:
-                            try:
-                                decoded = decode_message(
-                                    c.string_at(data.data, data.size)
-                                )
-                                if decoded is not None and self._on_message is not None:
-                                    handled = self._on_message(decoded)
-                            except Exception as exc:
-                                log.debug("Notification projection failed: %s", exc)
+                            return self._dispatch_notification(
+                                window, first, second, c.string_at(data.data, data.size)
+                            )
                         forwarded = self._forward(
                             window, message, first, second, handled=handled
                         )
-                        # Explorer may reject a duplicate NIM_ADD while an
-                        # existing app re-registers after TaskbarCreated. This
-                        # host accepted it and owns the displayed item.
                         return 1 if handled else forwarded
                     if message == 0x10:
                         bind(user, "DestroyWindow", c.c_int32, _P)(window)

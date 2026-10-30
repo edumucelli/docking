@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -173,38 +174,42 @@ def test_cancelled_input_stage_journals_and_does_not_start_another_desktop_tool(
     assert len(calls) == 1 and report["cancelled"] and not report["ok"]
 
 
-def test_input_dispatch_does_not_preload_parent_launcher_or_gtk(tmp_path, monkeypatch):
+@pytest.mark.parametrize("stage", ["input", "tray"])
+def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
+    tmp_path, monkeypatch, stage
+):
     output = tmp_path / "reports"
     installed = tmp_path / "installed"
     monkeypatch.setattr(ci, "os", SimpleNamespace(name="nt", environ={}))
     monkeypatch.setattr(ci.sys, "platform", "win32")
-    monkeypatch.setattr(
-        ci.sys,
-        "argv",
-        [
-            "windows-ci",
-            "--stage",
-            "input",
-            "--installed-root",
-            str(installed),
-            "--output",
-            str(output),
-        ],
-    )
+    wheel = tmp_path / "accepted.whl"
+    command = [
+        "windows-ci",
+        "--stage",
+        stage,
+        "--installed-root",
+        str(installed),
+        "--output",
+        str(output),
+    ]
+    if stage == "tray":
+        command += ["--wheel", str(wheel)]
+    monkeypatch.setattr(ci.sys, "argv", command)
     monkeypatch.setattr(
         launcher, "prepare_display", lambda: pytest.fail("Controller preloaded display")
     )
     calls = []
 
-    def batch(root, destination, selected):
-        calls.append((root, destination, selected))
+    def batch(*arguments):
+        calls.append(arguments)
         return 1
 
-    monkeypatch.setattr(ci, "input_domain", batch)
+    monkeypatch.setattr(ci, stage + "_domain", batch)
     with pytest.raises(SystemExit) as result:
         ci.main()
     assert result.value.code == 1
-    assert calls == [(Path(ci.__file__).resolve().parents[2], output, installed)]
+    expected = (Path(ci.__file__).resolve().parents[2], output, installed)
+    assert calls == [(*expected, wheel) if stage == "tray" else expected]
 
 
 def test_input_stage_requires_explicit_installed_wheel_root(tmp_path, monkeypatch):
@@ -215,6 +220,162 @@ def test_input_stage_requires_explicit_installed_wheel_root(tmp_path, monkeypatc
     )
     monkeypatch.setattr(
         ci, "input_domain", lambda *args: pytest.fail("Missing installed selection")
+    )
+    with pytest.raises(SystemExit) as result:
+        ci.main()
+    assert result.value.code == 2
+
+
+@pytest.mark.parametrize("statuses", [(0, 0, 0, 0), (1, 0, 0, 0), (1, 3, 0, 2)])
+def test_tray_stage_collects_all_api_and_gtk_results_before_failing(
+    tmp_path, monkeypatch, statuses
+):
+    from tests.test_windows_release import tray_report
+
+    root = Path(ci.__file__).resolve().parents[2]
+    output, installed, wheel = (
+        tmp_path / "reports",
+        tmp_path / "installed wheel",
+        tmp_path / "accepted.whl",
+    )
+    wheel.write_bytes(b"accepted wheel fixture")
+    digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    calls = []
+
+    def run(command, *, cwd):
+        assert cwd == root
+        index = len(calls)
+        calls.append(command)
+        destination = Path(command[command.index("--output") + 1].replace("\\", "/"))
+        destination.mkdir(parents=True)
+        data = tray_report(destination.name)
+        if "acceptance" in data:
+            data["acceptance"]["wheel_sha256"] = digest
+        (destination / "result.json").write_text(json.dumps(data), encoding="utf-8")
+        return subprocess.CompletedProcess(command, statuses[index])
+
+    monkeypatch.setattr(ci.subprocess, "run", run)
+    assert ci.tray_domain(root, output, installed, wheel) == (
+        0 if not any(statuses) else 1
+    )
+    assert len(calls) == 4
+    assert calls[0][2:5] == [
+        "tools.windows.visual.tray_provider_smoke",
+        "--mode",
+        "explorer",
+    ]
+    assert (
+        "--all" in calls[0]
+        and "--installed-root" not in calls[0]
+        and "--wheel" not in calls[0]
+    )
+    assert calls[1][2:5] == [
+        "tools.windows.visual.tray_provider_smoke",
+        "--mode",
+        "backend",
+    ]
+    assert "--all" in calls[1]
+    assert all(command[2] == "tools.windows.visual.tray_smoke" for command in calls[2:])
+    assert "--verify-geometry" in calls[2] and "--guid-only-updates" not in calls[2]
+    assert (
+        "--legacy-version" in calls[3]
+        and calls[3][calls[3].index("--legacy-version") + 1] == "3"
+    )
+    assert "--guid-only-updates" in calls[3]
+    for command in calls[1:]:
+        assert command[command.index("--installed-root") + 1] == ci.command_path(
+            installed.resolve()
+        )
+        assert command[command.index("--wheel") + 1] == ci.command_path(wheel.resolve())
+    assert all("--verify-interactions" in command for command in calls[2:])
+    report = json.loads((output / "tray-domain.json").read_text())
+    assert [row["name"] for row in report["checks"]] == [
+        "tray/explorer",
+        "tray/backend",
+        "tray/gtk-v0-v4",
+        "tray/gtk-v3-v4-guid",
+    ]
+    assert [row["returncode"] for row in report["checks"]] == list(statuses)
+    assert [row["passed"] for row in report["checks"]] == [
+        status == 0 for status in statuses
+    ]
+    assert report["ok"] is (not any(statuses))
+
+
+@pytest.mark.parametrize(
+    "defect", ["api-catalog", "cleanup", "wheel", "gtk-profile", "gtk-checkpoints"]
+)
+def test_tray_stage_reuses_release_gate_and_continues_after_unaccepted_report(
+    tmp_path, monkeypatch, defect
+):
+    from tests.test_windows_release import tray_report
+
+    wheel = tmp_path / "accepted.whl"
+    wheel.write_bytes(b"accepted wheel fixture")
+    calls = []
+
+    def run(command, *, cwd):
+        calls.append(command)
+        destination = Path(command[command.index("--output") + 1].replace("\\", "/"))
+        destination.mkdir(parents=True)
+        data = tray_report(destination.name)
+        if len(calls) == 1 and defect == "api-catalog":
+            data["cases"].pop(next(iter(data["cases"])))
+        elif len(calls) == 1 and defect == "cleanup":
+            data["cursor_restored"] = False
+        elif len(calls) == 2 and defect == "wheel":
+            data["acceptance"]["wheel_sha256"] = "0" * 64
+        elif len(calls) == 3 and defect == "gtk-profile":
+            data["options"]["legacy_version"] = 3
+        elif len(calls) == 3 and defect == "gtk-checkpoints":
+            data["interactions"]["hover"].pop()
+        (destination / "result.json").write_text(json.dumps(data), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(ci.subprocess, "run", run)
+    assert (
+        ci.tray_domain(tmp_path, tmp_path / "reports", tmp_path / "installed", wheel)
+        == 1
+    )
+    report = json.loads((tmp_path / "reports/tray-domain.json").read_text())
+    assert len(calls) == 4
+    assert sum(row["passed"] for row in report["checks"]) == 3
+    assert sum("validation_error" in row for row in report["checks"]) == 1
+
+
+def test_tray_stage_cancellation_stops_new_desktop_children(tmp_path, monkeypatch):
+    wheel = tmp_path / "accepted.whl"
+    wheel.write_bytes(b"accepted wheel fixture")
+    calls = []
+
+    def run(command, *, cwd):
+        calls.append(command)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ci.subprocess, "run", run)
+    assert (
+        ci.tray_domain(tmp_path, tmp_path / "reports", tmp_path / "installed", wheel)
+        == 130
+    )
+    report = json.loads((tmp_path / "reports/tray-domain.json").read_text())
+    assert len(calls) == 1 and report["cancelled"] and not report["ok"]
+
+
+@pytest.mark.parametrize("missing", ["--installed-root", "--wheel"])
+def test_tray_stage_requires_both_explicit_runtime_inputs(
+    tmp_path, monkeypatch, missing
+):
+    monkeypatch.setattr(ci, "os", SimpleNamespace(name="nt", environ={}))
+    monkeypatch.setattr(ci.sys, "platform", "win32")
+    command = ["windows-ci", "--stage", "tray", "--output", str(tmp_path)]
+    command += (
+        ["--wheel", str(tmp_path / "fixture.whl")]
+        if missing == "--installed-root"
+        else ["--installed-root", str(tmp_path / "installed")]
+    )
+    monkeypatch.setattr(ci.sys, "argv", command)
+    monkeypatch.setattr(
+        ci, "tray_domain", lambda *args: pytest.fail("Unspecified runtime")
     )
     with pytest.raises(SystemExit) as result:
         ci.main()
