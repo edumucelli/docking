@@ -1854,6 +1854,12 @@ saved text for all eight variants. A composition mismatch is collected only
 after the owned target, profile, IME restoration, caller state and return to US
 are verified; other failures stop the fixture. Every variant must produce `â`.
 
+Both tools independently read keyboard state in a fresh, isolated Python
+process through Win32 and read-only registry access. This query needs neither
+PowerShell nor runtime C# compilation. It compares loaded layout codes,
+foreground/default layouts, wheel routing and keyboard preferences; failed
+queries remain fatal rather than standing in for an unchanged baseline.
+
 Both input tools accept `--owned-amd64-editor` to use a bounded AMD64 Forms
 editor with explicit process-architecture checks. Windows 11 client CI uses
 this mode with UCRT64 through x64 emulation on `windows-11-arm`, retaining the

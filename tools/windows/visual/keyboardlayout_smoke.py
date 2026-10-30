@@ -7,7 +7,6 @@ translation in a saved document and restores the original input-locale set.
 from __future__ import annotations
 
 import argparse
-import base64
 import ctypes
 import json
 import os
@@ -19,93 +18,7 @@ from contextlib import ExitStack
 from dataclasses import asdict
 from pathlib import Path
 
-_ORACLE = r"""
-using System;
-using System.Runtime.InteropServices;
-public static class InputOracle {
- [StructLayout(LayoutKind.Sequential)] public struct Rect {public int l,t,r,b;}
- [StructLayout(LayoutKind.Sequential)] public struct Gui {
-  public uint size,flags;
-  public IntPtr active,focus,capture,menu,move,caret;
-  public Rect rect;
- }
- [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
- [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(
-  IntPtr hwnd, out uint pid);
- [DllImport("user32.dll")] static extern IntPtr GetKeyboardLayout(uint tid);
- [DllImport("user32.dll")] static extern bool GetGUIThreadInfo(uint tid,ref Gui g);
- [DllImport("user32.dll")] static extern bool SystemParametersInfo(
-  uint action,uint param,out IntPtr value,uint flags);
- public static string Code(IntPtr h) {
-  return unchecked((uint)h.ToInt64()).ToString("x8");
- }
- public static string Foreground() {
-  uint pid; uint tid=GetWindowThreadProcessId(GetForegroundWindow(),out pid);
-  Gui g=new Gui();g.size=(uint)Marshal.SizeOf(g);
-  if(GetGUIThreadInfo(tid,ref g) && g.focus!=IntPtr.Zero)
-   tid=GetWindowThreadProcessId(g.focus,out pid);
-  return Code(GetKeyboardLayout(tid));
- }
- public static string Default() {
-  IntPtr h;
-  if(!SystemParametersInfo(0x59,0,out h,0))throw new Exception("No default locale");
-  return Code(h);
- }
- public static long WheelRoute() {
-  IntPtr v;
-  if(!SystemParametersInfo(0x201c,0,out v,0))return -1;
-  return v.ToInt64();
- }
-}
-"""
-
-
-def oracle():
-    script = (
-        "$ErrorActionPreference='Stop';"
-        "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);"
-        "Add-Type -AssemblyName System.Windows.Forms;"
-        "Add-Type -TypeDefinition @'\n"
-        + _ORACLE
-        + "\n'@;\n"
-        + r"""
-$rows=@([Windows.Forms.InputLanguage]::InstalledInputLanguages | ForEach-Object {
- [ordered]@{code=[InputOracle]::Code($_.Handle);name=$_.LayoutName;
-  language=$_.Culture.DisplayName}
-});
-function RegValues($path) {
- $values=[ordered]@{};
- if(Test-Path -LiteralPath $path){
-  $key=Get-Item -LiteralPath $path;
-  foreach($name in $key.GetValueNames()){$values[$name]=$key.GetValue($name)}
- };return $values
-};
-[ordered]@{loaded=$rows;active=[InputOracle]::Foreground();wheel_route=[InputOracle]::WheelRoute();
- default=[InputOracle]::Default();
- preload=(RegValues 'HKCU:\Keyboard Layout\Preload');
- substitutes=(RegValues 'HKCU:\Keyboard Layout\Substitutes')} |
- ConvertTo-Json -Depth 5 -Compress
-"""
-    )
-    result = subprocess.run(
-        [
-            str(
-                Path(os.environ["SYSTEMROOT"])
-                / "System32/WindowsPowerShell/v1.0/powershell.exe"
-            ),
-            "-NoProfile",
-            "-NonInteractive",
-            "-EncodedCommand",
-            base64.b64encode(script.encode("utf-16-le")).decode(),
-        ],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        encoding="utf-8",
-        check=True,
-        timeout=30,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-    )
-    return json.loads(result.stdout)
+from tools.windows.visual.input_oracle import oracle
 
 
 def main(monitor):

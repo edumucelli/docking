@@ -565,5 +565,5 @@ def test_tray_rejection_preserves_existing_release_assets(incoming, tmp_path):
     asset.write_bytes(b"previously accepted bytes")
     with pytest.raises(ValueError, match="tray"):
         release.stage(incoming, "1.2.3", destination)
-    assert list(destination.iterdir()) == [asset]
+    assert [path.name for path in destination.iterdir()] == [asset.name]
     assert asset.read_bytes() == b"previously accepted bytes"
