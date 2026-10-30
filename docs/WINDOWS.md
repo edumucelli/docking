@@ -1848,6 +1848,13 @@ python -m tools.windows.visual.input_profile_smoke \
   --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
 ```
 
+CI runs the source Search checks and installed native editor checks in fresh
+processes through `python -m tools.windows.ci --stage input --installed-root
+artifacts/windows/runtime`. It collects both results in
+`artifacts/windows/input-domain.json` before failing the batch, so a Search
+failure still leaves the independent editor result available. Cancellation
+stops the batch immediately.
+
 Search gives an entry's IME first chance at palette navigation, commit and
 cancellation keys. Ctrl+Alt/AltGr text does not invoke Ctrl+J/P navigation.
 Shortcut capture rejects text-input modifiers, including physical right Alt

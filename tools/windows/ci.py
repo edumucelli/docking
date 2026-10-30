@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 from tools.windows.bundle import command_path, staging_directory
+from tools.windows.visual.desktop_driver import write_shared_json
 
 _SHARED_TESTS = (
     "tests/core",
@@ -50,12 +51,88 @@ def test_paths(root: Path) -> list[str]:
     return sorted(paths)
 
 
+def input_domain(root: Path, output: Path, installed: Path) -> int:
+    """Collect GTK and independent Win32 input results before failing the batch."""
+    output.mkdir(parents=True, exist_ok=True)
+    checks: list[dict[str, object]] = []
+    report: dict[str, object] = {"ok": False, "cancelled": False, "checks": checks}
+
+    def save() -> None:
+        write_shared_json(output / "input-domain.json", report)
+
+    save()
+    for name, module, implementation, arguments in (
+        (
+            "search-layouts",
+            "tools.windows.visual.keyboardlayout_smoke",
+            "source",
+            ["--search-input"],
+        ),
+        (
+            "input-profiles",
+            "tools.windows.visual.input_profile_smoke",
+            "installed-wheel",
+            ["--installed-root", command_path(installed.resolve())],
+        ),
+    ):
+        result_path = output / name / "result.json"
+        command = [
+            sys.executable,
+            "-m",
+            module,
+            *arguments,
+            "--output",
+            command_path(result_path.parent),
+        ]
+        check: dict[str, object] = {
+            "name": name,
+            "module": module,
+            "implementation": implementation,
+            "command": command,
+            "result_path": command_path(result_path),
+            "returncode": None,
+            "passed": False,
+        }
+        checks.append(check)
+        save()
+        try:
+            check["returncode"] = subprocess.run(command, cwd=root).returncode
+        except OSError as error:
+            check["launch_error"] = {"type": type(error).__name__, "errno": error.errno}
+        except KeyboardInterrupt:
+            report["cancelled"] = True
+            save()
+            return 130
+        if check["returncode"] in (-2, 130, -1073741510, 3221225786):
+            report["cancelled"] = True
+            save()
+            return 130
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            if not isinstance(result, dict):
+                check["result_error"] = "not-an-object"
+            else:
+                check["result"] = {"ok": result.get("ok"), "error": result.get("error")}
+                check["passed"] = check["returncode"] == 0 and result.get("ok") is True
+        except OSError as error:
+            check["result_error"] = {"type": type(error).__name__, "errno": error.errno}
+        except json.JSONDecodeError:
+            check["result_error"] = "invalid-json"
+        save()
+    report["ok"] = all(check["passed"] for check in checks)
+    save()
+    return 0 if report["ok"] else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--stage", choices=("preflight", "tests", "gtk"), default="tests"
+        "--stage", choices=("preflight", "tests", "gtk", "input"), default="tests"
     )
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows"))
+    parser.add_argument(
+        "--installed-root", type=Path, help="Installed wheel for the input stage"
+    )
     parser.add_argument("--list", action="store_true", help="List native test targets")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
@@ -69,6 +146,12 @@ def main() -> None:
     os.environ.setdefault("GDK_BACKEND", "win32")
     os.environ.setdefault("GSETTINGS_BACKEND", "memory")
     os.environ.setdefault("GTK_THEME", "Adwaita")
+    if args.stage == "input":
+        if args.installed_root is None:
+            parser.error("The input stage requires --installed-root")
+        # Each child selects its own source/installed implementation before
+        # importing Docking. Do not preload the controller's launcher or GI.
+        raise SystemExit(input_domain(root, output, args.installed_root))
     from docking.launcher import prepare_display
 
     prepare_display()

@@ -79,10 +79,8 @@ jobs:
         run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
-      - name: Verify Search input and shortcut recovery across keyboard layouts
-        run: python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts
-      - name: Verify installed TSF profiles and x64/x86 composition
-        run: python -m tools.windows.visual.input_profile_smoke --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
+      - name: Verify the complete Windows keyboard and input domain
+        run: python -m tools.windows.ci --stage input --installed-root artifacts/windows/runtime
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
           python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
@@ -113,6 +111,7 @@ jobs:
           name: windows-ucrt64-x64
           path: |
             artifacts/windows/environment.json
+            artifacts/windows/input-domain.json
             artifacts/windows/*-junit.xml
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
