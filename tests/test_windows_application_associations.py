@@ -548,8 +548,9 @@ def test_fresh_child_selects_exact_wheel_after_parent_exists_before_first_import
         for name, text in files.items():
             path = installed / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
-            archive.writestr(name, text)
+            data = text.encode("utf-8")
+            path.write_bytes(data)
+            archive.writestr(name, data)
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     request = {
         "mode": "explicit",
@@ -605,8 +606,14 @@ smoke._association_child(sys.argv[2])
         timeout=15,
         check=False,
     )
-    assert completed.returncode == 0, completed.stderr
-    result = json.loads((tmp_path / "result.json").read_text())
+    result_path = tmp_path / "result.json"
+    result = json.loads(result_path.read_text()) if result_path.is_file() else None
+    assert completed.returncode == 0, {
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "result": result,
+    }
+    assert result is not None
     assert result["ok"] and result["normal_shutdown"]
     assert result["registration_parent_before_gio"] == {
         "exists": True,
