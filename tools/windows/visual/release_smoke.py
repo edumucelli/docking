@@ -10,8 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
-import psutil
+from typing import TYPE_CHECKING
 
 from tools.windows.bundle import filesystem_path, payload_root, walk_tree
 from tools.windows.release import (
@@ -23,6 +22,9 @@ from tools.windows.release import (
 )
 from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 from tools.windows.visual.smoke import dock_window
+
+if TYPE_CHECKING:
+    import psutil
 
 
 def verify_payload(bundle: Path, archive: Path) -> dict[str, str | int]:
@@ -97,6 +99,9 @@ class PackagedSession:
     """Own only the launcher and captured descendant process instances."""
 
     def __init__(self, bundle: Path, output: Path, desktop: WindowsDesktop):
+        import psutil
+
+        self._process_api = psutil
         self.bundle, self.payload, self.output = bundle, payload_root(bundle), output
         self.desktop = desktop
         self.child: subprocess.Popen[bytes] | None = None
@@ -131,17 +136,17 @@ class PackagedSession:
     def remember(self) -> list[tuple[tuple[int, float], psutil.Process]]:
         if self.child is not None and self.child.poll() is None:
             try:
-                root = psutil.Process(self.child.pid)
+                root = self._process_api.Process(self.child.pid)
                 for process in (root, *root.children(recursive=True)):
                     self.owned[(process.pid, process.create_time())] = process
-            except psutil.NoSuchProcess:
+            except self._process_api.NoSuchProcess:
                 pass
         live = []
         for key, process in self.owned.items():
             try:
                 if process.is_running() and process.create_time() == key[1]:
                     live.append((key, process))
-            except psutil.NoSuchProcess:
+            except self._process_api.NoSuchProcess:
                 continue
         return live
 
@@ -152,7 +157,7 @@ class PackagedSession:
         try:
             if not process.is_running() or process.create_time() != self.application[1]:
                 return False
-        except psutil.NoSuchProcess:
+        except self._process_api.NoSuchProcess:
             return False
         if not any(
             row["hwnd"] == self.window for row in self.desktop.windows(process.pid)
@@ -182,7 +187,7 @@ class PackagedSession:
                 try:
                     if not Path(process.exe()).samefile(interpreter):
                         continue
-                except (FileNotFoundError, psutil.NoSuchProcess):
+                except (FileNotFoundError, self._process_api.NoSuchProcess):
                     continue
                 row = dock_window(self.desktop.windows(process.pid))
                 if row is not None:
@@ -233,7 +238,7 @@ class PackagedSession:
                         "user": counts[1],
                     }
                 )
-            except psutil.NoSuchProcess:
+            except self._process_api.NoSuchProcess:
                 continue
         return {
             "elapsed_seconds": elapsed,
@@ -255,7 +260,7 @@ class PackagedSession:
                     close_requested = bool(
                         self.desktop.user.PostMessageW(self.window, 0x10, 0, 0)
                     )
-            except (OSError, psutil.Error) as error:
+            except (OSError, self._process_api.Error) as error:
                 errors.append(type(error).__name__)
             try:
                 self.child.wait(timeout=10)
@@ -263,7 +268,7 @@ class PackagedSession:
                 forced = True
         try:
             live = self.remember()
-        except (OSError, psutil.Error) as error:
+        except (OSError, self._process_api.Error) as error:
             errors.append(type(error).__name__)
             live = list(self.owned.items())
         if live:
@@ -272,7 +277,7 @@ class PackagedSession:
                 time.sleep(0.05)
                 try:
                     live = self.remember()
-                except (OSError, psutil.Error) as error:
+                except (OSError, self._process_api.Error) as error:
                     errors.append(type(error).__name__)
                     break
         for key, process in reversed(live):
@@ -283,12 +288,12 @@ class PackagedSession:
                 process.terminate()
                 try:
                     process.wait(timeout=3)
-                except psutil.TimeoutExpired:
+                except self._process_api.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=3)
-            except psutil.NoSuchProcess:
+            except self._process_api.NoSuchProcess:
                 continue
-            except psutil.Error as error:
+            except self._process_api.Error as error:
                 errors.append(type(error).__name__)
         if self.child is not None and self.child.poll() is None:
             forced = True
@@ -299,7 +304,7 @@ class PackagedSession:
                 errors.append(type(error).__name__)
         try:
             remaining = [key[0] for key, _process in self.remember()]
-        except (OSError, psutil.Error) as error:
+        except (OSError, self._process_api.Error) as error:
             errors.append(type(error).__name__)
             remaining = [key[0] for key in self.owned]
         return {

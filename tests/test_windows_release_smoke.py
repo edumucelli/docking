@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import sys
 import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 
-import psutil
 import pytest
 
 from tools.windows.visual import release_smoke
@@ -100,9 +102,27 @@ class Child:
         self.killed = True
 
 
+class ProcessError(Exception):
+    pass
+
+
+class ProcessGoneError(ProcessError):
+    pass
+
+
+class ProcessTimeoutError(ProcessError):
+    pass
+
+
 def session(child):
     value = release_smoke.PackagedSession.__new__(release_smoke.PackagedSession)
     value.child, value.window, value.owned = child, 20, {}
+    value._process_api = SimpleNamespace(
+        Process=lambda _pid: pytest.fail("Unexpected native process lookup"),
+        Error=ProcessError,
+        NoSuchProcess=ProcessGoneError,
+        TimeoutExpired=ProcessTimeoutError,
+    )
     value.desktop = SimpleNamespace(user=SimpleNamespace(PostMessageW=lambda *_: 1))
     value.responsive = lambda: True
     value.remember = list
@@ -175,7 +195,7 @@ def test_exited_descendant_during_cleanup_is_benign(monkeypatch):
     value = session(Child())
 
     def gone():
-        raise psutil.NoSuchProcess(11)
+        raise ProcessGoneError(11)
 
     process = SimpleNamespace(is_running=gone)
     calls = iter(([((11, 1.0), process)], []))
@@ -183,3 +203,37 @@ def test_exited_descendant_during_cleanup_is_benign(monkeypatch):
     clock = iter((0, 4))
     monkeypatch.setattr(release_smoke.time, "monotonic", lambda: next(clock))
     assert value.stop()["normal_shutdown"] is True
+
+
+def test_release_tool_import_and_test_collection_need_no_native_process_dependency():
+    root = Path(__file__).resolve().parents[1]
+    code = f"""
+import importlib.abc
+import sys
+sys.path.insert(0, {str(root)!r})
+assert "psutil" not in sys.modules
+class RejectNativeDependency(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "psutil" or fullname.startswith("psutil."):
+            raise ModuleNotFoundError("Blocked native dependency", name=fullname)
+sys.meta_path.insert(0, RejectNativeDependency())
+from tools.windows.visual import release_smoke
+import pytest
+status = pytest.main([
+    "--collect-only", "-q", {str(Path(__file__).resolve())!r}, "-o", "addopts=",
+])
+assert status == 0
+assert "psutil" not in sys.modules
+print("dependency-isolation-passed")
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        env={**os.environ, "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
+    )
+    assert completed.returncode == 0, completed.stderr + completed.stdout
+    assert "test_measurement_rejects_changed_runtime" in completed.stdout
+    assert "test_exited_descendant_during_cleanup" in completed.stdout
+    assert "dependency-isolation-passed" in completed.stdout
