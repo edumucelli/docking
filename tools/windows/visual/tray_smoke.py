@@ -146,7 +146,7 @@ def main():
     import docking.app as app
     import docking.applets.systemtray.applet as tray_applet
     import docking.platform.backends.windows.surface as win_surface
-    from docking.platform.backends.windows.ffi import bind
+    from docking.platform.backends.windows.ffi import bind, window_handle
     from docking.platform.tray.windows import WindowsTrayBackend
     from tools.windows.visual.desktop_driver import (
         WindowsDesktop,
@@ -566,6 +566,60 @@ def main():
                 assert offset is not None
                 return x + offset[0], y + offset[1]
 
+            def hover_snapshot(identifier, captured):
+                target = applet._row_targets.get(identifier)
+                pending, queued = applet._pointer_pending, applet._pointer_queued
+                window = applet._popup
+                facts = {
+                    "applet_generation": applet._generation,
+                    "service_generation": applet._service.generation,
+                    "pointer_epoch": applet._pointer_epoch,
+                    "queued_epoch": queued[1] if queued else None,
+                    "pending": {
+                        "identifier": pending.identifier,
+                        "epoch": pending.epoch,
+                        "point": pending.point,
+                    }
+                    if pending
+                    else None,
+                    "target_present": target is not None,
+                    "captured_is_current": captured is not None and captured is target,
+                    "popup_window": window_handle(window.get_window())
+                    if window and window.get_window()
+                    else None,
+                    "scale": window.get_scale_factor() if window else None,
+                }
+                if target is not None:
+                    allocation = target.get_allocation()
+                    point = (
+                        button_point(identifier, None)
+                        if target.get_realized()
+                        else None
+                    )
+                    facts.update(
+                        row_child_is_current=row_for(identifier).get_children()[0]
+                        is target,
+                        mapped=target.get_mapped(),
+                        realized=target.get_realized(),
+                        visible=target.get_visible(),
+                        allocation=[
+                            allocation.x,
+                            allocation.y,
+                            allocation.width,
+                            allocation.height,
+                        ],
+                        point=point,
+                        rect=[
+                            point[0] - allocation.width / 2,
+                            point[1] - allocation.height / 2,
+                            allocation.width,
+                            allocation.height,
+                        ]
+                        if point
+                        else None,
+                    )
+                return facts
+
             def verify_pixels(which):
                 item = next(i for i in state().items if i.identifier == ids[which])
                 pixels = item.icon_pixmap
@@ -769,6 +823,7 @@ def main():
                     report=report,
                     output=output,
                     notification_point=args.notification_point,
+                    hover_snapshot=hover_snapshot,
                 )
                 publish()
             for which in ("legacy", "modern"):

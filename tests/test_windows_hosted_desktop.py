@@ -96,21 +96,37 @@ def test_arbitrary_wwahost_is_never_treated_as_privacy_ui(family, error):
     assert failed.value.code == (error or 13)
 
 
-def test_start_escape_requires_exact_package_path_class_and_current_foreground():
+@pytest.mark.parametrize("caption", ("Start", "Démarrer", "", "开始"))
+def test_start_escape_requires_exact_package_path_class_and_current_foreground(caption):
     process = identity(
         "startmenuexperiencehost.exe",
         ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
         hosted._START,
     )
     assert (
-        hosted.action_for(process, window(), root=ROOT, session=3, foreground=100)
+        hosted.action_for(
+            process, window(title=caption), root=ROOT, session=3, foreground=100
+        )
         == "escape"
     )
-    for changed, foreground in ((window(title="Other"), 100), (window(), 999)):
-        with pytest.raises(hosted.PreparationError):
-            hosted.action_for(
-                process, changed, root=ROOT, session=3, foreground=foreground
-            )
+    with pytest.raises(hosted.PreparationError):
+        hosted.action_for(
+            process,
+            window(**{"class": "Unrelated"}),
+            root=ROOT,
+            session=3,
+            foreground=100,
+        )
+    assert (
+        hosted.action_for(
+            replace(process, family=None),
+            window(title="Unknown", **{"class": "Unrelated"}),
+            root=ROOT,
+            session=3,
+            foreground=999,
+        )
+        is None
+    )
     assert (
         hosted.action_for(
             process, window(cloaked=True), root=ROOT, session=3, foreground=100
@@ -119,7 +135,11 @@ def test_start_escape_requires_exact_package_path_class_and_current_foreground()
     )
 
 
-def test_performance_options_never_closes_an_unrelated_system_dialog():
+@pytest.mark.parametrize(
+    "caption",
+    ("Performance Options", "System Properties", "Options de performances", ""),
+)
+def test_exact_performance_utility_dialog_is_identified_without_caption(caption):
     process = identity(
         "systempropertiesperformance.exe",
         ROOT + r"\System32\SystemPropertiesPerformance.exe",
@@ -127,7 +147,7 @@ def test_performance_options_never_closes_an_unrelated_system_dialog():
     assert (
         hosted.action_for(
             process,
-            window(title="Performance Options", **{"class": "#32770"}),
+            window(title=caption, **{"class": "#32770"}),
             root=ROOT,
             session=3,
             foreground=100,
@@ -137,11 +157,32 @@ def test_performance_options_never_closes_an_unrelated_system_dialog():
     with pytest.raises(hosted.PreparationError):
         hosted.action_for(
             process,
-            window(title="Other dialog", **{"class": "#32770"}),
+            window(title=caption, **{"class": "Unrelated"}),
             root=ROOT,
             session=3,
             foreground=100,
         )
+
+
+def test_performance_dialog_class_never_authorizes_another_executable_or_path():
+    performance = identity(
+        "systempropertiesperformance.exe",
+        ROOT + r"\System32\SystemPropertiesPerformance.exe",
+    )
+    dialog = window(title="Performance Options", **{"class": "#32770"})
+    with pytest.raises(hosted.PreparationError, match="path"):
+        hosted.action_for(
+            replace(performance, path=r"C:\owned\SystemPropertiesPerformance.exe"),
+            dialog,
+            root=ROOT,
+            session=3,
+            foreground=100,
+        )
+    unrelated = identity("unrelated.exe", ROOT + r"\System32\unrelated.exe")
+    assert (
+        hosted.action_for(unrelated, dialog, root=ROOT, session=3, foreground=100)
+        is None
+    )
 
 
 def test_wsl_minimization_requires_exact_installed_terminal_family_and_native_wsl_title():
@@ -307,6 +348,62 @@ def test_sweep_failure_records_identity_but_never_mutates_unproven_wwahost():
         hosted.sweep(api, journal)
     api.perform.assert_not_called()
     assert journal["observed"]["20:40"]["package_error"] == 15700
+
+
+def test_first_classification_failure_retains_all_known_identity_and_window_evidence():
+    candidates = [
+        identity(
+            "systempropertiesperformance.exe",
+            ROOT + r"\System32\SystemPropertiesPerformance.exe",
+        ),
+        identity("wwahost.exe", ROOT + r"\System32\WWAHost.exe", hosted._CLOUD, pid=21),
+        identity(
+            "startmenuexperiencehost.exe",
+            ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
+            hosted._START,
+            pid=22,
+        ),
+        identity(
+            "windowsterminal.exe",
+            r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+            hosted._TERMINAL,
+            pid=23,
+        ),
+    ]
+    queried = []
+
+    @contextmanager
+    def processes():
+        yield candidates
+
+    def windows(pid):
+        queried.append(pid)
+        return [
+            window(
+                hwnd=pid,
+                **{"class": "Unproven" if pid == 20 else "Windows.UI.Core.CoreWindow"},
+            )
+        ]
+
+    api = SimpleNamespace(
+        exited=[],
+        root=ROOT,
+        session=3,
+        processes=processes,
+        windows=windows,
+        foreground=lambda: 20,
+        perform=Mock(),
+    )
+    journal = {"actions": []}
+    with pytest.raises(hosted.PreparationError, match="Performance Options"):
+        hosted.sweep(api, journal)
+    assert queried == [20, 21, 22, 23]
+    assert set(journal["observed"]) == {f"{pid}:40" for pid in queried}
+    assert journal["observed"]["21:40"]["family"] == hosted._CLOUD
+    assert journal["observed"]["22:40"]["family"] == hosted._START
+    assert journal["observed"]["23:40"]["family"] == hosted._TERMINAL
+    assert journal["observed"]["20:40"]["windows"][0]["class"] == "Unproven"
+    api.perform.assert_not_called()
 
 
 @pytest.mark.parametrize("status", (0, 1))

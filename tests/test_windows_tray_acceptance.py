@@ -21,6 +21,8 @@ from tools.windows.visual.tray_acceptance import (
 )
 from tools.windows.visual.tray_fixture import decode_callback, rich_popup_position
 from tools.windows.visual.tray_interactions import (
+    connect_hover_trace,
+    disconnect_hover_trace,
     keyboard_focus_ready,
     visible_control_point,
 )
@@ -33,6 +35,94 @@ from tools.windows.visual.tray_provider import (
 )
 from tools.windows.visual.tray_provider_smoke import OwnedWireTrace
 from tools.windows.visual.tray_smoke import physical_dock_click
+
+
+class HoverTarget:
+    def __init__(self):
+        self.handlers = {}
+        self.disconnected = []
+
+    def connect_after(self, signal, callback):
+        handler = len(self.handlers) + 1
+        self.handlers[handler] = signal, callback
+        return handler
+
+    def handler_is_connected(self, handler):
+        return handler in self.handlers
+
+    def disconnect(self, handler):
+        self.disconnected.append(handler)
+        del self.handlers[handler]
+
+
+def test_hover_diagnostic_trace_is_bounded_and_never_consumes_real_events():
+    target, events = HoverTarget(), []
+    disconnect = connect_hover_trace(target, events)
+    assert [signal for signal, _callback in target.handlers.values()] == [
+        "enter-notify-event",
+        "motion-notify-event",
+        "leave-notify-event",
+    ]
+    for index in range(64):
+        _signal, callback = target.handlers[index % 3 + 1]
+        event = SimpleNamespace(x=index, y=-index, time=index, send_event=0)
+        assert callback(target, event) is False
+    assert len(events) == 32 and events[-1]["time"] == 31
+    assert events[0] == {
+        "signal": "enter-notify-event",
+        "x": 0,
+        "y": 0,
+        "time": 0,
+        "send_event": False,
+    }
+    disconnect()
+    assert not target.handlers and target.disconnected == [1, 2, 3]
+
+
+def test_hover_trace_cleanup_handles_destroyed_target_without_retargeting_new_row():
+    captured, replacement, events = HoverTarget(), HoverTarget(), []
+    disconnect = connect_hover_trace(captured, events)
+    replacement_disconnect = connect_hover_trace(replacement, [])
+    del captured.handlers[2]  # GTK may drop a signal while destroying old content.
+    try:
+        raise AssertionError("original hover acceptance failure")
+    except AssertionError as error:
+        assert str(error) == "original hover acceptance failure"
+    finally:
+        disconnect()
+    assert not captured.handlers and len(replacement.handlers) == 3
+    assert not events
+    replacement_disconnect()
+
+
+@pytest.mark.parametrize(
+    "original", (AssertionError("motion missing"), KeyboardInterrupt())
+)
+def test_hover_diagnostic_cleanup_cannot_mask_acceptance_failure_or_cancellation(
+    original,
+):
+    attempt = {}
+
+    def disconnect():
+        raise TimeoutError("GTK observation deadline")
+
+    with pytest.raises(type(original)) as failed:
+        try:
+            raise original
+        finally:
+            disconnect_hover_trace(disconnect, attempt)
+    assert failed.value is original and attempt["disconnect_error"] == "TimeoutError"
+
+
+def test_hover_diagnostic_cleanup_failure_after_success_still_fails():
+    attempt = {}
+
+    def disconnect():
+        raise TimeoutError("GTK observation deadline")
+
+    with pytest.raises(TimeoutError):
+        disconnect_hover_trace(disconnect, attempt)
+    assert attempt["disconnect_error"] == "TimeoutError"
 
 
 @pytest.mark.parametrize("bits", (32, 64))

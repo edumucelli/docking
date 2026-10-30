@@ -116,20 +116,17 @@ def action_for(identity, window, *, root, session, foreground):
     if window is None or window["minimized"] or window["cloaked"]:
         return None
     if identity.name == "systempropertiesperformance.exe":
-        if window["class"] == "#32770" and window["title"] == "Performance Options":
+        if window["class"] == "#32770":
             return "close"
         raise PreparationError("Unproven Performance Options window")
     if identity.name == "startmenuexperiencehost.exe":
+        if window["hwnd"] != foreground:
+            return None
         if identity.family != _START:
             raise PreparationError(
                 "Unproven Start package", identity.package_error or 13
             )
-        if (
-            window["class"] == "Windows.UI.Core.CoreWindow"
-            and window["title"] == "Start"
-        ):
-            if window["hwnd"] != foreground:
-                raise PreparationError("Start is visible without verified foreground")
+        if window["class"] == "Windows.UI.Core.CoreWindow":
             return "escape"
         raise PreparationError("Unproven Start window")
     if identity.name == "windowsterminal.exe" and _path(window["title"]) == _path(
@@ -461,8 +458,10 @@ def privacy_policy(registry, journal):
 def sweep(api, journal):
     count = 0
     with api.processes() as identities:
+        inventory = []
         for identity in identities:
             windows = api.windows(identity.pid)
+            inventory.append((identity, windows))
             journal.setdefault("observed", {})[f"{identity.pid}:{identity.created}"] = {
                 **identity.journal(),
                 "windows": [
@@ -476,6 +475,10 @@ def sweep(api, journal):
                     for row in windows
                 ],
             }
+        journal["exited"] = list(api.exited)
+        # Retain the complete known inventory before a rejected classification
+        # or an action can obscure the other first-login UI identities.
+        for identity, windows in inventory:
             for window in windows or [None]:
                 action = action_for(
                     identity,
@@ -493,7 +496,6 @@ def sweep(api, journal):
                 count += 1
                 if action == "terminate":
                     break
-    journal["exited"] = list(api.exited)
     return count
 
 

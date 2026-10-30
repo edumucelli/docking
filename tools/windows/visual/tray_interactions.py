@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ctypes as c
 import os
+import sys
 import time
 import uuid
 import zlib
@@ -58,6 +59,51 @@ def visible_control_point(window, bounds, root_at):
     raise AssertionError("Owned foreground control has no unobscured input point")
 
 
+def connect_hover_trace(target, events):
+    def observed(_widget, event, signal):
+        if len(events) < 32:
+            events.append(
+                {
+                    "signal": signal,
+                    "x": event.x,
+                    "y": event.y,
+                    "time": event.time,
+                    "send_event": bool(event.send_event),
+                }
+            )
+        return False
+
+    handlers = [
+        target.connect_after(
+            signal, lambda widget, event, signal=signal: observed(widget, event, signal)
+        )
+        for signal in (
+            "enter-notify-event",
+            "motion-notify-event",
+            "leave-notify-event",
+        )
+    ]
+
+    def disconnect():
+        for handler in handlers:
+            if target.handler_is_connected(handler):
+                target.disconnect(handler)
+
+    return disconnect
+
+
+def disconnect_hover_trace(disconnect, attempt):
+    inflight = sys.exc_info()[0] is not None
+    try:
+        disconnect()
+    except BaseException as error:
+        # Cleanup must preserve the original assertion/cancellation; a cleanup
+        # failure after otherwise successful acceptance still fails the run.
+        attempt["disconnect_error"] = type(error).__name__
+        if not inflight:
+            raise
+
+
 def verify_interactions(
     *,
     native,
@@ -73,6 +119,7 @@ def verify_interactions(
     report,
     output,
     notification_point=None,
+    hover_snapshot=None,
 ):
     from gi.repository import Gdk, Gtk
     from PIL import ImageGrab
@@ -214,91 +261,166 @@ def verify_interactions(
         )
         return stable and contrast
 
+    def hover_observation(which, target):
+        cursor, info = wintypes.POINT(), ThreadInfo(size=c.sizeof(ThreadInfo))
+        cursor_ok = bool(
+            bind(user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT))(
+                c.byref(cursor)
+            )
+        )
+        cursor_error = 0 if cursor_ok else c.get_last_error()
+        hit = user.WindowFromPoint(cursor) if cursor_ok else None
+        queried = bool(query_focus(0, c.byref(info)))
+        gui_error = 0 if queried else c.get_last_error()
+        try:
+            gtk = (
+                call(lambda: hover_snapshot(ids[which], target))
+                if hover_snapshot
+                else {}
+            )
+        except Exception as diagnostic_error:
+            gtk = {"diagnostic_error": type(diagnostic_error).__name__}
+        return {
+            "gtk": gtk,
+            "cursor": [cursor.x, cursor.y],
+            "cursor_ok": cursor_ok,
+            "cursor_error": cursor_error,
+            "native_hit": hit,
+            "native_root": user.GetAncestor(hit, 2) if hit else None,
+            "foreground": foreground(),
+            "gui_ok": queried,
+            "gui_error": gui_error,
+            "focus": info.focus,
+            "capture": info.capture,
+        }
+
     # Hover alone never creates a focus grant. A flag-only modification uses
     # the ORIGINAL nonzero HWND, so this phase cannot change callback identity.
     for which in ids:
         version = fixture_state()["icons"][which]["version"]
         for showtip in (False, True, False):
-            popup()
-            leave()
-            command("showtip-on" if showtip else "showtip-off", which)
-            standard = version != 4 or showtip
-            native.wait_for(
-                lambda which=which, standard=standard: call(
-                    lambda: (
-                        applet._row_targets[ids[which]].get_has_tooltip() == standard
-                    )
-                ),
-                "Flag-only tooltip policy did not reach the native icon target",
-            )
-            before, start = foreground(), sequence()
-            assert move(
-                *map(int, call(lambda which=which: button_point(ids[which], None)))
-            )
-            native.wait_for(
-                lambda which=which, start=start: any(
-                    row["event"] == 0x200 for row in callbacks(which, start)
-                ),
-                "Real pointer motion did not reach the provider",
-            )
-            if standard:
+            attempt = {
+                "which": which,
+                "version": version,
+                "showtip": showtip,
+                "stage": "popup",
+                "startseq": sequence(),
+                "events": [],
+            }
+            evidence.setdefault("hover_attempts", []).append(attempt)
+            target, disconnect = None, None
+            try:
+                popup()
+                leave()
+                command("showtip-on" if showtip else "showtip-off", which)
+                standard = version != 4 or showtip
+                attempt["stage"] = "tooltip-policy"
                 native.wait_for(
-                    lambda: call(
-                        lambda: any(
-                            window.get_visible()
-                            and window.get_type_hint() == Gdk.WindowTypeHint.TOOLTIP
-                            for window in Gtk.Window.list_toplevels()
+                    lambda which=which, standard=standard: call(
+                        lambda: (
+                            applet._row_targets[ids[which]].get_has_tooltip()
+                            == standard
                         )
                     ),
-                    "Standard GTK tray tooltip did not map",
+                    "Flag-only tooltip policy did not reach the native icon target",
                 )
-                assert not rich_visible(which)
-            else:
-                painted = {"which": which, "showtip": showtip}
-                evidence["rich_windows"].append(painted)
+                before, start = foreground(), sequence()
+                attempt["startseq"] = start
+                target = call(lambda which=which: applet._row_targets[ids[which]])
+                disconnect = call(
+                    lambda target=target, attempt=attempt: connect_hover_trace(
+                        target, attempt["events"]
+                    )
+                )
+                attempt["stage"] = "before-move"
+                attempt["before_move"] = hover_observation(which, target)
+                assert move(
+                    *map(int, call(lambda which=which: button_point(ids[which], None)))
+                )
+                attempt["after_move"] = hover_observation(which, target)
+                attempt["stage"] = "provider-motion"
                 native.wait_for(
-                    lambda which=which, painted=painted: rich_painted(which, painted),
-                    "Rich native popup did not become unobstructed and painted",
+                    lambda which=which, start=start: any(
+                        row["event"] == 0x200 for row in callbacks(which, start)
+                    ),
+                    "Real pointer motion did not reach the provider",
                 )
-                assert any(row["event"] == 0x406 for row in callbacks(which, start))
-            if version == 4:
-                point = wintypes.POINT()
-                assert bind(user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT))(
-                    c.byref(point)
+                attempt["stage"] = "tooltip-visible"
+                if standard:
+                    native.wait_for(
+                        lambda: call(
+                            lambda: any(
+                                window.get_visible()
+                                and window.get_type_hint() == Gdk.WindowTypeHint.TOOLTIP
+                                for window in Gtk.Window.list_toplevels()
+                            )
+                        ),
+                        "Standard GTK tray tooltip did not map",
+                    )
+                    assert not rich_visible(which)
+                else:
+                    painted = {"which": which, "showtip": showtip}
+                    evidence["rich_windows"].append(painted)
+                    native.wait_for(
+                        lambda which=which, painted=painted: rich_painted(
+                            which, painted
+                        ),
+                        "Rich native popup did not become unobstructed and painted",
+                    )
+                    assert any(row["event"] == 0x406 for row in callbacks(which, start))
+                if version == 4:
+                    point = wintypes.POINT()
+                    assert bind(
+                        user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT)
+                    )(c.byref(point))
+                    motion = next(
+                        row for row in callbacks(which, start) if row["event"] == 0x200
+                    )
+                    assert (
+                        c.c_int16(motion["first"] & 0xFFFF).value,
+                        c.c_int16((motion["first"] >> 16) & 0xFFFF).value,
+                    ) == (point.x, point.y)
+                assert foreground() == before, (
+                    "Passive tray hover changed native foreground"
                 )
-                motion = next(
-                    row for row in callbacks(which, start) if row["event"] == 0x200
+                capture(f"interaction-{which}-showtip-{int(showtip)}-{start}")
+                attempt["stage"] = "leave"
+                leave()
+                if not standard:
+                    position = wintypes.POINT()
+                    assert bind(
+                        user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT)
+                    )(c.byref(position))
+                    painted["leave_pointer"] = [position.x, position.y]
+                    assert painted["leave_pointer"] == [10, 10]
+                    native.wait_for(
+                        lambda which=which: not rich_visible(which),
+                        "Rich popup did not close on leave",
+                    )
+                    assert any(row["event"] == 0x407 for row in callbacks(which, start))
+                evidence["hover"].append(
+                    {
+                        "which": which,
+                        "version": version,
+                        "showtip": showtip,
+                        "foreground_unchanged": foreground() == before,
+                        "callbacks": callbacks(which, start),
+                    }
                 )
-                assert (
-                    c.c_int16(motion["first"] & 0xFFFF).value,
-                    c.c_int16((motion["first"] >> 16) & 0xFFFF).value,
-                ) == (point.x, point.y)
-            assert foreground() == before, (
-                "Passive tray hover changed native foreground"
-            )
-            capture(f"interaction-{which}-showtip-{int(showtip)}-{start}")
-            leave()
-            if not standard:
-                position = wintypes.POINT()
-                assert bind(user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT))(
-                    c.byref(position)
-                )
-                painted["leave_pointer"] = [position.x, position.y]
-                assert painted["leave_pointer"] == [10, 10]
-                native.wait_for(
-                    lambda which=which: not rich_visible(which),
-                    "Rich popup did not close on leave",
-                )
-                assert any(row["event"] == 0x407 for row in callbacks(which, start))
-            evidence["hover"].append(
-                {
-                    "which": which,
-                    "version": version,
-                    "showtip": showtip,
-                    "foreground_unchanged": foreground() == before,
-                    "callbacks": callbacks(which, start),
-                }
-            )
+                attempt["stage"] = "passed"
+            except Exception:
+                # Best-effort diagnostics must preserve the acceptance failure,
+                # including when GTK has already destroyed a captured widget.
+                try:
+                    attempt["failure"] = hover_observation(which, target)
+                except Exception as diagnostic_error:
+                    attempt["diagnostic_error"] = type(diagnostic_error).__name__
+                raise
+            finally:
+                if disconnect is not None:
+                    disconnect_hover_trace(
+                        lambda disconnect=disconnect: call(disconnect), attempt
+                    )
 
     # Observe real host dispatch/forwarding, without replacing any policy or
     # injecting protocol messages. Dispatch and forwarding run on one host thread.
