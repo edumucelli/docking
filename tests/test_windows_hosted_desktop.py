@@ -609,7 +609,7 @@ def test_main_thread_sweep_failure_quiesces_collector_before_policy_restoration(
     def processes():
         nonlocal calls
         calls += 1
-        if calls == 2:
+        if calls == 3:
             order.append("main-thread-sweep")
             raise error
         yield []
@@ -634,7 +634,203 @@ def test_main_thread_sweep_failure_quiesces_collector_before_policy_restoration(
     assert journal["ok"] is False and journal["collector_stopped"]
 
 
-def test_verified_wsl_terminal_is_only_minimized_without_sending_input_or_activation():
+@pytest.mark.parametrize("foreground", (False, True))
+def test_verified_wsl_terminal_uses_os_z_order_only_when_foreground(foreground):
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    current = window(title=ROOT + r"\System32\wsl.exe")
+    active = [100 if foreground else 999]
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+
+    def minimize(hwnd, mode):
+        assert (hwnd, mode) == (100, 6 if foreground else 7)
+        current["minimized"] = True
+        if mode == 6:
+            active[0] = 999  # Windows chooses the next top-level in Z order.
+        return 0
+
+    def wait_for(predicate, message, seconds):
+        assert seconds == 2
+        assert predicate(), message
+
+    api.user = SimpleNamespace(ShowWindow=Mock(side_effect=minimize))
+    api.windows, api.foreground = lambda _pid: [dict(current)], lambda: active[0]
+    api.desktop = SimpleNamespace(key=Mock(), wait_for=wait_for)
+    record = {}
+    assert api.perform(process, "minimize", current, record=record) == "dismissed"
+    api.user.ShowWindow.assert_called_once_with(100, 6 if foreground else 7)
+    assert record == {
+        "show_command": 6 if foreground else 7,
+        "show_commands": [6 if foreground else 7],
+        "foreground_before": 100 if foreground else 999,
+        "foreground_after": 999,
+        "window_state": "minimized",
+    }
+    api.desktop.key.assert_not_called()
+
+
+@pytest.fixture
+def iconic_wsl():
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    state = SimpleNamespace(
+        active=100, rows=[window(title=ROOT + r"\System32\wsl.exe", minimized=True)]
+    )
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+    api.windows, api.foreground = (
+        lambda _pid: [dict(row) for row in state.rows],
+        lambda: state.active,
+    )
+
+    def wait_for(predicate, message, _seconds):
+        assert predicate(), message
+
+    api.desktop = SimpleNamespace(wait_for=wait_for)
+    api.user = SimpleNamespace(ShowWindow=Mock())
+    return api, process, state
+
+
+@pytest.mark.parametrize("after_restore", (100, 999))
+def test_iconic_foreground_wsl_restores_without_activation_then_uses_fresh_foreground(
+    iconic_wsl, after_restore
+):
+    api, process, state = iconic_wsl
+
+    def show(_hwnd, command):
+        if command == 4:
+            state.rows[0]["minimized"] = False
+            state.active = after_restore
+        else:
+            assert command == (6 if after_restore == 100 else 7)
+            state.rows[0]["minimized"] = True
+            state.active = 999
+        return 1
+
+    api.user.ShowWindow.side_effect = show
+    record = {}
+    assert api.perform(process, "minimize", state.rows[0], record=record) == "dismissed"
+    assert record["show_commands"] == [4, 6 if after_restore == 100 else 7]
+    assert record["restore"] == {
+        "foreground_before": 100,
+        "foreground_after": after_restore,
+        "window_state": "visible",
+    }
+    assert record["foreground_after"] == 999 and record["window_state"] == "minimized"
+
+
+def test_iconic_wsl_failed_restore_never_attempts_an_unproven_minimize(iconic_wsl):
+    api, process, state = iconic_wsl
+    record = {}
+    with pytest.raises(AssertionError, match="did not restore"):
+        api.perform(process, "minimize", state.rows[0], record=record)
+    api.user.ShowWindow.assert_called_once_with(100, 4)
+    assert (
+        record["show_commands"] == [4]
+        and record["restore"]["window_state"] == "minimized"
+    )
+
+
+def test_iconic_wsl_replaced_target_after_restore_gets_no_second_command(iconic_wsl):
+    api, process, state = iconic_wsl
+
+    def replaced(_hwnd, command):
+        assert command == 4
+        state.rows[0].update(title="An unrelated terminal", minimized=False)
+        return 1
+
+    api.user.ShowWindow.side_effect = replaced
+    with pytest.raises(hosted.PreparationError, match="identity changed"):
+        api.perform(process, "minimize", state.rows[0], record={})
+    api.user.ShowWindow.assert_called_once_with(100, 4)
+
+
+def test_iconic_wsl_natural_close_during_restore_needs_no_minimize(iconic_wsl):
+    api, process, state = iconic_wsl
+    captured = state.rows[0]
+
+    def closed(_hwnd, command):
+        assert command == 4
+        state.rows.clear()
+        state.active = 999
+        return 1
+
+    api.user.ShowWindow.side_effect = closed
+    record = {}
+    assert api.perform(process, "minimize", captured, record=record) == "dismissed"
+    assert record["show_commands"] == [4] and record["window_state"] == "disappeared"
+    api.user.ShowWindow.assert_called_once_with(100, 4)
+
+
+def test_iconic_wsl_recovery_cannot_report_success_if_final_minimize_retains_foreground(
+    iconic_wsl,
+):
+    api, process, state = iconic_wsl
+
+    def show(_hwnd, command):
+        state.rows[0]["minimized"] = command != 4
+        return 1
+
+    api.user.ShowWindow.side_effect = show
+    record = {}
+    with pytest.raises(AssertionError, match="not dismissed"):
+        api.perform(process, "minimize", state.rows[0], record=record)
+    assert record["show_commands"] == [4, 6] and record["foreground_after"] == 100
+
+
+@pytest.mark.parametrize("relinquished", (True, False))
+def test_wsl_closing_during_minimize_is_dismissed_only_after_foreground_release(
+    relinquished,
+):
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    rows = [window(title=ROOT + r"\System32\wsl.exe")]
+    active = [100]
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+    api.windows, api.foreground = lambda _pid: list(rows), lambda: active[0]
+
+    def minimize(_hwnd, command):
+        assert command == 6
+        rows.clear()
+        active[0] = 999 if relinquished else 100
+        return 1
+
+    def wait_for(predicate, message, _seconds):
+        assert predicate(), message
+
+    api.user = SimpleNamespace(ShowWindow=Mock(side_effect=minimize))
+    api.desktop = SimpleNamespace(wait_for=wait_for)
+    record = {}
+    if relinquished:
+        assert api.perform(process, "minimize", rows[0], record=record) == "dismissed"
+    else:
+        with pytest.raises(AssertionError, match="not dismissed"):
+            api.perform(process, "minimize", rows[0], record=record)
+    assert record["window_state"] == "disappeared"
+    assert record["foreground_after"] == (999 if relinquished else 100)
+
+
+def test_wsl_minimize_uses_final_foreground_read_instead_of_earlier_snapshot():
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.root, api.session = ROOT, 3
     current = window(title=ROOT + r"\System32\wsl.exe")
@@ -646,20 +842,23 @@ def test_verified_wsl_terminal_is_only_minimized_without_sending_input_or_activa
     api.kernel = SimpleNamespace(
         WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
     )
+    api.windows = lambda _pid: [dict(current)]
+    api.foreground = Mock(side_effect=[100, 999, 999])
 
-    def minimize(hwnd, mode):
-        assert (hwnd, mode) == (100, 7)
+    def minimize(_hwnd, command):
+        assert command == 7
         current["minimized"] = True
-        return 0  # ShowWindow returns previous visibility, not success.
+        return 1
+
+    def wait_for(predicate, message, _seconds):
+        assert predicate(), message
 
     api.user = SimpleNamespace(ShowWindow=Mock(side_effect=minimize))
-    api.windows, api.foreground = lambda _pid: [dict(current)], lambda: 100
-    api.desktop = SimpleNamespace(
-        key=Mock(), wait_for=lambda predicate, _message, _seconds: predicate()
-    )
-    assert api.perform(process, "minimize", current) == "dismissed"
+    api.desktop = SimpleNamespace(wait_for=wait_for)
+    record = {}
+    api.perform(process, "minimize", current, record=record)
     api.user.ShowWindow.assert_called_once_with(100, 7)
-    api.desktop.key.assert_not_called()
+    assert record["foreground_before"] == 999
 
 
 def test_changed_hwnd_owner_cannot_be_minimized_even_if_its_old_title_was_wsl():
@@ -760,3 +959,99 @@ def test_windows_crt_errors_keep_numeric_errno_without_losing_native_winerror(
         "operation": "BrokenPipeError",
         "code": 5 if native_code == 5 else 32,
     }
+
+
+def test_startup_readiness_requires_two_quiet_nonblocking_sweeps_100ms_apart(
+    monkeypatch,
+):
+    now, calls, pauses, journal = [0.0], [], [], {}
+    outcomes = iter(
+        ((0, False), (1, True), (0, False), (0, True), (0, False), (0, False))
+    )
+
+    def sweep(_api, report):
+        actions, blocking = next(outcomes)
+        calls.append(now[0])
+        report["known_visible_blockers"] = ["known"] if blocking else []
+        return actions
+
+    def pause(seconds):
+        assert seconds == 0.1
+        pauses.append(seconds)
+        now[0] += seconds
+
+    monkeypatch.setattr(hosted, "sweep", sweep)
+    hosted.settle_desktop(None, journal, clock=lambda: now[0], pause=pause)
+    assert len(calls) == 6 and len(pauses) == 5 and journal["quiet_sweeps"] == 2
+
+
+def test_startup_readiness_has_a_deadline_even_without_mutation_permission(monkeypatch):
+    now, journal = [0.0], {}
+
+    def blocked(_api, report):
+        report["known_visible_blockers"] = ["verified but not foreground Start"]
+        return 0
+
+    def pause(seconds):
+        assert seconds == 0.1
+        now[0] += seconds
+
+    monkeypatch.setattr(hosted, "sweep", blocked)
+    with pytest.raises(hosted.PreparationError) as failed:
+        hosted.settle_desktop(None, journal, clock=lambda: now[0], pause=pause)
+    assert failed.value.code == 1460 and 10 <= now[0] < 10.2
+    assert journal["quiet_sweeps"] == 0
+
+
+def test_verified_visible_nonforeground_start_is_observed_as_blocking_but_untouched():
+    process = identity(
+        "startmenuexperiencehost.exe",
+        ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
+        hosted._START,
+    )
+
+    @contextmanager
+    def processes():
+        yield [process]
+
+    api = SimpleNamespace(
+        exited=[],
+        root=ROOT,
+        session=3,
+        processes=processes,
+        windows=lambda _pid: [window()],
+        foreground=lambda: 999,
+        perform=Mock(),
+    )
+    journal = {"actions": []}
+    assert hosted.sweep(api, journal) == 0
+    api.perform.assert_not_called()
+    assert journal["known_visible_blockers"] == [
+        {"pid": 20, "hwnd": 100, "name": process.name}
+    ]
+
+
+def test_collector_poll_interval_is_100ms_and_cleanup_still_precedes_policy_restore(
+    tmp_path,
+):
+    journal, waits = {}, []
+
+    @contextmanager
+    def processes():
+        yield []
+
+    process = SimpleNamespace(returncode=0, poll=lambda: 0 if waits else None)
+    process.wait = lambda *, timeout: waits.append(timeout)
+
+    @contextmanager
+    def collect():
+        try:
+            yield process
+        finally:
+            journal["collector_stopped"] = True
+
+    api = SimpleNamespace(exited=[], processes=processes, capture=lambda _path: None)
+    registry = Registry((0, 4))
+    assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == 0
+    assert waits == [0.1] and journal["quiet_sweeps"] == 2
+    assert registry.value == (0, 4) and journal["policy"]["restored"]

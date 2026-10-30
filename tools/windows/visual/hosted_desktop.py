@@ -14,6 +14,7 @@ import ctypes as c
 import os
 import subprocess
 import sys
+import time
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
@@ -113,7 +114,11 @@ def action_for(identity, window, *, root, session, foreground):
                 "Unproven WWAHost package", identity.package_error or 13
             )
         return "terminate"
-    if window is None or window["minimized"] or window["cloaked"]:
+    if window is None or window["cloaked"]:
+        return None
+    if window["minimized"] and not (
+        identity.name == "windowsterminal.exe" and window["hwnd"] == foreground
+    ):
         return None
     if identity.name == "systempropertiesperformance.exe":
         if window["class"] == "#32770":
@@ -312,7 +317,7 @@ class NativeDesktop:
     def foreground(self):
         return self.user.GetForegroundWindow()
 
-    def perform(self, identity, action, window):
+    def perform(self, identity, action, window, *, record=None):
         # Keep the opened process object, not merely a recyclable numeric PID.
         status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(
             identity.handle, 0
@@ -357,6 +362,7 @@ class NativeDesktop:
         ):
             raise PreparationError("First-login window identity changed")
         hwnd = current["hwnd"]
+        command = None
         if action == "escape":
             if self.foreground() != hwnd:
                 raise PreparationError("Start foreground changed before Escape")
@@ -369,19 +375,103 @@ class NativeDesktop:
                 "Close Performance Options",
             )
         else:
-            bind(self.user, "ShowWindow", _B, _P, c.c_int32)(
-                hwnd, 7
-            )  # SW_SHOWMINNOACTIVE.
-        self.desktop.wait_for(
-            lambda: (
-                not any(
-                    row["hwnd"] == hwnd and not row["cloaked"] and not row["minimized"]
-                    for row in self.windows(identity.pid)
+            before = self.foreground()
+            show = bind(self.user, "ShowWindow", _B, _P, c.c_int32)
+            commands = []
+            if record is not None:
+                record["show_commands"] = commands
+            if current["minimized"] and before == hwnd:
+                # Native proof: minimizing an already-iconic foreground window
+                # is a no-op. Restore without activation before the Z-order handoff.
+                restoration = {"foreground_before": before}
+                if record is not None:
+                    record["restore"] = restoration
+                commands.append(4)  # SW_SHOWNOACTIVATE.
+                show(hwnd, 4)
+
+                def restored():
+                    row = next(
+                        (
+                            row
+                            for row in self.windows(identity.pid)
+                            if row["hwnd"] == hwnd
+                        ),
+                        None,
+                    )
+                    restoration["window_state"] = (
+                        "disappeared"
+                        if row is None
+                        else ("minimized" if row["minimized"] else "visible")
+                    )
+                    return row is None or (not row["minimized"] and not row["cloaked"])
+
+                try:
+                    self.desktop.wait_for(restored, "WSL terminal did not restore", 2)
+                finally:
+                    restoration["foreground_after"] = self.foreground()
+                current = next(
+                    (row for row in self.windows(identity.pid) if row["hwnd"] == hwnd),
+                    None,
                 )
-            ),
-            "First-login window was not dismissed",
-            2,
-        )
+                if current is None:
+                    self.desktop.wait_for(
+                        lambda: self.foreground() != hwnd,
+                        "Closed WSL terminal retained foreground",
+                        2,
+                    )
+                    if record is not None:
+                        record.update(
+                            window_state="disappeared",
+                            foreground_after=self.foreground(),
+                        )
+                    return "dismissed"
+                if (
+                    bind(self.kernel, "GetProcessId", _U, _P)(identity.handle)
+                    != identity.pid
+                    or current["minimized"]
+                    or current["cloaked"]
+                    or action_for(
+                        identity,
+                        current,
+                        root=self.root,
+                        session=self.session,
+                        foreground=self.foreground(),
+                    )
+                    != "minimize"
+                ):
+                    raise PreparationError("Restored WSL terminal identity changed")
+                before = self.foreground()
+            # SW_MINIMIZE lets Windows activate the next window in Z order.
+            # SW_SHOWMINNOACTIVE can leave an iconic terminal as foreground.
+            command = 6 if before == hwnd else 7
+            if record is not None:
+                record.update(show_command=command, foreground_before=before)
+            commands.append(command)
+            show(hwnd, command)
+
+        def dismissed():
+            rows = self.windows(identity.pid)
+            if action == "minimize":
+                current = next((row for row in rows if row["hwnd"] == hwnd), None)
+                if record is not None:
+                    record["window_state"] = (
+                        "disappeared"
+                        if current is None
+                        else ("minimized" if current["minimized"] else "visible")
+                    )
+                return (current is None or current["minimized"]) and (
+                    command != 6 or self.foreground() != hwnd
+                )
+            return not any(
+                row["hwnd"] == hwnd and not row["cloaked"] and not row["minimized"]
+                for row in rows
+            )
+
+        try:
+            self.desktop.wait_for(dismissed, "First-login window was not dismissed", 2)
+        finally:
+            if record is not None:
+                record["foreground_after"] = self.foreground()
         return "dismissed"
 
     def capture(self, path):
@@ -457,6 +547,7 @@ def privacy_policy(registry, journal):
 
 def sweep(api, journal):
     count = 0
+    journal["known_visible_blockers"] = []
     with api.processes() as identities:
         inventory = []
         for identity in identities:
@@ -487,16 +578,52 @@ def sweep(api, journal):
                     session=api.session,
                     foreground=api.foreground(),
                 )
+                if (
+                    window is not None
+                    and not window["minimized"]
+                    and not window["cloaked"]
+                    and (
+                        action is not None
+                        or (
+                            identity.name == "startmenuexperiencehost.exe"
+                            and identity.family == _START
+                            and window["class"] == "Windows.UI.Core.CoreWindow"
+                        )
+                    )
+                ):
+                    journal["known_visible_blockers"].append(
+                        {
+                            "pid": identity.pid,
+                            "hwnd": window["hwnd"],
+                            "name": identity.name,
+                        }
+                    )
                 if action is None:
                     continue
                 entry = {**identity.journal(), "action": action, "before": "identified"}
                 journal["actions"].append(entry)
-                entry["after"] = api.perform(identity, action, window) or "dismissed"
+                entry["after"] = (
+                    api.perform(identity, action, window, record=entry) or "dismissed"
+                )
                 entry["foreground_after"] = api.foreground()
                 count += 1
                 if action == "terminate":
                     break
     return count
+
+
+def settle_desktop(api, journal, *, clock=time.monotonic, pause=time.sleep):
+    quiet, deadline = 0, clock() + 10
+    while clock() < deadline:
+        actions = sweep(api, journal)
+        quiet = (
+            quiet + 1 if not actions and not journal["known_visible_blockers"] else 0
+        )
+        journal["quiet_sweeps"] = quiet
+        if quiet == 2:
+            return
+        pause(0.1)
+    raise PreparationError("First-login desktop did not settle", 1460)
 
 
 def _error(error):
@@ -586,11 +713,7 @@ def run_prepared(api, registry, output, collect, journal):
     try:
         with privacy_policy(registry, journal["policy"]):
             api.capture(output / "desktop-preparation-before.png")
-            for _ in range(4):
-                if not sweep(api, journal):
-                    break
-            else:
-                raise PreparationError("First-login desktop did not settle", 1460)
+            settle_desktop(api, journal)
             api.capture(output / "desktop-preparation-ready.png")
             journal["prepared"] = True
             save()
@@ -599,7 +722,7 @@ def run_prepared(api, registry, output, collect, journal):
                     sweep(api, journal)
                     save()
                     with suppress(subprocess.TimeoutExpired):
-                        process.wait(timeout=0.5)
+                        process.wait(timeout=0.1)
                 status = process.returncode
             # No UI watcher survives this point: sweeps and restoration both
             # run on this thread, and the owned collector job is already closed.
