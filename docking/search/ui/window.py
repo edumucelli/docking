@@ -189,6 +189,9 @@ class SearchWindow:
         self._dynamic_preview_source = 0
         self._dynamic_preview: SearchPreview | None = None
         self._shown_dynamic_image: LoadedSearchImage | None = None
+        self._preediting: set[Gtk.Entry] = set()
+        self._preedit_ended: dict[Gtk.Entry, int] = {}
+        self._preedit_terminal: set[Gtk.Entry] = set()
         self._results: tuple[SearchResult, ...] = ()
         self._selected_identity: SearchIdentity | None = None
         self._syncing_query = False
@@ -220,6 +223,7 @@ class SearchWindow:
         window.get_accessible().set_name(_("Docking Search"))
         window.connect("delete-event", self._on_delete_event)
         window.connect("key-press-event", self._on_key_press)
+        window.connect("key-release-event", self._on_key_release)
         window.connect("hide", self._handle_hidden)
         self.window = window
 
@@ -230,8 +234,9 @@ class SearchWindow:
         self.search_entry.set_margin_top(12)
         self.search_entry.set_margin_bottom(12)
         self.search_entry.connect("search-changed", self._on_search_changed)
-        self.search_entry.connect("activate", lambda *_: self.activate_selected())
-        self.search_entry.connect("stop-search", lambda *_: self.hide())
+        self.search_entry.connect("activate", self._activate_search)
+        self.search_entry.connect("stop-search", self._stop_search)
+        self.search_entry.connect("preedit-changed", self._on_preedit_changed)
         outer.pack_start(self.search_entry, False, False, 0)
         outer.pack_start(Gtk.Separator(), False, False, 0)
 
@@ -266,6 +271,7 @@ class SearchWindow:
         self.action_filter.set_placeholder_text(_("Filter actions..."))
         self.action_filter.connect("search-changed", self._filter_actions)
         self.action_filter.connect("activate", self._activate_filtered_action)
+        self.action_filter.connect("preedit-changed", self._on_preedit_changed)
         action_box.pack_start(self.action_filter, False, False, 0)
         self.actions_list = Gtk.ListBox()
         self.actions_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
@@ -448,6 +454,7 @@ class SearchWindow:
         if self._window_focus is not None:
             self._window_focus.cancel()
         self._stop_dynamic_preview()
+        self._clear_input_methods()
         self.window.hide()
 
     def destroy(self) -> None:
@@ -459,6 +466,7 @@ class SearchWindow:
             self._unsubscribe_icons()
             self._unsubscribe_icons = None
         self._stop_dynamic_preview()
+        self._clear_input_methods()
         self._result_generation += 1
         self._thumbnail_executor.shutdown(wait=False, cancel_futures=True)
         self._image_cache.clear()
@@ -834,13 +842,116 @@ class SearchWindow:
         else:
             self.actions_list.unselect_all()
 
-    def _activate_filtered_action(self, *_args: object) -> None:
+    def _activate_filtered_action(self, entry: Gtk.Entry) -> None:
+        if self._input_consumed_activation(entry):
+            return
         row = self.actions_list.get_selected_row()
         if row is not None and row.get_visible():
             self._on_action_row_activated(self.actions_list, row)
 
+    def _clear_preedit_end(self, entry: Gtk.Entry) -> None:
+        source = self._preedit_ended.pop(entry, 0)
+        if source:
+            GLib.source_remove(source)
+
+    def _expire_preedit_end(self, entry: Gtk.Entry) -> bool:
+        self._preedit_ended.pop(entry, None)
+        return False
+
+    def _clear_input_methods(self) -> None:
+        for entry in tuple(self._preedit_ended):
+            self._clear_preedit_end(entry)
+        self._preediting.clear()
+        self._preedit_terminal.clear()
+
+    def _on_preedit_changed(self, entry: Gtk.Entry, text: str) -> None:
+        was_preediting = entry in self._preediting
+        if self._destroyed or not self.visible:
+            self._preediting.discard(entry)
+            self._preedit_terminal.discard(entry)
+            self._clear_preedit_end(entry)
+            return
+        if text:
+            self._clear_preedit_end(entry)
+            self._preediting.add(entry)
+            self._preedit_terminal.discard(entry)
+            return
+        self._preediting.discard(entry)
+        already_handled = entry in self._preedit_terminal
+        self._preedit_terminal.discard(entry)
+        if was_preediting and not already_handled:
+            # Win32's IME emits commit/end from native composition messages
+            # before the terminating GDK key event. Keep that one event owned
+            # by the entry until GDK drains this dispatch, without a timer.
+            self._clear_preedit_end(entry)
+            self._preedit_ended[entry] = GLib.idle_add(
+                self._expire_preedit_end, entry, priority=GLib.PRIORITY_HIGH_IDLE
+            )
+        # Native IMEs may emit several empty changes for one commit. Preserve
+        # its existing end token until the key event or idle boundary consumes it.
+
+    def _input_consumed_activation(self, entry: Gtk.Entry) -> bool:
+        composing = entry in self._preediting
+        ended = entry in self._preedit_ended
+        self._clear_preedit_end(entry)
+        if composing:
+            self._preedit_terminal.add(entry)
+        return composing or ended
+
+    def _activate_search(self, entry: Gtk.Entry) -> None:
+        if not self._input_consumed_activation(entry):
+            self.activate_selected()
+
+    def _stop_search(self, entry: Gtk.Entry) -> None:
+        if not self._input_consumed_activation(entry):
+            self.hide()
+
+    def _on_key_release(self, _window: Gtk.Window, _event: Gdk.EventKey) -> bool:
+        self._preedit_terminal.clear()
+        return False
+
     def _on_key_press(self, _window: Gtk.Window, event: Gdk.EventKey) -> bool:
         """Implement palette navigation without stealing ordinary text input."""
+        control_shortcut = bool(event.state & Gdk.ModifierType.CONTROL_MASK) and not (
+            event.state
+            & (
+                Gdk.ModifierType.MOD1_MASK
+                | Gdk.ModifierType.MOD5_MASK
+                | Gdk.ModifierType.SUPER_MASK
+                | Gdk.ModifierType.META_MASK
+                | Gdk.ModifierType.HYPER_MASK
+            )
+        )
+        intercepted = event.keyval in {
+            Gdk.KEY_Escape,
+            Gdk.KEY_Return,
+            Gdk.KEY_KP_Enter,
+            Gdk.KEY_Up,
+            Gdk.KEY_Down,
+        } or (
+            control_shortcut
+            and event.keyval
+            in {Gdk.KEY_j, Gdk.KEY_J, Gdk.KEY_p, Gdk.KEY_P, Gdk.KEY_Right}
+        )
+        focused = self.window.get_focus()
+        if isinstance(focused, Gtk.Entry):
+            composing = focused in self._preediting
+            ended = focused in self._preedit_ended
+            if intercepted:
+                filtered = focused.im_context_filter_keypress(event)
+                if filtered or composing or ended:
+                    self._clear_preedit_end(focused)
+                    if composing and event.keyval in {
+                        Gdk.KEY_Return,
+                        Gdk.KEY_KP_Enter,
+                        Gdk.KEY_Escape,
+                    }:
+                        self._preedit_terminal.add(focused)
+                    return True
+            else:
+                # Space/ordinary typing can also finish composition. It must
+                # not suppress a later, separate palette activation key.
+                self._clear_preedit_end(focused)
         if event.keyval == Gdk.KEY_Escape:
             if self.action_frame.get_visible():
                 self._hide_actions(focus_search=True)
@@ -850,22 +961,13 @@ class SearchWindow:
             else:
                 self.hide()
             return True
-        if (
-            event.keyval in {Gdk.KEY_j, Gdk.KEY_J}
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval in {Gdk.KEY_j, Gdk.KEY_J} and control_shortcut:
             self.toggle_actions()
             return True
-        if (
-            event.keyval in {Gdk.KEY_p, Gdk.KEY_P}
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval in {Gdk.KEY_p, Gdk.KEY_P} and control_shortcut:
             self.toggle_preview()
             return True
-        if (
-            event.keyval == Gdk.KEY_Right
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval == Gdk.KEY_Right and control_shortcut:
             result = self.selected_result()
             if result is not None:
                 self._on_refine_requested(result)
@@ -903,6 +1005,7 @@ class SearchWindow:
         return True
 
     def _handle_hidden(self, *_args: object) -> None:
+        self._clear_input_methods()
         self._hide_actions(focus_search=False)
         self._hide_preview()
         self._on_hidden()

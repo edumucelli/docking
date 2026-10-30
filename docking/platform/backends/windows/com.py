@@ -91,3 +91,32 @@ def query(stack: ExitStack, pointer, interface: GUID) -> ctypes.c_void_p:
     return object_result(
         stack, pointer, 0, ctypes.POINTER(GUID), ctypes.byref(interface)
     )
+
+
+def create_instance(stack: ExitStack, clsid: GUID, interface: GUID) -> ctypes.c_void_p:
+    """Create an in-process COM object in the caller's initialized apartment."""
+    result = ctypes.c_void_p()
+    create = _bind(
+        ctypes.WinDLL("ole32"),
+        "CoCreateInstance",
+        HRESULT,
+        ctypes.POINTER(GUID),
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.POINTER(GUID),
+        ctypes.POINTER(ctypes.c_void_p),
+    )
+    try:
+        _check(
+            create(
+                ctypes.byref(clsid),
+                None,
+                1,
+                ctypes.byref(interface),
+                ctypes.byref(result),
+            )
+        )
+    finally:
+        if result.value:
+            stack.callback(release, result)
+    return result

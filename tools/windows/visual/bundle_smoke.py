@@ -94,6 +94,57 @@ for name, player in pipelines:
         assert message is not None and message.type == Gst.MessageType.EOS, name
     finally:
         player.set_state(Gst.State.NULL)
+from docking.platform.backends.windows.input_thread import Request, _runtime
+print("Loading the packaged input-thread helper", flush=True)
+helpers = Path(docking.__file__).parent / "platform/backends/windows"
+for bits in (64, 32):
+    assert (helpers / f"input-thread-{bits}.dll").is_file()
+helper = ctypes.WinDLL(str(_runtime(64)))
+helper.ProtocolSize.restype = ctypes.c_uint32
+assert helper.ProtocolSize() == ctypes.sizeof(Request)
+print("Querying the packaged GTK input thread", flush=True)
+import threading
+import time
+from docking.applets.keyboardlayout.windows import WindowsKeyboardAPI
+from docking.platform.backends.windows.ffi import window_handle
+from docking.platform.backends.windows.input_thread import InputThread
+from gi.repository import GLib
+fixture = Gtk.Window(title="Docking owned packaged input fixture")
+fixture.add(Gtk.Entry())
+fixture.show_all()
+api = WindowsKeyboardAPI()
+loop = GLib.MainContext.default()
+deadline = time.monotonic() + 5
+context = None
+while context is None and time.monotonic() < deadline:
+    loop.iteration(False)
+    window = fixture.get_window()
+    handle = window_handle(window) if window is not None else None
+    context = api._context_for_root(handle) if handle else None
+    if context is None:
+        time.sleep(0.005)
+assert context is not None and context.pid == __import__("os").getpid()
+values, errors, cancelled = [], [], threading.Event()
+def inspect_input():
+    try:
+        values.append(InputThread().request(context, cancelled))
+    except Exception as error:
+        errors.append(error)
+worker = threading.Thread(target=inspect_input, daemon=True)
+try:
+    worker.start()
+    deadline = time.monotonic() + 10
+    while worker.is_alive() and time.monotonic() < deadline:
+        loop.iteration(False)
+        time.sleep(0.005)
+    assert not worker.is_alive(), "Packaged input helper did not complete"
+    if errors:
+        raise errors[0]
+    assert values and values[0] is not None and values[0].layout
+finally:
+    cancelled.set()
+    worker.join(3)
+    fixture.destroy()
 from docking.applets.camshield.windows_client import WindowsCameraAPI
 camera = WindowsCameraAPI()
 print("Checking the camera helper", flush=True)

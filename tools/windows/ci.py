@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tools.windows.bundle import command_path, staging_directory
+
 _SHARED_TESTS = (
     "tests/core",
     "tests/platform/applications/test_windows.py",
@@ -116,15 +118,17 @@ def main() -> None:
     if args.stage == "gtk":
         command += [
             "tests/visual/test_preview_gtk.py",
-            "-m",
-            "visual",
+            "tests/search/ui/test_window.py",
+            "tests/search/ui/test_shortcut_capture.py",
             "-o",
             "addopts=",
         ]
     else:
         command += test_paths(root)
-    with tempfile.TemporaryDirectory(prefix="docking-windows-ci-") as temporary:
-        command.append(f"--basetemp={Path(temporary) / 'tests'}")
+    with staging_directory(
+        Path(tempfile.gettempdir()), "docking-windows-ci-"
+    ) as temporary:
+        command.append(f"--basetemp={command_path(temporary / 'tests')}")
         status = subprocess.run(command, cwd=root).returncode
     raise SystemExit(status)
 

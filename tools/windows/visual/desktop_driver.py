@@ -320,17 +320,21 @@ class WindowsDesktop:
         self._send([_Input(type=0, data=_Data(mouse=_Mouse(data=amount, flags=0x800)))])
         time.sleep(0.2)
 
-    def scan(self, code, *, extended=False):
+    def scan(self, code, *, extended=False, altgr=False):
         """Press a physical key position, allowing the active layout to map it."""
         flags = 8 | int(extended)  # KEYEVENTF_SCANCODE, optional extended key.
-        self._send(
-            [
-                _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags))),
-                _Input(
-                    type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags | 2))
-                ),
-            ]
-        )
+        events = [
+            _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags))),
+            _Input(type=1, data=_Data(keyboard=_Keyboard(scan=code, flags=flags | 2))),
+        ]
+        if altgr:
+            events.insert(
+                0, _Input(type=1, data=_Data(keyboard=_Keyboard(scan=0x38, flags=9)))
+            )
+            events.append(
+                _Input(type=1, data=_Data(keyboard=_Keyboard(scan=0x38, flags=11)))
+            )
+        self._send(events)
         time.sleep(0.2)
 
     @staticmethod

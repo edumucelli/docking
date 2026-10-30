@@ -139,6 +139,9 @@ def test_windows_applet_uses_native_state_without_linux_command_fallback(monkeyp
 
     monkeypatch.setattr(backend.environment, "is_windows", lambda: True)
     monkeypatch.setattr(windows, "_native_api", lambda: KeyboardAPI())
+    profiles = MagicMock()
+    profiles.catalog.return_value = windows.InputCatalog()
+    monkeypatch.setattr(windows, "WindowsInputService", lambda: profiles)
     monkeypatch.setattr(
         linux, "_run", lambda cmd: pytest.fail("Windows invoked a Linux command")
     )

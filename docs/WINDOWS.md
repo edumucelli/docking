@@ -1802,30 +1802,78 @@ python tools/windows/visual/lab.py --share /path/to/shared/artifacts --wait 1 st
   --output '\\host.lan\Data\lab\keyboardlayout-acceptance'
 ```
 
-This implements Win32 input locales. Broader TSF input-processor profiles that
-share an HKL, transient language identifiers, IME composition and profile-change
-notifications, additional layouts, application refusals, remote sessions and
-multi-user/policy cases still require further implementation or acceptance.
-Those remain part of the Windows parity goal.
+Windows also enumerates enabled TSF keyboard profiles, including distinct input
+processors that share an HKL. Their session identities include the language,
+service CLSID and profile GUID. The dedicated enabled-state query remains
+authoritative when enumeration flags lag a language-profile change. Disabled
+plain-keyboard profiles loaded only as
+IME compatibility handles are excluded from the menu. Native TSF activation can
+return to a configured keyboard profile; legacy Win32 layout requests remain
+available. Profile descriptions come from TSF BSTRs; the target thread's
+`CurrentInputMethodLanguageTag` supplies language metadata independently of a
+transient LANGID. Metadata reads never activate an input source.
 
-A native TSF investigation enabled two owned Vietnamese text-service fixtures.
-The language-bar broker returned the requested thread identity and successful
-activation HRESULTs, but Notepad kept US input and produced plain `aa` for both
-profiles. Cleanup restored both profiles to disabled and preserved the original
-input preferences. That experimental path is excluded: Microsoft marks
-[`GetInputProcessorProfiles`](https://learn.microsoft.com/en-us/windows/win32/api/ctfutb/nf-ctfutb-itflangbarmgr-getinputprocessorprofiles)
-as unsupported for use. The documented
-[`ActivateProfile`](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-activateprofile)
-flags cover the caller, process or desktop; desktop-wide activation would change
-the scope of the current per-input-context selection. Per-target TSF support
-remains open; API success alone was not accepted as native composition evidence.
+A small freestanding helper handles one registered request through a
+thread-scoped `WH_GETMESSAGE` hook. It uses the application's existing COM
+apartment for TSF, verifies window/thread/process and input-desktop ownership,
+rechecks enabled profiles, and calls documented interfaces on that input thread.
+Classic loaded layouts use `ActivateKeyboardLayout` on the same target thread
+without requiring COM. Both paths retire cancelled queued requests before a
+paused application can apply them after resuming.
+Activation flags are zero: Docking does not enable profiles or change preferred
+languages, registry defaults, process-wide or desktop-wide activation policy.
+Windows retains control of its per-application input policies. The hook ignores
+other messages and reads no keystrokes or composition text; IME metadata is
+limited to open/conversion state and composition length. Cancellation retires
+queued requests and owns hook, mapping and atom cleanup. A 32-bit target uses a
+32-bit helper hosted by the system's `rundll32`, in an owned process job.
+
+Windows builds compile x64 and x86 helpers with MinGW-w64 GCC and binutils. Both
+DLLs depend only on Windows system libraries and ship in a platform-tagged
+wheel, portable ZIP and installer. Source/editable builds require the compiler;
+installed distributions do not. Helpers are copied to a content-addressed local
+cache before a foreign application loads them. Linux/BSD wheels remain pure
+Python. No generated DLL is checked in.
+
+`input_profile_smoke` temporarily enables two owned built-in Vietnamese test
+profiles and restores their original state. On Windows 11 25H2, Telex physical
+`A,A` and VNI physical `A,6` both produce `â` in saved 64-bit Notepad and 32-bit
+Windows Forms text, with independent profile readback and unchanged caller
+input. The acceptance check also returns to US, cancels a posted activation
+while the editor is paused, resumes it without a late change, and restores
+preload/substitute/default/wheel preferences. It can exercise an installed wheel:
+
+```sh
+python -m tools.windows.visual.input_profile_smoke \
+  --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
+```
+
+Search gives an entry's IME first chance at palette navigation, commit and
+cancellation keys. Ctrl+Alt/AltGr text does not invoke Ctrl+J/P navigation.
+Shortcut capture rejects text-input modifiers, including physical right Alt
+when Win32 GDK reports the same mask as Ctrl+Alt. The native global-hotkey worker
+observes only right-Alt transitions, temporarily releases a conflicting Ctrl+Alt
+registration, keeps pumping release events, and restores the registration.
+
+The earlier language-bar marshaling experiment is excluded: Microsoft's
+`ITfLangBarMgr.GetInputProcessorProfiles` and `GetThreadMarshalInterface`
+interfaces are marked as APIs that should not be used. TSF activation requires
+an already initialized input apartment; other targets retain Win32 layout
+access. Elevated/protected or noncooperating applications, secure/remote
+desktops, additional IMEs and multi-user policies still need broader acceptance.
+Native API success is accompanied by actual composed-text checks where engines
+exist.
 
 References: [input locale enumeration](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist),
 [per-thread active input locale](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout),
 [layout descriptions](https://learn.microsoft.com/en-us/windows/win32/intl/using-registry-string-redirection),
 [layout request semantics](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchangerequest),
+[target-thread layout activation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-activatekeyboardlayout),
 [child notifications and TSF/transient ID limitations](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchange),
-[input-desktop ownership](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-openinputdesktop).
+[input-desktop ownership](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-openinputdesktop),
+[TSF profile activation](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-activateprofile),
+[thread-scoped hooks](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexw),
+[GTK entry IME filtering](https://docs.gtk.org/gtk3/method.Entry.im_context_filter_keypress.html).
 
 ## Windows Brightness
 

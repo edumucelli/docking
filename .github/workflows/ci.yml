@@ -119,10 +119,10 @@ jobs:
         run: python3 tools/check_translation_packaging.py
 
       - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/
+        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/ setup.py
 
       - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/
+        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/ setup.py
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from concurrent.futures import Future
 from dataclasses import replace
 from types import SimpleNamespace
@@ -75,6 +76,253 @@ def _snapshot() -> SearchSnapshot:
     )
 
 
+def _key_event(keyval: int, state: Gdk.ModifierType) -> Gdk.EventKey:
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.keyval = keyval
+    event.state = state
+    key = event.key
+    # EventKey borrows storage from the allocated event, including GDK's
+    # private device data used by the input-method filter.
+    key._event_owner = event
+    return key
+
+
+@pytest.fixture
+def input_palette():
+    activated = MagicMock()
+    window = SearchWindow(
+        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        on_query_changed=MagicMock(),
+        on_result_selected=MagicMock(),
+        on_result_activated=activated,
+        on_action_activated=MagicMock(),
+        on_hidden=MagicMock(),
+        on_refine_requested=MagicMock(),
+        dynamic_preview_loader=MagicMock(return_value=None),
+        preview_resolver=MagicMock(return_value=None),
+    )
+    window.update(_snapshot())
+    window.window.show_all()
+    window.action_frame.hide()
+    window.preview_frame.hide()
+    window.window.set_focus(window.search_entry)
+    try:
+        yield window, activated
+    finally:
+        window.destroy()
+
+
+@pytest.mark.parametrize("entry_name", ["search_entry", "action_filter"])
+@pytest.mark.parametrize(
+    "key", [Gdk.KEY_Return, Gdk.KEY_Escape, Gdk.KEY_Up, Gdk.KEY_Down]
+)
+def test_ime_gets_navigation_commit_and_cancel_before_palette_actions(
+    input_palette, monkeypatch, entry_name, key
+):
+    window, activated = input_palette
+    entry = (
+        window.search_entry if entry_name == "search_entry" else window.action_filter
+    )
+    window.action_frame.set_visible(entry_name == "action_filter")
+    window.window.set_focus(entry)
+    calls = []
+
+    def filter_key(widget, event):
+        calls.append((widget, event.keyval))
+        return True
+
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", filter_key)
+    assert window._on_key_press(window.window, _key_event(key, Gdk.ModifierType(0)))
+    assert calls == [(entry, key)]
+    assert window.visible
+    activated.assert_not_called()
+
+
+@pytest.mark.parametrize("key", [Gdk.KEY_Return, Gdk.KEY_Escape])
+def test_native_ime_end_before_keypress_does_not_run_palette_action(
+    input_palette, monkeypatch, key
+):
+    window, activated = input_palette
+    entry = window.search_entry
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", lambda *_: False)
+    entry.emit("preedit-changed", "â")
+    entry.set_text("â")
+    entry.emit("preedit-changed", "")
+    entry.emit("preedit-changed", "")
+    event = _key_event(key, Gdk.ModifierType(0))
+    assert window._on_key_press(window.window, event)
+    assert window.visible and entry.get_text() == "â"
+    activated.assert_not_called()
+    # The IME owns one terminating key, not the next ordinary action.
+    assert window._on_key_press(window.window, event)
+    if key == Gdk.KEY_Return:
+        activated.assert_called_once()
+    else:
+        assert not window.visible
+
+
+@pytest.mark.parametrize("key", [Gdk.KEY_Return, Gdk.KEY_Escape])
+def test_ime_end_after_keypress_does_not_suppress_next_action(
+    input_palette, monkeypatch, key
+):
+    window, activated = input_palette
+    entry = window.search_entry
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", lambda *_: False)
+    entry.emit("preedit-changed", "â")
+    event = _key_event(key, Gdk.ModifierType(0))
+    assert window._on_key_press(window.window, event)
+    entry.emit("preedit-changed", "")
+    window._on_key_release(window.window, event)
+    assert window.visible
+    activated.assert_not_called()
+    assert window._on_key_press(window.window, event)
+    if key == Gdk.KEY_Return:
+        activated.assert_called_once()
+    else:
+        assert not window.visible
+
+
+def test_ordinary_ime_commit_key_does_not_swallow_a_later_enter(
+    input_palette, monkeypatch
+):
+    window, activated = input_palette
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", lambda *_: False)
+    window.search_entry.emit("preedit-changed", "â")
+    window.search_entry.emit("preedit-changed", "")
+    assert not window._on_key_press(
+        window.window, _key_event(Gdk.KEY_space, Gdk.ModifierType(0))
+    )
+    window._on_key_press(window.window, _key_event(Gdk.KEY_Return, Gdk.ModifierType(0)))
+    activated.assert_called_once()
+
+
+@pytest.mark.parametrize("signal", ["activate", "stop-search"])
+def test_entry_signals_respect_native_ime_commit_and_cancellation(
+    input_palette, signal
+):
+    window, activated = input_palette
+    entry = window.search_entry
+    entry.emit("preedit-changed", "â")
+    entry.emit("preedit-changed", "")
+    entry.emit(signal)
+    activated.assert_not_called()
+    assert window.visible
+    entry.emit(signal)
+    if signal == "activate":
+        activated.assert_called_once()
+    else:
+        assert not window.visible
+
+
+def test_hiding_removes_the_pending_preedit_end_idle_source(input_palette):
+    window, _activated = input_palette
+    entry = window.search_entry
+    entry.emit("preedit-changed", "â")
+    entry.emit("preedit-changed", "")
+    source = window._preedit_ended[entry]
+    from gi.repository import GLib
+
+    assert GLib.MainContext.default().find_source_by_id(source) is not None
+    window.hide()
+    assert GLib.MainContext.default().find_source_by_id(source) is None
+    assert not window._preediting and not window._preedit_ended
+
+
+def test_action_filter_activation_respects_native_preedit_end(input_palette):
+    window, activated = input_palette
+    window.toggle_actions()
+    entry = window.action_filter
+    action = window._on_action_activated
+    entry.emit("preedit-changed", "â")
+    entry.emit("preedit-changed", "")
+    entry.emit("activate")
+    action.assert_not_called()
+    activated.assert_not_called()
+    assert window.visible and window.action_frame.get_visible()
+    entry.emit("activate")
+    action.assert_called_once()
+
+
+def test_preedit_end_without_a_key_expires_before_a_later_action(
+    input_palette, monkeypatch
+):
+    from gi.repository import GLib
+
+    window, activated = input_palette
+    entry = window.search_entry
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", lambda *_: False)
+    # Dispatch the actual lifecycle callback without draining native GTK
+    # callbacks retained by unrelated fixtures on the global default context.
+    context = GLib.MainContext.new()
+
+    def idle_add(callback, *args, priority):
+        source = GLib.idle_source_new()
+        source.set_priority(priority)
+        source.set_callback(lambda *_data: callback(*args))
+        return source.attach(context)
+
+    def source_remove(identifier):
+        source = context.find_source_by_id(identifier)
+        if source is not None:
+            source.destroy()
+
+    monkeypatch.setattr(
+        window_mod,
+        "GLib",
+        SimpleNamespace(
+            idle_add=idle_add,
+            source_remove=source_remove,
+            PRIORITY_HIGH_IDLE=GLib.PRIORITY_HIGH_IDLE,
+        ),
+    )
+    try:
+        entry.emit("preedit-changed", "â")
+        entry.emit("preedit-changed", "")
+        source = window._preedit_ended[entry]
+        assert context.find_source_by_id(source) is not None
+        deadline = time.monotonic() + 2
+        while window._preedit_ended and time.monotonic() < deadline:
+            context.iteration(False)
+            time.sleep(0.005)
+        assert not window._preedit_ended, (
+            "Preedit end did not expire at a GTK idle boundary"
+        )
+        assert context.find_source_by_id(source) is None
+        window._on_key_press(
+            window.window, _key_event(Gdk.KEY_Return, Gdk.ModifierType(0))
+        )
+        activated.assert_called_once()
+    finally:
+        window._clear_input_methods()
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK,
+        Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD5_MASK,
+    ],
+)
+@pytest.mark.parametrize("key", [Gdk.KEY_j, Gdk.KEY_p, Gdk.KEY_Right])
+def test_altgr_does_not_trigger_palette_control_shortcuts(input_palette, key, state):
+    window, activated = input_palette
+    assert not window._on_key_press(window.window, _key_event(key, state))
+    assert not window.action_frame.get_visible()
+    assert not window.preview_frame.get_visible()
+    activated.assert_not_called()
+
+
+def test_return_still_activates_when_the_input_method_does_not_handle_it(
+    input_palette, monkeypatch
+):
+    window, activated = input_palette
+    monkeypatch.setattr(Gtk.Entry, "im_context_filter_keypress", lambda *_args: False)
+    assert window._on_key_press(
+        window.window, _key_event(Gdk.KEY_Return, Gdk.ModifierType(0))
+    )
+    activated.assert_called_once()
+
+
 def test_results_primary_action_and_action_panel() -> None:
     selected = MagicMock()
     activated = MagicMock()
@@ -106,21 +354,15 @@ def test_results_primary_action_and_action_panel() -> None:
     window.window.set_focus(window.search_entry)
     assert not window._on_key_press(
         window.window,
-        SimpleNamespace(keyval=Gdk.KEY_Tab, state=Gdk.ModifierType(0)),
+        _key_event(Gdk.KEY_Tab, Gdk.ModifierType(0)),
     )
     assert not window._on_key_press(
         window.window,
-        SimpleNamespace(
-            keyval=Gdk.KEY_ISO_Left_Tab,
-            state=Gdk.ModifierType.SHIFT_MASK,
-        ),
+        _key_event(Gdk.KEY_ISO_Left_Tab, Gdk.ModifierType.SHIFT_MASK),
     )
     assert window._on_key_press(
         window.window,
-        SimpleNamespace(
-            keyval=Gdk.KEY_Right,
-            state=Gdk.ModifierType.CONTROL_MASK,
-        ),
+        _key_event(Gdk.KEY_Right, Gdk.ModifierType.CONTROL_MASK),
     )
     refined.assert_called_once()
 

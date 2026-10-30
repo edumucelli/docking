@@ -7,7 +7,6 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -16,11 +15,22 @@ from docking.applets.keyboardlayout.backend import LayoutBackend
 from docking.applets.keyboardlayout.state import LayoutInfo, LayoutState
 from docking.log import get_logger
 from docking.platform.backends.windows.ffi import bind
+from docking.platform.backends.windows.input_context import (
+    GuiThreadInfo as _GuiThreadInfo,
+)
+from docking.platform.backends.windows.input_context import (
+    InputContext,
+    typing_window,
+)
+from docking.platform.backends.windows.input_profiles import InputCatalog, InputProfile
+from docking.platform.backends.windows.input_service import WindowsInputService
+from docking.platform.backends.windows.input_thread import InputSnapshot, InputThread
 
 log = get_logger("keyboardlayout.windows")
 _DWORD = ctypes.c_uint32
 _HWND = ctypes.c_void_p
 _BOOL = ctypes.c_int32
+_TRANSIENT_LANGIDS = frozenset((0x2000, 0x2400, 0x2800, 0x2C00))
 _LAYOUTS_KEY = "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts"
 
 
@@ -55,41 +65,10 @@ def _layout_id(handle: int) -> str:
     return ""
 
 
-class _Rect(ctypes.Structure):
-    _fields_ = [(name, ctypes.c_int32) for name in ("left", "top", "right", "bottom")]
-
-
-class _GuiThreadInfo(ctypes.Structure):
-    _fields_ = (
-        [("size", _DWORD), ("flags", _DWORD)]
-        + [
-            (name, _HWND)
-            for name in ("active", "focus", "capture", "menu", "move", "caret")
-        ]
-        + [("caret_rect", _Rect)]
-    )
-
-
 def _code(handle: int) -> str:
     # Windows input locale IDs have two WORD components. Win64 may return a
     # sign-extended handle; both representations identify the same locale.
     return f"win32:{handle & 0xFFFFFFFF:08x}"
-
-
-@dataclass(frozen=True)
-class InputContext:
-    root: int
-    window: int
-    thread: int
-    pid: int
-    control_surface: bool = False
-    root_thread: int = 0
-    root_pid: int = 0
-
-    @property
-    def key(self) -> str:
-        thread, pid = self.root_thread or self.thread, self.root_pid or self.pid
-        return f"{self.root:x}:{thread:x}:{pid:x}"
 
 
 class KeyboardAPI(Protocol):
@@ -97,11 +76,24 @@ class KeyboardAPI(Protocol):
     def valid(self, context: InputContext) -> bool: ...
     def layouts(self) -> tuple[int, ...]: ...
     def active(self, thread: int) -> int: ...
-    def describe(self, handle: int) -> LayoutInfo: ...
-    def request(self, context: InputContext, handle: int) -> bool: ...
+    def describe(self, handle: int, *, tag: str = "") -> LayoutInfo: ...
+    def describe_profile(self, profile: InputProfile, tag: str) -> LayoutInfo: ...
+    def request(
+        self, context: InputContext, handle: int, cancelled: threading.Event
+    ) -> bool: ...
     def input_desktop_active(self) -> bool: ...
     def refresh(self, context: InputContext) -> InputContext | None: ...
     def focus(self, context: InputContext) -> bool: ...
+
+
+class ProfilesAPI(Protocol):
+    def catalog(self, loaded: tuple[int, ...] = ()) -> InputCatalog: ...
+    def read(
+        self, context: InputContext, cancelled: threading.Event
+    ) -> InputSnapshot | None: ...
+    def activate(
+        self, context: InputContext, profile: InputProfile, cancelled: threading.Event
+    ) -> InputSnapshot | None: ...
 
 
 class WindowsKeyboardAPI:
@@ -133,21 +125,30 @@ class WindowsKeyboardAPI:
             ctypes.POINTER(_HWND),
         )
         self._active = bind(user, "GetKeyboardLayout", _HWND, _DWORD)
-        self._post = bind(
-            user,
-            "PostMessageW",
-            _BOOL,
-            _HWND,
-            _DWORD,
-            ctypes.c_size_t,
-            ctypes.c_ssize_t,
-        )
+        self._input_thread = InputThread()
         self._locale = bind(
             kernel,
             "GetLocaleInfoW",
             ctypes.c_int,
             _DWORD,
             _DWORD,
+            ctypes.c_wchar_p,
+            ctypes.c_int,
+        )
+        self._locale_ex = bind(
+            kernel,
+            "GetLocaleInfoEx",
+            ctypes.c_int,
+            ctypes.c_wchar_p,
+            _DWORD,
+            ctypes.c_wchar_p,
+            ctypes.c_int,
+        )
+        self._resolve_locale = bind(
+            kernel,
+            "ResolveLocaleName",
+            ctypes.c_int,
+            ctypes.c_wchar_p,
             ctypes.c_wchar_p,
             ctypes.c_int,
         )
@@ -240,16 +241,11 @@ class WindowsKeyboardAPI:
         if not thread:
             return None
         root_thread, root_pid = int(thread), int(pid.value)
-        info = _GuiThreadInfo()
-        info.size = ctypes.sizeof(info)
-        window = root
-        if (
-            self._gui(thread, ctypes.byref(info))
-            and info.focus
-            and (info.focus == root or self._child(root, info.focus))
-        ):
-            window = info.focus
+        window = typing_window(root, thread, self._gui, self._child)
+        if window != root:
             thread = self._thread(window, ctypes.byref(pid))
+            if not thread:
+                return None
         title, kind = (
             ctypes.create_unicode_buffer(256),
             ctypes.create_unicode_buffer(256),
@@ -299,6 +295,8 @@ class WindowsKeyboardAPI:
         return int(self._active(thread) or 0)
 
     def _locale_text(self, langid: int, field: int) -> str:
+        if langid in _TRANSIENT_LANGIDS:
+            return ""
         result = ctypes.create_unicode_buffer(256)
         return (
             str(result.value)
@@ -306,7 +304,7 @@ class WindowsKeyboardAPI:
             else ""
         )
 
-    def describe(self, handle: int) -> LayoutInfo:
+    def describe(self, handle: int, *, tag: str = "") -> LayoutInfo:
         # Activating layouts even on a worker can interrupt foreground dead-key
         # composition. Metadata reads must leave the input state untouched.
         klid = _layout_id(handle)
@@ -336,16 +334,58 @@ class WindowsKeyboardAPI:
             except OSError as exc:
                 log.debug("Keyboard description unavailable: %s", exc)
         langid = handle & 0xFFFF
-        language = self._locale_text(langid, 2)
-        label = self._locale_text(langid, 0x59).upper()[:2] or "??"
+        language, label = self._language_info(langid, tag)
         if not name:
             name = klid or _code(handle)
         return LayoutInfo(
             _code(handle), label, f"{language} — {name}" if language else name
         )
 
-    def request(self, context: InputContext, handle: int) -> bool:
-        return bool(self._post(context.window, 0x50, 0, ctypes.c_ssize_t(handle).value))
+    def _language_info(self, language_id: int, tag: str) -> tuple[str, str]:
+        language = self._locale_text(language_id, 2)
+        label = self._locale_text(language_id, 0x59).upper()[:2]
+        # Transient LANGIDs are not stable language identities. Resolve the
+        # tag read on the target's input thread, without activating anything.
+        if tag:
+            resolved = ctypes.create_unicode_buffer(85)
+            if self._resolve_locale(tag, resolved, len(resolved)):
+
+                def text(field: int) -> str:
+                    result = ctypes.create_unicode_buffer(256)
+                    return (
+                        str(result.value)
+                        if self._locale_ex(resolved, field, result, len(result))
+                        else ""
+                    )
+
+                language = text(2) or language
+                label = text(0x59).upper()[:2] or label
+        return language, label or "??"
+
+    def describe_profile(self, profile: InputProfile, tag: str) -> LayoutInfo:
+        language, label = self._language_info(profile.language, tag)
+        name = profile.name or profile.code
+        return LayoutInfo(
+            profile.code,
+            label or "??",
+            f"{language} — {name}" if language else name,
+        )
+
+    def request(
+        self, context: InputContext, handle: int, cancelled: threading.Event
+    ) -> bool:
+        if cancelled.is_set() or handle & 0xFFFFFFFF <= 1:
+            return False
+        try:
+            snapshot = self._input_thread.request(context, cancelled, layout=handle)
+        except OSError as exc:
+            log.debug("Keyboard-layout switch unavailable: %s", exc)
+            return False
+        return (
+            snapshot is not None
+            and not cancelled.is_set()
+            and _code(snapshot.layout) == _code(handle)
+        )
 
     def focus(self, context: InputContext) -> bool:
         return bool(self._set_foreground(context.root))
@@ -359,8 +399,15 @@ def _native_api() -> WindowsKeyboardAPI:
 class WindowsKeyboardBackend(LayoutBackend):
     name = "windows"
 
-    def __init__(self, *, api: KeyboardAPI | None = None) -> None:
+    def __init__(
+        self, *, api: KeyboardAPI | None = None, profiles: ProfilesAPI | None = None
+    ) -> None:
         self._api = api
+        self._profiles = profiles
+        self._native_profiles = api is None
+        self._catalog = InputCatalog()
+        self._profile_records: dict[str, InputProfile] = {}
+        self._profile_target: tuple[InputContext, InputSnapshot] | None = None
         self._target: InputContext | None = None
         self._contexts: tuple[InputContext, ...] = ()
         self._details: dict[str, LayoutInfo] = {}
@@ -370,6 +417,12 @@ class WindowsKeyboardBackend(LayoutBackend):
     @property
     def api(self) -> KeyboardAPI:
         return self._api if self._api is not None else _native_api()
+
+    @property
+    def profiles(self) -> ProfilesAPI | None:
+        if self._profiles is None and self._native_profiles:
+            self._profiles = WindowsInputService()
+        return self._profiles
 
     def _context(self) -> InputContext | None:
         if not self.api.input_desktop_active():
@@ -393,6 +446,15 @@ class WindowsKeyboardBackend(LayoutBackend):
         return self._target
 
     def _query(self, *, describe: bool) -> LayoutState:
+        # A target can change layouts while the worker reads TSF metadata. Keep
+        # the published HKL, profile and available list from one stable sample.
+        for _ in range(2):
+            state = self._query_once(describe=describe)
+            if state is not None:
+                return state
+        return LayoutState("", [])
+
+    def _query_once(self, *, describe: bool) -> LayoutState | None:
         if self._stopped.is_set():
             return LayoutState("", [])
         context = self._context()
@@ -400,23 +462,90 @@ class WindowsKeyboardBackend(LayoutBackend):
             return LayoutState("", [])
         loaded = self.api.layouts()
         active = self.api.active(context.thread)
-        if not active or _code(active) not in {_code(handle) for handle in loaded}:
-            return LayoutState("", [])
+        loaded_codes = {_code(handle) for handle in loaded}
+        if not active or _code(active) not in loaded_codes:
+            return None
+        catalog = self._catalog
+        profile_records = self._profile_records
+        profile_target = self._profile_target
         details = dict(self._details)
         if describe:
             details = {}
             for handle in loaded:
                 code = _code(handle)
                 details[code] = self._details.get(code) or self.api.describe(handle)
-            self._details = details
+            try:
+                profiles = self.profiles
+                catalog = profiles.catalog(loaded) if profiles else InputCatalog()
+                profile_records = {p.code: p for p in catalog.profiles}
+                snapshot = (
+                    profiles.read(context, self._stopped)
+                    if profiles
+                    and (profile_records or active & 0xFFFF in _TRANSIENT_LANGIDS)
+                    else None
+                )
+                if snapshot is not None and _code(snapshot.layout) != _code(active):
+                    return None
+                profile_target = (context, snapshot) if snapshot else None
+            except OSError as exc:
+                profile_target = None
+                log.debug("Input profiles unavailable: %s", exc)
+            for code, profile in profile_records.items():
+                tag = ""
+                if profile_target is not None:
+                    snapshot = profile_target[1]
+                    if snapshot.profile and snapshot.profile.code == code:
+                        tag = snapshot.language_tag
+                details[code] = self.api.describe_profile(profile, tag)
+            if (
+                profile_target is not None
+                and active & 0xFFFF in _TRANSIENT_LANGIDS
+                and _code(profile_target[1].layout) == _code(active)
+            ):
+                snapshot = profile_target[1]
+                if snapshot.language_tag:
+                    details[_code(active)] = self.api.describe(
+                        active, tag=snapshot.language_tag
+                    )
+        refreshed_loaded = self.api.layouts()
+        active_code = _code(self.api.active(context.thread))
+        if (
+            active_code != _code(active)
+            or {_code(handle) for handle in refreshed_loaded} != loaded_codes
+        ):
+            return None
+        if profile_target is not None:
+            saved, snapshot = profile_target
+            if (
+                saved == context
+                and _code(snapshot.layout) == active_code
+                and snapshot.profile is not None
+                and snapshot.profile.code in profile_records
+            ):
+                active_code = snapshot.profile.code
+        synthetic_layouts = catalog.synthetic_layouts(loaded)
+        available = list(
+            dict.fromkeys(
+                [
+                    _code(handle)
+                    for handle in loaded
+                    if _code(handle) not in synthetic_layouts
+                    or _code(handle) == active_code
+                ]
+                + list(profile_records)
+            )
+        )
         if self._stopped.is_set() or not self.api.valid(context):
             return LayoutState("", [])
+        if describe:
+            self._catalog = catalog
+            self._profile_records = profile_records
+            self._profile_target = profile_target
+            self._details = details
         return LayoutState(
-            _code(active),
-            [_code(handle) for handle in loaded],
-            tuple(
-                details[code] for handle in loaded if (code := _code(handle)) in details
-            ),
+            active_code,
+            available,
+            tuple(details[code] for code in available if code in details),
             context.key,
         )
 
@@ -439,16 +568,92 @@ class WindowsKeyboardBackend(LayoutBackend):
             target = self._context()
             if target is None or target.key != context:
                 return
+            if layout_code.startswith("tsf:"):
+                profiles = self.profiles
+                if profiles is None:
+                    return
+                try:
+                    profile = next(
+                        (
+                            p
+                            for p in profiles.catalog().profiles
+                            if p.code == layout_code
+                        ),
+                        None,
+                    )
+                    if profile is None or self._stopped.is_set():
+                        return
+                    target = self._focus_target(target)
+                    if target is None:
+                        return
+                    snapshot = profiles.activate(target, profile, self._stopped)
+                    if (
+                        snapshot is not None
+                        and snapshot.profile is not None
+                        and snapshot.profile.code == layout_code
+                        and self.api.valid(target)
+                        and not self._stopped.is_set()
+                    ):
+                        self._profile_target = (target, snapshot)
+                except OSError as exc:
+                    log.debug("Input-profile switch unavailable: %s", exc)
+                return
             loaded = {_code(handle): handle for handle in self.api.layouts()}
             handle = loaded.get(layout_code)
             if handle is None or not self.api.valid(target) or self._stopped.is_set():
+                return
+            profiles = self.profiles
+            catalog = self._catalog
+            if profiles is not None:
+                try:
+                    catalog = profiles.catalog(tuple(loaded.values()))
+                except OSError as exc:
+                    log.debug("Keyboard-profile catalog unavailable: %s", exc)
+            if layout_code in catalog.synthetic_layouts(tuple(loaded.values())):
                 return
             target = self._focus_target(target)
             if target is None or layout_code not in {
                 _code(h) for h in self.api.layouts()
             }:
                 return
-            if not self.api.request(target, handle):
+            if (
+                self._profile_target is not None
+                and self._profile_target[1].profile is not None
+                and self._profile_target[1].profile.kind == 1
+            ):
+                if profiles is not None:
+                    try:
+                        keyboard = next(
+                            (
+                                p
+                                for p in catalog.keyboards
+                                if p.code == layout_code and p.enabled
+                            ),
+                            None,
+                        )
+                        if keyboard is not None:
+                            snapshot = profiles.activate(
+                                target, keyboard, self._stopped
+                            )
+                            if (
+                                snapshot is not None
+                                and snapshot.profile is not None
+                                and snapshot.profile.code == layout_code
+                            ):
+                                self._profile_target = (target, snapshot)
+                                return
+                    except OSError as exc:
+                        log.debug("Keyboard-profile switch unavailable: %s", exc)
+                target = self._focus_target(target)
+                if target is None:
+                    return
+            if (
+                self._stopped.is_set()
+                or not self.api.valid(target)
+                or layout_code not in {_code(h) for h in self.api.layouts()}
+            ):
+                return
+            if not self.api.request(target, handle, self._stopped):
                 return
             deadline = time.monotonic() + 0.8
             while not self._stopped.is_set() and time.monotonic() < deadline:
@@ -506,9 +711,9 @@ class WindowsKeyboardBackend(LayoutBackend):
             return False
 
     def show_layout(self, layout_code: str) -> bool:
-        if self._stopped.is_set() or layout_code not in {
-            _code(h) for h in self.api.layouts()
-        }:
+        if self._stopped.is_set() or layout_code not in (
+            {_code(h) for h in self.api.layouts()} | set(self._profile_records)
+        ):
             return False
         try:
             os.startfile(

@@ -6,6 +6,8 @@ import ctypes
 from ctypes import wintypes
 
 from .ffi import bind as _bind
+from .input_context import GuiThreadInfo, typing_window
+from .modifiers import AltGrGuard
 
 MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002
@@ -34,6 +36,7 @@ class WindowsHotkeyAPI:
     def __init__(self) -> None:
         self._preferred: tuple[int, int | str] | None = None
         self._binding: tuple[int, int] | None = None
+        self._altgr = AltGrGuard()
         user = ctypes.WinDLL("user32", use_last_error=True)
         self._register = _bind(
             user,
@@ -70,6 +73,16 @@ class WindowsHotkeyAPI:
             wintypes.HWND,
             ctypes.POINTER(wintypes.DWORD),
         )
+        self._gui = _bind(
+            user,
+            "GetGUIThreadInfo",
+            ctypes.c_int32,
+            ctypes.c_uint32,
+            ctypes.POINTER(GuiThreadInfo),
+        )
+        self._child = _bind(
+            user, "IsChild", ctypes.c_int32, ctypes.c_void_p, ctypes.c_void_p
+        )
         self._key_scan = _bind(
             user,
             "VkKeyScanExW",
@@ -87,8 +100,11 @@ class WindowsHotkeyAPI:
 
     def _translate(self, modifiers: int, key: int | str) -> tuple[int, int]:
         if isinstance(key, str):
-            hwnd = self._foreground()
+            hwnd = int(self._foreground() or 0)
             thread = self._window_thread(hwnd, None) if hwnd else 0
+            window = typing_window(hwnd, thread, self._gui, self._child)
+            if window != hwnd:
+                thread = self._window_thread(window, None) or thread
             translated = int(self._key_scan(key, self._layout(thread)))
             if translated == -1 or translated & 0xFF00 & ~0x0700:
                 raise ValueError("shortcut key is unavailable in the keyboard layout")
@@ -104,6 +120,7 @@ class WindowsHotkeyAPI:
     def _refresh(self) -> None:
         if self._preferred is None:
             return
+        self._altgr.check()
         try:
             binding = self._translate(*self._preferred)
         except ValueError:
@@ -111,6 +128,13 @@ class WindowsHotkeyAPI:
             # represent the configured character. The worker retries later.
             self._release()
             raise
+        if binding[0] & (MOD_CONTROL | MOD_ALT) == MOD_CONTROL | MOD_ALT:
+            self._altgr.start(self._release)
+            if self._altgr.active:
+                self._release()
+                return
+        else:
+            self._altgr.close()
         if binding == self._binding:
             return
         self._release()
@@ -127,6 +151,9 @@ class WindowsHotkeyAPI:
         """Refresh the foreground mapping and return one current activation."""
         if self._preferred is None:
             return None
+        # Low-level modifier hooks are delivered through message retrieval.
+        # Pump even while AltGr temporarily suspends the registered hotkey.
+        self._peek(ctypes.byref(Message()), None, 0, 0, 0)
         self._refresh()
         if self._binding is None:
             return None
@@ -141,7 +168,10 @@ class WindowsHotkeyAPI:
     def unregister(self) -> None:
         """Release the hotkey on the same thread that registered it."""
         self._preferred = None
-        self._release()
+        try:
+            self._release()
+        finally:
+            self._altgr.close()
 
     def _release(self) -> None:
         if self._binding is None:

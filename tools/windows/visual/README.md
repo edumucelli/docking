@@ -23,6 +23,7 @@ python -m tools.windows.visual.runtime_pin_smoke --output artifacts/windows/runt
 python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
 python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
 python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts
+python -m tools.windows.visual.input_profile_smoke --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --output artifacts/windows/explorer-pin
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut installed --output artifacts/windows/installed-shortcut
 python -m tools.windows.visual.runtime_pin_smoke --explorer-drop --shortcut unlisted --output artifacts/windows/unlisted-shortcut

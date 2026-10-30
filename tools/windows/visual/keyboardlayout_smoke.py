@@ -481,6 +481,428 @@ def main():
                 )
                 close_search()
 
+            def verify_altgr():
+                from docking.platform.keyboard import text_modifier_active
+
+                search = shared["ui"].search
+                attempt = {"stage": "binding", "capture_focus": []}
+                report["altgr"] = attempt
+                publish()
+
+                def configure(shortcut):
+                    search._config.global_search_shortcut = shortcut
+                    search.refresh_settings()
+
+                def bound():
+                    return call(
+                        lambda: (
+                            search.shortcut_status is not None
+                            and search.shortcut_status.state
+                            is GlobalShortcutsState.BOUND
+                        )
+                    )
+
+                capture_window = None
+                try:
+                    call(lambda: configure("CTRL+ALT+e"))
+                    native.wait_for(bound, "AltGr conflict shortcut did not bind")
+                    focus_editor()
+                    native.key(0x41, control=True)
+                    native.key(0x08)
+                    native.scan(0x12, altgr=True)
+                    native.key(0x53, control=True)
+                    native.wait_for(
+                        lambda: document.read_text(encoding="utf-8-sig") == "€",
+                        "Physical AltGr was consumed by the Ctrl+Alt shortcut",
+                    )
+                    assert search_window() is None
+                    # The same shortcut must resume after releasing physical right Alt.
+                    open_search(0x45)
+                    native.key(0x41, control=True)
+                    native.key(0x08)
+                    native.scan(0x12, altgr=True)
+                    native.wait_for(
+                        lambda: (
+                            call(lambda: search.window.search_entry.get_text()) == "€"
+                        ),
+                        "Search did not preserve physical AltGr text",
+                    )
+                    assert search_window() is not None
+
+                    def build_capture():
+                        from docking.search.ui.shortcut_capture import (
+                            ShortcutCaptureButton,
+                        )
+
+                        window = Gtk.Window(title="Docking owned shortcut capture")
+                        window.set_transient_for(search.window.window)
+                        window.set_keep_above(True)
+                        window.set_skip_taskbar_hint(True)
+                        capture = ShortcutCaptureButton()
+                        window.add(capture)
+                        window.set_default_size(360, 120)
+                        window.show_all()
+                        window.present()
+                        capture.begin_capture()
+                        return window, capture
+
+                    capture_window, capture = call(build_capture)
+                    mapped = native.wait_for(
+                        lambda: next(
+                            (
+                                w
+                                for w in native.windows(os.getpid())
+                                if w["title"] == "Docking owned shortcut capture"
+                            ),
+                            None,
+                        ),
+                        "Shortcut capture did not map",
+                    )
+                    left, top, right, bottom = mapped["rect"]
+                    x, y = (left + right) / 2, (top + bottom) / 2
+                    expected = mapped["hwnd"]
+                    async_key_state = bind(
+                        user, "GetAsyncKeyState", ctypes.c_int16, ctypes.c_int32
+                    )
+
+                    def capture_probe():
+                        state = call(
+                            lambda: {
+                                "capturing": capture.capturing,
+                                "shortcut": capture.get_shortcut(),
+                                "has_focus": capture.has_focus(),
+                                "gtk_focus_is_capture": capture_window.get_focus()
+                                == capture,
+                                "queued_altgr": text_modifier_active(),
+                            }
+                        )
+                        state.update(
+                            capture_hwnd=expected,
+                            foreground_hwnd=int(native.user.GetForegroundWindow() or 0),
+                            hit_hwnd=int(native.window_at(x, y) or 0),
+                            physical_altgr=bool(async_key_state(0xA5) & 0x8000),
+                        )
+                        return state
+
+                    def capture_ready():
+                        return (
+                            native.user.GetForegroundWindow() == expected
+                            and native.window_at(x, y) == expected
+                            and call(capture.has_focus)
+                        )
+
+                    def require_capture_focus(stage):
+                        try:
+                            native.wait_for(
+                                capture_ready,
+                                "Capture fixture did not own native and GTK focus",
+                            )
+                        finally:
+                            attempt["capture_focus"].append(
+                                {
+                                    "stage": stage,
+                                    **capture_probe(),
+                                }
+                            )
+                            publish()
+
+                    attempt["stage"] = "capture focus"
+                    attempt["capture_mapped"] = capture_probe()
+                    publish()
+                    native.wait_for(
+                        lambda: native.window_at(x, y) == expected,
+                        "Capture fixture was covered by another native window",
+                    )
+                    native.click(x, y)
+                    call(capture.begin_capture)
+                    require_capture_focus("before_altgr")
+                    attempt["stage"] = "capture AltGr"
+                    publish()
+                    native.scan(0x12, altgr=True)
+                    native.wait_for(
+                        lambda: (
+                            not async_key_state(0xA5) & 0x8000
+                            and not call(text_modifier_active)
+                        ),
+                        "Physical AltGr release did not drain before the next chord",
+                    )
+                    attempt["capture_after_altgr"] = capture_probe()
+                    publish()
+                    assert attempt["capture_after_altgr"]["capturing"]
+                    assert not attempt["capture_after_altgr"]["shortcut"]
+                    require_capture_focus("before_ctrl_alt")
+                    attempt["stage"] = "capture Ctrl+Alt"
+                    publish()
+                    native.key(0x4B, control=True, alt=True)
+                    try:
+                        native.wait_for(
+                            lambda: call(capture.get_shortcut) == "CTRL+ALT+k",
+                            "Ordinary Ctrl+Alt did not capture after AltGr",
+                        )
+                    finally:
+                        attempt["capture_after_ctrl_alt"] = capture_probe()
+                        publish()
+                    attempt.update(
+                        stage="complete",
+                        editor=document.read_text(encoding="utf-8-sig"),
+                        search=call(lambda: search.window.search_entry.get_text()),
+                        capture_ignored_text=True,
+                        capture_ctrl_alt=call(capture.get_shortcut),
+                        shortcut_resumed=True,
+                    )
+                    ImageGrab.grab(all_screens=True).save(output / "native-altgr.png")
+                finally:
+                    if capture_window is not None:
+                        call(capture_window.destroy)
+                    focus_editor()
+                    call(lambda: configure("CTRL+ALT+space"))
+                    native.wait_for(
+                        bound, "Search shortcut did not restore after AltGr"
+                    )
+                    if search_window() is not None:
+                        call(search.window.hide)
+                publish()
+
+            def verify_search_profiles():
+                from tools.windows.visual.input_profile_fixture import (
+                    TELEX_IDENTIFIER,
+                    text_profile_fixtures,
+                )
+
+                journal = {"composition": []}
+                report["search_profiles"] = journal
+                search = shared["ui"].search
+
+                def restore_keyboard():
+                    state = applet._backend.query()
+                    applet._backend.switch(wanted["us"], context=state.context)
+                    native.wait_for(
+                        lambda: applet._backend.query().active == wanted["us"],
+                        "Profile fixture did not restore the initial keyboard",
+                    )
+
+                def exercise(profile, entry, window, mapped, attempt):
+                    preedit = []
+                    subscription = call(
+                        lambda: entry.connect(
+                            "preedit-changed",
+                            lambda widget, text: preedit.append(text),
+                        )
+                    )
+                    left, top, right, bottom = mapped["rect"]
+                    x, y = (left + right) / 2, (top + bottom) / 2
+
+                    def observation():
+                        return call(
+                            lambda: {
+                                "text": entry.get_text(),
+                                "preedit": tuple(preedit),
+                                "visible": window.get_visible(),
+                                "has_focus": entry.has_focus(),
+                            }
+                        )
+
+                    def focused():
+                        return (
+                            native.user.GetForegroundWindow() == mapped["hwnd"]
+                            and native.window_at(x, y) == mapped["hwnd"]
+                            and call(entry.has_focus)
+                        )
+
+                    try:
+                        native.wait_for(
+                            focused, "IME fixture did not own native/GTK focus"
+                        )
+                        state = applet._backend.query()
+                        applet._backend.switch(profile.code, context=state.context)
+                        native.wait_for(
+                            lambda: applet._backend.query().active == profile.code,
+                            "IME fixture did not select the requested profile GUID",
+                        )
+                        native.wait_for(
+                            focused, "Profile activation changed fixture focus"
+                        )
+                        attempt["profile_readback"] = applet._backend.query().active
+                        attempt["foreground_hwnd"] = int(
+                            native.user.GetForegroundWindow()
+                        )
+                        attempt["fixture_hwnd"] = mapped["hwnd"]
+                        attempt["hit_hwnd"] = int(native.window_at(x, y) or 0)
+                        attempt["stage"] = "compose"
+                        publish()
+                        call(lambda: entry.set_text(""))
+                        native.scan(0x1E)
+                        native.scan(
+                            0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
+                        )
+                        native.wait_for(
+                            lambda: call(lambda: bool(preedit and preedit[-1])),
+                            "IME fixture did not compose before Return",
+                        )
+                        before = observation()
+                        attempt.update(
+                            stage="commit",
+                            text_before_commit=before["text"],
+                            preedit_before_commit=before["preedit"],
+                        )
+                        publish()
+                        native.key(0x0D)
+                        try:
+                            native.wait_for(
+                                lambda: call(entry.get_text).strip() == "â",
+                                "IME fixture did not commit composed â on Return",
+                            )
+                            native.wait_for(
+                                lambda: call(lambda: bool(preedit) and not preedit[-1]),
+                                "Return did not end fixture preedit",
+                            )
+                        finally:
+                            after = observation()
+                            attempt.update(
+                                text_after_commit=after["text"],
+                                visible_after_commit=after["visible"],
+                                focused_after_commit=after["has_focus"],
+                                preedit_after_commit=after["preedit"],
+                                enter_committed_preedit=True,
+                            )
+                            publish()
+                        assert attempt["visible_after_commit"]
+                        assert after["has_focus"]
+                        native.wait_for(focused, "IME commit changed fixture focus")
+                        attempt["text_before_new_preedit"] = after["text"]
+                        native.scan(0x1E)
+                        native.wait_for(
+                            lambda: call(lambda: bool(preedit and preedit[-1])),
+                            "IME fixture did not start another preedit",
+                        )
+                        before = observation()
+                        attempt.update(
+                            stage="cancel",
+                            text_while_preediting=before["text"],
+                            preedit_before_cancel=before["preedit"],
+                        )
+                        publish()
+                        native.key(0x1B)
+                        try:
+                            native.wait_for(
+                                lambda: call(lambda: bool(preedit) and not preedit[-1]),
+                                "Escape did not end fixture preedit",
+                            )
+                            # Observe settled GTK output; conversion may commit
+                            # raw input instead of rolling back the prior word.
+                            time.sleep(0.3)
+                        finally:
+                            after = observation()
+                            attempt.update(
+                                text_after_cancel=after["text"],
+                                visible_after_cancel=after["visible"],
+                                focused_after_cancel=after["has_focus"],
+                                preedit_after_cancel=after["preedit"],
+                            )
+                            publish()
+                        assert attempt["visible_after_cancel"]
+                        assert after["has_focus"]
+                        native.wait_for(
+                            focused, "IME cancellation changed fixture focus"
+                        )
+                        attempt.update(
+                            text=after["text"],
+                            escape_cancelled_preedit=True,
+                            stage="complete",
+                        )
+                        publish()
+                    finally:
+                        attempt["final_observation"] = observation()
+                        publish()
+                        call(lambda: entry.disconnect(subscription))
+
+                def build_reference():
+                    # This control has only GTK's default key/IME handlers. It
+                    # shares the initialized process, never Search's handlers.
+                    window = Gtk.Window(
+                        title="Docking owned plain SearchEntry reference"
+                    )
+                    window.set_default_size(680, 160)
+                    window.set_keep_above(True)
+                    window.set_skip_taskbar_hint(True)
+                    entry = Gtk.SearchEntry()
+                    window.add(entry)
+                    window.show_all()
+                    window.present()
+                    entry.grab_focus()
+                    return window, entry
+
+                with text_profile_fixtures(journal, publish) as profiles:
+                    for profile in profiles:
+                        attempt = {
+                            "profile": profile.code,
+                            "native_reference": (
+                                "plain Gtk.SearchEntry in the same process"
+                            ),
+                            "reference": {},
+                        }
+                        journal["composition"].append(attempt)
+                        publish()
+                        reference_window, reference_entry = call(build_reference)
+                        try:
+                            mapped = native.wait_for(
+                                lambda: next(
+                                    (
+                                        w
+                                        for w in native.windows(os.getpid())
+                                        if w["title"]
+                                        == "Docking owned plain SearchEntry reference"
+                                    ),
+                                    None,
+                                ),
+                                "Plain SearchEntry reference did not map",
+                            )
+                            left, top, right, bottom = mapped["rect"]
+                            native.click((left + right) / 2, (top + bottom) / 2)
+                            exercise(
+                                profile,
+                                reference_entry,
+                                reference_window,
+                                mapped,
+                                attempt["reference"],
+                            )
+                        finally:
+                            try:
+                                restore_keyboard()
+                            finally:
+                                call(reference_window.destroy)
+                        focus_editor()
+                        open_search(0x20)
+                        try:
+                            mapped = search_window()
+                            assert mapped is not None
+                            exercise(
+                                profile,
+                                search.window.search_entry,
+                                search.window.window,
+                                mapped,
+                                attempt,
+                            )
+                            expected = attempt["reference"]["text_after_cancel"]
+                            attempt["native_expected_after_cancel"] = expected
+                            attempt["stage"] = "compare"
+                            publish()
+                            assert (
+                                attempt["text_after_commit"]
+                                == attempt["reference"]["text_after_commit"]
+                            ), "Search Return differed from the default GTK reference"
+                            assert attempt["text_after_cancel"] == expected, (
+                                "Search Escape differed from the default GTK reference"
+                            )
+                            attempt["stage"] = "complete"
+                            ImageGrab.grab(all_screens=True).save(
+                                output / f"search-profile-{profile.identifier}.png"
+                            )
+                        finally:
+                            restore_keyboard()
+                            close_search()
+                        publish()
+
             def refresh_dead_key_metadata():
                 # A first metadata query must preserve an in-progress
                 # dead key even when layouts have not yet been cached.
@@ -488,7 +910,7 @@ def main():
                 metadata = {}
 
                 def refresh_metadata():
-                    backend = WindowsKeyboardBackend(api=api)
+                    backend = WindowsKeyboardBackend()
                     try:
                         return backend.query()
                     finally:
@@ -556,8 +978,10 @@ def main():
                 physical_character(name, expected)
                 if args.search_input and name == "fr":
                     physical_character("fr-dead", "ê", (0x1A, 0x12))
+                    verify_altgr()
                 snapshot("native-" + name)
             if args.search_input:
+                verify_search_profiles()
                 search = shared["ui"].search
                 key_scan = bind(
                     user,
@@ -652,9 +1076,12 @@ def main():
 
             # An actual Windows change, outside the applet, must reach polling.
             focus_editor()
+            context = api.foreground()
+            assert context is not None
             assert api.request(
-                api.foreground(),
+                context,
                 next(h for h in loaded_before if _code(h) == wanted["us"]),
+                threading.Event(),
             )
             wait_layout(wanted["us"])
             snapshot("native-external-us")
@@ -746,7 +1173,10 @@ def main():
                 try:
                     focus_editor()
                     context = api.foreground()
-                    assert api.request(context, shared["editor_original"])
+                    assert context is not None
+                    assert api.request(
+                        context, shared["editor_original"], threading.Event()
+                    )
                     native.wait_for(
                         lambda: api.active(context.thread) == shared["editor_original"],
                         "Notepad input layout did not restore",

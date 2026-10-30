@@ -19,7 +19,7 @@ and NSIS packages. Compile translations before building the application wheel:
 ```sh
 bash tools/i18n.sh --compile
 python -m build --wheel --no-isolation
-python -m tools.windows.bundle --wheel dist/docking-2.28.0-py3-none-any.whl \
+python -m tools.windows.bundle --wheel dist/docking-2.28.0-py3-none-win_amd64.mingw_x86_64_ucrt_gnu.whl \
   --output artifacts/windows/Docking \
   --archive dist/docking-2.28.0-windows-x86_64.zip
 python -m tools.windows.installer --archive dist/docking-2.28.0-windows-x86_64.zip \
@@ -37,6 +37,13 @@ developer's entire Python installation. Dependency versions, the wheel checksum,
 redistribution notices, and a SHA-256 file inventory travel with the application.
 The WebView2 SDK is downloaded and verified using `tools.windows.webview2_setup`;
 pass `--webview2-package path/to/verified-sdk.nupkg` for an offline build.
+
+Windows wheels include x64 and x86 input-thread helpers compiled by the UCRT64
+GCC/binutils toolchain. The helpers use Windows system libraries and require no
+compiler or MSYS2 runtime on the installed machine. Their wheel tags accept both
+standard Windows x64 Python and MSYS2 UCRT64 Python without a Python-version ABI
+dependency. Editable source installs also compile both helpers; source archives
+and Linux/BSD wheels exclude generated Windows DLLs.
 
 The native launcher uses the interpreter beside it, in isolated mode. Runtime
 resources are located relative to that interpreter, including after moving the

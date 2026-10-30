@@ -81,6 +81,8 @@ jobs:
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Verify Search input and shortcut recovery across keyboard layouts
         run: python -m tools.windows.visual.keyboardlayout_smoke --search-input --output artifacts/windows/search-layouts
+      - name: Verify installed TSF profiles and x64/x86 composition
+        run: python -m tools.windows.visual.input_profile_smoke --installed-root artifacts/windows/runtime --output artifacts/windows/input-profiles
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
           python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
@@ -116,6 +118,7 @@ jobs:
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/
             artifacts/windows/search-layouts/
+            artifacts/windows/input-profiles/
             artifacts/windows/pairing/
             artifacts/windows/bluetooth/
             artifacts/windows/bundle-preflight/*.json
