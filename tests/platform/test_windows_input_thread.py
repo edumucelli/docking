@@ -324,6 +324,9 @@ def test_native_failure_reports_the_validation_stage_and_observed_profile_flags(
     job.close.side_effect = lambda: setattr(child, "returncode", 0)
     with pytest.raises(OSError) as error:
         _dispatch_host(client, cancelled, tmp_path, value, profile)
+    assert isinstance(error.value, mod.InputRequestError)
+    assert error.value.diagnostic.phase == 46
+    assert error.value.diagnostic.hresult == 0x80070005
     assert error.value.errno == 0x80070005
     assert error.value.strerror == (
         "Input-thread request failed: phase=46 kind=1 flags=0x00000000"
@@ -416,3 +419,31 @@ def test_cancellation_during_hook_installation_never_posts_activation(
     functions["UnhookWindowsHookEx"].assert_called_once_with(99)
     assert trace == ["unhook", "atom-delete"]
     assert value.cancelled
+
+
+def test_request_diagnostic_is_an_immutable_copy_of_native_protocol():
+    from dataclasses import FrozenInstanceError
+
+    request = mod.Request()
+    request.phase, request.result, request.machine = 111, -2147023673, 0x8664
+    request.state, request.dispatched = 2, 1
+    diagnostic = mod.InputRequestDiagnostic.read(request)
+    request.phase = 32
+    assert diagnostic.phase == 111 and diagnostic.hresult == 0x800704C7
+    assert diagnostic.machine == 0x8664 and diagnostic.dispatched
+    with pytest.raises(FrozenInstanceError):
+        diagnostic.phase = 0
+
+
+def test_controller_error_preserves_winerror_rather_than_translated_errno(
+    monkeypatch, tmp_path
+):
+    client, cancelled, child, job, _trace, _functions = _host_dispatch(monkeypatch)
+    error = OSError(22, "Win32 invalid parameter")
+    error.winerror = 87
+    job.assign.side_effect = error
+    with pytest.raises(mod.InputRequestError) as failed:
+        _dispatch_host(client, cancelled, tmp_path, mod.Request())
+    assert failed.value.errno == 87 and failed.value.diagnostic.phase == 200
+    assert failed.value.__cause__ is error
+    assert child.terminate.called

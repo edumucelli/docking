@@ -86,6 +86,45 @@ class InputSnapshot:
     sentence: int
 
 
+@dataclass(frozen=True)
+class InputRequestDiagnostic:
+    """Bounded protocol evidence; contains no typed text or window titles."""
+
+    operation: int
+    machine: int
+    state: int
+    phase: int
+    hresult: int
+    dispatched: bool
+    authorized: bool
+    requested_layout: int
+    observed_layout: int
+
+    @classmethod
+    def read(cls, value: Request) -> InputRequestDiagnostic:
+        return cls(
+            value.operation,
+            value.machine,
+            value.state,
+            value.phase,
+            value.result & 0xFFFFFFFF,
+            bool(value.dispatched),
+            bool(value.authorized),
+            value.requested.layout,
+            value.observed,
+        )
+
+
+class InputRequestError(OSError):
+    """A native request failed, retaining the exact protocol boundary."""
+
+    def __init__(
+        self, code: int | None, message: str, diagnostic: InputRequestDiagnostic
+    ):
+        super().__init__(code, message)
+        self.diagnostic = diagnostic
+
+
 def _profile(value: WireProfile) -> InputProfile:
     native = NativeProfile()
     native.kind, native.language = value.kind, value.language
@@ -285,6 +324,7 @@ class InputThread:
             elif layout is not None:
                 value.requested.kind, value.requested.language = 2, layout & 0xFFFF
                 value.requested.layout = layout & 0xFFFFFFFF
+            value.phase = 200  # Controller atom/host setup.
             atom = bind(kernel, "GlobalAddAtomW", ctypes.c_uint16, ctypes.c_wchar_p)(
                 name
             )
@@ -313,6 +353,7 @@ class InputThread:
                 if cancelled.is_set() or time.monotonic() >= deadline:
                     return None
                 value.authorized = 1
+                value.phase = 201  # Controller hook installation.
                 hook = bind(
                     user, "SetWindowsHookExW", _P, ctypes.c_int, _P, _P, _DWORD
                 )(
@@ -323,11 +364,15 @@ class InputThread:
                 )
                 if not hook:
                     raise ctypes.WinError(ctypes.get_last_error())
+                value.phase = 202  # Registered-message lookup.
                 message = bind(
                     user, "RegisterWindowMessageW", _DWORD, ctypes.c_wchar_p
                 )("Docking.Input.Profile.v1")
                 if cancelled.is_set() or time.monotonic() >= deadline:
                     return None
+                value.phase = (
+                    203  # Set before posting: native execution may start immediately.
+                )
                 if not message or not bind(
                     user,
                     "PostMessageW",
@@ -360,13 +405,26 @@ class InputThread:
             if cancelled.is_set():
                 return None
             if value.result < 0:
-                raise OSError(
+                raise InputRequestError(
                     value.result & 0xFFFFFFFF,
                     "Input-thread request failed: "
                     f"phase={value.phase} kind={value.requested.kind} "
                     f"flags=0x{value.requested.flags:08x}",
+                    InputRequestDiagnostic.read(value),
                 )
             return _snapshot(Request.from_buffer_copy(bytes(value)))
+        except OSError as error:
+            if isinstance(error, InputRequestError):
+                raise
+            # WinError.errno is a translated C errno. Keep the actual Win32
+            # code at this external exception boundary when one is available.
+            try:
+                code = error.winerror
+            except AttributeError:
+                code = error.errno
+            raise InputRequestError(
+                code, str(error), InputRequestDiagnostic.read(value)
+            ) from error
         finally:
             value.cancelled = 1
             # Each release must still run if an earlier close/wait fails.

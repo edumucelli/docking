@@ -71,12 +71,23 @@ static bool current(Request *r, bool foreground) {
     DWORD pid = 0, root_pid = 0;
     DWORD thread = GetWindowThreadProcessId(window(r->window), &pid);
     DWORD root_thread = GetWindowThreadProcessId(window(r->root), &root_pid);
-    if (r->cancelled || !r->authorized || r->machine != (sizeof(void *) == 8 ? 0x8664u : 0x14cu) ||
-        GetTickCount64() >= r->deadline ||
-        pid != r->pid || pid != GetCurrentProcessId() || thread != r->thread ||
-        thread != input_thread_id() || root_pid != r->root_pid || root_thread != r->root_thread ||
-        !IsWindowVisible(window(r->root)) ||
-        (r->window != r->root && !IsChild(window(r->root), window(r->window)))) return false;
+    // Stable diagnostic phases identify the rejected ownership boundary. The
+    // conditions and their HRESULT remain unchanged; no failed check is bypassed.
+    if (r->cancelled) { r->phase=101; return false; }
+    if (!r->authorized) { r->phase=102; return false; }
+    if (r->machine != (sizeof(void *) == 8 ? 0x8664u : 0x14cu)) {
+        r->phase=103; return false;
+    }
+    if (GetTickCount64() >= r->deadline) { r->phase=104; return false; }
+    if (pid != r->pid || pid != GetCurrentProcessId()) { r->phase=105; return false; }
+    if (thread != r->thread || thread != input_thread_id()) { r->phase=106; return false; }
+    if (root_pid != r->root_pid || root_thread != r->root_thread) {
+        r->phase=107; return false;
+    }
+    if (!IsWindowVisible(window(r->root)) ||
+        (r->window != r->root && !IsChild(window(r->root), window(r->window)))) {
+        r->phase=108; return false;
+    }
     HDESK desktop = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS);
     BOOL receiving = FALSE;
     DWORD needed = 0;
@@ -93,12 +104,13 @@ static bool current(Request *r, bool foreground) {
         }
     }
     if (desktop) CloseDesktop(desktop);
-    if (!accessible) return false;
+    if (!accessible) { r->phase=109; return false; }
     if (foreground) {
         GUITHREADINFO info = {};
         info.cbSize = sizeof(info);
-        if (GetForegroundWindow() != window(r->root) ||
-            !GetGUIThreadInfo(r->thread, &info) || info.hwndFocus != window(r->window)) return false;
+        if (GetForegroundWindow() != window(r->root)) { r->phase=110; return false; }
+        if (!GetGUIThreadInfo(r->thread, &info)) { r->phase=111; return false; }
+        if (info.hwndFocus != window(r->window)) { r->phase=112; return false; }
     }
     return true;
 }
@@ -331,7 +343,9 @@ extern "C" __declspec(dllexport) void CALLBACK Dispatch(HWND, HINSTANCE, char *a
     if (r) {
         while (!r->authorized && !r->cancelled && GetTickCount64() < r->deadline) Sleep(5);
         if (r->authorized && !r->cancelled && GetTickCount64() < r->deadline) {
+            r->phase=210;
             hook = SetWindowsHookExW(WH_GETMESSAGE, InputHook, module, r->thread);
+            if (hook) r->phase=211;
             if (!hook || !PostMessageW(window(r->window), RegisterWindowMessageW(message_name), atom, (LPARAM)r->nonce)) {
                 r->result = HRESULT_FROM_WIN32(GetLastError());
                 InterlockedExchange(&r->state, 2);

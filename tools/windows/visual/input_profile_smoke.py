@@ -230,6 +230,7 @@ def main(monitor) -> None:
         thread_snapshot,
     )
     from tools.windows.visual.input_fixture import IMEMode, ime_conversion
+    from tools.windows.visual.input_oracle import oracle
     from tools.windows.visual.input_profile_fixture import (
         IDENTIFIERS,
         TELEX_IDENTIFIER,
@@ -238,7 +239,11 @@ def main(monitor) -> None:
         profile_enabled,
         set_profile_enabled,
     )
-    from tools.windows.visual.keyboardlayout_smoke import oracle
+    from tools.windows.visual.input_requests import (
+        CleanupJournal,
+        release_fixture_layouts,
+        trace_requests,
+    )
 
     report: dict = {
         "ok": False,
@@ -279,7 +284,7 @@ def main(monitor) -> None:
     native = WindowsDesktop()
     api = WindowsKeyboardAPI()
     backend = WindowsKeyboardBackend()
-    baseline = oracle()
+    baseline = oracle(preferences_only=True)
     report["baseline"] = baseline
     loaded_before = {handle & 0xFFFFFFFF for handle in api.layouts()}
     caller_layout = api.active(0)
@@ -298,7 +303,12 @@ def main(monitor) -> None:
     report["loaded_before"] = [f"{handle:08x}" for handle in sorted(loaded_before)]
     report["caller_layout_before"] = f"{caller_layout & 0xFFFFFFFF:08x}"
     save()
-    with apartment(), ExitStack() as scope:
+    errors: list[Exception] = []
+    with (
+        trace_requests(report.setdefault("request_trace", {}), save),
+        apartment(),
+        ExitStack() as scope,
+    ):
         report["controller_thread"] = thread_snapshot(0)
         save()
         service = TextProfiles(scope)
@@ -715,17 +725,24 @@ def main(monitor) -> None:
             report["composition_failures"] = _composition_failures(report["stages"])
             save()
         except Exception as error:
+            errors.append(error)
             report["ok"], report["error"] = False, repr(error)
-            context = api.foreground()
-            if context is not None:
-                report["failure_environment"] = target_facts(
-                    context, WindowsInputService()
-                )
-            save()
-            raise
+            cleanup = CleanupJournal(report, errors, save)
+
+            def failure_environment():
+                context = api.foreground()
+                if context is not None:
+                    report["failure_environment"] = target_facts(
+                        context, WindowsInputService()
+                    )
+
+            cleanup.attempt("failure-environment", failure_environment)
         finally:
-            backend.stop()
-            try:
+            cleanup = CleanupJournal(report, errors, save)
+            cleanup.attempt("backend-stop", backend.stop)
+
+            def close_editor():
+                nonlocal owned_editor, editor, process
                 if owned_editor is not None:
                     owned_editor.close()
                     owned_editor = None
@@ -745,56 +762,112 @@ def main(monitor) -> None:
                 if process is not None:
                     process.wait(timeout=10)
                     process = None
-            finally:
-                try:
-                    record_fixture_layouts()
-                    with ExitStack() as restore:
-                        for profile in owned:
-                            restore.callback(enable, profile, False)
-                finally:
-                    report["owned_classic_released"] = owned_classic is None
-                    if owned_classic is not None and editor is None and process is None:
-                        report["owned_classic_released"] = bool(unload(owned_classic))
-                    controller_loaded_after = {
-                        handle & 0xFFFFFFFF for handle in api.layouts()
-                    }
-                    report["controller_loaded_after"] = [
-                        f"{handle:08x}" for handle in sorted(controller_loaded_after)
-                    ]
-                    report["loaded_set_restored"] = (
-                        controller_loaded_after == loaded_before
-                    )
-                    report["caller_layout_restored"] = (
-                        api.active(0) & 0xFFFFFFFF == caller_layout & 0xFFFFFFFF
-                    )
-                    save()
+                report["editors_closed"] = True
+
+            cleanup.attempt("owned-editors", close_editor)
+            cleanup.attempt("record-owned-layouts", record_fixture_layouts)
+            for profile in reversed(owned):
+                cleanup.attempt(
+                    "disable-profile-" + profile.identifier,
+                    lambda profile=profile: enable(profile, False),
+                )
+
+            def restored_profiles():
                 report["enabled_after"] = {p.code: enabled(p) for p in profiles}
                 report["profiles_restored"] = (
                     report["enabled_after"] == report["original_enabled"]
                 )
-                report["restored"] = oracle()
+                assert report["profiles_restored"], (
+                    "Fixture profile settings did not restore"
+                )
+
+            cleanup.attempt("profile-state", restored_profiles)
+
+            # No compatibility layout is released while the tool still holds
+            # any TSF service/manager interface or an owned editor input queue.
+            def release_interfaces():
+                scope.close()
+                report["text_service_references_released"] = True
+
+            cleanup.attempt("text-service-references", release_interfaces)
+
+            def release_classic():
+                report["owned_classic_released"] = owned_classic is None
+                if owned_classic is not None:
+                    assert editor is None and process is None and owned_editor is None
+                    report["owned_classic_released"] = bool(unload(owned_classic))
+                    assert report["owned_classic_released"], (
+                        "Owned French layout did not unload"
+                    )
+
+            cleanup.attempt("owned-classic-layout", release_classic)
+            cleanup.attempt(
+                "owned-compatibility-layouts",
+                lambda: release_fixture_layouts(
+                    owned=owned_fixture_layouts,
+                    baseline=loaded_before,
+                    loaded=api.layouts,
+                    unload=unload,
+                    targets_closed=editor is None
+                    and process is None
+                    and owned_editor is None,
+                    profiles_restored=(
+                        report.get("profiles_restored", False)
+                        and report.get("text_service_references_released", False)
+                    ),
+                    journal=report,
+                ),
+            )
+
+            def controller_restoration():
+                controller_loaded_after = {
+                    handle & 0xFFFFFFFF for handle in api.layouts()
+                }
+                report["controller_loaded_after"] = [
+                    f"{h:08x}" for h in sorted(controller_loaded_after)
+                ]
+                report["loaded_set_restored"] = controller_loaded_after == loaded_before
+                report["caller_layout_restored"] = (
+                    api.active(0) & 0xFFFFFFFF == caller_layout & 0xFFFFFFFF
+                )
+                report["unexpected_controller_layouts"] = [
+                    f"{h:08x}" for h in sorted(controller_loaded_after - loaded_before)
+                ]
+                report["missing_controller_layouts"] = [
+                    f"{h:08x}" for h in sorted(loaded_before - controller_loaded_after)
+                ]
+                assert report["loaded_set_restored"], (
+                    "Controller loaded set did not restore"
+                )
+                assert report["caller_layout_restored"], "Caller layout did not restore"
+
+            cleanup.attempt("controller-restoration", controller_restoration)
+
+            def independent_restoration():
+                report["restored"] = oracle(preferences_only=True)
                 report["independent_loaded_set_restored"] = {
                     entry["code"] for entry in report["restored"]["loaded"]
                 } == {entry["code"] for entry in baseline["loaded"]}
-                retained = (
-                    owned_fixture_layouts if report["profiles_restored"] else set()
-                )
-                extras = controller_loaded_after - loaded_before
-                report["retained_owned_fixture_layouts"] = [
-                    f"{handle:08x}" for handle in sorted(extras & retained)
-                ]
-                report["unexpected_controller_layouts"] = [
-                    f"{handle:08x}" for handle in sorted(extras - retained)
-                ]
-                report["missing_controller_layouts"] = [
-                    f"{handle:08x}"
-                    for handle in sorted(loaded_before - controller_loaded_after)
-                ]
                 report["preferences_restored"] = all(
                     baseline[key] == report["restored"][key]
                     for key in ("default", "preload", "substitutes", "wheel_route")
                 )
-                save()
+                assert report["preferences_restored"], (
+                    "Independent input preferences did not restore"
+                )
+                assert report["independent_loaded_set_restored"], (
+                    "Independent loaded set did not restore"
+                )
+
+            cleanup.attempt("independent-restoration", independent_restoration)
+            cleanup.attempt("final-report", save)
+    if errors:
+        report.setdefault("error", repr(errors[0]))
+        try:
+            save()
+        except Exception as error:
+            errors.append(error)
+        raise errors[0]
     try:
         assert report["preferences_restored"]
         assert report["owned_classic_released"] and report["profiles_restored"]

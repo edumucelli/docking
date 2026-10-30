@@ -320,3 +320,43 @@ def test_module_import_is_independent_of_docking_gi_and_site_customizations():
         check=True,
         timeout=30,
     )
+
+
+def test_preferences_snapshot_omits_foreground_state_without_querying_gui(native):
+    user, registry, _state = native
+    user.GetGUIThreadInfo.side_effect = AssertionError("No GUI anchor exists")
+    user.GetForegroundWindow.side_effect = AssertionError(
+        "Foreground must not be needed"
+    )
+    result = probe.snapshot(user, registry, preferences_only=True)
+    assert "active" not in result
+    assert probe.validate(result, preferences_only=True) is result
+    for name in (
+        "GetForegroundWindow",
+        "GetWindowThreadProcessId",
+        "GetGUIThreadInfo",
+        "GetKeyboardLayout",
+    ):
+        vars(user)[name].assert_not_called()
+    assert result["default"] == "f0010409" and len(result["loaded"]) == 2
+    with pytest.raises(ValueError, match="schema"):
+        probe.validate(result)
+
+
+def test_preferences_subprocess_mode_does_not_accept_manufactured_active_hkl(
+    subprocess_result,
+):
+    expected, completed, run = subprocess_result
+    with pytest.raises(ValueError, match="schema"):
+        probe.oracle(preferences_only=True)
+    preference_state = {k: v for k, v in expected.items() if k != "active"}
+    completed.stdout = json.dumps(preference_state)
+    assert probe.oracle(preferences_only=True) == preference_state
+    assert run.call_args.args[0][-2:] == ["--snapshot", "--preferences-only"]
+
+
+def test_preference_mode_still_requires_exact_native_preferences(native):
+    user, registry, _state = native
+    user.SystemParametersInfoW.side_effect = lambda *_: 0
+    with pytest.raises(probe.OracleError, match="SPI_GETDEFAULTINPUTLANG"):
+        probe.snapshot(user, registry, preferences_only=True)

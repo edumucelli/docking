@@ -4,6 +4,8 @@ Schema 1 retains active/default low-32-bit HKL codes, wheel routing and every
 HKCU Preload/Substitutes value. Loaded rows contain only ``code``: names are
 not needed to compare the independent process's loaded set. No production
 package, GUI toolkit, shell, compiler, COM or input setter is imported/called.
+Preference-only snapshots explicitly omit active foreground state; they remain
+valid before the first owned GUI queue exists and after the final one closes.
 """
 
 from __future__ import annotations
@@ -82,7 +84,7 @@ def registry_values(registry, path):
         return values
 
 
-def snapshot(user, registry):
+def snapshot(user, registry, *, preferences_only=False):
     layouts = _bind(user, "GetKeyboardLayoutList", c.c_int32, c.c_int32, c.POINTER(_P))
     loaded = None
     for _ in range(3):
@@ -98,22 +100,26 @@ def snapshot(user, registry):
             break
     if loaded is None:
         raise OracleError("GetKeyboardLayoutList", 234)  # ERROR_MORE_DATA.
-    foreground = _bind(user, "GetForegroundWindow", _P)()
-    if not foreground:
-        raise OracleError("GetForegroundWindow", 1400)
-    thread_of = _bind(user, "GetWindowThreadProcessId", _U, _P, c.POINTER(_U))
-    pid = _U()
-    thread = _check(thread_of(foreground, c.byref(pid)), "GetWindowThreadProcessId")
-    info = GUIThreadInfo(size=c.sizeof(GUIThreadInfo))
-    _check(
-        _bind(user, "GetGUIThreadInfo", _B, _U, c.POINTER(GUIThreadInfo))(
-            thread, c.byref(info)
-        ),
-        "GetGUIThreadInfo",
-    )
-    if info.focus:
-        thread = _check(thread_of(info.focus, c.byref(pid)), "GetWindowThreadProcessId")
-    active = _code(_bind(user, "GetKeyboardLayout", _P, _U)(thread))
+    active = {}
+    if not preferences_only:
+        foreground = _bind(user, "GetForegroundWindow", _P)()
+        if not foreground:
+            raise OracleError("GetForegroundWindow", 1400)
+        thread_of = _bind(user, "GetWindowThreadProcessId", _U, _P, c.POINTER(_U))
+        pid = _U()
+        thread = _check(thread_of(foreground, c.byref(pid)), "GetWindowThreadProcessId")
+        info = GUIThreadInfo(size=c.sizeof(GUIThreadInfo))
+        _check(
+            _bind(user, "GetGUIThreadInfo", _B, _U, c.POINTER(GUIThreadInfo))(
+                thread, c.byref(info)
+            ),
+            "GetGUIThreadInfo",
+        )
+        if info.focus:
+            thread = _check(
+                thread_of(info.focus, c.byref(pid)), "GetWindowThreadProcessId"
+            )
+        active["active"] = _code(_bind(user, "GetKeyboardLayout", _P, _U)(thread))
     parameters = _bind(user, "SystemParametersInfoW", _B, _U, _U, _P, _U)
     default, wheel = _P(), _U()
     _check(parameters(0x59, 0, c.byref(default), 0), "SPI_GETDEFAULTINPUTLANG")
@@ -122,7 +128,7 @@ def snapshot(user, registry):
         "schema": 1,
         "pointer_bits": c.sizeof(_P) * 8,
         "loaded": loaded,
-        "active": active,
+        **active,
         "default": _code(default.value),
         "wheel_route": wheel.value,
         "preload": registry_values(registry, r"Keyboard Layout\Preload"),
@@ -143,17 +149,18 @@ def _constant(_value):
     raise ValueError("Non-finite oracle JSON value")
 
 
-def validate(value):
+def validate(value, *, preferences_only=False):
     expected = {
         "schema",
         "pointer_bits",
         "loaded",
-        "active",
         "default",
         "wheel_route",
         "preload",
         "substitutes",
     }
+    if not preferences_only:
+        expected.add("active")
     if not isinstance(value, dict) or set(value) != expected:
         raise ValueError("Invalid input oracle schema")
     if type(value["schema"]) is not int or value["schema"] != 1:
@@ -180,7 +187,7 @@ def validate(value):
             for row in loaded
         )
         or len({row["code"] for row in loaded}) != len(loaded)
-        or not code(value["active"])
+        or (not preferences_only and not code(value["active"]))
         or not code(value["default"])
         or type(value["wheel_route"]) is not int
         or not 0 <= value["wheel_route"] <= 0xFFFFFFFF
@@ -215,9 +222,12 @@ def validate(value):
     return value
 
 
-def oracle():
+def oracle(*, preferences_only=False):
+    command = [sys.executable, "-I", "-S", str(Path(__file__).resolve()), "--snapshot"]
+    if preferences_only:
+        command.append("--preferences-only")
     result = subprocess.run(
-        [sys.executable, "-I", "-S", str(Path(__file__).resolve()), "--snapshot"],
+        command,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         encoding="utf-8",
@@ -243,16 +253,24 @@ def oracle():
         raise OracleError(error["api"], error["code"])
     if result.returncode != 0:
         raise RuntimeError(f"Input oracle subprocess exited ({result.returncode})")
-    return validate(value)
+    return validate(value, preferences_only=preferences_only)
 
 
 def main():
     try:
-        if sys.platform != "win32" or sys.argv[1:] != ["--snapshot"]:
+        arguments = sys.argv[1:]
+        if sys.platform != "win32" or arguments not in (
+            ["--snapshot"],
+            ["--snapshot", "--preferences-only"],
+        ):
             raise OracleError("Windows input oracle", 50)
         import winreg
 
-        value = snapshot(c.WinDLL("user32", use_last_error=True), winreg)
+        value = snapshot(
+            c.WinDLL("user32", use_last_error=True),
+            winreg,
+            preferences_only="--preferences-only" in arguments,
+        )
     except OracleError as error:
         value = {"schema": 1, "error": {"api": error.api, "code": error.code}}
     except OSError as error:

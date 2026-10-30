@@ -10,7 +10,6 @@ import argparse
 import ctypes
 import json
 import os
-import subprocess
 import sys
 import threading
 import time
@@ -79,6 +78,11 @@ def main(monitor):
     )
     from tools.windows.visual.input_fixture import ime_conversion
     from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
+    from tools.windows.visual.input_requests import (
+        CleanupJournal,
+        request_controls,
+        trace_requests,
+    )
 
     native = WindowsDesktop()
     assert not any(
@@ -89,7 +93,7 @@ def main(monitor):
         for w in native.windows()
     )
     api = WindowsKeyboardAPI()
-    before = oracle()
+    before = oracle(preferences_only=True)
     loaded_before = api.layouts()
     workarea = native.workarea()
     original_thread = api.active(0)
@@ -116,6 +120,18 @@ def main(monitor):
     }
     from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
     from docking.platform.backends.windows.menus import WindowsMenuFocus
+
+    original_select = KeyboardLayoutApplet._select_layout
+
+    def trace_selection(applet, code, *, context=None):
+        entry = {"code": code, "context": context, "before": applet._layout._asdict()}
+        report.setdefault("selection_callbacks", []).append(entry)
+        try:
+            return original_select(applet, code, context=context)
+        finally:
+            entry["after"] = applet._layout._asdict()
+
+    KeyboardLayoutApplet._select_layout = trace_selection
 
     original_scroll = KeyboardLayoutApplet.on_scroll
 
@@ -239,6 +255,13 @@ def main(monitor):
                     owned.append(handle)
                 report["owned_layouts"] = [_code(h) for h in owned]
                 publish()
+            request_controls(
+                native,
+                output,
+                french=int(wanted["fr"].split(":")[1], 16),
+                journal=report.setdefault("direct_requests", {}),
+                publish=publish,
+            )
             document = output / "docking-keyboard-native-acceptance.txt"
             document.write_text("", encoding="utf-8")
             if args.owned_amd64_editor:
@@ -353,10 +376,24 @@ def main(monitor):
                 index = next(
                     index for index, row in enumerate(rows) if row["label"] == label
                 )
+                action = {"requested_label": label, "requested_index": index}
+                report.setdefault("menu_actions", []).append(action)
                 native.key(0x24)
                 for _ in range(index):
                     native.key(0x28)
+
+                def selected():
+                    menu = Gtk.grab_get_current()
+                    if not isinstance(menu, Gtk.Menu):
+                        return None
+                    row = menu.get_selected_item()
+                    return row.get_label() if row else None
+
+                action["selected_before_enter"] = call(selected)
+                publish()
                 native.key(0x0D)
+                action["enter_sent"] = True
+                publish()
 
             def select(code, name):
                 rows = menu()
@@ -1224,11 +1261,17 @@ def main(monitor):
                 report["diagnostic"] = call(diagnostic)
             ImageGrab.grab(all_screens=True).save(output / "failure.png")
         finally:
+            cleanup = CleanupJournal(report, errors, publish)
             for hwnd in owned_windows:
-                if native.user.IsWindow(hwnd):
-                    native.user.PostMessageW(hwnd, 0x10, 0, 0)
+
+                def close_window(hwnd=hwnd):
+                    if native.user.IsWindow(hwnd):
+                        assert native.user.PostMessageW(hwnd, 0x10, 0, 0)
+
+                cleanup.attempt(f"owned-window-{hwnd}", close_window)
             if notepad is not None:
-                try:
+
+                def restore_editor_layout():
                     focus_editor()
                     context = api.foreground()
                     assert context is not None
@@ -1239,7 +1282,13 @@ def main(monitor):
                         lambda: api.active(context.thread) == shared["editor_original"],
                         "Notepad input layout did not restore",
                     )
-                    if owned_editor is None:
+                    report["editor_layout_restored"] = True
+
+                cleanup.attempt("editor-layout", restore_editor_layout)
+                if owned_editor is None:
+
+                    def close_notepad():
+                        focus_editor()
                         native.key(0x53, control=True)
                         # Close only this verifier's saved tabs, including its
                         # previous owned runs restored by Notepad's session history.
@@ -1271,16 +1320,15 @@ def main(monitor):
                             20,
                         )
                         report["notepad_closed"] = True
-                except Exception as exc:
-                    errors.append(exc)
-                    report.update(ok=False, notepad_cleanup_error=repr(exc))
+
+                    cleanup.attempt("stock-editor-close", close_notepad)
             if owned_editor is not None:
-                try:
+
+                def close_owned_editor():
                     owned_editor.close()
                     report["editor_closed"] = True
-                except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
-                    errors.append(exc)
-                    report.update(ok=False, editor_cleanup_error=repr(exc))
+
+                cleanup.attempt("owned-editor-close", close_owned_editor)
             if ready.is_set():
 
                 def close():
@@ -1289,66 +1337,115 @@ def main(monitor):
                         grab.cancel()
                     shared["ui"].window.close()
 
-                try:
-                    call(close)
-                except Exception as exc:
-                    errors.append(exc)
-                    report.update(ok=False, close_error=repr(exc))
-            publish()
+                cleanup.attempt("dock-close", lambda: call(close))
+            cleanup.attempt("driver-report", lambda: None)
 
-    driver = threading.Thread(
-        target=drive, name="windows-keyboardlayout-smoke", daemon=False
-    )
-    driver.start()
-    try:
-        app.main()
-        driver.join(90)
-        assert not driver.is_alive()
-        assert native.workarea() == workarea
+    with trace_requests(report.setdefault("request_trace", {}), publish):
+        driver = threading.Thread(
+            target=drive, name="windows-keyboardlayout-smoke", daemon=False
+        )
+        driver.start()
+        try:
+            app.main()
+            driver.join(90)
+            assert not driver.is_alive()
+            assert native.workarea() == workarea
+        except Exception as error:
+            errors.append(error)
+            report.update(ok=False, main_error=repr(error))
+        finally:
+            cleanup = CleanupJournal(report, errors, publish)
+
+            def restore_caller():
+                # Restore only the process's original input locale, never any
+                # preferred-language or keyboard registry setting.
+                assert activate(original_thread, 0x100)
+                assert api.active(0) & 0xFFFFFFFF == original_thread & 0xFFFFFFFF
+                report["caller_layout_restored"] = True
+
+            cleanup.attempt("caller-layout", restore_caller)
+            released = []
+            for handle in reversed(owned):
+
+                def release(handle=handle):
+                    accepted = bool(unload(handle))
+                    released.append(accepted)
+                    assert accepted, "Owned keyboard layout did not unload"
+
+                cleanup.attempt("owned-layout-" + _code(handle), release)
+            report["owned_layouts_released"] = all(released) and len(released) == len(
+                owned
+            )
+
+            def loaded_set():
+                report["loaded_set_restored"] = set(api.layouts()) == set(loaded_before)
+                assert report["loaded_set_restored"], (
+                    "Loaded keyboard layouts did not restore"
+                )
+
+            cleanup.attempt("loaded-set", loaded_set)
+
+            def preferences():
+                restored = oracle(preferences_only=True)
+                report["restored"] = restored
+                report["preferences_restored"] = all(
+                    restored[k] == before[k]
+                    for k in ("default", "preload", "substitutes", "wheel_route")
+                )
+                report["independent_loaded_set_restored"] = {
+                    row["code"] for row in restored["loaded"]
+                } == {row["code"] for row in before["loaded"]}
+                assert report["preferences_restored"], (
+                    "Input preferences did not restore"
+                )
+                assert report["independent_loaded_set_restored"], (
+                    "Independent loaded set did not restore"
+                )
+
+            cleanup.attempt("independent-preferences", preferences)
+
+            def normal_shutdown():
+                report["normal_shutdown"] = (
+                    shared.get("applet") is not None
+                    and shared["applet"]._stopped
+                    and shared["applet"]._timer_id == 0
+                )
+                assert report["normal_shutdown"], (
+                    "Keyboard applet did not stop normally"
+                )
+
+            cleanup.attempt("normal-shutdown", normal_shutdown)
+            if args.search_input:
+                released_shortcuts = []
+                for key in (0x20, 0xBA, 0xBE, 0x32):
+
+                    def check_shortcut(key=key):
+                        probe = WindowsHotkeyAPI()
+                        try:
+                            probe.register(MOD_CONTROL | MOD_ALT, key)
+                        finally:
+                            probe.unregister()
+                        released_shortcuts.append(key)
+
+                    cleanup.attempt(f"shortcut-{key:02x}", check_shortcut)
+                report["search_shortcuts_released"] = len(released_shortcuts) == 4
+            KeyboardLayoutApplet._select_layout = original_select
+            KeyboardLayoutApplet.on_scroll = original_scroll
+            WindowsMenuFocus.restore = original_restore
+            if not report.get("direct_requests", {}).get("controls_passed", False):
+                errors.append(
+                    AssertionError("Direct input request controls did not pass")
+                )
+            if errors:
+                report["ok"] = False
+                report.setdefault("error", repr(errors[0]))
+            try:
+                publish()
+                print(json.dumps(report, indent=2))
+            except Exception as error:
+                errors.append(error)
         if errors:
             raise errors[0]
-    finally:
-        # Restore only this test process's locale before releasing its owned
-        # runtime handles. Never rewrite preferred language/keyboard settings.
-        activate(original_thread, 0x100)
-        released = [bool(unload(handle)) for handle in reversed(owned)]
-        report["owned_layouts_released"] = all(released)
-        report["loaded_set_restored"] = set(api.layouts()) == set(loaded_before)
-        restored = oracle()
-        report["restored"] = restored
-        report["preferences_restored"] = all(
-            restored[k] == before[k] for k in ("default", "preload", "substitutes")
-        )
-        report["normal_shutdown"] = (
-            shared.get("applet") is not None
-            and shared["applet"]._stopped
-            and shared["applet"]._timer_id == 0
-        )
-        if args.search_input:
-            report["search_shortcuts_released"] = True
-            for key in (0x20, 0xBA, 0xBE, 0x32):
-                probe = WindowsHotkeyAPI()
-                try:
-                    probe.register(MOD_CONTROL | MOD_ALT, key)
-                    probe.unregister()
-                except OSError as exc:
-                    errors.append(exc)
-                    report.update(
-                        ok=False,
-                        search_shortcuts_released=False,
-                        shortcut_release_error=repr(exc),
-                    )
-                    break
-        publish()
-        print(json.dumps(report, indent=2))
-        if errors:
-            raise errors[0]
-        assert report["normal_shutdown"]
-        assert (
-            report["owned_layouts_released"]
-            and report["loaded_set_restored"]
-            and report["preferences_restored"]
-        )
 
 
 if __name__ == "__main__":
