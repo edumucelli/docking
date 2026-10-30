@@ -30,6 +30,84 @@ from tools.windows.bundle import (
     verify_archive,
     write_pixbuf_cache,
 )
+from tools.windows.visual import bundle_smoke
+
+
+@pytest.fixture
+def deployed_input_helper(tmp_path, monkeypatch):
+    import tempfile
+
+    root = tmp_path / "standalone/runtime"
+    source = (
+        root / "lib/site-packages/docking/platform/backends/windows/input-thread-64.dll"
+    )
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"bundled helper fixture")
+    checksum = hashlib.sha256(source.read_bytes()).hexdigest()
+    temporary = tmp_path / "msys64/tmp"
+    deployed = temporary / "Docking/input-runtime" / checksum / source.name
+    deployed.parent.mkdir(parents=True)
+    deployed.write_bytes(source.read_bytes())
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(temporary))
+    return root, source, deployed, checksum
+
+
+def test_bundle_accepts_only_its_exact_authenticated_input_cache(deployed_input_helper):
+    root, source, deployed, checksum = deployed_input_helper
+    foreign, actual = bundle_smoke._foreign_msys_modules(
+        [str(deployed), str(root / "bin/libgtk-3-0.dll")],
+        root=root,
+        bundled_helper=source,
+        deployed_helper=deployed,
+    )
+    assert foreign == [] and actual == checksum
+
+
+def test_bundle_rejects_tampered_cached_input_helper(deployed_input_helper):
+    root, source, deployed, _checksum = deployed_input_helper
+    deployed.write_bytes(b"changed cached DLL")
+    with pytest.raises(AssertionError, match="differs"):
+        bundle_smoke._foreign_msys_modules(
+            [str(deployed)], root=root, bundled_helper=source, deployed_helper=deployed
+        )
+
+
+def test_bundle_still_rejects_foreign_msys_and_other_temp_mappings(
+    deployed_input_helper,
+):
+    root, source, deployed, _checksum = deployed_input_helper
+    other = deployed.parents[3] / "other/input-thread-64.dll"
+    other.parent.mkdir()
+    other.write_bytes(source.read_bytes())
+    msys = deployed.parents[4] / "ucrt64/bin/libgtk-3-0.dll"
+    foreign, _checksum = bundle_smoke._foreign_msys_modules(
+        [str(deployed), str(other), str(msys)],
+        root=root,
+        bundled_helper=source,
+        deployed_helper=deployed,
+    )
+    assert foreign == [str(other), str(msys)]
+    with pytest.raises(AssertionError, match="outside"):
+        bundle_smoke._foreign_msys_modules(
+            [str(other)], root=root, bundled_helper=source, deployed_helper=other
+        )
+
+
+def test_isolated_bundle_probe_embeds_the_same_provenance_validator():
+    import ast
+    import inspect
+
+    source = inspect.getsource(bundle_smoke._foreign_msys_modules)
+    assert bundle_smoke.PROBE.count(source) == 1
+    assert "__DLL_PROVENANCE__" not in bundle_smoke.PROBE
+    compile(bundle_smoke.PROBE, "<bundle-probe>", "exec")
+    tree = ast.parse(bundle_smoke.PROBE)
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_foreign_msys_modules"
+    )
+    assert ast.dump(function) == ast.dump(ast.parse(source).body[0])
 
 
 def test_native_dependency_closure_follows_runtime_edges_and_providers(tmp_path):

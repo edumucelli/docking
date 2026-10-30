@@ -3,12 +3,50 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 from tools.windows.bundle import extract_bundle, payload_root
+
+
+def _foreign_msys_modules(
+    paths: list[str], *, root: Path, bundled_helper: Path, deployed_helper: Path
+) -> tuple[list[str], str]:
+    """Exempt only the exact authenticated deployment of the bundled helper."""
+    import hashlib
+    import tempfile
+
+    source = bundled_helper.resolve(strict=True)
+    assert source.is_relative_to(root.resolve(strict=True))
+    assert source.name == "input-thread-64.dll"
+    checksum = hashlib.sha256(source.read_bytes()).hexdigest()
+    expected = (
+        Path(tempfile.gettempdir())
+        / "Docking"
+        / "input-runtime"
+        / checksum
+        / source.name
+    )
+    assert deployed_helper.absolute() == expected.absolute(), (
+        "Input helper is outside its content-addressed runtime cache"
+    )
+    assert not deployed_helper.is_symlink()
+    deployed = deployed_helper.resolve(strict=True)
+    assert hashlib.sha256(deployed.read_bytes()).hexdigest() == checksum, (
+        "Deployed input helper differs from the bundled source"
+    )
+    return (
+        [
+            name
+            for name in paths
+            if "msys64" in name.casefold() and Path(name).resolve() != deployed
+        ],
+        checksum,
+    )
+
 
 PROBE = r"""
 import ctypes
@@ -99,7 +137,8 @@ print("Loading the packaged input-thread helper", flush=True)
 helpers = Path(docking.__file__).parent / "platform/backends/windows"
 for bits in (64, 32):
     assert (helpers / f"input-thread-{bits}.dll").is_file()
-helper = ctypes.WinDLL(str(_runtime(64)))
+deployed_helper = _runtime(64)
+helper = ctypes.WinDLL(str(deployed_helper))
 helper.ProtocolSize.restype = ctypes.c_uint32
 assert helper.ProtocolSize() == ctypes.sizeof(Request)
 print("Querying the packaged GTK input thread", flush=True)
@@ -158,18 +197,23 @@ loader = loader_path()
 assert loader.is_relative_to(root)
 ctypes.WinDLL(str(loader)).GetAvailableCoreWebView2BrowserVersionString
 import psutil
-foreign = [entry.path for entry in psutil.Process().memory_maps()
-           if "msys64" in entry.path.casefold()]
+__DLL_PROVENANCE__
+foreign, helper_sha256 = _foreign_msys_modules(
+    [entry.path for entry in psutil.Process().memory_maps()],
+    root=root, bundled_helper=helpers / "input-thread-64.dll",
+    deployed_helper=deployed_helper)
 assert not foreign, foreign
 report = {"ok": True, "python": sys.version.split()[0],
           "gtk": [Gtk.get_major_version(), Gtk.get_minor_version(),
                   Gtk.get_micro_version()],
           "gstreamer": Gst.version_string(), "applets": sorted(catalog),
           "camera_helper": True, "webview2_loader": True,
+          "authenticated_input_helper_sha256": helper_sha256,
           "foreign_msys_modules": foreign}
 Path(sys.argv[1]).write_text(json.dumps(report, indent=2), encoding="utf-8")
 print(json.dumps(report, indent=2))
 """
+PROBE = PROBE.replace("__DLL_PROVENANCE__", inspect.getsource(_foreign_msys_modules))
 
 
 def main() -> None:
