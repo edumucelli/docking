@@ -302,16 +302,25 @@ class NativeDesktop:
             yield rows
 
     def windows(self, pid):
-        rows = self.desktop.windows(pid)
-        for row in rows:
+        rows = []
+        is_window = bind(self.user, "IsWindow", _B, _P)
+        for row in self.desktop.windows(pid):
+            if not is_window(row["hwnd"]):
+                continue
             cloaked = _U()
             status = bind(self.dwm, "DwmGetWindowAttribute", c.c_int32, _P, _U, _P, _U)(
                 row["hwnd"], 14, c.byref(cloaked), c.sizeof(cloaked)
             )
             if status < 0:
+                if status & 0xFFFFFFFF == 0x80070006 and not is_window(row["hwnd"]):
+                    continue  # WM_CLOSE can destroy an enumerated window mid-query.
                 raise PreparationError("DwmGetWindowAttribute", status & 0xFFFFFFFF)
+            minimized = bool(bind(self.user, "IsIconic", _B, _P)(row["hwnd"]))
+            if not is_window(row["hwnd"]):
+                continue
             row["cloaked"] = bool(cloaked.value)
-            row["minimized"] = bool(bind(self.user, "IsIconic", _B, _P)(row["hwnd"]))
+            row["minimized"] = minimized
+            rows.append(row)
         return rows
 
     def foreground(self):

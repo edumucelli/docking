@@ -10,6 +10,7 @@ import os
 import struct
 import subprocess
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -168,6 +169,46 @@ class NativeProvider:
         self._state: dict = {}
         self._log = None
         self.forced_cleanup = False
+        self._started = time.monotonic()
+        self._lifecycle = {
+            "schema": 1,
+            "startup_stage": "not-started",
+            "cleanup_stage": "not-started",
+            "readiness_timeout_s": 15,
+            "close_timeout_s": 10,
+            "terminate_timeout_s": 5,
+        }
+
+    @staticmethod
+    def _failure(error):
+        result = {"type": type(error).__name__}
+        if isinstance(error, OSError):
+            if error.errno is not None:
+                result["errno"] = error.errno
+            # Python/CRT errors can omit this external Windows field.
+            with suppress(AttributeError):
+                if error.winerror is not None:
+                    result["winerror"] = error.winerror
+        return result
+
+    def _save_lifecycle(self):
+        try:
+            stage = self._state.get("stage")
+            self._lifecycle.update(
+                pid=self.process.pid if self.process is not None else None,
+                returncode=self.process.poll() if self.process is not None else None,
+                elapsed_ms=round((time.monotonic() - self._started) * 1000),
+                forced_cleanup=self.forced_cleanup,
+                state_present=(self.directory / "state.json").is_file(),
+                state_stage=stage[:32] if isinstance(stage, str) else None,
+                log_closed=self._log is None or self._log.closed,
+            )
+            write_shared_json(
+                self.directory / "provider-lifecycle.json", self._lifecycle
+            )
+        except OSError as error:
+            # Observation must not replace a spawn/readiness/cleanup exception.
+            self._lifecycle["journal_error"] = self._failure(error)
 
     def read(self) -> dict:
         try:
@@ -197,21 +238,37 @@ class NativeProvider:
     def __enter__(self):
         self.directory.mkdir(parents=True, exist_ok=False)
         path = self.directory / "configuration.json"
-        write_shared_json(path, self.configuration)
-        self._log = (self.directory / "provider.log").open("w", encoding="utf-8")
         try:
+            self._lifecycle["startup_stage"] = "configuration"
+            self._save_lifecycle()
+            write_shared_json(path, self.configuration)
+            self._lifecycle["startup_stage"] = "open-log"
+            self._log = (self.directory / "provider.log").open("w", encoding="utf-8")
+            self._lifecycle["startup_stage"] = "spawn"
+            self._save_lifecycle()
             self.process = subprocess.Popen(
                 [str(self.executable), str(self.directory), str(path)],
                 stdout=self._log,
                 stderr=subprocess.STDOUT,
             )
+            self._lifecycle["startup_stage"] = "readiness"
+            self._save_lifecycle()
             state = self.wait(lambda value: value["stage"] == "ready", "become ready")
             assert state["pid"] == self.process.pid
             for field in ("bits", "encoding", "size", "version"):
                 assert state[field] == self.configuration[field]
+            self._lifecycle["startup_stage"] = "ready"
+            self._save_lifecycle()
             return self
-        except BaseException:
-            self.close()
+        except BaseException as error:
+            self._lifecycle["startup_error"] = self._failure(error)
+            self._lifecycle["startup_failed_at"] = self._lifecycle["startup_stage"]
+            self._lifecycle["startup_stage"] = "failed"
+            try:
+                self.close()
+            except BaseException as cleanup_error:
+                self._lifecycle["cleanup_error"] = self._failure(cleanup_error)
+            self._save_lifecycle()
             raise
 
     def command(self, action: str, **fields) -> dict:
@@ -232,14 +289,20 @@ class NativeProvider:
         )
 
     def close(self) -> None:
+        started = time.monotonic()
         try:
+            self._lifecycle["cleanup_stage"] = "no-owned-process"
             if self.process is not None:
+                self._lifecycle["cleanup_stage"] = "waiting-exit"
+                self._save_lifecycle()
                 if self.process.poll() is None:
                     (self.directory / "stop").touch()
                     try:
                         self.process.wait(timeout=10)
                     except subprocess.TimeoutExpired:
                         self.forced_cleanup = True
+                        self._lifecycle["cleanup_stage"] = "terminating"
+                        self._save_lifecycle()
                         self.process.terminate()
                         self.process.wait(timeout=5)
                 state = self.read()
@@ -251,9 +314,24 @@ class NativeProvider:
                     or state["registered"]
                 ):
                     raise RuntimeError("Native tray provider cleanup did not verify")
+                self._lifecycle["cleanup_stage"] = "verified"
+        except BaseException as error:
+            self._lifecycle["cleanup_stage"] = "failed"
+            self._lifecycle["cleanup_error"] = self._failure(error)
+            raise
         finally:
-            if self._log is not None:
-                self._log.close()
+            try:
+                if self._log is not None:
+                    self._log.close()
+            except BaseException as error:
+                self._lifecycle["cleanup_stage"] = "failed"
+                self._lifecycle["log_error"] = self._failure(error)
+                raise
+            finally:
+                self._lifecycle["cleanup_elapsed_ms"] = round(
+                    (time.monotonic() - started) * 1000
+                )
+                self._save_lifecycle()
 
     def __exit__(self, _kind, _value, _traceback):
         self.close()

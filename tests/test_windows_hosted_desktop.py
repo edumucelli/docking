@@ -1055,3 +1055,104 @@ def test_collector_poll_interval_is_100ms_and_cleanup_still_precedes_policy_rest
     assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == 0
     assert waits == [0.1] and journal["quiet_sweeps"] == 2
     assert registry.value == (0, 4) and journal["policy"]["restored"]
+
+
+@pytest.fixture
+def window_reader():
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.desktop = SimpleNamespace(windows=Mock(side_effect=lambda _pid: [window()]))
+    api.user = SimpleNamespace(
+        IsWindow=Mock(return_value=1), IsIconic=Mock(return_value=0)
+    )
+    api.dwm = SimpleNamespace(DwmGetWindowAttribute=Mock(return_value=0))
+    return api
+
+
+def test_destroyed_enumerated_window_is_skipped_before_dwm_query(window_reader):
+    api = window_reader
+    api.user.IsWindow.return_value = 0
+    assert api.windows(20) == []
+    api.dwm.DwmGetWindowAttribute.assert_not_called()
+    api.user.IsIconic.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "status,alive",
+    [(0x80070006, False), (0x80070006, True), (0x80070005, False), (0x80070057, False)],
+)
+def test_only_dwm_invalid_handle_for_a_proven_destroyed_window_is_benign(
+    window_reader, status, alive
+):
+    api = window_reader
+    api.user.IsWindow.side_effect = [1, int(alive)]
+    api.dwm.DwmGetWindowAttribute.return_value = c.c_int32(status).value
+    if status == 0x80070006 and not alive:
+        assert api.windows(20) == []
+    else:
+        with pytest.raises(hosted.PreparationError) as failed:
+            api.windows(20)
+        assert (
+            failed.value.operation == "DwmGetWindowAttribute"
+            and failed.value.code == status
+        )
+    api.user.IsIconic.assert_not_called()
+
+
+def test_window_destroyed_during_iconic_read_does_not_publish_a_ghost_row(
+    window_reader,
+):
+    api = window_reader
+    api.user.IsWindow.side_effect = [1, 0]
+    assert api.windows(20) == []
+    api.user.IsIconic.assert_called_once_with(100)
+
+
+def test_successful_live_dwm_and_iconic_reads_keep_actual_attributes(window_reader):
+    api = window_reader
+
+    def attribute(_hwnd, kind, output, size):
+        assert kind == 14 and size == 4
+        output._obj.value = 1
+        return 0
+
+    api.dwm.DwmGetWindowAttribute.side_effect = attribute
+    api.user.IsIconic.return_value = 1
+    assert api.windows(20) == [window(cloaked=True, minimized=True)]
+
+
+def test_performance_wm_close_accepts_window_destroyed_during_dwm_readback(
+    window_reader,
+):
+    api = window_reader
+    api.root, api.session, api.foreground = ROOT, 3, lambda: 999
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+    state = SimpleNamespace(closing=False, alive=True)
+    api.desktop.windows.side_effect = lambda _pid: [window(**{"class": "#32770"})]
+    api.user.IsWindow.side_effect = lambda _hwnd: int(state.alive)
+
+    def close(_hwnd, _message, _first, _second):
+        state.closing = True
+        return 1
+
+    def attribute(_hwnd, _kind, _output, _size):
+        if state.closing:
+            state.alive = False
+            return c.c_int32(0x80070006).value
+        return 0
+
+    def wait_for(predicate, message, seconds):
+        assert seconds == 2
+        assert predicate(), message
+
+    api.user.PostMessageW = Mock(side_effect=close)
+    api.dwm.DwmGetWindowAttribute.side_effect = attribute
+    api.desktop.wait_for = wait_for
+    process = identity(
+        "systempropertiesperformance.exe",
+        ROOT + r"\System32\SystemPropertiesPerformance.exe",
+    )
+    assert api.perform(process, "close", window(**{"class": "#32770"})) == "dismissed"
+    api.user.PostMessageW.assert_called_once_with(100, 0x10, 0, 0)
+    assert state.closing and not state.alive

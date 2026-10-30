@@ -8,8 +8,10 @@ import struct
 import subprocess
 import sys
 import zipfile
+from contextlib import nullcontext
 from copy import deepcopy
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -274,6 +276,7 @@ def test_pending_external_command_collision_does_not_overwrite(tmp_path):
 
 def test_forced_provider_cleanup_is_never_reported_as_success(tmp_path):
     class Process:
+        pid = 123
         returncode = None
 
         def poll(self):
@@ -301,6 +304,170 @@ def test_forced_provider_cleanup_is_never_reported_as_success(tmp_path):
         client.close()
     assert client.forced_cleanup and client.process.returncode == -15
     assert client._log.closed and (tmp_path / "stop").exists()
+    lifecycle = json.loads((tmp_path / "provider-lifecycle.json").read_text())
+    assert lifecycle["forced_cleanup"] and lifecycle["cleanup_stage"] == "failed"
+    assert lifecycle["returncode"] == -15 and lifecycle["log_closed"]
+
+
+def test_provider_exit_before_state_keeps_original_startup_error_and_cleanup_failure(
+    tmp_path, monkeypatch
+):
+    from tools.windows.visual import tray_provider
+
+    process = SimpleNamespace(pid=321, returncode=7, poll=lambda: 7)
+    monkeypatch.setattr(
+        tray_provider.subprocess, "Popen", lambda *_args, **_kw: process
+    )
+    client = NativeProvider(tmp_path / "provider.exe", tmp_path / "A", {})
+    with pytest.raises(RuntimeError, match="exited before become ready"):
+        client.__enter__()
+    lifecycle = json.loads((client.directory / "provider-lifecycle.json").read_text())
+    assert lifecycle["pid"] == 321 and lifecycle["returncode"] == 7
+    assert (
+        lifecycle["startup_stage"] == "failed"
+        and lifecycle["startup_failed_at"] == "readiness"
+    )
+    assert lifecycle["startup_error"] == {"type": "RuntimeError"}
+    assert lifecycle["cleanup_stage"] == "failed" and lifecycle["cleanup_error"] == {
+        "type": "RuntimeError"
+    }
+    assert not lifecycle["state_present"] and lifecycle["state_stage"] is None
+    assert lifecycle["log_closed"] and client._log.closed
+
+
+def test_provider_spawn_failure_journal_keeps_numeric_codes_without_private_paths(
+    tmp_path, monkeypatch
+):
+    from tools.windows.visual import tray_provider
+
+    error = PermissionError(13, "private executable path")
+    error.winerror = 5
+
+    def denied(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(tray_provider.subprocess, "Popen", denied)
+    client = NativeProvider(tmp_path / "provider.exe", tmp_path / "A", {})
+    with pytest.raises(PermissionError) as failed:
+        client.__enter__()
+    assert failed.value is error and client._log.closed
+    text = (client.directory / "provider-lifecycle.json").read_text()
+    lifecycle = json.loads(text)
+    assert lifecycle["pid"] is None and lifecycle["returncode"] is None
+    assert lifecycle["startup_failed_at"] == "spawn"
+    assert lifecycle["startup_error"] == {
+        "type": "PermissionError",
+        "errno": 13,
+        "winerror": 5,
+    }
+    assert lifecycle["cleanup_stage"] == "no-owned-process" and "private" not in text
+
+
+def test_readiness_timeout_is_not_masked_by_absent_state_cleanup(tmp_path, monkeypatch):
+    from tools.windows.visual import tray_provider
+
+    process = SimpleNamespace(pid=321, returncode=None)
+    timeouts = []
+
+    def wait(*, timeout):
+        timeouts.append(timeout)
+        process.returncode = 0
+
+    process.poll, process.wait = lambda: process.returncode, wait
+    monkeypatch.setattr(
+        tray_provider.subprocess, "Popen", lambda *_args, **_kw: process
+    )
+    error = TimeoutError("readiness deadline")
+    client = NativeProvider(tmp_path / "provider.exe", tmp_path / "A", {})
+
+    def not_ready(*_args):
+        raise error
+
+    monkeypatch.setattr(client, "wait", not_ready)
+    with pytest.raises(TimeoutError) as failed:
+        client.__enter__()
+    assert failed.value is error and timeouts == [10]
+    lifecycle = json.loads((client.directory / "provider-lifecycle.json").read_text())
+    assert (
+        lifecycle["readiness_timeout_s"] == 15 and lifecycle["terminate_timeout_s"] == 5
+    )
+    assert lifecycle["startup_error"]["type"] == "TimeoutError"
+    assert lifecycle["cleanup_error"]["type"] == "RuntimeError"
+    assert client._log.closed
+
+
+@pytest.mark.parametrize("registered", (False, True))
+def test_provider_normal_exit_requires_closed_unregistered_state_and_closes_log(
+    tmp_path, monkeypatch, registered
+):
+    from tools.windows.visual import tray_provider
+
+    directory = tmp_path / "A"
+    configuration = ProviderCase().configuration("A", "owned")
+    process = SimpleNamespace(pid=321, returncode=None)
+    timeouts = []
+
+    def wait(*, timeout):
+        timeouts.append(timeout)
+        process.returncode = 0
+        (directory / "state.json").write_text(
+            json.dumps({"stage": "closed", "registered": registered})
+        )
+
+    process.poll, process.wait = lambda: process.returncode, wait
+
+    def spawn(*_args, **_kwargs):
+        (directory / "state.json").write_text(
+            json.dumps({**configuration, "pid": 321, "stage": "ready"})
+        )
+        return process
+
+    monkeypatch.setattr(tray_provider.subprocess, "Popen", spawn)
+    client = NativeProvider(tmp_path / "provider.exe", directory, configuration)
+    expected = (
+        pytest.raises(RuntimeError, match="cleanup did not verify")
+        if registered
+        else nullcontext()
+    )
+    with expected, client:
+        lifecycle = json.loads((directory / "provider-lifecycle.json").read_text())
+        assert lifecycle["startup_stage"] == "ready" and lifecycle["pid"] == 321
+        assert not lifecycle["log_closed"]
+    lifecycle = json.loads((directory / "provider-lifecycle.json").read_text())
+    assert lifecycle["cleanup_stage"] == ("failed" if registered else "verified")
+    assert lifecycle["state_stage"] == "closed" and lifecycle["state_present"]
+    assert lifecycle["returncode"] == 0 and lifecycle["log_closed"]
+    assert lifecycle["elapsed_ms"] >= 0 and lifecycle["cleanup_elapsed_ms"] >= 0
+    assert timeouts == [10] and not lifecycle["forced_cleanup"]
+
+
+def test_provider_configuration_failure_retains_partial_lifecycle_without_spawning(
+    tmp_path, monkeypatch
+):
+    from tools.windows.visual import tray_provider
+
+    original_write = tray_provider.write_shared_json
+    error = OSError(28, "private configuration path")
+
+    def write(path, value):
+        if path.name == "configuration.json":
+            raise error
+        original_write(path, value)
+
+    monkeypatch.setattr(tray_provider, "write_shared_json", write)
+    spawn = Mock()
+    monkeypatch.setattr(tray_provider.subprocess, "Popen", spawn)
+    client = NativeProvider(tmp_path / "provider.exe", tmp_path / "A", {})
+    with pytest.raises(OSError) as failed:
+        client.__enter__()
+    assert failed.value is error
+    spawn.assert_not_called()
+    text = (client.directory / "provider-lifecycle.json").read_text()
+    lifecycle = json.loads(text)
+    assert lifecycle["startup_failed_at"] == "configuration"
+    assert lifecycle["startup_error"]["errno"] == 28
+    assert lifecycle["cleanup_stage"] == "no-owned-process" and lifecycle["log_closed"]
+    assert "private" not in text
 
 
 def protocol_evidence(case):
