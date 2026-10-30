@@ -7,6 +7,7 @@ import hashlib
 import os
 import re
 import subprocess
+import sys
 import uuid
 from collections.abc import Callable
 from contextlib import ExitStack, contextmanager, nullcontext
@@ -441,6 +442,7 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
             check=True,
             capture_output=True,
             timeout=30,
+            creationflags=0x08000000 if sys.platform == "win32" else 0,
         )
     except subprocess.CalledProcessError as error:
         retain(error.stdout, error.stderr, status="failed", returncode=error.returncode)

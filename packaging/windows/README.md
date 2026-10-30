@@ -143,13 +143,31 @@ interaction profiles under `artifacts/windows/tray/`. The installed backend and
 GTK reports must match the ZIP's wheel checksum and record successful physical
 input, focus routing and cleanup. Captures remain labeled as not visually
 reviewed. See [native tray acceptance](../../docs/WINDOWS_TRAY_ACCEPTANCE.md).
-The native Windows CI job also runs this staging check before uploading its
-artifact, so pull requests exercise the same release checks with real packages.
-To stage a downloaded `windows-ucrt64-x64` artifact locally:
+The mandatory Windows 11 input job downloads the exact wheel built by the
+Server job. Its installed files are compared with every shipped `docking/*`
+wheel entry before input acceptance. The workstation profile requires all twelve
+request controls, eight real Telex/VNI compositions across x64/x86 and both key
+routes, and plain GTK/Search preedit, Return and Escape behavior. Its reports
+bind the wheel SHA-256 and source commit. Server's explicit `server-api` profile
+covers the same request controls, profile activation/readback, classic return,
+layout/dead keys/AltGr, shortcuts, cancellation and cleanup; it does not claim
+composition. The hosted Server image currently fails composition independently
+in native controls and plain GTK. This is not a claim that all Windows Server
+installations lack IME support.
+
+A dependent Linux CI job validates both artifacts and stages the actual packages
+on pull requests. Publication repeats the same checks, requiring Windows 11
+product/AMD64 runtime metadata, both complete original input reports and successful
+child exits for the exact candidate wheel and source commit. Missing, stale,
+failed or Server-only input evidence cannot authorize a release.
+
+To stage downloaded artifacts locally, extract `windows-ucrt64-x64` into
+`path/to/downloaded-artifact` and `windows-client-input-ucrt64-x64` into its
+`client-input/` subdirectory:
 
 ```sh
 python -m tools.windows.release --directory path/to/downloaded-artifact \
-  --version 2.28.0 --output artifacts/release
+  --version 2.28.0 --source-sha <full-source-commit> --output artifacts/release
 ```
 
 Windows previews remain unsigned. Docking's shared update notice opens the

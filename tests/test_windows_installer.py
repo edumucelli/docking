@@ -141,7 +141,7 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
         assert check is True
         copied = Path(cwd)
         assert copied != source
-        assert copied.parent.parent == temporary
+        assert copied.parent.parent.samefile(temporary)
         assert not copied.is_relative_to(output.parent)
         assert 'version = "2.28.0.dev0"' in (copied / "pyproject.toml").read_text()
         assert not (copied / ".private").exists()
@@ -178,7 +178,7 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
     copy_file = installer_tool.copy_file
 
     def publish(source, destination):
-        assert destination.parent.parent == output.parent
+        assert destination.parent.parent.samefile(output.parent)
         copy_file(source, destination)
         if failure == "publish":
             raise OSError("Fixture publication failed")

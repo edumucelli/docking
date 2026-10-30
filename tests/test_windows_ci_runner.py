@@ -13,8 +13,15 @@ from types import SimpleNamespace
 import pytest
 
 from docking import launcher
+from tests.test_windows_input_acceptance import SOURCE_SHA, input_report
 from tools.windows import ci
 from tools.windows.bundle import filesystem_path
+
+
+def _input_wheel(root):
+    wheel = root / "candidate.whl"
+    wheel.write_bytes(b"accepted wheel fixture")
+    return wheel
 
 
 @pytest.mark.skipif(
@@ -35,7 +42,7 @@ def test_runner_removes_long_path_stage_and_preserves_child_status(
         ["windows-ci", "--stage", "tests", "--output", str(tmp_path / "reports")],
     )
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         assert cwd == Path(ci.__file__).resolve().parents[2]
         base = next(
             value.removeprefix("--basetemp=")
@@ -68,28 +75,44 @@ def test_runner_removes_long_path_stage_and_preserves_child_status(
 
 @pytest.mark.parametrize("statuses", [(0, 0), (1, 0), (1, 3), (0, 2)])
 @pytest.mark.parametrize("owned_editor", [False, True])
+@pytest.mark.parametrize("coverage_profile", ["server-api", "workstation-composition"])
 def test_input_stage_runs_complete_domain_and_retains_both_results(
-    tmp_path, monkeypatch, statuses, owned_editor
+    tmp_path, monkeypatch, statuses, owned_editor, coverage_profile
 ):
     root = Path(ci.__file__).resolve().parents[2]
     output = tmp_path / "reports with spaces"
     installed = tmp_path / "installed wheel"
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         assert cwd == root
         index = len(calls)
         calls.append(command)
         destination = Path(command[command.index("--output") + 1].replace("\\", "/"))
         destination.mkdir(parents=True)
         (destination / "result.json").write_text(
-            json.dumps({"ok": statuses[index] == 0, "error": None}), encoding="utf-8"
+            json.dumps(
+                {
+                    **input_report(destination.name, coverage_profile),
+                    "ok": statuses[index] == 0,
+                    "error": None,
+                }
+            ),
+            encoding="utf-8",
         )
         return subprocess.CompletedProcess(command, statuses[index])
 
     monkeypatch.setattr(ci.subprocess, "run", run)
     options = {"owned_amd64_editor": True} if owned_editor else {}
-    status = ci.input_domain(root, output, installed, **options)
+    status = ci.input_domain(
+        root,
+        output,
+        installed,
+        _input_wheel(tmp_path),
+        source_sha=SOURCE_SHA,
+        coverage_profile=coverage_profile,
+        **options,
+    )
     assert status == (0 if statuses == (0, 0) else 1)
     assert len(calls) == 2
     assert calls[0] == [
@@ -100,6 +123,12 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         *(["--owned-amd64-editor"] if owned_editor else []),
         "--installed-root",
         ci.command_path(installed.resolve()),
+        "--wheel",
+        ci.command_path((tmp_path / "candidate.whl").resolve()),
+        "--source-sha",
+        SOURCE_SHA,
+        "--coverage",
+        coverage_profile,
         "--output",
         ci.command_path(output / "search-layouts"),
     ]
@@ -110,6 +139,12 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         *(["--owned-amd64-editor"] if owned_editor else []),
         "--installed-root",
         ci.command_path(installed.resolve()),
+        "--wheel",
+        ci.command_path((tmp_path / "candidate.whl").resolve()),
+        "--source-sha",
+        SOURCE_SHA,
+        "--coverage",
+        coverage_profile,
         "--output",
         ci.command_path(output / "input-profiles"),
     ]
@@ -137,7 +172,7 @@ def test_input_stage_collects_reference_after_incomplete_first_check(
 ):
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         calls.append(command)
         if len(calls) == 1 and failure == "launch":
             raise OSError(5, "Owned launch failure")
@@ -147,13 +182,24 @@ def test_input_stage_collects_reference_after_incomplete_first_check(
             (destination / "result.json").write_text(
                 "invalid"
                 if len(calls) == 1 and failure == "invalid-json"
-                else json.dumps({"ok": len(calls) != 1}),
+                else json.dumps(
+                    {**input_report(destination.name), "ok": len(calls) != 1}
+                ),
                 encoding="utf-8",
             )
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(ci.subprocess, "run", run)
-    assert ci.input_domain(tmp_path, tmp_path / "reports", tmp_path / "installed") == 1
+    assert (
+        ci.input_domain(
+            tmp_path,
+            tmp_path / "reports",
+            tmp_path / "installed",
+            _input_wheel(tmp_path),
+            source_sha=SOURCE_SHA,
+        )
+        == 1
+    )
     report = json.loads((tmp_path / "reports/input-domain.json").read_text())
     assert len(calls) == 2 and not report["ok"]
     assert report["checks"][0]["passed"] is False
@@ -166,7 +212,7 @@ def test_cancelled_input_stage_journals_and_does_not_start_another_desktop_tool(
 ):
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         calls.append(command)
         if cancellation == "interrupt":
             raise KeyboardInterrupt
@@ -174,7 +220,14 @@ def test_cancelled_input_stage_journals_and_does_not_start_another_desktop_tool(
 
     monkeypatch.setattr(ci.subprocess, "run", run)
     assert (
-        ci.input_domain(tmp_path, tmp_path / "reports", tmp_path / "installed") == 130
+        ci.input_domain(
+            tmp_path,
+            tmp_path / "reports",
+            tmp_path / "installed",
+            _input_wheel(tmp_path),
+            source_sha=SOURCE_SHA,
+        )
+        == 130
     )
     report = json.loads((tmp_path / "reports/input-domain.json").read_text())
     assert len(calls) == 1 and report["cancelled"] and not report["ok"]
@@ -198,16 +251,17 @@ def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
         "--output",
         str(output),
     ]
-    if stage != "input":
-        command += ["--wheel", str(wheel)]
+    command += ["--wheel", str(wheel)]
+    if stage == "input":
+        command += ["--source-sha", SOURCE_SHA]
     monkeypatch.setattr(ci.sys, "argv", command)
     monkeypatch.setattr(
         launcher, "prepare_display", lambda: pytest.fail("Controller preloaded display")
     )
     calls = []
 
-    def batch(*arguments):
-        calls.append(arguments)
+    def batch(*arguments, **kwargs):
+        calls.append((arguments, kwargs))
         return 1
 
     monkeypatch.setattr(ci, stage + "_domain", batch)
@@ -215,7 +269,14 @@ def test_domain_dispatch_does_not_preload_parent_launcher_or_gtk(
         ci.main()
     assert result.value.code == 1
     expected = (Path(ci.__file__).resolve().parents[2], output, installed)
-    assert calls == [(*expected, wheel) if stage != "input" else expected]
+    assert calls == [
+        (
+            (*expected, wheel),
+            {"source_sha": SOURCE_SHA, "coverage_profile": "workstation-composition"}
+            if stage == "input"
+            else {},
+        )
+    ]
 
 
 def test_input_stage_requires_explicit_installed_wheel_root(tmp_path, monkeypatch):
@@ -248,7 +309,7 @@ def test_tray_stage_collects_all_api_and_gtk_results_before_failing(
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         assert cwd == root
         index = len(calls)
         calls.append(command)
@@ -320,7 +381,7 @@ def test_tray_stage_reuses_release_gate_and_continues_after_unaccepted_report(
     wheel.write_bytes(b"accepted wheel fixture")
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         calls.append(command)
         destination = Path(command[command.index("--output") + 1].replace("\\", "/"))
         destination.mkdir(parents=True)
@@ -354,7 +415,7 @@ def test_tray_stage_cancellation_stops_new_desktop_children(tmp_path, monkeypatc
     wheel.write_bytes(b"accepted wheel fixture")
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         calls.append(command)
         raise KeyboardInterrupt
 
@@ -401,7 +462,7 @@ def test_applications_stage_requires_same_wheel_complete_native_acceptance(
     installed, output = tmp_path / "installed wheel", tmp_path / "reports"
     calls = []
 
-    def run(command, *, cwd):
+    def run(command, *, cwd, creationflags=0):
         calls.append(command)
         report = json.loads(
             json.dumps(applications_report()).replace(WHEEL_SHA256, checksum)
@@ -436,3 +497,32 @@ def test_applications_stage_requires_same_wheel_complete_native_acceptance(
     assert result["checks"][0]["passed"] is (defect is None)
     if defect is not None:
         assert "validation_error" in result["checks"][0]
+
+
+@pytest.mark.parametrize("platform, flags", [("win32", 0x08000000), ("linux", 0)])
+def test_domain_children_suppress_only_owned_windows_console(
+    platform, flags, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(ci.sys, "platform", platform)
+    monkeypatch.setattr(ci.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    seen = []
+
+    def run(command, *, cwd, creationflags):
+        seen.append(creationflags)
+        output = Path(command[command.index("--output") + 1].replace("\\", "/"))
+        output.mkdir(parents=True)
+        (output / "result.json").write_text(json.dumps(input_report(output.name)))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(ci.subprocess, "run", run)
+    assert (
+        ci.input_domain(
+            tmp_path,
+            tmp_path / "reports",
+            tmp_path / "runtime",
+            _input_wheel(tmp_path),
+            source_sha=SOURCE_SHA,
+        )
+        == 0
+    )
+    assert seen == [flags, flags]

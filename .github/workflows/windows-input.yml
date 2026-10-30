@@ -4,6 +4,11 @@ name: Windows client input
 
 on:
   workflow_call:
+    inputs:
+      candidate-artifact:
+        description: Exact AMD64 candidate wheel from the Server build
+        required: true
+        type: string
   workflow_dispatch:
 
 permissions:
@@ -206,17 +211,33 @@ jobs:
           python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
           bash tools/i18n.sh --compile
           echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
-      - name: Build and install the AMD64 wheel
-        id: wheel
+      - name: Download the exact Server candidate wheel
+        if: ${{ inputs.candidate-artifact != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate-artifact }}
+          path: artifacts/windows/input-candidate
+      - name: Build a standalone candidate for manual workflow_dispatch
+        if: ${{ inputs.candidate-artifact == '' }}
         run: |
           python -m build --wheel --no-isolation
+          python -m tools.windows.input_acceptance --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
+      - name: Verify and install the exact AMD64 candidate wheel
+        id: wheel
+        run: |
+          if [[ "${{ inputs.candidate-artifact }}" != "" ]]; then
+            mkdir -p dist
+            cp artifacts/windows/input-candidate/dist/*.whl dist/
+            cp artifacts/windows/input-candidate/artifacts/windows/input-candidate.json artifacts/windows/input-candidate.json
+          fi
+          python -m tools.windows.input_acceptance --verify --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
           python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
       - name: Verify GTK and native input dependencies
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage preflight
       - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
-        run: python -m tools.windows.visual.hosted_desktop --installed-root artifacts/windows/runtime --output artifacts/windows
+        run: python -m tools.windows.visual.hosted_desktop --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -226,6 +247,7 @@ jobs:
             artifacts/windows/environment.json
             artifacts/windows/desktop-preparation.json
             artifacts/windows/desktop-*.png
+            artifacts/windows/input-candidate.json
             artifacts/windows/input-domain.json
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/

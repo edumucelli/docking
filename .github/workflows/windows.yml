@@ -74,14 +74,27 @@ jobs:
         run: |
           python -m build --wheel --no-isolation
           python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
+      - name: Bind the candidate wheel to this source commit
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.input_acceptance --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
+      - name: Upload the exact wheel for Windows 11 input acceptance
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-input-candidate-ucrt64-x64
+          path: |
+            dist/*.whl
+            artifacts/windows/input-candidate.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Exercise the installed application on the Windows desktop
         run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
       - name: Verify native multiwindow grouping, cycling and restored pins
         run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
         run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
-      - name: Verify the complete Windows keyboard and input domain
-        run: python -m tools.windows.ci --stage input --installed-root artifacts/windows/runtime
+      - name: Verify Windows Server input API, layouts and shortcuts
+        run: python -m tools.windows.ci --stage input --input-coverage server-api --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA"
       - name: Verify the complete Windows notification icon domain
         id: tray
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
@@ -131,22 +144,13 @@ jobs:
           --archive dist/docking-windows-x86_64.zip
           --bundle artifacts/windows/bundle-preflight/extracted/Docking
           --output artifacts/windows/release-readiness
-      - name: Verify accepted Windows release assets
-        if: ${{ !cancelled() && steps.installer_smoke.outcome == 'success' && steps.release_readiness.outcome == 'success' && steps.tray.outcome == 'success' && steps.applications.outcome == 'success' }}
-        run: |
-          python - <<'PY'
-          from importlib.metadata import version
-          from pathlib import Path
-          from tools.windows.release import stage
-
-          stage(Path("."), version("docking"), Path("artifacts/windows/release-staged"))
-          PY
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: windows-ucrt64-x64
           path: |
             artifacts/windows/environment.json
+            artifacts/windows/input-candidate.json
             artifacts/windows/input-domain.json
             artifacts/windows/tray-domain.json
             artifacts/windows/applications-domain.json
@@ -167,7 +171,6 @@ jobs:
             artifacts/windows/upgrade-fixture/*.json
             artifacts/windows/upgrade-fixture/*.log
             artifacts/windows/release-readiness/
-            artifacts/windows/release-staged/SHA256SUMS-windows
             dist/*.whl
             dist/*.zip
             dist/*.zip.sha256

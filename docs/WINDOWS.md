@@ -1835,6 +1835,18 @@ installed distributions do not. Helpers are copied to a content-addressed local
 cache before a foreign application loads them. Linux/BSD wheels remain pure
 Python. No generated DLL is checked in.
 
+CI distinguishes `server-api` from `workstation-composition` input coverage.
+Windows 11 x64 is the product target. Mandatory Windows 11 client CI tests the
+exact Server-built AMD64 candidate wheel, retains all twelve request controls,
+eight real Telex/VNI compositions and both plain GTK/Search preedit/Return/Escape
+checks. Server retains API/profile activation, classic/dead-key/layout/shortcut,
+cancellation and cleanup coverage without claiming composition. The observed
+hosted Server image emits raw input in independent native editors and plain GTK
+despite correct TSF/profile/mode readback; its failure is retained as evidence,
+not reclassified as successful composition. No universal Server IME limitation
+is inferred. Release staging requires the client reports, wheel digest and exact
+source commit; see [Windows packaging](../packaging/windows/README.md).
+
 `input_profile_smoke` temporarily enables two owned built-in Vietnamese test
 profiles and restores their original state. On Windows 11 25H2, Telex physical
 `A,A` and VNI physical `A,6` both produce `â` in saved 64-bit Notepad and 32-bit
@@ -1868,7 +1880,8 @@ Compiler diagnostics are retained in bounded, redacted build reports.
 
 The hosted client job wraps both checks with
 `python -m tools.windows.visual.hosted_desktop --installed-root
-artifacts/windows/runtime --output artifacts/windows`. The wrapper is restricted
+artifacts/windows/runtime --wheel dist/*.whl --source-sha <full-source-commit>
+--output artifacts/windows`. The wrapper is restricted
 to disposable GitHub-hosted Windows 11 ARM runners. It scopes the documented
 `DisablePrivacyExperience` policy to the batch, handles recognized first-login
 windows and the runner's WSL-update terminal, and records desktop captures and
@@ -1884,9 +1897,11 @@ On an ARM host, a non-WOW64 process can still use the AMD64 ABI. The input hook
 selector resolves that ambiguity with `GetProcessInformation` and
 `ProcessMachineTypeInfo` before choosing an x86 or AMD64 helper.
 
-CI runs the source Search checks and installed native editor checks in fresh
+CI runs both installed-wheel Search and native editor checks in fresh
 processes through `python -m tools.windows.ci --stage input --installed-root
-artifacts/windows/runtime`. It collects both results in
+artifacts/windows/runtime --wheel dist/*.whl --source-sha <full-source-commit>`.
+Use `--input-coverage server-api` for the explicit hosted Server API profile.
+It collects both results in
 `artifacts/windows/input-domain.json` before failing the batch, so a Search
 failure still leaves the independent editor result available. Cancellation
 stops the batch immediately.

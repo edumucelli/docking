@@ -571,9 +571,13 @@ def controls(monkeypatch):
         def start(self):
             return {"hwnd": self.context.root, "pid": self.context.pid}
 
+        def verify_identity(self, window):
+            assert window == {"hwnd": self.context.root, "pid": self.context.pid}
+            return window
+
     def read(context, cancelled):
         calls.append((context.pid, "read"))
-        if options.read_error and context.pid == 64:
+        if options.read_error and context.pid == 64 and calls.count((64, "read")) > 1:
             raise options.read_error
         return snapshot(api.active(context.thread))
 
@@ -626,7 +630,8 @@ def test_both_control_architectures_run_all_six_boundaries(controls, tmp_path):
     )
     assert journal["controls_passed"]
     assert [r["architecture"] for r in journal["controls"]] == [64, 32]
-    assert len(calls) == 12
+    assert len(calls) == 14
+    assert all(row["readiness"]["ready"] for row in journal["controls"])
     for editor, row in zip(editors, journal["controls"], strict=True):
         assert row["closed"] and row["editor"]["closed"]
         assert row["process_abi"]["machine"] == editor.process._handle
@@ -878,3 +883,78 @@ def test_input_tool_imports_do_not_preload_source_application():
         check=True,
         timeout=15,
     )
+
+
+def test_cold_readiness_unavailable_does_not_replace_measured_initial_read():
+    from dataclasses import dataclass
+
+    @dataclass
+    class State:
+        layout: int = 0x04090409
+
+    reads = iter([None, State(), State()])
+    events = []
+    journal = {}
+    mod.input_service_ready(
+        read=lambda: next(reads),
+        validate=lambda: events.append("validate"),
+        journal=journal,
+        publish=lambda: None,
+    )
+    assert journal["ready"]
+    assert [row["available"] for row in journal["attempts"]] == [False, True]
+    measured = {}
+    mod.collect_controls(
+        row=measured,
+        operations=(("initial-read", lambda: next(reads)),),
+        validate=lambda: None,
+        close=lambda: None,
+    )
+    assert measured["operations"] == [
+        {"name": "initial-read", "ok": True, "snapshot": {"layout": 0x04090409}}
+    ]
+    assert events == ["validate"] * 4
+
+
+@pytest.mark.parametrize(
+    "failure", ["unavailable", "deadline", "identity", "api", "cancelled"]
+)
+def test_readiness_cannot_accept_timeout_target_loss_api_error_or_cancel(failure):
+    from dataclasses import dataclass
+
+    @dataclass
+    class State:
+        layout: int = 0x04090409
+
+    cancelled = threading.Event()
+    journal = {}
+    validations = 0
+
+    def validate():
+        nonlocal validations
+        validations += 1
+        if failure == "identity" and validations == 2:
+            raise RuntimeError("Owned target changed")
+
+    def read():
+        if failure == "api":
+            raise OSError(5, "Native API failed")
+        if failure == "cancelled":
+            cancelled.set()
+        return None if failure == "unavailable" else State()
+
+    kwargs = {"seconds": 0} if failure == "deadline" else {}
+    expected = (
+        OSError if failure in ("api", "unavailable", "deadline") else RuntimeError
+    )
+    with pytest.raises(expected):
+        mod.input_service_ready(
+            read=read,
+            validate=validate,
+            journal=journal,
+            publish=lambda: None,
+            cancelled=cancelled,
+            **kwargs,
+        )
+    assert not journal["ready"]
+    assert len(journal["attempts"]) <= 3

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_windows_input_acceptance import SOURCE_SHA, write_input_artifact
 from tools.windows import release
 
 WHEEL_SHA256 = hashlib.sha256(b"accepted wheel fixture").hexdigest()
@@ -349,6 +350,8 @@ def incoming(tmp_path):
         path = tray_path(directory, profile)
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps(tray_report(profile)), encoding="utf-8")
+    write_input_artifact(directory / "artifacts/windows", profile="server-api")
+    write_input_artifact(directory / "client-input/artifacts/windows")
     return directory
 
 
@@ -359,7 +362,7 @@ def test_release_versions_aliases_and_checksums_retain_accepted_bytes(
     destination.mkdir()
     other_platform = destination / "existing-bsd.pkg"
     other_platform.write_bytes(b"retain another platform")
-    release.stage(incoming, "1.2.3", destination)
+    release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert other_platform.read_bytes() == b"retain another platform"
     sums = (destination / "SHA256SUMS-windows").read_text().splitlines()
     assert len(sums) == 4
@@ -434,7 +437,7 @@ def test_invalid_or_unaccepted_packages_do_not_enter_the_release(
             report.write_bytes(b"invalid JSON")
     destination = tmp_path / "release"
     with pytest.raises(ValueError):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -457,14 +460,14 @@ def test_each_installer_acceptance_phase_must_have_passed(incoming, tmp_path, ch
     report.write_text(json.dumps(data), encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="acceptance"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
 def test_invalid_release_version_does_not_create_destination(incoming, tmp_path):
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="version"):
-        release.stage(incoming, "../1.2.3", destination)
+        release.stage(incoming, "../1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -479,7 +482,7 @@ def test_installer_acceptance_binds_exact_candidate_not_only_count(
     report["candidate"][field] = "different"
     path.write_text(json.dumps(report), encoding="utf-8")
     with pytest.raises(ValueError, match="matching installer"):
-        release.stage(incoming, "1.2.3", tmp_path / "release")
+        release.stage(incoming, "1.2.3", tmp_path / "release", source_sha=SOURCE_SHA)
     assert not (tmp_path / "release").exists()
 
 
@@ -490,7 +493,7 @@ def test_reinstall_or_newer_fixture_cannot_claim_upgrade(incoming, tmp_path, ver
     report["previous"]["version"] = version
     path.write_text(json.dumps(report), encoding="utf-8")
     with pytest.raises(ValueError, match="version"):
-        release.stage(incoming, "1.2.3", tmp_path / "release")
+        release.stage(incoming, "1.2.3", tmp_path / "release", source_sha=SOURCE_SHA)
     assert not (tmp_path / "release").exists()
 
 
@@ -544,7 +547,7 @@ def test_startup_session_coverage_is_bound_and_recomputed(incoming, tmp_path, de
     if defect == "missing":
         path.unlink()
     with pytest.raises(ValueError):
-        release.stage(incoming, "1.2.3", tmp_path / "release")
+        release.stage(incoming, "1.2.3", tmp_path / "release", source_sha=SOURCE_SHA)
     assert not (tmp_path / "release").exists()
 
 
@@ -671,7 +674,7 @@ def test_application_gate_rejects_stale_or_incomplete_evidence_before_staging(
         path.unlink()
     destination = tmp_path / "release"
     with pytest.raises(ValueError):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -723,7 +726,7 @@ def test_each_tray_report_is_required_before_any_assets_are_staged(
         path.write_text("[]", encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="tray"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -766,7 +769,7 @@ def test_tray_api_acceptance_requires_complete_catalog_and_cleanup(
     path.write_text(json.dumps(data), encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="acceptance"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -794,7 +797,7 @@ def test_installed_tray_acceptance_must_match_the_packaged_wheel(
     path.write_text(json.dumps(data), encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="acceptance"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -865,7 +868,7 @@ def test_tray_gtk_acceptance_requires_both_complete_interaction_profiles(
     path.write_text(json.dumps(data), encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="acceptance"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -897,7 +900,7 @@ def test_tray_focus_requires_exact_native_popup_and_widget_focus(
     path.write_text(json.dumps(data), encoding="utf-8")
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="focus acceptance"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -977,7 +980,7 @@ def test_missing_packaged_wheel_digest_cannot_reuse_unbound_tray_reports(
     write_archive(incoming / "dist/docking-windows-x86_64.zip", wheel_sha256=None)
     destination = tmp_path / "release"
     with pytest.raises(ValueError, match="wheel digest"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert not destination.exists()
 
 
@@ -988,6 +991,44 @@ def test_tray_rejection_preserves_existing_release_assets(incoming, tmp_path):
     asset = destination / "existing-bsd.pkg"
     asset.write_bytes(b"previously accepted bytes")
     with pytest.raises(ValueError, match="tray"):
-        release.stage(incoming, "1.2.3", destination)
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
     assert [path.name for path in destination.iterdir()] == [asset.name]
     assert asset.read_bytes() == b"previously accepted bytes"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing-client",
+        "stale-client",
+        "server-only",
+        "failed-cell",
+        "failed-server-cleanup",
+    ],
+)
+def test_release_requires_separate_exact_candidate_workstation_proof(
+    incoming, tmp_path, failure
+):
+    client = incoming / "client-input/artifacts/windows"
+    path = client / "input-profiles/result.json"
+    if failure == "missing-client":
+        path.unlink()
+    elif failure == "stale-client":
+        report = json.loads(path.read_text())
+        report["acceptance"]["source_sha"] = "b" * 40
+        path.write_text(json.dumps(report))
+    elif failure == "server-only":
+        write_input_artifact(client, profile="server-api")
+    elif failure == "failed-cell":
+        report = json.loads(path.read_text())
+        report["stages"][1]["profiles"][1]["variants"][1]["text"] = "aa "
+        path.write_text(json.dumps(report))
+    else:
+        path = incoming / "artifacts/windows/search-layouts/result.json"
+        report = json.loads(path.read_text())
+        report["cleanup"][0]["ok"] = False
+        path.write_text(json.dumps(report))
+    destination = tmp_path / "release"
+    with pytest.raises(ValueError):
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
+    assert not destination.exists()

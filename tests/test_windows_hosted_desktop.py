@@ -352,6 +352,7 @@ def test_sweep_failure_records_identity_but_never_mutates_unproven_wwahost():
         windows=lambda _pid: [window()],
         foreground=lambda: 100,
         perform=Mock(),
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
     )
     journal = {"actions": []}
     with pytest.raises(hosted.PreparationError):
@@ -403,6 +404,7 @@ def test_first_classification_failure_retains_all_known_identity_and_window_evid
         windows=windows,
         foreground=lambda: 20,
         perform=Mock(),
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
     )
     journal = {"actions": []}
     with pytest.raises(hosted.PreparationError, match="Performance Options"):
@@ -454,7 +456,17 @@ def test_guard_rejection_does_not_construct_native_or_registry_helpers(monkeypat
     monkeypatch.setattr(
         hosted.sys,
         "argv",
-        ["hosted_desktop.py", "--installed-root", "owned", "--output", "owned"],
+        [
+            "hosted_desktop.py",
+            "--installed-root",
+            "owned",
+            "--wheel",
+            "candidate.whl",
+            "--source-sha",
+            "a" * 40,
+            "--output",
+            "owned",
+        ],
     )
     monkeypatch.setattr(
         hosted,
@@ -481,6 +493,7 @@ def test_native_process_handle_is_released_after_identity_query_failure(monkeypa
         OpenProcess=Mock(return_value=123),
         CloseHandle=Mock(),
         QueryFullProcessImageNameW=Mock(return_value=0),
+        WaitForSingleObject=Mock(return_value=258),
     )
     with pytest.raises(hosted.PreparationError) as failed, api.processes():
         raise AssertionError("Identity query should fail first")
@@ -529,9 +542,10 @@ def test_pinned_process_natural_exit_is_benign_and_never_terminates_another_pid(
     api.kernel.TerminateProcess.assert_not_called()
 
 
+@pytest.mark.parametrize("platform", ("win32", "linux"))
 @pytest.mark.parametrize("failure", (None, "assign", "body", "cancel"))
 def test_owned_collector_is_contained_before_permission_and_killed_before_wait(
-    tmp_path, monkeypatch, failure
+    tmp_path, monkeypatch, failure, platform
 ):
     order, journal = [], {}
     pipe = SimpleNamespace(closed=False)
@@ -560,9 +574,18 @@ def test_owned_collector_is_contained_before_permission_and_killed_before_wait(
     )
     spawn = Mock(return_value=process)
     monkeypatch.setattr(hosted.subprocess, "Popen", spawn)
+    monkeypatch.setattr(
+        hosted, "sys", SimpleNamespace(platform=platform, executable=sys.executable)
+    )
 
     def exercise():
-        with hosted.collector(tmp_path, tmp_path / "installed", journal):
+        with hosted.collector(
+            tmp_path,
+            tmp_path / "installed",
+            journal,
+            wheel=tmp_path / "candidate.whl",
+            source_sha="a" * 40,
+        ):
             order.append("collecting")
             if failure == "body":
                 raise ValueError("smoke failed")
@@ -581,6 +604,9 @@ def test_owned_collector_is_contained_before_permission_and_killed_before_wait(
         exercise()
     command = spawn.call_args.args[0]
     assert "--collect" in command and spawn.call_args.kwargs["stdin"] == subprocess.PIPE
+    assert spawn.call_args.kwargs["creationflags"] == (
+        0x08000000 if platform == "win32" else 0
+    )
     assert order.index("job-close") < order.index("process-wait")
     if failure == "assign":
         assert not any(isinstance(entry, tuple) for entry in order)
@@ -591,6 +617,15 @@ def test_owned_collector_is_contained_before_permission_and_killed_before_wait(
             < order.index("collecting")
         )
     assert pipe.closed and journal["collector_stopped"]
+    assert (
+        journal["collector_spawn_started"]["monotonic_ns"]
+        <= journal["collector_started_at"]["monotonic_ns"]
+    )
+    if failure != "assign":
+        assert (
+            journal["collector_started_at"]["monotonic_ns"]
+            <= journal["collector_permitted_at"]["monotonic_ns"]
+        )
 
 
 @pytest.mark.parametrize(
@@ -927,7 +962,16 @@ def test_broken_permission_pipe_still_closes_owned_job_and_waits_before_return(
         SimpleNamespace(ProcessJob=lambda: job),
     )
     monkeypatch.setattr(hosted.subprocess, "Popen", Mock(return_value=process))
-    with pytest.raises(BrokenPipeError), hosted.collector(tmp_path, tmp_path, journal):
+    with (
+        pytest.raises(BrokenPipeError),
+        hosted.collector(
+            tmp_path,
+            tmp_path,
+            journal,
+            wheel=tmp_path / "candidate.whl",
+            source_sha="a" * 40,
+        ),
+    ):
         raise AssertionError("No permission was delivered")
     assert order == ["job-close", "wait"] and journal["collector_stopped"]
 
@@ -947,6 +991,10 @@ def test_collector_branch_cannot_run_smokes_before_exact_parent_permission(
         [
             "hosted_desktop.py",
             "--collect",
+            "--wheel",
+            str(tmp_path / "candidate.whl"),
+            "--source-sha",
+            "a" * 40,
             "--installed-root",
             str(tmp_path),
             "--output",
@@ -964,7 +1012,10 @@ def test_collector_branch_cannot_run_smokes_before_exact_parent_permission(
     monkeypatch.setattr(ci, "input_domain", collect)
     if permission == b"1":
         assert hosted.main() == 0
-        assert collect.call_args.kwargs == {"owned_amd64_editor": True}
+        assert collect.call_args.kwargs == {
+            "owned_amd64_editor": True,
+            "source_sha": "a" * 40,
+        }
     else:
         with pytest.raises(hosted.PreparationError, match="not authorized"):
             hosted.main()
@@ -1046,6 +1097,7 @@ def test_verified_visible_nonforeground_start_is_observed_as_blocking_but_untouc
         windows=lambda _pid: [window()],
         foreground=lambda: 999,
         perform=Mock(),
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
     )
     journal = {"actions": []}
     assert hosted.sweep(api, journal) == 0
@@ -1287,6 +1339,7 @@ def test_live_pending_wsl_preserves_child_completion_and_policy_cleanup(
         windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
         foreground=lambda: 100,
         perform=perform,
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
         capture=lambda _path: None,
     )
     assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == status
@@ -1326,6 +1379,7 @@ def test_initial_pending_wsl_is_fatal_before_collector_launch(tmp_path):
         windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
         foreground=lambda: 100,
         perform=Mock(side_effect=hosted.WslDismissalPendingError()),
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
         capture=lambda _path: None,
     )
     collect, journal, registry = Mock(), {}, Registry((0, 4))
@@ -1422,6 +1476,7 @@ def updater_api(monkeypatch):
         TerminateProcess=Mock(side_effect=terminate),
     )
     api._wsl_arguments = Mock(return_value=["wsl.exe", *hosted._WSL_UPDATE_ARGS])
+    api.ancestry = Mock(return_value={"limit": 4, "parents": []})
     process = SimpleNamespace(pid=20, info={"name": "wsl.exe"})
     fake_psutil = SimpleNamespace(
         process_iter=lambda _attrs: [process] if original.live else []
@@ -1736,6 +1791,7 @@ def test_updater_stops_before_terminal_fallback_and_refreshes_closed_windows():
         windows=lambda pid: list(remaining[0]) if pid == 30 else [],
         foreground=lambda: 100,
         perform=perform,
+        ancestry=Mock(return_value={"limit": 4, "parents": []}),
     )
     journal = {"actions": []}
     assert hosted.sweep(api, journal, allow_pending_wsl=True) == 1
@@ -1841,3 +1897,209 @@ def test_performance_wm_close_accepts_window_destroyed_during_dwm_readback(
     assert api.perform(process, "close", window(**{"class": "#32770"})) == "dismissed"
     api.user.PostMessageW.assert_called_once_with(100, 0x10, 0, 0)
     assert state.closing and not state.alive
+
+
+@pytest.mark.parametrize("stage", ("image", "creation"))
+@pytest.mark.parametrize("code", (5, 87))
+@pytest.mark.parametrize("status", (0, 258, 0xFFFFFFFF))
+def test_snapshot_failure_skips_only_a_signalled_pinned_handle(
+    updater_api, stage, code, status
+):
+    api, _state, _original = updater_api
+    error = hosted.PreparationError(
+        "QueryFullProcessImageNameW" if stage == "image" else "GetProcessTimes", code
+    )
+    query = Mock(side_effect=error)
+    if stage == "image":
+        api._image = query
+    else:
+        api._created = query
+    api.kernel.WaitForSingleObject.side_effect = lambda *_: status
+    if status == 0:
+        with api.processes() as rows:
+            assert rows == []
+        assert api.exited == [
+            {"pid": 20, "name": "wsl.exe", "code": code, "stage": stage}
+        ]
+    else:
+        with pytest.raises(hosted.PreparationError) as failed, api.processes():
+            pytest.fail("A live or unverified process cannot be skipped")
+        assert failed.value is error and not api.exited
+        expected = {"pid": 20, "name": "wsl.exe", "stage": stage, "wait_status": status}
+        if status == 0xFFFFFFFF:
+            expected["wait_error"] = 5
+        assert hosted._error(error)["candidate"] == expected
+    api.kernel.CloseHandle.assert_called_once_with(10)
+    api.kernel.TerminateProcess.assert_not_called()
+
+
+def test_unrelated_snapshot_failure_is_fatal_without_exit_reclassification(updater_api):
+    api, _state, _original = updater_api
+    error = hosted.PreparationError("QueryFullProcessImageNameW", 13)
+    api._image = Mock(side_effect=error)
+    with pytest.raises(hosted.PreparationError) as failed, api.processes():
+        pytest.fail("Unexpected errors must remain fatal")
+    assert failed.value is error
+    api.kernel.WaitForSingleObject.assert_not_called()
+    api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+@pytest.fixture
+def ancestry_api(monkeypatch):
+    created_base = 1 << 40
+    nodes = {
+        20: SimpleNamespace(
+            created=created_base + 40, parent=30, path=ROOT + r"\System32\wsl.exe"
+        ),
+        30: SimpleNamespace(
+            created=created_base + 30, parent=40, path=ROOT + r"\System32\cmd.exe"
+        ),
+        40: SimpleNamespace(
+            created=created_base + 20, parent=0, path=r"C:\private-fixture\unknown.exe"
+        ),
+    }
+    handles = {10: 20, 130: 30, 140: 40}
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    api.session_of = Mock(return_value=3)
+    api._image = Mock(side_effect=lambda handle: nodes[handles[handle]].path)
+    api._created = Mock(side_effect=lambda handle: nodes[handles[handle]].created)
+    api.package = Mock(return_value=(None, 0))
+    api.kernel = SimpleNamespace(
+        OpenProcess=Mock(side_effect=lambda _access, _inherit, pid: pid + 100),
+        CloseHandle=Mock(return_value=1),
+        GetProcessId=Mock(side_effect=lambda handle: handles[handle]),
+        WaitForSingleObject=Mock(return_value=258),
+    )
+    parent = Mock(side_effect=lambda pid: nodes[pid].parent)
+    fake = SimpleNamespace(
+        Process=lambda pid: SimpleNamespace(ppid=lambda: parent(pid)),
+        NoSuchProcess=ProcessLookupError,
+        AccessDenied=PermissionError,
+    )
+    monkeypatch.setitem(sys.modules, "psutil", fake)
+    monkeypatch.setattr(hosted.c, "get_last_error", lambda: 5, raising=False)
+    target = identity(
+        "wsl.exe", nodes[20].path, created=nodes[20].created, wsl_update=True
+    )
+    return SimpleNamespace(
+        api=api, nodes=nodes, handles=handles, parent=parent, target=target
+    )
+
+
+def test_verified_ancestry_preserves_full_creation_identity_and_hides_unknown_paths(
+    ancestry_api,
+):
+    f = ancestry_api
+    result = f.api.ancestry(f.target)
+    assert result["parents"] == [
+        {"pid": 30, "created": (1 << 40) + 30, "session": 3, "label": "cmd.exe"},
+        {"pid": 40, "created": (1 << 40) + 20, "session": 3, "label": "opaque"},
+    ]
+    assert result["end"] == "no-parent" and "private-fixture" not in str(result)
+    assert [c.args[0] for c in f.api.kernel.CloseHandle.call_args_list] == [140, 130]
+    assert all(
+        c.args[:2] == (0x101000, False) for c in f.api.kernel.OpenProcess.call_args_list
+    )
+    f.api.package.assert_not_called()
+
+
+@pytest.mark.parametrize("kind", ("not-updater", "not-terminal-package"))
+def test_unverified_targets_never_trigger_ancestry_queries(ancestry_api, kind):
+    f = ancestry_api
+    target = replace(f.target, wsl_update=False)
+    if kind == "not-terminal-package":
+        target = replace(target, name="windowsterminal.exe", family="unrelated")
+    assert f.api.ancestry(target)["unavailable"] == "unverified-target"
+    f.api.kernel.WaitForSingleObject.assert_not_called()
+    f.parent.assert_not_called()
+
+
+def test_parent_pid_reuse_is_not_recorded_as_ancestry(ancestry_api):
+    f = ancestry_api
+    f.nodes[30].created = f.nodes[20].created + 1
+    result = f.api.ancestry(f.target)
+    assert not result["parents"] and result["unavailable"] == "parent-pid-reused"
+    f.api.kernel.CloseHandle.assert_called_once_with(130)
+
+
+def test_target_reuse_during_parent_query_prevents_opening_an_ancestor(ancestry_api):
+    f = ancestry_api
+
+    def changed(pid):
+        f.nodes[20].created += 1
+        return 30
+
+    f.parent.side_effect = changed
+    result = f.api.ancestry(f.target)
+    assert (
+        not result["parents"] and result["unavailable"] == "process-exited-or-replaced"
+    )
+    f.api.kernel.OpenProcess.assert_not_called()
+
+
+def test_ancestry_is_bounded_and_never_follows_a_cycle(ancestry_api):
+    f = ancestry_api
+    f.nodes[40].parent = 20
+    result = f.api.ancestry(f.target)
+    assert len(result["parents"]) == 2 and result["end"] == "cycle"
+    assert f.parent.call_count == 3
+
+
+def test_ancestry_stops_at_four_parents_and_closes_every_query_handle(ancestry_api):
+    f = ancestry_api
+    for pid in (40, 50, 60, 70):
+        f.nodes[pid] = SimpleNamespace(
+            created=(1 << 40) + 60 - pid,
+            parent=pid + 10,
+            path=r"C:\private-fixture\unknown.exe",
+        )
+        f.handles[pid + 100] = pid
+    result = f.api.ancestry(f.target)
+    assert len(result["parents"]) == result["limit"] == 4
+    assert f.parent.call_count == 4 and f.api.kernel.CloseHandle.call_count == 4
+    assert not any(c.args[-1] == 70 for c in f.api.kernel.OpenProcess.call_args_list)
+
+
+@pytest.mark.parametrize("failure", ("parent-query", "open", "image", "close"))
+def test_ancestry_query_failures_keep_safe_diagnostics_and_close_handles(
+    ancestry_api, failure
+):
+    f = ancestry_api
+    if failure == "parent-query":
+        f.parent.side_effect = PermissionError("private-command")
+    elif failure == "open":
+        f.api.kernel.OpenProcess.side_effect = None
+        f.api.kernel.OpenProcess.return_value = 0
+    elif failure == "image":
+        f.api._image.side_effect = hosted.PreparationError(
+            "QueryFullProcessImageNameW", 5
+        )
+    else:
+        f.api.kernel.CloseHandle.return_value = 0
+    if failure == "close":
+        with pytest.raises(hosted.PreparationError, match="Close ancestry"):
+            f.api.ancestry(f.target)
+        assert f.api.kernel.CloseHandle.call_count == 2
+    else:
+        result = f.api.ancestry(f.target)
+        assert "unavailable" in result and "private" not in str(result)
+        assert f.api.kernel.CloseHandle.call_count == (1 if failure == "image" else 0)
+
+
+def test_verified_action_timestamps_surround_ancestry_and_native_action(
+    updater_api, monkeypatch
+):
+    api, _state, _original = updater_api
+    stamps = [
+        {"utc": "start", "monotonic_ns": 10},
+        {"utc": "finish", "monotonic_ns": 20},
+    ]
+    monkeypatch.setattr(hosted, "_stamp", Mock(side_effect=stamps))
+    journal = {"actions": []}
+    hosted.sweep(api, journal)
+    row = journal["actions"][0]
+    assert row["started"] == stamps[0] and row["finished"] == stamps[1]
+    assert row["ancestry"] == {"limit": 4, "parents": []}
+    assert row["updater_stopped"] and row["after"] == "dismissed"
+    api.ancestry.assert_called_once()

@@ -18,12 +18,18 @@ from dataclasses import asdict
 from functools import partial
 from pathlib import Path
 
+from tools.windows.input_acceptance import PROFILES, coverage, runtime_acceptance
 from tools.windows.visual.input_oracle import oracle
 
 
 def main(monitor):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--coverage", choices=PROFILES, default="workstation-composition"
+    )
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--source-sha")
     parser.add_argument(
         "--installed-root", type=Path, help="Exercise this installed wheel runtime"
     )
@@ -38,6 +44,10 @@ def main(monitor):
         help="Check Search typing, dead keys and shortcut recovery across layouts",
     )
     args = parser.parse_args()
+    if (args.wheel is None) != (args.source_sha is None):
+        parser.error("--wheel and --source-sha are required together")
+    if args.wheel is not None and args.installed_root is None:
+        parser.error("--wheel requires --installed-root")
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test VM")
     output = args.output.resolve()
@@ -54,8 +64,16 @@ def main(monitor):
     )
 
     runtime = {}
+    accepted = None
     try:
         runtime_root = select_input_runtime(args.installed_root, runtime)
+        if args.wheel is not None:
+            accepted = runtime_acceptance(
+                runtime_root,
+                args.wheel,
+                source_sha=args.source_sha,
+                profile=args.coverage,
+            )
     except Exception as error:
         write_shared_json(
             output / "result.json",
@@ -147,6 +165,8 @@ def main(monitor):
     )
     report = {
         "runtime": runtime,
+        "coverage": coverage(args.coverage),
+        "acceptance": accepted,
         "baseline": before,
         "owned_layouts": [],
         "states": {},
@@ -298,6 +318,7 @@ def main(monitor):
                 french=int(wanted["fr"].split(":")[1], 16),
                 journal=report.setdefault("direct_requests", {}),
                 publish=publish,
+                trace=report["request_trace"],
             )
             document = output / "docking-keyboard-native-acceptance.txt"
             document.write_text("", encoding="utf-8")
@@ -855,6 +876,17 @@ def main(monitor):
                             ):
                                 raise RuntimeError("Owned IME profile changed")
 
+                        if args.coverage == "server-api":
+                            validate_profile()
+                            attempt.update(
+                                profile_readback=applet._backend.query().active,
+                                activation_verified=True,
+                                composition="not-requested",
+                                stage="complete",
+                            )
+                            publish()
+                            return
+
                         attempt["ime_mode"] = {}
                         mode_scope.enter_context(
                             ime_conversion(
@@ -1108,17 +1140,22 @@ def main(monitor):
                                 mapped,
                                 attempt,
                             )
-                            expected = attempt["reference"]["text_after_cancel"]
-                            attempt["native_expected_after_cancel"] = expected
-                            attempt["stage"] = "compare"
-                            publish()
-                            assert (
-                                attempt["text_after_commit"]
-                                == attempt["reference"]["text_after_commit"]
-                            ), "Search Return differed from the default GTK reference"
-                            assert attempt["text_after_cancel"] == expected, (
-                                "Search Escape differed from the default GTK reference"
-                            )
+                            if args.coverage == "workstation-composition":
+                                expected = attempt["reference"]["text_after_cancel"]
+                                attempt["native_expected_after_cancel"] = expected
+                                attempt["stage"] = "compare"
+                                publish()
+                                assert (
+                                    attempt["text_after_commit"]
+                                    == attempt["reference"]["text_after_commit"]
+                                ), (
+                                    "Search Return differed from "
+                                    "the default GTK reference"
+                                )
+                                assert attempt["text_after_cancel"] == expected, (
+                                    "Search Escape differed from "
+                                    "the default GTK reference"
+                                )
                             attempt["stage"] = "complete"
                             ImageGrab.grab(all_screens=True).save(
                                 output / f"search-profile-{profile.identifier}.png"

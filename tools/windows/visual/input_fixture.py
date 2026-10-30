@@ -246,6 +246,7 @@ def ime_conversion(
         )
         validate_target()
 
+    failure: BaseException | None = None
     try:
         if not before.open or (
             conversion is not None and conversion != before.conversion
@@ -259,8 +260,10 @@ def ime_conversion(
         ):
             raise RuntimeError("Owned IME did not enter the requested mode")
         yield journal
-    except (OSError, RuntimeError) as error:
+    except BaseException as error:
+        failure = error
         journal["error"] = type(error).__name__
+        journal["exercise_error"] = type(error).__name__
         raise
     finally:
         journal["restore_attempted"] = touched
@@ -274,6 +277,7 @@ def ime_conversion(
             journal["restored"] = restored == before
             if not journal["restored"]:
                 raise RuntimeError("Owned IME mode did not restore exactly")
-        except (OSError, RuntimeError) as error:
+        except Exception as error:
             journal["restore_error"] = type(error).__name__
-            raise
+            if failure is None:
+                raise

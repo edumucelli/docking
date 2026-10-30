@@ -16,6 +16,7 @@ from packaging.version import InvalidVersion, Version
 
 from tools.windows.application_acceptance import validate_applications_report
 from tools.windows.bundle import verify_archive
+from tools.windows.input_acceptance import validate_input_artifact
 from tools.windows.visual.tray_provider import provider_cases
 
 REQUIRED_CHECKS = (
@@ -486,7 +487,7 @@ def digest(path: Path) -> str:
     return result.hexdigest()
 
 
-def stage(directory: Path, version: str, destination: Path) -> None:
+def stage(directory: Path, version: str, destination: Path, *, source_sha: str) -> None:
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
         raise ValueError("Expected a stable X.Y.Z project version")
     packages: list[tuple[Path, str, str]] = []
@@ -537,6 +538,17 @@ def stage(directory: Path, version: str, destination: Path) -> None:
         _tray_acceptance(directory, identity["wheel_sha256"])
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError("Incomplete Windows tray acceptance artifacts") from exc
+    validate_input_artifact(
+        directory / "artifacts/windows",
+        profile="server-api",
+        wheel_sha256=str(identity["wheel_sha256"]),
+        source_sha=source_sha,
+    )
+    validate_input_artifact(
+        directory / "client-input/artifacts/windows",
+        wheel_sha256=str(identity["wheel_sha256"]),
+        source_sha=source_sha,
+    )
     # Preflight every input before adding anything to the shared release folder.
     destination.mkdir(parents=True, exist_ok=True)
     checksums = []
@@ -554,9 +566,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--version", required=True)
+    parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    stage(args.directory, args.version, args.output)
+    stage(args.directory, args.version, args.output, source_sha=args.source_sha)
 
 
 if __name__ == "__main__":

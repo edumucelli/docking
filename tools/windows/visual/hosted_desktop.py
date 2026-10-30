@@ -18,6 +18,7 @@ import time
 from contextlib import ExitStack, contextmanager, suppress
 from ctypes import wintypes
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 
 from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
@@ -46,6 +47,14 @@ class PreparationError(RuntimeError):
     def __init__(self, operation: str, code: int = 13):
         super().__init__(f"{operation} ({code})")
         self.operation, self.code = operation, code
+        self.candidate = None
+
+
+def _stamp():
+    return {
+        "utc": datetime.now(timezone.utc).isoformat(),
+        "monotonic_ns": time.monotonic_ns(),
+    }
 
 
 class WslDismissalPendingError(PreparationError):
@@ -275,6 +284,152 @@ class NativeDesktop:
         )
         return times[0].low | (times[0].high << 32)
 
+    def _snapshot(self, handle, pid, name):
+        values = []
+        for stage, query in (("image", self._image), ("creation", self._created)):
+            try:
+                values.append(query(handle))
+            except PreparationError as error:
+                if error.code in (5, 87):
+                    status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(
+                        handle, 0
+                    )
+                    if status == 0:
+                        self.exited.append(
+                            {
+                                "pid": pid,
+                                "name": name,
+                                "code": error.code,
+                                "stage": stage,
+                            }
+                        )
+                        return None
+                    error.candidate = {
+                        "pid": pid,
+                        "name": name,
+                        "stage": stage,
+                        "wait_status": status,
+                    }
+                    if status == 0xFFFFFFFF:
+                        error.candidate["wait_error"] = c.get_last_error()
+                raise
+        return values[0], values[1]
+
+    def _same_process(self, handle, pid, created, session):
+        status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 0)
+        if status == 0:
+            return False
+        if status != 258:
+            raise PreparationError("Ancestry process wait", c.get_last_error())
+        return (
+            bind(self.kernel, "GetProcessId", _U, _P)(handle) == pid
+            and self._created(handle) == created
+            and self.session_of(pid) == session
+        )
+
+    def _ancestor_label(self, handle):
+        path = self._image(handle)
+        names = {
+            "cmd.exe": "System32/cmd.exe",
+            "powershell.exe": "System32/WindowsPowerShell/v1.0/powershell.exe",
+            "taskeng.exe": "System32/taskeng.exe",
+            "taskhostw.exe": "System32/taskhostw.exe",
+            "svchost.exe": "System32/svchost.exe",
+            "conhost.exe": "System32/conhost.exe",
+            "wsl.exe": "System32/wsl.exe",
+            "explorer.exe": "explorer.exe",
+        }
+        name = PureWindowsPath(path).name.casefold()
+        relative = names.get(name)
+        if relative is not None and _path(path) == _path(
+            PureWindowsPath(self.root) / relative
+        ):
+            return name
+        if name == "windowsterminal.exe" and self.package(handle) == (_TERMINAL, 0):
+            return name
+        return "opaque"
+
+    def ancestry(self, identity):
+        """Read at most four pinned parents of a verified interference target."""
+        import psutil
+
+        result = {"limit": 4, "parents": []}
+        if not (
+            (identity.name == "wsl.exe" and identity.wsl_update)
+            or (identity.name == "windowsterminal.exe" and identity.family == _TERMINAL)
+        ):
+            return {**result, "unavailable": "unverified-target"}
+        handle, pid, created, session = (
+            identity.handle,
+            identity.pid,
+            identity.created,
+            identity.session,
+        )
+        seen = {pid}
+
+        def close(handle):
+            self.check(
+                bind(self.kernel, "CloseHandle", _B, _P)(handle),
+                "Close ancestry process handle",
+            )
+
+        with ExitStack() as handles:
+            for _ in range(result["limit"]):
+                try:
+                    if not self._same_process(handle, pid, created, session):
+                        result["unavailable"] = "process-exited-or-replaced"
+                        break
+                    parent = psutil.Process(pid).ppid()
+                    if not self._same_process(handle, pid, created, session):
+                        result["unavailable"] = "process-exited-or-replaced"
+                        break
+                    if not parent or parent in seen:
+                        result["end"] = "no-parent" if not parent else "cycle"
+                        break
+                    seen.add(parent)
+                    parent_handle = bind(self.kernel, "OpenProcess", _P, _U, _B, _U)(
+                        0x101000, False, parent
+                    )
+                    if not parent_handle:
+                        result["unavailable"] = {
+                            "parent_pid": parent,
+                            "code": c.get_last_error(),
+                        }
+                        break
+                    handles.callback(close, parent_handle)
+                    parent_created = self._created(parent_handle)
+                    if parent_created > created:
+                        result["unavailable"] = "parent-pid-reused"
+                        break
+                    parent_session = self.session_of(parent)
+                    label = self._ancestor_label(parent_handle)
+                    if not self._same_process(
+                        parent_handle, parent, parent_created, parent_session
+                    ):
+                        result["unavailable"] = "parent-exited-or-replaced"
+                        break
+                    result["parents"].append(
+                        {
+                            "pid": parent,
+                            "created": parent_created,
+                            "session": parent_session,
+                            "label": label,
+                        }
+                    )
+                    handle, pid, created, session = (
+                        parent_handle,
+                        parent,
+                        parent_created,
+                        parent_session,
+                    )
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    result["unavailable"] = "parent-query-unavailable"
+                    break
+                except PreparationError as error:
+                    result["unavailable"] = _error(error)
+                    break
+        return result
+
     def _live_wsl(self, identity, handle):
         status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 0)
         if status == 0:
@@ -399,7 +554,10 @@ class NativeDesktop:
                 handles.callback(bind(self.kernel, "CloseHandle", _B, _P), handle)
                 if self.session_of(process.pid) != self.session:
                     continue
-                path, created = self._image(handle), self._created(handle)
+                snapshot = self._snapshot(handle, process.pid, name)
+                if snapshot is None:
+                    continue
+                path, created = snapshot
                 family, error = (
                     self.package(handle)
                     if name
@@ -815,7 +973,14 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                     continue
                 entry = {**identity.journal(), "action": action, "before": "identified"}
                 journal["actions"].append(entry)
+                timed = action in ("stop-wsl-update", "minimize")
+                if timed:
+                    entry["started"] = _stamp()
+                    if window is not None:
+                        entry["window"] = window["hwnd"]
                 try:
+                    if timed:
+                        entry["ancestry"] = api.ancestry(identity)
                     entry["after"] = (
                         api.perform(identity, action, window, record=entry)
                         or "dismissed"
@@ -824,6 +989,9 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                     if not allow_pending_wsl or action != "minimize":
                         raise
                     entry.update(after="pending", verification=_error(error))
+                finally:
+                    if timed:
+                        entry["finished"] = _stamp()
                 entry["foreground_after"] = api.foreground()
                 count += 1
                 if action == "stop-wsl-update":
@@ -849,7 +1017,10 @@ def settle_desktop(api, journal, *, clock=time.monotonic, pause=time.sleep):
 
 def _error(error):
     if isinstance(error, PreparationError):
-        return {"operation": error.operation, "code": error.code}
+        result = {"operation": error.operation, "code": error.code}
+        if error.candidate is not None:
+            result["candidate"] = error.candidate
+        return result
     # Native errors expose winerror; Python/CRT pipe and file errors can omit
     # it or set it to None, including on Windows. This is an external boundary.
     try:
@@ -865,19 +1036,24 @@ def _error(error):
 
 
 @contextmanager
-def collector(output, installed, journal):
+def collector(output, installed, journal, *, wheel, source_sha):
     # The child waits for permission before it can spawn a smoke or fixture.
     # This also contains every descendant if preparation later fails/cancels.
     from docking.platform.backends.windows.process_job import ProcessJob
 
     job, process = ProcessJob(), None
     try:
+        journal["collector_spawn_started"] = _stamp()
         process = subprocess.Popen(
             [
                 sys.executable,
                 "-m",
                 "tools.windows.visual.hosted_desktop",
                 "--collect",
+                "--wheel",
+                str(wheel.resolve()),
+                "--source-sha",
+                source_sha,
                 "--installed-root",
                 str(installed.resolve()),
                 "--output",
@@ -885,7 +1061,9 @@ def collector(output, installed, journal):
             ],
             cwd=Path(__file__).resolve().parents[3],
             stdin=subprocess.PIPE,
+            creationflags=0x08000000 if sys.platform == "win32" else 0,
         )
+        journal["collector_started_at"] = _stamp()
         journal["collector_started"] = True
         journal["collector_stopped"] = False
         job.assign(int(process._handle))
@@ -893,6 +1071,7 @@ def collector(output, installed, journal):
             raise PreparationError("Collector permission pipe is unavailable")
         process.stdin.write(b"1")
         process.stdin.close()
+        journal["collector_permitted_at"] = _stamp()
         yield process
     finally:
         try:
@@ -970,6 +1149,8 @@ def run_prepared(api, registry, output, collect, journal):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installed-root", type=Path, required=True)
+    parser.add_argument("--wheel", type=Path, required=True)
+    parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--collect", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -991,13 +1172,21 @@ def main():
             Path(__file__).resolve().parents[3],
             output,
             args.installed_root,
+            args.wheel,
+            source_sha=args.source_sha,
             owned_amd64_editor=True,
         )
     return run_prepared(
         api,
         winreg,
         output,
-        lambda: collector(output, args.installed_root, journal),
+        lambda: collector(
+            output,
+            args.installed_root,
+            journal,
+            wheel=args.wheel,
+            source_sha=args.source_sha,
+        ),
         journal,
     )
 

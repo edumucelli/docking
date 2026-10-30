@@ -15,6 +15,12 @@ from functools import partial
 from pathlib import Path
 
 from tools.windows.bundle import command_path, staging_directory
+from tools.windows.input_acceptance import (
+    PROFILES,
+    candidate,
+    coverage,
+    validate_input_report,
+)
 from tools.windows.release import validate_applications_report, validate_tray_report
 from tools.windows.visual.desktop_driver import write_shared_json
 
@@ -59,12 +65,22 @@ _DomainCheck = tuple[str, str, str, list[str], Callable[[dict[str, object]], Non
 
 
 def _run_domain(
-    root: Path, output: Path, domain: str, selected: tuple[_DomainCheck, ...]
+    root: Path,
+    output: Path,
+    domain: str,
+    selected: tuple[_DomainCheck, ...],
+    *,
+    metadata: dict[str, object] | None = None,
 ) -> int:
     """Collect independent native results before failing the whole domain."""
     output.mkdir(parents=True, exist_ok=True)
     checks: list[dict[str, object]] = []
-    report: dict[str, object] = {"ok": False, "cancelled": False, "checks": checks}
+    report: dict[str, object] = {
+        **(metadata or {}),
+        "ok": False,
+        "cancelled": False,
+        "checks": checks,
+    }
 
     def save() -> None:
         write_shared_json(output / f"{domain}-domain.json", report)
@@ -92,7 +108,13 @@ def _run_domain(
         checks.append(check)
         save()
         try:
-            check["returncode"] = subprocess.run(command, cwd=root).returncode
+            check["returncode"] = subprocess.run(
+                command,
+                cwd=root,
+                creationflags=subprocess.CREATE_NO_WINDOW
+                if sys.platform == "win32"
+                else 0,
+            ).returncode
         except OSError as error:
             check["launch_error"] = {"type": type(error).__name__, "errno": error.errno}
         except KeyboardInterrupt:
@@ -125,45 +147,61 @@ def _run_domain(
     return 0 if report["ok"] else 1
 
 
-def _input_result(result: dict[str, object]) -> None:
-    if result.get("ok") is not True:
-        raise ValueError("Input smoke report did not pass")
-
-
 def input_domain(
     root: Path,
     output: Path,
     installed: Path,
+    wheel: Path,
     *,
+    source_sha: str,
+    coverage_profile: str = "workstation-composition",
     owned_amd64_editor: bool = False,
 ) -> int:
-    """Collect GTK and independent Win32 input results before failing the batch."""
+    """Collect both explicit input profiles for one exact candidate wheel."""
+    identity = candidate(wheel, source_sha)
+    selected_coverage = coverage(coverage_profile)
+    output.mkdir(parents=True, exist_ok=True)
+    write_shared_json(output / "input-candidate.json", dict(identity))
     editor = ["--owned-amd64-editor"] if owned_amd64_editor else []
+    common = [
+        *editor,
+        "--installed-root",
+        command_path(installed.resolve()),
+        "--wheel",
+        command_path(wheel.resolve()),
+        "--source-sha",
+        source_sha,
+        "--coverage",
+        coverage_profile,
+    ]
     return _run_domain(
         root,
         output,
         "input",
-        (
+        tuple(
             (
-                "search-layouts",
-                "tools.windows.visual.keyboardlayout_smoke",
+                name,
+                "tools.windows.visual." + module,
                 "installed-wheel",
-                [
-                    "--search-input",
-                    *editor,
-                    "--installed-root",
-                    command_path(installed.resolve()),
-                ],
-                _input_result,
-            ),
-            (
-                "input-profiles",
-                "tools.windows.visual.input_profile_smoke",
-                "installed-wheel",
-                [*editor, "--installed-root", command_path(installed.resolve())],
-                _input_result,
-            ),
+                arguments,
+                partial(
+                    validate_input_report,
+                    kind=name,
+                    profile=coverage_profile,
+                    wheel_sha256=identity["wheel_sha256"],
+                    source_sha=source_sha,
+                ),
+            )
+            for name, module, arguments in (
+                ("search-layouts", "keyboardlayout_smoke", ["--search-input", *common]),
+                ("input-profiles", "input_profile_smoke", common),
+            )
         ),
+        metadata={
+            "coverage": selected_coverage,
+            "source_sha": source_sha,
+            "wheel_sha256": identity["wheel_sha256"],
+        },
     )
 
 
@@ -259,6 +297,10 @@ def main() -> None:
     parser.add_argument(
         "--wheel", type=Path, help="Wheel exercised by the native domain"
     )
+    parser.add_argument("--source-sha", help="Exact candidate source commit")
+    parser.add_argument(
+        "--input-coverage", choices=PROFILES, default="workstation-composition"
+    )
     parser.add_argument("--list", action="store_true", help="List native test targets")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
@@ -278,7 +320,16 @@ def main() -> None:
         # Each child selects its own source/installed implementation before
         # importing Docking. Do not preload the controller's launcher or GI.
         if args.stage == "input":
-            status = input_domain(root, output, args.installed_root)
+            if args.wheel is None or args.source_sha is None:
+                parser.error("The input stage requires --wheel and --source-sha")
+            status = input_domain(
+                root,
+                output,
+                args.installed_root,
+                args.wheel,
+                source_sha=args.source_sha,
+                coverage_profile=args.input_coverage,
+            )
         else:
             if args.wheel is None:
                 parser.error(f"The {args.stage} stage requires --wheel")

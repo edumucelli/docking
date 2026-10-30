@@ -10,10 +10,14 @@ import ctypes
 import struct
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from docking.platform.backends.windows.input_thread import InputSnapshot
 
 from tools.windows.visual.input_oracle import OracleError
 
@@ -244,8 +248,77 @@ def collect_controls(
     row["ok"] = all(result["ok"] for result in row["operations"])
 
 
+def input_service_ready(
+    *,
+    read: Callable[[], InputSnapshot | None],
+    validate: Callable[[], None],
+    journal: dict[str, object],
+    publish: Callable[[], None],
+    trace: Mapping[str, object] | None = None,
+    seconds: float = 20,
+    attempts: int = 3,
+    cancelled: threading.Event | None = None,
+) -> None:
+    """Bound owned-editor setup separately from the twelve measured controls.
+
+    An unavailable cold read is evidence, never a passed measured request.
+    Native/API exceptions, target loss and cancellation remain fatal.
+    """
+    rows: list[dict[str, object]] = []
+    journal.update(ready=False, seconds=seconds, limit=attempts, attempts=rows)
+    requests = (
+        cast(list[dict[str, object]], trace["requests"]) if trace is not None else None
+    )
+    deadline = time.monotonic() + seconds
+    for _ in range(attempts):
+        if cancelled is not None and cancelled.is_set():
+            raise RuntimeError("Owned input readiness was cancelled")
+        validate()
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Owned input service did not become ready")
+        row: dict[str, object] = {"available": False}
+        rows.append(row)
+        started = time.monotonic()
+        trace_start = len(requests) if requests is not None else 0
+        failure = None
+        try:
+            snapshot = read()
+            row["available"] = snapshot is not None
+            row["snapshot"] = asdict(snapshot) if snapshot is not None else None
+            validate()
+            if cancelled is not None and cancelled.is_set():
+                raise RuntimeError("Owned input readiness was cancelled")
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    "Owned input service exceeded its readiness deadline"
+                )
+            if snapshot is not None:
+                journal["ready"] = True
+                return
+        except BaseException as error:
+            failure = error
+            row["error"] = type(error).__name__
+            raise
+        finally:
+            row["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+            if requests is not None:
+                row["requests"] = requests[trace_start:]
+            try:
+                publish()
+            except Exception:
+                if failure is None:
+                    raise
+    raise TimeoutError("Owned input service did not become ready")
+
+
 def request_controls(
-    native, output: Path, *, french: int, journal: dict, publish: Callable[[], None]
+    native,
+    output: Path,
+    *,
+    french: int,
+    journal: dict,
+    publish: Callable[[], None],
+    trace: Mapping[str, object] | None = None,
 ) -> None:
     """Exercise real x64/x86 read, classic and TSF requests before applet input."""
     from docking.applets.keyboardlayout.windows import WindowsKeyboardAPI
@@ -296,7 +369,8 @@ def request_controls(
             )
             row["context"] = asdict(context)
 
-            def validate(context=context):
+            def validate(context=context, editor=editor, window=window):
+                editor.verify_identity(window)
                 assert api.valid(context) and api.foreground() == context, (
                     "Direct input control lost the exact owned typing context"
                 )
@@ -328,6 +402,15 @@ def request_controls(
                     assert api.active(context.thread) & 0xFFFFFFFF == layout
                 return snapshot
 
+            readiness: dict[str, object] = {}
+            row["readiness"] = readiness
+            input_service_ready(
+                read=read,
+                validate=validate,
+                journal=readiness,
+                publish=publish,
+                trace=trace,
+            )
             operations = (
                 ("initial-read", read),
                 ("classic-fr", lambda: activate(expected[1], tsf=False)),

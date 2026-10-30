@@ -219,3 +219,42 @@ def test_composition_timeout_retains_literal_text_without_normalizing_it(tmp_pat
 def test_document_read_failure_is_not_a_composition_mismatch(tmp_path):
     with pytest.raises(FileNotFoundError):
         mod._observe_composition(tmp_path / "missing.txt", seconds=0)
+
+
+def test_api_only_profile_proves_readback_and_classic_return_without_text_claim():
+    events = []
+    result = {}
+
+    def validate():
+        events.append("read-profile")
+        return {"profile": "exact-selected-profile"}
+
+    def reset():
+        events.append("return-classic")
+        assert "passed" not in result
+        return {"layout": 0x04090409}
+
+    mod._collect_activation(result=result, validate=validate, reset=reset)
+    assert events == ["read-profile", "return-classic"]
+    assert result["passed"] and result["activation_verified"]
+    assert result["composition"] == "not-requested"
+    assert "text" not in result and "ime_mode" not in result
+
+
+@pytest.mark.parametrize("phase", ["readback", "classic-return"])
+def test_api_only_profile_cannot_convert_activation_or_cleanup_failure_to_success(
+    phase,
+):
+    result = {}
+
+    def validate():
+        if phase == "readback":
+            raise RuntimeError(phase)
+        return {"profile": "selected"}
+
+    def reset():
+        raise RuntimeError("classic-return")
+
+    with pytest.raises(RuntimeError, match=phase):
+        mod._collect_activation(result=result, validate=validate, reset=reset)
+    assert "passed" not in result and "activation_verified" not in result

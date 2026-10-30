@@ -1207,11 +1207,43 @@ jobs:
 
   windows-client-input:
     name: Windows 11 input
-    needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
+    needs: [changes, quality, windows-desktop]
+    if: ${{ !cancelled() && needs.changes.outputs.run_ci == 'true' }}
     uses: ./.github/workflows/windows-input.yml
+    with:
+      candidate-artifact: windows-input-candidate-ucrt64-x64
     permissions:
       contents: read
+
+  windows-release-evidence:
+    name: Windows candidate and client evidence
+    runs-on: ubuntu-22.04
+    needs: [changes, windows-desktop, windows-client-input]
+    if: needs.changes.outputs.run_ci == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-ucrt64-x64
+          path: artifacts/windows-release
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-client-input-ucrt64-x64
+          path: artifacts/windows-release/client-input
+      - name: Verify complete acceptance before staging candidate assets
+        run: |
+          python3 -m pip install --disable-pip-version-check packaging
+          version=$(awk -F ' *= *' '
+            $0 == "[project]" { in_project = 1; next }
+            /^\[/ { in_project = 0 }
+            in_project && $1 == "version" { gsub(/"/, "", $2); print $2; exit }
+          ' pyproject.toml)
+          python3 -m tools.windows.release --version "$version" --source-sha "$GITHUB_SHA" \
+            --directory artifacts/windows-release --output artifacts/windows-release-verified
 
   release:
     name: Release
@@ -1244,6 +1276,7 @@ jobs:
       - bsd-desktops
       - windows-desktop
       - windows-client-input
+      - windows-release-evidence
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -1441,6 +1474,12 @@ jobs:
           name: windows-ucrt64-x64
           path: artifacts/windows-release
 
+      - name: Download mandatory Windows 11 candidate input proof
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-client-input-ucrt64-x64
+          path: artifacts/windows-release/client-input
+
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
         run: |
@@ -1623,7 +1662,7 @@ jobs:
         if: steps.release_check.outputs.should_release == 'true'
         run: |
           python3 -m pip install --disable-pip-version-check packaging
-          python3 -m tools.windows.release --version "${{ steps.version.outputs.version }}" \
+          python3 -m tools.windows.release --source-sha "$GITHUB_SHA" --version "${{ steps.version.outputs.version }}" \
             --directory artifacts/windows-release --output artifacts/release
 
       - name: Create GitHub Release

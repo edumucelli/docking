@@ -146,3 +146,39 @@ def test_later_token_failure_cannot_erase_already_written_abi_diagnostics(prefli
     facts = json.loads(preflight.output.read_text())
     assert facts["actual_process_machine"] == 0x8664
     assert facts["process_architecture"]["process_type"]["success"]
+
+
+def test_candidate_workflow_orders_exact_wheel_before_strict_client_and_release():
+    root = Path(__file__).resolve().parents[1]
+    ci = (root / ".github/workflows/ci.yml").read_text()
+    server = (root / ".github/workflows/windows.yml").read_text()
+    client = (root / ".github/workflows/windows-input.yml").read_text()
+    called = ci.split("  windows-client-input:\n", 1)[1].split(
+        "\n  windows-release-evidence:", 1
+    )[0]
+    assert "needs: [changes, quality, windows-desktop]" in called
+    assert "candidate-artifact: windows-input-candidate-ucrt64-x64" in called
+    assert "name: windows-input-candidate-ucrt64-x64" in server
+    assert "--input-coverage server-api" in server
+    assert "--stage input --installed-root" not in server
+    assert "name: ${{ inputs.candidate-artifact }}" in client
+    assert "--verify --wheel dist/*.whl --source-sha" in client
+    assert (
+        client.index("Download the exact Server candidate")
+        < client.index("Verify and install the exact AMD64 candidate")
+        < client.index("Prepare the hosted desktop")
+    )
+    assert "inputs.candidate-artifact == ''" in client  # manual dispatch only
+    assert "--wheel dist/*.whl --source-sha" in client
+    assert "continue-on-error" not in server + client
+    evidence = ci.split("  windows-release-evidence:\n", 1)[1].split(
+        "\n  release:\n", 1
+    )[0]
+    assert "needs: [changes, windows-desktop, windows-client-input]" in evidence
+    assert "path: artifacts/windows-release/client-input" in evidence
+    assert (
+        "tools.windows.release" in evidence and '--source-sha "$GITHUB_SHA"' in evidence
+    )
+    release = ci.split("\n  release:\n", 1)[1]
+    assert "      - windows-release-evidence" in release
+    assert "Download mandatory Windows 11 candidate input proof" in release

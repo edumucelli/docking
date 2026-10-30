@@ -419,3 +419,21 @@ def test_fixture_import_preserves_installed_package_selection_boundary():
         capture_output=True,
         timeout=10,
     )
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, AssertionError, KeyboardInterrupt])
+def test_body_failure_survives_guarded_restore_failure_without_refocusing(
+    mode_api, failure
+):
+    journal = {}
+    primary = failure("Original typing failure")
+    with (
+        pytest.raises(failure, match="Original typing failure") as caught,
+        scope(journal),
+    ):
+        mode_api.alive = False
+        raise primary
+    assert caught.value is primary
+    assert journal["exercise_error"] == failure.__name__
+    assert journal["restore_error"] == "RuntimeError" and not journal["restored"]
+    assert mode_api.calls == [(True, None, 2)]

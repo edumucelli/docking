@@ -21,6 +21,7 @@ from dataclasses import asdict
 from functools import partial
 from pathlib import Path
 
+from tools.windows.input_acceptance import PROFILES, coverage, runtime_acceptance
 from tools.windows.visual.desktop_driver import write_shared_json
 from tools.windows.visual.input_editor import OwnedInputEditor, focus_editor
 
@@ -50,6 +51,13 @@ def _collect_reference(*, result, mode, exercise, validate, reset) -> None:
     result["after_restore"] = validate()
     result["classic_reset"] = reset()
     result["passed"] = result["text"].strip() == "â"
+
+
+def _collect_activation(*, result, validate, reset) -> None:
+    """Prove API selection/classic return without attempting or claiming text input."""
+    result["readback"] = validate()
+    result["classic_reset"] = reset()
+    result.update(activation_verified=True, composition="not-requested", passed=True)
 
 
 def _composition_failures(stages) -> list[dict[str, object]]:
@@ -199,6 +207,11 @@ def _cancel_queued(native, context, profiles, gate, marker, *, layout=None):
 def main(monitor) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--coverage", choices=PROFILES, default="workstation-composition"
+    )
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--source-sha")
     parser.add_argument("--installed-root", type=Path)
     parser.add_argument(
         "--owned-amd64-editor",
@@ -206,6 +219,10 @@ def main(monitor) -> None:
         help="Use an explicitly AMD64 Forms editor instead of stock Notepad",
     )
     args = parser.parse_args()
+    if (args.wheel is None) != (args.source_sha is None):
+        parser.error("--wheel and --source-sha are required together")
+    if args.wheel is not None and args.installed_root is None:
+        parser.error("--wheel requires --installed-root")
     if sys.platform != "win32":
         parser.error("Requires native Windows Python in an owned test desktop")
     output = args.output.resolve()
@@ -219,8 +236,16 @@ def main(monitor) -> None:
     )
 
     runtime = {}
+    accepted = None
     try:
         runtime_root = select_input_runtime(args.installed_root, runtime)
+        if args.wheel is not None:
+            accepted = runtime_acceptance(
+                runtime_root,
+                args.wheel,
+                source_sha=args.source_sha,
+                profile=args.coverage,
+            )
     except Exception as error:
         write_shared_json(
             output / "result.json",
@@ -274,6 +299,8 @@ def main(monitor) -> None:
     )
     report: dict = {
         "runtime": runtime,
+        "coverage": coverage(args.coverage),
+        "acceptance": accepted,
         "ok": False,
         "stages": [],
         "scope": "owned input fixtures only",
@@ -509,7 +536,12 @@ def main(monitor) -> None:
                 ):
                     profile_result = {"requested": profile.code, "variants": []}
                     stage["profiles"].append(profile_result)
-                    for routing in ("scan-code", "mapped-vk"):
+                    routes = (
+                        ("scan-code", "mapped-vk")
+                        if args.coverage == "workstation-composition"
+                        else ("activation",)
+                    )
+                    for routing in routes:
                         context = focus()
                         # Clear the previous route while the owned editor uses
                         # classic US, before entering a new IME conversion scope.
@@ -696,21 +728,30 @@ def main(monitor) -> None:
                             return restored
 
                         try:
-                            _collect_reference(
-                                result=variant,
-                                mode=ime_conversion(
-                                    window=context.window,
-                                    root=context.root,
-                                    pid=context.pid,
-                                    thread=context.thread,
-                                    journal=variant["ime_mode"],
-                                    readback=mode_readback,
-                                    conversion=VIETNAMESE_CONVERSION_MODE,
-                                ),
-                                exercise=exercise,
-                                validate=validate_profile,
-                                reset=reset_classic,
-                            )
+                            if args.coverage == "server-api":
+                                variant.pop("expected")
+                                variant.pop("ime_mode")
+                                _collect_activation(
+                                    result=variant,
+                                    validate=validate_profile,
+                                    reset=reset_classic,
+                                )
+                            else:
+                                _collect_reference(
+                                    result=variant,
+                                    mode=ime_conversion(
+                                        window=context.window,
+                                        root=context.root,
+                                        pid=context.pid,
+                                        thread=context.thread,
+                                        journal=variant["ime_mode"],
+                                        readback=mode_readback,
+                                        conversion=VIETNAMESE_CONVERSION_MODE,
+                                    ),
+                                    exercise=exercise,
+                                    validate=validate_profile,
+                                    reset=reset_classic,
+                                )
                         finally:
                             save()
                     profile_result["passed"] = all(
@@ -750,7 +791,11 @@ def main(monitor) -> None:
                 if process is not None:
                     assert process.wait(timeout=10) == 0
                     process = None
-            report["composition_failures"] = _composition_failures(report["stages"])
+            report["composition_failures"] = (
+                _composition_failures(report["stages"])
+                if args.coverage == "workstation-composition"
+                else []
+            )
             save()
         except Exception as error:
             errors.append(error)

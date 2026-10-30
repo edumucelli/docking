@@ -206,10 +206,12 @@ def test_editor_compiler_receives_native_paths_including_forward_unc(
     ]
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
 @pytest.mark.parametrize("bits", [32, 64])
 def test_editor_build_keeps_source_and_flags_and_records_explicit_architecture(
-    tmp_path, monkeypatch, bits
+    tmp_path, monkeypatch, bits, platform
 ):
+    monkeypatch.setattr(mod, "sys", SimpleNamespace(platform=platform))
     monkeypatch.setenv("SYSTEMROOT", "C:/Windows")
     run = Mock(
         return_value=subprocess.CompletedProcess([], 0, b"compiler warning", b"")
@@ -222,6 +224,7 @@ def test_editor_build_keeps_source_and_flags_and_records_explicit_architecture(
         "check": True,
         "capture_output": True,
         "timeout": 30,
+        "creationflags": 0x08000000 if platform == "win32" else 0,
     }
     assert run.call_args.args[0][-2:] == [
         "/out:" + mod.command_path(executable),
