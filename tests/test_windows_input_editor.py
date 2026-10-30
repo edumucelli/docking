@@ -1,6 +1,8 @@
 """Native input editor build paths, diagnostics and owned process lifecycle."""
 
+import ctypes
 import json
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -48,6 +50,29 @@ def focus_desktop():
         ),
         _send=pressed,
     )
+
+    def owner(hwnd, pid):
+        pid._obj.value = 202 if hwnd == 101 else 909
+        return 303 if hwnd == 101 else 910
+
+    def cls(hwnd, text, length):
+        text.value = "OwnedEditor" if hwnd == 101 else "Cover"
+        return len(text.value)
+
+    def rect(hwnd, output):
+        bounds = editor["rect"] if hwnd == 101 else [0, 0, 1024, 768]
+        output._obj.left, output._obj.top, output._obj.right, output._obj.bottom = (
+            bounds
+        )
+        return 1
+
+    native.user.WindowFromPoint = Mock(
+        side_effect=lambda point: native.window_at(point.x, point.y)
+    )
+    native.user.GetAncestor = Mock(side_effect=lambda hwnd, flag: hwnd)
+    native.user.GetWindowThreadProcessId = Mock(side_effect=owner)
+    native.user.GetClassNameW = Mock(side_effect=cls)
+    native.user.GetWindowRect = Mock(side_effect=rect)
     return native, editor, foreground
 
 
@@ -302,12 +327,19 @@ def test_editor_build_diagnostics_are_bounded_utf8_and_redacted_before_truncatio
 def owned(tmp_path, monkeypatch):
     native = Mock(spec=mod.WindowsDesktop)
     native.user = SimpleNamespace(PostMessageW=Mock(return_value=True))
+
+    def process_times(handle, created, exit, kernel, user):
+        created._obj.low, created._obj.high = 123, 1
+        return 1
+
     kernel = SimpleNamespace(
+        GetProcessTimes=Mock(side_effect=process_times),
+        GetProcessId=Mock(return_value=77),
         CreateEventW=Mock(return_value=900),
         SetEvent=Mock(return_value=1),
         CloseHandle=Mock(return_value=1),
     )
-    process = Mock(pid=77)
+    process = Mock(pid=77, _handle=22)
     process.poll.return_value = None
 
     def finished(*, timeout):
@@ -316,7 +348,19 @@ def owned(tmp_path, monkeypatch):
 
     process.wait.side_effect = finished
     popen = Mock(return_value=process)
-    build = Mock(return_value=tmp_path / "editor-64/editor64.exe")
+    executable = tmp_path / "editor-64/editor64.exe"
+    executable.parent.mkdir()
+
+    def compiled(directory, *, bits):
+        data = bytearray(128)
+        data[:2] = b"MZ"
+        struct.pack_into("<I", data, 60, 64)
+        data[64:68] = b"PE\0\0"
+        struct.pack_into("<H", data, 68, 0x8664 if bits == 64 else 0x14C)
+        executable.write_bytes(data)
+        return executable
+
+    build = Mock(return_value=executable, side_effect=compiled)
     monkeypatch.setattr(mod, "build_editor", build)
     monkeypatch.setattr(mod.subprocess, "Popen", popen)
     monkeypatch.setattr(mod.ctypes, "WinDLL", lambda *a, **kw: kernel, raising=False)
@@ -326,6 +370,14 @@ def owned(tmp_path, monkeypatch):
     )
     window = {"pid": 77, "hwnd": 701, "title": editor.title, "rect": [0, 0, 520, 300]}
     native.windows.return_value = [window]
+
+    def window_pid(hwnd, pid):
+        pid._obj.value = window["pid"]
+        return 88
+
+    native.user.GetWindowThreadProcessId = Mock(side_effect=window_pid)
+    native.user.GetClassNameW = Mock(return_value=0)
+    native.user.GetWindowRect = Mock(return_value=0)
 
     def wait_for(predicate, message, _seconds=15):
         value = predicate()
@@ -484,3 +536,275 @@ def test_both_input_tools_expose_explicit_optional_amd64_editor_mode(module):
     )
     assert "--owned-amd64-editor" in result.stdout
     assert "stock Notepad" in " ".join(result.stdout.split())
+
+
+@pytest.fixture
+def exposure(focus_desktop, tmp_path, monkeypatch):
+    import hashlib
+
+    native, window, foreground = focus_desktop
+    created, raised, late_cover = [123], [False], [False]
+    owner = mod.OwnedInputEditor(
+        native, tmp_path, tmp_path / "input.txt", bits=64, machine=lambda _: 0x8664
+    )
+    process = Mock(pid=202, _handle=22)
+    process.poll.return_value = None
+    owner.process, owner.window = process, window
+    owner._created, owner._pe = 123, 0x8664
+    data = bytearray(128)
+    data[:2] = b"MZ"
+    struct.pack_into("<I", data, 60, 64)
+    data[64:68] = b"PE\0\0"
+    struct.pack_into("<H", data, 68, 0x8664)
+    owner._executable = tmp_path / "editor.exe"
+    owner._executable.write_bytes(data)
+    owner._image_hash = hashlib.sha256(data).hexdigest()
+
+    def times(handle, output, *rest):
+        assert handle == 22
+        output._obj.low = created[0]
+        return 1
+
+    owner._kernel = SimpleNamespace(
+        GetProcessId=Mock(return_value=202), GetProcessTimes=Mock(side_effect=times)
+    )
+    native.window_at.side_effect = lambda *_: (
+        101 if raised[0] and not late_cover[0] else 999
+    )
+    native.user.GetWindow = Mock(return_value=999)
+    native.user.GetWindowLongW = Mock(return_value=0)
+
+    def position(hwnd, after, x, y, width, height, flags):
+        assert hwnd == 101 and (x, y, width, height, flags) == (0, 0, 0, 0, 0x213)
+        raised[0] = after == 0
+        return 1
+
+    native.user.SetWindowPos = Mock(side_effect=position)
+    monkeypatch.setattr(ctypes, "set_last_error", lambda _: None, raising=False)
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 0, raising=False)
+    monkeypatch.setattr(
+        ctypes, "WinError", lambda code: OSError(code, "native"), raising=False
+    )
+    return SimpleNamespace(
+        owner=owner,
+        native=native,
+        window=window,
+        foreground=foreground,
+        created=created,
+        raised=raised,
+        late_cover=late_cover,
+    )
+
+
+def test_covered_owned_editor_is_raised_once_without_activation_before_physical_click(
+    exposure,
+):
+    native, journal = exposure.native, {}
+    point = mod.focus_editor(
+        native, exposure.window, owned=exposure.owner, journal=journal
+    )
+    native.user.SetWindowPos.assert_called_once_with(101, 0, 0, 0, 0, 0, 0x213)
+    native.click.assert_called_once_with(
+        *point, before_press=native.click.call_args.kwargs["before_press"]
+    )
+    attempt = journal["attempts"][0]
+    assert (
+        attempt["raise"]["foreground_before"]
+        == attempt["raise"]["foreground_after"]
+        == 999
+    )
+    assert attempt["activated"] and exposure.foreground[0] == 101
+    assert attempt["identity_before_raise"]["created"] == 123
+    assert attempt["identity_before_raise"]["pe_machine"] == "0x8664"
+    assert len(attempt["identity_before_raise"]["image_sha256"]) == 64
+    initial = [p for p in attempt["points"] if p["phase"] == "initial"]
+    assert len(initial) == 16 and all(p["hit"]["pid"] == 909 for p in initial)
+    assert initial[0]["hit"]["class"] == "Cover" and "bounds" in initial[0]["root"]
+    assert attempt["before_press"]["root"]["hwnd"] == 101
+    assert "z_order_restored" not in attempt["raise"]
+
+
+def test_unsuccessful_owned_raise_restores_original_z_order_without_click(exposure):
+    native, journal = exposure.native, {}
+    exposure.late_cover[0] = True
+    with pytest.raises(AssertionError, match="no exposed input point"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
+        0,
+        999,
+    ]
+    assert journal["attempts"][0]["raise"]["z_order_restored"]
+    native.click.assert_not_called()
+    assert exposure.foreground[0] == 999 and not exposure.raised[0]
+
+
+@pytest.mark.parametrize("change", ["process", "creation", "hwnd", "pe", "image"])
+def test_owned_raise_refuses_identity_change_before_positioning(exposure, change):
+    owner = exposure.owner
+    if change == "process":
+        owner._kernel.GetProcessId.return_value = 999
+    elif change == "creation":
+        exposure.created[0] = 124
+    elif change == "hwnd":
+        owner.window = dict(exposure.window, hwnd=777)
+    else:
+        data = bytearray(owner._executable.read_bytes())
+        if change == "pe":
+            struct.pack_into("<H", data, 68, 0xAA64)
+        else:
+            data[-1] = 1
+        owner._executable.write_bytes(data)
+    with pytest.raises(AssertionError, match="changed"):
+        mod.focus_editor(exposure.native, exposure.window, owned=owner)
+    exposure.native.user.SetWindowPos.assert_not_called()
+    exposure.native.click.assert_not_called()
+
+
+def test_owned_raise_settle_failure_restores_order_before_propagating(
+    exposure, monkeypatch
+):
+    from tools.windows.visual import desktop_driver
+
+    native, journal = exposure.native, {}
+    monkeypatch.setattr(
+        desktop_driver.time, "sleep", lambda _: exposure.late_cover.__setitem__(0, True)
+    )
+    native.click = lambda *args, **kw: desktop_driver.WindowsDesktop.click(
+        native, *args, **kw
+    )
+    with pytest.raises(AssertionError, match="covered before click"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    native._send.assert_not_called()
+    assert journal["attempts"][0]["raise"]["z_order_restored"]
+    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
+        0,
+        999,
+    ]
+
+
+def test_failed_z_order_restoration_retains_original_focus_failure(exposure):
+    native, journal = exposure.native, {}
+    exposure.late_cover[0] = True
+    original = native.user.SetWindowPos.side_effect
+    native.user.SetWindowPos.side_effect = lambda *args: (
+        original(*args) if args[1] == 0 else 0
+    )
+    with pytest.raises(AssertionError, match="no exposed input point"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    assert journal["attempts"][0]["raise"]["restore_error"] == "AssertionError"
+    assert "z_order_restored" not in journal["attempts"][0]["raise"]
+
+
+def test_creation_time_uses_fixed_width_filetime_and_keeps_all_64_bits(owned):
+    assert ctypes.sizeof(mod._FileTime) == 8
+    assert mod._creation(owned.kernel, 22) == (1 << 32) | 123
+    assert owned.kernel.GetProcessTimes.argtypes == (
+        ctypes.c_void_p,
+        *([ctypes.POINTER(mod._FileTime)] * 4),
+    )
+
+
+@pytest.mark.parametrize("topmost", [False, True])
+def test_failed_owned_raise_preserves_original_topmost_band(exposure, topmost):
+    native, journal = exposure.native, {}
+    native.user.GetWindowLongW.return_value = 8 if topmost else 0
+    exposure.late_cover[0] = True
+    with pytest.raises(AssertionError, match="no exposed input point"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    attempt = journal["attempts"][0]
+    assert attempt["raise"]["topmost"] is topmost
+    assert attempt["raise"]["z_order_restored"]
+    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
+        0,
+        999,
+    ]
+    assert all(
+        call.args[-1] == 0x213 for call in native.user.SetWindowPos.call_args_list
+    )
+
+
+def test_topmost_predecessor_never_promotes_normal_owned_editor_on_restore(exposure):
+    native, journal = exposure.native, {}
+    native.user.GetWindowLongW.side_effect = lambda hwnd, _: 8 if hwnd == 999 else 0
+    exposure.late_cover[0] = True
+    with pytest.raises(AssertionError, match="no exposed input point"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [0, 0]
+    assert journal["attempts"][0]["raise"]["z_order_restored"]
+
+
+def test_owned_raise_does_not_continue_if_foreground_changes(exposure):
+    native = exposure.native
+    position = native.user.SetWindowPos.side_effect
+
+    def changed(*args):
+        result = position(*args)
+        if args[1] == 0:
+            exposure.foreground[0] = 555
+        return result
+
+    native.user.SetWindowPos.side_effect = changed
+    with pytest.raises(AssertionError, match="changed foreground"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner)
+    native.click.assert_not_called()
+    assert exposure.foreground[0] == 555
+    assert [call.args[1] for call in native.user.SetWindowPos.call_args_list] == [
+        0,
+        999,
+    ]
+
+
+def test_owned_identity_change_during_raise_prevents_click_or_restore_mutation(
+    exposure,
+):
+    native, journal = exposure.native, {}
+    position = native.user.SetWindowPos.side_effect
+
+    def changed(*args):
+        result = position(*args)
+        exposure.created[0] = 124
+        return result
+
+    native.user.SetWindowPos.side_effect = changed
+    with pytest.raises(AssertionError, match="creation time changed"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    native.click.assert_not_called()
+    assert native.user.SetWindowPos.call_count == 1
+    assert journal["attempts"][0]["raise"]["restore_error"] == "AssertionError"
+
+
+def test_owned_raise_native_rejection_does_not_send_physical_input(exposure):
+    native, journal = exposure.native, {}
+    position = native.user.SetWindowPos.side_effect
+    native.user.SetWindowPos.side_effect = lambda *args: (
+        0 if args[1] == 0 else position(*args)
+    )
+    with pytest.raises(AssertionError, match="raise failed"):
+        mod.focus_editor(native, exposure.window, owned=exposure.owner, journal=journal)
+    native.click.assert_not_called()
+    assert journal["attempts"][0]["raise"]["z_order_restored"]
+
+
+def test_creation_query_failure_rolls_back_owned_process_and_event(owned, monkeypatch):
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 5, raising=False)
+    monkeypatch.setattr(
+        ctypes, "WinError", lambda code: OSError(code, "query failed"), raising=False
+    )
+    owned.kernel.GetProcessTimes.return_value = 0
+    owned.kernel.GetProcessTimes.side_effect = None
+    with pytest.raises(OSError, match="query failed"):
+        owned.editor.start()
+    owned.kernel.CloseHandle.assert_called_once_with(900)
+    assert owned.editor.journal["closed"] and owned.editor.journal["event_closed"]
+
+
+def test_point_probe_preserves_desktop_shared_dword_pointer_contract(focus_desktop):
+    from ctypes import wintypes
+
+    native, _editor, _foreground = focus_desktop
+    facts = mod._point_facts(native, 100, 200)
+    assert facts["root"]["pid"] == 202
+    assert native.user.GetWindowThreadProcessId.argtypes == (
+        ctypes.c_void_p,
+        ctypes.POINTER(wintypes.DWORD),
+    )

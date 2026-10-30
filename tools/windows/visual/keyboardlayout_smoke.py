@@ -24,6 +24,9 @@ def main(monitor):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--installed-root", type=Path, help="Exercise this installed wheel runtime"
+    )
+    parser.add_argument(
         "--owned-amd64-editor",
         action="store_true",
         help="Use an explicitly AMD64 Forms editor instead of stock Notepad",
@@ -43,8 +46,28 @@ def main(monitor):
     monitor["output_directory"] = str(output)
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from tools.windows.visual.desktop_driver import write_shared_json
+    from tools.windows.visual.input_requests import (
+        record_input_origins,
+        select_input_runtime,
+    )
+
+    runtime = {}
+    try:
+        runtime_root = select_input_runtime(args.installed_root, runtime)
+    except Exception as error:
+        write_shared_json(
+            output / "result.json",
+            {
+                "ok": False,
+                "runtime": runtime,
+                "error": type(error).__name__,
+            },
+        )
+        raise
     from docking.launcher import prepare_display
+
+    record_input_origins(runtime_root, runtime, ("docking", "docking.launcher"))
 
     prepare_display()
     import gi
@@ -84,6 +107,16 @@ def main(monitor):
         trace_requests,
     )
 
+    record_input_origins(
+        runtime_root,
+        runtime,
+        (
+            "docking.app",
+            "docking.applets.keyboardlayout.windows",
+            "docking.platform.backends.windows.input_thread",
+            "docking.platform.backends.windows.input_service",
+        ),
+    )
     native = WindowsDesktop()
     assert not any(
         w["title"] == "Docking"
@@ -110,6 +143,7 @@ def main(monitor):
         ctypes.c_uint32,
     )
     report = {
+        "runtime": runtime,
         "baseline": before,
         "owned_layouts": [],
         "states": {},
@@ -291,7 +325,12 @@ def main(monitor):
                 )
 
             def focus_editor():
-                click_editor(native, notepad)
+                click_editor(
+                    native,
+                    notepad,
+                    owned=owned_editor,
+                    journal=report.setdefault("editor_focus", {}),
+                )
                 native.wait_for(
                     lambda: (
                         api.foreground() is not None

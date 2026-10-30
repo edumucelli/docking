@@ -147,8 +147,13 @@ def input_domain(
             (
                 "search-layouts",
                 "tools.windows.visual.keyboardlayout_smoke",
-                "source",
-                ["--search-input", *editor],
+                "installed-wheel",
+                [
+                    "--search-input",
+                    *editor,
+                    "--installed-root",
+                    command_path(installed.resolve()),
+                ],
                 _input_result,
             ),
             (

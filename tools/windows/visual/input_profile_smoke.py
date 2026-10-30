@@ -213,8 +213,24 @@ def main(monitor) -> None:
         parser.error("Use a fresh output directory")
     output.mkdir(parents=True)
     monitor["output_directory"] = str(output)
-    if args.installed_root:
-        sys.path.insert(0, str(args.installed_root.resolve()))
+    from tools.windows.visual.input_requests import (
+        record_input_origins,
+        select_input_runtime,
+    )
+
+    runtime = {}
+    try:
+        runtime_root = select_input_runtime(args.installed_root, runtime)
+    except Exception as error:
+        write_shared_json(
+            output / "result.json",
+            {
+                "ok": False,
+                "runtime": runtime,
+                "error": type(error).__name__,
+            },
+        )
+        raise
     from docking.applets.keyboardlayout.windows import (
         WindowsKeyboardAPI,
         WindowsKeyboardBackend,
@@ -245,7 +261,18 @@ def main(monitor) -> None:
         trace_requests,
     )
 
+    record_input_origins(
+        runtime_root,
+        runtime,
+        (
+            "docking",
+            "docking.applets.keyboardlayout.windows",
+            "docking.platform.backends.windows.input_service",
+            "docking.platform.backends.windows.input_thread",
+        ),
+    )
     report: dict = {
+        "runtime": runtime,
         "ok": False,
         "stages": [],
         "scope": "owned input fixtures only",
@@ -415,8 +442,13 @@ def main(monitor) -> None:
                     gate, marker = owned_editor.gate, owned_editor.marker
                     assert gate is not None
 
-                def focus(editor=editor):
-                    focus_editor(native, editor)
+                def focus(editor=editor, owned_editor=owned_editor):
+                    focus_editor(
+                        native,
+                        editor,
+                        owned=owned_editor,
+                        journal=report.setdefault("editor_focus", {}),
+                    )
                     context = api.foreground()
                     assert context and context.root == editor["hwnd"]
                     return context

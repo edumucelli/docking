@@ -285,7 +285,9 @@ def request_controls(
             row["process_abi"] = process_architecture(
                 kernel, int(editor.process._handle), details=True
             )
-            focus_editor(native, window)
+            focus_editor(
+                native, window, owned=editor, journal=row.setdefault("focus", {})
+            )
             context = api.foreground()
             assert (
                 context
@@ -391,3 +393,63 @@ def release_fixture_layouts(
             row["unloaded"] = bool(unload(current))
             if not row["unloaded"]:
                 raise ctypes.WinError(ctypes.get_last_error())
+
+
+def select_input_runtime(
+    installed_root: Path | None, journal: dict, *, source: Path | None = None
+) -> Path:
+    """Select one complete runtime before any application module is imported."""
+    import hashlib
+    import sys
+
+    source = (source or Path(__file__).resolve().parents[3]).resolve()
+    root = installed_root.resolve() if installed_root is not None else source
+    journal["implementation"] = (
+        "installed-wheel" if installed_root is not None else "source-built"
+    )
+    journal["helpers"] = []
+    preloaded = sorted(
+        name for name in sys.modules if name == "docking" or name.startswith("docking.")
+    )
+    journal["preloaded_application_modules"] = preloaded
+    assert not preloaded, "Select the input runtime before importing Docking"
+    if installed_root is not None and root == source:
+        raise ValueError("Installed input runtime must be outside the source checkout")
+    assert (root / "docking/__init__.py").is_file(), (
+        "Selected input runtime has no Docking package"
+    )
+    for bits, machine in ((64, 0x8664), (32, 0x14C)):
+        relative = Path(f"docking/platform/backends/windows/input-thread-{bits}.dll")
+        path = root / relative
+        assert path.resolve().is_relative_to(root), (
+            "Input helper escapes selected runtime"
+        )
+        row = {"file": relative.as_posix(), "present": path.is_file()}
+        journal["helpers"].append(row)
+        if row["present"]:
+            row["machine"] = f"0x{pe_machine(path):04x}"
+            row["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+            assert row["machine"] == f"0x{machine:04x}", (
+                "Input helper has the wrong PE architecture"
+            )
+    assert all(row["present"] for row in journal["helpers"]), (
+        "Build both native input helpers before source acceptance"
+        if installed_root is None
+        else "Installed input runtime is missing native helpers"
+    )
+    sys.path.insert(0, str(root))
+    return root
+
+
+def record_input_origins(root: Path, journal: dict, names: tuple[str, ...]) -> None:
+    """Verify actual imports against the selected root without logging its prefix."""
+    import sys
+
+    from tools.windows.visual.tray_acceptance import runtime_origins
+
+    journal.setdefault("module_origins", {}).update(
+        runtime_origins(
+            root,
+            {name: sys.modules[name].__file__ for name in names},
+        )
+    )

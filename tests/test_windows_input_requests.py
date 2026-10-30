@@ -359,7 +359,7 @@ def controls(monkeypatch):
     monkeypatch.setattr(input_service, "WindowsInputService", lambda: service)
     monkeypatch.setattr(input_editor, "OwnedInputEditor", Editor)
 
-    def focus(*_):
+    def focus(*_, **_options):
         if options.focus_error:
             raise options.focus_error
 
@@ -505,3 +505,138 @@ def test_cleanup_plain_windows_oserror_uses_errno_when_winerror_is_none():
     cleanup.attempt("native", Mock(side_effect=error))
     assert errors == [error]
     assert report["cleanup"][0]["error"] == {"type": "OSError", "code": 5}
+
+
+def _runtime_fixture(root, marker):
+    directory = root / "docking/platform/backends/windows"
+    directory.mkdir(parents=True, exist_ok=True)
+    (root / "docking/__init__.py").write_text(f"marker={marker!r}\n")
+    for bits, machine in ((64, 0x8664), (32, 0x14C)):
+        data = bytearray(128)
+        data[:2] = b"MZ"
+        struct.pack_into("<I", data, 60, 64)
+        data[64:68] = b"PE\0\0"
+        struct.pack_into("<H", data, 68, machine)
+        (directory / f"input-thread-{bits}.dll").write_bytes(data)
+
+
+def _select_runtime_subprocess(source, installed, *, preloaded=False):
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = r"""
+import json,sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from tools.windows.visual.input_requests import select_input_runtime,record_input_origins
+assert 'docking' not in sys.modules
+source,installed=Path(sys.argv[2]),Path(sys.argv[3]) if sys.argv[3] else None
+if sys.argv[4]=='1':
+ sys.path.insert(0,str(source))
+ import docking
+journal={}
+try:
+ root=select_input_runtime(installed,journal,source=source)
+ import docking
+ record_input_origins(root,journal,('docking',))
+ print(json.dumps({'runtime':journal,'marker':docking.marker}))
+except (AssertionError,ValueError) as error:
+ print(json.dumps({'runtime':journal,'error':str(error)}))
+ sys.exit(1)
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            script,
+            str(Path(mod.__file__).resolve().parents[3]),
+            str(source),
+            str(installed) if installed is not None else "",
+            str(int(preloaded)),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    return result.returncode, json.loads(result.stdout)
+
+
+def test_installed_input_selection_precedes_all_application_imports(tmp_path):
+    source, installed = tmp_path / "source", tmp_path / "installed"
+    _runtime_fixture(source, "source")
+    _runtime_fixture(installed, "installed")
+    status, result = _select_runtime_subprocess(source, installed)
+    assert status == 0 and result["marker"] == "installed"
+    runtime = result["runtime"]
+    assert runtime["implementation"] == "installed-wheel"
+    assert runtime["preloaded_application_modules"] == []
+    assert runtime["module_origins"] == {"docking": "docking/__init__.py"}
+    assert [r["machine"] for r in runtime["helpers"]] == ["0x8664", "0x014c"]
+    assert all(r["present"] and len(r["sha256"]) == 64 for r in runtime["helpers"])
+    assert str(tmp_path) not in str(runtime)
+
+
+def test_local_source_acceptance_requires_both_built_helpers(tmp_path):
+    source = tmp_path / "source"
+    _runtime_fixture(source, "source")
+    (source / "docking/platform/backends/windows/input-thread-32.dll").unlink()
+    status, result = _select_runtime_subprocess(source, None)
+    assert status == 1 and "Build both native input helpers" in result["error"]
+    assert result["runtime"]["helpers"][1]["present"] is False
+    _runtime_fixture(source, "source")
+    status, result = _select_runtime_subprocess(source, None)
+    assert status == 0 and result["marker"] == "source"
+
+
+def test_runtime_selection_refuses_preloaded_source_and_installed_source_alias(
+    tmp_path,
+):
+    source, installed = tmp_path / "source", tmp_path / "installed"
+    _runtime_fixture(source, "source")
+    _runtime_fixture(installed, "installed")
+    status, result = _select_runtime_subprocess(source, installed, preloaded=True)
+    assert status == 1 and "before importing Docking" in result["error"]
+    status, result = _select_runtime_subprocess(source, source)
+    assert status == 1 and "outside the source checkout" in result["error"]
+
+
+def test_runtime_preflight_rejects_wrong_helper_machine_before_import(tmp_path):
+    source, installed = tmp_path / "source", tmp_path / "installed"
+    _runtime_fixture(source, "source")
+    _runtime_fixture(installed, "installed")
+    path = installed / "docking/platform/backends/windows/input-thread-64.dll"
+    content = bytearray(path.read_bytes())
+    struct.pack_into("<H", content, 68, 0xAA64)
+    path.write_bytes(content)
+    status, result = _select_runtime_subprocess(source, installed)
+    assert status == 1 and "wrong PE architecture" in result["error"]
+    assert result["runtime"]["preloaded_application_modules"] == []
+
+
+def test_input_tool_imports_do_not_preload_source_application():
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = (
+        "import sys;sys.path.insert(0,sys.argv[1]);"
+        "import tools.windows.visual.keyboardlayout_smoke;"
+        "import tools.windows.visual.input_profile_smoke;"
+        "assert not any(n=='docking' or n.startswith('docking.') for n in sys.modules)"
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            script,
+            str(Path(mod.__file__).resolve().parents[3]),
+        ],
+        check=True,
+        timeout=15,
+    )

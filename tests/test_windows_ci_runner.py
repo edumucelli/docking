@@ -98,6 +98,8 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
         "tools.windows.visual.keyboardlayout_smoke",
         "--search-input",
         *(["--owned-amd64-editor"] if owned_editor else []),
+        "--installed-root",
+        ci.command_path(installed.resolve()),
         "--output",
         ci.command_path(output / "search-layouts"),
     ]
@@ -116,7 +118,7 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
     assert not report["cancelled"]
     assert [row["returncode"] for row in report["checks"]] == list(statuses)
     assert [row["implementation"] for row in report["checks"]] == [
-        "source",
+        "installed-wheel",
         "installed-wheel",
     ]
     assert [row["module"] for row in report["checks"]] == [
