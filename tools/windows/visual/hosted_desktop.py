@@ -202,6 +202,8 @@ class NativeDesktop:
         self.root = directory.value
         self.session = self.session_of(os.getpid())
         self.exited = []
+        self.unverified_background = {}
+        self.unverified_background_dropped = 0
 
     @staticmethod
     def check(result, operation):
@@ -290,30 +292,132 @@ class NativeDesktop:
             try:
                 values.append(query(handle))
             except PreparationError as error:
-                if error.code in (5, 87):
-                    status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(
-                        handle, 0
-                    )
-                    if status == 0:
-                        self.exited.append(
-                            {
-                                "pid": pid,
-                                "name": name,
-                                "code": error.code,
-                                "stage": stage,
-                            }
-                        )
-                        return None
-                    error.candidate = {
-                        "pid": pid,
-                        "name": name,
-                        "stage": stage,
-                        "wait_status": status,
-                    }
-                    if status == 0xFFFFFFFF:
-                        error.candidate["wait_error"] = c.get_last_error()
+                if self._unavailable_query(handle, pid, name, stage, error):
+                    return None
                 raise
         return values[0], values[1]
+
+    def _background_only(self, handle, pid):
+        """Observe no visible top-level window and no foreground PID match.
+
+        This authorizes leaving an unreadable candidate alone, never any action
+        against it. It does not claim that the process owns no child windows.
+        """
+        assert bind(self.kernel, "GetProcessId", _U, _P)(handle) == pid, (
+            "Unverified candidate identity changed"
+        )
+        owner = bind(
+            self.user,
+            "GetWindowThreadProcessId",
+            _U,
+            _P,
+            c.POINTER(wintypes.DWORD),
+        )
+
+        def foreground_owner():
+            hwnd = self.foreground()
+            value = wintypes.DWORD()
+            self.check(hwnd, "Foreground window unavailable")
+            self.check(owner(hwnd, c.byref(value)), "Foreground owner unavailable")
+            self.check(value.value, "Foreground process unavailable")
+            return {"window": hwnd, "pid": value.value}
+
+        before = foreground_owner()
+        if before["pid"] == pid:
+            return None
+        visible = bind(self.user, "IsWindowVisible", _B, _P)
+        is_window = bind(self.user, "IsWindow", _B, _P)
+        state = {"count": 0, "visible": False, "error": None}
+
+        @self.desktop._callback
+        def visit(hwnd, _data):
+            state["count"] += 1
+            if state["count"] > 4096:
+                state["error"] = PreparationError("Window enumeration exceeds bound")
+                return False
+            value = wintypes.DWORD()
+            if not owner(hwnd, c.byref(value)) or not value.value:
+                error = c.get_last_error()
+                if not is_window(hwnd):
+                    return True  # A destroyed HWND cannot currently obscure input.
+                state["error"] = PreparationError("Window owner unavailable", error)
+                return False
+            if value.value == pid and visible(hwnd):
+                state["visible"] = True
+                return False
+            return True
+
+        completed = bind(
+            self.user, "EnumWindows", _B, self.desktop._callback, wintypes.LPARAM
+        )(visit, 0)
+        if state["error"] is not None:
+            raise state["error"]
+        if state["visible"]:
+            return None
+        self.check(completed, "Window enumeration unavailable")
+        after = foreground_owner()
+        if after["pid"] == pid:
+            return None
+        return {
+            "visible_top_level_windows": 0,
+            "foreground_before": before,
+            "foreground_after": after,
+            "enumeration_completed": True,
+        }
+
+    def _unavailable_query(self, handle, pid, name, stage, error):
+        """Skip only proved rundown or an unverified, invisible background target."""
+        if error.code not in (5, 87):
+            return False
+        row = {"pid": pid, "name": name, "stage": stage, "code": error.code}
+        wait = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)
+        status = wait(handle, 0)
+        if status == 258:
+            row["rundown_wait_ms"] = 50
+            status = wait(handle, 50)
+        row["wait_status"] = status
+        if status == 0:
+            self.exited.append(row)
+            return True
+        error.candidate = row
+        if status != 258:
+            if status == 0xFFFFFFFF:
+                row["wait_error"] = c.get_last_error()
+            return False
+        try:
+            proof = self._background_only(handle, pid)
+        except (PreparationError, AssertionError) as failure:
+            row["background_verification_error"] = (
+                _error(failure)
+                if isinstance(failure, PreparationError)
+                else {"operation": "Candidate identity changed", "code": 13}
+            )
+            return False
+        if proof is None:
+            row["background_verified"] = False
+            return False
+        status = wait(handle, 0)
+        row["wait_status"] = status
+        if status == 0:
+            self.exited.append(row)
+            return True
+        if status != 258:
+            if status == 0xFFFFFFFF:
+                row["wait_error"] = c.get_last_error()
+            return False
+        row.update(
+            state="unverified-background",
+            action="none",
+            policy="no-visible-top-level-window-and-not-foreground",
+            verification=proof,
+            observed_at=_stamp(),
+        )
+        key = (pid, name, stage)
+        if key in self.unverified_background or len(self.unverified_background) < 64:
+            self.unverified_background[key] = row
+        else:
+            self.unverified_background_dropped += 1
+        return True
 
     def _same_process(self, handle, pid, created, session):
         status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(handle, 0)
@@ -581,9 +685,20 @@ class NativeDesktop:
                 if name == "wsl.exe" and _path(path) == _path(
                     PureWindowsPath(self.root) / "System32/wsl.exe"
                 ):
-                    discovered = replace(
-                        discovered, wsl_update=self._is_wsl_update(discovered, handle)
-                    )
+                    try:
+                        verified = self._is_wsl_update(discovered, handle)
+                    except PreparationError as error:
+                        stage = {
+                            "QueryFullProcessImageNameW": "image",
+                            "GetProcessTimes": "creation",
+                            "WSL updater command line unavailable": "command-line",
+                        }.get(error.operation)
+                        if stage is not None and self._unavailable_query(
+                            handle, process.pid, name, stage, error
+                        ):
+                            continue
+                        raise
+                    discovered = replace(discovered, wsl_update=verified)
                 rows.append(discovered)
             yield rows
 
@@ -933,6 +1048,8 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                 ],
             }
         journal["exited"] = list(api.exited)
+        journal["unverified_background"] = list(api.unverified_background.values())
+        journal["unverified_background_dropped"] = api.unverified_background_dropped
         # Retain the complete known inventory before a rejected classification
         # or an action can obscure the other first-login UI identities.
         updater_stopped = False

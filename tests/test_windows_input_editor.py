@@ -912,3 +912,397 @@ def test_point_probe_preserves_desktop_shared_dword_pointer_contract(focus_deskt
         ctypes.c_void_p,
         ctypes.POINTER(wintypes.DWORD),
     )
+
+
+@pytest.fixture
+def gtk_target(focus_desktop):
+    from docking.platform.backends.windows.input_context import InputContext
+
+    native, mapped, foreground = focus_desktop
+    state = SimpleNamespace(
+        origin=[65, 50],
+        offset=[14, 12],
+        size=[492, 36],
+        scale=1,
+        visible=True,
+        mapped=True,
+        realized=True,
+        focused=True,
+    )
+    window = SimpleNamespace(
+        get_visible=lambda: state.visible,
+        get_mapped=lambda: state.mapped,
+        get_scale_factor=lambda: state.scale,
+        get_window=lambda: SimpleNamespace(get_origin=lambda: (True, *state.origin)),
+    )
+    entry = SimpleNamespace(
+        get_toplevel=lambda: window,
+        get_visible=lambda: state.visible,
+        get_mapped=lambda: state.mapped,
+        get_realized=lambda: state.realized,
+        translate_coordinates=lambda toplevel, x, y: tuple(state.offset),
+        get_allocation=lambda: SimpleNamespace(
+            width=state.size[0], height=state.size[1]
+        ),
+        has_focus=lambda: state.focused,
+    )
+    current = [window, entry]
+    context = InputContext(101, 101, 303, 202)
+    api = SimpleNamespace(
+        valid=Mock(return_value=True),
+        input_desktop_active=Mock(return_value=True),
+        foreground=Mock(side_effect=lambda: context if foreground[0] == 101 else None),
+    )
+    dispatch = Mock(side_effect=lambda operation: operation())
+    kwargs = {
+        "entry": entry,
+        "window": window,
+        "current": lambda: tuple(current),
+        "dispatch": dispatch,
+        "context": context,
+        "api": api,
+        "journal": {},
+    }
+    return SimpleNamespace(
+        native=native,
+        mapped=mapped,
+        state=state,
+        current=current,
+        kwargs=kwargs,
+        entry=entry,
+        window=window,
+    )
+
+
+def test_gtk_entry_click_targets_header_instead_of_editor_body(gtk_target, monkeypatch):
+    f = gtk_target
+    body_grid = Mock(
+        side_effect=AssertionError("GTK entries must never use the body grid")
+    )
+    monkeypatch.setattr(mod, "_editor_points", body_grid)
+    mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    assert f.native.click.call_args.args == (325, 80)
+    assert 50 < f.native.click.call_args.args[1] < 110
+    assert f.kwargs["journal"]["geometry"]["rect"] == [79, 62, 571, 98]
+    assert f.kwargs["journal"]["focused"]
+    body_grid.assert_not_called()
+    f.kwargs["api"].valid.assert_called_with(f.kwargs["context"])
+
+
+@pytest.mark.parametrize("scale", (1, 2, 3))
+def test_gtk_entry_geometry_uses_logical_origin_offset_and_dpi(gtk_target, scale):
+    f = gtk_target
+    f.state.origin, f.state.offset, f.state.size, f.state.scale = (
+        [-200, 100],
+        [12, 20],
+        [600, 40],
+        scale,
+    )
+    f.mapped["rect"] = [-200 * scale, 100 * scale, 500 * scale, 500 * scale]
+    mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    assert f.native.click.call_args.args == (112 * scale, 140 * scale)
+    assert f.kwargs["journal"]["geometry"]["scale"] == scale
+
+
+@pytest.mark.parametrize(
+    "change",
+    ("entry", "window", "hidden", "unmapped", "unrealized", "reparented", "allocation"),
+)
+def test_replaced_or_unavailable_gtk_target_never_receives_a_click(gtk_target, change):
+    f = gtk_target
+    if change == "entry":
+        f.current[1] = object()
+    elif change == "window":
+        f.current[0] = object()
+    elif change == "reparented":
+        f.entry.get_toplevel = lambda: object()
+    elif change == "allocation":
+        f.state.size = [0, 36]
+    else:
+        setattr(
+            f.state,
+            {"hidden": "visible", "unmapped": "mapped", "unrealized": "realized"}[
+                change
+            ],
+            False,
+        )
+    with pytest.raises(AssertionError):
+        mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    f.native.click.assert_not_called()
+    f.native._send.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        "entry",
+        "window",
+        "origin",
+        "offset",
+        "scale",
+        "hidden",
+        "hit",
+        "cursor",
+        "context",
+    ),
+)
+def test_gtk_target_is_revalidated_after_pointer_settle_before_button_input(
+    gtk_target, monkeypatch, change
+):
+    from tools.windows.visual import desktop_driver
+
+    f = gtk_target
+
+    def mutate(_seconds):
+        if change == "entry":
+            f.current[1] = object()
+        elif change == "window":
+            f.current[0] = object()
+        elif change == "origin":
+            f.state.origin[0] += 10
+        elif change == "offset":
+            f.state.offset[1] += 10
+        elif change == "scale":
+            f.state.scale = 2
+        elif change == "hidden":
+            f.state.visible = False
+        elif change == "hit":
+            f.native.window_at.return_value = 999
+        elif change == "cursor":
+            f.native.user.SetCursorPos(1, 1)
+        else:
+            f.kwargs["api"].valid.return_value = False
+
+    monkeypatch.setattr(desktop_driver.time, "sleep", mutate)
+    f.native.click = lambda *a, **kw: desktop_driver.WindowsDesktop.click(
+        f.native, *a, **kw
+    )
+    with pytest.raises(AssertionError):
+        mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    f.native._send.assert_not_called()
+    assert "focused" not in f.kwargs["journal"]
+
+
+@pytest.mark.parametrize(
+    "change", ("foreground", "gtk-focus", "replacement", "geometry")
+)
+def test_physical_entry_click_must_prove_same_native_and_gtk_focus(gtk_target, change):
+    f = gtk_target
+    click = f.native.click.side_effect
+
+    def changed(x, y, *, before_press):
+        click(x, y, before_press=before_press)
+        if change == "foreground":
+            f.kwargs["api"].foreground.side_effect = None
+            f.kwargs["api"].foreground.return_value = None
+        elif change == "gtk-focus":
+            f.state.focused = False
+        elif change == "replacement":
+            f.current[1] = object()
+        else:
+            f.state.offset[0] += 2
+
+    f.native.click.side_effect = changed
+    with pytest.raises(AssertionError):
+        mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    assert "focused" not in f.kwargs["journal"]
+
+
+@pytest.mark.parametrize("change", ("pid", "thread", "outside", "input-desktop"))
+def test_entry_focus_rejects_wrong_native_identity_or_coordinates(gtk_target, change):
+    f = gtk_target
+    if change == "pid":
+        f.kwargs["context"] = f.kwargs["context"].__class__(101, 101, 303, 909)
+    elif change == "thread":
+        f.kwargs["context"] = f.kwargs["context"].__class__(101, 101, 404, 202)
+    elif change == "outside":
+        f.state.origin[0] = 1000
+    else:
+        f.kwargs["api"].input_desktop_active.return_value = False
+    with pytest.raises(AssertionError):
+        mod.focus_gtk_entry(f.native, f.mapped, **f.kwargs)
+    f.native.click.assert_not_called()
+
+
+@pytest.fixture
+def entry_trace():
+    from tools.windows.visual.keyboardlayout_smoke import _EntryInputTrace
+
+    signals, disconnected = {}, []
+
+    def connect(signal, callback):
+        subscription = len(signals) + 1
+        signals[subscription] = signal, callback
+        return subscription
+
+    entry = SimpleNamespace(
+        connect=Mock(side_effect=connect),
+        disconnect=Mock(side_effect=disconnected.append),
+    )
+    journal = {}
+    readback = Mock(return_value={"text": "", "layout": 0xF0020409, "has_focus": True})
+    trace = _EntryInputTrace(entry, journal, readback)
+    return SimpleNamespace(
+        entry=entry,
+        journal=journal,
+        trace=trace,
+        signals=signals,
+        disconnected=disconnected,
+        readback=readback,
+    )
+
+
+def test_owned_entry_trace_observes_only_its_normal_signal_callbacks(entry_trace):
+    f = entry_trace
+    event = SimpleNamespace(
+        type=8,
+        keyval=39,
+        hardware_keycode=81,
+        group=0,
+        state=0,
+        is_modifier=False,
+        time=123,
+    )
+    assert f.signals[1][1](f.entry, event) is False
+    f.trace.observe("after-scan-0")
+    assert f.signals[2][1](f.entry, event) is False
+    f.signals[3][1](f.entry, "'")
+    assert f.journal["events"][0] == {
+        "phase": "before-input",
+        "monotonic_ns": f.journal["events"][0]["monotonic_ns"],
+        "signal": "key",
+        "type": 8,
+        "keyval": 39,
+        "hardware_keycode": 81,
+        "group": 0,
+        "state": 0,
+        "is_modifier": False,
+        "time": 123,
+    }
+    assert f.journal["events"][1]["phase"] == "after-scan-0"
+    assert f.journal["events"][2]["text"] == "'"
+    f.trace.close()
+    assert f.disconnected == [3, 2, 1] and f.journal["disconnected"]
+    assert f.journal["observations"][-1]["layout"] == 0xF0020409
+    assert f.journal["observations"][-1]["phase"] == "after-input"
+
+
+def test_owned_entry_trace_bounds_key_preedit_and_readback_data(entry_trace):
+    f = entry_trace
+    for _ in range(100):
+        f.signals[3][1](f.entry, "a" * 100)
+        f.trace.observe("bounded")
+    assert len(f.journal["events"]) == 64 and f.journal["events_dropped"] == 36
+    assert len(f.journal["events"][0]["text"]) == 32
+    assert len(f.journal["observations"]) == 16
+    f.trace.close()
+    assert f.journal["disconnected"]
+
+
+def test_owned_entry_trace_disconnects_after_text_assertion_without_replacing_it(
+    entry_trace,
+):
+    from tools.windows.visual.input_requests import fixture_cleanup
+
+    f = entry_trace
+    f.readback.side_effect = RuntimeError("private diagnostic failure")
+    error = AssertionError("Search physical input mismatch: dvorak")
+    with (
+        pytest.raises(AssertionError) as failed,
+        fixture_cleanup(f.trace.close, f.journal, "observer"),
+    ):
+        raise error
+    assert failed.value is error
+    assert f.disconnected == [3, 2, 1]
+    assert f.journal["observations"][-1]["diagnostic_error"] == "RuntimeError"
+    assert "private" not in str(f.journal)
+
+
+def test_owned_entry_trace_releases_prior_subscriptions_when_later_connect_fails():
+    from tools.windows.visual.keyboardlayout_smoke import _EntryInputTrace
+
+    entry = SimpleNamespace(
+        connect=Mock(side_effect=[11, RuntimeError("connect failed")]),
+        disconnect=Mock(),
+    )
+    with pytest.raises(RuntimeError, match="connect failed"):
+        _EntryInputTrace(entry, {}, dict)
+    entry.disconnect.assert_called_once_with(11)
+
+
+def test_owned_entry_trace_attempts_every_disconnect_even_when_one_fails(entry_trace):
+    f = entry_trace
+    f.entry.disconnect.side_effect = [RuntimeError("disconnect failed"), None, None]
+    with pytest.raises(RuntimeError, match="disconnect failed"):
+        f.trace.close()
+    assert [call.args[0] for call in f.entry.disconnect.call_args_list] == [3, 2, 1]
+    assert not f.journal.get("disconnected")
+
+
+def test_owned_entry_trace_preserves_connect_failure_when_rollback_also_fails():
+    from tools.windows.visual.keyboardlayout_smoke import _EntryInputTrace
+
+    error = RuntimeError("connect failed")
+    entry = SimpleNamespace(
+        connect=Mock(side_effect=[11, error]),
+        disconnect=Mock(side_effect=ValueError("private rollback detail")),
+    )
+    journal = {}
+    with pytest.raises(RuntimeError) as failed:
+        _EntryInputTrace(entry, journal, dict)
+    assert failed.value is error and journal["disconnect_error"] == "ValueError"
+    assert "private" not in str(journal)
+
+
+def test_pre_key_entry_readback_does_not_touch_lazy_gdk_keymap(monkeypatch):
+    from docking.platform.backends.windows.input_context import InputContext
+    from tools.windows.visual.keyboardlayout_smoke import (
+        _entry_input_readback,
+        _EntryInputTrace,
+    )
+
+    lazy_keymap = SimpleNamespace(
+        get_for_display=Mock(side_effect=AssertionError("GTK keymap refreshed"))
+    )
+    monkeypatch.setitem(
+        sys.modules, "gi.repository.Gdk", SimpleNamespace(Keymap=lazy_keymap)
+    )
+    entry = SimpleNamespace(
+        get_text=lambda: "",
+        has_focus=lambda: True,
+        get_visible=lambda: True,
+        get_mapped=lambda: True,
+        get_display=Mock(side_effect=AssertionError("GDK display queried")),
+        get_property=Mock(side_effect=AssertionError("GTK IM module queried")),
+        get_window=Mock(side_effect=AssertionError("GTK IM client window queried")),
+        connect=Mock(side_effect=[1, 2, 3]),
+        disconnect=Mock(),
+    )
+    context = InputContext(101, 101, 303, 202)
+    api = SimpleNamespace(foreground=lambda: context, active=lambda _thread: 0xF0020409)
+    native = SimpleNamespace(
+        user=SimpleNamespace(MapVirtualKeyExW=Mock(return_value=81))
+    )
+    trace = _EntryInputTrace(
+        entry,
+        {},
+        lambda: _entry_input_readback(
+            entry,
+            current=lambda: entry,
+            api=api,
+            native=native,
+            scans=[0x10],
+        ),
+    )
+    trace.observe("before-scan-0")
+    before, scan = trace.journal["observations"]
+    assert before["text"] == "" and scan["layout"] == 0xF0020409
+    assert scan["context"]["thread"] == 303 and scan["has_focus"]
+    assert scan["scan_mapping"] == [{"scan": 0x10, "virtual": 81}]
+    assert "diagnostic_error" not in scan and "keymap" not in scan and "gtk" not in scan
+    lazy_keymap.get_for_display.assert_not_called()
+    entry.get_display.assert_not_called()
+    entry.get_property.assert_not_called()
+    entry.get_window.assert_not_called()
+    trace.close()
+    assert trace.journal["disconnected"]

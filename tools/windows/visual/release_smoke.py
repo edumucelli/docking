@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
 import time
@@ -27,31 +29,180 @@ if TYPE_CHECKING:
     import psutil
 
 
-def verify_payload(bundle: Path, archive: Path) -> dict[str, str | int]:
+_ISSUE_LIMIT = 16
+_ISSUE_PATH_LIMIT = 512
+_ISSUE_HASH_LIMIT = 1024 * 1024
+
+
+def verify_payload(
+    bundle: Path, archive: Path, *, journal: dict[str, object] | None = None
+) -> dict[str, str | int]:
+    """Keep strict payload verification and retain bounded relative diagnostics."""
+    evidence = journal if journal is not None else {}
+    issues: list[dict[str, object]] = []
+    evidence.update(
+        ok=False,
+        complete=False,
+        issues=issues,
+        issue_count=0,
+        issue_limit=_ISSUE_LIMIT,
+        issues_omitted=0,
+    )
+    issue_count = 0
+
+    def issue(
+        name: str,
+        reason: str,
+        kind: str,
+        *,
+        path: Path | None = None,
+        size: int | None = None,
+        checksum: str | None = None,
+        expected: str | None = None,
+    ) -> None:
+        nonlocal issue_count
+        issue_count += 1
+        evidence["issue_count"] = issue_count
+        evidence["issues_omitted"] = max(0, issue_count - _ISSUE_LIMIT)
+        if len(issues) >= _ISSUE_LIMIT:
+            return
+        row: dict[str, object] = {
+            "path": name[:_ISSUE_PATH_LIMIT],
+            "path_truncated": len(name) > _ISSUE_PATH_LIMIT,
+            "reason": reason,
+            "kind": kind,
+        }
+        issues.append(row)
+        if size is not None:
+            row["bytes"] = size
+        if expected is not None:
+            row["expected_sha256"] = expected
+        if checksum is not None:
+            row["sha256"] = checksum
+        elif path is not None and kind == "file":
+            # Unknown files are diagnostic only: bound both rows and bytes,
+            # never read a link/reparse target or serialize file contents.
+            with path.open("rb") as stream:
+                content = stream.read(_ISSUE_HASH_LIMIT + 1)
+            row["hashed_bytes"] = min(len(content), _ISSUE_HASH_LIMIT)
+            if len(content) > _ISSUE_HASH_LIMIT:
+                row["sha256_prefix"] = hashlib.sha256(
+                    content[:_ISSUE_HASH_LIMIT]
+                ).hexdigest()
+            else:
+                row["sha256"] = hashlib.sha256(content).hexdigest()
+
     identity = archive_identity(archive)
-    payload = payload_root(bundle)
+    # The portable inventory still identifies the expected payload when a
+    # declared runtime metadata file is missing; installation roots continue
+    # through the shared active-version selector.
+    payload = filesystem_path(
+        bundle if (bundle / "files.sha256.json").is_file() else payload_root(bundle)
+    )
     inventory = payload / "files.sha256.json"
-    if digest(inventory) != identity["payload_inventory_sha256"]:
+    try:
+        state = inventory.lstat()
+        if stat.S_ISLNK(state.st_mode) or (
+            os.name == "nt"
+            and state.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            issue("files.sha256.json", "linked-entry", "symlink")
+            raise ValueError("Measured bundle contains a linked inventory")
+        if not stat.S_ISREG(state.st_mode):
+            issue("files.sha256.json", "non-regular-entry", "other")
+            raise ValueError("Measured bundle contains a non-regular inventory")
+        inventory_checksum = digest(inventory)
+    except FileNotFoundError:
+        issue("files.sha256.json", "missing", "missing")
+        raise ValueError("Measured bundle is missing files.sha256.json") from None
+    evidence["inventory_sha256"] = inventory_checksum
+    if inventory_checksum != identity["payload_inventory_sha256"]:
+        issue(
+            "files.sha256.json",
+            "inventory-changed",
+            "file",
+            checksum=inventory_checksum,
+            expected=str(identity["payload_inventory_sha256"]),
+        )
         raise ValueError("Measured bundle differs from the portable archive")
     declared = json.loads(inventory.read_bytes())
-    for name, checksum in declared.items():
-        if digest(filesystem_path(payload / name)) != checksum:
-            raise ValueError("Measured bundle contains changed payload bytes")
-    for path in walk_tree(payload):
-        relative = path.relative_to(payload)
-        if path.is_symlink():
-            raise ValueError("Measured bundle contains a symbolic link")
-        if (
-            path.is_file()
-            and relative.as_posix() not in declared
-            and relative.as_posix() != "files.sha256.json"
-            and not ("__pycache__" in relative.parts and path.suffix == ".pyc")
-        ):
-            raise ValueError("Measured bundle contains an unlisted payload file")
+    evidence["declared_files"] = len(declared)
+    observed: dict[str, str] = {}
+    verified, bytecode, unlisted = 0, 0, 0
+    try:
+        for path in walk_tree(payload, follow_reparse=False):
+            relative = path.relative_to(payload)
+            name = relative.as_posix()
+            state = path.lstat()
+            reparse = os.name == "nt" and bool(
+                state.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+            )
+            if stat.S_ISLNK(state.st_mode) or reparse:
+                issue(
+                    name,
+                    "linked-entry",
+                    "symlink" if stat.S_ISLNK(state.st_mode) else "reparse",
+                )
+                continue
+            if stat.S_ISDIR(state.st_mode):
+                continue
+            if not stat.S_ISREG(state.st_mode):
+                issue(name, "non-regular-entry", "other")
+                continue
+            if name == "files.sha256.json":
+                continue
+            if name in declared:
+                checksum = digest(path)
+                observed[name] = checksum
+                if checksum == declared[name]:
+                    verified += 1
+                else:
+                    issue(
+                        name,
+                        "changed-payload",
+                        "file",
+                        size=state.st_size,
+                        checksum=checksum,
+                        expected=declared[name],
+                    )
+            elif "__pycache__" in relative.parts and path.suffix == ".pyc":
+                # This is the existing generated-bytecode policy; no new
+                # config/cache/log/native-library exemption is permitted.
+                bytecode += 1
+            else:
+                unlisted += 1
+                issue(name, "unlisted-payload", "file", path=path, size=state.st_size)
+        for name in sorted(declared.keys() - observed.keys()):
+            issue(name, "missing-payload", "missing", expected=declared[name])
+    finally:
+        evidence.update(
+            verified_files=verified,
+            observed_declared_files=len(observed),
+            generated_bytecode_files=bytecode,
+            unlisted_files=unlisted,
+            observed_inventory_sha256=hashlib.sha256(
+                json.dumps(observed, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest(),
+        )
+    evidence["complete"] = True
+    if issues:
+        first = issues[0]
+        reason = {
+            "changed-payload": "changed payload bytes",
+            "unlisted-payload": "an unlisted payload file",
+            "linked-entry": "a symbolic link or reparse point",
+            "missing-payload": "a missing payload file",
+            "non-regular-entry": "a non-regular payload entry",
+        }[str(first["reason"])]
+        raise ValueError(f"Measured bundle contains {reason}: {first['path']}")
+    evidence["ok"] = True
     return identity
 
 
 def runtime_environment(output: Path) -> dict[str, str]:
+    # The native launcher starts Python in the bundle directory. Mutable XDG
+    # paths must stay attached to the caller-owned report directory.
+    output = output.resolve()
     environment = dict(os.environ)
     for name in tuple(environment):
         if name.startswith(("PYTHON", "GTK_", "GDK_", "GI_", "GST_")) or name in {
@@ -102,7 +253,11 @@ class PackagedSession:
         import psutil
 
         self._process_api = psutil
-        self.bundle, self.payload, self.output = bundle, payload_root(bundle), output
+        self.bundle, self.payload, self.output = (
+            bundle.resolve(),
+            payload_root(bundle),
+            output.resolve(),
+        )
         self.desktop = desktop
         self.child: subprocess.Popen[bytes] | None = None
         self.owned: dict[tuple[int, float], psutil.Process] = {}
@@ -340,6 +495,10 @@ def main() -> None:
             "Use 1–10 cycles, 5–3600 seconds and an interval "
             "producing at least 3 samples"
         )
+    args.bundle = args.bundle.resolve()
+    args.output = args.output.resolve()
+    if args.output.is_relative_to(args.bundle):
+        parser.error("Measurement output must be outside the bundle")
     args.output.mkdir(parents=True, exist_ok=False)
     startups: list[dict[str, object]] = []
     session: dict[str, object] = {}
@@ -357,9 +516,13 @@ def main() -> None:
         },
     }
     active = None
+    payload_verification: dict[str, object] = {"schema": 1}
+    report["payload_verification"] = payload_verification
+    before: dict[str, object] = {}
+    payload_verification["before"] = before
     try:
         bundle = args.bundle.resolve()
-        identity = verify_payload(bundle, args.archive.resolve())
+        identity = verify_payload(bundle, args.archive.resolve(), journal=before)
         report["acceptance"] = {
             "schema": 1,
             "implementation": "portable-bundle",
@@ -409,7 +572,11 @@ def main() -> None:
         ):
             raise RuntimeError("Session did not release its owned runtime")
         active = None
-        report["ok"] = verify_payload(bundle, args.archive.resolve()) == identity
+        after: dict[str, object] = {}
+        payload_verification["after"] = after
+        report["ok"] = (
+            verify_payload(bundle, args.archive.resolve(), journal=after) == identity
+        )
     except BaseException as error:
         report["error"] = type(error).__name__
         raise

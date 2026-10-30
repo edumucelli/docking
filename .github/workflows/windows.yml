@@ -103,6 +103,24 @@ jobs:
         id: applications
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage applications --installed-root artifacts/windows/runtime --wheel dist/*.whl
+      - name: Upload native domain evidence before package builds
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-native-domains-ucrt64-x64
+          path: |
+            artifacts/windows/environment.json
+            artifacts/windows/input-candidate.json
+            artifacts/windows/input-domain.json
+            artifacts/windows/tray-domain.json
+            artifacts/windows/applications-domain.json
+            artifacts/windows/search-layouts/
+            artifacts/windows/input-profiles/
+            artifacts/windows/tray/
+            artifacts/windows/applications-explorer/
+            dist/*.whl
+          if-no-files-found: error
+          retention-days: 14
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
           python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth

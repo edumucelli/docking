@@ -22,6 +22,97 @@ from tools.windows.input_acceptance import PROFILES, coverage, runtime_acceptanc
 from tools.windows.visual.input_oracle import oracle
 
 
+def _entry_input_readback(entry, *, current, api, native, scans):
+    # GDK keymap and IM-context getters can initialize the state under test.
+    # Keep diagnostics to native reads and the owned widget's existing state.
+    context = api.foreground()
+    handle = api.active(context.thread) if context else None
+    return {
+        "text": entry.get_text(),
+        "entry_current": current() is entry,
+        "has_focus": entry.has_focus(),
+        "visible": entry.get_visible(),
+        "mapped": entry.get_mapped(),
+        "context": asdict(context) if context else None,
+        "layout": handle,
+        "scan_mapping": [
+            {"scan": code, "virtual": native.user.MapVirtualKeyExW(code, 3, handle)}
+            for code in scans
+        ]
+        if handle
+        else [],
+    }
+
+
+class _EntryInputTrace:
+    """Bounded, non-consuming signals from one owned entry during test input."""
+
+    def __init__(self, entry, journal, readback):
+        self.entry, self.journal, self.readback = entry, journal, readback
+        self.phase = "before-input"
+        self.handlers = ExitStack()
+        journal.update(events=[], events_dropped=0, observations=[])
+        try:
+            for signal, callback in (
+                ("key-press-event", self._key),
+                ("key-release-event", self._key),
+                ("preedit-changed", self._preedit),
+            ):
+                subscription = entry.connect(signal, callback)
+                self.handlers.callback(entry.disconnect, subscription)
+        except BaseException:
+            try:
+                self.handlers.close()
+            except Exception as error:
+                journal["disconnect_error"] = type(error).__name__
+            raise
+        self.observe("before-input")
+
+    def _record(self, event):
+        if len(self.journal["events"]) < 64:
+            self.journal["events"].append(
+                {"phase": self.phase, "monotonic_ns": time.monotonic_ns(), **event}
+            )
+        else:
+            self.journal["events_dropped"] += 1
+
+    def _key(self, _entry, event):
+        self._record(
+            {
+                "signal": "key",
+                "type": int(event.type),
+                "keyval": int(event.keyval),
+                "hardware_keycode": int(event.hardware_keycode),
+                "group": int(event.group),
+                "state": int(event.state),
+                "is_modifier": bool(event.is_modifier),
+                "time": int(event.time),
+            }
+        )
+        return False  # Observe the normal signal chain; never filter a key.
+
+    def _preedit(self, _entry, text):
+        self._record({"signal": "preedit-changed", "text": text[:32]})
+
+    def observe(self, phase):
+        self.phase = phase
+        row = {"phase": phase, "monotonic_ns": time.monotonic_ns()}
+        try:
+            row.update(self.readback())
+        except Exception as error:
+            # Optional diagnostics must not replace the original text failure.
+            row["diagnostic_error"] = type(error).__name__
+        if len(self.journal["observations"]) < 16:
+            self.journal["observations"].append(row)
+
+    def close(self):
+        try:
+            self.observe("after-input")
+        finally:
+            self.handlers.close()
+            self.journal["disconnected"] = True
+
+
 def main(monitor):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -111,7 +202,7 @@ def main(monitor):
     from docking.platform.backends.windows.input_service import WindowsInputService
     from docking.search.services.global_shortcuts import GlobalShortcutsState
     from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
-    from tools.windows.visual.input_editor import OwnedInputEditor
+    from tools.windows.visual.input_editor import OwnedInputEditor, focus_gtk_entry
     from tools.windows.visual.input_editor import focus_editor as click_editor
     from tools.windows.visual.input_environment import (
         runtime_snapshot,
@@ -509,22 +600,52 @@ def main(monitor):
                 search = shared["ui"].search
                 open_search(0x20)
                 observed = oracle()
-                native.key(0x41, control=True)
-                native.key(0x08)
-                for code in scans:
-                    native.scan(code)
+                entry = call(lambda: search.window.search_entry)
+                attempt = {"expected": expected, "text": None, "os": observed}
+                report.setdefault("search_characters", {})[name] = attempt
 
                 def text():
-                    return call(lambda: search.window.search_entry.get_text())
+                    value = call(entry.get_text)
+                    attempt["text"] = value
+                    return value
 
-                native.wait_for(
-                    lambda: text() == expected,
-                    "Search physical input mismatch: " + name,
+                readback = partial(
+                    _entry_input_readback,
+                    entry,
+                    current=lambda: search.window.search_entry,
+                    api=api,
+                    native=native,
+                    scans=scans,
                 )
-                report.setdefault("search_characters", {})[name] = {
-                    "text": text(),
-                    "os": observed,
-                }
+
+                trace = (
+                    call(
+                        lambda: _EntryInputTrace(
+                            entry, attempt.setdefault("input_trace", {}), readback
+                        )
+                    )
+                    if name == "dvorak"
+                    else None
+                )
+
+                def finish_observation():
+                    if trace is not None:
+                        call(trace.close)
+                    publish()
+
+                with fixture_cleanup(finish_observation, attempt, "input-observer"):
+                    native.key(0x41, control=True)
+                    native.key(0x08)
+                    for index, code in enumerate(scans):
+                        if trace is not None:
+                            call(partial(trace.observe, f"before-scan-{index}"))
+                        native.scan(code)
+                        if trace is not None:
+                            call(partial(trace.observe, f"after-scan-{index}"))
+                    native.wait_for(
+                        lambda: text() == expected,
+                        "Search physical input mismatch: " + name,
+                    )
                 ImageGrab.grab(all_screens=True).save(
                     output / ("search-" + name + ".png")
                 )
@@ -753,16 +874,26 @@ def main(monitor):
                 search = shared["ui"].search
                 input_service = WindowsInputService()
 
-                def restore_keyboard(context, entry, mapped, attempt):
+                def reference_source(window):
+                    return window, window.get_child()
+
+                def search_source():
+                    return search.window.window, search.window.search_entry
+
+                def restore_keyboard(
+                    context, entry, mapped, attempt, *, window, current
+                ):
                     def focus():
-                        click_editor(
+                        focus_gtk_entry(
                             native,
                             mapped,
+                            entry=entry,
+                            window=window,
+                            current=current,
+                            dispatch=call,
+                            context=context,
+                            api=api,
                             journal=attempt.setdefault("reset_focus", {}),
-                        )
-                        native.wait_for(
-                            lambda: call(entry.has_focus),
-                            "Owned reset entry did not receive GTK focus",
                         )
                         return api.foreground()
 
@@ -1093,6 +1224,8 @@ def main(monitor):
                                     reference_entry,
                                     mapped,
                                     attempt["reference"],
+                                    window=reference_window,
+                                    current=partial(reference_source, reference_window),
                                 ),
                                 attempt["reference"],
                                 "reference-keyboard",
@@ -1128,6 +1261,8 @@ def main(monitor):
                                     search.window.search_entry,
                                     mapped,
                                     attempt,
+                                    window=search.window.window,
+                                    current=search_source,
                                 ),
                                 attempt,
                                 "search-keyboard",

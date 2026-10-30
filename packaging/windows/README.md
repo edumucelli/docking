@@ -119,7 +119,13 @@ set, private bytes, threads, handles and GDI/USER object counts. The report reta
 the raw samples, process creation identities, resource deltas, normal exits and
 cleanup failures. It isolates configuration and removes development runtime
 paths. Measurements follow payload verification, so cache state is uncontrolled;
-they do not measure cold boot, login, arbitrary applet workloads or all-day use.
+they do not measure cold boot, login, arbitrary applet workloads or all-day use. Mutable fixture paths are absolute, so
+configuration, caches, data and state remain in the owned report directory when
+the native launcher changes its working directory to the bundle. Before and
+after the measurements, the report verifies every declared payload file and
+records matching inventory digests. Unlisted or changed files still fail;
+only the existing generated Python-bytecode exception remains. Failures retain
+bounded relative paths, file shapes and SHA-256 diagnostics, without contents.
 There is no performance SLA or leak-free claim. `--cycles`, `--seconds` and
 `--interval` allow investigation, but release staging requires at least three
 startup cycles, 120 seconds, complete samples and clean shutdowns.

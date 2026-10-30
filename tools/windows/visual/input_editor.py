@@ -1,4 +1,4 @@
-"""Owned x86/AMD64 Forms editors for independent Windows input acceptance."""
+"""Owned Windows input editors and physical focus for known GTK entries."""
 
 from __future__ import annotations
 
@@ -295,6 +295,116 @@ def focus_editor(
             row["identity_after_click"] = owned.verify_identity(editor)
         row["activated"] = True
         return x, y
+
+
+def gtk_entry_geometry(entry, window, current: Callable) -> dict:
+    """Read one pinned entry's physical screen target on its GTK thread."""
+    current_window, current_entry = current()
+    assert current_window is window and current_entry is entry, (
+        "Owned GTK entry was replaced"
+    )
+    assert entry.get_toplevel() is window, "Owned GTK entry changed its toplevel"
+    assert (
+        window.get_visible()
+        and window.get_mapped()
+        and entry.get_visible()
+        and entry.get_mapped()
+        and entry.get_realized()
+    ), "Owned GTK entry is not visible and mapped"
+    gdk_window = window.get_window()
+    assert gdk_window is not None, "Owned GTK entry has no native window"
+    success, ox, oy = gdk_window.get_origin()
+    assert success, "Owned GTK entry screen origin is unavailable"
+    offset = entry.translate_coordinates(window, 0, 0)
+    allocation, scale = entry.get_allocation(), window.get_scale_factor()
+    assert offset is not None and allocation.width > 1 and allocation.height > 1, (
+        "Owned GTK entry has no usable allocation"
+    )
+    assert scale > 0, "Owned GTK entry has invalid scale"
+    # Match the existing native GTK button probes: GDK origins and widget
+    # offsets are logical coordinates, whereas WindowFromPoint uses pixels.
+    left, top = (ox + offset[0]) * scale, (oy + offset[1]) * scale
+    width, height = allocation.width * scale, allocation.height * scale
+    return {
+        "origin": [ox, oy],
+        "allocation": [offset[0], offset[1], allocation.width, allocation.height],
+        "scale": scale,
+        "rect": [left, top, left + width, top + height],
+        "point": [int(left + width / 2), int(top + height / 2)],
+    }
+
+
+def focus_gtk_entry(
+    native: WindowsDesktop,
+    mapped: dict,
+    *,
+    entry,
+    window,
+    current: Callable,
+    dispatch: Callable,
+    context,
+    api,
+    journal: dict,
+) -> None:
+    """Click only the pinned entry, with no fallback to palette/body coordinates."""
+    assert mapped["hwnd"] == context.root and mapped["pid"] == context.pid, (
+        "Owned GTK entry context differs from its native window"
+    )
+
+    def validate():
+        assert api.valid(context) and api.input_desktop_active(), (
+            "Owned GTK entry context is no longer valid"
+        )
+
+    def geometry():
+        return dispatch(lambda: gtk_entry_geometry(entry, window, current))
+
+    validate()
+    before = journal["geometry"] = geometry()
+    x, y = before["point"]
+
+    def hit(phase):
+        facts = journal[phase] = _point_facts(native, x, y)
+        root = facts["root"]
+        assert (
+            root["hwnd"] == context.root
+            and root.get("pid") == (context.root_pid or context.pid)
+            and root.get("thread") == (context.root_thread or context.thread)
+            and facts["hit"].get("pid") == context.pid
+        ), "Owned GTK entry is covered or its native identity changed"
+        left, top, right, bottom = root["bounds"]
+        assert left <= x < right and top <= y < bottom, (
+            "Owned GTK entry target is outside its native window"
+        )
+
+    hit("initial_hit")
+
+    def before_press():
+        validate()
+        live = journal["before_press_geometry"] = geometry()
+        assert live == before, "Owned GTK entry geometry changed before click"
+        position = wintypes.POINT()
+        assert bind(
+            native.user,
+            "GetCursorPos",
+            ctypes.c_int32,
+            ctypes.POINTER(wintypes.POINT),
+        )(ctypes.byref(position)) and (position.x, position.y) == (x, y), (
+            "Pointer moved away from the owned GTK entry"
+        )
+        hit("before_press_hit")
+
+    native.click(x, y, before_press=before_press)
+
+    def focused():
+        validate()
+        # Recheck the captured widget identity/allocation after event delivery,
+        # too: a replacement must never satisfy focus through the old closure.
+        assert geometry() == before, "Owned GTK entry geometry changed after click"
+        return api.foreground() == context and dispatch(entry.has_focus)
+
+    native.wait_for(focused, "Owned GTK entry did not receive native and GTK focus")
+    journal["focused"] = True
 
 
 _EDITOR_SOURCE = r"""

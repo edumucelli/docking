@@ -237,3 +237,283 @@ print("dependency-isolation-passed")
     assert "test_measurement_rejects_changed_runtime" in completed.stdout
     assert "test_exited_descendant_during_cleanup" in completed.stdout
     assert "dependency-isolation-passed" in completed.stdout
+
+
+def test_relative_measurement_output_remains_external_after_launcher_changes_cwd(
+    tmp_path, monkeypatch
+):
+    bundle, archive = packaged_fixture(tmp_path)
+    checkout = tmp_path / "controller"
+    checkout.mkdir()
+    monkeypatch.chdir(checkout)
+    monkeypatch.setenv("WINDIR", str(tmp_path / "Windows"))
+    output = Path("reports/startup-1")
+    environment = release_smoke.runtime_environment(output)
+    before = {}
+    release_smoke.verify_payload(bundle, archive, journal=before)
+    script = """
+import json, os
+from pathlib import Path
+config = Path(os.environ['XDG_CONFIG_HOME']) / 'docking/dock.json'
+assert config.is_absolute()
+assert len(json.loads(config.read_text())['pinned']) == 5
+for name in ('XDG_CACHE_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME'):
+    target = Path(os.environ[name]) / 'docking/owned-probe.bin'
+    assert target.is_absolute()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b'owned mutable fixture output')
+"""
+    subprocess.run(
+        [sys.executable, "-I", "-c", script],
+        cwd=bundle,
+        env=environment,
+        check=True,
+        timeout=10,
+    )
+    after = {}
+    release_smoke.verify_payload(bundle, archive, journal=after)
+    assert before["observed_inventory_sha256"] == after["observed_inventory_sha256"]
+    assert not (bundle / "reports").exists()
+    assert (
+        checkout / output / "cache/docking/owned-probe.bin"
+    ).read_bytes() == b"owned mutable fixture output"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unlisted-cache", "missing", "missing-metadata", "changed", "linked-bytecode"],
+)
+def test_payload_mutations_retain_relative_shape_hash_and_strict_failure(
+    tmp_path, mutation
+):
+    bundle, archive = packaged_fixture(tmp_path)
+    name = "runtime/share/docking/runtime.json"
+    if mutation == "unlisted-cache":
+        name = "artifacts/windows/release-readiness/session/cache/docking/generated.bin"
+        path = bundle / name
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"misplaced generated cache")
+    elif mutation == "missing":
+        name = "Docking.exe"
+        (bundle / name).unlink()
+    elif mutation == "missing-metadata":
+        (bundle / name).unlink()
+    elif mutation == "changed":
+        (bundle / name).write_bytes(b"changed bytes")
+    else:
+        name = "runtime/__pycache__/generated.pyc"
+        path = bundle / name
+        path.parent.mkdir(parents=True)
+        outside = tmp_path / "outside.pyc"
+        outside.write_bytes(b"linked cache must remain untrusted")
+        try:
+            path.symlink_to(outside)
+        except OSError:
+            pytest.skip("Symbolic links require native permission")
+    journal = {}
+    with pytest.raises(ValueError):
+        release_smoke.verify_payload(bundle, archive, journal=journal)
+    assert journal["ok"] is False and journal["complete"] is True
+    issue = next(row for row in journal["issues"] if row["path"] == name)
+    assert issue["kind"] == (
+        "missing"
+        if mutation in ("missing", "missing-metadata")
+        else "symlink"
+        if mutation == "linked-bytecode"
+        else "file"
+    )
+    assert not Path(issue["path"]).is_absolute()
+    if mutation == "unlisted-cache":
+        assert (
+            issue["sha256"] == hashlib.sha256(b"misplaced generated cache").hexdigest()
+        )
+    elif mutation == "changed":
+        assert issue["sha256"] == hashlib.sha256(b"changed bytes").hexdigest()
+        assert issue["expected_sha256"] != issue["sha256"]
+    elif mutation == "linked-bytecode":
+        assert "sha256" not in issue
+
+
+def test_unexpected_payload_diagnostics_bound_rows_paths_and_hashed_bytes(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(release_smoke, "_ISSUE_PATH_LIMIT", 8)
+    bundle, archive = packaged_fixture(tmp_path)
+    for index in range(20):
+        (bundle / f"unlisted-{index:02}.bin").write_bytes(
+            b"x" * (release_smoke._ISSUE_HASH_LIMIT + 1)
+        )
+    journal = {}
+    with pytest.raises(ValueError, match="unlisted"):
+        release_smoke.verify_payload(bundle, archive, journal=journal)
+    assert journal["issue_count"] == 20
+    assert len(journal["issues"]) == 16 and journal["issues_omitted"] == 4
+    assert all(
+        len(row["path"]) == 8 and row["path_truncated"] for row in journal["issues"]
+    )
+    assert all(
+        row["hashed_bytes"] == release_smoke._ISSUE_HASH_LIMIT
+        for row in journal["issues"]
+    )
+    assert all(
+        "sha256_prefix" in row and "sha256" not in row for row in journal["issues"]
+    )
+
+
+@pytest.mark.parametrize("change", ["missing", "changed"])
+def test_inventory_marker_failures_are_retained_before_runtime_start(tmp_path, change):
+    bundle, archive = packaged_fixture(tmp_path)
+    marker = bundle / "files.sha256.json"
+    if change == "missing":
+        marker.unlink()
+    else:
+        marker.write_bytes(b"changed inventory")
+    journal = {}
+    with pytest.raises(ValueError):
+        release_smoke.verify_payload(bundle, archive, journal=journal)
+    assert not journal["ok"] and not journal["complete"]
+    assert journal["issue_count"] == 1
+    assert journal["issues"][0]["path"] == "files.sha256.json"
+
+
+def test_final_payload_failure_keeps_measurements_and_before_after_evidence(
+    tmp_path, monkeypatch
+):
+    bundle, archive = packaged_fixture(tmp_path)
+    output = tmp_path / "report"
+    stops = []
+
+    class Packaged:
+        def __init__(self, *args):
+            pass
+
+        def start(self):
+            return {"visible_seconds": 0.01, "responsive_seconds": 0.02}
+
+        def stop(self):
+            stops.append(True)
+            if len(stops) == 2:
+                (bundle / "unexpected.cache").write_bytes(b"unaccepted output")
+            return {
+                "normal_shutdown": True,
+                "close_requested": True,
+                "exit_code": 0,
+                "forced": False,
+                "owned_remaining": [],
+                "errors": [],
+            }
+
+        def sample(self, elapsed):
+            process = {
+                "pid": 1,
+                "created": 1.0,
+                "cpu_seconds": elapsed / 100,
+                "rss_bytes": 100,
+                "private_bytes": 50,
+                "threads": 1,
+                "handles": 3,
+                "gdi": 1,
+                "user": 1,
+            }
+            return {
+                "elapsed_seconds": elapsed,
+                "responsive": True,
+                "processes": [process],
+                **{
+                    key: process[key]
+                    for key in (
+                        "rss_bytes",
+                        "private_bytes",
+                        "threads",
+                        "handles",
+                        "gdi",
+                        "user",
+                    )
+                },
+            }
+
+    monkeypatch.setattr(release_smoke, "PackagedSession", Packaged)
+    monkeypatch.setattr(
+        release_smoke, "WindowsDesktop", lambda: SimpleNamespace(windows=list)
+    )
+    monkeypatch.setattr(release_smoke.sys, "platform", "win32")
+    monkeypatch.setattr(
+        release_smoke.sys,
+        "argv",
+        [
+            "release_smoke",
+            "--bundle",
+            str(bundle),
+            "--archive",
+            str(archive),
+            "--output",
+            str(output),
+            "--cycles",
+            "1",
+            "--seconds",
+            "5",
+            "--interval",
+            "1",
+        ],
+    )
+    clock = iter([0.0, 0.0, 2.5, 5.0])
+    monkeypatch.setattr(release_smoke.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(release_smoke.time, "sleep", lambda _: None)
+    with pytest.raises(ValueError, match="unlisted"):
+        release_smoke.main()
+    report = json.loads((output / "result.json").read_text())
+    assert not report["ok"] and report["error"] == "ValueError"
+    assert len(report["startups"]) == 1 and len(report["session"]["samples"]) == 3
+    assert report["payload_verification"]["before"]["ok"]
+    assert not report["payload_verification"]["after"]["ok"]
+    assert (
+        report["payload_verification"]["after"]["issues"][0]["path"]
+        == "unexpected.cache"
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "runtime/stray.pyc",
+        "runtime/__pycache__/unlisted.dll",
+        "runtime/__pycache__/data.json",
+    ],
+)
+def test_bytecode_policy_never_exempts_other_generated_payload_files(tmp_path, name):
+    bundle, archive = packaged_fixture(tmp_path)
+    extra = bundle / name
+    extra.parent.mkdir(parents=True, exist_ok=True)
+    extra.write_bytes(b"unlisted output")
+    with pytest.raises(ValueError, match="unlisted"):
+        release_smoke.verify_payload(bundle, archive)
+
+
+def test_output_inside_bundle_is_rejected_before_any_directory_or_process(
+    tmp_path, monkeypatch
+):
+    bundle, archive = packaged_fixture(tmp_path)
+    output = bundle / "measurements"
+    monkeypatch.setattr(release_smoke.sys, "platform", "win32")
+    monkeypatch.setattr(
+        release_smoke.sys,
+        "argv",
+        [
+            "release_smoke",
+            "--bundle",
+            str(bundle),
+            "--archive",
+            str(archive),
+            "--output",
+            str(output),
+        ],
+    )
+    monkeypatch.setattr(
+        release_smoke,
+        "WindowsDesktop",
+        lambda: pytest.fail("Rejected output reached native setup"),
+    )
+    with pytest.raises(SystemExit) as error:
+        release_smoke.main()
+    assert error.value.code == 2 and not output.exists()
+    release_smoke.verify_payload(bundle, archive)

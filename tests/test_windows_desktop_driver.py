@@ -103,6 +103,40 @@ def test_drag_emits_one_press_and_release_without_a_trailing_double_click(monkey
     assert events == [2, 4, 2, 4]
 
 
+def test_drag_guard_observes_moved_pointer_while_button_is_held(monkeypatch):
+    monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    events = []
+    desktop._send = lambda values: events.extend(v.data.mouse.flags for v in values)
+
+    def verify():
+        assert events == [2]
+        assert desktop.user.SetCursorPos.call_args.args == (100, 200)
+        events.append("verified")
+
+    desktop.drag((10, 20), (100, 200), before_release=verify)
+    assert events == [2, "verified", 4]
+
+
+def test_drag_guard_failure_still_releases_mouse_and_preserves_primary(monkeypatch):
+    monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    events = []
+    desktop._send = lambda values: events.extend(v.data.mouse.flags for v in values)
+    original = AssertionError("Target moved")
+
+    def fail():
+        events.append("cancelled-owned-source")
+        raise original
+
+    with pytest.raises(AssertionError) as failure:
+        desktop.drag((10, 20), (100, 200), before_release=fail)
+    assert failure.value is original
+    assert events == [2, "cancelled-owned-source", 4]
+
+
 @pytest.fixture
 def key_desktop(monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)

@@ -254,6 +254,24 @@ def readiness_report(identity):
     return {
         "ok": True,
         "acceptance": {"schema": 1, "implementation": "portable-bundle", **identity},
+        "payload_verification": {
+            "schema": 1,
+            **{
+                phase: {
+                    "ok": True,
+                    "complete": True,
+                    "inventory_sha256": identity["payload_inventory_sha256"],
+                    "declared_files": identity["payload_files"],
+                    "verified_files": identity["payload_files"],
+                    "observed_declared_files": identity["payload_files"],
+                    "observed_inventory_sha256": "1" * 64,
+                    "issue_count": 0,
+                    "issues_omitted": 0,
+                    "issues": [],
+                }
+                for phase in ("before", "after")
+            },
+        },
         "measurement": {"startup_cycles": 3, "requested_seconds": 120},
         "startups": [
             {**shutdown, "visible_seconds": 1.0, "responsive_seconds": 1.1}
@@ -1028,6 +1046,39 @@ def test_release_requires_separate_exact_candidate_workstation_proof(
         report = json.loads(path.read_text())
         report["cleanup"][0]["ok"] = False
         path.write_text(json.dumps(report))
+    destination = tmp_path / "release"
+    with pytest.raises(ValueError):
+        release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing",
+        "after-failed",
+        "different-inventory",
+        "omitted-issues",
+        "unverified-file",
+    ],
+)
+def test_release_requires_complete_equal_before_after_payload_proof(
+    incoming, tmp_path, failure
+):
+    path = incoming / "artifacts/windows/release-readiness/result.json"
+    report = json.loads(path.read_text())
+    proof = report["payload_verification"]
+    if failure == "missing":
+        del report["payload_verification"]
+    elif failure == "after-failed":
+        proof["after"]["ok"] = False
+    elif failure == "different-inventory":
+        proof["after"]["observed_inventory_sha256"] = "2" * 64
+    elif failure == "omitted-issues":
+        proof["after"]["issues_omitted"] = 1
+    elif failure == "unverified-file":
+        proof["after"]["verified_files"] -= 1
+    path.write_text(json.dumps(report))
     destination = tmp_path / "release"
     with pytest.raises(ValueError):
         release.stage(incoming, "1.2.3", destination, source_sha=SOURCE_SHA)

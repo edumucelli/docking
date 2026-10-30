@@ -346,6 +346,8 @@ def test_sweep_failure_records_identity_but_never_mutates_unproven_wwahost():
 
     api = SimpleNamespace(
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         root=ROOT,
         session=3,
         processes=processes,
@@ -398,6 +400,8 @@ def test_first_classification_failure_retains_all_known_identity_and_window_evid
 
     api = SimpleNamespace(
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         root=ROOT,
         session=3,
         processes=processes,
@@ -428,7 +432,11 @@ def test_wrapper_collects_both_children_via_collector_and_restores_lifetime(
 
     captures, journal = [], {}
     api = SimpleNamespace(
-        exited=[], processes=processes, capture=lambda path: captures.append(path.name)
+        exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
+        processes=processes,
+        capture=lambda path: captures.append(path.name),
     )
     registry = Registry((0, 4))
 
@@ -489,6 +497,7 @@ def test_native_process_handle_is_released_after_identity_query_failure(monkeypa
     monkeypatch.setattr(c, "get_last_error", lambda: 5, raising=False)
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.session, api.session_of = 3, lambda _pid: 3
+    api._background_only = Mock(return_value=None)
     api.kernel = SimpleNamespace(
         OpenProcess=Mock(return_value=123),
         CloseHandle=Mock(),
@@ -670,7 +679,13 @@ def test_main_thread_sweep_failure_quiesces_collector_before_policy_restoration(
             order.append("collector-stopped")
             journal["collector_stopped"] = True
 
-    api = SimpleNamespace(exited=[], processes=processes, capture=lambda _path: None)
+    api = SimpleNamespace(
+        exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
+        processes=processes,
+        capture=lambda _path: None,
+    )
     if isinstance(error, ValueError):
         with pytest.raises(ValueError):
             hosted.run_prepared(api, registry, tmp_path, owned_collector, journal)
@@ -1091,6 +1106,8 @@ def test_verified_visible_nonforeground_start_is_observed_as_blocking_but_untouc
 
     api = SimpleNamespace(
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         root=ROOT,
         session=3,
         processes=processes,
@@ -1126,7 +1143,13 @@ def test_collector_poll_interval_is_100ms_and_cleanup_still_precedes_policy_rest
         finally:
             journal["collector_stopped"] = True
 
-    api = SimpleNamespace(exited=[], processes=processes, capture=lambda _path: None)
+    api = SimpleNamespace(
+        exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
+        processes=processes,
+        capture=lambda _path: None,
+    )
     registry = Registry((0, 4))
     assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == 0
     assert waits == [0.1] and journal["quiet_sweeps"] == 2
@@ -1335,6 +1358,8 @@ def test_live_pending_wsl_preserves_child_completion_and_policy_cleanup(
         root=ROOT,
         session=3,
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         processes=processes,
         windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
         foreground=lambda: 100,
@@ -1375,6 +1400,8 @@ def test_initial_pending_wsl_is_fatal_before_collector_launch(tmp_path):
         root=ROOT,
         session=3,
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         processes=processes,
         windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
         foreground=lambda: 100,
@@ -1404,6 +1431,8 @@ def test_pending_exception_for_another_action_is_not_deferred():
         root=ROOT,
         session=3,
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         processes=processes,
         windows=lambda _pid: [window(**{"class": "#32770"})],
         foreground=lambda: 100,
@@ -1419,6 +1448,8 @@ def test_pending_exception_for_another_action_is_not_deferred():
 def updater_api(monkeypatch):
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.root, api.session, api.exited = ROOT, 3, []
+    api.unverified_background, api.unverified_background_dropped = {}, 0
+    api._background_only = Mock(return_value=None)
     original = SimpleNamespace(
         pid=20,
         path=ROOT + r"\System32\wsl.exe",
@@ -1787,6 +1818,8 @@ def test_updater_stops_before_terminal_fallback_and_refreshes_closed_windows():
         root=ROOT,
         session=3,
         exited=[],
+        unverified_background={},
+        unverified_background_dropped=0,
         processes=processes,
         windows=lambda pid: list(remaining[0]) if pid == 30 else [],
         foreground=lambda: 100,
@@ -1919,13 +1952,27 @@ def test_snapshot_failure_skips_only_a_signalled_pinned_handle(
         with api.processes() as rows:
             assert rows == []
         assert api.exited == [
-            {"pid": 20, "name": "wsl.exe", "code": code, "stage": stage}
+            {
+                "pid": 20,
+                "name": "wsl.exe",
+                "code": code,
+                "stage": stage,
+                "wait_status": 0,
+            }
         ]
     else:
         with pytest.raises(hosted.PreparationError) as failed, api.processes():
             pytest.fail("A live or unverified process cannot be skipped")
         assert failed.value is error and not api.exited
-        expected = {"pid": 20, "name": "wsl.exe", "stage": stage, "wait_status": status}
+        expected = {
+            "pid": 20,
+            "name": "wsl.exe",
+            "stage": stage,
+            "code": code,
+            "wait_status": status,
+        }
+        if status == 258:
+            expected.update(rundown_wait_ms=50, background_verified=False)
         if status == 0xFFFFFFFF:
             expected["wait_error"] = 5
         assert hosted._error(error)["candidate"] == expected
@@ -2103,3 +2150,261 @@ def test_verified_action_timestamps_surround_ancestry_and_native_action(
     assert row["ancestry"] == {"limit": 4, "parents": []}
     assert row["updater_stopped"] and row["after"] == "dismissed"
     api.ancestry.assert_called_once()
+
+
+@pytest.fixture
+def background_api(updater_api):
+    api, state, original = updater_api
+    del api._background_only  # Exercise the real, passive User32 verification.
+    windows = {
+        100: {"pid": 909, "visible": True, "alive": True},
+        200: {"pid": 20, "visible": False, "alive": True},
+    }
+    foreground = [100]
+    api.foreground = lambda: foreground[0]
+
+    def owner(hwnd, output):
+        row = windows[hwnd]
+        output._obj.value = row["pid"]
+        return 1
+
+    def enumerate_windows(callback, _data):
+        for hwnd in list(windows):
+            if not callback(hwnd, 0):
+                return 0
+        return 1
+
+    api.desktop = SimpleNamespace(
+        _callback=c.CFUNCTYPE(c.c_int32, c.c_void_p, c.c_ssize_t)
+    )
+    api.user = SimpleNamespace(
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+        IsWindowVisible=Mock(side_effect=lambda hwnd: windows[hwnd]["visible"]),
+        IsWindow=Mock(side_effect=lambda hwnd: windows[hwnd]["alive"]),
+        EnumWindows=Mock(side_effect=enumerate_windows),
+    )
+    return SimpleNamespace(
+        api=api, state=state, original=original, windows=windows, foreground=foreground
+    )
+
+
+@pytest.mark.parametrize("stage", ("image", "creation", "command-line"))
+@pytest.mark.parametrize("code", (5, 87))
+def test_unavailable_background_classification_never_authorizes_an_action(
+    background_api, stage, code
+):
+    f = background_api
+    operation = {
+        "image": "QueryFullProcessImageNameW",
+        "creation": "GetProcessTimes",
+        "command-line": "WSL updater command line unavailable",
+    }[stage]
+    error = hosted.PreparationError(operation, code)
+    target = {
+        "image": "_image",
+        "creation": "_created",
+        "command-line": "_wsl_arguments",
+    }[stage]
+    setattr(f.api, target, Mock(side_effect=error))
+    journal = {"actions": []}
+    assert hosted.sweep(f.api, journal) == 0
+    assert journal["actions"] == [] and not journal["exited"]
+    assert f.original.live and not journal["known_visible_blockers"]
+    (row,) = journal["unverified_background"]
+    assert row["state"] == "unverified-background" and row["action"] == "none"
+    assert row["policy"] == "no-visible-top-level-window-and-not-foreground"
+    assert row["stage"] == stage and row["code"] == code
+    assert row["verification"]["visible_top_level_windows"] == 0
+    assert row["verification"]["enumeration_completed"]
+    assert row["verification"]["foreground_after"] == {"window": 100, "pid": 909}
+    assert row["rundown_wait_ms"] == 50 and row["wait_status"] == 258
+    assert "path" not in row and "arguments" not in row
+    f.api.kernel.TerminateProcess.assert_not_called()
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+    assert f.api.kernel.OpenProcess.call_args.args == (0x101000, False, 20)
+
+
+@pytest.mark.parametrize("after_waits", ([258, 0], [258, 258, 0]))
+def test_unavailable_query_records_rundown_only_after_pinned_handle_signals(
+    background_api, after_waits
+):
+    f = background_api
+    f.api.kernel.WaitForSingleObject.side_effect = after_waits
+    error = hosted.PreparationError("QueryFullProcessImageNameW", 5)
+    assert f.api._unavailable_query(10, 20, "wsl.exe", "image", error)
+    assert f.api.exited[0]["wait_status"] == 0
+    assert f.api.exited[0]["rundown_wait_ms"] == 50
+    assert not f.api.unverified_background
+    assert f.api.kernel.WaitForSingleObject.call_args_list[1].args == (10, 50)
+
+
+@pytest.mark.parametrize(
+    "state",
+    (
+        "visible",
+        "foreground",
+        "late-foreground",
+        "null-foreground",
+        "owner",
+        "zero-owner",
+        "enum",
+        "pid",
+        "wait",
+    ),
+)
+def test_unavailable_query_cannot_skip_visible_foreground_or_unprovable_candidate(
+    background_api, state
+):
+    f = background_api
+    error = hosted.PreparationError("QueryFullProcessImageNameW", 5)
+    f.api._image = Mock(side_effect=error)
+    if state == "visible":
+        f.windows[200]["visible"] = True  # Includes minimized visible windows.
+    elif state == "foreground":
+        f.foreground[0] = 200
+    elif state == "late-foreground":
+        f.api.foreground = Mock(side_effect=[100, 200])
+    elif state == "null-foreground":
+        f.foreground[0] = 0
+    elif state == "owner":
+        f.api.user.GetWindowThreadProcessId.side_effect = None
+        f.api.user.GetWindowThreadProcessId.return_value = 0
+    elif state == "zero-owner":
+        f.windows[200]["pid"] = 0
+    elif state == "enum":
+        f.api.user.EnumWindows.side_effect = None
+        f.api.user.EnumWindows.return_value = 0
+    elif state == "pid":
+        f.api.kernel.GetProcessId.side_effect = None
+        f.api.kernel.GetProcessId.return_value = 21
+    else:
+        f.api.kernel.WaitForSingleObject.side_effect = [258, 258, 0xFFFFFFFF]
+    with pytest.raises(hosted.PreparationError) as failed, f.api.processes():
+        pytest.fail("Unverified candidate must remain fatal")
+    assert failed.value is error and error.candidate["stage"] == "image"
+    assert not f.api.unverified_background and not f.api.exited
+    assert f.original.live
+    f.api.kernel.TerminateProcess.assert_not_called()
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+def test_destroyed_window_during_enumeration_does_not_claim_a_visible_owner(
+    background_api,
+):
+    f = background_api
+    original = f.api.user.GetWindowThreadProcessId.side_effect
+
+    def owner(hwnd, output):
+        if hwnd == 200:
+            return 0
+        return original(hwnd, output)
+
+    f.windows[200]["alive"] = False
+    f.api.user.GetWindowThreadProcessId.side_effect = owner
+    assert f.api._background_only(10, 20)["enumeration_completed"]
+    f.windows[200]["alive"] = True
+    with pytest.raises(hosted.PreparationError, match="Window owner unavailable"):
+        f.api._background_only(10, 20)
+
+
+def test_background_enumeration_bound_is_fatal_without_recording_other_window_details(
+    background_api,
+):
+    f = background_api
+    f.windows = None
+    f.api.user.GetWindowThreadProcessId.side_effect = lambda _hwnd, output: (
+        setattr(output._obj, "value", 909) or 1
+    )
+    f.api.user.IsWindowVisible.side_effect = None
+    f.api.user.IsWindowVisible.return_value = 0
+
+    def enumerate_windows(callback, _data):
+        for hwnd in range(1, 5000):
+            if not callback(hwnd, 0):
+                return 0
+        return 1
+
+    f.api.user.EnumWindows.side_effect = enumerate_windows
+    error = hosted.PreparationError("GetProcessTimes", 87)
+    assert not f.api._unavailable_query(10, 20, "wsl.exe", "creation", error)
+    assert (
+        error.candidate["background_verification_error"]["operation"]
+        == "Window enumeration exceeds bound"
+    )
+    assert not f.api.unverified_background
+
+
+def test_background_diagnostics_are_bounded_and_never_contain_arbitrary_query_text(
+    updater_api,
+):
+    api, _state, _original = updater_api
+    api._background_only.return_value = {
+        "visible_top_level_windows": 0,
+        "enumeration_completed": True,
+    }
+    for pid in range(70):
+        assert api._unavailable_query(
+            10,
+            pid,
+            "wsl.exe",
+            "image",
+            hosted.PreparationError("private command arguments", 5),
+        )
+    assert (
+        len(api.unverified_background) == 64 and api.unverified_background_dropped == 6
+    )
+    assert api._unavailable_query(
+        10,
+        0,
+        "wsl.exe",
+        "image",
+        hosted.PreparationError("private command arguments", 5),
+    )
+    assert (
+        len(api.unverified_background) == 64 and api.unverified_background_dropped == 6
+    )
+    assert "private" not in str(api.unverified_background)
+
+
+@pytest.mark.parametrize("stage", ("image", "creation", "command-line"))
+@pytest.mark.parametrize("code", (5, 87))
+def test_authorized_updater_query_failures_remain_fatal_even_if_background(
+    background_api, stage, code
+):
+    f = background_api
+    with f.api.processes() as rows:
+        target = {
+            "image": "_image",
+            "creation": "_created",
+            "command-line": "_wsl_arguments",
+        }[stage]
+        setattr(
+            f.api,
+            target,
+            Mock(
+                side_effect=hosted.PreparationError(
+                    "Postauthorization query failed", code
+                )
+            ),
+        )
+        with pytest.raises(hosted.PreparationError, match="Postauthorization"):
+            f.api.perform(rows[0], "stop-wsl-update", None)
+    assert not f.api.unverified_background
+    f.api.kernel.TerminateProcess.assert_not_called()
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+def test_background_skip_never_reuses_old_window_proof_on_later_sweep(background_api):
+    f = background_api
+    f.api._image = Mock(
+        side_effect=hosted.PreparationError("QueryFullProcessImageNameW", 5)
+    )
+    journal = {"actions": []}
+    assert hosted.sweep(f.api, journal) == 0
+    assert len(journal["unverified_background"]) == 1
+    f.windows[200]["visible"] = True
+    with pytest.raises(hosted.PreparationError, match="QueryFullProcessImageNameW"):
+        hosted.sweep(f.api, journal)
+    assert f.original.live and journal["actions"] == []
+    assert f.api.kernel.CloseHandle.call_count == 2
+    f.api.kernel.TerminateProcess.assert_not_called()

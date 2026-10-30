@@ -40,6 +40,175 @@ def document_application(native, observe, route: str, report: dict):
         state["elapsed_ms"] = round((time.monotonic() - started) * 1000)
 
 
+def document_release_target(
+    *, observe, move, wait_for, identifier: str, record, clock=time.monotonic
+):
+    """Follow the live application target during one physical OLE gesture."""
+    stable, since = None, None
+
+    def ready():
+        nonlocal stable, since
+        current = record["observed"] = observe()
+        observations = record.setdefault("observations", [])
+        if not observations or observations[-1] != current:
+            observations.append(current)
+            del observations[:-16]
+        assert current["live_item"], "Document application item was replaced"
+        if current["cursor"] != current["point"]:
+            assert move(*current["point"]), "Document pointer did not move"
+            stable, since = None, None
+            return False
+        if (
+            current["target"] != identifier
+            or current["reported_target"] != identifier
+            or current["rendered_target"] != identifier
+            or current["native_window"] != current["dock_window"]
+        ):
+            stable, since = None, None
+            return False
+        now = clock()
+        if current != stable:
+            stable, since = current, now
+            return False
+        assert since is not None
+        return current if now - since >= 0.4 else False
+
+    settled = wait_for(ready, "Document application target did not settle", 5)
+    final = record["before_release"] = observe()
+    assert final == settled, "Document application target changed before release"
+
+
+def guard_document_release(check, cancel, reject, record):
+    """Keep target failure primary even when owned-source cancellation fails."""
+    try:
+        check()
+    except BaseException:
+        reject()
+        try:
+            cancel()
+        except Exception as error:
+            record["cancellation_error"] = {
+                "class": type(error).__name__,
+                "errno": error.errno if isinstance(error, OSError) else None,
+            }
+        raise
+
+
+def cancel_document_drag(native, source, cleared, record):
+    """Send Escape only to the still-owned foreground Explorer drag source."""
+    current = next(
+        (row for row in native.windows(source["pid"]) if row["hwnd"] == source["hwnd"]),
+        None,
+    )
+    record["foreground"] = native.user.GetForegroundWindow()
+    assert current is not None and all(
+        current[key] == source[key] for key in ("pid", "hwnd", "class", "title")
+    ), "Owned document drag source changed before cancellation"
+    assert record["foreground"] == source["hwnd"], (
+        "Owned document drag source is not foreground for cancellation"
+    )
+    native.key(0x1B)
+    record["escape_sent"] = True
+    native.wait_for(cleared, "Owned document drag did not cancel before release", 3)
+    record["target_cleared"] = True
+
+
+def document_icon_rectangle(frame, identifier: str, insert: int, gap, horizontal):
+    """Use the live icon rectangle with the same gap shift as its rendering."""
+    index, geometry = next(
+        (index, geometry)
+        for index, geometry in enumerate(frame.item_geometries)
+        if geometry.item.desktop_id == identifier
+    )
+    rect = geometry.draw_rect
+    shift = gap if insert >= 0 and index >= insert else 0
+    return geometry.item, (
+        rect.x + (shift if horizontal else 0),
+        rect.y + (0 if horizontal else shift),
+        rect.w,
+        rect.h,
+    )
+
+
+def document_target_snapshot(native, ui, identifier, expected_item, dock_window):
+    """Observe the current painted and native drop target in physical pixels."""
+    import ctypes
+    from ctypes import wintypes
+
+    from docking.core.items import APP_KIND
+    from docking.core.position import is_horizontal
+    from docking.platform.backends.windows.ffi import bind
+
+    window, dnd = ui.window, ui.input_controller.dnd
+    insert = dnd.drop_insert_index
+    frame = window.geometry.build_frame(main_cursor=-1.0, drop_insert_index=insert)
+    rendered = window._current_or_build_geometry_frame(drop_insert_index=insert)
+
+    horizontal = is_horizontal(window.config.pos)
+    gap = window.config.icon_size + window.theme.item_padding
+    item, rect = document_icon_rectangle(frame, identifier, insert, gap, horizontal)
+    visible, painted = document_icon_rectangle(
+        rendered, identifier, insert, gap, horizontal
+    )
+    left, top = (
+        max(rect[0], painted[0]),
+        max(rect[1], painted[1]),
+    )
+    right = min(rect[0] + rect[2], painted[0] + painted[2])
+    bottom = min(rect[1] + rect[3], painted[1] + painted[3])
+    assert right > left and bottom > top, "Document target is not visible"
+    bounds, cursor = wintypes.RECT(), wintypes.POINT()
+    assert native.user.GetWindowRect(dock_window, ctypes.byref(bounds))
+    assert bind(
+        native.user,
+        "GetCursorPos",
+        ctypes.c_int32,
+        ctypes.POINTER(wintypes.POINT),
+    )(ctypes.byref(cursor))
+    scale = window.get_scale_factor()
+    x, y = (
+        (cursor.x - bounds.left) / scale,
+        (cursor.y - bounds.top) / scale,
+    )
+    target = dnd._drop_target_item_at_point(frame, x=x, y=y, accepted_kinds=(APP_KIND,))
+    return {
+        # The second half avoids rounding to just before
+        # the insertion boundary at an icon's centre.
+        "point": [
+            int(
+                bounds.left
+                + (left + (right - left) * (0.75 if horizontal else 0.5)) * scale
+            ),
+            int(
+                bounds.top
+                + (top + (bottom - top) * (0.5 if horizontal else 0.75)) * scale
+            ),
+        ],
+        "cursor": [cursor.x, cursor.y],
+        "rect": list(rect),
+        "painted_rect": list(painted),
+        "live_item": item
+        is visible
+        is expected_item
+        is window.model.find_by_desktop_id(identifier),
+        "target": target.desktop_id if target else None,
+        "reported_target": dnd.drop_target_id,
+        "rendered_target": identifier
+        if painted[0] <= x < painted[0] + painted[2]
+        and painted[1] <= y < painted[1] + painted[3]
+        else None,
+        "item_count": len(frame.item_geometries),
+        "insert": insert,
+        "slide_offset": round(
+            window.renderer.slide_offsets.get(identifier, 0.0),
+            2,
+        ),
+        "native_window": native.window_at(cursor.x, cursor.y),
+        "dock_window": dock_window,
+        "foreground": native.user.GetForegroundWindow(),
+    }
+
+
 def _phase(output: Path, phase: str, runtime) -> None:
     from docking.launcher import prepare_display
 
@@ -113,7 +282,24 @@ def _phase(output: Path, phase: str, runtime) -> None:
             report["native_drop"] = {
                 "protocol": context.get_protocol().value_nick,
                 "uris": selection.get_uris(),
+                "point": [x, y],
             }
+            if phase == "documents":
+                frame = handler._geometry_builder.build_frame(
+                    main_cursor=-1.0, drop_insert_index=handler.drop_insert_index
+                )
+                item = handler._drop_target_item_at_point(
+                    frame, x=x, y=y, accepted_kinds=(APP_KIND,)
+                )
+                report["native_drop"]["target"] = item.desktop_id if item else None
+                if (
+                    shared["reject_document_drop"]
+                    or item is not shared["document_item"]
+                ):
+                    report["native_drop"]["rejected"] = True
+                    shared["document_drop_rejected"].set()
+                    Gtk.drag_finish(context, False, False, when)
+                    return None
             return receive(handler, widget, context, x, y, selection, info, when)
 
         DnDHandler._on_drag_data_received = observe_drop
@@ -333,12 +519,66 @@ def _phase(output: Path, phase: str, runtime) -> None:
                         if count == 2:
                             native.click(*source_point)
                             native.key(ord("A"), control=True)
-                        destination = call(point)
-                        native.drag(source_point, destination)
+                        shared["document_item"] = call(
+                            lambda: shared["model"].find_by_desktop_id(identifier)
+                        )
+                        shared["reject_document_drop"] = False
+                        shared["document_drop_rejected"] = threading.Event()
+                        gesture: dict[str, object] = {"count": count}
+                        report.setdefault("document_gestures", []).append(gesture)
+
+                        def observe_target():
+                            return document_target_snapshot(
+                                native,
+                                shared["ui"],
+                                identifier,
+                                shared["document_item"],
+                                dock["hwnd"],
+                            )
+
+                        def before_release(
+                            observe_target=observe_target,
+                            gesture=gesture,
+                            folder=folder,
+                        ):
+                            dnd = shared["ui"].input_controller.dnd
+                            guard_document_release(
+                                lambda: document_release_target(
+                                    observe=lambda: call(observe_target),
+                                    move=native.user.SetCursorPos,
+                                    wait_for=native.wait_for,
+                                    identifier=identifier,
+                                    record=gesture,
+                                ),
+                                lambda: cancel_document_drag(
+                                    native,
+                                    folder.window,
+                                    lambda: call(
+                                        lambda: (
+                                            dnd.drop_insert_index < 0
+                                            and not dnd.drop_target_id
+                                        )
+                                    ),
+                                    gesture.setdefault("cancellation", {}),
+                                ),
+                                lambda: shared.update(reject_document_drop=True),
+                                gesture,
+                            )
+
+                        destination = call(observe_target)["point"]
+                        native.drag(
+                            source_point, destination, before_release=before_release
+                        )
                         native.wait_for(
-                            facts_path.is_file,
+                            lambda: (
+                                facts_path.is_file()
+                                or shared["document_drop_rejected"].is_set()
+                            ),
                             "Selected application did not report document arguments",
                             30,
+                        )
+                        assert not shared["document_drop_rejected"].is_set(), (
+                            "Physical document release missed the requested application"
                         )
                         facts = read_shared_json(facts_path)
                         program_pid = facts["pid"]

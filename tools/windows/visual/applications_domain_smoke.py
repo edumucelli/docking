@@ -10,8 +10,8 @@ import subprocess
 import sys
 import traceback
 import uuid
-from contextlib import contextmanager, suppress
-from pathlib import Path
+from contextlib import contextmanager, nullcontext, suppress
+from pathlib import Path, PureWindowsPath
 
 CHECKS = (
     "documents-installed",
@@ -41,6 +41,80 @@ def failure_details(error: Exception) -> dict[str, object]:
     }
 
 
+def cleanup_snapshot(native, processes, owned_images, before_windows, baseline, shell):
+    """Retain every existing cleanup guard's facts without changing its policy."""
+    workarea, actual_shell = native.workarea(), native.explorer()
+    owned = [
+        process.pid
+        for process in processes
+        if process.info["exe"] and PureWindowsPath(process.info["exe"]) in owned_images
+    ]
+    windows = [
+        {key: window[key] for key in ("hwnd", "pid", "class")}
+        for window in native.windows()
+        if window["hwnd"] not in before_windows
+        and not (
+            window["pid"] == shell["pid"]
+            and window["class"]
+            in {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
+        )
+    ]
+    return {
+        "workarea": workarea,
+        "workarea_matches": workarea == baseline,
+        "shell": actual_shell,
+        "shell_matches": actual_shell == shell,
+        "owned_pids": owned,
+        "new_windows": windows,
+        "safe": workarea == baseline
+        and actual_shell == shell
+        and not owned
+        and not windows,
+    }
+
+
+def association_executable(query, extension: str, observed: dict[str, object]):
+    """Read both AssocQueryString buffers, excluding the Unknown fallback."""
+    import ctypes
+
+    missing = {0x80070002, 0x80070003, 0x80070483}
+    size = ctypes.c_uint32()
+    # ASSOCF_INIT_IGNOREUNKNOWN: the SDK explicitly excludes the Unknown ProgID.
+    flags = 0x400
+    calls = []
+    observed.update(flags=flags, calls=calls)
+    status = query(flags, 2, extension, "open", None, ctypes.byref(size)) & 0xFFFFFFFF
+    calls.append({"phase": "size", "hresult": status, "characters": size.value})
+    if status in missing:
+        return None
+    if status not in (0, 1):
+        raise OSError(status, "AssocQueryStringW size query failed")
+    if not 0 < size.value <= 32768:
+        raise ValueError("AssocQueryStringW returned an invalid buffer size")
+    value = ctypes.create_unicode_buffer(size.value)
+    status = query(flags, 2, extension, "open", value, ctypes.byref(size)) & 0xFFFFFFFF
+    calls.append({"phase": "value", "hresult": status, "characters": size.value})
+    if status in missing:
+        return None
+    if status != 0:
+        raise OSError(status, "AssocQueryStringW value query failed")
+    if not value.value:
+        raise ValueError("AssocQueryStringW returned an empty executable")
+    return value.value
+
+
+def association_parent_state(registry):
+    """Record parent presence/counts without recording unrelated user values."""
+    try:
+        with registry.OpenKey(
+            registry.HKEY_CURRENT_USER, r"Software\RegisteredApplications"
+        ) as key:
+            subkeys, values, _modified = registry.QueryInfoKey(key)
+            return {"exists": True, "subkeys": subkeys, "values": values}
+    except FileNotFoundError:
+        return {"exists": False, "subkeys": 0, "values": 0}
+
+
 @contextmanager
 def association_registration(registry, extension, program, executable, lifecycle):
     """Register one owned association-only application, without changing defaults."""
@@ -57,6 +131,9 @@ def association_registration(registry, extension, program, executable, lifecycle
         capabilities + "\\FileAssociations",
     )
     lifecycle["association_restored"] = False
+    parents = lifecycle["registration_parent"] = {
+        "before": association_parent_state(registry)
+    }
     for name in keys:
         try:
             with registry.OpenKey(registry.HKEY_CURRENT_USER, name):
@@ -100,6 +177,7 @@ def association_registration(registry, extension, program, executable, lifecycle
         ) as key:
             value_attempted = True
             registry.SetValueEx(key, program, 0, registry.REG_SZ, capabilities)
+        parents["registered"] = association_parent_state(registry)
         yield
     finally:
         if value_attempted:
@@ -120,6 +198,7 @@ def association_registration(registry, extension, program, executable, lifecycle
                     registry.DeleteKey(registry.HKEY_CURRENT_USER, registered)
             except FileNotFoundError:
                 pass
+        parents["after"] = association_parent_state(registry)
         lifecycle["association_restored"] = True
 
 
@@ -287,20 +366,29 @@ def export_check(
     facts_path.unlink(missing_ok=True)
     observed["stage"] = "independent-explorer"
     with ExplorerFolder(native, directory) as folder:
-        rectangle = folder.file_rectangle(copied)
         lifecycle["closed"] = False
         observed["stage"] = "independent-launch"
-        native.double_click(
-            rectangle["x"] + rectangle["width"] / 2, rectangle["y"] + 20
-        )
-        facts = finish_program(
-            native,
-            facts_path,
-            fixture.executables["Second"],
-            argv,
-            lifecycle=lifecycle,
-            observed=observed,
-        )
+        try:
+            folder.activate(copied, observed.setdefault("explorer_activation", {}))
+            facts = finish_program(
+                native,
+                facts_path,
+                fixture.executables["Second"],
+                argv,
+                lifecycle=lifecycle,
+                observed=observed,
+            )
+        except Exception:
+            from PIL import ImageGrab
+
+            try:
+                ImageGrab.grab(all_screens=True).save(
+                    output / "independent-launch-failure.png"
+                )
+                observed["failure_capture"] = "independent-launch-failure.png"
+            except OSError as error:
+                observed["capture_error"] = failure_details(error)
+            raise
         observed["stage"] = "launched-working-directory"
         observed["working_directory_preserved"] = Path(facts["cwd"]).samefile(
             expected_cwd
@@ -318,8 +406,33 @@ def export_check(
     }
 
 
-def association_checks(
-    native, fixture, output: Path, report: dict, *, mode: str, lifecycle
+def association_changed():
+    """Invalidate Shell association caches after owned registration changes."""
+    import ctypes
+
+    from docking.platform.backends.windows.ffi import bind
+
+    bind(
+        ctypes.WinDLL("shell32", use_last_error=True),
+        "SHChangeNotify",
+        None,
+        ctypes.c_int32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    )(0x08000000, 0, None, None)
+
+
+def _registered_association_checks(
+    native,
+    fixture,
+    output: Path,
+    report: dict,
+    *,
+    mode: str,
+    lifecycle,
+    token: str | None = None,
+    borrowed_registration: bool = False,
 ) -> dict:
     """Use an entirely new extension/ProgID; never change an existing default."""
     import ctypes
@@ -331,20 +444,11 @@ def association_checks(
     from docking.platform.backends.windows.ffi import bind
     from docking.platform.targets import open_target
 
-    token = uuid.uuid4().hex
+    token = token or uuid.uuid4().hex
     extension, program = ".docking-" + token, "Docking.Acceptance." + token
+    expected_id = "HKEY_CURRENT_USER\\Software\\Classes\\" + program
     executable = fixture.executables["Other"]
     facts_path = output / "facts-Other-documents.json"
-    shell = ctypes.WinDLL("shell32", use_last_error=True)
-    changed = bind(
-        shell,
-        "SHChangeNotify",
-        None,
-        ctypes.c_int32,
-        ctypes.c_uint32,
-        ctypes.c_void_p,
-        ctypes.c_void_p,
-    )
 
     def completed():
         return finish_program(
@@ -359,10 +463,14 @@ def association_checks(
     document.write_text("Owned association document", encoding="utf-8")
     report["associations_restored"] = False
     try:
-        with association_registration(
-            winreg, extension, program, executable, lifecycle
+        with (
+            nullcontext()
+            if borrowed_registration
+            else association_registration(
+                winreg, extension, program, executable, lifecycle
+            )
         ):
-            changed(0x08000000, 0, None, None)
+            association_changed()
             query = bind(
                 ctypes.WinDLL("shlwapi", use_last_error=True),
                 "AssocQueryStringW",
@@ -374,17 +482,14 @@ def association_checks(
                 ctypes.c_wchar_p,
                 ctypes.POINTER(ctypes.c_uint32),
             )
+            observed = report["checks"]["association-" + mode].setdefault(
+                "observed", {}
+            )
+            observed["expected_id"] = expected_id
 
             def oracle():
-                size = ctypes.c_uint32()
-                status = query(0, 2, extension, "open", None, ctypes.byref(size))
-                if status not in (0, 1) or not 0 < size.value < 32768:
-                    return None
-                value = ctypes.create_unicode_buffer(size.value)
-                return (
-                    value.value
-                    if query(0, 2, extension, "open", value, ctypes.byref(size)) == 0
-                    else None
+                return association_executable(
+                    query, extension, observed.setdefault("native_query", {})
                 )
 
             resolved = native.wait_for(
@@ -397,22 +502,30 @@ def association_checks(
                 assert open_target(document.as_uri())
                 return {"passed": True, "facts": completed()}
             registry = ApplicationRegistry()
-            registry.refresh()
-            observed = report["checks"]["association-" + mode].setdefault(
-                "observed", {}
+            alertable = bind(
+                ctypes.WinDLL("kernel32", use_last_error=True),
+                "SleepEx",
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_int32,
             )
+
+            def refresh():
+                # Gio's Win32 registry watch uses APCs on its initializing
+                # thread. This controller has no GTK/GLib main loop to service
+                # them; enter an alertable state before reading its cache.
+                status = observed["alertable_status"] = alertable(0, True)
+                assert status in (0, 0xC0), "Unexpected SleepEx result"
+                registry.refresh()
+
+            refresh()
             if mode == "absence":
                 absent = ".docking-absent-" + token
-                size = ctypes.c_uint32()
-                status = query(0, 2, absent, "open", None, ctypes.byref(size))
-                observed["native_absence_status"] = status & 0xFFFFFFFF
-                # Missing key/path/association are absence; access and COM errors
-                # must not become a successful no-handler observation.
-                observed["native_absent"] = observed["native_absence_status"] in {
-                    0x80070002,
-                    0x80070003,
-                    0x80070483,
-                }
+                evidence = observed.setdefault("native_absence_query", {})
+                observed["native_absent"] = (
+                    association_executable(query, absent, evidence) is None
+                )
+                observed["native_absence_status"] = evidence["calls"][-1]["hresult"]
                 assert observed["native_absent"], (
                     "Native Shell did not confirm the absent association"
                 )
@@ -423,20 +536,25 @@ def association_checks(
                 return {"passed": True, "lookup_only": True}
 
             def retained_handler():
-                registry.refresh()
+                refresh()
                 selected = registry.default_for_content_type(extension)
                 observed.update(
                     resolved=selected is not None,
                     registered=selected is not None
                     and registry.get(selected.desktop_id) is not None,
                     has_gio_source=bool(selected and selected.has_gio_source),
+                    canonical_id=selected.desktop_id if selected else None,
+                    id_matches=bool(
+                        selected
+                        and selected.desktop_id.casefold() == expected_id.casefold()
+                    ),
                 )
                 return selected if observed["registered"] else None
 
             selected = native.wait_for(
                 retained_handler, "Registered Gio association client did not resolve"
             )
-            assert selected.desktop_id == program, (
+            assert observed["id_matches"], (
                 "Association selected another registered application"
             )
             assert selected.has_gio_source, "Association lost its retained Gio handle"
@@ -452,8 +570,204 @@ def association_checks(
                 return {"passed": True, "facts": completed()}
             raise ValueError("Unknown association acceptance mode")
     finally:
-        changed(0x08000000, 0, None, None)
+        association_changed()
         report["associations_restored"] = lifecycle["association_restored"]
+
+
+def _association_child(request_path: str) -> None:
+    """Fresh Gio lookup with its parent already registered; close before exit."""
+    import struct
+    import winreg
+    from types import SimpleNamespace
+
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
+    from tools.windows.visual.tray_acceptance import runtime_origins, select_runtime
+
+    request = json.loads(Path(request_path).read_text(encoding="utf-8"))
+    mode = request["mode"]
+    report = {"ok": False, "pid": os.getpid(), "checks": {"association-" + mode: {}}}
+    lifecycle = {"closed": True, "association_restored": False}
+    try:
+        assert not any(
+            name == "docking" or name.startswith("gi.repository.Gio")
+            for name in sys.modules
+        )
+        report["registration_parent_before_gio"] = association_parent_state(winreg)
+        assert report["registration_parent_before_gio"]["exists"]
+        assert struct.calcsize("P") * 8 == request["pointer_bits"]
+        runtime = select_runtime(
+            Path(request["installed_root"]) if request["installed_root"] else None,
+            Path(request["wheel"]) if request["wheel"] else None,
+        )
+        assert runtime.wheel_sha256 == request["wheel_sha256"]
+        import docking
+        from docking.platform.applications import launcher, registry
+
+        report["runtime"] = {
+            "wheel_sha256": runtime.wheel_sha256,
+            "origins": runtime_origins(
+                runtime.root,
+                {
+                    "docking": docking.__file__,
+                    "launcher": launcher.__file__,
+                    "registry": registry.__file__,
+                },
+            ),
+        }
+        fixture = SimpleNamespace(
+            root=Path(request["fixture_root"]),
+            executables={"Other": Path(request["executable"])},
+        )
+        result = _registered_association_checks(
+            WindowsDesktop(),
+            fixture,
+            Path(request["output"]),
+            report,
+            mode=mode,
+            lifecycle=lifecycle,
+            token=request["token"],
+            borrowed_registration=True,
+        )
+        report.update(result, ok=True)
+    except Exception as error:
+        report["error"] = failure_details(error)
+    finally:
+        report["normal_shutdown"] = lifecycle["closed"]
+        write_shared_json(Path(request["result"]), report)
+    raise SystemExit(0 if report["ok"] and report["normal_shutdown"] else 1)
+
+
+def association_checks(
+    native,
+    fixture,
+    output: Path,
+    report,
+    *,
+    mode: str,
+    lifecycle,
+    installed_root: Path | None = None,
+    wheel: Path | None = None,
+):
+    if mode == "default":
+        return _registered_association_checks(
+            native, fixture, output, report, mode=mode, lifecycle=lifecycle
+        )
+    import struct
+    import winreg
+
+    from docking.platform.backends.windows.process_job import ProcessJob
+    from tools.windows.visual.desktop_driver import read_shared_json, write_shared_json
+
+    token = uuid.uuid4().hex
+    name = "association-" + mode
+    observed = report["checks"][name].setdefault("observed", {})
+    request_path, result_path = (
+        output / (name + "-request.json"),
+        output / (name + "-result.json"),
+    )
+    request = {
+        "mode": mode,
+        "token": token,
+        "fixture_root": str(fixture.root.resolve()),
+        "executable": str(fixture.executables["Other"].resolve()),
+        "output": str(output.resolve()),
+        "result": str(result_path.resolve()),
+        "installed_root": str(installed_root.resolve()) if installed_root else None,
+        "wheel": str(wheel.resolve()) if wheel else None,
+        "wheel_sha256": report["runtime"]["wheel_sha256"],
+        "pointer_bits": struct.calcsize("P") * 8,
+    }
+    report["associations_restored"] = False
+    try:
+        with association_registration(
+            winreg,
+            ".docking-" + token,
+            "Docking.Acceptance." + token,
+            fixture.executables["Other"],
+            lifecycle,
+        ):
+            observed["registration_parent"] = lifecycle["registration_parent"]
+            write_shared_json(request_path, request)
+            job, process = ProcessJob(), None
+            lifecycle["closed"] = False
+            try:
+                source = str(Path(__file__).resolve().parents[3])
+                code = (
+                    "import sys; assert sys.stdin.buffer.read(1) == b'1'; "
+                    "sys.path.insert(0, sys.argv[1]); "
+                    "from tools.windows.visual.applications_domain_smoke "
+                    "import _association_child; "
+                    "_association_child(sys.argv[2])"
+                )
+                with (output / (name + "-child.log")).open("wb") as log:
+                    process = subprocess.Popen(
+                        [
+                            sys.executable,
+                            "-I",
+                            "-c",
+                            code,
+                            source,
+                            str(request_path.resolve()),
+                        ],
+                        stdin=subprocess.PIPE,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        creationflags=0x08000000 if sys.platform == "win32" else 0,
+                    )
+                    observed["child_pid"] = process.pid
+                    job.assign(int(process._handle))
+                    process.communicate(b"1", timeout=65)
+                child = read_shared_json(result_path)
+                observed["child"] = child
+                assert child["pid"] == process.pid
+                lifecycle["closed"] = child["normal_shutdown"] is True
+                assert (
+                    process.returncode == 0 and child["ok"] and lifecycle["closed"]
+                ), "Fresh association child failed"
+                assert child["runtime"]["wheel_sha256"] == request["wheel_sha256"]
+                assert child["registration_parent_before_gio"]["exists"]
+                return {
+                    "passed": True,
+                    **(
+                        {"facts": child["facts"]}
+                        if mode == "explicit"
+                        else {"lookup_only": True}
+                    ),
+                }
+            finally:
+                active_error = sys.exc_info()[0] is not None
+                try:
+                    try:
+                        if process is not None and process.stdin is not None:
+                            process.stdin.close()
+                    finally:
+                        try:
+                            job.close()
+                        finally:
+                            if process is not None:
+                                try:
+                                    process.wait(timeout=5)
+                                except subprocess.TimeoutExpired:
+                                    observed["child_forced_cleanup"] = True
+                                    process.kill()
+                                    process.wait(timeout=5)
+                                    raise
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    observed["child_cleanup_error"] = failure_details(error)
+                    lifecycle["closed"] = False
+                    if not active_error:
+                        raise
+                finally:
+                    observed["child_stopped"] = (
+                        process is None or process.poll() is not None
+                    )
+                    observed["child_returncode"] = (
+                        process.returncode if process is not None else None
+                    )
+    finally:
+        report["associations_restored"] = lifecycle["association_restored"]
+        observed["registration_parent"] = lifecycle["registration_parent"]
+        association_changed()
 
 
 def main() -> None:
@@ -563,8 +877,6 @@ def main() -> None:
                 cwd=selected_cwd,
                 application_id=rows[fixture.labels["Second"]].desktop_id,
             )
-            from pathlib import PureWindowsPath
-
             import psutil
 
             can_continue = True
@@ -574,24 +886,18 @@ def main() -> None:
             }
 
             def context_safe(before_windows):
-                if native.workarea() != baseline or native.explorer() != expected_shell:
-                    return False
-                for process in psutil.process_iter(["exe"]):
-                    image = process.info["exe"]
-                    if image and PureWindowsPath(image) in owned_images:
-                        return False
-                for window in native.windows():
-                    if window["hwnd"] in before_windows:
-                        continue
-                    if window["pid"] == expected_shell["pid"] and window["class"] in {
-                        "Shell_TrayWnd",
-                        "Shell_SecondaryTrayWnd",
-                        "Progman",
-                        "WorkerW",
-                    }:
-                        continue
-                    return False
-                return True
+                facts = cleanup_snapshot(
+                    native,
+                    psutil.process_iter(["exe"]),
+                    owned_images,
+                    before_windows,
+                    baseline,
+                    expected_shell,
+                )
+                report.setdefault("cleanup_observations", []).append(
+                    {"stage": name, **facts}
+                )
+                return facts["safe"]
 
             for route, key in (
                 ("installed", "First"),
@@ -729,6 +1035,8 @@ def main() -> None:
                             report,
                             mode=mode,
                             lifecycle=lifecycle,
+                            installed_root=runtime.root if runtime.installed else None,
+                            wheel=args.wheel,
                         )
                     )
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,53 @@ from docking import launcher
 from tests.test_windows_input_acceptance import SOURCE_SHA, input_report
 from tools.windows import ci
 from tools.windows.bundle import filesystem_path
+
+
+def test_native_domain_artifact_precedes_packages_and_preserves_raw_report_roots():
+    workflow = (
+        Path(__file__).resolve().parents[1] / ".github/workflows/windows.yml"
+    ).read_text(encoding="utf-8")
+    steps = re.split(r"(?m)^      - ", workflow)[1:]
+    applications = next(
+        index for index, step in enumerate(steps) if "id: applications\n" in step
+    )
+    upload_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "name: windows-native-domains-ucrt64-x64\n" in step
+    )
+    assert upload_index == applications + 1
+    upload = steps[upload_index]
+    assert "if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}" in upload
+    assert "uses: actions/upload-artifact@v7" in upload
+    assert "retention-days: 14" in upload and "if-no-files-found: error" in upload
+    for report in (
+        "environment.json",
+        "input-candidate.json",
+        "input-domain.json",
+        "tray-domain.json",
+        "applications-domain.json",
+        "search-layouts/",
+        "input-profiles/",
+        "tray/",
+        "applications-explorer/",
+    ):
+        assert "            artifacts/windows/" + report + "\n" in upload
+    # Including dist keeps the original repository-relative artifact tree and
+    # supplies the exact wheel whose hash binds the raw domain evidence.
+    assert "            dist/*.whl\n" in upload
+    assert "*.zip" not in upload and "*.exe" not in upload
+    for identifier in ("bundle", "installer", "upgrade_fixture", "installer_smoke"):
+        index = next(
+            index
+            for index, step in enumerate(steps)
+            if "id: " + identifier + "\n" in step
+        )
+        assert index > upload_index
+    final = next(step for step in steps if "name: windows-ucrt64-x64\n" in step)
+    assert "if: always()" in final
+    assert "            dist/*.zip\n" in final
+    assert "            artifacts/windows/release-readiness/\n" in final
 
 
 def _input_wheel(root):

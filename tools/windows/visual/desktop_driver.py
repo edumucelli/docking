@@ -310,7 +310,7 @@ class WindowsDesktop:
         )
         time.sleep(0.3)
 
-    def drag(self, start, end):
+    def drag(self, start, end, *, before_release=None):
         """Drag with actual pointer input, including protected native captions."""
         self.user.SetCursorPos(int(start[0]), int(start[1]))
         time.sleep(0.2)
@@ -322,6 +322,8 @@ class WindowsDesktop:
                     int(start[1] + (end[1] - start[1]) * step / 12),
                 )
                 time.sleep(0.05)
+            if before_release is not None:
+                before_release()
         finally:
             self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=4)))])
         time.sleep(0.3)

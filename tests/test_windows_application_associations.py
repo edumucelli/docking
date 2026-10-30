@@ -170,25 +170,28 @@ def test_absence_is_independent_of_known_client_lookup_and_rejects_access_errors
         output.value = str(executable)
         return 0
 
-    monkeypatch.setattr(
-        ffi,
-        "bind",
-        lambda _library, name, *_types: (
-            query if name == "AssocQueryStringW" else lambda *_args: None
-        ),
-    )
+    def bind(_library, name, *_types):
+        if name == "AssocQueryStringW":
+            return query
+        if name == "SleepEx":
+            return lambda _milliseconds, _alertable: 0
+        assert name == "SHChangeNotify"
+        return lambda *_args: None
+
+    monkeypatch.setattr(ffi, "bind", bind)
     native = SimpleNamespace(wait_for=lambda callback, _message: callback())
     fixture = SimpleNamespace(root=tmp_path, executables={"Other": executable})
     report, lifecycle = {"checks": {"association-absence": {}}}, {"closed": True}
     if passes:
-        assert smoke.association_checks(
+        assert smoke._registered_association_checks(
             native, fixture, tmp_path, report, mode="absence", lifecycle=lifecycle
         )["passed"]
     else:
-        with pytest.raises(AssertionError, match="Native Shell"):
-            smoke.association_checks(
+        with pytest.raises(OSError) as failure:
+            smoke._registered_association_checks(
                 native, fixture, tmp_path, report, mode="absence", lifecycle=lifecycle
             )
+        assert failure.value.errno == native_status & 0xFFFFFFFF
     assert registry.keys == before and registry.opened == 0
     assert report["associations_restored"] and lifecycle["closed"]
 
@@ -208,15 +211,19 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
     executable = tmp_path / "Owned.exe"
     executable.write_bytes(b"owned fixture")
     program = "Docking.Acceptance.owned"
-    selected = SimpleNamespace(desktop_id=program, has_gio_source=True)
+    identifier = "HKEY_CURRENT_USER\\Software\\Classes\\" + program
+    selected = SimpleNamespace(desktop_id=identifier, has_gio_source=True)
+    dispatched = []
     handle = object()
     fake = SimpleNamespace(
         refresh=Mock(),
         default_for_content_type=lambda extension: (
-            selected if extension == ".docking-owned" else None
+            selected if dispatched and extension == ".docking-owned" else None
         ),
-        get=lambda identifier: selected if identifier == program else None,
-        _gio_handle_for=lambda identifier: handle if identifier == program else None,
+        get=lambda selected_id: selected if selected_id == identifier else None,
+        _gio_handle_for=lambda selected_id: (
+            handle if selected_id == identifier else None
+        ),
     )
     launch = Mock(return_value=True)
     monkeypatch.setattr(registry_module, "ApplicationRegistry", lambda: fake)
@@ -242,13 +249,21 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
         output.value = str(executable)
         return 0
 
-    monkeypatch.setattr(
-        ffi,
-        "bind",
-        lambda _library, name, *_types: (
-            query if name == "AssocQueryStringW" else lambda *_args: None
-        ),
-    )
+    def bind(_library, name, *_types):
+        if name == "AssocQueryStringW":
+            return query
+        if name == "SleepEx":
+
+            def alertable(milliseconds, enabled):
+                assert milliseconds == 0 and enabled is True
+                dispatched.append(True)
+                return 0xC0
+
+            return alertable
+        assert name == "SHChangeNotify"
+        return lambda *_args: None
+
+    monkeypatch.setattr(ffi, "bind", bind)
 
     def completed(_native, _facts, actual_executable, argv, *, lifecycle):
         assert actual_executable == executable
@@ -260,16 +275,349 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
     native = SimpleNamespace(wait_for=lambda callback, _message: callback())
     fixture = SimpleNamespace(root=tmp_path, executables={"Other": executable})
     report, lifecycle = {"checks": {"association-explicit": {}}}, {"closed": True}
-    result = smoke.association_checks(
+    result = smoke._registered_association_checks(
         native, fixture, tmp_path, report, mode="explicit", lifecycle=lifecycle
     )
-    assert result["passed"] and launch.call_args.args[0] == program
+    assert result["passed"] and launch.call_args.args[0] == identifier
     assert len(launch.call_args.args[1]) == 1
     assert fake.refresh.call_count == 2
-    assert report["checks"]["association-explicit"]["observed"] == {
+    observed = report["checks"]["association-explicit"]["observed"]
+    assert {
+        key: observed[key]
+        for key in ("resolved", "registered", "has_gio_source", "id_matches")
+    } == {
         "resolved": True,
         "registered": True,
         "has_gio_source": True,
+        "id_matches": True,
     }
+    assert observed["alertable_status"] == 0xC0 and len(dispatched) == 2
+    assert observed["native_query"]["flags"] == 0x400
     assert registry.keys == before and registry.opened == 0
     assert lifecycle["closed"] and report["associations_restored"]
+
+
+@pytest.mark.parametrize(
+    "second_status", [0, 0x80070002, 0x80070003, 0x80070483, 0x80070005, 1]
+)
+def test_native_association_uses_sizing_then_value_and_never_calls_unknown_absence(
+    second_status,
+):
+    value, calls = r"C:\Windows\UnknownFallback.exe", []
+
+    def query(flags, kind, extension, verb, output, size):
+        assert (flags, kind, extension, verb) == (0x400, 2, ".owned-absent", "open")
+        calls.append(output is None)
+        if output is None:
+            size._obj.value = len(value) + 1
+            return 1  # S_FALSE is required buffer sizing, never absence.
+        assert size._obj.value == len(value) + 1
+        if second_status == 0:
+            output.value = value
+        return second_status
+
+    observed = {}
+    if second_status in (0, 0x80070002, 0x80070003, 0x80070483):
+        result = smoke.association_executable(query, ".owned-absent", observed)
+        assert result == (value if second_status == 0 else None)
+    else:
+        with pytest.raises(OSError) as failure:
+            smoke.association_executable(query, ".owned-absent", observed)
+        assert failure.value.errno == second_status
+    assert calls == [True, False]
+    assert [call["hresult"] for call in observed["calls"]] == [1, second_status]
+
+
+@pytest.mark.parametrize("size", [0, 32769])
+def test_native_association_rejects_invalid_sizing_without_claiming_no_handler(size):
+    def query(_flags, _kind, _extension, _verb, output, received_size):
+        assert output is None
+        received_size._obj.value = size
+        return 1
+
+    observed = {}
+    with pytest.raises(ValueError, match="buffer size"):
+        smoke.association_executable(query, ".owned", observed)
+    assert len(observed["calls"]) == 1
+
+
+@pytest.mark.parametrize("existing_parent", [False, True])
+@pytest.mark.parametrize("mode", ["explicit", "absence"])
+def test_fresh_lookup_finishes_before_parent_registration_cleanup(
+    tmp_path, monkeypatch, existing_parent, mode
+):
+    run_association_child_fixture(
+        tmp_path, monkeypatch, existing_parent=existing_parent, mode=mode
+    )
+
+
+@pytest.mark.parametrize(
+    "failure", ["assign", "communicate", "close", "child", "cancel", "assign-close"]
+)
+def test_fresh_lookup_failure_stops_owned_child_before_unregistering(
+    tmp_path, monkeypatch, failure
+):
+    run_association_child_fixture(tmp_path, monkeypatch, failure=failure)
+
+
+def run_association_child_fixture(
+    tmp_path, monkeypatch, *, existing_parent=False, mode="explicit", failure=None
+):
+    import io
+    import json
+    import subprocess
+    import sys
+
+    from docking.platform.backends.windows import process_job
+
+    registry = Registry(parent=existing_parent)
+    before, events = deepcopy(registry.keys), []
+    monkeypatch.setitem(sys.modules, "winreg", registry)
+    monkeypatch.setattr(smoke.uuid, "uuid4", lambda: SimpleNamespace(hex="owned"))
+    executable = tmp_path / "Owned.exe"
+    executable.write_bytes(b"owned")
+    fixture = SimpleNamespace(root=tmp_path, executables={"Other": executable})
+    report = {
+        "checks": {"association-" + mode: {}},
+        "runtime": {"wheel_sha256": "a" * 64},
+    }
+    lifecycle = {"closed": True}
+    registered = r"Software\RegisteredApplications"
+    program = "Docking.Acceptance.owned"
+
+    class Process:
+        pid, _handle, returncode = 4321, 123, None
+
+        def __init__(self):
+            self.stdin = io.BytesIO()
+
+        def communicate(self, permission, *, timeout):
+            assert permission == b"1" and timeout == 65
+            assert events == ["spawn", "assigned"]
+            assert program in registry.keys[registered]
+            events.append("permitted")
+            if failure == "communicate":
+                raise subprocess.TimeoutExpired("owned child", timeout)
+            if failure == "cancel":
+                raise KeyboardInterrupt
+            request = json.loads(
+                (tmp_path / ("association-" + mode + "-request.json")).read_text()
+            )
+            assert request["wheel"] == str((tmp_path / "candidate.whl").resolve())
+            assert request["installed_root"] == str((tmp_path / "installed").resolve())
+            child = {
+                "pid": self.pid,
+                "ok": failure != "child",
+                "normal_shutdown": True,
+                "runtime": {"wheel_sha256": "a" * 64},
+                "registration_parent_before_gio": {"exists": True},
+                "checks": {
+                    "association-" + mode: {
+                        "observed": {
+                            "canonical_id": "HKEY_CURRENT_USER\\Software\\Classes\\"
+                            + program
+                        }
+                    }
+                },
+                "facts": {"argv": ["owned document"]},
+            }
+            (tmp_path / ("association-" + mode + "-result.json")).write_text(
+                json.dumps(child)
+            )
+            events.extend(["application-closed", "child-exited"])
+            self.returncode = 1 if failure == "child" else 0
+            return None, None
+
+        def wait(self, *, timeout):
+            assert timeout == 5
+            assert self.stdin.closed and "job-closed" in events
+            if self.returncode is None:
+                # EOF before job closure releases an unassigned child without
+                # permitting its imports or fixture application to start.
+                self.returncode = 1 if failure in ("assign", "assign-close") else -1
+                events.append("child-exited")
+            events.append("joined")
+            return self.returncode
+
+        def poll(self):
+            return self.returncode
+
+        def kill(self):
+            pytest.fail("All owned processes in this scenario stopped normally")
+
+    process = Process()
+
+    def spawn(command, **options):
+        assert command[0] == sys.executable and command[1:3] == ["-I", "-c"]
+        assert command[3].index("read(1)") < command[3].index("from tools")
+        assert options["stdin"] == subprocess.PIPE
+        assert options["stdout"].writable() and options["stderr"] == subprocess.STDOUT
+        assert program in registry.keys[registered]
+        events.append("spawn")
+        return process
+
+    class Job:
+        def assign(self, handle):
+            assert handle == 123 and program in registry.keys[registered]
+            if failure in ("assign", "assign-close"):
+                raise OSError(5, "Owned assignment failure")
+            events.append("assigned")
+
+        def close(self):
+            assert process.stdin.closed
+            assert program in registry.keys[registered]
+            events.append("job-closed")
+            if failure in ("close", "assign-close"):
+                raise OSError(6, "Owned job close failure")
+
+    delete_value = registry.DeleteValue
+
+    def unregister(key, field):
+        assert events[-1] == "joined" and process.poll() is not None
+        events.append("unregistered")
+        delete_value(key, field)
+
+    monkeypatch.setattr(registry, "DeleteValue", unregister)
+    monkeypatch.setattr(process_job, "ProcessJob", Job)
+    monkeypatch.setattr(smoke.subprocess, "Popen", spawn)
+
+    def notified():
+        assert registry.keys == before and events[-1] == "unregistered"
+        events.append("notified")
+
+    monkeypatch.setattr(smoke, "association_changed", notified)
+    kwargs = {
+        "mode": mode,
+        "lifecycle": lifecycle,
+        "installed_root": tmp_path / "installed",
+        "wheel": tmp_path / "candidate.whl",
+    }
+    if failure:
+        expected = {
+            "assign": OSError,
+            "communicate": subprocess.TimeoutExpired,
+            "close": OSError,
+            "child": AssertionError,
+            "cancel": KeyboardInterrupt,
+            "assign-close": OSError,
+        }[failure]
+        with pytest.raises(expected) as raised:
+            smoke.association_checks(None, fixture, tmp_path, report, **kwargs)
+        if failure == "assign-close":
+            assert raised.value.errno == 5
+    else:
+        result = smoke.association_checks(None, fixture, tmp_path, report, **kwargs)
+        assert result["passed"] and lifecycle["closed"]
+    observed = report["checks"]["association-" + mode]["observed"]
+    parents = observed["registration_parent"]
+    assert parents["before"]["exists"] is existing_parent
+    assert parents["registered"] == {
+        "exists": True,
+        "subkeys": 0,
+        "values": 2 if existing_parent else 1,
+    }
+    assert parents["after"] == parents["before"]
+    assert observed["child_stopped"] and report["associations_restored"]
+    assert registry.keys == before and registry.opened == 0
+    assert events[-2:] == ["unregistered", "notified"]
+    if failure in ("close", "assign-close"):
+        assert observed["child_cleanup_error"]["errno"] == 6
+
+
+def test_fresh_child_selects_exact_wheel_after_parent_exists_before_first_import(
+    tmp_path,
+):
+    import hashlib
+    import json
+    import struct
+    import subprocess
+    import sys
+    import zipfile
+    from pathlib import Path
+
+    installed = tmp_path / "installed"
+    files = {
+        "docking/__init__.py": "import winreg\nassert winreg.parent_exists\nwinreg.first_import_parent_present = True\n",
+        "docking/platform/__init__.py": "",
+        "docking/platform/applications/__init__.py": "",
+        "docking/platform/applications/launcher.py": "",
+        "docking/platform/applications/registry.py": "",
+    }
+    wheel = tmp_path / "owned.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, text in files.items():
+            path = installed / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+            archive.writestr(name, text)
+    digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    request = {
+        "mode": "explicit",
+        "token": "owned",
+        "fixture_root": str(tmp_path),
+        "executable": str(tmp_path / "Owned.exe"),
+        "output": str(tmp_path),
+        "result": str(tmp_path / "result.json"),
+        "installed_root": str(installed),
+        "wheel": str(wheel),
+        "wheel_sha256": digest,
+        "pointer_bits": struct.calcsize("P") * 8,
+    }
+    request_path = tmp_path / "request.json"
+    request_path.write_text(json.dumps(request))
+    code = r"""
+import sys
+from contextlib import contextmanager
+from types import SimpleNamespace
+sys.path.insert(0, sys.argv[1])
+@contextmanager
+def opened(root, key):
+    assert winreg.parent_exists and key == r"Software\RegisteredApplications"
+    yield key
+winreg = SimpleNamespace(HKEY_CURRENT_USER=1, OpenKey=opened,
+    QueryInfoKey=lambda key: (0, 1, 0), parent_exists=True,
+    first_import_parent_present=False)
+sys.modules['winreg'] = winreg
+from tools.windows.visual import applications_domain_smoke as smoke, desktop_driver
+assert 'docking' not in sys.modules and 'gi' not in sys.modules
+desktop_driver.WindowsDesktop = lambda: object()
+def check(native, fixture, output, report, *, mode, lifecycle, token, borrowed_registration):
+    assert winreg.first_import_parent_present and borrowed_registration
+    assert mode == 'explicit' and token == 'owned'
+    report['checks']['association-explicit']['observed'] = {'canonical_id': r'HKEY_CURRENT_USER\Software\Classes\Docking.Acceptance.owned'}
+    lifecycle['closed'] = True
+    return {'passed': True, 'facts': {'argv': ['owned document']}}
+smoke._registered_association_checks = check
+smoke._association_child(sys.argv[2])
+"""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            code,
+            str(Path(smoke.__file__).resolve().parents[3]),
+            str(request_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads((tmp_path / "result.json").read_text())
+    assert result["ok"] and result["normal_shutdown"]
+    assert result["registration_parent_before_gio"] == {
+        "exists": True,
+        "subkeys": 0,
+        "values": 1,
+    }
+    assert result["runtime"]["wheel_sha256"] == digest
+    assert (
+        result["runtime"]["origins"]["registry"]
+        == "docking/platform/applications/registry.py"
+    )
+    assert result["checks"]["association-explicit"]["observed"][
+        "canonical_id"
+    ].endswith("Docking.Acceptance.owned")

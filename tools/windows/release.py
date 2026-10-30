@@ -210,6 +210,41 @@ def validate_readiness_report(report: object, identity: dict[str, str | int]) ->
     ):
         raise ValueError("Windows packages lack matching startup/session acceptance")
     try:
+        payload = _record(report.get("payload_verification"))
+        if type(payload.get("schema")) is not int or payload["schema"] != 1:
+            raise ValueError("Windows startup lacks before/after payload verification")
+        before, after = _record(payload.get("before")), _record(payload.get("after"))
+        for verification in (before, after):
+            if (
+                verification.get("ok") is not True
+                or verification.get("complete") is not True
+                or verification.get("inventory_sha256")
+                != identity["payload_inventory_sha256"]
+                or any(
+                    type(verification.get(key)) is not int
+                    or verification[key] != identity["payload_files"]
+                    for key in (
+                        "declared_files",
+                        "verified_files",
+                        "observed_declared_files",
+                    )
+                )
+                or verification.get("issues") != []
+                or type(verification.get("issue_count")) is not int
+                or verification["issue_count"] != 0
+                or type(verification.get("issues_omitted")) is not int
+                or verification["issues_omitted"] != 0
+                or not isinstance(verification.get("observed_inventory_sha256"), str)
+                or re.fullmatch(
+                    r"[0-9a-f]{64}", str(verification["observed_inventory_sha256"])
+                )
+                is None
+            ):
+                raise ValueError(
+                    "Windows startup payload changed or lacks complete verification"
+                )
+        if before["observed_inventory_sha256"] != after["observed_inventory_sha256"]:
+            raise ValueError("Windows startup before/after payload inventories differ")
         measurement, startups, session = (
             report["measurement"],
             report["startups"],

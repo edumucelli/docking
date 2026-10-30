@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
+import ctypes
 import json
 import os
 import subprocess
 import time
+from ctypes import wintypes
 from pathlib import Path
 
 from .desktop_driver import WindowsDesktop
@@ -47,11 +49,21 @@ class ExplorerFolder:
             raise
         return self
 
-    def file_rectangle(self, path: Path):
+    def file_rectangle(self, path: Path, *, selection=False):
         assert path.parent.samefile(self.directory)
         assert self.window is not None
         names = ",".join(
             "'" + name.replace("'", "''") + "'" for name in (path.name, path.stem)
+        )
+        selected = (
+            "$selected=$item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)"
+            if selection
+            else ""
+        )
+        fields = (
+            ";selected=[bool]$selected.Current.IsSelected;focused=[bool]$item.Current.HasKeyboardFocus"
+            if selection
+            else ""
         )
         program = f"""[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 Add-Type -AssemblyName UIAutomationClient
@@ -64,7 +76,8 @@ $rows=@(foreach($item in $window.FindAll($scope,$condition)) {{
  if($item.Current.Name -in @({names})) {{
   $r=$item.Current.BoundingRectangle
   if($r.Width -gt 20 -and $r.Height -gt 20) {{
-   @{{x=$r.Left;y=$r.Top;width=$r.Width;height=$r.Height;name=$item.Current.Name}}
+   {selected}
+   @{{x=$r.Left;y=$r.Top;width=$r.Width;height=$r.Height;name=$item.Current.Name{fields}}}
   }}
  }}
 }})
@@ -88,6 +101,83 @@ $rows[0]|ConvertTo-Json -Compress
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         return json.loads(result.stdout)
+
+    def activate(self, path: Path, observed):
+        """Select the exact owned Explorer item physically, then press Enter."""
+        assert self.window is not None
+        source = self.window
+
+        def observe(stage):
+            item = self.file_rectangle(path, selection=True)
+            current = next(
+                (
+                    row
+                    for row in self.native.windows(source["pid"])
+                    if row["hwnd"] == source["hwnd"]
+                ),
+                None,
+            )
+            assert current is not None and all(
+                current[key] == source[key] for key in ("pid", "hwnd", "class", "title")
+            ), "Owned Explorer activation window changed"
+            cursor = wintypes.POINT()
+            query = self.native.user.GetCursorPos
+            query.argtypes = (ctypes.POINTER(wintypes.POINT),)
+            query.restype = wintypes.BOOL
+            assert query(ctypes.byref(cursor)), "Explorer activation cursor unavailable"
+            state = {
+                "item": item,
+                "window": {
+                    key: current[key] for key in ("hwnd", "pid", "class", "rect")
+                },
+                "cursor": [cursor.x, cursor.y],
+                "hit_window": self.native.window_at(cursor.x, cursor.y),
+                "foreground": self.native.user.GetForegroundWindow(),
+            }
+            observed[stage] = state
+            return state
+
+        rectangle = self.file_rectangle(path, selection=True)
+        point = [
+            int(rectangle["x"] + rectangle["width"] / 2),
+            int(rectangle["y"] + rectangle["height"] / 2),
+        ]
+        observed["point"] = point
+
+        def before_click():
+            state = observe("before_click")
+            current = state["item"]
+            assert point == [
+                int(current["x"] + current["width"] / 2),
+                int(current["y"] + current["height"] / 2),
+            ], "Explorer item moved before physical selection"
+            assert state["cursor"] == point and state["hit_window"] == source["hwnd"], (
+                "Explorer activation item is covered"
+            )
+
+        self.native.click(*point, before_press=before_click)
+
+        def selected():
+            state = observe("selection")
+            return (
+                state
+                if state["item"]["selected"]
+                and state["item"]["focused"]
+                and state["foreground"] == source["hwnd"]
+                else None
+            )
+
+        self.native.wait_for(
+            selected, "Exact Explorer item did not receive selection and keyboard focus"
+        )
+        state = observe("before_enter")
+        assert (
+            state["item"]["selected"]
+            and state["item"]["focused"]
+            and state["foreground"] == source["hwnd"]
+        ), "Explorer activation context changed before Enter"
+        self.native.key(0x0D)
+        observed["physical_enter"] = True
 
     def close(self):
         if self.window is not None:
