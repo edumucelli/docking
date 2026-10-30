@@ -421,6 +421,8 @@ class InputThread:
             try:
                 code = error.winerror
             except AttributeError:
+                code = None
+            if code is None:
                 code = error.errno
             raise InputRequestError(
                 code, str(error), InputRequestDiagnostic.read(value)

@@ -79,6 +79,8 @@ def _error(error: Exception) -> dict:
         try:
             result["code"] = error.winerror
         except AttributeError:
+            result["code"] = None
+        if result["code"] is None:
             result["code"] = error.errno
     elif isinstance(error, OracleError):
         result.update(api=error.api, code=error.code)

@@ -495,3 +495,13 @@ def test_cleanup_retains_independent_oracle_api_and_raw_win32_error():
         "code": 87,
     }
     assert report["cleanup"][1]["error"]["code"] == 87
+
+
+def test_cleanup_plain_windows_oserror_uses_errno_when_winerror_is_none():
+    report, errors = {}, []
+    error = OSError(5, "plain Windows OS error")
+    error.winerror = None
+    cleanup = mod.CleanupJournal(report, errors, lambda: None)
+    cleanup.attempt("native", Mock(side_effect=error))
+    assert errors == [error]
+    assert report["cleanup"][0]["error"] == {"type": "OSError", "code": 5}

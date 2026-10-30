@@ -447,3 +447,17 @@ def test_controller_error_preserves_winerror_rather_than_translated_errno(
     assert failed.value.errno == 87 and failed.value.diagnostic.phase == 200
     assert failed.value.__cause__ is error
     assert child.terminate.called
+
+
+def test_controller_plain_oserror_with_no_winerror_preserves_errno(
+    monkeypatch, tmp_path
+):
+    client, cancelled, _child, job, _trace, _functions = _host_dispatch(monkeypatch)
+    error = OSError(5, "plain OS error")
+    error.winerror = None
+    job.assign.side_effect = error
+    with pytest.raises(mod.InputRequestError) as failed:
+        _dispatch_host(client, cancelled, tmp_path, mod.Request())
+    assert failed.value.errno == 5
+    assert failed.value.diagnostic.phase == 200
+    assert failed.value.__cause__ is error
