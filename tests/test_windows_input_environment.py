@@ -435,7 +435,7 @@ def test_module_inventory_closes_process_handle_and_redacts_access_failure(monke
         raise OSError(5, "private/target/path")
 
     functions = {
-        "OpenProcess": lambda rights, inherit, pid: 55,
+        "OpenProcess": lambda _rights, _inherit, _pid: 55,
         "IsWow64Process2": architecture,
         "ProcessIdToSessionId": lambda pid, result: 0,
         "K32EnumProcessModulesEx": fail,
