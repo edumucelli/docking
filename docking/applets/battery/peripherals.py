@@ -120,7 +120,11 @@ def tooltip_lines(
 
 
 def _charge_text(*, peripheral: PeripheralBattery) -> str:
-    if peripheral.percent is not None and peripheral.percent > 0:
+    # UPower can supply zero alongside a coarse level. Preserve that label,
+    # while retaining an exact zero when no coarse level is available.
+    if peripheral.percent is not None and (
+        peripheral.percent > 0 or (peripheral.percent == 0 and not peripheral.level)
+    ):
         text = f"{peripheral.percent:.0f}%"
     elif peripheral.level:
         text = peripheral.level

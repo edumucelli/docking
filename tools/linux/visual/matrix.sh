@@ -6,18 +6,18 @@
 # extra already exists.
 #
 # Usage:
-#   bash tools/visual_compositor_matrix.sh --compositor sway
-#   bash tools/visual_compositor_matrix.sh --compositor sway --behavior placement
-#   bash tools/visual_compositor_matrix.sh --compositor sway --update-baselines
-#   bash tools/visual_compositor_matrix.sh --compositor sway --case placement-bottom
-#   bash tools/visual_compositor_matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+#   bash tools/linux/visual/matrix.sh --compositor sway
+#   bash tools/linux/visual/matrix.sh --compositor sway --behavior placement
+#   bash tools/linux/visual/matrix.sh --compositor sway --update-baselines
+#   bash tools/linux/visual/matrix.sh --compositor sway --case placement-bottom
+#   bash tools/linux/visual/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
 #
-# Artifacts land in tools/visual_compositor/evidence/<compositor>-<timestamp>/.
+# Artifacts land in tools/linux/visual/evidence/<compositor>-<timestamp>/.
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LAB_DIR="$REPO_DIR/tools/visual_compositor"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+LAB_DIR="$REPO_DIR/tools/linux/visual"
 
 COMPOSITOR="sway"
 BEHAVIOR=""
@@ -131,7 +131,7 @@ emit_args=(--emit "$RUN_DIR/cases.json")
 for case_name in "${CASES[@]:-}"; do
     [ -n "$case_name" ] && emit_args+=(--case "$case_name")
 done
-(cd "$REPO_DIR" && "$PYTHON" -m tools.visual_compositor.scenarios "${emit_args[@]}")
+(cd "$REPO_DIR" && "$PYTHON" -m tools.linux.visual.scenarios "${emit_args[@]}")
 if [ "${LAB_OUTPUTS:-1}" != 1 ] && "$PYTHON" -c 'import json,sys; sys.exit(not any(c.get("display_scene") or c.get("display_change") for c in json.load(open(sys.argv[1]))))' "$RUN_DIR/cases.json"; then
     echo "Display scene cases create their own outputs; run them with LAB_OUTPUTS=1" >&2
     exit 2
@@ -204,4 +204,4 @@ done
 [ "$GEOMETRY_ONLY" = 1 ] && compare_args+=(--geometry-only)
 [ "$REQUIRE_SUPPORTED" = 1 ] && compare_args+=(--require-supported)
 
-(cd "$REPO_DIR" && "$PYTHON" -m tools.visual_compositor.compare "${compare_args[@]}")
+(cd "$REPO_DIR" && "$PYTHON" -m tools.linux.visual.compare "${compare_args[@]}")

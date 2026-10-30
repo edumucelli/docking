@@ -15,6 +15,7 @@ from docking.applets.battery.peripherals import (
     _peripheral_from_props,
     peripheral_label,
 )
+from docking.applets.battery.render import render_icon
 from docking.applets.battery.state import (
     OVERLAY_NONE,
     OVERLAY_PERCENT,
@@ -466,6 +467,18 @@ class TestPeripheralLabel:
         p = PeripheralBattery("Keychron K8", "Keyboard", 96.0, False, "")
         assert peripheral_label(p) == "Keychron K8: 96%"
 
+    def test_empty_peripheral_displays_zero_percent(self):
+        p = PeripheralBattery("Keychron K8", "Keyboard", 0.0, False, "")
+        assert peripheral_label(p) == "Keychron K8: 0%"
+
+    def test_empty_peripheral_keeps_charging_suffix(self):
+        p = PeripheralBattery("Keychron K8", "Keyboard", 0.0, True, "")
+        assert peripheral_label(p) == "Keychron K8: 0% (charging)"
+
+    def test_zero_placeholder_keeps_the_available_coarse_level(self):
+        p = PeripheralBattery("Headset", "Headset", 0.0, False, "Low")
+        assert peripheral_label(p) == "Headset: Low"
+
     def test_charging_suffix(self):
         p = PeripheralBattery("MX Master", "Mouse", 40.0, True, "")
         assert peripheral_label(p) == "MX Master: 40% (charging)"
@@ -567,6 +580,25 @@ class TestPowerSettingsLauncher:
 
 
 class TestBatteryAppletRendering:
+    @pytest.mark.parametrize("size", [24, 48, 96])
+    @pytest.mark.parametrize("capacity", [0, 15, 50, 100])
+    def test_charging_marker_is_visible_on_filled_and_empty_battery(
+        self, size, capacity
+    ):
+        state = BatteryState(
+            icon_name="battery-low",
+            capacity=capacity,
+            status="Discharging",
+            seconds_remaining=None,
+        )
+        idle = render_icon(size=size, state=state)
+        charging = render_icon(
+            size=size,
+            state=state._replace(icon_name="battery-low-charging", status="Charging"),
+        )
+        assert idle is not None and charging is not None
+        assert charging.get_pixels() != idle.get_pixels()
+
     def test_renders_valid_pixbuf(self):
         applet = BatteryApplet(48, config=Config())
         pixbuf = applet.create_icon(48)
