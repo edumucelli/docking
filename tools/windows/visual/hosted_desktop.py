@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 from contextlib import ExitStack, contextmanager, suppress
+from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
@@ -43,6 +44,11 @@ class PreparationError(RuntimeError):
     def __init__(self, operation: str, code: int = 13):
         super().__init__(f"{operation} ({code})")
         self.operation, self.code = operation, code
+
+
+class WslDismissalPendingError(PreparationError):
+    def __init__(self):
+        super().__init__("Verified WSL terminal minimization is pending", 1460)
 
 
 def require_hosted(platform, environment, facts=None):
@@ -326,6 +332,62 @@ class NativeDesktop:
     def foreground(self):
         return self.user.GetForegroundWindow()
 
+    def _verify_pending_wsl(self, identity, window, command, record):
+        hwnd = window["hwnd"]
+        current = next(
+            (row for row in self.windows(identity.pid) if row["hwnd"] == hwnd), None
+        )
+        foreground = self.foreground()
+        if record is not None:
+            record["window_state"] = (
+                "disappeared"
+                if current is None
+                else ("minimized" if current["minimized"] else "visible")
+            )
+        if (current is None or current["minimized"]) and (
+            command != 6 or foreground != hwnd
+        ):
+            return True
+        if current is None:
+            raise PreparationError("Closed WSL terminal retained foreground", 1460)
+        if (
+            bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(identity.handle, 0)
+            != 258
+            or bind(self.kernel, "GetProcessId", _U, _P)(identity.handle)
+            != identity.pid
+        ):
+            raise PreparationError("Pending WSL process identity changed")
+        # WindowsDesktop shares this DLL function and uses DWORD owner buffers.
+        owner = wintypes.DWORD()
+        self.check(
+            bind(
+                self.user,
+                "GetWindowThreadProcessId",
+                wintypes.DWORD,
+                wintypes.HWND,
+                c.POINTER(wintypes.DWORD),
+            )(hwnd, c.byref(owner)),
+            "Read pending WSL window owner",
+        )
+        family, error = self.package(identity.handle)
+        if owner.value != identity.pid or family != _TERMINAL:
+            raise PreparationError("Pending WSL window identity changed", error or 13)
+        if (
+            current["class"] != window["class"]
+            or action_for(
+                identity,
+                current,
+                root=self.root,
+                session=self.session,
+                foreground=foreground,
+            )
+            != "minimize"
+        ):
+            raise PreparationError("Pending WSL window identity changed")
+        if record is not None:
+            record.update(pending_window=hwnd, pending_identity_verified=True)
+        return False
+
     def perform(self, identity, action, window, *, record=None):
         # Keep the opened process object, not merely a recyclable numeric PID.
         status = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(
@@ -477,7 +539,20 @@ class NativeDesktop:
             )
 
         try:
-            self.desktop.wait_for(dismissed, "First-login window was not dismissed", 2)
+            if action == "minimize":
+                # Only this explicit deadline can produce a deferrable outcome;
+                # assertions and native errors from readback remain fatal.
+                deadline = time.monotonic() + 2
+                while not dismissed():
+                    if time.monotonic() >= deadline:
+                        if self._verify_pending_wsl(identity, window, command, record):
+                            return "dismissed"
+                        raise WslDismissalPendingError()
+                    time.sleep(0.1)
+            else:
+                self.desktop.wait_for(
+                    dismissed, "First-login window was not dismissed", 2
+                )
         finally:
             if record is not None:
                 record["foreground_after"] = self.foreground()
@@ -554,7 +629,7 @@ def privacy_policy(registry, journal):
                 )
 
 
-def sweep(api, journal):
+def sweep(api, journal, *, allow_pending_wsl=False):
     count = 0
     journal["known_visible_blockers"] = []
     with api.processes() as identities:
@@ -611,9 +686,15 @@ def sweep(api, journal):
                     continue
                 entry = {**identity.journal(), "action": action, "before": "identified"}
                 journal["actions"].append(entry)
-                entry["after"] = (
-                    api.perform(identity, action, window, record=entry) or "dismissed"
-                )
+                try:
+                    entry["after"] = (
+                        api.perform(identity, action, window, record=entry)
+                        or "dismissed"
+                    )
+                except WslDismissalPendingError as error:
+                    if not allow_pending_wsl or action != "minimize":
+                        raise
+                    entry.update(after="pending", verification=_error(error))
                 entry["foreground_after"] = api.foreground()
                 count += 1
                 if action == "terminate":
@@ -728,7 +809,7 @@ def run_prepared(api, registry, output, collect, journal):
             save()
             with collect() as process:
                 while process.poll() is None:
-                    sweep(api, journal)
+                    sweep(api, journal, allow_pending_wsl=True)
                     save()
                     with suppress(subprocess.TimeoutExpired):
                         process.wait(timeout=0.1)

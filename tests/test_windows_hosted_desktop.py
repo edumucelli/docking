@@ -33,6 +33,16 @@ def window(**changes):
     }
 
 
+@pytest.fixture
+def fast_minimize_clock(monkeypatch):
+    now = [0.0]
+    monkeypatch.setattr(hosted.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(
+        hosted.time, "sleep", lambda seconds: now.__setitem__(0, now[0] + seconds)
+    )
+    return now
+
+
 @pytest.mark.parametrize(
     "platform,environment,facts",
     [
@@ -588,6 +598,9 @@ def test_owned_collector_is_contained_before_permission_and_killed_before_wait(
     (
         hosted.PreparationError("unproven desktop", 5),
         ValueError("unexpected internal error"),
+        PermissionError(13, "owned native query"),
+        AssertionError("unexpected readback assertion"),
+        KeyboardInterrupt(),
     ),
 )
 def test_main_thread_sweep_failure_quiesces_collector_before_policy_restoration(
@@ -627,11 +640,13 @@ def test_main_thread_sweep_failure_quiesces_collector_before_policy_restoration(
         with pytest.raises(ValueError):
             hosted.run_prepared(api, registry, tmp_path, owned_collector, journal)
     else:
-        assert (
-            hosted.run_prepared(api, registry, tmp_path, owned_collector, journal) == 1
-        )
+        assert hosted.run_prepared(
+            api, registry, tmp_path, owned_collector, journal
+        ) == (130 if isinstance(error, KeyboardInterrupt) else 1)
     assert order == ["main-thread-sweep", "collector-stopped", "policy-restored"]
     assert journal["ok"] is False and journal["collector_stopped"]
+    if isinstance(error, KeyboardInterrupt):
+        assert journal["cancelled"]
 
 
 @pytest.mark.parametrize("foreground", (False, True))
@@ -677,7 +692,7 @@ def test_verified_wsl_terminal_uses_os_z_order_only_when_foreground(foreground):
 
 
 @pytest.fixture
-def iconic_wsl():
+def iconic_wsl(fast_minimize_clock):
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.root, api.session = ROOT, 3
     state = SimpleNamespace(
@@ -700,7 +715,15 @@ def iconic_wsl():
         assert predicate(), message
 
     api.desktop = SimpleNamespace(wait_for=wait_for)
-    api.user = SimpleNamespace(ShowWindow=Mock())
+
+    def owner(_hwnd, value):
+        value._obj.value = 20
+        return 21
+
+    api.user = SimpleNamespace(
+        ShowWindow=Mock(), GetWindowThreadProcessId=Mock(side_effect=owner)
+    )
+    api.package = Mock(return_value=(hosted._TERMINAL, 0))
     return api, process, state
 
 
@@ -786,7 +809,7 @@ def test_iconic_wsl_recovery_cannot_report_success_if_final_minimize_retains_for
 
     api.user.ShowWindow.side_effect = show
     record = {}
-    with pytest.raises(AssertionError, match="not dismissed"):
+    with pytest.raises(hosted.WslDismissalPendingError):
         api.perform(process, "minimize", state.rows[0], record=record)
     assert record["show_commands"] == [4, 6] and record["foreground_after"] == 100
 
@@ -794,6 +817,7 @@ def test_iconic_wsl_recovery_cannot_report_success_if_final_minimize_retains_for
 @pytest.mark.parametrize("relinquished", (True, False))
 def test_wsl_closing_during_minimize_is_dismissed_only_after_foreground_release(
     relinquished,
+    fast_minimize_clock,
 ):
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.root, api.session = ROOT, 3
@@ -824,7 +848,7 @@ def test_wsl_closing_during_minimize_is_dismissed_only_after_foreground_release(
     if relinquished:
         assert api.perform(process, "minimize", rows[0], record=record) == "dismissed"
     else:
-        with pytest.raises(AssertionError, match="not dismissed"):
+        with pytest.raises(hosted.PreparationError, match="retained foreground"):
             api.perform(process, "minimize", rows[0], record=record)
     assert record["window_state"] == "disappeared"
     assert record["foreground_after"] == (999 if relinquished else 100)
@@ -1055,6 +1079,286 @@ def test_collector_poll_interval_is_100ms_and_cleanup_still_precedes_policy_rest
     assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == 0
     assert waits == [0.1] and journal["quiet_sweeps"] == 2
     assert registry.value == (0, 4) and journal["policy"]["restored"]
+
+
+@pytest.fixture
+def pending_wsl(fast_minimize_clock):
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    state = SimpleNamespace(
+        row=window(title=ROOT + r"\System32\wsl.exe"), owner=20, active=100
+    )
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+
+    def owner(_hwnd, value):
+        value._obj.value = state.owner
+        return 21
+
+    api.user = SimpleNamespace(
+        ShowWindow=Mock(return_value=1),
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+    )
+    api.package = Mock(return_value=(hosted._TERMINAL, 0))
+    api.windows = Mock(side_effect=lambda _pid: [dict(state.row)])
+    api.foreground = lambda: state.active
+    api.desktop = SimpleNamespace(wait_for=Mock())
+    return api, process, state, fast_minimize_clock
+
+
+def test_wsl_pending_deadline_requires_fresh_process_window_and_package_proof(
+    pending_wsl,
+):
+    api, process, state, now = pending_wsl
+    record = {}
+    with pytest.raises(hosted.WslDismissalPendingError) as failed:
+        api.perform(process, "minimize", dict(state.row), record=record)
+    assert failed.value.code == 1460 and 2 <= now[0] < 2.2
+    assert api.kernel.WaitForSingleObject.call_count == 2
+    assert api.kernel.GetProcessId.call_count == 2
+    api.package.assert_called_once_with(process.handle)
+    api.user.GetWindowThreadProcessId.assert_called_once()
+    api.user.ShowWindow.assert_called_once_with(100, 6)
+    assert record["pending_identity_verified"] and record["pending_window"] == 100
+    assert record["window_state"] == "visible" and record["foreground_after"] == 100
+
+
+@pytest.mark.parametrize(
+    "changed", ("process", "handle", "owner", "title", "class", "hwnd", "package")
+)
+def test_pending_wsl_revalidation_failure_cannot_be_deferred(pending_wsl, changed):
+    api, process, state, _now = pending_wsl
+
+    def changed_after_command(_hwnd, _command):
+        if changed == "process":
+            api.kernel.WaitForSingleObject.return_value = 0
+        elif changed == "handle":
+            api.kernel.GetProcessId.return_value = 303
+        elif changed == "owner":
+            state.owner = 303
+        elif changed == "package":
+            api.package.return_value = ("Unrelated.Application", 5)
+        else:
+            state.row[changed] = 999 if changed == "hwnd" else "unrelated"
+        return 1
+
+    api.user.ShowWindow.side_effect = changed_after_command
+    record = {}
+    with pytest.raises(hosted.PreparationError) as failed:
+        api.perform(process, "minimize", dict(state.row), record=record)
+    assert not isinstance(failed.value, hosted.WslDismissalPendingError)
+    assert "pending_identity_verified" not in record
+    api.user.ShowWindow.assert_called_once_with(100, 6)
+
+
+@pytest.mark.parametrize(
+    "error",
+    (
+        PermissionError(13, "owned API"),
+        AssertionError("readback invariant"),
+        KeyboardInterrupt(),
+    ),
+)
+def test_readback_native_assertion_and_cancellation_errors_are_not_pending(
+    pending_wsl, error
+):
+    api, process, state, _now = pending_wsl
+    captured = dict(state.row)
+
+    def changed_after_command(_hwnd, _command):
+        api.windows.side_effect = error
+
+    api.user.ShowWindow.side_effect = changed_after_command
+    with pytest.raises(type(error)) as failed:
+        api.perform(process, "minimize", captured, record={})
+    assert failed.value is error
+
+
+def test_pending_package_access_failure_remains_fatal(pending_wsl):
+    api, process, state, _now = pending_wsl
+    api.package.side_effect = PermissionError(13, "owned package")
+    with pytest.raises(PermissionError):
+        api.perform(process, "minimize", dict(state.row), record={})
+
+
+def test_pending_window_owner_query_error_preserves_native_code(
+    pending_wsl, monkeypatch
+):
+    api, process, state, _now = pending_wsl
+    api.user.GetWindowThreadProcessId.side_effect = None
+    api.user.GetWindowThreadProcessId.return_value = 0
+    monkeypatch.setattr(hosted.c, "get_last_error", lambda: 5, raising=False)
+    with pytest.raises(hosted.PreparationError) as failed:
+        api.perform(process, "minimize", dict(state.row), record={})
+    assert not isinstance(failed.value, hosted.WslDismissalPendingError)
+    assert failed.value.code == 5
+    assert failed.value.operation == "Read pending WSL window owner"
+
+
+def test_pending_owner_binding_preserves_the_shared_desktop_dword_buffer(pending_wsl):
+    api, process, state, _now = pending_wsl
+    callback = c.CFUNCTYPE(c.c_uint32, c.c_void_p, c.POINTER(c.c_uint32))
+
+    @callback
+    def owner(_hwnd, output):
+        output.contents.value = 20
+        return 21
+
+    api.user.GetWindowThreadProcessId = owner
+    with pytest.raises(hosted.WslDismissalPendingError):
+        api.perform(process, "minimize", dict(state.row), record={})
+    # The next WindowsDesktop.windows() sweep uses the cached function with
+    # ctypes.wintypes.DWORD, which is nominally distinct from c_uint32.
+    buffer = hosted.wintypes.DWORD()
+    assert owner(100, c.byref(buffer)) == 21 and buffer.value == 20
+
+
+@pytest.mark.parametrize("status", (0, 1))
+@pytest.mark.parametrize("eventually_dismissed", (False, True))
+def test_live_pending_wsl_preserves_child_completion_and_policy_cleanup(
+    tmp_path, status, eventually_dismissed
+):
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+    journal, order, waits, attempts = {}, [], [], []
+    polls = [0]
+
+    @contextmanager
+    def processes():
+        polls[0] += 1
+        yield [] if polls[0] <= 2 else [process]
+
+    def perform(_identity, action, _window, *, record):
+        assert action == "minimize"
+        attempts.append(action)
+        if eventually_dismissed and len(attempts) == 2:
+            record["window_state"] = "minimized"
+            return "dismissed"
+        record.update(
+            window_state="visible", pending_window=100, pending_identity_verified=True
+        )
+        raise hosted.WslDismissalPendingError()
+
+    child = SimpleNamespace(returncode=None, poll=lambda: child.returncode, kill=Mock())
+
+    def wait(*, timeout):
+        waits.append(timeout)
+        if len(waits) == 1:
+            raise subprocess.TimeoutExpired("owned collector", timeout)
+        child.returncode = status
+        order.append("strict-children-completed")
+        return status
+
+    child.wait = wait
+
+    @contextmanager
+    def collect():
+        journal["collector_started"], journal["collector_stopped"] = True, False
+        try:
+            yield child
+        finally:
+            assert child.returncode == status
+            order.append("collector-stopped")
+            journal["collector_stopped"] = True
+
+    registry = Registry((0, 4))
+    original_set = registry.SetValueEx
+
+    def set_value(*args):
+        original_set(*args)
+        if registry.value == (0, 4):
+            order.append("policy-restored")
+
+    registry.SetValueEx = set_value
+    api = SimpleNamespace(
+        root=ROOT,
+        session=3,
+        exited=[],
+        processes=processes,
+        windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
+        foreground=lambda: 100,
+        perform=perform,
+        capture=lambda _path: None,
+    )
+    assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == status
+    assert journal["input_status"] == status and journal["ok"] is (status == 0)
+    assert waits == [0.1, 0.1] and len(attempts) == 2
+    assert order == [
+        "strict-children-completed",
+        "collector-stopped",
+        "policy-restored",
+    ]
+    assert journal["actions"][0]["after"] == "pending"
+    assert journal["actions"][0]["verification"]["code"] == 1460
+    assert journal["actions"][1]["after"] == (
+        "dismissed" if eventually_dismissed else "pending"
+    )
+    assert journal["known_visible_blockers"]
+    child.kill.assert_not_called()
+    assert journal["collector_stopped"] and journal["policy"]["restored"]
+
+
+def test_initial_pending_wsl_is_fatal_before_collector_launch(tmp_path):
+    process = identity(
+        "windowsterminal.exe",
+        r"C:\Program Files\WindowsApps\owned\WindowsTerminal.exe",
+        hosted._TERMINAL,
+    )
+
+    @contextmanager
+    def processes():
+        yield [process]
+
+    api = SimpleNamespace(
+        root=ROOT,
+        session=3,
+        exited=[],
+        processes=processes,
+        windows=lambda _pid: [window(title=ROOT + r"\System32\wsl.exe")],
+        foreground=lambda: 100,
+        perform=Mock(side_effect=hosted.WslDismissalPendingError()),
+        capture=lambda _path: None,
+    )
+    collect, journal, registry = Mock(), {}, Registry((0, 4))
+    assert hosted.run_prepared(api, registry, tmp_path, collect, journal) == 1
+    collect.assert_not_called()
+    assert "prepared" not in journal and journal["error"]["code"] == 1460
+    assert "after" not in journal["actions"][0]
+    assert journal["policy"]["restored"]
+
+
+def test_pending_exception_for_another_action_is_not_deferred():
+    process = identity(
+        "systempropertiesperformance.exe",
+        ROOT + r"\System32\SystemPropertiesPerformance.exe",
+    )
+
+    @contextmanager
+    def processes():
+        yield [process]
+
+    api = SimpleNamespace(
+        root=ROOT,
+        session=3,
+        exited=[],
+        processes=processes,
+        windows=lambda _pid: [window(**{"class": "#32770"})],
+        foreground=lambda: 100,
+        perform=Mock(side_effect=hosted.WslDismissalPendingError()),
+    )
+    journal = {"actions": []}
+    with pytest.raises(hosted.WslDismissalPendingError):
+        hosted.sweep(api, journal, allow_pending_wsl=True)
+    assert "after" not in journal["actions"][0]
 
 
 @pytest.fixture
