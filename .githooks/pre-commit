@@ -21,4 +21,6 @@ echo "Checking translation packaging..."
 python3 tools/check_translation_packaging.py
 echo "Running tests..."
 .venv/bin/python -m pytest tests/ -q
+echo "Running isolated no-GI smoke tests..."
+.venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
 echo "All checks passed."
