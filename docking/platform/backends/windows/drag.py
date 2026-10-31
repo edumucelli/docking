@@ -8,7 +8,7 @@ from contextlib import ExitStack
 from pathlib import Path, PureWindowsPath
 
 from .com import GUID, HRESULT, apartment, method, release
-from .dataobject import FormatEtc, StorageMedium
+from .dataobject import FormatEtc, StorageMedium, file_drop_bytes
 from .ffi import bind
 
 
@@ -127,10 +127,7 @@ def file_drag_formats(path: Path) -> tuple[tuple[str, bytes], ...]:
         ("Shell IDList Array", data),
         (
             "CF_HDROP",
-            struct.pack("<IiiII", 20, 0, 0, 0, 1)
-            + (str(PureWindowsPath(path.resolve())).replace("/", "\\") + "\0\0").encode(
-                "utf-16-le"
-            ),
+            file_drop_bytes((str(PureWindowsPath(path.resolve())).replace("/", "\\"),)),
         ),
         ("Preferred DropEffect", struct.pack("<I", 1)),
     )

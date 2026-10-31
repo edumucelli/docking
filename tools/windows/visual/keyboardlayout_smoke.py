@@ -13,6 +13,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 from contextlib import ExitStack
 from dataclasses import asdict
 from functools import partial
@@ -20,6 +21,85 @@ from pathlib import Path
 
 from tools.windows.input_acceptance import PROFILES, coverage, runtime_acceptance
 from tools.windows.visual.input_oracle import oracle
+
+
+def _failure_frames(error):
+    return [
+        {
+            "file": Path(frame.filename).name,
+            "function": frame.name,
+            "line": frame.lineno,
+        }
+        for frame in traceback.extract_tb(error.__traceback__)[-6:]
+    ]
+
+
+def _applet_target_snapshot(native, ui, identifier, expected_item, dock_window):
+    """Observe the same live and rendered geometry used by ordinary item input."""
+    from ctypes import wintypes
+
+    from tools.windows.visual.input_editor import _point_facts
+    from tools.windows.visual.input_environment import bind
+
+    window = ui.window
+    frame = window.geometry.build_frame()
+    painted = window._current_or_build_geometry_frame()
+    current = frame.geometry_for_item(expected_item)
+    visible = painted.geometry_for_item(expected_item)
+    assert current is not None and visible is not None, "Keyboard applet disappeared"
+    bounds, cursor = wintypes.RECT(), wintypes.POINT()
+    assert native.user.GetWindowRect(dock_window, ctypes.byref(bounds))
+    assert bind(
+        native.user, "GetCursorPos", ctypes.c_int32, ctypes.POINTER(wintypes.POINT)
+    )(ctypes.byref(cursor))
+    scale = window.get_scale_factor()
+    assert scale > 0
+    x, y = (cursor.x - bounds.left) / scale, (cursor.y - bounds.top) / scale
+    target, rendered = frame.item_at_point(x, y), painted.item_at_point(x, y)
+    hovered = window.hover.hovered_item
+    return {
+        "cursor": [cursor.x, cursor.y],
+        "bounds": [bounds.left, bounds.top, bounds.right, bounds.bottom],
+        "scale": scale,
+        "rect": [
+            current.draw_rect.x,
+            current.draw_rect.y,
+            current.draw_rect.w,
+            current.draw_rect.h,
+        ],
+        "painted_rect": [
+            visible.draw_rect.x,
+            visible.draw_rect.y,
+            visible.draw_rect.w,
+            visible.draw_rect.h,
+        ],
+        "live_item": current.item
+        is visible.item
+        is expected_item
+        is window.model.find_by_desktop_id(identifier),
+        "target": target.desktop_id if target else None,
+        "painted_target": rendered.desktop_id if rendered else None,
+        "hovered_item": hovered.desktop_id if hovered else None,
+        "hovered_current": hovered is expected_item,
+        "native": _point_facts(native, cursor.x, cursor.y),
+    }
+
+
+def _assert_applet_target(observed, identifier, dock_window, pid):
+    assert (
+        observed["live_item"]
+        and observed["hovered_current"]
+        and (
+            observed["target"]
+            == observed["painted_target"]
+            == observed["hovered_item"]
+            == identifier
+        )
+    ), "Physical keyboard-menu point no longer targets the live painted applet"
+    assert observed["native"]["root"]["hwnd"] == dock_window and (
+        observed["native"]["root"].get("pid") == pid
+        and observed["native"]["hit"].get("pid") == pid
+    ), "Physical keyboard-menu point is covered or changed native ownership"
 
 
 def _entry_input_readback(entry, *, current, api, native, scans):
@@ -507,13 +587,44 @@ def main(monitor):
                 publish()
 
             def menu():
-                native.click(*call(point), right=True)
+                target_point = call(point)
+                identifier = "applet://keyboardlayout"
+                item = call(
+                    lambda: shared["ui"].window.model.find_by_desktop_id(identifier)
+                )
+                attempt = {
+                    "stage": report.get("input_stage"),
+                    "point": list(target_point),
+                }
+                attempts = report.setdefault("keyboard_menu_attempts", [])
+                if len(attempts) < 64:
+                    attempts.append(attempt)
+
+                def observe():
+                    return call(
+                        lambda: _applet_target_snapshot(
+                            native, shared["ui"], identifier, item, dock["hwnd"]
+                        )
+                    )
+
+                attempt["before_move"] = observe()
+
+                def before_press():
+                    observed = attempt["before_press"] = observe()
+                    assert observed["cursor"] == [
+                        int(value) for value in target_point
+                    ], "Keyboard-menu cursor moved before input"
+                    _assert_applet_target(
+                        observed, identifier, dock["hwnd"], os.getpid()
+                    )
+
+                native.click(*target_point, right=True, before_press=before_press)
                 root = native.wait_for(
                     lambda: call(lambda: Gtk.grab_get_current()),
                     "Keyboard menu did not map",
                 )
-                assert isinstance(root, Gtk.Menu)
-                return call(
+                assert isinstance(root, Gtk.Menu), "Keyboard-menu grab is not a menu"
+                rows = call(
                     lambda: [
                         {
                             "label": row.get_label(),
@@ -525,6 +636,8 @@ def main(monitor):
                         if row.get_label() and row.get_sensitive()
                     ]
                 )
+                attempt["rows"] = rows
+                return rows
 
             def choose_label(label, rows):
                 index = next(
@@ -550,13 +663,16 @@ def main(monitor):
                 publish()
 
             def select(code, name):
+                report["input_stage"] = "menu:" + name
                 rows = menu()
                 info = next(
                     info
                     for info in call(lambda: applet._layout.details)
                     if info.code == code
                 )
-                assert sum(row["active"] is True for row in rows) == 1
+                assert sum(row["active"] is True for row in rows) == 1, (
+                    "Keyboard menu lacks exactly one active layout"
+                )
                 report.setdefault("menus", {})[name] = rows
                 ImageGrab.grab(all_screens=True).save(output / (name + "-menu.png"))
                 choose_label(f"{info.label} - {info.name}", rows)
@@ -660,6 +776,7 @@ def main(monitor):
                 publish()
 
                 def configure(shortcut):
+                    report["input_stage"] = "configure:" + shortcut
                     search._config.global_search_shortcut = shortcut
                     search.refresh_settings()
 
@@ -1386,6 +1503,8 @@ def main(monitor):
                 )
 
                 def configure(shortcut):
+                    report["input_stage"] = "configure:" + shortcut
+
                     def apply():
                         search._config.global_search_shortcut = shortcut
                         search.refresh_settings()
@@ -1404,6 +1523,7 @@ def main(monitor):
                     )
 
                 def activate_character(character):
+                    report["input_stage"] = "shortcut:" + character
                     context = api.foreground()
                     translated = int(key_scan(character, api.active(context.thread)))
                     assert translated != -1
@@ -1525,7 +1645,9 @@ def main(monitor):
             report["ok"] = True
         except Exception as exc:
             errors.append(exc)
-            report.update(ok=False, error=repr(exc))
+            report.update(
+                ok=False, error=repr(exc), failure_frames=_failure_frames(exc)
+            )
             if "applet" in shared:
 
                 def diagnostic():

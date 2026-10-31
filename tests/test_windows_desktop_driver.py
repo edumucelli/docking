@@ -227,3 +227,74 @@ def test_unmapped_key_or_modifier_aborts_before_any_injection(
     with pytest.raises(ValueError, match="did not map"):
         desktop.scan(0x1E, altgr=altgr, mapped_vk=True, layout=0x042A042A)
     assert not packets
+
+
+@pytest.mark.parametrize("right", [False, True])
+@pytest.mark.parametrize("control", [False, True])
+@pytest.mark.parametrize("accepted", [0, 1])
+def test_partial_click_submission_releases_only_its_button_and_modifier(
+    monkeypatch, right, control, accepted
+):
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    packets = []
+
+    def send(count, values, _size):
+        packets.append(
+            [
+                (
+                    value.type,
+                    value.data.mouse.flags
+                    if value.type == 0
+                    else (value.data.keyboard.key, value.data.keyboard.flags),
+                )
+                for value in values
+            ]
+        )
+        return accepted if len(packets) == 1 else count
+
+    desktop.user.SendInput.side_effect = send
+    monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)
+    with pytest.raises(AssertionError) as caught:
+        desktop.click(100, 200, right=right, control=control)
+    expected = [(0, 16 if right else 4)]
+    if control:
+        expected.append((1, (0x11, 2)))
+    assert packets[1] == expected
+    assert caught.value.__dict__["desktop_input_cleanup"] == {
+        "attempted": True,
+        "completed": True,
+    }
+
+
+@pytest.mark.parametrize("primary_kind", ["cancel", "native"])
+@pytest.mark.parametrize("release_failure", [False, True])
+def test_click_cancel_and_failed_release_preserve_primary_and_secondary(
+    monkeypatch, primary_kind, release_failure
+):
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop.user = Mock()
+    primary = (
+        KeyboardInterrupt() if primary_kind == "cancel" else OSError(5, "Input failed")
+    )
+    secondary = OSError(6, "Input release failed")
+    desktop._send = Mock(side_effect=[primary, secondary if release_failure else None])
+    monkeypatch.setattr(mod.time, "sleep", lambda _seconds: None)
+    with pytest.raises(type(primary)) as caught:
+        desktop.click(100, 200, control=True)
+    assert caught.value is primary
+    cleanup = primary.__dict__["desktop_input_cleanup"]
+    assert cleanup["completed"] is (not release_failure)
+    if release_failure:
+        assert caught.value.__cause__ is secondary
+        assert cleanup["error"] == {"class": "OSError", "errno": 6}
+    values = desktop._send.call_args.args[0]
+    assert [
+        (
+            value.type,
+            value.data.mouse.flags
+            if value.type == 0
+            else (value.data.keyboard.key, value.data.keyboard.flags),
+        )
+        for value in values
+    ] == [(0, 4), (1, (0x11, 2))]

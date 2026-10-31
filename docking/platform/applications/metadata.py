@@ -8,12 +8,22 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
+from functools import partial
 from threading import Event, RLock, Thread
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from docking.log import get_logger
 
+from .associations import (
+    AssociationKey,
+    AssociationRead,
+    AssociationReads,
+    AssociationStatus,
+)
 from .types import ApplicationInfo
+
+if TYPE_CHECKING:
+    from .discovery import DiscoveryResult
 
 log = get_logger("application_metadata")
 
@@ -23,13 +33,24 @@ class ApplicationMetadata:
     hidden_ids: frozenset[str] = frozenset()
     # None means the native catalog was unavailable, rather than empty.
     applications: tuple[ApplicationInfo, ...] | None = None
+    # Optional worker-owned source records and their private launch handles.
+    source_discovery: DiscoveryResult | None = None
+    associations: AssociationReads = ()
+    association_ids: frozenset[str] = frozenset()
 
 
 class ApplicationChangeMonitor(Protocol):
     def close(self) -> None: ...
 
 
-MetadataResolver = Callable[[tuple[str, ...], Callable[[], bool]], ApplicationMetadata]
+class MetadataResolver(Protocol):
+    def __call__(
+        self,
+        ids: tuple[str, ...],
+        cancelled: Callable[[], bool],
+        *,
+        association_keys: tuple[AssociationKey, ...] = (),
+    ) -> ApplicationMetadata: ...
 
 
 class ApplicationMetadataLookup:
@@ -54,7 +75,12 @@ class ApplicationMetadataLookup:
         self._epoch = 0
         self._generation = 0
         self._requested: tuple[str, ...] | None = None
-        self._pending: tuple[int, tuple[str, ...]] | None = None
+        self._pending: (
+            tuple[int, tuple[str, ...], tuple[AssociationKey, ...]] | None
+        ) = None
+        self._association_keys: tuple[AssociationKey, ...] = ()
+        self._associations_current = False
+        self._association_revision = 0
         self._closed = Event()
         self._wake = Event()
         self._sources: set[int] = set()
@@ -68,6 +94,50 @@ class ApplicationMetadataLookup:
     def applications(self) -> tuple[ApplicationInfo, ...] | None:
         return self._snapshot.applications
 
+    @property
+    def source_discovery(self) -> DiscoveryResult | None:
+        return self._snapshot.source_discovery
+
+    @property
+    def association_revision(self) -> int:
+        return self._association_revision
+
+    def association_reads(self, keys: tuple[AssociationKey, ...]) -> AssociationReads:
+        with self._lock:
+            additional = tuple(
+                key for key in dict.fromkeys(keys) if key not in self._association_keys
+            )
+            if len(self._association_keys) + len(additional) > 256:
+                return tuple(
+                    (key, AssociationRead(AssociationStatus.UNAVAILABLE))
+                    for key in keys
+                )
+            if additional:
+                self._association_keys += additional
+            if self._started and (additional or self._requested is None):
+                if self._requested is None:
+                    self._requested = ()
+                self._queue(self._requested)
+            known = dict(self._snapshot.associations)
+            return tuple(
+                (
+                    key,
+                    known[key]
+                    if self._associations_current and key in known
+                    else AssociationRead(
+                        AssociationStatus.PENDING
+                        if self._started
+                        else AssociationStatus.UNAVAILABLE
+                    ),
+                )
+                for key in keys
+            )
+
+    def _queue(self, ids: tuple[str, ...]) -> None:
+        self._generation += 1
+        self._pending = self._generation, ids, self._association_keys
+        self._wake.set()
+
     def start(self) -> None:
         with self._lock:
             if self._started:
@@ -75,6 +145,8 @@ class ApplicationMetadataLookup:
             self._started = True
             self._epoch += 1
             self._requested = None
+            self._associations_current = False
+            self._association_revision += 1
             self._closed, self._wake = Event(), Event()
             thread = Thread(
                 target=self._serve,
@@ -90,21 +162,23 @@ class ApplicationMetadataLookup:
             if not self._started or ids == self._requested:
                 return
             self._requested = ids
-            self._generation += 1
-            self._pending = self._generation, ids
-            self._wake.set()
+            self._queue(ids)
 
     def invalidate(self) -> None:
         with self._lock:
             self._generation += 1
             self._requested = None
             self._pending = None
+            self._associations_current = False
+            self._association_revision += 1
 
     def stop(self) -> None:
         with self._lock:
             self._started = False
             self._epoch += 1
             self._pending = None
+            self._associations_current = False
+            self._association_revision += 1
             self._closed.set()
             self._wake.set()
             for source in self._sources:
@@ -129,20 +203,49 @@ class ApplicationMetadataLookup:
                     and self._requested is not None
                 ):
                     self._generation += 1
-                    self._pending = self._generation, self._requested
+                    self._pending = (
+                        self._generation,
+                        self._requested,
+                        self._association_keys,
+                    )
                 pending, self._pending = self._pending, None
             if pending is None:
                 continue
-            generation, ids = pending
+            generation, ids, association_keys = pending
+
+            cancelled = partial(self._is_cancelled, epoch, generation, closed)
+
             try:
-                metadata = resolve(ids, closed.is_set)
+                metadata = resolve(ids, cancelled, association_keys=association_keys)
             except OSError as exc:
                 log.debug("Could not read application metadata: %s", exc)
-                continue
+                if not association_keys:
+                    continue
+                with self._lock:
+                    metadata = replace(
+                        self._snapshot,
+                        associations=tuple(
+                            (key, AssociationRead(AssociationStatus.UNAVAILABLE))
+                            for key in association_keys
+                        ),
+                    )
+            known_ids = frozenset(ids) | metadata.association_ids
+            if metadata.source_discovery is not None:
+                known_ids |= frozenset(
+                    app.desktop_id for app in metadata.source_discovery.applications
+                )
             self._publish(
                 epoch,
                 generation,
-                replace(metadata, hidden_ids=metadata.hidden_ids & frozenset(ids)),
+                replace(metadata, hidden_ids=metadata.hidden_ids & known_ids),
+            )
+
+    def _is_cancelled(self, epoch: int, generation: int, closed: Event) -> bool:
+        with self._lock:
+            return (
+                closed.is_set()
+                or epoch != self._epoch
+                or generation != self._generation
             )
 
     def _publish(
@@ -174,8 +277,19 @@ class ApplicationMetadataLookup:
                         current = replace(
                             current, applications=self._snapshot.applications
                         )
-                    changed = current != self._snapshot
+                    if (
+                        current.source_discovery is None
+                        and self._snapshot.source_discovery is not None
+                    ):
+                        current = replace(
+                            current, source_discovery=self._snapshot.source_discovery
+                        )
+                    changed = (
+                        current != self._snapshot or not self._associations_current
+                    )
                     self._snapshot = current
+                    self._associations_current = True
+                    self._association_revision += 1
                 if changed:
                     self._on_changed()
                 return False

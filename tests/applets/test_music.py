@@ -30,6 +30,10 @@ from docking.applets.music.state import (
     unavailable_state,
 )
 from docking.core.config import Config
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -811,7 +815,9 @@ def _make_applet(
     if registry is None:
         registry = MagicMock()
         registry.get.return_value = None
-        registry.preferred_listing_for_content_types.return_value = None
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY)
+        )
     return (
         MusicApplet(
             48,
@@ -926,7 +932,9 @@ class TestMusicApplet:
     def test_on_clicked_launches_media_app_when_no_player_is_open(self, monkeypatch):
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1001,7 +1009,9 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1027,7 +1037,9 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1348,7 +1360,9 @@ class TestMusicApplet:
     ):
         visible = _application_listing("visible.desktop")
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = visible
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, visible)
+        )
         applet, _backend, _resolver = _make_applet(
             monkeypatch,
             unavailable_state(),
@@ -1357,7 +1371,8 @@ class TestMusicApplet:
 
         selected = applet._find_media_application()
 
-        assert selected is visible
+        assert selected.status is AssociationStatus.READY
+        assert selected.listing is visible
         registry.preferred_listing_for_content_types.assert_called_once_with(
             music_applet_mod.MEDIA_CONTENT_TYPES
         )
@@ -1368,7 +1383,9 @@ class TestMusicApplet:
     ):
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1397,7 +1414,9 @@ class TestMusicApplet:
             generic_name="Media Player",
         )
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = listing
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing)
+        )
         launcher = MagicMock()
         launcher.launch_listing.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -2003,3 +2022,53 @@ class TestMusicAdditionalBranches:
             )
             is True
         )
+
+
+@pytest.mark.parametrize("cancel", [None, "second-click", "stop", "media-appears"])
+def test_pending_media_launch_coalesces_clicks_and_cancels_when_no_longer_valid(
+    monkeypatch, cancel
+):
+    registry, launcher = MagicMock(), MagicMock()
+    registry.preferred_listing_for_content_types.return_value = AssociationResolution(
+        AssociationStatus.PENDING
+    )
+    applet, _backend, _resolver = _make_applet(
+        monkeypatch, unavailable_state(), registry=registry, launcher=launcher
+    )
+    listener = registry.subscribe.call_args.args[0]
+    applet.on_clicked()
+    assert applet._pending_media_launch
+    launcher.launch.assert_not_called()
+    if cancel == "second-click":
+        applet.on_clicked()
+    elif cancel == "stop":
+        applet.stop()
+    elif cancel == "media-appears":
+        applet._apply_poll_result(_state(), None)
+    registry.preferred_listing_for_content_types.return_value = AssociationResolution(
+        AssociationStatus.READY, _application_listing()
+    )
+    listener()
+    listener()
+    assert not applet._pending_media_launch
+    assert launcher.launch.call_count == (1 if cancel in (None, "second-click") else 0)
+    applet.stop()
+    registry.subscribe.return_value.assert_called_once_with()
+
+
+def test_music_restart_resubscribes_but_does_not_revive_cancelled_launch(monkeypatch):
+    registry, launcher = MagicMock(), MagicMock()
+    registry.preferred_listing_for_content_types.return_value = AssociationResolution(
+        AssociationStatus.PENDING
+    )
+    applet, _backend, _resolver = _make_applet(
+        monkeypatch, unavailable_state(), registry=registry, launcher=launcher
+    )
+    applet.on_clicked()
+    applet.stop()
+    applet.start(lambda: None)
+    assert registry.subscribe.call_count == 2
+    assert not applet._pending_media_launch
+    registry.subscribe.call_args.args[0]()
+    launcher.launch.assert_not_called()
+    applet.stop()

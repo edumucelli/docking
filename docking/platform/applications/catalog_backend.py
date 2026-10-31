@@ -9,8 +9,13 @@ from typing import Any, Protocol
 
 from docking.platform import environment
 
+from .associations import AssociationKey, AssociationRead
 from .discovery import DiscoveryResult
-from .metadata import ApplicationChangeMonitor, MetadataResolver
+from .metadata import (
+    ApplicationChangeMonitor,
+    ApplicationMetadataLookup,
+    MetadataResolver,
+)
 from .registration import ExecutableRegistrationBackend
 from .types import ApplicationInfo
 
@@ -23,15 +28,22 @@ class CatalogRequest:
     desktop_app_info_from_filename: Callable[[str], Any]
     handle_epoch: int
     catalog: tuple[ApplicationInfo, ...] | None
+    source_discovery: DiscoveryResult | None = None
 
 
 class ApplicationCatalogBackend(Protocol):
+    def association_reads(
+        self, keys: tuple[AssociationKey, ...], lookup: ApplicationMetadataLookup | None
+    ) -> Iterable[tuple[AssociationKey, AssociationRead]]: ...
+
     def default_source(self) -> Iterable[object]: ...
     def discover(self, request: CatalogRequest) -> DiscoveryResult: ...
     def metadata_resolver_factory(
         self,
         registrations: ExecutableRegistrationBackend,
         /,
+        *,
+        read_default_source: bool,
     ) -> Callable[[], MetadataResolver] | None: ...
     def create_change_monitor(
         self,

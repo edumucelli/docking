@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import traceback
 import uuid
 from contextlib import contextmanager, nullcontext, suppress
@@ -43,14 +44,19 @@ def failure_details(error: Exception) -> dict[str, object]:
 
 def cleanup_snapshot(native, processes, owned_images, before_windows, baseline, shell):
     """Retain every existing cleanup guard's facts without changing its policy."""
+    import ctypes
+    from ctypes import wintypes
+
+    from tools.windows.visual.input_environment import bind
+
     workarea, actual_shell = native.workarea(), native.explorer()
     owned = [
         process.pid
         for process in processes
         if process.info["exe"] and PureWindowsPath(process.info["exe"]) in owned_images
     ]
-    windows = [
-        {key: window[key] for key in ("hwnd", "pid", "class")}
+    new_windows = [
+        window
         for window in native.windows()
         if window["hwnd"] not in before_windows
         and not (
@@ -59,6 +65,14 @@ def cleanup_snapshot(native, processes, owned_images, before_windows, baseline, 
             in {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
         )
     ]
+    windows = [
+        {key: window[key] for key in ("hwnd", "pid", "class")} for window in new_windows
+    ]
+    cursor = wintypes.POINT()
+    if not bind(
+        native.user, "GetCursorPos", ctypes.c_int32, ctypes.POINTER(wintypes.POINT)
+    )(ctypes.byref(cursor)):
+        raise OSError(ctypes.get_last_error(), "Cleanup cursor query failed")
     return {
         "workarea": workarea,
         "workarea_matches": workarea == baseline,
@@ -66,11 +80,55 @@ def cleanup_snapshot(native, processes, owned_images, before_windows, baseline, 
         "shell_matches": actual_shell == shell,
         "owned_pids": owned,
         "new_windows": windows,
+        "new_window_rects": [
+            {key: window[key] for key in ("hwnd", "pid", "rect")}
+            for window in new_windows[:16]
+        ],
+        "cursor": [cursor.x, cursor.y],
+        "foreground": native.user.GetForegroundWindow(),
         "safe": workarea == baseline
         and actual_shell == shell
         and not owned
         and not windows,
     }
+
+
+def settle_cleanup(snapshot, observed, capture: Path, *, full_window=False) -> bool:
+    """Observe the strict guard, optionally using its whole five-second budget."""
+    started = time.monotonic()
+    stable, previous = 0, None
+    observed.update(samples=0, transitions=0, timed_out=False, full_window=full_window)
+    while True:
+        facts = snapshot()
+        observed["samples"] += 1
+        if previous is None:
+            observed["initial"] = facts
+        elif facts != previous:
+            observed["transitions"] += 1
+        previous = facts
+        stable = stable + 1 if facts["safe"] else 0
+        observed.update(
+            **facts,
+            final=facts,
+            stable_safe_samples=stable,
+            elapsed_ms=round((time.monotonic() - started) * 1000),
+        )
+        if stable >= 2 and not full_window:
+            return True
+        remaining = 5 - (time.monotonic() - started)
+        if remaining <= 0:
+            if stable >= 2:
+                return True
+            observed.update(safe=False, timed_out=True)
+            from PIL import ImageGrab
+
+            try:
+                ImageGrab.grab(all_screens=True).save(capture)
+                observed["failure_capture"] = capture.name
+            except (OSError, RuntimeError) as error:
+                observed["capture_error"] = failure_details(error)
+            return False
+        time.sleep(min(0.1, remaining))
 
 
 def association_executable(query, extension: str, observed: dict[str, object]):
@@ -258,6 +316,240 @@ def validate_document_phase(report: dict, route: str) -> None:
         raise ValueError("Unknown selected-document route")
 
 
+def _foreground_snapshot(native):
+    """Observe current GUI focus without sending input or inspecting its text."""
+    import ctypes
+
+    from tools.windows.visual.input_editor import _window_facts
+    from tools.windows.visual.input_environment import bind
+    from tools.windows.visual.input_oracle import GUIThreadInfo
+
+    hwnd = int(native.user.GetForegroundWindow() or 0)
+    foreground = _window_facts(native.user, hwnd)
+    observed = {"foreground": foreground}
+    thread = foreground.get("thread", 0)
+    if not thread:
+        observed["gui_available"] = False
+        return observed
+    info = GUIThreadInfo(size=ctypes.sizeof(GUIThreadInfo))
+    ctypes.set_last_error(0)
+    available = bind(
+        native.user,
+        "GetGUIThreadInfo",
+        ctypes.c_int32,
+        ctypes.c_uint32,
+        ctypes.POINTER(GUIThreadInfo),
+    )(thread, ctypes.byref(info))
+    observed["gui_available"] = bool(available)
+    if available:
+        observed.update(
+            flags=info.flags,
+            active=_window_facts(native.user, int(info.active or 0)),
+            focus=_window_facts(native.user, int(info.focus or 0)),
+        )
+    else:
+        observed["gui_error"] = ctypes.get_last_error()
+    return observed
+
+
+def _focus_program(native, process, executable, window, observed):
+    """Focus only the pinned owned fixture before its ordinary close request."""
+    from docking.platform.backends.base import ActionResult
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+    from tools.windows.visual.input_editor import _topmost
+    from tools.windows.visual.window_focus import focus_caption
+
+    expected = {key: window[key] for key in ("hwnd", "pid", "class", "title")}
+    created = process.create_time()
+
+    def current():
+        assert process.pid == expected["pid"] and process.is_running(), (
+            "Owned association process exited or was replaced"
+        )
+        assert process.create_time() == created and Path(process.exe()).samefile(
+            executable
+        ), "Owned association process identity changed"
+        row = next(
+            (
+                row
+                for row in native.windows(process.pid)
+                if row["hwnd"] == expected["hwnd"]
+            ),
+            None,
+        )
+        assert row is not None and all(
+            row[key] == value for key, value in expected.items()
+        ), "Owned association window identity changed"
+        return row
+
+    before = current()
+    bounds = list(before["rect"])
+    topmost = _topmost(native.user, expected["hwnd"])
+    observed["target"] = {**expected, "created": created, "rect": list(before["rect"])}
+    observed["result"] = "already-foreground"
+    if native.user.GetForegroundWindow() != expected["hwnd"]:
+        api = Win32WindowAPI()
+        snapshot = api.capture_snapshot(expected["hwnd"], expected_pid=process.pid)
+        assert snapshot is not None and (
+            snapshot.id.value == expected["hwnd"] and snapshot.pid == process.pid
+        ), "Owned association activation target changed"
+        current()
+        status = api.perform(snapshot, "activate")
+        observed["result"] = status.value
+        assert status in (ActionResult.OK, ActionResult.FAILED), (
+            "Owned association activation identity changed"
+        )
+        if status is ActionResult.FAILED:
+            current()
+            assert api.matches(snapshot), (
+                "Owned association activation snapshot changed"
+            )
+        else:
+
+            def activated():
+                current()
+                return native.user.GetForegroundWindow() == expected["hwnd"]
+
+            # Preserve the accepted SDK request's independent async readback;
+            # the later physical interaction must not make a false success pass.
+            native.wait_for(activated, "Owned association activation did not arrive")
+            observed["normal_foreground_verified"] = True
+
+    assert current()["rect"] == bounds, "Owned association moved before interaction"
+    assert _topmost(native.user, expected["hwnd"]) == topmost, (
+        "Owned association topmost changed before interaction"
+    )
+    # Completion includes one real interaction with our fixture even if it was
+    # already foreground, independently of the SDK activation control above.
+    observed["completion_interaction"] = "physical-owned-caption"
+    focus_caption(native, current, observed)
+
+    def foreground():
+        current()
+        state = observed["native_focus"] = _foreground_snapshot(native)
+        return (
+            state["foreground"]["hwnd"] == expected["hwnd"]
+            and state["gui_available"]
+            and state["active"]["hwnd"] == expected["hwnd"]
+            and state["focus"].get("pid") == process.pid
+        )
+
+    # Activation can reach the foreground before WM_SETFOCUS is processed.
+    # Observe the actual owned GUI state after our single activation request.
+    native.wait_for(foreground, "Owned association did not receive native focus")
+    assert current()["rect"] == bounds, "Owned association focus changed its bounds"
+    assert _topmost(native.user, expected["hwnd"]) == topmost, (
+        "Owned association focus changed its topmost state"
+    )
+    return observed["native_focus"]
+
+
+class _ApplicationsFocus:
+    """One explicitly owned normal form across the whole application domain."""
+
+    def __init__(self, native, output, journal):
+        import ctypes
+
+        from docking.platform.backends.windows.ffi import process_machine
+        from tools.windows.visual.input_editor import OwnedInputEditor
+
+        self.native, self.journal = native, journal
+        self.window = None
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        def machine(pid):
+            process = self.editor.process
+            assert process is not None and process.pid == pid, (
+                "Application focus process handle changed"
+            )
+            return process_machine(kernel, int(process._handle))
+
+        directory = output / "owned-focus-context"
+        directory.mkdir()
+        document = directory / "context.txt"
+        document.write_text("", encoding="utf-8")
+        self.editor = OwnedInputEditor(
+            native, directory, document, bits=64, machine=machine
+        )
+        journal.update(editor=self.editor.journal, boundaries=[])
+
+    def start(self):
+        self.window = self.editor.start()
+        self.journal["identity"] = self.current()
+        self.focus("domain-entry")
+
+    def current(self):
+        assert self.window is not None, "Application focus context is not mapped"
+        identity = self.editor.verify_identity(self.window)
+        window = next(
+            (
+                row
+                for row in self.native.windows(self.window["pid"])
+                if row["hwnd"] == self.window["hwnd"]
+            ),
+            None,
+        )
+        assert window is not None and all(
+            window[key] == self.window[key] for key in ("hwnd", "pid", "class", "title")
+        ), "Application focus context window changed"
+        return identity
+
+    def focus(self, stage):
+        from tools.windows.visual.input_editor import focus_editor
+
+        observed = {"stage": stage, "before": self.current()}
+        self.journal["boundaries"].append(observed)
+        try:
+            focus_editor(self.native, self.window, owned=self.editor, journal=observed)
+        except BaseException as error:
+            if "desktop_input_cleanup" in error.__dict__:
+                self.editor.journal["input_cleanup_safe"] = False
+                observed["input_cleanup"] = error.__dict__["desktop_input_cleanup"]
+            raise
+
+        def focused():
+            self.current()
+            state = observed["native_focus"] = _foreground_snapshot(self.native)
+            return (
+                state["foreground"]["hwnd"] == self.window["hwnd"]
+                and state["gui_available"]
+                and state["active"]["hwnd"] == self.window["hwnd"]
+                and state["focus"].get("pid") == self.window["pid"]
+            )
+
+        self.native.wait_for(focused, "Application focus context did not receive focus")
+        observed["after"] = self.current()
+
+    def close(self):
+        self.editor.close()
+        self.journal["closed"] = (
+            self.editor.journal["closed"]
+            and self.editor.journal["event_closed"]
+            and self.editor.journal["input_cleanup_safe"]
+        )
+        assert self.journal["closed"], "Application focus context did not close safely"
+
+
+@contextmanager
+def applications_focus(native, output, journal):
+    focus = _ApplicationsFocus(native, output, journal)
+    primary = None
+    try:
+        focus.start()
+        yield focus
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        try:
+            focus.close()
+        except BaseException as cleanup_error:
+            journal["close_error"] = failure_details(cleanup_error)
+            if primary is not None:
+                raise primary from cleanup_error
+            raise
+
+
 def finish_program(
     native,
     facts_path: Path,
@@ -267,6 +559,7 @@ def finish_program(
     lifecycle=None,
     observed: dict[str, object] | None = None,
     file_arguments: tuple[int, ...] = (),
+    focus_before_close: bool = False,
 ) -> dict:
     import psutil
 
@@ -281,6 +574,8 @@ def finish_program(
     assert Path(facts["executable"]).samefile(executable)
     process = psutil.Process(facts["pid"])
     assert Path(process.exe()).samefile(executable)
+    primary = None
+    focus = {}
     try:
         actual, expected = list(facts["argv"]), list(argv)
         assert len(actual) == len(expected), "Owned application changed argument count"
@@ -291,15 +586,52 @@ def finish_program(
             actual[index] = actual[index].replace("/", "\\")
             expected[index] = expected[index].replace("/", "\\")
         assert actual == expected, "Owned application changed document arguments"
-        native.wait_for(
+        windows = native.wait_for(
             lambda: native.windows(process.pid), "Owned application did not map"
         )
+        if focus_before_close:
+            assert observed is not None, "Owned association focus needs its journal"
+            observed["mapped_focus"] = _foreground_snapshot(native)
+            observed["activation"] = focus
+            observed["preclose_focus"] = _focus_program(
+                native, process, executable, windows[0], focus
+            )
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        for window in native.windows(process.pid):
-            assert native.user.PostMessageW(window["hwnd"], 0x10, 0, 0)
-        assert process.wait(20) == 0
-        if lifecycle is not None:
-            lifecycle["closed"] = True
+        try:
+            assert process.is_running() and Path(process.exe()).samefile(executable), (
+                "Owned application process changed before close"
+            )
+            for window in native.windows(process.pid):
+                assert native.user.PostMessageW(window["hwnd"], 0x10, 0, 0)
+            assert process.wait(20) == 0
+            safe = focus.get("geometry_restored") is not False and not (
+                focus.get("caption_press_started")
+                and not focus.get("physical_caption_click")
+            )
+            if lifecycle is not None:
+                lifecycle["closed"] = safe
+            assert safe, "Owned association physical input cleanup is unsafe"
+        except BaseException as cleanup_error:
+            if observed is not None:
+                observed["close_error"] = failure_details(cleanup_error)
+            if primary is not None:
+                raise primary from cleanup_error
+            raise
+        finally:
+            if focus_before_close and observed is not None:
+                active_error = sys.exc_info()[1]
+                try:
+                    observed["postclose_focus"] = _foreground_snapshot(native)
+                except BaseException as diagnostic_error:
+                    observed["postclose_focus_error"] = failure_details(
+                        diagnostic_error
+                    )
+                    if active_error is not None:
+                        raise active_error from diagnostic_error
+                    raise
     facts_path.unlink()
     return facts
 
@@ -374,41 +706,50 @@ def export_check(
     facts_path = output / "facts-Second-documents.json"
     facts_path.unlink(missing_ok=True)
     observed["stage"] = "independent-explorer"
-    with ExplorerFolder(native, directory) as folder:
-        lifecycle["closed"] = False
-        observed["stage"] = "independent-launch"
-        try:
-            folder.activate(copied, observed.setdefault("explorer_activation", {}))
-            facts = finish_program(
-                native,
-                facts_path,
-                fixture.executables["Second"],
-                argv,
-                lifecycle=lifecycle,
-                observed=observed,
-            )
-        except Exception:
-            if not observed["explorer_activation"].get("physical_enter_started"):
-                # A rejected selection cannot have started the PE. The folder
-                # context and outer native-window guard still verify cleanup.
-                lifecycle["closed"] = True
-            from PIL import ImageGrab
-
+    folder = ExplorerFolder(native, directory)
+    folder.failure_capture = output / "independent-explorer-entry-failure.png"
+    observed["explorer_foreground"] = folder.foreground_observations
+    try:
+        with folder:
+            lifecycle["closed"] = False
+            observed["stage"] = "independent-launch"
             try:
-                ImageGrab.grab(all_screens=True).save(
-                    output / "independent-launch-failure.png"
+                folder.activate(copied, observed.setdefault("explorer_activation", {}))
+                facts = finish_program(
+                    native,
+                    facts_path,
+                    fixture.executables["Second"],
+                    argv,
+                    lifecycle=lifecycle,
+                    observed=observed,
                 )
-                observed["failure_capture"] = "independent-launch-failure.png"
-            except OSError as error:
-                observed["capture_error"] = failure_details(error)
-            raise
-        observed["stage"] = "launched-working-directory"
-        observed["working_directory_preserved"] = Path(facts["cwd"]).samefile(
-            expected_cwd
-        )
-        assert observed["working_directory_preserved"], (
-            "Independent launcher changed working directory"
-        )
+            except Exception:
+                if not observed["explorer_activation"].get("physical_enter_started"):
+                    # A rejected selection cannot have started the PE. The folder
+                    # context and outer native-window guard still verify cleanup.
+                    lifecycle["closed"] = True
+                from PIL import ImageGrab
+
+                try:
+                    ImageGrab.grab(all_screens=True).save(
+                        output / "independent-launch-failure.png"
+                    )
+                    observed["failure_capture"] = "independent-launch-failure.png"
+                except OSError as error:
+                    observed["capture_error"] = failure_details(error)
+                raise
+            observed["stage"] = "launched-working-directory"
+            observed["working_directory_preserved"] = Path(facts["cwd"]).samefile(
+                expected_cwd
+            )
+            assert observed["working_directory_preserved"], (
+                "Independent launcher changed working directory"
+            )
+    finally:
+        observed["explorer_cleanup_safe"] = folder.cleanup_safe
+        if not folder.cleanup_safe:
+            lifecycle["closed"] = False
+
     return {
         "passed": True,
         "actual_explorer_copy": True,
@@ -434,6 +775,53 @@ def association_changed():
         ctypes.c_void_p,
         ctypes.c_void_p,
     )(0x08000000, 0, None, None)
+
+
+@contextmanager
+def running_association_registry(registry):
+    """Keep the worker and its monitors owned by the association scope."""
+    primary = None
+    try:
+        registry.start()
+        yield registry
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        try:
+            registry.stop()
+        except BaseException as cleanup_error:
+            if primary is not None:
+                raise primary from cleanup_error
+            raise
+
+
+def refresh_association_registry(registry, context, alertable, observed):
+    """Service this fresh child's existing APC/GLib watches without blocking."""
+    status = observed["alertable_status"] = alertable(0, True)
+    assert status in (0, 0xC0), "Unexpected SleepEx result"
+    for _index in range(32):
+        if not context.pending():
+            break
+        context.iteration(False)
+    registry.refresh()
+
+
+def association_selection(registry, content_type, observed):
+    """An unavailable lookup cannot prove either absence or another handler."""
+    from docking.platform.applications.associations import AssociationStatus
+
+    resolution = registry.default_for_content_type(content_type)
+    observed["lookup_status"] = resolution.status.value
+    assert resolution.status is not AssociationStatus.UNAVAILABLE, (
+        "Gio association lookup is unavailable"
+    )
+    return (
+        resolution
+        if resolution.status is AssociationStatus.READY
+        and not registry.initial_discovery_pending
+        else None
+    )
 
 
 def _registered_association_checks(
@@ -470,7 +858,9 @@ def _registered_association_checks(
             executable,
             [str(document).replace("/", "\\")],
             lifecycle=lifecycle,
+            observed=observed.setdefault("completion", {}),
             file_arguments=(0,) if mode == "explicit" else (),
+            focus_before_close=True,
         )
 
     document = fixture.root / ("Association résumé 日本語" + extension)
@@ -515,74 +905,89 @@ def _registered_association_checks(
                 lifecycle["closed"] = False
                 assert open_target(document.as_uri())
                 return {"passed": True, "facts": completed()}
-            registry = ApplicationRegistry()
-            alertable = bind(
-                ctypes.WinDLL("kernel32", use_last_error=True),
-                "SleepEx",
-                ctypes.c_uint32,
-                ctypes.c_uint32,
-                ctypes.c_int32,
-            )
+            with running_association_registry(ApplicationRegistry()) as registry:
+                import gi
 
-            def refresh():
-                # Gio's Win32 registry watch uses APCs on its initializing
-                # thread. This controller has no GTK/GLib main loop to service
-                # them; enter an alertable state before reading its cache.
-                status = observed["alertable_status"] = alertable(0, True)
-                assert status in (0, 0xC0), "Unexpected SleepEx result"
-                registry.refresh()
+                gi.require_version("GLib", "2.0")
+                from gi.repository import GLib
 
-            refresh()
-            if mode == "absence":
-                absent = ".docking-absent-" + token
-                evidence = observed.setdefault("native_absence_query", {})
-                observed["native_absent"] = (
-                    association_executable(query, absent, evidence) is None
+                context = GLib.MainContext.default()
+                alertable = bind(
+                    ctypes.WinDLL("kernel32", use_last_error=True),
+                    "SleepEx",
+                    ctypes.c_uint32,
+                    ctypes.c_uint32,
+                    ctypes.c_int32,
                 )
-                observed["native_absence_status"] = evidence["calls"][-1]["hresult"]
-                assert observed["native_absent"], (
-                    "Native Shell did not confirm the absent association"
-                )
-                observed["absent"] = registry.default_for_content_type(absent) is None
-                assert observed["absent"], (
-                    "Gio returned a handler for an absent association"
-                )
-                return {"passed": True, "lookup_only": True}
 
-            def retained_handler():
+                def refresh():
+                    refresh_association_registry(registry, context, alertable, observed)
+
                 refresh()
-                selected = registry.default_for_content_type(extension)
-                observed.update(
-                    resolved=selected is not None,
-                    registered=selected is not None
-                    and registry.get(selected.desktop_id) is not None,
-                    has_gio_source=bool(selected and selected.has_gio_source),
-                    canonical_id=selected.desktop_id if selected else None,
-                    id_matches=bool(
-                        selected
-                        and selected.desktop_id.casefold() == expected_id.casefold()
-                    ),
-                )
-                return selected if observed["registered"] else None
+                if mode == "absence":
+                    absent = ".docking-absent-" + token
+                    evidence = observed.setdefault("native_absence_query", {})
+                    observed["native_absent"] = (
+                        association_executable(query, absent, evidence) is None
+                    )
+                    observed["native_absence_status"] = evidence["calls"][-1]["hresult"]
+                    assert observed["native_absent"], (
+                        "Native Shell did not confirm the absent association"
+                    )
 
-            selected = native.wait_for(
-                retained_handler, "Registered Gio association client did not resolve"
-            )
-            assert observed["id_matches"], (
-                "Association selected another registered application"
-            )
-            assert selected.has_gio_source, "Association lost its retained Gio handle"
-            assert registry._gio_handle_for(selected.desktop_id) is not None, (
-                "Registered association has no launch handle"
-            )
-            if mode == "explicit":
-                facts_path.unlink(missing_ok=True)
-                lifecycle["closed"] = False
-                assert ApplicationLauncher(
-                    registry, LaunchProvenanceStore()
-                ).launch_app_uris(selected.desktop_id, [document.as_uri()])
-                return {"passed": True, "facts": completed()}
-            raise ValueError("Unknown association acceptance mode")
+                    def absent_handler():
+                        refresh()
+                        return association_selection(registry, absent, observed)
+
+                    resolved_absence = native.wait_for(
+                        absent_handler, "Gio absence lookup did not become ready"
+                    )
+                    observed["absent"] = resolved_absence.listing is None
+                    assert observed["absent"], (
+                        "Gio returned a handler for an absent association"
+                    )
+                    return {"passed": True, "lookup_only": True}
+
+                def retained_handler():
+                    refresh()
+                    resolution = association_selection(registry, extension, observed)
+                    selected = resolution.listing if resolution is not None else None
+                    observed.update(
+                        resolved=selected is not None,
+                        registered=selected is not None
+                        and selected.desktop_id is not None
+                        and registry.get(selected.desktop_id) is not None,
+                        has_gio_source=bool(selected and selected.has_gio_source),
+                        canonical_id=selected.desktop_id if selected else None,
+                        id_matches=bool(
+                            selected
+                            and selected.desktop_id is not None
+                            and selected.desktop_id.casefold() == expected_id.casefold()
+                        ),
+                    )
+                    return selected if observed["registered"] else None
+
+                selected = native.wait_for(
+                    retained_handler,
+                    "Registered Gio association client did not resolve",
+                )
+                assert observed["id_matches"], (
+                    "Association selected another registered application"
+                )
+                assert selected.has_gio_source, (
+                    "Association lost its retained Gio handle"
+                )
+                assert registry._gio_handle_for(selected.desktop_id) is not None, (
+                    "Registered association has no launch handle"
+                )
+                if mode == "explicit":
+                    facts_path.unlink(missing_ok=True)
+                    lifecycle["closed"] = False
+                    assert ApplicationLauncher(
+                        registry, LaunchProvenanceStore()
+                    ).launch_app_uris(selected.desktop_id, [document.as_uri()])
+                    return {"passed": True, "facts": completed()}
+                raise ValueError("Unknown association acceptance mode")
     finally:
         association_changed()
         report["associations_restored"] = lifecycle["association_restored"]
@@ -853,8 +1258,23 @@ def main() -> None:
     assert not any(window["title"] == "Docking" for window in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
     report["explorer_before"] = explorer
+    whole_windows = native.windows()
+    whole_before_windows = {window["hwnd"] for window in whole_windows}
+    report["desktop_baseline"] = {
+        "workarea": baseline,
+        "shell": explorer,
+        "windows": [
+            {key: window[key] for key in ("hwnd", "pid", "class")}
+            for window in whole_windows
+        ],
+    }
+    expected_shell, owned_images = explorer, set()
+    report["owned_focus_context"] = {}
     try:
-        with ClassicApplications(output) as fixture:
+        with (
+            applications_focus(native, output, report["owned_focus_context"]) as focus,
+            ClassicApplications(output) as fixture,
+        ):
 
             def owned_catalog():
                 rows = {app.name: app for app in catalog.read_shell_applications()}
@@ -894,24 +1314,39 @@ def main() -> None:
             import psutil
 
             can_continue = True
-            expected_shell = explorer
             owned_images = {
                 PureWindowsPath(str(path)) for path in fixture.executables.values()
             }
 
+            def phase_baseline():
+                focus.focus(name + "-entry")
+                return {window["hwnd"] for window in native.windows()}
+
             def context_safe(before_windows):
-                facts = cleanup_snapshot(
-                    native,
-                    psutil.process_iter(["exe"]),
-                    owned_images,
-                    before_windows,
-                    baseline,
-                    expected_shell,
+                observed = {"stage": name}
+                report.setdefault("cleanup_observations", []).append(observed)
+                assert focus.window["hwnd"] in before_windows, (
+                    "Phase baseline omitted the owned application focus context"
                 )
-                report.setdefault("cleanup_observations", []).append(
-                    {"stage": name, **facts}
+                focus.focus(name + "-cleanup")
+                observed["owned_focus_identity"] = focus.current()
+
+                def snapshot():
+                    focus.current()
+                    return cleanup_snapshot(
+                        native,
+                        psutil.process_iter(["exe"]),
+                        owned_images,
+                        before_windows,
+                        baseline,
+                        expected_shell,
+                    )
+
+                return settle_cleanup(
+                    snapshot,
+                    observed,
+                    output / f"cleanup-{name}-failure.png",
                 )
-                return facts["safe"]
 
             for route, key in (
                 ("installed", "First"),
@@ -922,7 +1357,7 @@ def main() -> None:
                 if not can_continue:
                     continue
                 lifecycle = {"closed": True}
-                before_windows = {window["hwnd"] for window in native.windows()}
+                before_windows = phase_baseline()
 
                 def operation(route=route, key=key, lifecycle=lifecycle, name=name):
                     case = output / route
@@ -1038,7 +1473,7 @@ def main() -> None:
                 if not can_continue:
                     continue
                 lifecycle = {"closed": True}
-                before_windows = {window["hwnd"] for window in native.windows()}
+                before_windows = phase_baseline()
 
                 def operation(mode=mode, lifecycle=lifecycle, name=name):
                     report["checks"][name].update(
@@ -1068,7 +1503,7 @@ def main() -> None:
             if can_continue:
                 name = "selected-launcher-export"
                 lifecycle = {"closed": True}
-                before_windows = {window["hwnd"] for window in native.windows()}
+                before_windows = phase_baseline()
 
                 def operation():
                     report["checks"][name].update(
@@ -1100,7 +1535,7 @@ def main() -> None:
             if can_continue:
                 name = "inventory-changes"
                 lifecycle = {"closed": False}
-                before_windows = {window["hwnd"] for window in native.windows()}
+                before_windows = phase_baseline()
 
                 def operation():
                     nonlocal inventory, expected_shell
@@ -1213,6 +1648,32 @@ def main() -> None:
         report["ok"] = False
         report["error"] = failure_details(error)
     finally:
+        import psutil
+
+        final = report["final_desktop"] = {
+            "anchor_closed": report["owned_focus_context"].get("closed") is True
+        }
+        try:
+            final["clean"] = settle_cleanup(
+                lambda: cleanup_snapshot(
+                    native,
+                    psutil.process_iter(["exe"]),
+                    owned_images,
+                    whole_before_windows,
+                    baseline,
+                    expected_shell,
+                ),
+                final,
+                output / "cleanup-whole-domain-failure.png",
+                full_window=True,
+            )
+        except Exception as error:
+            final.update(clean=False, error=failure_details(error))
+        if (
+            not final["clean"]
+            or report["owned_focus_context"].get("closed") is not True
+        ):
+            report.update(ok=False, normal_shutdown=False)
         for check in report["checks"].values():
             if check.get("status") == "pending":
                 check.update(

@@ -279,7 +279,32 @@ class WindowsDesktop:
             )
         if before_press is not None:
             before_press()
-        self._send(values)
+        try:
+            self._send(values)
+        except BaseException as error:
+            # A short SendInput result can leave our down event held. Release
+            # only the button/modifier this approved click could have injected.
+            cleanup: dict[str, object] = {"attempted": True, "completed": False}
+            error.__dict__["desktop_input_cleanup"] = cleanup
+            release = [
+                _Input(type=0, data=_Data(mouse=_Mouse(flags=16 if right else 4)))
+            ]
+            if control:
+                release.append(
+                    _Input(type=1, data=_Data(keyboard=_Keyboard(key=0x11, flags=2)))
+                )
+            try:
+                self._send(release)
+                cleanup["completed"] = True
+            except BaseException as release_error:
+                cleanup["error"] = {
+                    "class": type(release_error).__name__,
+                    "errno": release_error.errno
+                    if isinstance(release_error, OSError)
+                    else None,
+                }
+                raise error from release_error
+            raise
         time.sleep(0.3)
 
     def type_text(self, text):

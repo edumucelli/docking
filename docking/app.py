@@ -97,6 +97,7 @@ from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
 from docking.platform.application_icons import ApplicationIcons
+from docking.platform.applications.associations import AssociationStatus
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
@@ -130,15 +131,21 @@ log = with_context(get_logger(name="app"), action="start_runtime")
 
 def _initial_pinned_for_registry(
     registry: ApplicationRegistry,
-) -> list[PinnedEntry]:
+) -> list[PinnedEntry] | None:
+    pending = False
+
     def default_desktop_id_for(content_type: str) -> str | None:
-        application = registry.default_for_content_type(content_type)
+        nonlocal pending
+        resolution = registry.default_for_content_type(content_type)
+        pending |= resolution.status is AssociationStatus.PENDING
+        application = resolution.listing
         return application.desktop_id if application is not None else None
 
-    return build_initial_pinned(
+    entries = build_initial_pinned(
         desktop_id_exists=lambda desktop_id: registry.get(desktop_id) is not None,
         default_desktop_id_for=default_desktop_id_for,
     )
+    return None if pending else entries
 
 
 def _refresh_initial_registry(registry: ApplicationRegistry) -> None:
@@ -175,13 +182,27 @@ def main() -> None:
         application_launcher = ApplicationLauncher(registry, provenance_store)
         icon_loader = IconLoader()
         cleanup.callback(_safe_stop, "icons", icon_loader.stop)
-        target_service = TargetService(icon_loader=icon_loader)
+        target_service = TargetService(
+            icon_loader=icon_loader, application_registry=registry
+        )
 
         _refresh_initial_registry(registry)
 
-        config = Config.load(
-            initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
-        )
+        pending_initial_pinned: tuple[PinnedEntry, ...] | None = None
+
+        def initial_pinned() -> list[PinnedEntry]:
+            nonlocal pending_initial_pinned
+            entries = (
+                None
+                if registry.initial_discovery_pending
+                else _initial_pinned_for_registry(registry)
+            )
+            if entries is None:
+                entries = build_initial_pinned()
+                pending_initial_pinned = tuple(entries)
+            return entries
+
+        config = Config.load(initial_pinned_factory=initial_pinned)
         recent_applications = RecentApplications(
             registry,
             RecentApplicationsPersistence(config),
@@ -200,7 +221,21 @@ def main() -> None:
             recent_applications=recent_applications,
         )
         cleanup.callback(_safe_stop, "applets", model.stop_applets)
-        cleanup.callback(registry.subscribe(model.refresh_applications))
+
+        def refresh_applications() -> None:
+            nonlocal pending_initial_pinned
+            if pending_initial_pinned is not None:
+                if tuple(config.pinned) != pending_initial_pinned:
+                    pending_initial_pinned = None
+                elif not registry.initial_discovery_pending:
+                    resolved = _initial_pinned_for_registry(registry)
+                    if resolved is not None:
+                        pending_initial_pinned = None
+                        config.pinned = resolved
+                        config.save()
+            model.refresh_applications()
+
+        cleanup.callback(registry.subscribe(refresh_applications))
         cleanup.callback(
             icon_loader.subscribe(
                 lambda desktop_id: _refresh_application_icon(model, desktop_id)

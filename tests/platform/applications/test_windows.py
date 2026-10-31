@@ -81,7 +81,10 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
         export_data=(("Native file data", b"original-pidl"),),
     )
     lookup = SimpleNamespace(
-        hidden_ids=frozenset(), applications=(prepared,), invalidate=MagicMock()
+        association_revision=0,
+        hidden_ids=frozenset(),
+        applications=(prepared,),
+        invalidate=MagicMock(),
     )
     backend = SimpleNamespace(
         applications=lambda: (selected,),
@@ -121,7 +124,9 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
 
 
 def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch):
-    lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
+    lookup = SimpleNamespace(
+        association_revision=0, hidden_ids=frozenset(), applications=None
+    )
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
     monkeypatch.setattr(
         registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
@@ -144,7 +149,9 @@ def test_empty_native_catalog_publishes_initial_discovery_completion(monkeypatch
 
 
 def test_failed_refresh_preserves_published_discovery_readiness(monkeypatch):
-    lookup = SimpleNamespace(hidden_ids=frozenset(), applications=None)
+    lookup = SimpleNamespace(
+        association_revision=0, hidden_ids=frozenset(), applications=None
+    )
     monkeypatch.setattr(registry_module, "create_metadata_lookup", lambda **_kw: lookup)
     monkeypatch.setattr(
         registry_module, "create_catalog_backend", WindowsApplicationCatalogBackend
@@ -176,7 +183,7 @@ def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
         ),
     )
     monkeypatch.setattr(windows_catalog_module, "Gio", registry_module.Gio)
-    registry = ApplicationRegistry()
+    registry = ApplicationRegistry(application_source=lambda: (handle,))
     assert registry.refresh()
     assert registry.generation == 1
     assert registry.get("Example.App").name == "Example"
@@ -189,6 +196,7 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
     main = native_app(app_id="Example.Package!Main", name="Same name")
     widget = native_app(app_id="Example.Package!Widget", name="Same name")
     lookup = SimpleNamespace(
+        association_revision=0,
         hidden_ids=frozenset(),
         applications=None,
         start=MagicMock(),
@@ -313,6 +321,7 @@ def test_native_menu_catalog_keeps_association_only_clients_but_hides_components
         application("Native.One"), launch_target=r"shell:AppsFolder\Native.One"
     )
     lookup = SimpleNamespace(
+        association_revision=0,
         hidden_ids=frozenset(("Package!Hidden",)),
         applications=(main,),
     )
@@ -333,7 +342,7 @@ def test_native_menu_catalog_keeps_association_only_clients_but_hides_components
         "get_all_for_type",
         lambda _type: [client, client, hidden],
     )
-    listings = registry._all_listings_for_content_type("text/plain")
+    listings = registry._association_listings((client, client, hidden))
     assert len(listings) == 1 and listings[0].desktop_id is None
 
 

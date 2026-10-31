@@ -7,7 +7,34 @@ from unittest.mock import Mock
 
 import pytest
 
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 from tools.windows.visual import applications_domain_smoke as smoke
+
+
+@pytest.fixture
+def association_main_context(monkeypatch):
+    import gi
+
+    gi.require_version("GLib", "2.0")
+    from gi.repository import GLib
+
+    context = SimpleNamespace(
+        pending=Mock(return_value=False),
+        iteration=Mock(side_effect=AssertionError("No unrelated main-loop dispatch")),
+    )
+    monkeypatch.setattr(GLib.MainContext, "default", lambda: context)
+    return context
+
+
+def _wait_for_ready(callback, message):
+    for _ in range(3):
+        result = callback()
+        if result:
+            return result
+    pytest.fail(message)
 
 
 class Registry:
@@ -131,7 +158,7 @@ def test_existing_owned_name_is_rejected_before_any_mutation():
     "native_status,passes", [(-2147023741, True), (-2147024891, False)]
 )
 def test_absence_is_independent_of_known_client_lookup_and_rejects_access_errors(
-    tmp_path, monkeypatch, native_status, passes
+    tmp_path, monkeypatch, association_main_context, native_status, passes
 ):
     import sys
 
@@ -142,13 +169,19 @@ def test_absence_is_independent_of_known_client_lookup_and_rejects_access_errors
     before = deepcopy(registry.keys)
     executable = tmp_path / "Owned.exe"
     executable.write_bytes(b"owned fixture")
-    fake = SimpleNamespace(refresh=Mock())
+    fake = SimpleNamespace(
+        start=Mock(), stop=Mock(), refresh=Mock(), initial_discovery_pending=False
+    )
+    lookups = []
 
     def no_handler(content_type):
         assert content_type.startswith(".docking-absent-")
-        return
+        lookups.append(content_type)
+        return AssociationResolution(
+            AssociationStatus.PENDING if len(lookups) == 1 else AssociationStatus.READY
+        )
 
-    fake.default_for_content_type = no_handler
+    fake.default_for_content_type = Mock(side_effect=no_handler)
     monkeypatch.setitem(sys.modules, "winreg", registry)
     monkeypatch.setattr(registry_module, "ApplicationRegistry", lambda: fake)
     monkeypatch.setattr(smoke.uuid, "uuid4", lambda: SimpleNamespace(hex="owned"))
@@ -179,7 +212,7 @@ def test_absence_is_independent_of_known_client_lookup_and_rejects_access_errors
         return lambda *_args: None
 
     monkeypatch.setattr(ffi, "bind", bind)
-    native = SimpleNamespace(wait_for=lambda callback, _message: callback())
+    native = SimpleNamespace(wait_for=_wait_for_ready)
     fixture = SimpleNamespace(root=tmp_path, executables={"Other": executable})
     report, lifecycle = {"checks": {"association-absence": {}}}, {"closed": True}
     if passes:
@@ -192,12 +225,20 @@ def test_absence_is_independent_of_known_client_lookup_and_rejects_access_errors
                 native, fixture, tmp_path, report, mode="absence", lifecycle=lifecycle
             )
         assert failure.value.errno == native_status & 0xFFFFFFFF
+    fake.start.assert_called_once_with()
+    fake.stop.assert_called_once_with()
+    assert fake.refresh.call_count == (3 if passes else 1)
+    assert fake.default_for_content_type.call_count == (2 if passes else 0)
+    assert association_main_context.pending.call_count == (3 if passes else 1)
+    if passes:
+        observed = report["checks"]["association-absence"]["observed"]
+        assert observed["lookup_status"] == "ready" and observed["absent"]
     assert registry.keys == before and registry.opened == 0
     assert report["associations_restored"] and lifecycle["closed"]
 
 
 def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, association_main_context
 ):
     import ctypes
     import sys
@@ -216,15 +257,27 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
     dispatched = []
     handle = object()
     fake = SimpleNamespace(
+        start=Mock(),
+        stop=Mock(),
         refresh=Mock(),
-        default_for_content_type=lambda extension: (
-            selected if dispatched and extension == ".docking-owned" else None
-        ),
+        initial_discovery_pending=False,
         get=lambda selected_id: selected if selected_id == identifier else None,
         _gio_handle_for=lambda selected_id: (
             handle if selected_id == identifier else None
         ),
     )
+    resolutions = iter(
+        (
+            AssociationResolution(AssociationStatus.PENDING),
+            AssociationResolution(AssociationStatus.READY, selected),
+        )
+    )
+
+    def lookup(extension):
+        assert dispatched and extension == ".docking-owned"
+        return next(resolutions)
+
+    fake.default_for_content_type = Mock(side_effect=lookup)
     launch = Mock(return_value=True)
     monkeypatch.setattr(registry_module, "ApplicationRegistry", lambda: fake)
     monkeypatch.setattr(
@@ -266,15 +319,24 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
     monkeypatch.setattr(ffi, "bind", bind)
 
     def completed(
-        _native, _facts, actual_executable, argv, *, lifecycle, file_arguments
+        _native,
+        _facts,
+        actual_executable,
+        argv,
+        *,
+        lifecycle,
+        observed,
+        file_arguments,
+        focus_before_close,
     ):
         assert actual_executable == executable
         assert len(argv) == 1 and file_arguments == (0,)
+        assert observed == {} and focus_before_close is True
         lifecycle["closed"] = True
         return {"argv": argv}
 
     monkeypatch.setattr(smoke, "finish_program", completed)
-    native = SimpleNamespace(wait_for=lambda callback, _message: callback())
+    native = SimpleNamespace(wait_for=_wait_for_ready)
     fixture = SimpleNamespace(root=tmp_path, executables={"Other": executable})
     report, lifecycle = {"checks": {"association-explicit": {}}}, {"closed": True}
     result = smoke._registered_association_checks(
@@ -282,7 +344,11 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
     )
     assert result["passed"] and launch.call_args.args[0] == identifier
     assert len(launch.call_args.args[1]) == 1
-    assert fake.refresh.call_count == 2
+    fake.start.assert_called_once_with()
+    fake.stop.assert_called_once_with()
+    assert fake.refresh.call_count == 3
+    assert fake.default_for_content_type.call_count == 2
+    assert association_main_context.pending.call_count == 3
     observed = report["checks"]["association-explicit"]["observed"]
     assert {
         key: observed[key]
@@ -293,10 +359,28 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
         "has_gio_source": True,
         "id_matches": True,
     }
-    assert observed["alertable_status"] == 0xC0 and len(dispatched) == 2
+    assert observed["alertable_status"] == 0xC0 and len(dispatched) == 3
+    assert observed["lookup_status"] == "ready"
     assert observed["native_query"]["flags"] == 0x400
     assert registry.keys == before and registry.opened == 0
     assert lifecycle["closed"] and report["associations_restored"]
+
+
+@pytest.mark.parametrize("failure", ("start", "body", "cleanup-only"))
+def test_running_registry_stops_once_and_preserves_the_primary_failure(failure):
+    primary, secondary = OSError(5, "Owned primary"), OSError(6, "Owned cleanup")
+    fake = SimpleNamespace(
+        start=Mock(side_effect=primary if failure == "start" else None),
+        stop=Mock(side_effect=secondary),
+    )
+    with pytest.raises(OSError) as raised, smoke.running_association_registry(fake):
+        if failure == "body":
+            raise primary
+    fake.start.assert_called_once_with()
+    fake.stop.assert_called_once_with()
+    assert raised.value is (secondary if failure == "cleanup-only" else primary)
+    if failure != "cleanup-only":
+        assert raised.value.__cause__ is secondary
 
 
 @pytest.mark.parametrize(
@@ -656,7 +740,10 @@ def test_gio_file_argument_accepts_only_separator_variants_and_always_closes(
     facts = {"executable": str(executable), "pid": 123, "argv": actual}
     path.write_text(json.dumps(facts))
     process = SimpleNamespace(
-        exe=lambda: str(executable), pid=123, wait=Mock(return_value=0)
+        exe=lambda: str(executable),
+        pid=123,
+        is_running=lambda: True,
+        wait=Mock(return_value=0),
     )
     monkeypatch.setitem(
         sys.modules, "psutil", SimpleNamespace(Process=lambda pid: process)
@@ -693,3 +780,477 @@ def test_gio_file_argument_accepts_only_separator_variants_and_always_closes(
     assert lifecycle["closed"]
     native.user.PostMessageW.assert_called_once_with(456, 0x10, 0, 0)
     process.wait.assert_called_once_with(20)
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "foreground",
+        "normal",
+        "async",
+        "async-focus",
+        "caption",
+        "caption-guard",
+        "missing",
+        "not-found",
+        "stale",
+        "replaced-process",
+        "replaced-window",
+        "changed-bounds",
+        "changed-topmost",
+        "no-foreground",
+        "foreign-focus",
+        "lost-during-focus",
+        "cancel-focus",
+    ],
+)
+def test_association_focus_targets_only_live_owned_window(monkeypatch, tmp_path, mode):
+    from docking.platform.backends.base import ActionResult
+    from docking.platform.backends.windows import windows
+    from tools.windows.visual import input_editor, window_focus
+
+    executable = tmp_path / "Owned.exe"
+    executable.write_bytes(b"owned")
+    window = {
+        "hwnd": 456,
+        "pid": 123,
+        "class": "#32770",
+        "title": "Owned association",
+        "rect": [100, 100, 400, 300],
+    }
+    state = {
+        "foreground": 456 if mode in ("foreground", "async-focus") else 999,
+        "topmost": False,
+        "focus_ready": mode != "async-focus",
+    }
+    process = SimpleNamespace(
+        pid=123,
+        is_running=lambda: mode != "replaced-process",
+        create_time=lambda: 20.5,
+        exe=lambda: str(executable),
+    )
+    snapshot = SimpleNamespace(id=SimpleNamespace(value=456), pid=123)
+    current = {**window, "pid": 88} if mode == "replaced-window" else window
+
+    def wait(predicate, message):
+        value = predicate()
+        if mode in ("async", "async-focus") and not value:
+            state["foreground"] = 456
+            state["focus_ready"] = True
+            value = predicate()
+        if mode == "lost-during-focus":
+            current["pid"] = 77
+            value = predicate()
+        if mode == "cancel-focus":
+            raise KeyboardInterrupt
+        assert value, message
+
+    native = SimpleNamespace(
+        user=SimpleNamespace(GetForegroundWindow=lambda: state["foreground"]),
+        windows=lambda pid: [current],
+        wait_for=wait,
+    )
+
+    def activate(target, action):
+        assert target is snapshot and action == "activate"
+        if mode == "not-found":
+            return ActionResult.NOT_FOUND
+        if mode in ("caption", "caption-guard", "stale"):
+            return ActionResult.FAILED
+        if mode not in ("async", "no-foreground"):
+            state["foreground"] = 456
+        if mode == "changed-bounds":
+            current["rect"] = [100, 100, 401, 300]
+        if mode == "changed-topmost":
+            state["topmost"] = True
+        return ActionResult.OK
+
+    api = SimpleNamespace(
+        capture_snapshot=Mock(return_value=None if mode == "missing" else snapshot),
+        perform=Mock(side_effect=activate),
+        matches=Mock(return_value=mode != "stale"),
+    )
+    monkeypatch.setattr(windows, "Win32WindowAPI", lambda: api)
+    monkeypatch.setattr(input_editor, "_topmost", lambda *_args: state["topmost"])
+    monkeypatch.setattr(
+        smoke,
+        "_foreground_snapshot",
+        lambda _native: {
+            "foreground": {"hwnd": state["foreground"]},
+            "gui_available": True,
+            "active": {"hwnd": 456},
+            "focus": {
+                "pid": 123 if state["focus_ready"] and mode != "foreign-focus" else 999
+            },
+        },
+    )
+
+    def caption(target, current_window, evidence):
+        assert target is native and current_window() is window
+        assert evidence["result"] in ("failed", "ok", "already-foreground")
+        assert evidence["completion_interaction"] == "physical-owned-caption"
+        if evidence["result"] == "ok":
+            assert evidence["normal_foreground_verified"] is True
+        if mode == "caption-guard":
+            raise AssertionError("Owned caption hit changed before input")
+        state["foreground"] = 456
+
+    physical = Mock(side_effect=caption)
+    monkeypatch.setattr(window_focus, "focus_caption", physical)
+    journal = {}
+    if mode in ("foreground", "normal", "async", "async-focus", "caption"):
+        smoke._focus_program(native, process, executable, window, journal)
+        assert state["foreground"] == 456
+    else:
+        with pytest.raises(
+            KeyboardInterrupt if mode == "cancel-focus" else AssertionError
+        ):
+            smoke._focus_program(native, process, executable, window, journal)
+    assert physical.call_count == (
+        1
+        if mode
+        in (
+            "foreground",
+            "normal",
+            "async",
+            "async-focus",
+            "caption",
+            "caption-guard",
+            "foreign-focus",
+        )
+        else 0
+    )
+    assert api.perform.call_count == (
+        0
+        if mode
+        in (
+            "foreground",
+            "async-focus",
+            "missing",
+            "replaced-process",
+            "replaced-window",
+        )
+        else 1
+    )
+    if api.capture_snapshot.called:
+        api.capture_snapshot.assert_called_once_with(456, expected_pid=123)
+
+
+@pytest.mark.parametrize(
+    "mode",
+    ["normal", "focus", "partial", "restore", "focus-race", "close", "dual", "trace"],
+)
+def test_association_completion_journals_focus_and_preserves_strict_cleanup(
+    monkeypatch, tmp_path, mode
+):
+    import json
+    import sys
+
+    executable = tmp_path / "Owned.exe"
+    executable.write_bytes(b"owned")
+    path = tmp_path / "facts.json"
+    path.write_text(
+        json.dumps({"executable": str(executable), "pid": 123, "argv": ["owned"]})
+    )
+    events = []
+    process = SimpleNamespace(
+        pid=123,
+        exe=lambda: str(executable),
+        is_running=lambda: True,
+        wait=Mock(side_effect=lambda _timeout: events.append("closed") or 0),
+    )
+    monkeypatch.setitem(
+        sys.modules, "psutil", SimpleNamespace(Process=lambda _pid: process)
+    )
+    primary = AssertionError("Owned focus failure")
+    secondary = OSError(6, "Owned close failure")
+    window = {"hwnd": 456}
+
+    def close(*args):
+        assert args == (456, 0x10, 0, 0)
+        events.append("close")
+        if mode in ("close", "dual"):
+            raise secondary
+        return True
+
+    native = SimpleNamespace(
+        wait_for=lambda predicate, *_args: predicate(),
+        windows=lambda _pid: [window],
+        user=SimpleNamespace(PostMessageW=Mock(side_effect=close)),
+    )
+
+    def focus(_native, selected, actual_executable, target, evidence):
+        assert _native is native and selected is process
+        assert actual_executable == executable and target is window
+        events.append("focus")
+        if mode == "partial":
+            evidence["caption_press_started"] = True
+        if mode == "restore":
+            evidence["geometry_restored"] = False
+        if mode in ("focus", "partial", "restore", "focus-race", "dual", "trace"):
+            raise primary
+        return {
+            "foreground": {"hwnd": 456},
+            "gui_available": True,
+            "active": {"hwnd": 456},
+            "focus": {"pid": 123},
+        }
+
+    def snapshot(_native):
+        assert _native is native
+        events.append("observe")
+        if mode == "trace" and "closed" in events:
+            raise OSError(5, "Postclose query failed")
+        return {
+            "foreground": {"hwnd": 999 if mode == "focus-race" else 456},
+            "gui_available": True,
+            "active": {"hwnd": 456},
+            "focus": {"pid": 123},
+        }
+
+    monkeypatch.setattr(smoke, "_focus_program", focus)
+    monkeypatch.setattr(smoke, "_foreground_snapshot", snapshot)
+    observed, lifecycle = {}, {"closed": False}
+    if mode == "normal":
+        smoke.finish_program(
+            native,
+            path,
+            executable,
+            ["owned"],
+            lifecycle=lifecycle,
+            observed=observed,
+            focus_before_close=True,
+        )
+        assert events == ["observe", "focus", "close", "closed", "observe"]
+        assert observed["preclose_focus"]["focus"]["pid"] == 123
+    else:
+        with pytest.raises((AssertionError, OSError)) as caught:
+            smoke.finish_program(
+                native,
+                path,
+                executable,
+                ["owned"],
+                lifecycle=lifecycle,
+                observed=observed,
+                focus_before_close=True,
+            )
+        if mode in ("focus", "partial", "restore", "dual", "trace"):
+            assert caught.value is primary
+        if mode == "dual":
+            assert caught.value.__cause__ is secondary
+        if mode == "trace":
+            assert observed["postclose_focus_error"]["class"] == "OSError"
+    assert lifecycle["closed"] is (mode not in ("partial", "restore", "close", "dual"))
+    assert "mapped_focus" in observed
+    if mode != "trace":
+        assert "postclose_focus" in observed
+    if mode in ("partial", "restore", "close", "dual"):
+        assert "close_error" in observed
+
+
+@pytest.mark.parametrize("state", ["focus", "no-foreground", "thread-exited"])
+def test_association_focus_snapshot_is_passive_and_keeps_native_error(
+    monkeypatch, state
+):
+    import ctypes
+
+    from tools.windows.visual import input_editor, input_environment
+    from tools.windows.visual.input_oracle import GUIThreadInfo
+
+    hwnd = 0 if state == "no-foreground" else 0x10000200
+    user = SimpleNamespace(GetForegroundWindow=lambda: hwnd)
+    calls = []
+    monkeypatch.setattr(ctypes, "set_last_error", lambda _value: None, raising=False)
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 1400, raising=False)
+
+    def facts(library, window):
+        assert library is user
+        calls.append(window)
+        return {"hwnd": window, "thread": 88, "pid": 123} if window else {"hwnd": 0}
+
+    monkeypatch.setattr(input_editor, "_window_facts", facts)
+
+    def bind(library, name, result, *arguments):
+        assert library is user and name == "GetGUIThreadInfo"
+        assert result is ctypes.c_int32
+        assert arguments == (ctypes.c_uint32, ctypes.POINTER(GUIThreadInfo))
+
+        def get(thread, value):
+            assert thread == 88 and value._obj.size == ctypes.sizeof(GUIThreadInfo)
+            assert value._obj.active is None and value._obj.focus is None
+            value._obj.active, value._obj.focus, value._obj.flags = hwnd, hwnd + 1, 1
+            return state != "thread-exited"
+
+        return get
+
+    monkeypatch.setattr(input_environment, "bind", bind)
+    observed = smoke._foreground_snapshot(SimpleNamespace(user=user))
+    assert observed["gui_available"] is (state == "focus")
+    assert calls == ([hwnd, hwnd, hwnd + 1] if state == "focus" else [hwnd])
+    if state == "focus":
+        assert observed["active"]["hwnd"] == hwnd
+        assert observed["focus"]["hwnd"] == hwnd + 1
+    elif state == "thread-exited":
+        assert observed["gui_error"] == 1400 and "focus" not in observed
+
+
+def test_whole_applications_anchor_queries_only_its_borrowed_process_abi(
+    monkeypatch, tmp_path
+):
+    import ctypes
+
+    from docking.platform.backends.windows import ffi
+    from tools.windows.visual import input_editor
+
+    kernel = object()
+    monkeypatch.setattr(ctypes, "WinDLL", lambda *_args, **_kw: kernel, raising=False)
+    process = SimpleNamespace(pid=123, _handle=0x12345678)
+    editor = SimpleNamespace(process=process, journal={})
+    captured = {}
+
+    def create(native, directory, document, *, bits, machine):
+        assert native is marker and bits == 64
+        assert directory.name == "owned-focus-context"
+        assert document.read_text() == ""
+        captured["machine"] = machine
+        return editor
+
+    marker = object()
+    monkeypatch.setattr(input_editor, "OwnedInputEditor", create)
+    query = Mock(return_value=0x8664)
+    monkeypatch.setattr(ffi, "process_machine", query)
+    journal = {}
+    anchor = smoke._ApplicationsFocus(marker, tmp_path, journal)
+    assert anchor.editor is editor and journal["editor"] is editor.journal
+    assert captured["machine"](123) == 0x8664
+    query.assert_called_once_with(kernel, process._handle)
+    with pytest.raises(AssertionError, match="process handle changed"):
+        captured["machine"](999)
+    assert query.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "mode",
+    ["normal", "replaced", "lost-after-click", "foreign-focus", "partial", "cancel"],
+)
+def test_whole_domain_anchor_requires_exact_identity_and_native_focus_at_boundaries(
+    monkeypatch, mode
+):
+    from tools.windows.visual import input_editor
+
+    window = {
+        "hwnd": 456,
+        "pid": 123,
+        "class": "OwnedForm",
+        "title": "Owned",
+        "rect": [0, 0, 520, 300],
+    }
+    state = {"lost": mode == "replaced"}
+    editor = SimpleNamespace(journal={"input_cleanup_safe": True})
+
+    def identity(observed):
+        assert observed is window
+        assert not state["lost"], "Owned process identity changed"
+        return {"window": 456, "pid": 123, "created": 42, "pe_machine": "0x8664"}
+
+    editor.verify_identity = identity
+    anchor = smoke._ApplicationsFocus.__new__(smoke._ApplicationsFocus)
+    anchor.window, anchor.editor = window, editor
+    anchor.journal = {"boundaries": []}
+    anchor.native = SimpleNamespace(windows=lambda _pid: [window])
+
+    def wait(predicate, message):
+        assert predicate(), message
+
+    anchor.native.wait_for = wait
+    primary = (
+        KeyboardInterrupt()
+        if mode == "cancel"
+        else AssertionError("Owned click was incomplete")
+    )
+    if mode == "partial":
+        primary.__dict__["desktop_input_cleanup"] = {
+            "attempted": True,
+            "completed": True,
+        }
+
+    def focus(native, observed, *, owned, journal):
+        assert native is anchor.native and observed is window and owned is editor
+        assert journal["before"]["created"] == 42
+        if mode in ("partial", "cancel"):
+            raise primary
+        if mode == "lost-after-click":
+            state["lost"] = True
+
+    click = Mock(side_effect=focus)
+    monkeypatch.setattr(input_editor, "focus_editor", click)
+    monkeypatch.setattr(
+        smoke,
+        "_foreground_snapshot",
+        lambda _native: {
+            "foreground": {"hwnd": 999 if mode == "foreign-focus" else 456},
+            "gui_available": True,
+            "active": {"hwnd": 456},
+            "focus": {"pid": 123},
+        },
+    )
+    if mode == "normal":
+        anchor.focus("association-absence-cleanup")
+        assert anchor.journal["boundaries"][0]["after"]["created"] == 42
+    else:
+        with pytest.raises(KeyboardInterrupt if mode == "cancel" else AssertionError):
+            anchor.focus("owned-boundary")
+    assert click.call_count == (0 if mode == "replaced" else 1)
+    assert editor.journal["input_cleanup_safe"] is (mode != "partial")
+
+
+@pytest.mark.parametrize(
+    "failure", [None, "start", "operation", "cancel", "close", "dual"]
+)
+def test_whole_domain_anchor_closes_on_failure_and_preserves_original(
+    monkeypatch, tmp_path, failure
+):
+    events = []
+    primary = (
+        KeyboardInterrupt()
+        if failure == "cancel"
+        else AssertionError("Owned operation failed")
+    )
+    secondary = OSError(6, "Owned anchor close failed")
+
+    class Focus:
+        def __init__(self, native, output, journal):
+            assert native is marker and output == tmp_path
+
+        def start(self):
+            events.append("start")
+            if failure == "start":
+                raise primary
+
+        def close(self):
+            events.append("close")
+            if failure in ("close", "dual"):
+                raise secondary
+
+    monkeypatch.setattr(smoke, "_ApplicationsFocus", Focus)
+    marker, journal = object(), {}
+
+    def run():
+        with smoke.applications_focus(marker, tmp_path, journal):
+            events.append("whole-domain")
+            if failure in ("operation", "cancel", "dual"):
+                raise primary
+
+    if failure is None:
+        run()
+    else:
+        with pytest.raises(BaseException) as caught:
+            run()
+        assert caught.value is (secondary if failure == "close" else primary)
+        if failure == "dual":
+            assert caught.value.__cause__ is secondary
+        if failure in ("close", "dual"):
+            assert journal["close_error"]["class"] == "OSError"
+    assert events == (
+        ["start", "close"] if failure == "start" else ["start", "whole-domain", "close"]
+    )

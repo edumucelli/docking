@@ -9,7 +9,19 @@ from tools.windows.visual import explorer
 
 
 @pytest.fixture
-def folder(tmp_path):
+def folder(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    monkeypatch.setitem(
+        sys.modules,
+        "psutil",
+        SimpleNamespace(
+            Process=lambda pid: SimpleNamespace(
+                pid=pid, is_running=lambda: True, create_time=lambda: 123.0
+            ),
+        ),
+    )
     native = Mock()
     owned = explorer.ExplorerFolder(native, tmp_path)
     owned.window = {
@@ -72,13 +84,12 @@ def test_failed_entry_preserves_observation_error_even_when_cleanup_also_fails(
     primary = OSError(5, "Owned window observation failed")
     row = folder.window.copy()
     folder.window = None
-    folder.native.windows.side_effect = [[], [row], [row]]
+    folder.native.windows.side_effect = [[], [row]]
     folder.native.wait_for.side_effect = [
         row,
         AssertionError("Owned folder stayed open"),
     ]
-    folder.native.click.side_effect = primary
-    folder.focus = Mock()  # This test isolates cleanup after the physical click.
+    folder.focus = Mock(side_effect=primary)
     monkeypatch.setattr(explorer.os, "startfile", Mock(), raising=False)
     with pytest.raises(OSError) as caught:
         folder.__enter__()
@@ -233,7 +244,19 @@ def test_selection_observation_is_read_only_and_does_not_change_existing_geometr
 
 
 @pytest.mark.parametrize(
-    "failure", [None, "missing", "replaced", "denied", "unfocused"]
+    "failure",
+    [
+        None,
+        "missing",
+        "replaced",
+        "denied",
+        "not-found",
+        "stale",
+        "unfocused",
+        "async",
+        "partial-press",
+        "restore",
+    ],
 )
 def test_owned_cabinet_foreground_preparation_never_targets_a_foreign_window(
     folder, monkeypatch, failure
@@ -242,51 +265,86 @@ def test_owned_cabinet_foreground_preparation_never_targets_a_foreign_window(
 
     from docking.platform.backends.base import ActionResult
     from docking.platform.backends.windows import windows
+    from tools.windows.visual import window_focus
 
     state = {"foreground": 999}
     snapshot = SimpleNamespace(id=SimpleNamespace(value=91), pid=42)
     folder.native.user.GetForegroundWindow.side_effect = lambda: state["foreground"]
 
     def wait(predicate, message):
-        assert predicate(), message
+        value = predicate()
+        if failure == "async" and not value:
+            state["foreground"] = 91
+            value = predicate()
+        assert value, message
 
     folder.native.wait_for.side_effect = wait
 
-    def inventory():
+    def capture(hwnd, *, expected_pid):
+        assert (hwnd, expected_pid) == (91, 42)
         if failure == "missing":
-            return [SimpleNamespace(id=SimpleNamespace(value=999), pid=42)]
+            return None
         if failure == "replaced":
             folder.native.windows.return_value = [{**folder.window, "pid": 99}]
-        return [snapshot]
+        return snapshot
 
     def activate(target, action):
         assert target is snapshot and action == "activate"
-        if failure == "denied":
+        if failure == "not-found":
+            return ActionResult.NOT_FOUND
+        if failure in ("denied", "stale", "partial-press", "restore"):
             return ActionResult.FAILED
-        if failure != "unfocused":
+        if failure not in ("unfocused", "async"):
             state["foreground"] = 91
         return ActionResult.OK
 
-    api = SimpleNamespace(windows=inventory, perform=Mock(side_effect=activate))
+    def assist(native, current, observed):
+        assert native is folder.native and current()["hwnd"] == 91
+        assert observed["result"] == ActionResult.FAILED.value
+        if failure == "partial-press":
+            observed["caption_press_started"] = True
+            raise AssertionError("Caption input incomplete")
+        if failure == "restore":
+            observed["geometry_restored"] = False
+            raise AssertionError("Caption geometry restore failed")
+        state["foreground"] = 91
+
+    physical = Mock(side_effect=assist)
+    monkeypatch.setattr(window_focus, "focus_caption", physical)
+    api = SimpleNamespace(
+        capture_snapshot=capture,
+        perform=Mock(side_effect=activate),
+        matches=Mock(return_value=failure != "stale"),
+    )
     monkeypatch.setattr(windows, "Win32WindowAPI", lambda: api)
-    if failure:
+    if failure in (
+        "missing",
+        "replaced",
+        "not-found",
+        "stale",
+        "unfocused",
+        "partial-press",
+        "restore",
+    ):
         with pytest.raises(AssertionError):
             folder.focus()
+        if failure not in ("partial-press", "restore"):
+            physical.assert_not_called()
         if failure in ("missing", "replaced"):
             api.perform.assert_not_called()
     else:
         folder.focus()
         api.perform.assert_called_once_with(snapshot, "activate")
         assert folder.foreground_observations[-1]["after"] == 91
+        assert physical.call_count == (1 if failure == "denied" else 0)
+    assert folder.cleanup_safe is (failure not in ("partial-press", "restore"))
     folder.native.click.assert_not_called()
     folder.native.key.assert_not_called()
     folder.native.user.SetForegroundWindow.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "failure", [None, "covered", "moved", "foreground", "moved-during-focus"]
-)
-def test_entry_proves_owned_caption_and_foreground_before_view_keys(
+@pytest.mark.parametrize("failure", [None, "source", "foreground"])
+def test_entry_checks_owned_identity_and_foreground_before_view_keys(
     folder, monkeypatch, failure
 ):
     row = folder.window.copy()
@@ -294,7 +352,7 @@ def test_entry_proves_owned_caption_and_foreground_before_view_keys(
     calls = []
 
     def inventory(_pid=None):
-        calls.append("windows")
+        calls.append(1)
         return [] if len(calls) == 1 else [row.copy()]
 
     def wait(predicate, message):
@@ -302,43 +360,28 @@ def test_entry_proves_owned_caption_and_foreground_before_view_keys(
         assert value, message
         return value
 
-    def click(x, y, *, before_press):
-        assert (x, y) == ((400, 170) if failure == "moved-during-focus" else (300, 120))
-        if failure == "moved":
-            row["rect"] = [101, 100, 501, 500]
-        before_press()
-        calls.append("physical-click")
-        if failure == "foreground":
-            folder.native.user.GetForegroundWindow.return_value = 999
-
-    original_focus = folder.focus
-
     def focus():
-        original_focus()
-        if failure == "moved-during-focus":
-            row["rect"] = [200, 150, 600, 550]
+        if failure == "source":
+            row["pid"] = 99
 
-    folder.focus = focus
+    folder.focus = Mock(side_effect=focus)
     folder.native.windows.side_effect = inventory
     folder.native.wait_for.side_effect = wait
-    folder.native.click.side_effect = click
-    folder.native.user.GetForegroundWindow.return_value = 91
-    folder.native.window_at.return_value = 999 if failure == "covered" else 91
+    folder.native.user.GetForegroundWindow.return_value = (
+        999 if failure == "foreground" else 91
+    )
     folder.native.user.IsWindow.return_value = False
     monkeypatch.setattr(explorer.os, "startfile", Mock(), raising=False)
     monkeypatch.setattr(explorer.time, "sleep", lambda _seconds: None)
-    if failure not in (None, "moved-during-focus"):
+    if failure:
         with pytest.raises(AssertionError):
             folder.__enter__()
         folder.native.key.assert_not_called()
-        if failure in ("covered", "moved"):
-            assert "physical-click" not in calls
     else:
         assert folder.__enter__() is folder
         folder.native.key.assert_called_once_with(ord("2"), control=True, shift=True)
-        assert "physical-click" in calls
         folder.close()
-    folder.native.user.PostMessageW.assert_called_once_with(91, 0x10, 0, 0)
+    folder.native.click.assert_not_called()
 
 
 def test_enter_dispatch_failure_is_marked_before_input_can_launch(folder):
@@ -349,3 +392,65 @@ def test_enter_dispatch_failure_is_marked_before_input_can_launch(folder):
         folder.activate(folder.directory / "Owned.lnk", observed)
     assert observed["physical_enter_started"] is True
     assert "physical_enter" not in observed
+
+
+def test_reused_explorer_process_is_never_focused_or_closed(folder):
+    from types import SimpleNamespace
+
+    folder._process = SimpleNamespace(pid=42, is_running=lambda: False)
+    with pytest.raises(AssertionError, match="exited or was replaced"):
+        folder.focus()
+    with pytest.raises(AssertionError, match="process was replaced"):
+        folder.__exit__(None, None, None)
+    assert folder.cleanup_safe is False
+    folder.native.click.assert_not_called()
+    folder.native.user.PostMessageW.assert_not_called()
+
+
+@pytest.mark.parametrize("capture_fails", [False, True])
+def test_entry_failure_capture_precedes_cleanup_and_preserves_original(
+    folder, monkeypatch, tmp_path, capture_fails
+):
+    from types import SimpleNamespace
+
+    from PIL import ImageGrab
+
+    primary = AssertionError("Owned caption request failed")
+    events = []
+    row = folder.window.copy()
+    folder.window = None
+    folder.failure_capture = tmp_path / "owned-entry.png"
+    folder.native.windows.side_effect = [[], [row]]
+    folder.native.wait_for.side_effect = [row, None]
+
+    def fail():
+        folder.foreground_observations.append(
+            {"result": "failed", "bounds": row["rect"]}
+        )
+        raise primary
+
+    def save(path):
+        assert path == folder.failure_capture
+        events.append("capture")
+        if capture_fails:
+            raise OSError(5, "Owned capture unavailable")
+        path.write_bytes(b"owned capture fixture")
+
+    folder.focus = fail
+    folder.native.user.PostMessageW.side_effect = lambda *_args: (
+        events.append("close") or 1
+    )
+    monkeypatch.setattr(explorer.os, "startfile", Mock(), raising=False)
+    monkeypatch.setattr(
+        ImageGrab, "grab", lambda **_options: SimpleNamespace(save=save)
+    )
+    with pytest.raises(AssertionError) as caught:
+        folder.__enter__()
+    assert caught.value is primary and events == ["capture", "close"]
+    assert folder.foreground_observations[0]["result"] == "failed"
+    capture = folder.foreground_observations[1]
+    assert capture["failure_capture"] == "owned-entry.png"
+    if capture_fails:
+        assert capture["capture_error"] == {"class": "OSError", "errno": 5}
+    else:
+        assert folder.failure_capture.is_file()

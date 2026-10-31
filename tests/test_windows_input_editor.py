@@ -562,6 +562,7 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
     process = Mock(pid=202, _handle=22)
     process.poll.return_value = None
     owner.process, owner.window = process, window
+    window.update({"class": "OwnedEditor", "title": owner.title})
     owner._created, owner._pe = 123, 0x8664
     data = bytearray(128)
     data[:2] = b"MZ"
@@ -636,7 +637,9 @@ def exposure(focus_desktop, tmp_path, monkeypatch):
         return ActionResult.OK
 
     api = SimpleNamespace(
-        capture_snapshot=Mock(return_value=snapshot), perform=Mock(side_effect=activate)
+        capture_snapshot=Mock(return_value=snapshot),
+        matches=Mock(return_value=True),
+        perform=Mock(side_effect=activate),
     )
     constructor = Mock(return_value=api)
     monkeypatch.setattr(native_windows, "Win32WindowAPI", constructor)
@@ -1407,7 +1410,7 @@ def test_placement_after_activation_uses_fresh_cover_bounds_not_initial_full_pan
 @pytest.mark.parametrize(
     "failure",
     [
-        "denied",
+        "not-found",
         "false-success",
         "changed-identity",
         "geometry",
@@ -1422,8 +1425,8 @@ def test_owned_normal_activation_failure_never_falls_back_or_clicks(exposure, fa
     activate = f.activation.perform.side_effect
 
     def perform(target, action):
-        if failure == "denied":
-            return ActionResult.FAILED
+        if failure == "not-found":
+            return ActionResult.NOT_FOUND
         if failure == "false-success":
             return ActionResult.OK
         if failure == "native-error":
@@ -1445,7 +1448,7 @@ def test_owned_normal_activation_failure_never_falls_back_or_clicks(exposure, fa
     f.native.user.SetWindowPos.assert_not_called()
     f.native.click.assert_not_called()
     assert "placement_candidates" not in journal["attempts"][0]
-    if failure in ("denied", "native-error"):
+    if failure in ("not-found", "native-error"):
         f.native.wait_for.assert_not_called()
 
 
@@ -1576,3 +1579,150 @@ def test_normal_activation_wait_stops_if_owned_identity_changes(exposure):
     f.activation.perform.assert_called_once()
     f.native.user.SetWindowPos.assert_not_called()
     f.native.click.assert_not_called()
+
+
+@pytest.mark.parametrize("outcome", ["success", "guard", "partial", "restore", "stale"])
+def test_denied_owned_activation_uses_only_verified_physical_caption(
+    exposure, monkeypatch, outcome
+):
+    from docking.platform.backends.base import ActionResult
+
+    f = exposure
+    f.activation.perform.side_effect = None
+    f.activation.perform.return_value = ActionResult.FAILED
+    if outcome == "stale":
+        f.activation.matches.return_value = False
+    error = AssertionError("Owned caption failure")
+
+    def caption(native, current, journal):
+        assert native is f.native
+        assert current()["hwnd"] == 101 and current()["pid"] == 202
+        if outcome == "guard":
+            raise error
+        if outcome == "partial":
+            journal.update(caption_press_started=True, physical_caption_click=False)
+            raise error
+        if outcome == "restore":
+            journal["geometry_restored"] = False
+            raise error
+        journal.update(caption_press_started=True, physical_caption_click=True)
+        f.foreground[0] = 101
+        f.windows[:] = [f.window, f.cover, f.windows[-1]]
+
+    assist = Mock(side_effect=caption)
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.windows.visual.window_focus",
+        SimpleNamespace(focus_caption=assist),
+    )
+    if outcome == "success":
+        mod.focus_editor(f.native, f.window, owned=f.owner)
+        assert f.native.click.call_count == 1
+    else:
+        with pytest.raises(AssertionError) as failed:
+            mod.focus_editor(f.native, f.window, owned=f.owner)
+        if outcome != "stale":
+            assert failed.value is error
+        f.native.click.assert_not_called()
+    assert f.owner.journal["input_cleanup_safe"] is (
+        outcome not in ("partial", "restore")
+    )
+    assert assist.call_count == (0 if outcome == "stale" else 1)
+    f.activation.perform.assert_called_once_with(f.snapshot, "activate")
+    f.native.user.SetWindowPos.assert_not_called()
+
+
+def test_caption_callback_rejects_replaced_popen_before_any_physical_assist(
+    exposure, monkeypatch
+):
+    from docking.platform.backends.base import ActionResult
+
+    f = exposure
+    f.activation.perform.side_effect = None
+    f.activation.perform.return_value = ActionResult.FAILED
+
+    def caption(_native, current, _journal):
+        f.created[0] = 124
+        current()
+        pytest.fail("Changed process must never reach physical caption input")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.windows.visual.window_focus",
+        SimpleNamespace(focus_caption=caption),
+    )
+    with pytest.raises(AssertionError, match="creation time changed"):
+        mod.focus_editor(f.native, f.window, owned=f.owner)
+    f.native.click.assert_not_called()
+    f.native.user.SetWindowPos.assert_not_called()
+
+
+def test_unsafe_caption_still_closes_owned_resources_but_never_reports_clean(owned):
+    owned.editor.start()
+    owned.editor.journal["input_cleanup_safe"] = False
+    with pytest.raises(AssertionError, match="physical input cleanup is unsafe"):
+        owned.editor.close()
+    assert owned.editor.journal["closed"] and owned.editor.journal["event_closed"]
+    assert owned.editor.gate is None and owned.process.poll() == 0
+    with pytest.raises(AssertionError, match="physical input cleanup is unsafe"):
+        owned.editor.close()
+    owned.kernel.CloseHandle.assert_called_once_with(900)
+
+
+def test_failure_frames_preserve_bare_assert_location_without_private_paths():
+    from tools.windows.visual.keyboardlayout_smoke import _failure_frames
+
+    try:
+        raise AssertionError()
+    except AssertionError as error:
+        frames = _failure_frames(error)
+    assert frames[-1]["file"] == "test_windows_input_editor.py"
+    assert frames[-1]["function"].startswith("test_failure_frames")
+    assert isinstance(frames[-1]["line"], int) and len(frames) <= 6
+    assert all("/" not in row["file"] and "\\" not in row["file"] for row in frames)
+
+
+@pytest.mark.parametrize("mismatch", [None, "painted", "model", "hover", "root", "hit"])
+def test_keyboard_menu_before_press_requires_live_painted_and_native_target(
+    focus_desktop, mismatch
+):
+    from tools.windows.visual.keyboardlayout_smoke import (
+        _applet_target_snapshot,
+        _assert_applet_target,
+    )
+
+    native, _editor, _foreground = focus_desktop
+    item = SimpleNamespace(desktop_id="applet://keyboardlayout")
+    other = SimpleNamespace(desktop_id="applet://clock")
+    rect = SimpleNamespace(x=10, y=10, w=20, h=20)
+    geometry = SimpleNamespace(item=item, draw_rect=rect)
+    frame = SimpleNamespace(
+        geometry_for_item=lambda expected: geometry, item_at_point=lambda x, y: item
+    )
+    painted = SimpleNamespace(
+        geometry_for_item=lambda expected: geometry,
+        item_at_point=lambda x, y: other if mismatch == "painted" else item,
+    )
+    window = SimpleNamespace(
+        geometry=SimpleNamespace(build_frame=lambda: frame),
+        _current_or_build_geometry_frame=lambda: painted,
+        model=SimpleNamespace(
+            find_by_desktop_id=lambda identifier: other if mismatch == "model" else item
+        ),
+        hover=SimpleNamespace(hovered_item=other if mismatch == "hover" else item),
+        get_scale_factor=lambda: 2,
+    )
+    native.user.SetCursorPos(105, 90)
+    snapshot = _applet_target_snapshot(
+        native, SimpleNamespace(window=window), item.desktop_id, item, 101
+    )
+    assert snapshot["scale"] == 2 and snapshot["cursor"] == [105, 90]
+    if mismatch == "root":
+        snapshot["native"]["root"]["hwnd"] = 999
+    elif mismatch == "hit":
+        snapshot["native"]["hit"]["pid"] = 909
+    if mismatch is None:
+        _assert_applet_target(snapshot, item.desktop_id, 101, 202)
+    else:
+        with pytest.raises(AssertionError):
+            _assert_applet_target(snapshot, item.desktop_id, 101, 202)

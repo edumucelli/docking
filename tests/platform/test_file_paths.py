@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -45,6 +46,8 @@ def test_native_file_metadata_keeps_image_thumbnails(tmp_path):
     image = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 4, 4)
     image.fill(0x28AA50FF)
     image.savev(str(path), "png", [], [])
-    info = TargetService(icon_loader=IconLoader()).resolve_file(path.as_uri(), 4)
+    info = TargetService(
+        application_registry=MagicMock(), icon_loader=IconLoader()
+    ).resolve_file(path.as_uri(), 4)
     assert info is not None and info.is_thumbnail and info.icon is not None
     assert info.icon.get_pixels() == image.get_pixels()

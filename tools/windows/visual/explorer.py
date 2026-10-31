@@ -23,6 +23,9 @@ class ExplorerFolder:
         self.window = None
         self.cleanup_failure = None
         self.foreground_observations = []
+        self.failure_capture: Path | None = None
+        self.cleanup_safe = True
+        self._process = None
 
     def __enter__(self):
         initial = {window["hwnd"] for window in self.native.windows()}
@@ -41,35 +44,43 @@ class ExplorerFolder:
                 ),
                 "Owned Explorer folder did not open",
             )
+            import psutil
+
+            self._process = psutil.Process(self.window["pid"])
             self.focus()
             current = self._current_window()
-            hwnd, bounds = current["hwnd"], current["rect"]
-            x1, y1, x2, _y2 = bounds
-            point = ((x1 + x2) // 2, y1 + 20)
-
-            def before_caption_press():
-                assert self._current_window()["rect"] == bounds, (
-                    "Owned Explorer caption moved before input"
-                )
-                assert self.native.window_at(*point) == hwnd, (
-                    "Owned Explorer caption is covered"
-                )
-
-            self.native.click(*point, before_press=before_caption_press)
-            self.native.wait_for(
-                lambda: self.native.user.GetForegroundWindow() == hwnd,
-                "Owned Explorer caption did not receive foreground",
+            assert self.native.user.GetForegroundWindow() == current["hwnd"], (
+                "Owned Explorer foreground changed before view keys"
             )
-            self._current_window()
             self.native.key(ord("2"), control=True, shift=True)
             time.sleep(1)
         except BaseException as error:
+            if self.failure_capture is not None:
+                capture = {"failure_capture": self.failure_capture.name}
+                self.foreground_observations.append(capture)
+                try:
+                    from PIL import ImageGrab
+
+                    ImageGrab.grab(all_screens=True).save(self.failure_capture)
+                except BaseException as capture_error:
+                    # Diagnostics cannot replace the active failure or skip
+                    # owned-window cleanup, including during cancellation.
+                    capture["capture_error"] = {
+                        "class": type(capture_error).__name__,
+                        "errno": capture_error.errno
+                        if isinstance(capture_error, OSError)
+                        else None,
+                    }
             self._cleanup(error)
             raise
         return self
 
     def _current_window(self):
         assert self.window is not None
+        if self._process is not None:
+            assert (
+                self._process.pid == self.window["pid"] and self._process.is_running()
+            ), "Owned Explorer process exited or was replaced"
         current = next(
             (
                 row
@@ -91,26 +102,49 @@ class ExplorerFolder:
             "before": self.native.user.GetForegroundWindow(),
             "hwnd": current["hwnd"],
             "pid": current["pid"],
+            "bounds": list(current["rect"]),
         }
+        if self._process is not None:
+            observed["created"] = self._process.create_time()
         self.foreground_observations.append(observed)
         if observed["before"] != current["hwnd"]:
             from docking.platform.backends.base import ActionResult
             from docking.platform.backends.windows.windows import Win32WindowAPI
 
             api = Win32WindowAPI()
-            snapshot = next(
-                (
-                    row
-                    for row in api.windows()
-                    if row.id.value == current["hwnd"] and row.pid == current["pid"]
-                ),
-                None,
+            snapshot = api.capture_snapshot(
+                current["hwnd"], expected_pid=current["pid"]
             )
-            assert snapshot is not None, "Owned Explorer activation target disappeared"
+            observed["snapshot"] = (
+                {"hwnd": snapshot.id.value, "pid": snapshot.pid}
+                if snapshot is not None
+                else None
+            )
+            assert snapshot is not None and (
+                snapshot.id.value == current["hwnd"] and snapshot.pid == current["pid"]
+            ), "Owned Explorer activation target disappeared"
             self._current_window()
             status = api.perform(snapshot, "activate")
             observed["result"] = status.value
-            assert status is ActionResult.OK, "Owned Explorer foreground request failed"
+            observed["foreground_immediate"] = self.native.user.GetForegroundWindow()
+            assert status in (ActionResult.OK, ActionResult.FAILED), (
+                "Owned Explorer activation identity changed"
+            )
+            if status is ActionResult.FAILED:
+                from .window_focus import focus_caption
+
+                self._current_window()
+                assert api.matches(snapshot), (
+                    "Owned Explorer activation snapshot changed"
+                )
+                try:
+                    focus_caption(self.native, self._current_window, observed)
+                finally:
+                    if observed.get("geometry_restored") is False or (
+                        observed.get("caption_press_started")
+                        and not observed.get("physical_caption_click")
+                    ):
+                        self.cleanup_safe = False
         self.native.wait_for(
             lambda: self.native.user.GetForegroundWindow() == current["hwnd"],
             "Owned Explorer did not receive foreground",
@@ -262,6 +296,10 @@ $rows[0]|ConvertTo-Json -Compress
                 None,
             )
             if current is not None:
+                if self._process is not None:
+                    assert self._process.is_running(), (
+                        "Owned Explorer process was replaced"
+                    )
                 assert current["pid"] == self.window["pid"]
                 assert current["class"] == "CabinetWClass"
                 assert current["title"].startswith(self.directory.name)
@@ -271,11 +309,13 @@ $rows[0]|ConvertTo-Json -Compress
                     "Owned Explorer folder did not close normally",
                 )
             self.window = None
+            self._process = None
 
     def _cleanup(self, primary):
         try:
             self.close()
         except (AssertionError, OSError) as error:
+            self.cleanup_safe = False
             self.cleanup_failure = {
                 "class": type(error).__name__,
                 "errno": error.errno if isinstance(error, OSError) else None,

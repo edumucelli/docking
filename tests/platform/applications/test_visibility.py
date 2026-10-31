@@ -43,7 +43,9 @@ def _wait(predicate):
 def _lookup(resolve, idle, changed):
     return ApplicationMetadataLookup(
         resolve_factory=lambda: (
-            lambda ids, _cancelled: ApplicationMetadata(hidden_ids=resolve(ids))
+            lambda ids, _cancelled, *, association_keys=(): ApplicationMetadata(
+                hidden_ids=resolve(ids)
+            )
         ),
         on_changed=changed,
         schedule_idle=idle.add,
@@ -188,7 +190,7 @@ def test_catalog_io_cancel_callback_belongs_to_its_original_lifetime():
     )
     observations = []
 
-    def resolve(ids, cancelled):
+    def resolve(ids, cancelled, *, association_keys=()):
         if ids == ("old",):
             entered.set()
             assert release.wait(2)
@@ -231,7 +233,9 @@ def test_failed_catalog_read_preserves_the_last_complete_native_listing():
         return ApplicationMetadata(applications=apps if len(calls) == 1 else None)
 
     lookup = ApplicationMetadataLookup(
-        resolve_factory=lambda: lambda ids, _cancelled: resolve(ids),
+        resolve_factory=lambda: (
+            lambda ids, _cancelled, *, association_keys=(): resolve(ids)
+        ),
         on_changed=lambda: None,
         schedule_idle=idle.add,
         remove_source=idle.remove,
@@ -257,7 +261,7 @@ def test_periodic_worker_refresh_discovers_changes_without_gio_notifications():
     apps = (application("Added"),)
     lookup = ApplicationMetadataLookup(
         resolve_factory=lambda: (
-            lambda _ids, _cancelled: (
+            lambda _ids, _cancelled, *, association_keys=(): (
                 called.set() or ApplicationMetadata(applications=apps)
             )
         ),
@@ -316,7 +320,7 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
         schedule_idle=idle.add,
         remove_source=idle.remove,
         resolve_factory=WindowsApplicationCatalogBackend().metadata_resolver_factory(
-            SimpleNamespace(applications=registrations)
+            SimpleNamespace(applications=registrations), read_default_source=False
         ),
     )
     assert lookup is not None
@@ -341,5 +345,315 @@ def test_factory_reads_selected_registrations_and_prepares_exports_on_the_worker
         idle.flush()
         assert exporters[2] is not exporters[0]
         assert calls[1] == (("Native.App",), (selected,))
+    finally:
+        lookup.stop()
+
+
+def test_default_source_visibility_includes_new_worker_ids_and_retains_launch_handles(
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    from docking.platform.applications.windows import catalog as windows_catalog
+    from tests.platform.application_fakes import GioApplicationFake
+
+    main = threading.get_ident()
+    idle, calls = _Idle(), []
+
+    class Handle(GioApplicationFake):
+        def get_id(self):
+            assert threading.get_ident() != main
+            return super().get_id()
+
+    handle = Handle("New.Hidden.App", name="Owned")
+
+    def source():
+        assert threading.get_ident() != main
+        return (handle,)
+
+    def native(ids, *, registrations, cancelled, exporter):
+        assert threading.get_ident() != main
+        assert not cancelled() and registrations == () and exporter is not None
+        calls.append(ids)
+        return ApplicationMetadata(
+            applications=(), hidden_ids=frozenset(("New.Hidden.App", "Unrelated"))
+        )
+
+    monkeypatch.setattr(
+        windows_catalog, "Gio", SimpleNamespace(AppInfo=SimpleNamespace(get_all=source))
+    )
+    monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=windows_catalog.WindowsApplicationCatalogBackend().metadata_resolver_factory(
+            SimpleNamespace(applications=lambda: ()), read_default_source=True
+        ),
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    try:
+        lookup.start()
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        assert lookup.source_discovery is None
+        idle.flush()
+        assert calls == [("New.Hidden.App",)]
+        assert lookup.hidden_ids == {"New.Hidden.App"}
+        assert lookup.source_discovery.handles["New.Hidden.App"] is handle
+    finally:
+        lookup.stop()
+
+
+def test_association_queries_publish_handles_atomically_on_idle_and_filter_known_ids():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationRead,
+        AssociationStatus,
+    )
+
+    idle, changes = _Idle(), []
+    key, handle = AssociationKey("default", "owned/type"), object()
+
+    def resolve(_ids, _cancelled, *, association_keys=()):
+        assert association_keys == (key,)
+        return ApplicationMetadata(
+            associations=((key, AssociationRead(AssociationStatus.READY, (handle,))),),
+            association_ids=frozenset(("Owned.Association",)),
+            hidden_ids=frozenset(("Owned.Association", "Unrelated")),
+        )
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: changes.append(threading.get_ident()),
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    assert (
+        lookup.association_reads((key,))[0][1].status is AssociationStatus.UNAVAILABLE
+    )
+    lookup.start()
+    try:
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        assert (
+            lookup.association_reads((key,))[0][1].status is AssociationStatus.PENDING
+        )
+        idle.flush()
+        result = lookup.association_reads((key,))[0][1]
+        assert result.status is AssociationStatus.READY and result.handles == (handle,)
+        assert changes == [threading.get_ident()]
+        assert lookup.hidden_ids == {"Owned.Association"}
+    finally:
+        lookup.stop()
+    assert (
+        lookup.association_reads((key,))[0][1].status is AssociationStatus.UNAVAILABLE
+    )
+
+
+def test_association_keys_coalesce_and_older_inflight_answers_cannot_publish():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationRead,
+        AssociationStatus,
+    )
+
+    idle, entered, release = _Idle(), threading.Event(), threading.Event()
+    one, two = (
+        AssociationKey("default", "owned/one"),
+        AssociationKey("all", "owned/two"),
+    )
+    calls, obsolete, current = [], object(), object()
+
+    def resolve(_ids, _cancelled, *, association_keys=()):
+        calls.append(association_keys)
+        if association_keys == (one,):
+            entered.set()
+            assert release.wait(2)
+        return ApplicationMetadata(
+            associations=tuple(
+                (
+                    key,
+                    AssociationRead(
+                        AssociationStatus.READY,
+                        (obsolete if len(association_keys) == 1 else current,),
+                    ),
+                )
+                for key in association_keys
+            )
+        )
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    lookup.start()
+    try:
+        lookup.association_reads((one,))
+        assert entered.wait(1)
+        generation = lookup._generation
+        lookup.association_reads((one, one))
+        assert lookup._generation == generation
+        lookup.association_reads((two, one, two))
+        release.set()
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert calls == [(one,), (one, two)]
+        assert all(
+            read.handles == (current,)
+            for _key, read in lookup.association_reads((one, two))
+        )
+    finally:
+        release.set()
+        lookup.stop()
+
+
+def test_invalidated_association_failure_is_unavailable_but_retains_last_catalog():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationRead,
+        AssociationStatus,
+    )
+    from tests.platform.application_fakes import application
+
+    idle, key, calls = _Idle(), AssociationKey("default", "owned/type"), []
+    apps = (application("Owned"),)
+
+    def resolve(_ids, _cancelled, *, association_keys=()):
+        calls.append(True)
+        if len(calls) > 1:
+            raise OSError(5, "Owned failure")
+        return ApplicationMetadata(
+            applications=apps,
+            associations=((key, AssociationRead(AssociationStatus.READY)),),
+        )
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    lookup.start()
+    try:
+        lookup.association_reads((key,))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.association_reads((key,))[0][1].status is AssociationStatus.READY
+        lookup.invalidate()
+        assert (
+            lookup.association_reads((key,))[0][1].status is AssociationStatus.PENDING
+        )
+        lookup.request(())
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert (
+            lookup.association_reads((key,))[0][1].status
+            is AssociationStatus.UNAVAILABLE
+        )
+        assert lookup.applications == apps
+    finally:
+        lookup.stop()
+
+
+def test_association_stop_restart_rejects_old_handle_and_requeries_known_keys():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationRead,
+        AssociationStatus,
+    )
+
+    idle, entered, release = _Idle(), threading.Event(), threading.Event()
+    key, old, new, calls = (
+        AssociationKey("default", "owned/type"),
+        object(),
+        object(),
+        [],
+    )
+
+    def resolve(_ids, cancelled, *, association_keys=()):
+        calls.append(True)
+        first = len(calls) == 1
+        if first:
+            entered.set()
+            assert release.wait(2)
+            assert cancelled()
+        return ApplicationMetadata(
+            associations=(
+                (
+                    key,
+                    AssociationRead(AssociationStatus.READY, (old if first else new,)),
+                ),
+            )
+        )
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+    )
+    lookup.start()
+    try:
+        lookup.association_reads((key,))
+        assert entered.wait(1)
+        lookup.stop()
+        lookup.start()
+        lookup.association_reads((key,))
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        release.set()
+        assert lookup.association_reads((key,))[0][1].handles == (new,)
+    finally:
+        release.set()
+        lookup.stop()
+
+
+def test_association_key_budget_is_bounded_and_never_implies_no_handler():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationStatus,
+    )
+
+    lookup = _lookup(lambda _ids: frozenset(), _Idle(), lambda: None)
+    keys = tuple(AssociationKey("default", f"owned/{index}") for index in range(257))
+    assert all(
+        read.status is AssociationStatus.UNAVAILABLE
+        for _key, read in lookup.association_reads(keys)
+    )
+    assert lookup._association_keys == ()
+
+
+def test_query_only_lookup_refreshes_periodically_without_an_inventory_request():
+    from docking.platform.applications.associations import (
+        AssociationKey,
+        AssociationRead,
+        AssociationStatus,
+    )
+
+    idle, key, calls = _Idle(), AssociationKey("default", "owned/type"), []
+
+    def resolve(_ids, _cancelled, *, association_keys=()):
+        assert _ids == () and association_keys == (key,)
+        calls.append(True)
+        return ApplicationMetadata(
+            associations=((key, AssociationRead(AssociationStatus.READY)),)
+        )
+
+    lookup = ApplicationMetadataLookup(
+        resolve_factory=lambda: resolve,
+        on_changed=lambda: None,
+        schedule_idle=idle.add,
+        remove_source=idle.remove,
+        refresh_interval=0.02,
+    )
+    lookup.start()
+    try:
+        lookup.association_reads((key,))
+        _wait(lambda: len(calls) >= 2)
+        _wait(lambda: bool(idle.callbacks))
+        idle.flush()
+        assert lookup.association_reads((key,))[0][1].status is AssociationStatus.READY
     finally:
         lookup.stop()

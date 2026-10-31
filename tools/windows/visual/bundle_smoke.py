@@ -51,6 +51,58 @@ def _foreign_msys_modules(
     )
 
 
+AUDIO_PROBE = r"""
+import time
+
+audio_started = time.monotonic()
+def audio_progress(kind, name, phase):
+    elapsed = time.monotonic() - audio_started
+    print(f"Audio {kind}:{name} {phase} elapsed={elapsed:.3f}s", flush=True)
+
+pipelines = []
+for sound in FILE_SOUNDS:
+    audio_progress("file", sound.name, "construct-before")
+    player = _build_file_pipeline(assets / "sounds" / (sound.name + ".ogg"), 0.5)
+    assert player is not None, sound.name
+    sink = Gst.ElementFactory.make("fakesink")
+    sink.set_property("sync", False)
+    player.set_property("audio-sink", sink)
+    pipelines.append(("file", sound.name, player))
+    audio_progress("file", sound.name, "construct-after")
+for name, wave in NOISE_WAVES.items():
+    audio_progress("noise", name, "construct-before")
+    pipelines.append(("noise", name, Gst.parse_launch(
+        f"audiotestsrc wave={wave} num-buffers=3 ! volume volume=0.5 ! fakesink")))
+    audio_progress("noise", name, "construct-after")
+for kind, name, player in pipelines:
+    primary = None
+    try:
+        audio_progress(kind, name, "set-playing-before")
+        result = player.set_state(Gst.State.PLAYING)
+        audio_progress(kind, name, f"set-playing-after result={result}")
+        assert result != Gst.StateChangeReturn.FAILURE
+        audio_progress(kind, name, "wait-eos-before")
+        message = player.get_bus().timed_pop_filtered(
+            10 * Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR)
+        audio_progress(kind, name, "wait-eos-after " + (
+            "none" if message is None else str(message.type)))
+        assert message is not None and message.type == Gst.MessageType.EOS, name
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        audio_progress(kind, name, "set-null-before")
+        try:
+            result = player.set_state(Gst.State.NULL)
+        except BaseException as error:
+            audio_progress(kind, name, f"set-null-error {type(error).__name__}")
+            if primary is not None:
+                raise primary from error
+            raise
+        audio_progress(kind, name, f"set-null-after result={result}")
+"""
+
+
 PROBE = r"""
 import ctypes
 import gettext
@@ -116,25 +168,7 @@ for name in ("clock", "weather", "ambient", "camshield"):
 from docking.applets.ambient.applet import _build_file_pipeline
 from docking.applets.ambient.state import FILE_SOUNDS, NOISE_WAVES
 print("Decoding every bundled Ambient sound and both noise modes", flush=True)
-pipelines = []
-for sound in FILE_SOUNDS:
-    player = _build_file_pipeline(assets / "sounds" / (sound.name + ".ogg"), 0.5)
-    assert player is not None, sound.name
-    sink = Gst.ElementFactory.make("fakesink")
-    sink.set_property("sync", False)
-    player.set_property("audio-sink", sink)
-    pipelines.append((sound.name, player))
-for name, wave in NOISE_WAVES.items():
-    pipelines.append((name, Gst.parse_launch(
-        f"audiotestsrc wave={wave} num-buffers=3 ! volume volume=0.5 ! fakesink")))
-for name, player in pipelines:
-    try:
-        assert player.set_state(Gst.State.PLAYING) != Gst.StateChangeReturn.FAILURE
-        message = player.get_bus().timed_pop_filtered(
-            10 * Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR)
-        assert message is not None and message.type == Gst.MessageType.EOS, name
-    finally:
-        player.set_state(Gst.State.NULL)
+__AUDIO_PREFLIGHT__
 from docking.platform.backends.windows.input_thread import Request, _runtime
 print("Loading the packaged input-thread helper", flush=True)
 helpers = Path(docking.__file__).parent / "platform/backends/windows"
@@ -216,7 +250,15 @@ report = {"ok": True, "python": sys.version.split()[0],
 Path(sys.argv[1]).write_text(json.dumps(report, indent=2), encoding="utf-8")
 print(json.dumps(report, indent=2))
 """
-PROBE = PROBE.replace("__DLL_PROVENANCE__", inspect.getsource(_foreign_msys_modules))
+PROBE = PROBE.replace("__AUDIO_PREFLIGHT__", AUDIO_PROBE).replace(
+    "__DLL_PROVENANCE__", inspect.getsource(_foreign_msys_modules)
+)
+
+
+def _log_tail(path: Path) -> str:
+    with path.open("rb") as stream:
+        stream.seek(max(0, path.stat().st_size - 4096))
+        return stream.read(4096).decode("utf-8", errors="replace")
 
 
 def main() -> None:
@@ -248,28 +290,45 @@ def main() -> None:
     environment["PATH"] = str(Path(os.environ["WINDIR"]) / "System32")
     environment["PYTHONPATH"] = str(output / "nonexistent-source-checkout")
     environment["XDG_CACHE_HOME"] = str(output / "cache")
-    with (output / "preflight.log").open("w", encoding="utf-8") as log:
-        result = subprocess.run(
-            [
-                str(bundle / "runtime/bin/python.exe"),
-                "-X",
-                "utf8",
-                "-I",
-                "-c",
-                PROBE,
-                str(output / "preflight.json"),
-            ],
-            cwd=output,
-            env=environment,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            timeout=180,
-        )
+    log_path = output / "preflight.log"
+    try:
+        with log_path.open("w", encoding="utf-8") as log:
+            result = subprocess.run(
+                [
+                    str(bundle / "runtime/bin/python.exe"),
+                    "-X",
+                    "utf8",
+                    "-I",
+                    "-c",
+                    PROBE,
+                    str(output / "preflight.json"),
+                ],
+                cwd=output,
+                env=environment,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=180,
+            )
+    except subprocess.TimeoutExpired:
+        print(_log_tail(log_path), flush=True)
+        raise
     if result.returncode:
         print((output / "preflight.log").read_text(encoding="utf-8", errors="replace"))
         raise SystemExit(result.returncode)
     print((output / "preflight.json").read_text(encoding="utf-8"))
 
 
+def cli() -> None:
+    try:
+        main()
+    except subprocess.TimeoutExpired as error:
+        print(
+            f"Bundled runtime preflight timed out after {error.timeout}s; "
+            "see preflight.log",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from error
+
+
 if __name__ == "__main__":
-    main()
+    cli()

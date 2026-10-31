@@ -14,6 +14,8 @@ from gi.repository import GdkPixbuf, Gio, GLib
 
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
+from docking.platform.applications.associations import AssociationStatus
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.environment import flatpak, is_flatpak, is_windows
 from docking.platform.files import file_for_uri
 from docking.platform.icons import IconLoader, fallback_file_icon_name
@@ -110,26 +112,14 @@ def open_target(target: str) -> bool:
         return False
 
 
-def default_directory_app_name() -> str | None:
-    """Return the display name of the default application for folders."""
-    try:
-        app_info = Gio.AppInfo.get_default_for_type("inode/directory", False)
-    except GLib.Error as exc:
-        log.bind(action="default_directory_app_name").warning(
-            "Failed to resolve default directory app: %s",
-            exc,
-        )
-        return None
-    if app_info is None:
-        return None
-    return app_info.get_display_name() or None
-
-
 class TargetService:
     """Resolve target metadata using its owned icon-loading service."""
 
-    def __init__(self, *, icon_loader: IconLoader) -> None:
+    def __init__(
+        self, *, icon_loader: IconLoader, application_registry: ApplicationRegistry
+    ) -> None:
         self._icon_loader = icon_loader
+        self._application_registry = application_registry
 
     def normalize_file_target(self, target: str) -> str | None:
         """Delegate target normalization to the canonical module function."""
@@ -201,13 +191,13 @@ class TargetService:
 
     def default_directory_app_name(self) -> str | None:
         """Return the presentation name of the default folder handler."""
-        return default_directory_app_name()
+        result = self._application_registry.directory_application_name()
+        return result.name if result.status is AssociationStatus.READY else None
 
 
 __all__ = [
     "FileTargetInfo",
     "TargetService",
-    "default_directory_app_name",
     "normalize_file_target",
     "open_target",
 ]

@@ -14,6 +14,7 @@ from tools.windows.visual.applications_domain_smoke import (
     cleanup_snapshot,
     phase_command,
     record_check,
+    settle_cleanup,
     validate_document_phase,
 )
 from tools.windows.visual.runtime_pin_smoke import (
@@ -218,12 +219,19 @@ def test_failure_diagnostics_keep_source_location_without_exception_paths_or_mes
 
 
 @pytest.mark.parametrize(
-    "failure", ["binary", "independent-launch", "selection", "enter-dispatch"]
+    "failure",
+    [
+        "binary",
+        "independent-launch",
+        "selection",
+        "enter-dispatch",
+        "entry",
+        "unsafe-entry",
+    ],
 )
 def test_export_diagnostics_distinguish_copy_failure_from_later_independent_launch(
     tmp_path, monkeypatch, failure
 ):
-    from contextlib import contextmanager
     from types import SimpleNamespace
     from unittest.mock import Mock
 
@@ -265,10 +273,27 @@ def test_export_diagnostics_distinguish_copy_failure_from_later_independent_laun
 
     activated = Mock(side_effect=activate)
 
-    @contextmanager
-    def folder(_native, directory):
-        assert directory == copied.parent
-        yield SimpleNamespace(activate=activated)
+    class Folder:
+        def __init__(self, _native, directory):
+            assert directory == copied.parent
+            self.foreground_observations = []
+            self.failure_capture = None
+            self.cleanup_safe = True
+            self.activate = activated
+
+        def __enter__(self):
+            assert observed["explorer_foreground"] is self.foreground_observations
+            assert self.failure_capture.name == "independent-explorer-entry-failure.png"
+            if failure in ("entry", "unsafe-entry"):
+                self.foreground_observations.append({"result": "failed"})
+                self.cleanup_safe = failure != "unsafe-entry"
+                raise AssertionError("Owned caption focus failed")
+            return self
+
+        def __exit__(self, _kind, _error, _traceback):
+            return False
+
+    folder = Folder
 
     monkeypatch.setattr(smoke.subprocess, "run", run)
     monkeypatch.setattr(explorer, "ExplorerFolder", folder)
@@ -309,12 +334,21 @@ def test_export_diagnostics_distinguish_copy_failure_from_later_independent_laun
     assert observed["child_shutdown"] and observed["source_cache_removed"]
     assert observed["binary_preserved"] is (failure != "binary")
     assert observed["stage"] == (
-        "copied-launcher" if failure == "binary" else "independent-launch"
+        "copied-launcher"
+        if failure == "binary"
+        else "independent-explorer"
+        if failure in ("entry", "unsafe-entry")
+        else "independent-launch"
     )
     assert lifecycle["closed"] is (
-        failure not in ("independent-launch", "enter-dispatch")
+        failure not in ("independent-launch", "enter-dispatch", "unsafe-entry")
     )
-    assert activated.call_count == (0 if failure == "binary" else 1)
+    assert activated.call_count == (
+        0 if failure in ("binary", "entry", "unsafe-entry") else 1
+    )
+    if failure in ("entry", "unsafe-entry"):
+        assert observed["explorer_foreground"] == [{"result": "failed"}]
+        assert observed["explorer_cleanup_safe"] is (failure != "unsafe-entry")
 
 
 def _document_target(**changed):
@@ -500,20 +534,40 @@ def test_document_icon_uses_current_item_and_rendered_gap_shift(horizontal):
     )
 
 
-@pytest.mark.parametrize("reason", ["process", "window", "workarea", "shell", None])
+@pytest.mark.parametrize(
+    "reason",
+    ["process", "window", "workarea", "shell-pid", "shell-window", "shell-style", None],
+)
 def test_cleanup_evidence_keeps_existing_rejection_policy_and_exposes_reason(reason):
     baseline = [0, 0, 1280, 752]
     shell = {"pid": 77, "window": 1000, "style": 136}
     rows = [
-        {"hwnd": 1, "pid": 99, "class": "Existing"},
-        {"hwnd": 2, "pid": 77, "class": "WorkerW"},
+        {"hwnd": 1, "pid": 99, "class": "Existing", "rect": [0, 0, 100, 100]},
+        {"hwnd": 2, "pid": 77, "class": "WorkerW", "rect": [0, 0, 1280, 752]},
     ]
     if reason == "window":
-        rows.append({"hwnd": 3, "pid": 88, "class": "UnknownVisible"})
+        rows.append(
+            {
+                "hwnd": 3,
+                "pid": 77,
+                "class": "Xaml_WindowedPopupClass",
+                "rect": [20, 30, 220, 130],
+            }
+        )
+
+    def cursor(target):
+        target._obj.x, target._obj.y = 576, 713
+        return 1
+
     native = SimpleNamespace(
         workarea=lambda: [0, 0, 1280, 700] if reason == "workarea" else baseline,
-        explorer=lambda: {**shell, "pid": 78} if reason == "shell" else shell,
+        explorer=lambda: (
+            {**shell, reason.removeprefix("shell-"): 78}
+            if reason is not None and reason.startswith("shell-")
+            else shell
+        ),
         windows=lambda: rows,
+        user=SimpleNamespace(GetCursorPos=cursor, GetForegroundWindow=lambda: 1000),
     )
     processes = [
         SimpleNamespace(
@@ -535,9 +589,211 @@ def test_cleanup_evidence_keeps_existing_rejection_policy_and_exposes_reason(rea
     )
     assert snapshot["safe"] is (reason is None)
     assert snapshot["owned_pids"] == ([9] if reason == "process" else [])
-    assert snapshot["new_windows"] == ([rows[-1]] if reason == "window" else [])
+    assert snapshot["new_windows"] == (
+        [{key: rows[-1][key] for key in ("hwnd", "pid", "class")}]
+        if reason == "window"
+        else []
+    )
+    assert snapshot["new_window_rects"] == (
+        [{key: rows[-1][key] for key in ("hwnd", "pid", "rect")}]
+        if reason == "window"
+        else []
+    )
+    assert snapshot["cursor"] == [576, 713] and snapshot["foreground"] == 1000
     assert snapshot["workarea_matches"] is (reason != "workarea")
-    assert snapshot["shell_matches"] is (reason != "shell")
+    assert snapshot["shell_matches"] is (
+        reason is None or not reason.startswith("shell-")
+    )
+
+
+def test_cleanup_window_diagnostics_are_bounded_without_dropping_rejections():
+    def cursor(_target):
+        return 1
+
+    rows = [
+        {"hwnd": index, "pid": 77, "class": "Unknown", "rect": [0, 0, 100, 100]}
+        for index in range(17)
+    ]
+    shell = {"pid": 77, "window": 1000, "style": 136}
+    native = SimpleNamespace(
+        workarea=lambda: [0, 0, 1280, 752],
+        explorer=lambda: shell,
+        windows=lambda: rows,
+        user=SimpleNamespace(GetCursorPos=cursor, GetForegroundWindow=lambda: 1000),
+    )
+    snapshot = cleanup_snapshot(native, [], set(), set(), native.workarea(), shell)
+    assert snapshot["safe"] is False
+    assert len(snapshot["new_windows"]) == 17
+    assert len(snapshot["new_window_rects"]) == 16
+
+
+@pytest.fixture
+def cleanup_clock(monkeypatch):
+    from tools.windows.visual import applications_domain_smoke
+
+    clock = SimpleNamespace(now=0.0, pauses=[])
+
+    def pause(seconds):
+        assert 0 < seconds <= 0.1
+        clock.pauses.append(seconds)
+        clock.now += seconds
+
+    monkeypatch.setattr(
+        applications_domain_smoke,
+        "time",
+        SimpleNamespace(monotonic=lambda: clock.now, sleep=pause),
+    )
+    return clock
+
+
+def test_cleanup_waits_for_two_consecutive_strict_safe_snapshots(
+    cleanup_clock, tmp_path
+):
+    safe = {"safe": True, "cursor": [576, 713], "new_windows": []}
+    popup = {
+        **safe,
+        "safe": False,
+        "new_windows": [
+            {"hwnd": 2622620, "pid": 5360, "class": "Xaml_WindowedPopupClass"}
+        ],
+    }
+    rows = iter((popup, safe, popup, safe, safe))
+    observed = {}
+    assert settle_cleanup(lambda: next(rows), observed, tmp_path / "failure.png")
+    assert observed["initial"] is popup and observed["final"] is safe
+    assert observed["samples"] == 5 and observed["transitions"] == 3
+    assert observed["stable_safe_samples"] == 2
+    assert observed["elapsed_ms"] == 400 and not observed["timed_out"]
+    assert cleanup_clock.pauses == [0.1] * 4
+    assert not (tmp_path / "failure.png").exists()
+
+
+@pytest.mark.parametrize(
+    "remaining",
+    [
+        {"new_windows": [{"hwnd": 8, "pid": 77, "class": "Xaml_WindowedPopupClass"}]},
+        {"owned_pids": [9]},
+        {"workarea_matches": False},
+        {"shell": {"pid": 78, "window": 1000, "style": 136}, "shell_matches": False},
+        {"shell": {"pid": 77, "window": 1001, "style": 136}, "shell_matches": False},
+        {"shell": {"pid": 77, "window": 1000, "style": 0}, "shell_matches": False},
+    ],
+)
+def test_cleanup_timeout_keeps_every_original_rejection_and_captures(
+    cleanup_clock, tmp_path, monkeypatch, remaining
+):
+    from PIL import ImageGrab
+
+    capture = Mock()
+    monkeypatch.setattr(ImageGrab, "grab", capture)
+    facts = {"safe": False, **remaining}
+    observed = {}
+    destination = tmp_path / "cleanup-association-default-failure.png"
+    assert not settle_cleanup(lambda: facts, observed, destination)
+    assert observed["initial"] is facts and observed["final"] is facts
+    assert observed["safe"] is False and observed["timed_out"] is True
+    assert observed["transitions"] == 0 and observed["stable_safe_samples"] == 0
+    assert observed["elapsed_ms"] == 5000 and cleanup_clock.now == 5
+    assert 50 <= observed["samples"] <= 52
+    assert observed["failure_capture"] == destination.name
+    capture.assert_called_once_with(all_screens=True)
+    capture.return_value.save.assert_called_once_with(destination)
+
+
+def test_cleanup_timeout_capture_error_preserves_operation_failure(
+    cleanup_clock, tmp_path, monkeypatch
+):
+    from PIL import ImageGrab
+
+    monkeypatch.setattr(
+        ImageGrab, "grab", Mock(side_effect=OSError(5, "Capture failed"))
+    )
+    observed = {}
+    checks = {"first": {"passed": False}}
+
+    def operation():
+        raise ValueError("Original failure")
+
+    assert not record_check(
+        checks,
+        "first",
+        operation,
+        cleanup_verified=lambda: settle_cleanup(
+            lambda: {"safe": False}, observed, tmp_path / "failure.png"
+        ),
+    )
+    assert observed["timed_out"] and not observed["safe"]
+    capture_error = observed["capture_error"]
+    assert isinstance(capture_error, dict) and capture_error["class"] == "OSError"
+    assert "failure_capture" not in observed
+    phase_error = checks["first"]["error"]
+    assert isinstance(phase_error, dict) and phase_error["class"] == "ValueError"
+    assert checks["first"]["cleanup_verified"] is False
+    assert "cleanup_error" not in checks["first"]
+
+
+def test_single_safe_sample_at_deadline_does_not_claim_settled_cleanup(
+    cleanup_clock, tmp_path, monkeypatch
+):
+    from PIL import ImageGrab
+
+    monkeypatch.setattr(ImageGrab, "grab", Mock())
+    observed = {}
+    assert not settle_cleanup(
+        lambda: {"safe": cleanup_clock.now >= 5},
+        observed,
+        tmp_path / "failure.png",
+    )
+    assert observed["final"]["safe"] is True
+    assert observed["stable_safe_samples"] == 1
+    assert observed["timed_out"] is True and observed["safe"] is False
+
+
+def test_cleanup_observation_failure_and_cancellation_are_not_retried(
+    cleanup_clock, tmp_path
+):
+    for error in (OSError(5, "Snapshot failed"), KeyboardInterrupt()):
+        snapshot = Mock(side_effect=error)
+        with pytest.raises(type(error)) as caught:
+            settle_cleanup(snapshot, {}, tmp_path / "failure.png")
+        assert caught.value is error
+        snapshot.assert_called_once_with()
+    assert cleanup_clock.pauses == []
+
+
+@pytest.mark.parametrize("popup", ["none", "delayed", "transient", "permanent"])
+def test_whole_domain_guard_observes_full_existing_budget_after_anchor_close(
+    cleanup_clock, monkeypatch, tmp_path, popup
+):
+    from PIL import ImageGrab
+
+    capture = Mock()
+    monkeypatch.setattr(ImageGrab, "grab", capture)
+
+    def snapshot():
+        pending = (
+            popup == "permanent"
+            or (popup == "delayed" and cleanup_clock.now >= 0.4)
+            or (popup == "transient" and 0.4 <= cleanup_clock.now < 1.2)
+        )
+        return {
+            "safe": not pending,
+            "new_windows": [{"hwnd": 9, "class": "Xaml_WindowedPopupClass"}]
+            if pending
+            else [],
+        }
+
+    observed = {}
+    clean = settle_cleanup(snapshot, observed, tmp_path / "final.png", full_window=True)
+    assert clean is (popup in ("none", "transient"))
+    assert cleanup_clock.now == 5 and observed["elapsed_ms"] == 5000
+    assert observed["samples"] >= 50
+    if popup == "delayed":
+        assert observed["initial"]["safe"] and not observed["final"]["safe"]
+        assert observed["transitions"] == 1 and observed["timed_out"]
+    elif popup == "transient":
+        assert observed["transitions"] == 2 and observed["stable_safe_samples"] > 2
+    assert capture.call_count == (1 if popup in ("delayed", "permanent") else 0)
 
 
 @pytest.mark.parametrize("replaced", [False, True])
@@ -616,3 +872,104 @@ def test_document_snapshot_uses_live_gap_and_physical_scale(replaced):
     assert state["native_window"] == state["dock_window"] == 123
     assert state["foreground"] == 321
     assert state["live_item"] is (not replaced)
+
+
+@pytest.mark.parametrize("initial_pending", [False, True])
+@pytest.mark.parametrize("status", ["pending", "ready", "unavailable"])
+def test_association_child_never_confuses_pending_or_unavailable_with_absence(
+    status, initial_pending
+):
+    from docking.platform.applications.associations import (
+        AssociationResolution,
+        AssociationStatus,
+    )
+    from tools.windows.visual.applications_domain_smoke import association_selection
+
+    result = AssociationResolution(AssociationStatus(status))
+    registry = SimpleNamespace(
+        default_for_content_type=Mock(return_value=result),
+        initial_discovery_pending=initial_pending,
+    )
+    observed = {}
+    if status == "unavailable":
+        with pytest.raises(AssertionError, match="unavailable"):
+            association_selection(registry, ".owned", observed)
+    else:
+        selected = association_selection(registry, ".owned", observed)
+        assert selected is (
+            result if status == "ready" and not initial_pending else None
+        )
+    assert observed["lookup_status"] == status
+    registry.default_for_content_type.assert_called_once_with(".owned")
+
+
+def test_association_child_pumps_owned_apcs_and_bounded_main_context_before_refresh():
+    from tools.windows.visual.applications_domain_smoke import (
+        refresh_association_registry,
+    )
+
+    events, observed = [], {}
+    registry = SimpleNamespace(refresh=lambda: events.append("refresh"))
+    context = SimpleNamespace(
+        pending=lambda: True,
+        iteration=lambda block: events.append(("iteration", block)),
+    )
+
+    def alertable(milliseconds, enabled):
+        assert milliseconds == 0 and enabled is True
+        events.append("alertable")
+        return 0xC0
+
+    refresh_association_registry(registry, context, alertable, observed)
+    assert events == ["alertable", *([("iteration", False)] * 32), "refresh"]
+    assert observed["alertable_status"] == 0xC0
+
+
+def test_association_child_rejects_unexpected_apc_result_without_refresh():
+    from tools.windows.visual.applications_domain_smoke import (
+        refresh_association_registry,
+    )
+
+    registry, context = Mock(), Mock()
+    with pytest.raises(AssertionError, match="SleepEx"):
+        refresh_association_registry(registry, context, lambda *_args: 87, {})
+    context.pending.assert_not_called()
+    registry.refresh.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", [None, "start", "body", "both"])
+def test_association_registry_lifetime_closes_before_registration_teardown_and_keeps_original(
+    failure,
+):
+    from tools.windows.visual.applications_domain_smoke import (
+        running_association_registry,
+    )
+
+    original, cleanup = ValueError("Owned original"), OSError(5, "Owned cleanup")
+    events = []
+
+    def start():
+        events.append("start")
+        if failure == "start":
+            raise original
+
+    def stop():
+        events.append("stop")
+        if failure == "both":
+            raise cleanup
+
+    registry = SimpleNamespace(start=start, stop=stop)
+    try:
+        with running_association_registry(registry) as selected:
+            assert selected is registry
+            events.append("body")
+            if failure in ("body", "both"):
+                raise original
+    except ValueError as caught:
+        assert failure is not None and caught is original
+        if failure == "both":
+            assert caught.__cause__ is cleanup
+    else:
+        assert failure is None
+    events.append("registration-teardown")
+    assert events[-2:] == ["stop", "registration-teardown"]

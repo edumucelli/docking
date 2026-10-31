@@ -619,6 +619,7 @@ class OwnedInputEditor:
             "started": False,
             "closed": False,
             "event_closed": False,
+            "input_cleanup_safe": True,
         }
 
     def start(self) -> dict[str, object]:
@@ -758,7 +759,40 @@ class OwnedInputEditor:
         status = api.perform(snapshot, "activate")
         row["result"] = status.value
         row["foreground_immediate"] = int(user.GetForegroundWindow() or 0)
-        assert status is ActionResult.OK, "Owned editor normal activation failed"
+        assert status in (ActionResult.OK, ActionResult.FAILED), (
+            "Owned editor activation identity changed"
+        )
+        if status is ActionResult.FAILED:
+            from tools.windows.visual.window_focus import focus_caption
+
+            expected = {key: window[key] for key in ("hwnd", "pid", "class", "title")}
+
+            def current():
+                self.verify_identity(window)
+                observed = next(
+                    (
+                        row
+                        for row in self.native.windows(window["pid"])
+                        if row["hwnd"] == hwnd
+                    ),
+                    None,
+                )
+                assert observed is not None and all(
+                    observed[key] == value for key, value in expected.items()
+                ), "Owned editor caption identity changed"
+                return observed
+
+            current()
+            assert api.matches(snapshot), "Owned editor activation snapshot changed"
+            assist = row["caption_assist"] = {}
+            try:
+                focus_caption(self.native, current, assist)
+            finally:
+                if assist.get("geometry_restored") is False or (
+                    assist.get("caption_press_started")
+                    and not assist.get("physical_caption_click")
+                ):
+                    self.journal["input_cleanup_safe"] = False
 
         def foreground():
             self.verify_identity(window)
@@ -859,6 +893,9 @@ class OwnedInputEditor:
 
     def close(self) -> None:
         if self.journal["closed"] and self.journal["event_closed"]:
+            assert self.journal["input_cleanup_safe"], (
+                "Owned editor physical input cleanup is unsafe"
+            )
             return
         process = self.process
         try:
@@ -911,3 +948,6 @@ class OwnedInputEditor:
                         raise OSError("Owned input editor pause event did not close")
                     self.gate = None
                 self.journal["event_closed"] = True
+        assert self.journal["input_cleanup_safe"], (
+            "Owned editor physical input cleanup is unsafe"
+        )

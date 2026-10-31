@@ -8,6 +8,7 @@ from behave import given, then, when
 
 from docking.core.config import Config
 from docking.core.items import DockItem
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.targets import TargetService
 from docking.ui.folder.stack import FolderStackController
 
@@ -25,11 +26,17 @@ def thumbnail_folder(context):
     context.thumbnail_item = DockItem(
         desktop_id=folder.as_uri(), target=folder.as_uri(), kind="folder"
     )
+    registry = ApplicationRegistry(
+        application_source=lambda: (), desktop_directories_source=lambda: ()
+    )
+    context.add_cleanup(registry.stop)
     context.thumbnail_stack = FolderStackController(
         config=context.thumbnail_config,
         runtime=MagicMock(),
         dock_window=MagicMock(),
-        target_service=TargetService(icon_loader=context.thumbnail_loader),
+        target_service=TargetService(
+            icon_loader=context.thumbnail_loader, application_registry=registry
+        ),
     )
 
 

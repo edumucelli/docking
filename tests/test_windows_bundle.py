@@ -110,6 +110,241 @@ def test_isolated_bundle_probe_embeds_the_same_provenance_validator():
     assert ast.dump(function) == ast.dump(ast.parse(source).body[0])
 
 
+@pytest.fixture
+def audio_probe(tmp_path):
+    calls = []
+    players = {}
+
+    class Player:
+        def __init__(self, name):
+            self.name = name
+            self.playing_error = None
+            self.null_error = None
+            self.wait_error = None
+            self.playing_result = "SUCCESS"
+            self.message = SimpleNamespace(type=1)
+            players[name] = self
+
+        def set_property(self, name, value):
+            calls.append((self.name, "property", name, value))
+
+        def set_state(self, state):
+            calls.append((self.name, "state", state))
+            error = self.playing_error if state == "PLAYING" else self.null_error
+            if error is not None:
+                raise error
+            return self.playing_result if state == "PLAYING" else "SUCCESS"
+
+        def get_bus(self):
+            calls.append((self.name, "bus"))
+            return self
+
+        def timed_pop_filtered(self, timeout, types):
+            calls.append((self.name, "wait", timeout, types))
+            if self.wait_error is not None:
+                raise self.wait_error
+            return self.message
+
+    class Sink:
+        def set_property(self, name, value):
+            calls.append(("sink", name, value))
+
+    def build(path, volume):
+        calls.append(("build", path.name, volume))
+        return Player(path.stem)
+
+    def make(name):
+        calls.append(("factory", name))
+        return Sink()
+
+    def parse(description):
+        calls.append(("parse", description))
+        return Player("white-noise" if "wave=5" in description else "pink-noise")
+
+    namespace = {
+        "Gst": SimpleNamespace(
+            State=SimpleNamespace(PLAYING="PLAYING", NULL="NULL"),
+            StateChangeReturn=SimpleNamespace(FAILURE="FAILURE"),
+            MessageType=SimpleNamespace(EOS=1, ERROR=2),
+            SECOND=1_000_000_000,
+            ElementFactory=SimpleNamespace(make=make),
+            parse_launch=parse,
+        ),
+        "assets": tmp_path,
+        "FILE_SOUNDS": [SimpleNamespace(name="birds"), SimpleNamespace(name="boat")],
+        "NOISE_WAVES": {"white-noise": 5, "pink-noise": 6},
+        "_build_file_pipeline": build,
+    }
+    return SimpleNamespace(
+        namespace=namespace,
+        calls=calls,
+        players=players,
+        run=lambda: exec(bundle_smoke.AUDIO_PROBE, namespace),
+    )
+
+
+def test_audio_progress_keeps_every_pipeline_and_original_api_calls(
+    audio_probe, capsys
+):
+    audio_probe.run()
+    calls = audio_probe.calls
+    assert [row for row in calls if row[0] == "build"] == [
+        ("build", "birds.ogg", 0.5),
+        ("build", "boat.ogg", 0.5),
+    ]
+    assert [row for row in calls if row[0] == "parse"] == [
+        ("parse", "audiotestsrc wave=5 num-buffers=3 ! volume volume=0.5 ! fakesink"),
+        ("parse", "audiotestsrc wave=6 num-buffers=3 ! volume volume=0.5 ! fakesink"),
+    ]
+    assert calls.index(("birds", "state", "PLAYING")) > max(
+        index for index, row in enumerate(calls) if row[0] in {"build", "parse"}
+    )
+    for name in ("birds", "boat", "white-noise", "pink-noise"):
+        assert [row for row in calls if row[0] == name and row[1] != "property"] == [
+            (name, "state", "PLAYING"),
+            (name, "bus"),
+            (name, "wait", 10_000_000_000, 3),
+            (name, "state", "NULL"),
+        ]
+    output = capsys.readouterr().out
+    for label in ("file:birds", "file:boat", "noise:white-noise", "noise:pink-noise"):
+        for phase in (
+            "construct-before",
+            "construct-after",
+            "set-playing-before",
+            "set-playing-after",
+            "wait-eos-before",
+            "wait-eos-after",
+            "set-null-before",
+            "set-null-after",
+        ):
+            assert f"Audio {label} {phase}" in output
+    assert len(output) < 4096
+    assert bundle_smoke.PROBE.count(bundle_smoke.AUDIO_PROBE) == 1
+    compile(bundle_smoke.PROBE, "<bundle-probe>", "exec")
+
+
+@pytest.mark.parametrize("phase", ["construct", "set-playing", "wait-eos", "set-null"])
+def test_audio_progress_identifies_failed_native_boundary(audio_probe, capsys, phase):
+    failure = OSError(8, "Native fixture failure")
+    build = audio_probe.namespace["_build_file_pipeline"]
+
+    def failing_build(path, volume):
+        if phase == "construct":
+            raise failure
+        player = build(path, volume)
+        if path.stem == "birds":
+            if phase == "set-playing":
+                player.playing_error = failure
+            elif phase == "wait-eos":
+                player.wait_error = failure
+            else:
+                player.null_error = failure
+        return player
+
+    audio_probe.namespace["_build_file_pipeline"] = failing_build
+    with pytest.raises(OSError) as caught:
+        audio_probe.run()
+    assert caught.value is failure
+    output = capsys.readouterr().out
+    assert f"Audio file:birds {phase}-before" in output
+    assert f"Audio file:birds {phase}-after" not in output
+    if phase != "construct":
+        assert ("birds", "state", "NULL") in audio_probe.calls
+
+
+def test_audio_eos_failure_remains_a_failure_and_preserves_cleanup_error(audio_probe):
+    primary = OSError(8, "Bus query failed")
+    secondary = RuntimeError("NULL transition failed")
+    build = audio_probe.namespace["_build_file_pipeline"]
+
+    def failing_build(path, volume):
+        player = build(path, volume)
+        player.wait_error, player.null_error = primary, secondary
+        return player
+
+    audio_probe.namespace["_build_file_pipeline"] = failing_build
+    with pytest.raises(OSError) as caught:
+        audio_probe.run()
+    assert caught.value is primary and caught.value.__cause__ is secondary
+
+
+def test_audio_rejected_playing_state_never_waits_or_passes(audio_probe):
+    build = audio_probe.namespace["_build_file_pipeline"]
+
+    def failing_build(path, volume):
+        player = build(path, volume)
+        player.playing_result = "FAILURE"
+        return player
+
+    audio_probe.namespace["_build_file_pipeline"] = failing_build
+    with pytest.raises(AssertionError):
+        audio_probe.run()
+    assert ("birds", "state", "NULL") in audio_probe.calls
+    assert not any(row[1] == "wait" for row in audio_probe.calls)
+
+
+@pytest.mark.parametrize("message", [None, SimpleNamespace(type=2)])
+def test_audio_missing_or_error_eos_is_never_accepted(audio_probe, message):
+    build = audio_probe.namespace["_build_file_pipeline"]
+
+    def failing_build(path, volume):
+        player = build(path, volume)
+        player.message = message
+        return player
+
+    audio_probe.namespace["_build_file_pipeline"] = failing_build
+    with pytest.raises(AssertionError, match="birds"):
+        audio_probe.run()
+    assert ("birds", "state", "NULL") in audio_probe.calls
+
+
+@pytest.mark.parametrize("line_ending", ("\n", "\r\n"))
+def test_bundle_timeout_retains_error_and_prints_only_bounded_log_tail(
+    tmp_path, monkeypatch, capsys, line_ending
+):
+    bundle, output = tmp_path / "bundle", tmp_path / "output"
+    bundle.mkdir()
+    monkeypatch.setattr(bundle_smoke.sys, "platform", "win32")
+    monkeypatch.setattr(
+        bundle_smoke.sys,
+        "argv",
+        ["bundle_smoke", "--bundle", str(bundle), "--output", str(output)],
+    )
+    monkeypatch.setattr(bundle_smoke, "payload_root", lambda path: path)
+    monkeypatch.setenv("WINDIR", str(tmp_path / "Windows"))
+    failure = subprocess.TimeoutExpired(
+        ["python.exe", "-c", "large-probe" * 10_000], 180
+    )
+
+    def timeout(_arguments, **options):
+        assert options["timeout"] == 180
+        options["stdout"].buffer.write(
+            line_ending.join(
+                ("old prefix", "x" * 12_000, "Audio file:boat set-null-before", "")
+            ).encode()
+        )
+        raise failure
+
+    monkeypatch.setattr(bundle_smoke.subprocess, "run", timeout)
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        bundle_smoke.main()
+    assert caught.value is failure
+    observed = capsys.readouterr().out
+    assert "old prefix" not in observed
+    assert observed.splitlines()[-2:] == ["Audio file:boat set-null-before", ""]
+    assert len(observed.encode()) <= 4097
+    assert not (output / "preflight.json").exists()
+
+    monkeypatch.setattr(bundle_smoke, "main", lambda: (_ for _ in ()).throw(failure))
+    with pytest.raises(SystemExit) as stopped:
+        bundle_smoke.cli()
+    assert stopped.value.code == 1 and stopped.value.__cause__ is failure
+    observed = capsys.readouterr()
+    assert "timed out after 180s" in observed.err
+    assert "large-probe" not in observed.err
+
+
 def test_native_dependency_closure_follows_runtime_edges_and_providers(tmp_path):
     database = tmp_path / "local"
     for name, dependencies, provides in (

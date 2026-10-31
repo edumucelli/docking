@@ -12,8 +12,26 @@ from docking.platform.backends.windows.com import HRESULT, method
 from docking.platform.backends.windows.ffi import bind
 
 
+def test_unicode_file_drop_encodes_the_whole_ordered_cross_folder_selection():
+    paths = (
+        r"C:\Owned one\résumé_日本語_📄.txt",
+        r"D:\Other folder\literal & #100% 'quotes'.md",
+        r"\\fileserver\team\third document.txt",
+    )
+    data = native.file_drop_bytes(paths)
+    assert struct.unpack("<IiiII", data[:20]) == (20, 0, 0, 0, 1)
+    assert data[20:].decode("utf-16-le").split("\0") == [*paths, "", ""]
+
+
+@pytest.mark.parametrize("paths", [(), ("",), ("C:\\bad\0.txt",)])
+def test_incomplete_file_drop_selection_is_rejected(paths):
+    with pytest.raises(ValueError):
+        native.file_drop_bytes(paths)
+
+
 @pytest.mark.parametrize(
-    "failure", [None, "create", "register", "allocate", "lock", "set"]
+    "failure",
+    [None, "create", "interrupt-create", "register", "allocate", "lock", "set"],
 )
 def test_cached_object_owns_successful_transfers_and_frees_partial_failures(
     monkeypatch, failure
@@ -44,6 +62,8 @@ def test_cached_object_owns_successful_transfers_and_frees_partial_failures(
                     parent is None and count == 0 and children is None and inner is None
                 )
                 output._obj.value = 11
+                if failure == "interrupt-create":
+                    raise KeyboardInterrupt
                 return -1 if failure == "create" else 0
 
             return create
@@ -102,7 +122,8 @@ def test_cached_object_owns_successful_transfers_and_frees_partial_failures(
             assert pointer.value == 11 and len(buffers) == 2
             assert freed == []
     else:
-        with pytest.raises(OSError), native.cached_data_object(formats):
+        expected = KeyboardInterrupt if failure == "interrupt-create" else OSError
+        with pytest.raises(expected), native.cached_data_object(formats):
             pytest.fail("An incomplete object must not escape")
     assert not buffers
     assert len(freed) == len(set(freed))
@@ -111,13 +132,15 @@ def test_cached_object_owns_successful_transfers_and_frees_partial_failures(
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Shell data-object ABI")
-def test_native_cached_file_data_round_trips_through_the_shell(tmp_path):
-    path = tmp_path / "Transfer résumé 日本語.txt"
-    path.write_text("Owned native format fixture", encoding="utf-8")
-    filename = str(path).replace("/", "\\")
-    payload = struct.pack("<IiiII", 20, 0, 0, 0, 1) + (filename + "\0\0").encode(
-        "utf-16-le"
-    )
+@pytest.mark.parametrize("directories", [("",), ("", ""), ("first", "different")])
+def test_native_cached_file_data_round_trips_through_the_shell(tmp_path, directories):
+    filenames = []
+    for index, directory in enumerate(directories):
+        path = tmp_path / directory / f"Transfer {index} résumé 日本語.txt"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("Owned native format fixture", encoding="utf-8")
+        filenames.append(str(path).replace("/", "\\"))
+    payload = native.file_drop_bytes(filenames)
     with native.cached_data_object((("CF_HDROP", payload),)) as pointer:
         request = native.FormatEtc(15, None, 1, -1, 1)
         medium = native.StorageMedium()
@@ -142,11 +165,12 @@ def test_native_cached_file_data_round_trips_through_the_shell(tmp_path):
                 ctypes.c_wchar_p,
                 ctypes.c_uint32,
             )
-            assert query(medium.data, 0xFFFFFFFF, None, 0) == 1
-            length = query(medium.data, 0, None, 0)
-            result = ctypes.create_unicode_buffer(length + 1)
-            assert query(medium.data, 0, result, len(result)) == length
-            assert result.value == filename
+            assert query(medium.data, 0xFFFFFFFF, None, 0) == len(filenames)
+            for index, filename in enumerate(filenames):
+                length = query(medium.data, index, None, 0)
+                result = ctypes.create_unicode_buffer(length + 1)
+                assert query(medium.data, index, result, len(result)) == length
+                assert result.value == filename
         finally:
             bind(
                 ctypes.WinDLL("ole32"),

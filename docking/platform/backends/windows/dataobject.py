@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import ctypes
-from collections.abc import Iterator
+import struct
+from collections.abc import Iterator, Sequence
 from contextlib import ExitStack, contextmanager
 
 from .com import GUID, HRESULT, apartment, method, release
@@ -33,6 +34,15 @@ def _check(status: int) -> None:
         raise OSError(status & 0xFFFFFFFF, "Could not prepare native drag data")
 
 
+def file_drop_bytes(paths: Sequence[str]) -> bytes:
+    """Encode complete native paths in the Shell's Unicode CF_HDROP format."""
+    if not paths or any(not path or "\0" in path for path in paths):
+        raise ValueError("Native file selection must contain nonempty paths")
+    return struct.pack("<IiiII", 20, 0, 0, 0, 1) + ("\0".join(paths) + "\0\0").encode(
+        "utf-16-le"
+    )
+
+
 @contextmanager
 def cached_data_object(
     formats: tuple[tuple[str, bytes], ...],
@@ -40,6 +50,7 @@ def cached_data_object(
     """Own a Shell data object without parsing paths or reading launcher files."""
     with apartment(), ExitStack() as stack:
         pointer = ctypes.c_void_p()
+        stack.callback(release, pointer)
         interface = GUID.parse("0000010e-0000-0000-c000-000000000046")
         status = bind(
             ctypes.WinDLL("shell32", use_last_error=True),
@@ -52,7 +63,6 @@ def cached_data_object(
             ctypes.POINTER(GUID),
             ctypes.POINTER(ctypes.c_void_p),
         )(None, 0, None, None, ctypes.byref(interface), ctypes.byref(pointer))
-        stack.callback(release, pointer)
         _check(status)
         if not pointer.value:
             raise OSError("Missing native drag data object")

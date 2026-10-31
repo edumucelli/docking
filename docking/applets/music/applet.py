@@ -32,10 +32,13 @@ from docking.applets.music import meta
 from docking.applets.worker import SerialWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 from docking.platform.applications.listing import (
     activate_listing,
 )
-from docking.platform.applications.types import ApplicationListing
 
 from .artwork import CoverArtResolver
 from .backend import MusicBackend, create_backend
@@ -99,6 +102,10 @@ class MusicApplet(ApplicationServicesApplet):
         self._loading = True
         self._error = False
         self._lifetime = 0
+        self._pending_media_launch = False
+        self._association_unsubscribe: Callable[[], None] | None = (
+            application_registry.subscribe(self._on_associations_changed)
+        )
         self._worker = SerialWorker(on_close=self._backend.close, logger=log)
         self.present()
         self._tick()
@@ -126,6 +133,10 @@ class MusicApplet(ApplicationServicesApplet):
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._association_unsubscribe is None:
+            self._association_unsubscribe = self._application_registry.subscribe(
+                self._on_associations_changed
+            )
         if self._stopped:
             self._stopped = False
             self._loading = True
@@ -141,6 +152,10 @@ class MusicApplet(ApplicationServicesApplet):
         if self._stopped:
             return
         self._stopped = True
+        self._pending_media_launch = False
+        if self._association_unsubscribe is not None:
+            self._association_unsubscribe()
+            self._association_unsubscribe = None
         self._lifetime += 1
         self._poll_generation += 1
         self._backend.stop()
@@ -160,6 +175,8 @@ class MusicApplet(ApplicationServicesApplet):
             self._refresh_now()
             return
         if not has_active_media(self._state):
+            if self._pending_media_launch:
+                return
             self._launch_default_media_app()
             return
         if self._state.can_play_pause:
@@ -360,6 +377,8 @@ class MusicApplet(ApplicationServicesApplet):
         *,
         force: bool = False,
     ) -> bool:
+        if has_active_media(state):
+            self._pending_media_launch = False
         state = self._state_with_registry_icon(state)
         was_loading, self._loading = self._loading, False
         if (
@@ -387,17 +406,27 @@ class MusicApplet(ApplicationServicesApplet):
             return state
         return state
 
-    def _find_media_application(self) -> ApplicationListing | None:
+    def _find_media_application(self) -> AssociationResolution:
         return self._application_registry.preferred_listing_for_content_types(
             MEDIA_CONTENT_TYPES
         )
 
+    def _on_associations_changed(self) -> None:
+        if self._pending_media_launch and not self._stopped:
+            if has_active_media(self._state):
+                self._pending_media_launch = False
+            else:
+                self._launch_default_media_app()
+
     def _launch_default_media_app(self) -> bool:
-        launcher = self._application_launcher
-        application = self._find_media_application()
-        if application is None:
+        resolution = self._find_media_application()
+        self._pending_media_launch = resolution.status is AssociationStatus.PENDING
+        if (
+            resolution.status is not AssociationStatus.READY
+            or resolution.listing is None
+        ):
             return False
-        return activate_listing(launcher, application)
+        return activate_listing(self._application_launcher, resolution.listing)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:

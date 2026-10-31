@@ -36,6 +36,7 @@ def main() -> None:
     from PIL import Image, ImageGrab
 
     from docking.core.paths import local_path_from_uri_or_path
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.icons import IconLoader
     from docking.platform.targets import TargetService
     from docking.search.coordinator import SearchCancellation, SearchRequest
@@ -196,7 +197,11 @@ def main() -> None:
     Image.new("RGB", (80, 40), (40, 170, 80)).save(image)
     shared = output / "UNC # résumé 100%.txt"
     shared.write_text("UNC authority remains host.lan", encoding="utf-8")
-    target_service = TargetService(icon_loader=IconLoader())
+    registry = ApplicationRegistry()
+    icon_loader = IconLoader()
+    target_service = TargetService(
+        icon_loader=icon_loader, application_registry=registry
+    )
     copied = []
     provider = PathSearchProvider(
         target_service=target_service, copy_text=copied.append, icon_size=48
@@ -486,6 +491,8 @@ foreach ($item in $items) {{
             json.dumps(report, indent=2), encoding="utf-8"
         )
         print(json.dumps(report, indent=2))
+        registry.stop()
+        icon_loader.stop()
 
 
 if __name__ == "__main__":

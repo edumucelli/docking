@@ -39,7 +39,11 @@ def folder(tmp_path):
 def browser():
     loader = MagicMock()
     loader.resolve_file_icon.side_effect = lambda **kwargs: kwargs["target"]
-    return FolderBrowser(target_service=TargetService(icon_loader=loader)), loader
+    return FolderBrowser(
+        target_service=TargetService(
+            application_registry=MagicMock(), icon_loader=loader
+        )
+    ), loader
 
 
 @pytest.mark.parametrize("sort", ["name", "kind", "size", "created", "modified"])
