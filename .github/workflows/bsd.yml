@@ -31,9 +31,9 @@ jobs:
       - name: Check visual assertions
         run: python3 -m pytest -q tests/test_bsd_visual.py
       - name: Install runtime dependencies
-        run: sh tools/bsd_visual/install-python.sh
+        run: sh tools/bsd/visual/install-python.sh
       - name: Exercise the complete dock
-        run: .venv-bsd/bin/python -m tools.bsd_visual.run --output artifacts/bsd-visual/linux
+        run: .venv-bsd/bin/python -m tools.bsd.visual.run --output artifacts/bsd-visual/linux
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -67,7 +67,7 @@ jobs:
               "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
               gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm
           run: |
-            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/freebsd
+            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/freebsd
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'
         uses: vmactions/openbsd-vm@v1
@@ -79,7 +79,7 @@ jobs:
             pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip gtk+3 libwnck3 xfwm4 dbus gettext-tools polkit
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
-            sh tools/bsd_visual/vm-run.sh artifacts/bsd-visual/openbsd
+            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/openbsd
       - name: Check copied BSD results
         env:
           BSD_OS: ${{ matrix.os }}

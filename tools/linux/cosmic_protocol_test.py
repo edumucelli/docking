@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise COSMIC protocol bindings against the live compositor.
 
-Usage: .venv/bin/python tools/cosmic_protocol_test.py
+Usage: .venv/bin/python tools/linux/cosmic_protocol_test.py
 
 Validates every COSMIC protocol integration point without launching the full
 Docking GTK application.

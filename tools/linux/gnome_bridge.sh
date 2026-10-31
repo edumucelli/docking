@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXT_DIR="${ROOT_DIR}/docking/platform/backends/gnome/extension"
 UUID="docking-bridge@docking.org"
 ZIP="${ROOT_DIR}/${UUID}.shell-extension.zip"
 
 usage() {
   cat <<EOF
-Usage: tools/gnome_bridge.sh COMMAND
+Usage: tools/linux/gnome_bridge.sh COMMAND
 
 Commands:
   pack      Build a local GNOME Shell extension bundle

@@ -9,18 +9,18 @@
 # wildly in size -- Cinnamon alone pulls ~500 packages and ~1GB, which would make
 # iterating on the sway lane unusable. Build the one you need:
 #
-#   docker build --target sway     -t docking-lab:sway     tools/visual_compositor
-#   docker build --target cinnamon -t docking-lab:cinnamon tools/visual_compositor
-#   docker build --target kwin     -t docking-lab:kwin     tools/visual_compositor
-#   docker build --target labwc    -t docking-lab:labwc    tools/visual_compositor
-#   docker build --target wayfire  -t docking-lab:wayfire  tools/visual_compositor
-#   docker build --target cage     -t docking-lab:cage     tools/visual_compositor
-#   docker build --target phoc     -t docking-lab:phoc     tools/visual_compositor
-#   docker build --target phosh    -t docking-lab:phosh    tools/visual_compositor
-#   docker build --target weston   -t docking-lab:weston   tools/visual_compositor
-#   docker build --target all      -t docking-lab:all      tools/visual_compositor
+#   docker build --target sway     -t docking-lab:sway     tools/linux/visual
+#   docker build --target cinnamon -t docking-lab:cinnamon tools/linux/visual
+#   docker build --target kwin     -t docking-lab:kwin     tools/linux/visual
+#   docker build --target labwc    -t docking-lab:labwc    tools/linux/visual
+#   docker build --target wayfire  -t docking-lab:wayfire  tools/linux/visual
+#   docker build --target cage     -t docking-lab:cage     tools/linux/visual
+#   docker build --target phoc     -t docking-lab:phoc     tools/linux/visual
+#   docker build --target phosh    -t docking-lab:phosh    tools/linux/visual
+#   docker build --target weston   -t docking-lab:weston   tools/linux/visual
+#   docker build --target all      -t docking-lab:all      tools/linux/visual
 #
-# tools/visual_compositor_matrix.sh does this for you.
+# tools/linux/visual/matrix.sh does this for you.
 
 # ---------------------------------------------------------------------------
 # Stage: build pywayland from source.

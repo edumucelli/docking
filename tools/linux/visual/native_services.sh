@@ -4,9 +4,9 @@ set -euo pipefail
 if [ "${1:-}" != --session ]; then
     compositor="${1:?compositor required}"
     mode="${2:-visual}"
-    repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
-    mkdir -p "$repo_dir/tools/visual_compositor/evidence"
-    evidence="$(mktemp -d "$repo_dir/tools/visual_compositor/evidence/native-$compositor.XXXXXX")"
+    repo_dir="$(cd "$(dirname "$0")/../../.." && pwd)"
+    mkdir -p "$repo_dir/tools/linux/visual/evidence"
+    evidence="$(mktemp -d "$repo_dir/tools/linux/visual/evidence/native-$compositor.XXXXXX")"
     image="${DOCKING_LAB_IMAGE:-docking-lab:$compositor}"
     lab_uid="$(id -u)"
     lab_gid="$(id -g)"
@@ -26,13 +26,13 @@ if [ "${1:-}" != --session ]; then
         -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" -e DOCKING_PHOC_PRIVATE_PREVIEWS "${device_args[@]}" \
         -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
         -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
-        "$image" dbus-run-session -- bash /src/tools/visual_compositor/native_services.sh --session "$compositor" "$mode"
+        "$image" dbus-run-session -- bash /src/tools/linux/visual/native_services.sh --session "$compositor" "$mode"
     exit
 fi
 compositor="${2:?compositor required}"
 export LAB_SERVICE_MODE="${3:-visual}"
 export LAB_DIR="${LAB_DIR:-/evidence}"
-export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/visual_compositor}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tools/linux/visual}"
 export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
 export XDG_RUNTIME_DIR="$(mktemp -d /tmp/docking-native.XXXXXX)"
 export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"
