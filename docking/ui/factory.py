@@ -50,6 +50,7 @@ from docking.platform.backends.base import (
 )
 from docking.platform.model import DockModel
 from docking.search.controller import GlobalSearchController
+from docking.search.services.platform import SearchIntegration
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
@@ -108,6 +109,7 @@ class DockUi:
 def build_dock_window(
     *,
     config: Config,
+    search_integration: SearchIntegration,
     model: DockModel,
     renderer: DockRenderer,
     theme: Theme,
@@ -147,6 +149,7 @@ def build_dock_window(
         application_registry=application_registry,
     )
     search = GlobalSearchController(
+        integration=search_integration,
         config=config,
         model=model,
         windows=window_tracker,

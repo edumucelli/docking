@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 import docking.platform.applications.matcher as app_matcher_mod
 from docking.platform.applications.constants import GNOME_APP_PREFIX
 from docking.platform.applications.identity import LaunchProvenance, ProcessIdentity
+from docking.platform.applications.implementations.unix import entries as native_entries
 from docking.platform.applications.matcher import (
     AppIdMatcher,
     _app_id_candidates,
@@ -34,6 +35,11 @@ from docking.platform.applications.types import (
 def _registry(*, resolve_by_wm_class=None, resolve=None):
     """Build a registry fake with configurable canonical resolution."""
     registry = MagicMock()
+    from docking.platform.applications.implementations.unix.registration import (
+        UnixExecutableRegistrationBackend,
+    )
+
+    registry.registrations = UnixExecutableRegistrationBackend()
     registry.generation = 0
     registry.resolve_steam_app_id.return_value = None
     registry.resolve_steam_executable.return_value = None
@@ -463,9 +469,7 @@ class TestExecutableIdentity:
         result = matcher.match_result("SharedTool", process_id=43)
 
         assert result is not None
-        expected_id = app_matcher_mod.desktop_entries.generated_desktop_id_for_path(
-            running
-        )
+        expected_id = native_entries.generated_desktop_id_for_path(running)
         assert result.desktop_id == expected_id
         assert isinstance(result, ApplicationMatch)
         assert isinstance(result.application, ApplicationInfo)

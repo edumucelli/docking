@@ -6,15 +6,14 @@ from collections.abc import Iterable
 
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
-    ProcessIdentityService,
 )
-from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import (
     ApplicationDiscoveryDiagnostic,
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
 )
+from tests.platform_factories import make_application_registry, make_process_identity
 
 
 class _Icon:
@@ -95,12 +94,12 @@ class ApplicationRegistryHarness:
 
     def __init__(self, applications: Iterable[object] = ()) -> None:
         self.applications = list(applications)
-        self.registry = ApplicationRegistry(
+        self.registry = make_application_registry(
             application_source=lambda: tuple(self.applications),
             desktop_directories_source=lambda: (),
         )
-        self.registry._desktop_app_info_for_id = lambda _desktop_id: None
-        self.registry._desktop_app_info_from_filename = lambda _path: None
+        self.registry._catalog._desktop_app_info_for_id = lambda _desktop_id: None
+        self.registry._catalog._desktop_app_info_from_filename = lambda _path: None
         assert self.registry.refresh()
 
     def publish(self, applications: Iterable[object]) -> None:
@@ -160,6 +159,11 @@ class ApplicationRegistryStub:
         )
 
     def __init__(self, applications: tuple[ApplicationInfo, ...]) -> None:
+        from docking.platform.applications.implementations.unix.registration import (
+            UnixExecutableRegistrationBackend,
+        )
+
+        self.registrations = UnixExecutableRegistrationBackend()
         self.publish(*applications)
 
     def publish(self, *applications: ApplicationInfo) -> None:
@@ -177,6 +181,10 @@ class ApplicationRegistryStub:
 
     def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self._applications.get(desktop_id)
+
+    def _gio_handle_for(self, desktop_id: str) -> None:
+        # This registry contains metadata only; host URI launches use its file.
+        return None
 
     def resolve_all_by_wm_class(
         self,
@@ -196,7 +204,7 @@ def identity_services(
             application("org.gnome.Nautilus.desktop", wm_class="Nautilus"),
         )
     registry = ApplicationRegistryStub(tuple(applications))
-    process_identity_service = ProcessIdentityService(
+    process_identity_service = make_process_identity(
         LaunchProvenanceStore(),
         executable_resolver=lambda _pid: None,
     )

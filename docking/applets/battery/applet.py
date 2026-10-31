@@ -20,15 +20,16 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.battery import meta
 from docking.applets.battery.peripherals import (
     PeripheralBattery,
-    read_peripheral_batteries,
     tooltip_lines,
 )
 from docking.applets.battery.render import render_icon
@@ -37,11 +38,7 @@ from docking.applets.battery.state import (
     OVERLAY_PERCENT,
     OVERLAY_POWER,
     BatteryState,
-    open_power_settings,
     overlay_from_prefs,
-    power_settings_command,
-    read_battery,
-    read_power_watts,
     tooltip_text,
 )
 from docking.applets.menu import menu_sections, radio_menu_items
@@ -56,22 +53,32 @@ _FULL_POLL_SECONDS = 60
 _POWER_POLL_SECONDS = 5
 
 
-class BatteryApplet(Applet):
+class BatteryApplet(PlatformServicesApplet):
     """Shows a battery icon from sysfs, with an optional percent/power overlay."""
 
     id = meta.id
     name = _("Battery")
     icon_name = "battery-good"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.battery()
         self._timer_id: int = 0
         self._power_timer_id: int = 0
         self._overlay = OVERLAY_NONE
         prefs = config.applet_prefs.get(meta.id, {})
         self._overlay = overlay_from_prefs(prefs)
-        self._state: BatteryState | None = read_battery()
-        self._peripherals: list[PeripheralBattery] = read_peripheral_batteries()
-        super().__init__(icon_size=icon_size, config=config)
+        self._state: BatteryState | None = self._native.read_battery()
+        self._peripherals: list[PeripheralBattery] = self._native.read_peripherals()
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -87,7 +94,7 @@ class BatteryApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start the slow full-state poll plus the power overlay poll if needed."""
         super().start(notify=notify)
-        self._peripherals = read_peripheral_batteries()
+        self._peripherals = self._native.read_peripherals()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
         self.present()
@@ -115,10 +122,12 @@ class BatteryApplet(Applet):
         )
 
         settings: list[Gtk.MenuItem] = []
-        cmd = power_settings_command()
-        if cmd is not None:
+        available = self._native.settings_available()
+        if available:
             power_settings = Gtk.MenuItem(label=_("Power Settings"))
-            power_settings.connect("activate", lambda _widget: open_power_settings())
+            power_settings.connect(
+                "activate", lambda _widget: self._native.open_settings()
+            )
             settings.append(power_settings)
         return menu_sections(display=overlay, settings=settings, gtk=Gtk)
 
@@ -142,14 +151,16 @@ class BatteryApplet(Applet):
 
     def _tick(self) -> bool:
         """Re-read sysfs + peripherals and refresh icon."""
-        self._state = read_battery()
-        self._peripherals = read_peripheral_batteries()
+        self._state = self._native.read_battery()
+        self._peripherals = self._native.read_peripherals()
         self.present()
         return True
 
     def _power_tick(self) -> bool:
         """Cheap sysfs-only refresh of the live power reading."""
         if self._state is not None:
-            self._state = self._state._replace(power_watts=read_power_watts())
+            self._state = self._state._replace(
+                power_watts=self._native.read_power_watts()
+            )
             self.present()
         return True

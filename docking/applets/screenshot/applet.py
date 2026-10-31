@@ -20,12 +20,14 @@ from typing import TYPE_CHECKING
 import cairo
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import menu_sections
 from docking.applets.screenshot import meta
 from docking.core.icons import IconSource
@@ -33,7 +35,7 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import _draw_screenshot_icon
-from .state import _TOOLS, Mode, _detect_tool, _run
+from .state import _TOOLS, Mode
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -47,7 +49,7 @@ _MODE_OPTIONS: tuple[tuple[str, Mode], ...] = (
 )
 
 
-class ScreenshotApplet(Applet):
+class ScreenshotApplet(PlatformServicesApplet):
     """Capture screenshots via the best available tool."""
 
     id = meta.id
@@ -55,13 +57,21 @@ class ScreenshotApplet(Applet):
     icon_name = "applets-screenshooter"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._tool = _detect_tool()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.screenshot()
+        self._tool = self._native._detect_tool()
         if not self._tool:
             log.bind(action="detect_tool").warning(
                 f"No screenshot tool found ({', '.join(t.command for t in _TOOLS)})"
             )
-        super().__init__(icon_size, config)
+        super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -100,7 +110,7 @@ class ScreenshotApplet(Applet):
         if not self._tool:
             return
         try:
-            _run(tool=self._tool, mode=mode, delay_seconds=delay_seconds)
+            self._native._run(tool=self._tool, mode=mode, delay_seconds=delay_seconds)
         except OSError as exc:
             log.bind(action=f"screenshot_{mode}").warning(
                 "Failed to run screenshot command: %s",

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         WindowPickService,
         WorkspaceService,
     )
-    from docking.platform.status_notifier.service import StatusNotifierService
+    from docking.platform.tray.service import TrayService
     from docking.search.presenter import SearchPresenter
 
 
@@ -40,4 +40,4 @@ class AppletServices:
     idle: IdleService | None = None
     screen_capture: ScreenCaptureService | None = None
     search: SearchPresenter | None = None
-    status_notifier: StatusNotifierService | None = None
+    status_notifier: TrayService | None = None

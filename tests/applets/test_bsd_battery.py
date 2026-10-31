@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from docking.applets.battery import bsd
+from docking.applets.battery.implementations.bsd import backend as bsd
 
 
 @pytest.mark.parametrize(

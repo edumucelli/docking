@@ -34,8 +34,11 @@ def run(*, live: bool) -> int:
     gi.require_version("Gtk", "3.0")
     from gi.repository import GLib, Gtk
 
-    from docking.applets.telegram.browser import PROFILE, TelegramBrowser
-    from docking.applets.webapp.browser import load_webkit
+    from docking.applets.telegram.state import PROFILE
+    from docking.applets.webapp.implementations.unix.backend import (
+        WebAppBrowser,
+        load_webkit,
+    )
     from docking.applets.webapp.state import BrowserPhase
 
     initialized, _args = Gtk.init_check()
@@ -60,7 +63,8 @@ def run(*, live: bool) -> int:
         counts.append(count)
         maybe_finish()
 
-    browser = TelegramBrowser(
+    browser = WebAppBrowser(
+        profile=PROFILE,
         on_phase=on_phase,
         on_title=lambda _title: None,
         on_badge=on_badge,

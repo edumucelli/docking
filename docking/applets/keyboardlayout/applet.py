@@ -20,22 +20,19 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.keyboardlayout import meta
 from docking.applets.keyboardlayout.render import render_icon
 from docking.applets.keyboardlayout.state import (
     LayoutState,
-    current_layout_command,
     cycle_layout,
-    detect_backend,
-    keyboard_settings_command,
     layout_label,
-    open_keyboard_settings,
-    show_current_layout,
     tooltip_text,
 )
 from docking.applets.menu import menu_sections, radio_menu_items
@@ -53,20 +50,30 @@ log = with_context(
 POLL_INTERVAL_S = 2
 
 
-class KeyboardLayoutApplet(Applet):
+class KeyboardLayoutApplet(PlatformServicesApplet):
     """Switch and display the current keyboard layout."""
 
     id = meta.id
     name = _("Keyboard Layout")
     icon_name = "input-keyboard"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = detect_backend()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.keyboardlayout()
+        self._backend = self._native.detect_backend()
         self._layout = LayoutState(active="", available=[])
         self._timer_id: int = 0
         self._last_label: str = ""
         self._poll()
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     @property
@@ -130,18 +137,23 @@ class KeyboardLayoutApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         settings: list[Gtk.MenuItem] = []
-        settings_cmd = keyboard_settings_command()
+        settings_cmd = self._native.keyboard_settings_command()
         if settings_cmd is not None:
             settings_item = Gtk.MenuItem(label=_("Keyboard Settings"))
-            settings_item.connect("activate", lambda _w: open_keyboard_settings())
+            settings_item.connect(
+                "activate", lambda _w: self._native.open_keyboard_settings()
+            )
             settings.append(settings_item)
 
         primary: list[Gtk.MenuItem] = []
-        if self._active and current_layout_command(self._active) is not None:
+        if (
+            self._active
+            and self._native.current_layout_command(self._active) is not None
+        ):
             layout_item = Gtk.MenuItem(label=_("Show Current Layout"))
             layout_item.connect(
                 "activate",
-                lambda _w: show_current_layout(self._active),
+                lambda _w: self._native.show_current_layout(self._active),
             )
             primary.append(layout_item)
 

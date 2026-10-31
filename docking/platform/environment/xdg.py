@@ -15,28 +15,25 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
+
+from docking.platform.host.selection import host_services
 
 
 def xdg_config_home() -> Path:
-    """Return XDG_CONFIG_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    return host_services().config_home()
 
 
 def xdg_cache_home() -> Path:
-    """Return XDG_CACHE_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return host_services().cache_home()
 
 
 def xdg_data_home() -> Path:
-    """Return XDG_DATA_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return host_services().data_home()
 
 
 def xdg_state_home() -> Path:
-    """Return XDG_STATE_HOME or its standard user default."""
-    return Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+    return host_services().state_home()
 
 
 def docking_config_dir() -> Path:

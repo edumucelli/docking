@@ -161,6 +161,7 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
+        search_integration = MagicMock()
         window = _window()
         dodge_monitor = MagicMock()
 
@@ -179,6 +180,7 @@ class TestBuildDockWindow:
             visibility_service=visibility_service,
             application_registry=application_registry,
             session_backend=session_backend,
+            search_integration=search_integration,
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
@@ -221,6 +223,7 @@ class TestBuildDockWindow:
             update_checker=components.update_checker,
         )
         factory_mod.GlobalSearchController.assert_called_once_with(
+            integration=search_integration,
             config=config,
             model=model,
             windows=tracker,
@@ -365,6 +368,7 @@ class TestBuildDockWindow:
         visibility_service = MagicMock()
         visibility_service.create_monitor.return_value = None
         session_backend = MagicMock()
+        search_integration = MagicMock()
         window = _window()
         monkeypatch.setattr(factory_mod, "DockWindow", MagicMock(return_value=window))
         _patch_ui_components(monkeypatch)
@@ -380,6 +384,7 @@ class TestBuildDockWindow:
             visibility_service=visibility_service,
             application_registry=application_registry,
             session_backend=session_backend,
+            search_integration=search_integration,
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
@@ -404,6 +409,7 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
+        search_integration = MagicMock()
         window = _window()
         window.get_realized.return_value = True
         window.get_position.return_value = (10, 20)
@@ -442,6 +448,7 @@ class TestBuildDockWindow:
             visibility_service=visibility_service,
             application_registry=application_registry,
             session_backend=session_backend,
+            search_integration=search_integration,
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
@@ -465,6 +472,7 @@ class TestBuildDockWindow:
         surface_service = MagicMock()
         visibility_service = MagicMock()
         session_backend = MagicMock()
+        search_integration = MagicMock()
         window = _window()
         window.get_realized.return_value = False
         captured: dict[str, object] = {}
@@ -490,6 +498,7 @@ class TestBuildDockWindow:
             visibility_service=visibility_service,
             application_registry=application_registry,
             session_backend=session_backend,
+            search_integration=search_integration,
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,

@@ -11,14 +11,18 @@ from typing import Any
 
 import gi
 
-gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import Gio, GLib
+from gi.repository import GLib
 
 from docking.log import get_logger, with_context
 
-from . import discovery
-from . import entries as desktop_entries
+from . import handle_adapters as discovery
+from .associations import AssociationKey, AssociationResolution, AssociationStatus
+from .backend import (
+    ApplicationAssociationBackend,
+    ApplicationCatalogBackend,
+    ExecutableRegistrationBackend,
+)
 from .steam import SteamDiscoveryResult, steam_app_id_from_exec
 from .types import (
     ApplicationDiagnostic,
@@ -34,14 +38,6 @@ MAX_CONTENT_HANDLER_TOKENS = 64
 RegistryListener = Callable[[], None]
 
 log = with_context(get_logger(name="application_registry"))
-
-
-def _content_handler_is_visible(app_info: object) -> bool:
-    return (
-        discovery.safe_call(app_info, "should_show") is not False
-        and not bool(discovery.safe_call(app_info, "get_is_hidden"))
-        and not bool(discovery.safe_call(app_info, "get_nodisplay"))
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,23 +85,14 @@ class ApplicationRegistry:
     def __init__(
         self,
         *,
-        application_source: Callable[[], Iterable[object]] | None = None,
-        desktop_directories_source: Callable[[], Iterable[Path]] | None = None,
-        steam_source: Callable[[], SteamDiscoveryResult] | None = None,
+        catalog_backend: ApplicationCatalogBackend,
+        association_backend: ApplicationAssociationBackend,
+        registration_backend: ExecutableRegistrationBackend,
     ) -> None:
-        self._application_source = (
-            discovery.default_gio_applications
-            if application_source is None
-            else application_source
-        )
-        self._steam_source = steam_source
-        self._desktop_directories_source = (
-            desktop_directories_source or desktop_entries.desktop_dirs
-        )
-        self._desktop_app_info_for_id = Gio.DesktopAppInfo.new
-        self._desktop_app_info_from_filename = Gio.DesktopAppInfo.new_from_filename
-        self._app_monitor_factory = Gio.AppInfoMonitor.get
-        self._directory_monitor_factory = _monitor_directory
+        self._catalog = catalog_backend
+        self._associations = association_backend
+        self._registrations = registration_backend
+        self._monitor = catalog_backend.create_monitor(self._on_registry_changed)
         self._schedule_timeout = GLib.timeout_add
         self._cancel_timeout = GLib.source_remove
         self._debounce_ms = DEFAULT_DEBOUNCE_MS
@@ -118,9 +105,6 @@ class ApplicationRegistry:
         self._content_token_serial = 0
         self._content_gio_handles: dict[str, object] = {}
 
-        self._app_monitor: object | None = None
-        self._app_monitor_handler: object | None = None
-        self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
         self._debounce_source_id: int | None = None
 
     @property
@@ -237,7 +221,7 @@ class ApplicationRegistry:
         self._content_gio_handles.clear()
 
         if self._started:
-            self._sync_directory_monitors()
+            self._monitor.sync(self._state.diagnostic.steam_directories)
         return changed
 
     def start(self) -> None:
@@ -246,8 +230,8 @@ class ApplicationRegistry:
             return
         self._started = True
         self._lifecycle_token += 1
-        self._connect_app_monitor()
-        self._sync_directory_monitors()
+        self._monitor.start()
+        self._monitor.sync(self._state.diagnostic.steam_directories)
         self.refresh()
 
     def stop(self) -> None:
@@ -257,44 +241,30 @@ class ApplicationRegistry:
         self._started = False
         self._lifecycle_token += 1
         self._cancel_pending_refresh()
-        self._disconnect_app_monitor()
-        self._cancel_directory_monitors()
+        self._monitor.stop()
 
     def default_for_content_type(
         self,
         content_type: str,
-    ) -> ApplicationInfo | None:
+    ) -> AssociationResolution:
         """Resolve the desktop's default handler on the calling main thread."""
-        try:
-            app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-        except Exception as exc:
-            log.bind(
-                action="default_for_content_type",
-                content_type=content_type,
-            ).debug(
-                "Failed to resolve default application: %s",
-                exc,
-            )
-            return None
-        return self._application_for_content_type_result(app_info)
+        read = self._associations.read(AssociationKey("default", content_type))
+        handle = read.handles[0] if read.handles else None
+        return AssociationResolution(
+            read.status, listing=self._application_for_content_type_result(handle)
+        )
 
     def _default_listing_for_content_type(
         self,
         content_type: str,
     ) -> ApplicationInfo | TransientApplicationInfo | None:
         """Return a launchable default handler with any Gio handle retained."""
-        try:
-            app_info = Gio.AppInfo.get_default_for_type(content_type, False)
-        except Exception as exc:
-            log.bind(
-                action="default_listing_for_content_type",
-                content_type=content_type,
-            ).debug(
-                "Failed to resolve default application listing: %s",
-                exc,
-            )
-            return None
-        return self._listing_for_content_type_result(app_info)
+        read = self._associations.read(AssociationKey("default", content_type))
+        if read.status is not AssociationStatus.READY:
+            self._association_status = read.status
+        return self._listing_for_content_type_result(
+            read.handles[0] if read.handles else None
+        )
 
     def _recommended_listings_for_content_type(
         self,
@@ -321,7 +291,7 @@ class ApplicationRegistry:
     def preferred_listing_for_content_types(
         self,
         content_types: Iterable[str],
-    ) -> ApplicationInfo | TransientApplicationInfo | None:
+    ) -> AssociationResolution:
         """Select a visible handler using desktop association precedence.
 
         Defaults are considered for every content type first, followed by
@@ -329,11 +299,12 @@ class ApplicationRegistry:
         lists. This preserves the established media-launcher fallback order while
         keeping Gio association policy inside the registry.
         """
+        self._association_status = AssociationStatus.READY
         ordered_types = tuple(content_types)
         for content_type in ordered_types:
             listing = self._default_listing_for_content_type(content_type)
             if listing is not None:
-                return listing
+                return AssociationResolution(AssociationStatus.READY, listing=listing)
         for lookup in (
             self._recommended_listings_for_content_type,
             self._all_listings_for_content_type,
@@ -341,8 +312,10 @@ class ApplicationRegistry:
             for content_type in ordered_types:
                 listings = lookup(content_type)
                 if listings:
-                    return listings[0]
-        return None
+                    return AssociationResolution(
+                        AssociationStatus.READY, listing=listings[0]
+                    )
+        return AssociationResolution(self._association_status)
 
     def _listings_for_content_type(
         self,
@@ -352,20 +325,14 @@ class ApplicationRegistry:
         action: str,
     ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
         """Convert one Gio association result into canonical visible listings."""
-        lookup = getattr(Gio.AppInfo, lookup_name, None)
-        if not callable(lookup):
-            return ()
-        try:
-            app_infos = lookup(content_type)
-        except Exception as exc:
-            log.bind(
-                action=action,
-                content_type=content_type,
-            ).debug(
-                "Failed to list application handlers: %s",
-                exc,
-            )
-            return ()
+        key = AssociationKey(
+            "recommended" if lookup_name == "get_recommended_for_type" else "all",
+            content_type,
+        )
+        read = self._associations.read(key)
+        if read.status is not AssociationStatus.READY:
+            self._association_status = read.status
+        app_infos = read.handles
 
         result: list[ApplicationInfo | TransientApplicationInfo] = []
         seen_registered: set[str] = set()
@@ -373,7 +340,7 @@ class ApplicationRegistry:
         retained_count = 0
         retained_limit = max(1, MAX_CONTENT_HANDLER_TOKENS)
         for app_info in app_infos or ():
-            if not _content_handler_is_visible(app_info):
+            if not self._associations.visible(app_info):
                 continue
             registered = self._registered_application_for_content_type_result(app_info)
             if registered is not None:
@@ -396,6 +363,14 @@ class ApplicationRegistry:
             retained_count += 1
         return tuple(result)
 
+    def directory_application_name(self) -> AssociationResolution:
+        read = self._associations.read(AssociationKey("name", "inode/directory"))
+        return AssociationResolution(read.status, name=read.name)
+
+    @property
+    def registrations(self) -> ExecutableRegistrationBackend:
+        return self._registrations
+
     def _gio_handle_for(self, desktop_id: str) -> Any | None:
         """Return a generation-owned Gio handle for future main-thread services."""
         return self._state.gio_handles.get(desktop_id)
@@ -408,19 +383,9 @@ class ApplicationRegistry:
         return self._content_gio_handles.get(listing_key)
 
     def _discover(self, *, handle_epoch: int) -> _RegistryState:
-        result = discovery.discover(
-            application_source=self._application_source,
-            desktop_directories_source=self._desktop_directories_source,
-            desktop_app_info_for_id=self._desktop_app_info_for_id,
-            desktop_app_info_from_filename=self._desktop_app_info_from_filename,
-            handle_epoch=handle_epoch,
-        )
+        result = self._catalog.discover(handle_epoch=handle_epoch)
         try:
-            steam = (
-                self._steam_source()
-                if self._steam_source is not None
-                else SteamDiscoveryResult()
-            )
+            steam = self._catalog.steam()
         except Exception as exc:
             log.bind(action="discover_steam_games").warning(
                 "Failed to discover Steam games: %s", exc
@@ -446,15 +411,14 @@ class ApplicationRegistry:
             if decision.reason is DiscoveryReason.HIDDEN:
                 hidden_ids.add(decision.desktop_id)
                 if decision.desktop_file is not None:
-                    facts = discovery.file_facts(decision.desktop_file)
-                    app_id = steam_app_id_from_exec(facts.exec_line) if facts else None
+                    app_id = self._catalog.hidden_steam_id(decision.desktop_file)
                     if app_id:
                         hidden.add(app_id)
         known_ids = {app.desktop_id for app in applications}
         for game in steam.games:
             if game.app_id in steam_apps or game.app_id in hidden:
                 continue
-            app = game.application()
+            app = self._catalog.game_application(game)
             if app.desktop_id in hidden_ids or app.desktop_id in known_ids:
                 continue
             steam_apps[game.app_id] = app
@@ -503,153 +467,30 @@ class ApplicationRegistry:
         self,
         app_info: object | None,
     ) -> ApplicationInfo | None:
-        if app_info is None:
-            return None
-        registered = self._registered_application_for_content_type_result(app_info)
-        if registered is not None:
-            return registered
-
-        desktop_id = discovery.desktop_id(app_info)
-        filename = discovery.source_text(discovery.safe_call(app_info, "get_filename"))
-        path = Path(filename).expanduser() if filename else None
-
-        if not desktop_id:
-            return None
-        facts = discovery.file_facts(path) if path is not None else None
-        if facts is not None and (not facts.is_application or facts.hidden):
-            return None
-        return discovery.application_from_gio(
-            desktop_id=desktop_id,
-            app_info=app_info,
-            fallback_path=path,
-            fallback_facts=facts,
-        )
+        return self._associations.application(self, app_info)
 
     def _registered_application_for_content_type_result(
         self,
         app_info: object,
     ) -> ApplicationInfo | None:
-        desktop_id = discovery.desktop_id(app_info)
-        if desktop_id:
-            application = self._state.applications_by_id.get(desktop_id)
-            if application is not None:
-                return application
-
-        filename = discovery.source_text(discovery.safe_call(app_info, "get_filename"))
-        if not filename:
-            return None
-        path = Path(filename).expanduser()
-        for key in discovery.desktop_file_keys(path):
-            application = self._state.desktop_file_index.get(key)
-            if application is not None:
-                return application
-        return None
+        return self._associations.registered(self, app_info)
 
     def _listing_for_content_type_result(
         self,
         app_info: object | None,
     ) -> ApplicationInfo | TransientApplicationInfo | None:
-        if app_info is None or not _content_handler_is_visible(app_info):
-            return None
-        registered = self._registered_application_for_content_type_result(app_info)
-        if registered is not None:
-            return registered if registered.visible else None
-        return self._retain_content_listing(app_info)
+        return self._associations.listing(self, app_info)
 
-    def _retain_content_listing(
-        self,
-        app_info: object,
-    ) -> TransientApplicationInfo:
+    def _retain_content_listing(self, app_info: object) -> TransientApplicationInfo:
         self._content_token_serial += 1
-        state = self._state
-        listing_key = f"gio-content:{state.handle_epoch}:{self._content_token_serial}"
-        listing = discovery.transient_from_gio(
-            app_info=app_info,
-            listing_key=listing_key,
-            require_visible=False,
+        listing_key = (
+            f"gio-content:{self._state.handle_epoch}:{self._content_token_serial}"
         )
-        if listing is None:
-            raise AssertionError("unfiltered Gio listing unexpectedly missing")
-
+        listing = self._associations.transient(app_info, listing_key)
         self._content_gio_handles[listing_key] = app_info
         while len(self._content_gio_handles) > max(1, MAX_CONTENT_HANDLER_TOKENS):
             self._content_gio_handles.pop(next(iter(self._content_gio_handles)))
         return listing
-
-    def _connect_app_monitor(self) -> None:
-        try:
-            monitor = self._app_monitor_factory()
-            handler = monitor.connect("changed", self._on_registry_changed)
-        except Exception as exc:
-            log.bind(action="monitor_app_info").warning(
-                "Could not monitor Gio application changes: %s",
-                exc,
-            )
-            return
-        self._app_monitor = monitor
-        self._app_monitor_handler = handler
-
-    def _disconnect_app_monitor(self) -> None:
-        monitor = self._app_monitor
-        handler = self._app_monitor_handler
-        self._app_monitor = None
-        self._app_monitor_handler = None
-        if monitor is None or handler is None:
-            return
-        with suppress(AttributeError, TypeError, ValueError, GLib.Error):
-            monitor.disconnect(handler)
-
-    def _sync_directory_monitors(self) -> None:
-        try:
-            wanted = set(discovery.unique_paths(self._desktop_directories_source()))
-            wanted.update(self._state.diagnostic.steam_directories)
-        except Exception as exc:
-            log.bind(action="list_desktop_directories").warning(
-                "Could not list desktop application directories: %s",
-                exc,
-            )
-            return
-
-        for path in tuple(self._directory_monitors):
-            if path not in wanted:
-                self._cancel_directory_monitor(path)
-
-        for path in sorted(wanted, key=str):
-            if path in self._directory_monitors:
-                continue
-            try:
-                monitor = self._directory_monitor_factory(path)
-                handler = monitor.connect(
-                    "changed",
-                    self._on_registry_changed,
-                )
-            except Exception as exc:
-                log.bind(
-                    action="monitor_desktop_directory",
-                    path=str(path),
-                ).warning(
-                    "Could not monitor desktop application directory: %s",
-                    exc,
-                )
-                continue
-            self._directory_monitors[path] = (monitor, handler)
-
-    def _cancel_directory_monitor(self, path: Path) -> None:
-        monitor, handler = self._directory_monitors.pop(path)
-        if handler is not None:
-            with suppress(
-                AttributeError,
-                TypeError,
-                ValueError,
-                GLib.Error,
-            ):
-                monitor.disconnect(handler)
-        with suppress(AttributeError, TypeError, ValueError, GLib.Error):
-            monitor.cancel()
-
-    def _cancel_directory_monitors(self) -> None:
-        for path in tuple(self._directory_monitors):
-            self._cancel_directory_monitor(path)
 
     def _on_registry_changed(self, *_args: object) -> None:
         self._queue_refresh()
@@ -795,11 +636,6 @@ def _freeze_plural_index(
     return MappingProxyType(
         {key: tuple(candidates) for key, candidates in values.items()}
     )
-
-
-def _monitor_directory(path: Path) -> object:
-    file = Gio.File.new_for_path(str(path))
-    return file.monitor_directory(Gio.FileMonitorFlags.NONE, None)
 
 
 __all__ = [

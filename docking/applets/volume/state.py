@@ -16,8 +16,6 @@
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
 from typing import NamedTuple
 
 from docking.applets.volume import meta
@@ -79,26 +77,3 @@ def _volume_icon_name(volume: int, muted: bool) -> str:
     if volume <= 66:
         return "audio-volume-medium"
     return "audio-volume-high"
-
-
-def volume_settings_command() -> list[str] | None:
-    """Return the first available desktop volume-settings command."""
-    for cmd in _VOLUME_SETTINGS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
-
-
-def open_volume_settings() -> bool:
-    """Launch the desktop volume-settings tool when one is available."""
-    cmd = volume_settings_command()
-    if cmd is None:
-        return False
-    try:
-        subprocess.Popen(cmd, start_new_session=True)
-    except OSError as exc:
-        log.bind(action="open_volume_settings").warning(
-            "Failed to run %s: %s", cmd, exc
-        )
-        return False
-    return True

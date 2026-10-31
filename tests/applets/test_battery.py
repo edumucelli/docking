@@ -7,9 +7,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import docking.applets.battery.applet as battery_applet_mod
-import docking.applets.battery.linux as battery_linux_mod
+import docking.applets.battery.implementations.linux.backend as battery_linux_mod
+import docking.applets.battery.implementations.unix.desktop_settings as native_battery_desktop_settings
 import docking.applets.battery.state as battery_state_mod
 from docking.applets.battery.applet import BatteryApplet
+from docking.applets.battery.implementations.linux.backend import (
+    read_battery,
+    read_power_watts,
+)
+from docking.applets.battery.implementations.unix.desktop_settings import (
+    open_power_settings,
+    power_settings_command,
+)
 from docking.applets.battery.peripherals import (
     PeripheralBattery,
     _peripheral_from_props,
@@ -22,15 +31,12 @@ from docking.applets.battery.state import (
     OVERLAY_POWER,
     BatteryState,
     format_power,
-    open_power_settings,
     overlay_from_prefs,
-    power_settings_command,
-    read_battery,
-    read_power_watts,
     resolve_battery_icon,
     tooltip_text,
 )
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 
 class TestResolveBatteryIcon:
@@ -230,7 +236,11 @@ class TestUpowerParsing:
         assert battery_state_mod._parse_duration_seconds(raw="unknown") is None
 
     def test_upower_seconds_remaining_edges(self, monkeypatch):
-        monkeypatch.setattr(battery_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(
+            native_battery_desktop_settings.shutil,
+            "which",
+            lambda _cmd: None,
+        )
         assert (
             battery_linux_mod._upower_seconds_remaining(
                 bat_name="BAT0",
@@ -240,7 +250,9 @@ class TestUpowerParsing:
         )
 
         monkeypatch.setattr(
-            battery_state_mod.shutil, "which", lambda _cmd: "/bin/upower"
+            native_battery_desktop_settings.shutil,
+            "which",
+            lambda _cmd: "/bin/upower",
         )
         assert (
             battery_linux_mod._upower_seconds_remaining(bat_name="BAT0", status="Full")
@@ -248,7 +260,7 @@ class TestUpowerParsing:
         )
 
         monkeypatch.setattr(
-            battery_state_mod.subprocess,
+            native_battery_desktop_settings.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(
                 returncode=0,
@@ -265,7 +277,7 @@ class TestUpowerParsing:
         )
 
         monkeypatch.setattr(
-            battery_state_mod.subprocess,
+            native_battery_desktop_settings.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(
                 returncode=1, stdout="", stderr=""
@@ -280,7 +292,7 @@ class TestUpowerParsing:
         )
 
         monkeypatch.setattr(
-            battery_state_mod.subprocess,
+            native_battery_desktop_settings.subprocess,
             "run",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(
                 subprocess.TimeoutExpired(["upower"], 2)
@@ -494,7 +506,9 @@ class TestPeripheralLabel:
 
 class TestPeripheralTooltip:
     def test_tooltip_lists_peripherals_under_battery(self):
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._state = BatteryState(
             icon_name="battery-good",
             capacity=80,
@@ -513,7 +527,9 @@ class TestPeripheralTooltip:
         )
 
     def test_tooltip_battery_only_when_no_peripherals(self):
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._state = BatteryState(
             icon_name="battery-good",
             capacity=80,
@@ -530,7 +546,7 @@ class TestPeripheralTooltip:
 class TestPowerSettingsLauncher:
     def test_prefers_first_available_power_settings_command(self, monkeypatch):
         monkeypatch.setattr(
-            battery_state_mod.shutil,
+            native_battery_desktop_settings.shutil,
             "which",
             lambda cmd: (
                 "/usr/bin/gnome-control-center"
@@ -542,19 +558,23 @@ class TestPowerSettingsLauncher:
         assert power_settings_command() == ["gnome-control-center", "power"]
 
     def test_returns_none_when_no_power_settings_tool_exists(self, monkeypatch):
-        monkeypatch.setattr(battery_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(
+            native_battery_desktop_settings.shutil,
+            "which",
+            lambda _cmd: None,
+        )
 
         assert power_settings_command() is None
 
     def test_open_power_settings_launches_detected_command(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
-            battery_state_mod,
+            native_battery_desktop_settings,
             "power_settings_command",
             lambda: ["mate-power-preferences"],
         )
         monkeypatch.setattr(
-            battery_state_mod.subprocess,
+            native_battery_desktop_settings.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(cmd),
         )
@@ -563,16 +583,20 @@ class TestPowerSettingsLauncher:
         assert launched == [["mate-power-preferences"]]
 
     def test_open_power_settings_handles_missing_and_launch_failure(self, monkeypatch):
-        monkeypatch.setattr(battery_state_mod, "power_settings_command", lambda: None)
+        monkeypatch.setattr(
+            native_battery_desktop_settings,
+            "power_settings_command",
+            lambda: None,
+        )
         assert open_power_settings() is False
 
         monkeypatch.setattr(
-            battery_state_mod,
+            native_battery_desktop_settings,
             "power_settings_command",
             lambda: ["mate-power-preferences"],
         )
         monkeypatch.setattr(
-            battery_state_mod.subprocess,
+            native_battery_desktop_settings.subprocess,
             "Popen",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
@@ -600,7 +624,9 @@ class TestBatteryAppletRendering:
         assert charging.get_pixels() != idle.get_pixels()
 
     def test_renders_valid_pixbuf(self):
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         pixbuf = applet.create_icon(48)
         assert pixbuf is not None
 
@@ -612,7 +638,11 @@ class TestBatteryAppletRendering:
             seconds_remaining=None,
             power_watts=7.6,
         )
-        applet = BatteryApplet(48, config=Config(applet_prefs={"battery": {}}))
+        applet = BatteryApplet(
+            48,
+            config=Config(applet_prefs={"battery": {}}),
+            platform_services=make_applet_platform(),
+        )
         applet._state = state
         applet._overlay = OVERLAY_POWER
 
@@ -623,17 +653,19 @@ class TestBatteryAppletRendering:
     def test_menu_shows_overlay_choices_and_power_settings(self, monkeypatch):
         opened: list[str] = []
         monkeypatch.setattr(
-            battery_applet_mod,
-            "power_settings_command",
-            lambda: ["mate-power-preferences"],
+            battery_linux_mod.LinuxBatteryBackend,
+            "settings_available",
+            staticmethod(lambda: ["mate-power-preferences"]),
         )
         monkeypatch.setattr(
-            battery_applet_mod,
-            "open_power_settings",
-            lambda: opened.append("opened") or True,
+            battery_linux_mod.LinuxBatteryBackend,
+            "open_settings",
+            staticmethod(lambda: opened.append("opened") or True),
         )
 
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         items = applet.get_menu_items()
 
         assert [item.get_label() for item in items] == [
@@ -648,9 +680,15 @@ class TestBatteryAppletRendering:
         assert opened == ["opened"]
 
     def test_menu_overlay_only_without_power_settings_tool(self, monkeypatch):
-        monkeypatch.setattr(battery_applet_mod, "power_settings_command", lambda: None)
+        monkeypatch.setattr(
+            battery_linux_mod.LinuxBatteryBackend,
+            "settings_available",
+            staticmethod(lambda: None),
+        )
 
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         assert [item.get_label() for item in applet.get_menu_items()] == [
             "No overlay",
             "Percentage",
@@ -662,13 +700,17 @@ class TestBatteryAppletRendering:
         config = Config(applet_prefs={"battery": {"show_percent": True}})
         config.save(path)
         config = Config.load(path)
-        applet = BatteryApplet(48, config=config)
+        applet = BatteryApplet(
+            48, config=config, platform_services=make_applet_platform()
+        )
 
         assert applet._overlay == OVERLAY_PERCENT
 
     def test_set_overlay_saves_pref(self, tmp_path):
         config = Config(applet_prefs={"battery": {}})
-        applet = BatteryApplet(48, config=config)
+        applet = BatteryApplet(
+            48, config=config, platform_services=make_applet_platform()
+        )
 
         applet.present = MagicMock()
         applet._set_overlay(mode=OVERLAY_POWER)
@@ -687,18 +729,33 @@ class TestBatteryAppletRendering:
             "_upower_seconds_remaining",
             lambda **_kwargs: None,
         )
-        monkeypatch.setattr(battery_applet_mod, "read_peripheral_batteries", list)
+        monkeypatch.setattr(
+            battery_linux_mod.LinuxBatteryBackend,
+            "read_peripherals",
+            staticmethod(list),
+        )
         with patch(
-            "docking.applets.battery.applet.read_battery",
+            "docking.applets.battery.implementations.linux.backend.read_battery",
             return_value=read_battery("BAT0", base=tmp_path),
         ):
-            applet = BatteryApplet(48, config=Config())
+            applet = BatteryApplet(
+                48, config=Config(), platform_services=make_applet_platform()
+            )
         assert applet.item.name == "Battery: 72%"
 
     def test_tooltip_no_battery(self, monkeypatch):
-        monkeypatch.setattr(battery_applet_mod, "read_peripheral_batteries", list)
-        with patch("docking.applets.battery.applet.read_battery", return_value=None):
-            applet = BatteryApplet(48, config=Config())
+        monkeypatch.setattr(
+            battery_linux_mod.LinuxBatteryBackend,
+            "read_peripherals",
+            staticmethod(list),
+        )
+        with patch(
+            "docking.applets.battery.implementations.linux.backend.read_battery",
+            return_value=None,
+        ):
+            applet = BatteryApplet(
+                48, config=Config(), platform_services=make_applet_platform()
+            )
         assert applet.item.name == "No battery"
 
     def test_full_charging_icon(self, tmp_path, monkeypatch):
@@ -730,12 +787,18 @@ class TestBatteryAppletRendering:
             status="Discharging",
             seconds_remaining=None,
         )
-        monkeypatch.setattr(battery_applet_mod, "read_battery", lambda: next_state)
+        monkeypatch.setattr(
+            battery_linux_mod.LinuxBatteryBackend,
+            "read_battery",
+            staticmethod(lambda: next_state),
+        )
         monkeypatch.setattr(
             battery_applet_mod, "render_icon", lambda **_kwargs: object()
         )
 
-        applet = BatteryApplet(48, config=Config())
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.start(lambda: None)
         assert applet._timer_id == 77
         assert timer_ids == [60]

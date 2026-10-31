@@ -63,16 +63,12 @@ from docking.search.providers import (
 from docking.search.services.currency_rates import CurrencyRatesCatalog
 from docking.search.services.global_shortcuts import (
     GlobalShortcutActivation,
-    GlobalShortcutsService,
+    GlobalShortcutService,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
+from docking.search.services.platform import SearchIntegration, ShortcutFallback
 from docking.search.services.recent_files import RecentFilesCatalog
-from docking.search.services.x11_shortcuts import (
-    ShortcutFallback,
-    X11GlobalShortcutService,
-    is_x11_session,
-)
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -108,6 +104,7 @@ class GlobalSearchController:
         self,
         *,
         config: Config,
+        integration: SearchIntegration,
         model: DockModel,
         windows: WindowService,
         preview_service: PreviewService,
@@ -117,6 +114,7 @@ class GlobalSearchController:
         target_service: TargetService,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
+        self._integration = integration
         self._config = config
         self._model = model
         self._windows = windows
@@ -390,8 +388,8 @@ class GlobalSearchController:
         if self.visible:
             self._search(self._current_query)
 
-    def _new_shortcut_service(self) -> GlobalShortcutsService:
-        return GlobalShortcutsService(
+    def _new_shortcut_service(self) -> GlobalShortcutService:
+        return self._integration.primary(
             app_id=application_id(),
             preferred_trigger=self._config.global_search_shortcut,
             on_activated=self._on_global_shortcut,
@@ -399,9 +397,7 @@ class GlobalSearchController:
         )
 
     def _new_shortcut_fallback(self) -> ShortcutFallback | None:
-        if not is_x11_session():
-            return None
-        return X11GlobalShortcutService(
+        return self._integration.fallback(
             shortcut=self._config.global_search_shortcut,
             on_activated=self._on_fallback_shortcut,
             schedule_idle=self._schedule_idle,

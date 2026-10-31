@@ -9,7 +9,6 @@ from docking.applets.network.state import (
     NetworkState,
     TrafficCounters,
 )
-from docking.platform import environment
 
 
 class VpnConnection(NamedTuple):
@@ -62,13 +61,3 @@ class NetworkBackend(ABC):
     def counters(self) -> dict[str, TrafficCounters] | None: ...
     @abstractmethod
     def interface_choices(self) -> tuple[tuple[str, str], ...]: ...
-
-
-def create_backend(interface: str = "") -> NetworkBackend:
-    if environment.is_bsd():
-        from docking.applets.network.bsd import BsdNetworkBackend
-
-        return BsdNetworkBackend(interface)
-    from docking.applets.network.linux import LinuxNetworkBackend
-
-    return LinuxNetworkBackend(interface)

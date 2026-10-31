@@ -113,12 +113,6 @@ def cpu_hue_rgb(cpu: float) -> tuple[float, float, float]:
     return colorsys.hsv_to_rgb(hue, 1.0, 1.0)
 
 
-def disk_usage() -> list[tuple[str, float]]:
-    from docking.applets.systemmonitor.backend import create_backend
-
-    return create_backend().disk_usage()
-
-
 def tooltip_text(
     cpu: float,
     mem: float,

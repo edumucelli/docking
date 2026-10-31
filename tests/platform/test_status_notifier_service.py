@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
+import threading
 from types import SimpleNamespace
 
 import pytest
 
-import docking.platform.status_notifier.service as service_mod
-from docking.applets.worker import BackgroundWorker
-from docking.platform.status_notifier.backend import (
+import docking.platform.tray.service as service_mod
+from docking.applets.worker import BackgroundWorker, SerialWorker
+from docking.platform.tray.backend import TrayBackend
+from docking.platform.tray.implementations.unix.status_notifier import (
     StatusTrayState,
     unavailable_state,
 )
-from docking.platform.status_notifier.service import (
+from docking.platform.tray.service import (
     POLL_INTERVAL_S,
-    StatusNotifierService,
 )
+from docking.platform.tray.service import (
+    TrayService as StatusNotifierService,
+)
+from tests.platform_factories import make_tray_service
 
 
 def _available_state() -> StatusTrayState:
@@ -27,7 +32,7 @@ def _available_state() -> StatusTrayState:
     )
 
 
-class _Backend:
+class _Backend(TrayBackend):
     def __init__(self, state: StatusTrayState | None = None) -> None:
         self.state = state if state is not None else _available_state()
         self.get_state_calls = 0
@@ -53,11 +58,17 @@ class _Backend:
     def close(self) -> None:
         self.close_calls += 1
 
+    def initial_state(self):
+        return unavailable_state()
+
 
 class _RaisingBackend(_Backend):
     def get_state(self) -> StatusTrayState:
         self.get_state_calls += 1
         raise RuntimeError("D-Bus unavailable")
+
+    def initial_state(self):
+        return unavailable_state()
 
 
 class _ImmediateWorker:
@@ -139,7 +150,7 @@ def timers(monkeypatch) -> SimpleNamespace:
 
 
 def _service(*, backend=None, worker=None) -> StatusNotifierService:
-    return StatusNotifierService(
+    return make_tray_service(
         backend=_Backend() if backend is None else backend,
         worker=_ImmediateWorker() if worker is None else worker,
     )
@@ -186,7 +197,7 @@ class TestPolling:
         idle = _IdleQueue()
         threads = _Threads()
         worker = BackgroundWorker(idle_add=idle, thread_factory=threads)
-        service = StatusNotifierService(backend=backend, worker=worker)
+        service = make_tray_service(backend=backend, worker=worker)
 
         service.start()
         service.refresh()
@@ -276,6 +287,95 @@ class TestListeners:
 
 
 class TestLifecycle:
+    def test_restart_replaces_native_owner_and_discards_old_callbacks(self, timers):
+        backends = []
+        idle = _IdleQueue()
+
+        class OwnedBackend(_Backend):
+            def __init__(self):
+                super().__init__(
+                    StatusTrayState(True, f"owner-{len(backends)}", (), "")
+                )
+                self.closed = threading.Event()
+                self.result_queued = threading.Event()
+                self.owner_threads = []
+
+            def get_state(self):
+                self.owner_threads.append(threading.get_ident())
+                return super().get_state()
+
+            def close(self):
+                self.owner_threads.append(threading.get_ident())
+                super().close()
+                self.closed.set()
+
+        def backend_factory():
+            backend = OwnedBackend()
+            backends.append(backend)
+            return backend
+
+        def worker_factory(**kwargs):
+            backend = backends[-1]
+
+            def enqueue(callback, *args):
+                idle(callback, *args)
+                backend.result_queued.set()
+
+            return SerialWorker(idle_add=enqueue, **kwargs)
+
+        service = StatusNotifierService(
+            backend_factory=backend_factory, worker_factory=worker_factory
+        )
+        received = []
+        try:
+            service.start()
+            first = backends[0]
+            assert first.result_queued.wait(2)
+            service.stop()
+            assert first.closed.wait(2)
+
+            service.add_listener(received.append)
+            received.clear()
+            service.start()
+            second = backends[1]
+            assert second.result_queued.wait(2)
+            idle.flush()
+
+            assert received == [second.state]
+            assert service.state == second.state
+        finally:
+            service.stop()
+            service.stop()
+            for backend in backends:
+                assert backend.closed.wait(2)
+
+        assert len(backends) == 2
+        for backend in backends:
+            assert backend.get_state_calls == 1
+            assert backend.close_calls == 1
+            assert len(set(backend.owner_threads)) == 1
+            assert backend.owner_threads[0] != threading.get_ident()
+
+    def test_stop_before_start_closes_the_created_backend(self, timers):
+        closed = threading.Event()
+        backend = _Backend()
+
+        def close():
+            backend.close()
+            closed.set()
+
+        service = StatusNotifierService(
+            backend_factory=lambda: backend,
+            worker_factory=lambda **_kwargs: SerialWorker(on_close=close),
+        )
+        service.stop()
+        service.stop()
+
+        assert closed.wait(2)
+        assert backend.get_state_calls == 0
+        assert backend.close_calls == 1
+        assert timers.added == []
+
     def test_stop_cancels_the_timer_and_closes_the_backend_once(self, timers):
         backend = _Backend()
         service = _service(backend=backend)

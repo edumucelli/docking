@@ -1,11 +1,11 @@
 """Tests for System Tray presentation state."""
 
 from docking.applets.systemtray.state import tooltip_text
-from docking.platform.status_notifier import StatusTrayState
-from docking.platform.status_notifier.backend import (
+from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     tray_item_from_properties,
 )
+from docking.platform.tray.state import StatusTrayState
 
 
 class TestTooltipText:

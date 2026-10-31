@@ -36,21 +36,22 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.powerprofiles import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
+from .backend import PowerProfilesControlBackend
 from .render import create_power_profiles_icon
 from .state import (
-    PowerProfilesControlBackend,
     PowerProfilesState,
-    detect_backend,
     order_profiles,
     profile_label,
     tooltip_text,
@@ -64,17 +65,25 @@ POLL_INTERVAL_S = 5
 log = with_context(get_logger(name="powerprofiles"), applet_id=meta.id)
 
 
-class PowerProfilesApplet(Applet):
+class PowerProfilesApplet(PlatformServicesApplet):
     """Quick selector for power profile backends (PPD/tuned/TLP)."""
 
     id = meta.id
     name = _("Power Profiles")
     icon_name = "battery-good-symbolic"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.powerprofiles()
         # Backend is auto-detected once during applet initialization.
         # Polling then queries the same backend instance repeatedly.
-        self._backend: PowerProfilesControlBackend = detect_backend()
+        self._backend: PowerProfilesControlBackend = self._native.detect_backend()
         self._state: PowerProfilesState = unavailable_state()
         self._poll_id: int = 0
         self._set_in_progress = False
@@ -84,7 +93,9 @@ class PowerProfilesApplet(Applet):
         self._action_error = ""
         self._worker = BackgroundWorker()
         self._state = self._backend.get_state()
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int):

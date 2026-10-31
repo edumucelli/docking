@@ -7,6 +7,8 @@ from typing import Protocol, cast
 
 import gi
 
+from docking.platform.files import file_for_path, file_for_uri
+
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio
 
@@ -61,9 +63,9 @@ def gicon_from_icon_name(icon_name: str) -> Gio.Icon | None:
     if not value:
         return None
     if value.startswith("file:"):
-        return Gio.FileIcon.new(Gio.File.new_for_uri(value))
+        return Gio.FileIcon.new(file_for_uri(value))
     if Path(value).is_absolute():
-        return Gio.FileIcon.new(Gio.File.new_for_path(value))
+        return Gio.FileIcon.new(file_for_path(value))
     return Gio.ThemedIcon.new(value)
 
 

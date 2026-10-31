@@ -7,9 +7,11 @@ import pytest
 from gi.repository import Gtk
 
 import docking.applets.bluetooth.applet as bluetooth
+import tests.platform_factories as _native_tests_platform_factories
 from docking.applets.bluetooth.state import BluetoothAdapterState, BluetoothState
 from docking.applets.worker import BackgroundWorker
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 FIRST = "/org/bluez/hci0"
 SECOND = "/org/bluez/hci1"
@@ -100,9 +102,15 @@ class _Replies:
 
 def _applet(monkeypatch):
     backend = _DiscoveryBackend()
-    monkeypatch.setattr(bluetooth, "create_backend", lambda: backend)
+    monkeypatch.setattr(
+        _native_tests_platform_factories.TestAppletBackendFactories,
+        "bluetooth",
+        staticmethod(lambda: backend),
+    )
     applet = bluetooth.BluetoothApplet(
-        48, Config(applet_prefs={"bluetooth": {"continuous_discovery": False}})
+        48,
+        Config(applet_prefs={"bluetooth": {"continuous_discovery": False}}),
+        platform_services=make_applet_platform(),
     )
     applet._on_poll_result(backend.get_state())
     applet._continuous_discovery = True
@@ -237,7 +245,11 @@ def test_queued_discovery_is_rejected_after_stop_and_restart(monkeypatch):
     assert old_backend.start_calls == []
 
     replacement = _DiscoveryBackend()
-    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(
+        _native_tests_platform_factories.TestAppletBackendFactories,
+        "bluetooth",
+        staticmethod(lambda: replacement),
+    )
     monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
     monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
     applet.start(lambda: None)
@@ -264,7 +276,11 @@ def test_old_backend_reply_cannot_change_restarted_applet(monkeypatch, action):
     late_reply = replies.next()
     applet.stop()
     replacement = _DiscoveryBackend()
-    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(
+        _native_tests_platform_factories.TestAppletBackendFactories,
+        "bluetooth",
+        staticmethod(lambda: replacement),
+    )
     monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
     monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
     try:
@@ -311,7 +327,11 @@ def test_queued_action_cannot_operate_on_replacement_backend(monkeypatch, action
     queued = tasks.pop()
     applet.stop()
     replacement = _DiscoveryBackend()
-    monkeypatch.setattr(bluetooth, "create_backend", lambda: replacement)
+    monkeypatch.setattr(
+        _native_tests_platform_factories.TestAppletBackendFactories,
+        "bluetooth",
+        staticmethod(lambda: replacement),
+    )
     monkeypatch.setattr(bluetooth.GLib, "timeout_add_seconds", lambda *args: 7)
     monkeypatch.setattr(bluetooth.GLib, "source_remove", lambda *args: True)
     try:

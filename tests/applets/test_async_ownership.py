@@ -6,6 +6,7 @@ from queue import Queue
 import pytest
 from gi.repository import Gdk, GLib, Gtk
 
+import docking.applets.camshield.implementations.unix.client as native_camshield_client
 from docking.applets.camshield import applet as camera_mod
 from docking.applets.camshield.state import CamshieldState
 from docking.applets.dragshare import applet as share_mod
@@ -14,6 +15,7 @@ from docking.applets.quote import applet as quote_mod
 from docking.applets.quote.state import QuoteEntry
 from docking.applets.urlshortener import applet as shortener_mod
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 
 @pytest.fixture
@@ -87,14 +89,20 @@ def test_camera_refresh_queued_before_stop_cannot_restart_pulse_timer(
     monkeypatch, posted_results
 ):
     monkeypatch.setattr(
-        camera_mod, "probe_camera_state", lambda: CamshieldState(True, False)
+        native_camshield_client.UnixCamshieldClient,
+        "probe",
+        staticmethod(lambda: CamshieldState(True, False)),
     )
-    applet = camera_mod.CamshieldApplet(48, Config())
+    applet = camera_mod.CamshieldApplet(
+        48, Config(), platform_services=make_applet_platform()
+    )
     applet.start(lambda: None)
     queued_refresh = posted_results.get(timeout=2)
     applet.stop()
     monkeypatch.setattr(
-        camera_mod, "probe_camera_state", lambda: CamshieldState(True, True)
+        native_camshield_client.UnixCamshieldClient,
+        "probe",
+        staticmethod(lambda: CamshieldState(True, True)),
     )
 
     try:

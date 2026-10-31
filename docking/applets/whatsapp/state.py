@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from docking.applets.webapp.profile import BrowserProfile
 from docking.applets.webapp.state import (
     BrowserPhase,
     NavigationTarget,
@@ -13,12 +14,18 @@ from docking.applets.webapp.state import (
 from docking.applets.webapp.state import (
     navigation_target as classify_navigation,
 )
+from docking.applets.whatsapp.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
 from docking.i18n import _
 
 WHATSAPP_WEB_URL = "https://web.whatsapp.com/"
 WHATSAPP_WEB_HOST = "web.whatsapp.com"
 
+PROFILE = BrowserProfile(
+    "WhatsApp", "whatsapp", WHATSAPP_WEB_URL, BRIDGE_HANDLER, BRIDGE_SCRIPT
+)
+
 __all__ = [
+    "PROFILE",
     "BrowserPhase",
     "NavigationTarget",
     "WhatsAppState",

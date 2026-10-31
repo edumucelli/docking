@@ -8,7 +8,7 @@ from docking.applets.dragshare.state import file_path_from_uri
 from docking.core.config import Config
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import DockItem
-from docking.platform.applications.entries import (
+from docking.platform.applications.implementations.unix.entries import (
     desktop_id_from_uri_or_path,
     local_path_from_uri_or_path,
 )

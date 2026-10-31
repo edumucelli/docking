@@ -9,12 +9,19 @@ import pytest
 from gi.repository import GLib, Gtk
 
 import docking.applets.systemtray.applet as applet_mod
+import tests.platform_factories as _native_tests_platform_factories
 from docking.applets.services import AppletServices
 from docking.applets.systemtray.applet import SystemTrayApplet
 from docking.applets.systemtray.render import create_status_tray_icon
 from docking.applets.systemtray.state import tooltip_text
 from docking.core.config import Config
-from docking.platform.status_notifier.backend import (
+from docking.platform.tray.implementations.unix.dbusmenu import (
+    DBusMenuClient,
+    DBusMenuItem,
+    DBusMenuLayout,
+    parse_menu_node,
+)
+from docking.platform.tray.implementations.unix.status_notifier import (
     DEFAULT_ITEM_PATH,
     RegisteredItemAddress,
     StatusTrayState,
@@ -22,12 +29,7 @@ from docking.platform.status_notifier.backend import (
     tray_item_from_properties,
     unavailable_state,
 )
-from docking.platform.status_notifier.dbusmenu import (
-    DBusMenuClient,
-    DBusMenuItem,
-    DBusMenuLayout,
-    parse_menu_node,
-)
+from tests.platform_factories import make_applet_platform
 
 
 class TestRegisteredItemParsing:
@@ -325,7 +327,7 @@ class _FakeMenuClient(DBusMenuClient):
         return True
 
 
-def _make_tray(monkeypatch, *, worker=None) -> SimpleNamespace:
+def _make_tray(monkeypatch, *, worker=None, service=None) -> SimpleNamespace:
     """A SystemTrayApplet with a fake private service and worker."""
     created: list[_FakeService] = []
 
@@ -334,13 +336,19 @@ def _make_tray(monkeypatch, *, worker=None) -> SimpleNamespace:
         created.append(service)
         return service
 
-    monkeypatch.setattr(applet_mod, "StatusNotifierService", factory)
+    monkeypatch.setattr(
+        _native_tests_platform_factories.TestAppletBackendFactories,
+        "tray_service",
+        staticmethod(factory),
+    )
     monkeypatch.setattr(
         applet_mod,
         "BackgroundWorker",
         lambda **_kwargs: worker or _ImmediateWorker(),
     )
-    instance = SystemTrayApplet(48, config=Config())
+    instance = SystemTrayApplet(
+        48, config=Config(), platform_services=make_applet_platform(tray=service)
+    )
     return SimpleNamespace(applet=instance, created=created)
 
 
@@ -350,139 +358,77 @@ def tray(monkeypatch):
 
 
 class TestSystemTrayAppletService:
-    def test_construction_does_not_read_the_tray(self, tray):
-        # The private service has no get_state at all: a blocking read at
-        # construction would fail here instead of freezing the dock.
-        assert tray.created
+    def test_construction_borrows_the_shared_service_without_starting_it(self, tray):
+        assert len(tray.created) == 1
+        assert tray.applet._service is tray.created[0]
         assert tray.created[0].refreshes == 0
         assert tray.created[0].started == 0
 
-    def test_shared_service_replaces_the_private_one(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
+    def test_late_services_cannot_replace_the_construction_dependency(self, tray):
+        original = tray.applet._service
+        other = _FakeService()
+        tray.applet.set_services(AppletServices(status_notifier=other))
+        assert tray.applet._service is original
+        assert not other.listeners
+        assert original.stopped == 0
 
-        assert tray.created[0].stopped == 1
-        assert shared.listeners == [tray.applet._on_state_result]
-        assert tray.applet._service is shared
-        assert tray.applet._owns_service is False
-
-    def test_state_from_the_shared_service_reaches_the_applet(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-        item = tray_item_from_properties(
-            address=RegisteredItemAddress(service=":1.42", path="/Tray"),
-            properties={"Id": "x", "Title": "Example", "Status": "Active"},
-        )
-        state = StatusTrayState(available=True, watcher_mode="watcher", items=(item,))
-
-        shared.publish(state)
-
-        assert tray.applet._state == state
-        assert tray.applet.item.name == tooltip_text(state)
-
-    def test_stop_leaves_a_shared_service_running(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-
-        tray.applet.stop()
-
-        assert shared.stopped == 0
-        assert shared.listeners == []
-
-    def test_stop_stops_the_private_service(self, tray):
-        tray.applet.stop()
-
-        assert tray.created[0].stopped == 1
-
-    def test_start_starts_only_the_private_service(self, tray):
+    def test_shared_state_reaches_the_applet(self, tray):
         tray.applet.start(notify=lambda: None)
-        assert tray.created[0].started == 1
-
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-        tray.applet.start(notify=lambda: None)
-
-        assert shared.started == 0
-
-    def test_refresh_now_does_not_block(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-
-        tray.applet._refresh_now()
-
-        assert shared.refreshes == 1
-
-    def test_activate_runs_off_the_main_thread_and_repolls(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-        tray.applet.start(notify=lambda: None)
-
-        tray.applet._on_activate(":1.42/Tray")
-
-        assert shared.activated == [":1.42/Tray"]
-        assert shared.refreshes == 1
-
-    def test_resubscribing_drops_the_previous_listener(self, tray):
-        first = _FakeService()
-        second = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=first))
-
-        tray.applet.set_services(AppletServices(status_notifier=second))
-
-        assert first.listeners == []
-        assert second.listeners == [tray.applet._on_state_result]
-        assert tray.applet._service is second
-
-    def test_cached_service_state_repaints_the_applet(self, tray):
-        # The service has already polled when the applet adopts it: subscribing
-        # must apply that state, not leave the initial "unavailable" render.
-        shared = _FakeService()
-        shared.state = _tray_state("Example")
-
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-
+        shared = tray.applet._service
+        shared.publish(_tray_state("Example"))
         assert tray.applet._state == shared.state
         assert tray.applet.item.name == tooltip_text(shared.state)
 
-    def test_standalone_start_subscribes_and_receives_state(self, tray):
-        tray.applet.start(notify=lambda: None)
-        service = tray.created[0]
-
-        assert service.listeners == [tray.applet._on_state_result]
-        assert service.started == 1
-
-        service.publish(_tray_state("Example"))
-
-        assert tray.applet._state == service.state
-
-    def test_restart_resubscribes(self, tray):
+    def test_stop_releases_the_subscription_and_preserves_shared_service(self, tray):
+        shared = tray.applet._service
         tray.applet.start(notify=lambda: None)
         tray.applet.stop()
-        assert tray.created[0].listeners == []
+        tray.applet.stop()
+        assert shared.stopped == 0
+        assert shared.listeners == []
 
+    def test_start_does_not_start_a_shared_service(self, tray):
         tray.applet.start(notify=lambda: None)
-
+        assert tray.created[0].started == 0
         assert tray.created[0].listeners == [tray.applet._on_state_result]
 
-    def test_restart_after_shared_service_delivery(self, tray):
-        shared = _FakeService()
-        tray.applet.set_services(AppletServices(status_notifier=shared))
-        tray.applet.start(notify=lambda: None)
-        tray.applet.stop()
+    def test_refresh_now_delegates_without_a_blocking_read(self, tray):
+        tray.applet._refresh_now()
+        assert tray.created[0].refreshes == 1
 
-        assert shared.listeners == []
+    def test_activate_runs_on_the_worker_and_repolls(self, tray):
+        tray.applet.start(notify=lambda: None)
+        tray.applet._on_activate(":1.42/Tray")
+        assert tray.created[0].activated == [":1.42/Tray"]
+        assert tray.created[0].refreshes == 1
+
+    def test_cached_state_is_used_from_construction(self, monkeypatch):
+        shared = _FakeService()
+        shared.state = _tray_state("Example")
+        tray = _make_tray(monkeypatch, service=shared)
+        assert tray.applet._state == shared.state
+        assert tray.applet.item.name == tooltip_text(shared.state)
+        assert not tray.created
+        tray.applet.stop()
         assert shared.stopped == 0
 
+    def test_restart_resubscribes_to_the_same_shared_service(self, tray):
+        shared = tray.applet._service
         tray.applet.start(notify=lambda: None)
-
+        tray.applet.stop()
+        assert not shared.listeners
+        shared.publish(_tray_state("Cached"))
+        tray.applet.start(notify=lambda: None)
+        assert tray.applet._service is shared
         assert shared.listeners == [tray.applet._on_state_result]
+        assert tray.applet._state == shared.state
+        assert shared.started == shared.stopped == 0
 
     def test_late_menu_result_is_dropped_after_stop(self, monkeypatch):
         worker = _DeferredWorker()
-        applet = _make_tray(monkeypatch, worker=worker).applet
         shared = _FakeService()
         shared.menu_client_result = _FakeMenuClient(layout=_menu_layout())
-        applet.set_services(AppletServices(status_notifier=shared))
+        applet = _make_tray(monkeypatch, worker=worker, service=shared).applet
         applet.start(notify=lambda: None)
         build_menu = MagicMock()
         monkeypatch.setattr(applet, "_gtk_menu_from_dbus_menu", build_menu)

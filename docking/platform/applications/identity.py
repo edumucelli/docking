@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, TypeGuard
 
-from docking.platform.applications.process_backend import create_backend
+from docking.platform.applications.backend import ProcessBackend
 
 APP_URI_PREFIX = "application://"
 DEFAULT_MAX_LAUNCH_RECORDS = 256
@@ -136,16 +136,15 @@ class ProcessIdentityService:
         self,
         provenance_store: LaunchProvenanceStore,
         *,
+        backend: ProcessBackend,
         executable_resolver: ExecutableResolver | None = None,
-        proc_root: Path = Path("/proc"),
     ) -> None:
         self._provenance_store = provenance_store
-        self._proc_root = proc_root
-        self._backend = create_backend(proc_root)
+        self._backend = backend
         self._executable_resolver = (
             executable_resolver
             if executable_resolver is not None
-            else lambda pid: _process_executable_path(pid, proc_root=self._proc_root)
+            else backend.executable
         )
 
     def identity_for_pid(self, pid: int | None) -> ProcessIdentity | None:
@@ -164,12 +163,6 @@ class ProcessIdentityService:
             script_basename=self._backend.script(pid),
             steam_app_id=self._backend.steam_app_id(pid),
         )
-
-
-def _process_executable_path(
-    pid: int, *, proc_root: Path = Path("/proc")
-) -> Path | None:
-    return create_backend(proc_root).executable(pid)
 
 
 __all__ = [

@@ -1,51 +1,71 @@
-"""Registry-backed launching for selected desktop applications."""
+"""Registry selection, action policy and shared launch provenance."""
 
 from __future__ import annotations
 
-import subprocess
-from collections.abc import Callable, Iterable
-from pathlib import Path
-from shlex import join as shell_join
-from typing import Any
+from collections.abc import Iterable
 
-import gi
-
-gi.require_version("Gio", "2.0")
-gi.require_version("GLib", "2.0")
-from gi.repository import GLib
-
-from docking.log import get_logger, with_context
-from docking.platform import commands
-from docking.platform.environment import flatpak, is_flatpak
-
-from . import entries as desktop_entries
+from .backend import ApplicationLaunchBackend, LaunchResult
 from .identity import LaunchProvenanceStore
-from .projections import (
-    NEW_WINDOW_ACTION_ID,
-    new_window_action,
-    quicklist_actions,
-)
+from .projections import NEW_WINDOW_ACTION_ID, new_window_action, quicklist_actions
 from .registry import ApplicationRegistry
 from .types import ApplicationAction, ApplicationInfo, ApplicationLocation
 
-PopenFactory = Callable[..., subprocess.Popen[Any]]
-
-log = with_context(get_logger(name="application_launcher"))
-
 
 class ApplicationLauncher:
-    """Launch registry-selected applications without publishing Gio handles."""
-
     def __init__(
         self,
         registry: ApplicationRegistry,
         provenance_store: LaunchProvenanceStore,
         *,
-        popen: PopenFactory | None = None,
+        backend: ApplicationLaunchBackend,
     ) -> None:
         self._registry = registry
         self._provenance_store = provenance_store
-        self._popen = subprocess.Popen if popen is None else popen
+        self._backend = backend
+
+    def _record(self, application: ApplicationInfo, result: LaunchResult) -> bool:
+        if result.accepted and result.launched is not None:
+            self._provenance_store.record_launch(
+                process=result.launched.process,
+                desktop_id=application.desktop_id,
+                executable_path=result.launched.executable_path,
+            )
+        return result.accepted
+
+    def launch(self, desktop_id: str) -> bool:
+        application = self._registry.get(desktop_id)
+        return (
+            self._record(application, self._backend.launch(application))
+            if application is not None
+            else False
+        )
+
+    def launch_action(self, desktop_id: str, action_id: str) -> bool:
+        application = self._registry.get(desktop_id)
+        if application is None:
+            return False
+        return self._record(
+            application,
+            self._backend.launch_action(
+                application, action_id, self._registry._gio_handle_for(desktop_id)
+            ),
+        )
+
+    def launch_app_uris(self, desktop_id: str, uris: Iterable[str]) -> bool:
+        application = self._registry.get(desktop_id)
+        if application is None:
+            return False
+        return self._record(
+            application,
+            self._backend.launch_app_uris(
+                application, uris, self._registry._gio_handle_for(desktop_id)
+            ),
+        )
+
+    def launch_listing(self, listing_key: str) -> bool:
+        return self._backend.launch_listing(
+            listing_key, self._registry._gio_handle_for_unidentified(listing_key)
+        ).accepted
 
     def quicklist_actions(
         self,
@@ -56,61 +76,6 @@ class ApplicationLauncher:
         if application is None:
             return []
         return list(quicklist_actions(application))
-
-    def launch(self, desktop_id: str) -> bool:
-        """Launch a selected desktop application through its direct Exec line."""
-        application = self._registry.get(desktop_id)
-        if application is None:
-            return False
-        return self._launch_exec_line(
-            application=application,
-            exec_line=application.exec_line,
-            action="launch",
-        )
-
-    def launch_action(self, desktop_id: str, action_id: str) -> bool:
-        """Launch a source-aware desktop action."""
-        application = self._registry.get(desktop_id)
-        if application is None:
-            return False
-
-        action = next(
-            (
-                candidate
-                for candidate in application.actions
-                if candidate.action_id == action_id
-            ),
-            None,
-        )
-        if (
-            application.location is ApplicationLocation.SANDBOX
-            and application.has_gio_source
-        ):
-            handle = self._registry._gio_handle_for(desktop_id)
-            if handle is not None:
-                try:
-                    handle.launch_action(action_id, None)
-                except GLib.Error as exc:
-                    log.bind(desktop_id=desktop_id, action="launch_action").warning(
-                        "Failed to launch action %s for %s: %s",
-                        action_id,
-                        desktop_id,
-                        exc,
-                    )
-                    return False
-                return True
-
-        exec_line = action.file_exec_line if action is not None else ""
-        if not exec_line and application.desktop_file is not None:
-            exec_line = desktop_entries.desktop_file_action_exec(
-                application.desktop_file,
-                action_id,
-            )
-        return self._launch_exec_line(
-            application=application,
-            exec_line=exec_line,
-            action="launch_action",
-        )
 
     def launch_new_window(self, desktop_id: str) -> bool:
         """Open a new window when Gio declares that action, else launch normally."""
@@ -127,189 +92,6 @@ class ApplicationLauncher:
                 # route does not launch the base application instead.
                 return False
         return self.launch(desktop_id)
-
-    def launch_app_uris(self, desktop_id: str, uris: Iterable[str]) -> bool:
-        """Open a URI list with one specifically selected application."""
-        launchable = list(uris)
-        if not launchable:
-            return False
-        application = self._registry.get(desktop_id)
-        if application is None:
-            return False
-
-        if application.location is ApplicationLocation.HOST and is_flatpak():
-            return self._launch_host_app_uris(
-                application=application,
-                uris=launchable,
-            )
-
-        if not application.has_gio_source:
-            return False
-        handle = self._registry._gio_handle_for(desktop_id)
-        if handle is None:
-            return False
-        try:
-            handle.launch_uris(launchable, None)
-        except GLib.Error as exc:
-            log.bind(desktop_id=desktop_id, action="launch_app_uris").warning(
-                "Failed to open URI list with %s: %s",
-                desktop_id,
-                exc,
-            )
-            return False
-        return True
-
-    def _launch_host_app_uris(
-        self,
-        *,
-        application: ApplicationInfo,
-        uris: list[str],
-    ) -> bool:
-        """Launch host-owned desktop metadata on the host side of Flatpak."""
-        desktop_file = application.desktop_file
-        if desktop_file is None:
-            return False
-        try:
-            relative = desktop_file.relative_to(desktop_entries.HOST_FILESYSTEM_ROOT)
-        except ValueError:
-            host_desktop_file = desktop_file
-        else:
-            host_desktop_file = Path("/") / relative
-
-        argv = flatpak.host_command(["gio", "launch", str(host_desktop_file), *uris])
-        if argv is None:
-            log.bind(
-                desktop_id=application.desktop_id,
-                action="launch_app_uris",
-            ).warning(
-                "Cannot open URIs with host desktop file without flatpak-spawn: %s",
-                desktop_file,
-            )
-            return False
-        try:
-            self._popen(
-                argv,
-                shell=False,
-                start_new_session=True,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError as exc:
-            log.bind(
-                desktop_id=application.desktop_id,
-                action="launch_app_uris",
-            ).warning(
-                "Failed to open URI list with host application %s: %s",
-                application.desktop_id,
-                exc,
-            )
-            return False
-        return True
-
-    def launch_listing(self, listing_key: str) -> bool:
-        """Launch a transient Gio-backed listing by its opaque registry token."""
-        handle = self._registry._gio_handle_for_unidentified(listing_key)
-        if handle is None:
-            return False
-        try:
-            handle.launch([], None)
-        except GLib.Error as exc:
-            log.bind(listing_key=listing_key, action="launch_listing").warning(
-                "Failed to launch application listing %s: %s",
-                listing_key,
-                exc,
-            )
-            return False
-        return True
-
-    def _launch_exec_line(
-        self,
-        *,
-        application: ApplicationInfo,
-        exec_line: str,
-        action: str,
-    ) -> bool:
-        if not exec_line:
-            return False
-        try:
-            argv = commands.desktop_exec_argv(exec_line)
-        except ValueError as exc:
-            log.bind(
-                desktop_id=application.desktop_id,
-                action="parse_exec",
-            ).warning(
-                "Failed to parse launch command for %s: %s",
-                application.desktop_id,
-                exc,
-            )
-            return False
-        if not argv:
-            return False
-
-        if application.terminal:
-            if application.location is ApplicationLocation.SANDBOX and is_flatpak():
-                terminal_argv = commands.build_terminal_argv(
-                    command=shell_join(argv),
-                    resolver=commands.resolve_terminal_executable,
-                )
-            else:
-                terminal_argv = commands.build_terminal_argv(command=shell_join(argv))
-            if terminal_argv is None:
-                return False
-            argv = terminal_argv
-
-        working_directory = application.working_directory or None
-        if application.location is ApplicationLocation.HOST:
-            host_argv = (
-                flatpak.host_command(argv, working_directory=working_directory)
-                if working_directory
-                else flatpak.host_command(argv)
-            )
-            if host_argv is None:
-                log.bind(
-                    desktop_id=application.desktop_id,
-                    action=action,
-                ).warning(
-                    "Cannot launch host desktop file without flatpak-spawn: %s",
-                    application.desktop_file,
-                )
-                return False
-            argv = host_argv
-            working_directory = None
-
-        try:
-            process = self._popen(
-                argv,
-                shell=False,
-                start_new_session=True,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=working_directory,
-            )
-        except OSError as exc:
-            log.bind(
-                desktop_id=application.desktop_id,
-                action=action,
-            ).warning(
-                "Failed to launch %s: %s",
-                application.desktop_id,
-                exc,
-            )
-            return False
-
-        executable_path = (
-            application.executable_path
-            if exec_line == application.exec_line
-            else desktop_entries.executable_path_from_exec_line(exec_line)
-        )
-        self._provenance_store.record_launch(
-            process=process,
-            desktop_id=application.desktop_id,
-            executable_path=executable_path,
-        )
-        return True
 
 
 __all__ = ["ApplicationLauncher"]

@@ -15,15 +15,16 @@ from gi.repository import GdkPixbuf, Gio, GLib, Gtk
 
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
-from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PREFIX
+from docking.platform.applications.executable import normalized_exec_basename
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
+from docking.platform.desktop.selection import desktop_services
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
-HOST_XDG_DATA_DIRS = desktop_entries.HOST_XDG_DATA_DIRS
+HOST_XDG_DATA_DIRS = desktop_services().icon_locations().host_data_dirs
 HOST_PIXMAP_DIRS = tuple(f"{data_dir}/pixmaps" for data_dir in HOST_XDG_DATA_DIRS)
-HOST_FILESYSTEM_ROOT = desktop_entries.HOST_FILESYSTEM_ROOT
+HOST_FILESYSTEM_ROOT = desktop_services().icon_locations().host_filesystem_root
 ICON_FILE_EXTENSIONS = (".png", ".svg", ".xpm")
 
 log = with_context(get_logger(name="icons"))
@@ -141,7 +142,7 @@ class IconLoader:
         candidates = [
             icon_name,
             f"steam_icon_{info.steam_app_id}" if info.steam_app_id else "",
-            desktop_entries.normalized_exec_basename(exec_line),
+            normalized_exec_basename(exec_line),
         ]
         for candidate in dict.fromkeys(value for value in candidates if value):
             pixbuf = self._try_load_icon_without_fallback(

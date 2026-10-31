@@ -26,6 +26,7 @@ from docking.applets.aiusage.state import ModelUsage, Provider, _has_usage
 from docking.applets.aiusage.store import replace_session
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger, with_context
+from docking.platform.host.selection import host_services
 
 log = with_context(get_logger(name="aiusage.claude"))
 
@@ -183,7 +184,7 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
 
 def _hook_command_prefix() -> str:
     root = Path(__file__).resolve().parents[4]
-    return f"PYTHONPATH={root} {sys.executable} -m docking.applets.aiusage.hook"
+    return host_services().hook_command(root, sys.executable)
 
 
 def _has_hook(entries: list[dict[str, Any]], needle: str) -> bool:

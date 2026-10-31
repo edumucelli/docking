@@ -103,6 +103,8 @@ ignore = [
 
 [tool.ty.environment]
 python-version = "3.10"
+# Always resolve Docking imports from this checkout before installed releases.
+extra-paths = ["."]
 
 [tool.ty.src]
 # Generated pywayland bindings: the request/event decorators build their

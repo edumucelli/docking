@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 import docking.applets.windowkiller.applet as windowkiller_applet_mod
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller.applet import WindowKillerApplet
-from docking.applets.windowkiller.state import kill_pid
 from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, WindowId, WindowSnapshot
+from docking.platform.backends.unix.processes import kill_pid
 
 
 class TestKillPid:

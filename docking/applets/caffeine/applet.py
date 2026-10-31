@@ -19,13 +19,15 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.caffeine import meta
-from docking.applets.caffeine.inhibit import Inhibitor, default_inhibitor
+from docking.applets.caffeine.inhibit import Inhibitor
 from docking.applets.caffeine.render import render_icon
 from docking.applets.caffeine.state import (
     DURATION_PRESETS,
@@ -49,7 +51,7 @@ if TYPE_CHECKING:
 log = get_logger(name="caffeine")
 
 
-class CaffeineApplet(Applet):
+class CaffeineApplet(PlatformServicesApplet):
     """Toggle that keeps the session awake by inhibiting idle and sleep."""
 
     id = meta.id
@@ -61,13 +63,20 @@ class CaffeineApplet(Applet):
         icon_size: int,
         config: Config,
         inhibitor: Inhibitor | None = None,
+        *,
+        platform_services: AppletPlatformServices,
     ) -> None:
+        self._platform = platform_services
         prefs = config.applet_prefs.get(meta.id, {})
         self._data = state_from_prefs(prefs=prefs)
-        self._inhibitor = inhibitor if inhibitor is not None else default_inhibitor()
+        self._inhibitor = (
+            inhibitor
+            if inhibitor is not None
+            else platform_services.backends.caffeine()
+        )
         self._timer_id: int = 0
 
-        super().__init__(icon_size, config)
+        super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

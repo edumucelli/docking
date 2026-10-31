@@ -8,16 +8,19 @@ from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import tests.platform_factories as test_platform
 from docking.applets.trash import applet as trash_applet_mod
 from docking.applets.trash.applet import TrashApplet
-from docking.applets.trash.backend import (
+from docking.applets.trash.backend import TrashEmptyResult
+from docking.applets.trash.implementations.unix.backend import (
     CinnamonTrashBackend,
     GioTrashBackend,
     GnomeTrashBackend,
     KdeTrashBackend,
     MateTrashBackend,
-    TrashEmptyResult,
+    UnixTrashWatch,
     _empty_host_trash,
+    _file_from_drop_uri,
     _host_user_data_home,
     _kde_kiorc_file,
     _open_trash_uri,
@@ -27,9 +30,10 @@ from docking.applets.trash.backend import (
     _visible_trash_info_directory,
     select_trash_backend,
 )
-from docking.applets.trash.linux import _decode_mountinfo_path
 from docking.core.config import Config
 from docking.platform.environment import Desktop
+from docking.platform.host.implementations.linux.mounts import _decode_mountinfo_path
+from tests.platform_factories import make_applet_platform
 
 
 class TestHelperFunctions:
@@ -38,13 +42,19 @@ class TestHelperFunctions:
 
     def test_visible_trash_files_directory_not_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/tmp/test-xdg/data")
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
         result = _visible_trash_files_directory()
         assert result == Path("/tmp/test-xdg/data") / "Trash" / "files"
 
     def test_visible_trash_info_directory_not_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/tmp/test-xdg/data")
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
         result = _visible_trash_info_directory()
         assert result == Path("/tmp/test-xdg/data") / "Trash" / "info"
 
@@ -62,9 +72,12 @@ class TestHelperFunctions:
         volume_trash = mount / f".Trash-{os.getuid()}"
         volume_trash.mkdir(parents=True)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._mount_points",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
             lambda: (mount,),
         )
 
@@ -86,9 +99,12 @@ class TestHelperFunctions:
         volume_trash.mkdir(parents=True)
         volume_trash.parent.chmod(0o1777)
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._mount_points",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
             lambda: (mount,),
         )
 
@@ -103,14 +119,19 @@ class TestHelperFunctions:
         home = tmp_path / "home"
         bad_mount = tmp_path / "media" / "bad"
         monkeypatch.setenv("XDG_DATA_HOME", str(home))
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
-        monkeypatch.setattr("docking.applets.trash.backend.os.getuid", lambda: 1000)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._mount_points",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.os.getuid", lambda: 1000
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
             lambda: (bad_mount,),
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.Path.exists",
+            "docking.applets.trash.implementations.unix.backend.Path.exists",
             lambda self: (_ for _ in ()).throw(OSError("stale mount")),
         )
 
@@ -118,25 +139,34 @@ class TestHelperFunctions:
 
     def test_kde_kiorc_file_not_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/test-xdg/config")
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
         result = _kde_kiorc_file()
         assert result == Path("/tmp/test-xdg/config") / "kiorc"
 
     def test_open_trash_uri_handles_glib_error(self):
         with (
             patch(
-                "docking.applets.trash.backend.targets.open_target",
+                "docking.applets.trash.implementations.unix.backend.targets.open_target",
                 return_value=False,
             ),
-            patch("docking.applets.trash.backend.shutil.which", return_value=False),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.shutil.which",
+                return_value=False,
+            ),
         ):
             _open_trash_uri("trash:///")
 
     def test_empty_host_trash_no_command_returns_false(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.host_command",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
                 return_value=None,
             ),
         ):
@@ -144,13 +174,16 @@ class TestHelperFunctions:
 
     def test_empty_host_trash_oserror_returns_false(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.host_command",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
                 return_value=["flatpak-spawn", "--host", "gio", "trash", "--empty"],
             ),
             patch(
-                "docking.applets.trash.backend.subprocess.run",
+                "docking.applets.trash.implementations.unix.backend.subprocess.run",
                 side_effect=OSError("spawn failed"),
             ),
         ):
@@ -158,13 +191,16 @@ class TestHelperFunctions:
 
     def test_empty_host_trash_timeout_returns_false(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.host_command",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
                 return_value=["flatpak-spawn", "--host", "gio", "trash", "--empty"],
             ),
             patch(
-                "docking.applets.trash.backend.subprocess.run",
+                "docking.applets.trash.implementations.unix.backend.subprocess.run",
                 side_effect=subprocess.TimeoutExpired(cmd=["gio"], timeout=10.0),
             ),
         ):
@@ -172,13 +208,16 @@ class TestHelperFunctions:
 
     def test_empty_host_trash_non_zero_returncode_returns_false(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.host_command",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
                 return_value=["flatpak-spawn", "--host", "gio", "trash", "--empty"],
             ),
             patch(
-                "docking.applets.trash.backend.subprocess.run",
+                "docking.applets.trash.implementations.unix.backend.subprocess.run",
             ) as run_mock,
         ):
             run_mock.return_value.returncode = 1
@@ -212,7 +251,7 @@ class TestTrashAppletDrops:
         path = tmp_path / "notes.txt"
         path.write_text("notes")
 
-        file = TrashApplet._file_from_drop_uri(path.as_uri())
+        file = _file_from_drop_uri(path.as_uri())
 
         assert file is not None
         assert file.get_path() == str(path)
@@ -221,26 +260,32 @@ class TestTrashAppletDrops:
         path = tmp_path / "notes.txt"
         path.write_text("notes")
 
-        file = TrashApplet._file_from_drop_uri(str(path))
+        file = _file_from_drop_uri(str(path))
 
         assert file is not None
         assert file.get_path() == str(path)
 
     def test_file_from_drop_uri_rejects_non_local_uri(self):
-        assert TrashApplet._file_from_drop_uri("https://example.test/file.txt") is None
-        assert TrashApplet._file_from_drop_uri("trash:///") is None
+        assert _file_from_drop_uri("https://example.test/file.txt") is None
+        assert _file_from_drop_uri("trash:///") is None
 
     def test_on_drop_uris_trashes_local_files_and_refreshes_count(self):
         file = MagicMock()
         file.trash.return_value = True
         backend = MagicMock()
         backend.count_items.return_value = 3
+        backend.trash_uris.side_effect = lambda uris: UnixTrashWatch.trash_uris(
+            backend, uris
+        )
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = backend
         applet._item_count = 0
         applet.present = MagicMock()
 
-        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+        with patch(
+            "docking.applets.trash.implementations.unix.backend._file_from_drop_uri",
+            return_value=file,
+        ):
             assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is True
 
         file.trash.assert_called_once_with(None)
@@ -252,10 +297,16 @@ class TestTrashAppletDrops:
         file.trash.return_value = False
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = MagicMock()
+        applet._backend.trash_uris.side_effect = lambda uris: UnixTrashWatch.trash_uris(
+            applet._backend, uris
+        )
         applet._item_count = 0
         applet.present = MagicMock()
 
-        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=file):
+        with patch(
+            "docking.applets.trash.implementations.unix.backend._file_from_drop_uri",
+            return_value=file,
+        ):
             assert applet.on_drop_uris(["file:///tmp/notes.txt"]) is False
 
         applet._backend.count_items.assert_not_called()
@@ -264,10 +315,16 @@ class TestTrashAppletDrops:
     def test_on_drop_uris_returns_false_when_nothing_was_trashed(self):
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = MagicMock()
+        applet._backend.trash_uris.side_effect = lambda uris: UnixTrashWatch.trash_uris(
+            applet._backend, uris
+        )
         applet._item_count = 0
         applet.present = MagicMock()
 
-        with patch.object(TrashApplet, "_file_from_drop_uri", return_value=None):
+        with patch(
+            "docking.applets.trash.implementations.unix.backend._file_from_drop_uri",
+            return_value=None,
+        ):
             assert applet.on_drop_uris(["https://example.test/file.txt"]) is False
 
         applet._backend.count_items.assert_not_called()
@@ -284,7 +341,8 @@ class TestGioTrashBackend:
 
         # When
         with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=mock_file
+            "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
+            return_value=mock_file,
         ):
             count = GioTrashBackend().count_items()
 
@@ -300,13 +358,16 @@ class TestGioTrashBackend:
         mock_file.enumerate_children.side_effect = GLib.Error("fail")
 
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(missing_files_dir,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
                 return_value=mock_file,
             ),
         ):
@@ -323,13 +384,16 @@ class TestGioTrashBackend:
         mock_file.enumerate_children.side_effect = GLib.Error("unsupported")
 
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(files_dir,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
                 return_value=mock_file,
             ),
         ):
@@ -345,12 +409,17 @@ class TestGioTrashBackend:
         (volume_files_dir / "c.txt").write_text("c")
 
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(files_dir, volume_files_dir),
             ),
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
         ):
             assert MateTrashBackend().count_items() == 3
 
@@ -363,12 +432,17 @@ class TestGioTrashBackend:
         (files_dir / "b.txt").write_text("b")
 
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(files_dir,),
             ),
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
         ):
             assert GioTrashBackend().count_items() == 2
 
@@ -376,15 +450,20 @@ class TestGioTrashBackend:
 
     def test_monitor_uses_visible_trash_files_in_flatpak(self, tmp_path):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(tmp_path,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_path"
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_path"
             ) as new_for_path,
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
         ):
             GioTrashBackend().monitor_files()
 
@@ -393,15 +472,20 @@ class TestGioTrashBackend:
 
     def test_mate_monitor_uses_visible_trash_files(self, tmp_path):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(tmp_path,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_path"
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_path"
             ) as new_for_path,
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
         ):
             MateTrashBackend().monitor_files()
 
@@ -410,8 +494,13 @@ class TestGioTrashBackend:
 
     def test_open_launches_default_trash_uri(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
-            patch("docking.applets.trash.backend.targets.open_target") as open_target,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.targets.open_target"
+            ) as open_target,
         ):
             GioTrashBackend().open()
 
@@ -419,13 +508,20 @@ class TestGioTrashBackend:
 
     def test_open_prefers_sanitized_host_gio_in_flatpak(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.spawn_path",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
-            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
-            patch("docking.applets.trash.backend.targets.open_target") as open_target,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.subprocess.Popen"
+            ) as popen,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.targets.open_target"
+            ) as open_target,
         ):
             GioTrashBackend().open()
 
@@ -451,17 +547,20 @@ class TestGioTrashBackend:
 
     def test_open_falls_back_to_gio_when_host_open_unavailable(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.spawn_path",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
             patch(
-                "docking.applets.trash.backend.subprocess.Popen",
+                "docking.applets.trash.implementations.unix.backend.subprocess.Popen",
                 side_effect=OSError("spawn failed"),
             ) as popen,
             patch(
-                "docking.applets.trash.backend.targets.open_target",
+                "docking.applets.trash.implementations.unix.backend.targets.open_target",
             ) as open_target,
         ):
             GioTrashBackend().open()
@@ -488,18 +587,23 @@ class TestGioTrashBackend:
 
     def test_mate_open_falls_back_to_caja_when_gio_rejects_trash_uri(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend.targets.open_target",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.targets.open_target",
                 return_value=False,
             ) as open_target,
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.implementations.unix.backend.shutil.which",
                 side_effect=lambda command: (
                     f"/usr/bin/{command}" if command == "caja" else None
                 ),
             ),
-            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.subprocess.Popen"
+            ) as popen,
         ):
             MateTrashBackend().open()
 
@@ -512,23 +616,26 @@ class TestGioTrashBackend:
         files_dir = tmp_path / "Trash" / "files"
         files_dir.mkdir(parents=True)
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directory",
-                return_value=files_dir,
-            ),
-            patch(
-                "docking.applets.trash.backend.targets.open_target",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
                 return_value=False,
             ),
             patch(
-                "docking.applets.trash.backend.shutil.which",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directory",
+                return_value=files_dir,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.targets.open_target",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.shutil.which",
                 side_effect=lambda command: (
                     f"/usr/bin/{command}" if command == "xdg-open" else None
                 ),
             ),
             patch(
-                "docking.applets.trash.backend.subprocess.Popen",
+                "docking.applets.trash.implementations.unix.backend.subprocess.Popen",
                 side_effect=[OSError("unsupported"), MagicMock()],
             ) as popen,
         ):
@@ -541,7 +648,10 @@ class TestGioTrashBackend:
 
     def test_empty_trash_uses_dbus_first(self):
         bus = MagicMock()
-        with patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus):
+        with patch(
+            "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+            return_value=bus,
+        ):
             result = GioTrashBackend().empty(lambda: False)
 
         bus.call_sync.assert_called_once()
@@ -552,7 +662,9 @@ class TestGioTrashBackend:
         backend = MateTrashBackend()
         with (
             patch.object(backend, "_confirmation_preference", return_value=False),
-            patch("docking.applets.trash.backend.Gio.bus_get_sync") as bus_get,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync"
+            ) as bus_get,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             backend.empty(lambda: True)
@@ -567,7 +679,10 @@ class TestGioTrashBackend:
         bus = MagicMock()
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
-            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+                return_value=bus,
+            ),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             backend.empty(lambda: True)
@@ -587,7 +702,10 @@ class TestGioTrashBackend:
         bus.call_sync.side_effect = GLib.Error("nautilus")
         asked: list[str] = []
         with (
-            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+                return_value=bus,
+            ),
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             result = backend.empty(lambda: asked.append("asked") or False)
@@ -605,9 +723,14 @@ class TestGioTrashBackend:
         bus = MagicMock()
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
-            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+                return_value=bus,
+            ),
             patch.object(backend, "_delete_contents") as delete_mock,
-            patch("docking.applets.trash.backend._empty_host_trash") as host_mock,
+            patch(
+                "docking.applets.trash.implementations.unix.backend._empty_host_trash"
+            ) as host_mock,
         ):
             result = backend.empty(lambda: False)
 
@@ -633,13 +756,21 @@ class TestGioTrashBackend:
         bus = MagicMock()
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.spawn_path",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
-            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
-            patch("docking.applets.trash.backend.subprocess.run") as run_mock,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+                return_value=bus,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.subprocess.run"
+            ) as run_mock,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             run_mock.return_value.returncode = 0
@@ -675,13 +806,21 @@ class TestGioTrashBackend:
         bus = MagicMock()
         bus.call_sync.side_effect = GLib.Error("nautilus")
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.spawn_path",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
                 return_value="/usr/bin/flatpak-spawn",
             ),
-            patch("docking.applets.trash.backend.Gio.bus_get_sync", return_value=bus),
-            patch("docking.applets.trash.backend.subprocess.run") as run_mock,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
+                return_value=bus,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.subprocess.run"
+            ) as run_mock,
             patch.object(backend, "_delete_contents") as delete_mock,
         ):
             run_mock.return_value.returncode = 1
@@ -717,7 +856,8 @@ class TestGioTrashBackend:
         trash.get_child.side_effect = [child_a, child_b]
 
         with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
+            "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
+            return_value=trash,
         ):
             GioTrashBackend()._delete_contents()
 
@@ -735,15 +875,15 @@ class TestGioTrashBackend:
 
         with (
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(files_dir,),
             ),
             patch(
-                "docking.applets.trash.backend._visible_trash_info_directories",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_info_directories",
                 return_value=(info_dir,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
                 return_value=trash,
             ),
         ):
@@ -765,15 +905,15 @@ class TestGioTrashBackend:
 
         with (
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(files_dir,),
             ),
             patch(
-                "docking.applets.trash.backend._visible_trash_info_directories",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_info_directories",
                 return_value=(info_dir,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_uri",
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
                 return_value=trash,
             ),
         ):
@@ -796,7 +936,8 @@ class TestGioTrashBackend:
         trash.get_child.return_value = child
 
         with patch(
-            "docking.applets.trash.backend.Gio.File.new_for_uri", return_value=trash
+            "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri",
+            return_value=trash,
         ):
             stats = GioTrashBackend()._delete_contents()
 
@@ -815,9 +956,12 @@ class TestGioTrashBackend:
         assert stats.permission_denied is True
 
     def test_count_items_handles_flatpak_oserror(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directories",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
             lambda: (Path("/nonexistent/path"),),
         )
         assert GioTrashBackend().count_items() == 0
@@ -913,7 +1057,7 @@ class TestGioTrashBackend:
         from gi.repository import GLib
 
         monkeypatch.setattr(
-            "docking.applets.trash.backend.Gio.bus_get_sync",
+            "docking.applets.trash.implementations.unix.backend.Gio.bus_get_sync",
             lambda *a, **kw: (_ for _ in ()).throw(GLib.Error("no bus")),
         )
         assert GioTrashBackend()._empty_via_dbus() is False
@@ -930,7 +1074,10 @@ class TestKdeTrashBackend:
         (files_dir / "a.txt").write_text("a")
         (files_dir / "b.txt").write_text("b")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
+            lambda: (),
+        )
 
         assert KdeTrashBackend().count_items() == 2
 
@@ -945,7 +1092,10 @@ class TestKdeTrashBackend:
         (nested_dir / "b.txt").write_text("b")
         (info_dir / "a.txt.trashinfo").write_text("[Trash Info]")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
+            lambda: (),
+        )
 
         result = KdeTrashBackend().empty(lambda: True)
 
@@ -957,11 +1107,16 @@ class TestKdeTrashBackend:
     def test_open_uses_kde_open_command(self):
         backend = KdeTrashBackend()
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
             patch.object(
                 backend, "_available_open_command", return_value=("dolphin", "trash:/")
             ),
-            patch("docking.applets.trash.backend.subprocess.Popen") as popen,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.subprocess.Popen"
+            ) as popen,
         ):
             backend.open()
 
@@ -970,11 +1125,11 @@ class TestKdeTrashBackend:
     def test_monitor_uses_kde_trash_files(self, tmp_path):
         with (
             patch(
-                "docking.applets.trash.backend._visible_trash_files_directories",
+                "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
                 return_value=(tmp_path,),
             ),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_path",
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_path",
             ) as new_for_path,
         ):
             KdeTrashBackend().monitor_files()
@@ -987,25 +1142,33 @@ class TestKdeTrashBackend:
         files_dir = tmp_path / "Trash" / "files"
         files_dir.mkdir(parents=True)
         (files_dir / "a.txt").write_text("a")
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend._visible_trash_files_directories",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._visible_trash_files_directories",
             lambda: (files_dir,),
         )
 
         assert KdeTrashBackend().count_items() == 1
 
     def test_kde_open_uses_host_command_in_flatpak(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command_available",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command_available",
             lambda command: command == "dolphin",
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command",
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
             lambda cmd: ["/usr/bin/flatpak-spawn", "--host", *cmd],
         )
-        with patch("docking.applets.trash.backend.subprocess.Popen") as popen:
+        with patch(
+            "docking.applets.trash.implementations.unix.backend.subprocess.Popen"
+        ) as popen:
             KdeTrashBackend().open()
 
         popen.assert_called_once_with(
@@ -1073,18 +1236,24 @@ class TestKdeTrashBackend:
         assert backend._confirmation_preference() is True
 
     def test_available_open_command_non_flatpak(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.shutil.which",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.shutil.which",
             lambda cmd: cmd == "kioclient6",
         )
         result = KdeTrashBackend()._available_open_command()
         assert result == ("kioclient6", "exec", "trash:/")
 
     def test_available_open_command_flatpak_unavailable(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command_available",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command_available",
             lambda cmd: False,
         )
         result = KdeTrashBackend()._available_open_command()
@@ -1092,20 +1261,28 @@ class TestKdeTrashBackend:
 
     def test_kde_count_items_handles_oserror(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", "/nonexistent/path")
-        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
+            lambda: (),
+        )
         assert KdeTrashBackend().count_items() == 0
 
     def test_kde_open_falls_back_to_gio_on_oserror(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: False)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.shutil.which",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.shutil.which",
             lambda cmd: cmd == "kioclient6",
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.subprocess.Popen",
+            "docking.applets.trash.implementations.unix.backend.subprocess.Popen",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("failed")),
         )
-        with patch("docking.applets.trash.backend.targets.open_target") as open_target:
+        with patch(
+            "docking.applets.trash.implementations.unix.backend.targets.open_target"
+        ) as open_target:
             KdeTrashBackend().open()
 
         open_target.assert_called_once_with("trash:/")
@@ -1126,23 +1303,26 @@ class TestKdeTrashBackend:
             backend._delete_path(mock_path)
 
     def test_kde_empty_deletes_when_host_trash_succeeds(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
             lambda cmd: ["flatpak-spawn", "--host", *cmd],
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.spawn_path",
+            "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
             lambda: "/usr/bin/flatpak-spawn",
         )
         subprocess_run = MagicMock()
         subprocess_run.return_value.returncode = 0
         monkeypatch.setattr(
-            "docking.applets.trash.backend.subprocess.run",
+            "docking.applets.trash.implementations.unix.backend.subprocess.run",
             subprocess_run,
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend._empty_host_trash",
+            "docking.applets.trash.implementations.unix.backend._empty_host_trash",
             lambda: True,
         )
         with patch.object(KdeTrashBackend, "_delete_contents") as delete:
@@ -1152,23 +1332,33 @@ class TestKdeTrashBackend:
     def test_open_host_trash_uri_no_command_returns_false(self):
         """When flatpak.host_command returns None, _open_host_trash_uri returns False."""
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=True),
             patch(
-                "docking.applets.trash.backend.flatpak.host_command",
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=True,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
                 return_value=None,
             ),
         ):
-            from docking.applets.trash.backend import _open_host_trash_uri
+            from docking.applets.trash.implementations.unix.backend import (
+                _open_host_trash_uri,
+            )
 
             result = _open_host_trash_uri(uri="trash:///")
             assert result is False
 
     def test_monitor_files_not_flatpak_uses_uri(self):
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_path"
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
             GioTrashBackend().monitor_files()
@@ -1183,7 +1373,9 @@ class TestKdeTrashBackend:
         )
         with (
             patch.object(backend, "_confirmation_preference", return_value=False),
-            patch("docking.applets.trash.backend.Gio.File.new_for_uri") as new_for_uri,
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_uri"
+            ) as new_for_uri,
         ):
             trash = MagicMock()
             trash.enumerate_children.return_value = MagicMock()
@@ -1193,11 +1385,17 @@ class TestKdeTrashBackend:
 
     def test_kde_monitor_files_not_flatpak(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-        monkeypatch.setattr("docking.applets.trash.backend._mount_points", lambda: ())
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend._mount_points",
+            lambda: (),
+        )
         with (
-            patch("docking.applets.trash.backend.is_flatpak", return_value=False),
             patch(
-                "docking.applets.trash.backend.Gio.File.new_for_path"
+                "docking.applets.trash.implementations.unix.backend.is_flatpak",
+                return_value=False,
+            ),
+            patch(
+                "docking.applets.trash.implementations.unix.backend.Gio.File.new_for_path"
             ) as new_for_path,
         ):
             KdeTrashBackend().monitor_files()
@@ -1208,21 +1406,24 @@ class TestKdeTrashBackend:
         backend._delete_directory_contents(Path("/nonexistent_trash_path"))
 
     def test_kde_empty_confirmation_disabled_with_host_empty(self, monkeypatch):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
             lambda cmd: ["flatpak-spawn", "--host", *cmd],
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.spawn_path",
+            "docking.applets.trash.implementations.unix.backend.flatpak.spawn_path",
             lambda: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.subprocess.run",
+            "docking.applets.trash.implementations.unix.backend.subprocess.run",
             MagicMock(return_value=MagicMock(returncode=0)),
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend._empty_host_trash",
+            "docking.applets.trash.implementations.unix.backend._empty_host_trash",
             lambda: True,
         )
         conf_backend = KdeTrashBackend()
@@ -1236,20 +1437,25 @@ class TestKdeTrashBackend:
     def test_kde_open_uses_host_command_in_flatpak_with_available_command(
         self, monkeypatch
     ):
-        monkeypatch.setattr("docking.applets.trash.backend.is_flatpak", lambda: True)
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command_available",
+            "docking.applets.trash.implementations.unix.backend.is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command_available",
             lambda cmd: True,
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.flatpak.host_command",
+            "docking.applets.trash.implementations.unix.backend.flatpak.host_command",
             lambda cmd: ("/usr/bin/flatpak-spawn", "--host", *cmd),
         )
         monkeypatch.setattr(
-            "docking.applets.trash.backend.shutil.which",
+            "docking.applets.trash.implementations.unix.backend.shutil.which",
             lambda cmd: False,
         )
-        with patch("docking.applets.trash.backend.subprocess.Popen") as popen:
+        with patch(
+            "docking.applets.trash.implementations.unix.backend.subprocess.Popen"
+        ) as popen:
             KdeTrashBackend().open()
 
         popen.assert_called_once_with(
@@ -1257,7 +1463,7 @@ class TestKdeTrashBackend:
         )
 
 
-class _StubBackend:
+class _StubBackend(UnixTrashWatch):
     name = "stub"
     uri = "trash:///"
 
@@ -1291,11 +1497,11 @@ class _StubBackend:
 
 def _make_applet(monkeypatch, backend: _StubBackend) -> TrashApplet:
     monkeypatch.setattr(
-        trash_applet_mod,
-        "select_trash_backend",
-        lambda **_: backend,
+        test_platform.TestAppletBackendFactories,
+        "trash",
+        staticmethod(lambda: backend),
     )
-    return TrashApplet(48, config=Config())
+    return TrashApplet(48, config=Config(), platform_services=make_applet_platform())
 
 
 class TestTrashAppletIcon:
@@ -1387,12 +1593,12 @@ class TestTrashAppletLifecycle:
         volume_monitor.connect.side_effect = [10, 11]
 
         with patch(
-            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            "docking.applets.trash.implementations.unix.backend.Gio.VolumeMonitor.get",
             return_value=volume_monitor,
         ):
             applet.start(lambda: None)
 
-        assert applet._monitors == [backend.monitor]
+        assert applet._stop_watch is not None
         backend.monitor.connect.assert_called_once()
         assert volume_monitor.connect.call_count == 2
 
@@ -1401,7 +1607,7 @@ class TestTrashAppletLifecycle:
         backend.monitor.cancel.assert_called_once()
         volume_monitor.disconnect.assert_any_call(10)
         volume_monitor.disconnect.assert_any_call(11)
-        assert applet._monitors == []
+        assert applet._stop_watch is None
 
     def test_start_handles_monitor_error(self, monkeypatch):
         from gi.repository import GLib
@@ -1413,12 +1619,12 @@ class TestTrashAppletLifecycle:
         volume_monitor.connect.side_effect = [10, 11]
 
         with patch(
-            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            "docking.applets.trash.implementations.unix.backend.Gio.VolumeMonitor.get",
             return_value=volume_monitor,
         ):
             applet.start(lambda: None)
 
-        assert applet._monitors == []
+        backend.monitor.connect.assert_not_called()
         applet.stop()
 
     def test_start_monitors_all_backend_files_and_continues_after_error(
@@ -1438,12 +1644,12 @@ class TestTrashAppletLifecycle:
         volume_monitor.connect.side_effect = [10, 11]
 
         with patch(
-            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            "docking.applets.trash.implementations.unix.backend.Gio.VolumeMonitor.get",
             return_value=volume_monitor,
         ):
             applet.start(lambda: None)
 
-        assert applet._monitors == [good_monitor]
+        assert applet._stop_watch is not None
         good_monitor.connect.assert_called_once()
         applet.stop()
 
@@ -1461,7 +1667,7 @@ class TestTrashAppletLifecycle:
         volume_monitor.connect.side_effect = [10, 11]
 
         with patch(
-            "docking.applets.trash.applet.Gio.VolumeMonitor.get",
+            "docking.applets.trash.implementations.unix.backend.Gio.VolumeMonitor.get",
             return_value=volume_monitor,
         ):
             applet.start(lambda: None)
@@ -1469,10 +1675,10 @@ class TestTrashAppletLifecycle:
         backend.monitor_files_mock = (new_file,)
         backend.item_count = 4
 
-        applet._on_mounts_changed()
+        volume_monitor.connect.call_args_list[0].args[1]()
 
         old_monitor.cancel.assert_called_once()
-        assert applet._monitors == [new_monitor]
+        new_monitor.connect.assert_called_once()
         assert applet._item_count == 4
         applet.stop()
 

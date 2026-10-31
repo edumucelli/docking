@@ -276,6 +276,10 @@ class Service(ABC):
 class WindowService(Service):
     """Taskbar/window state and window actions."""
 
+    def defer_menu_row_removal(self, window_id: WindowId) -> bool:
+        """Keep popup removal compatible with the identity's session transport."""
+        return window_id.backend is DisplayServer.WAYLAND
+
     def refresh(self) -> None:
         """Refresh polled state before launching; event-driven services need no scan."""
 

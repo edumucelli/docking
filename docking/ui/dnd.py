@@ -160,9 +160,10 @@ from typing import TYPE_CHECKING
 import gi
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
+from docking.core.paths import local_path_from_uri_or_path
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.constants import DESKTOP_SUFFIX
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.poof import show_poof
@@ -781,10 +782,9 @@ class DnDHandler:
         """Resolve and insert one external URI through the owning model boundary."""
         icon_size = self._config.scaled_icon_size
         application = self._resolve_desktop_application(uri)
-        desktop_path = desktop_entries.local_path_from_uri_or_path(uri)
+        desktop_path = local_path_from_uri_or_path(uri)
         is_desktop_target = (
-            desktop_path is not None
-            and desktop_path.suffix == desktop_entries.DESKTOP_SUFFIX
+            desktop_path is not None and desktop_path.suffix == DESKTOP_SUFFIX
         )
         log.debug(
             "_insert_pinned_uri: uri=%s desktop_id=%s",
@@ -801,7 +801,7 @@ class DnDHandler:
                 index=index,
             )
         if is_desktop_target:
-            desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
+            desktop_id = self._application_registry.registrations.desktop_id(uri)
             if desktop_id is not None:
                 log.debug(
                     "_insert_pinned_uri: resolve returned None for %s",
@@ -812,7 +812,7 @@ class DnDHandler:
         if not self._prepare_appimage_for_generation(uri):
             return False
 
-        generated = desktop_entries.create_desktop_entry_for_executable(uri)
+        generated = self._application_registry.registrations.register(uri)
         if generated is not None:
             self._application_registry.refresh()
             application = self._application_registry.get(generated.desktop_id)
@@ -852,26 +852,28 @@ class DnDHandler:
         if exact is not None:
             return exact
 
-        path = desktop_entries.local_path_from_uri_or_path(target)
-        if path is None or path.suffix != desktop_entries.DESKTOP_SUFFIX:
+        path = local_path_from_uri_or_path(target)
+        if path is None or path.suffix != DESKTOP_SUFFIX:
             return None
 
         application = self._application_registry.resolve_by_desktop_file(path)
         if application is not None:
             return application
 
-        desktop_id = desktop_entries.desktop_id_from_uri_or_path(target)
+        desktop_id = self._application_registry.registrations.desktop_id(target)
         if desktop_id is None:
             return None
         return self._application_registry.get(desktop_id)
 
     def _prepare_appimage_for_generation(self, uri: str) -> bool:
-        appimage = desktop_entries.appimage_path_needing_executable_permission(uri)
+        appimage = self._application_registry.registrations.appimage_needing_permission(
+            uri
+        )
         if appimage is None:
             return True
         if not self._confirm_make_appimage_executable(appimage):
             return False
-        return desktop_entries.make_user_executable(appimage)
+        return self._application_registry.registrations.make_executable(appimage)
 
     def _confirm_make_appimage_executable(self, path: Path) -> bool:
         dialog = Gtk.MessageDialog(

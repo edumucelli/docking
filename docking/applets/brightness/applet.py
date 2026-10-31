@@ -20,19 +20,16 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.brightness.backend import BrightnessOperations
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.brightness import meta
 from docking.applets.brightness.render import create_icon
-from docking.applets.brightness.state import (
-    STEP,
-    Backend,
-    detect_output,
-    get_brightness,
-    set_brightness,
-)
+from docking.applets.brightness.state import STEP
 from docking.applets.menu import menu_sections
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -46,7 +43,7 @@ log = with_context(get_logger(name="brightness"), applet_id=meta.id)
 POLL_INTERVAL_S = 5
 
 
-class BrightnessApplet(Applet):
+class BrightnessApplet(PlatformServicesApplet):
     """Screen brightness control via xrandr.
 
     Scroll adjusts brightness ±5%. Click resets to 100%.
@@ -57,8 +54,16 @@ class BrightnessApplet(Applet):
     name = _("Brightness")
     icon_name = "display-brightness-symbolic"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = detect_output()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.brightness()
+        self._backend = self._native if self._native.available() else None
         if not self._backend:
             log.warning("No xrandr output detected")
         self._brightness = 1.0
@@ -73,7 +78,9 @@ class BrightnessApplet(Applet):
         self._show_level = prefs.get("show_level", False)
 
         self._poll()
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -160,16 +167,18 @@ class BrightnessApplet(Applet):
         self._start_pending_brightness()
         return False
 
-    def _write_brightness(self, backend: Backend, value: float) -> float | None:
-        if set_brightness(backend=backend, value=value) is False:
-            return get_brightness(backend=backend)
+    def _write_brightness(
+        self, backend: BrightnessOperations, value: float
+    ) -> float | None:
+        if backend.set_brightness(value=value) is False:
+            return backend.get_brightness()
         return None
 
     def _poll(self) -> None:
         """Read current brightness synchronously."""
         if not self._backend:
             return
-        val = get_brightness(backend=self._backend)
+        val = self._backend.get_brightness()
         if val is not None:
             self._brightness = val
 
@@ -181,7 +190,7 @@ class BrightnessApplet(Applet):
         generation = self._poll_generation
         self._worker.run(
             name="brightness-poll",
-            fn=lambda: get_brightness(backend=backend),
+            fn=lambda: backend.get_brightness(),
             on_result=lambda value: self._on_poll_result(value, generation=generation),
         )
         return True

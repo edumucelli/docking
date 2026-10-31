@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from docking.i18n import _
-from docking.platform.status_notifier import StatusTrayState
+from docking.platform.tray.state import StatusTrayState
 
 
 def tooltip_text(state: StatusTrayState) -> str:

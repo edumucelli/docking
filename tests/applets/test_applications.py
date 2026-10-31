@@ -16,6 +16,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
     TransientApplicationInfo,
 )
+from tests.platform_factories import make_applet_platform
 
 
 def _application(
@@ -82,6 +83,7 @@ def _make_applet(
         config=Config(),
         application_registry=registry or _Registry(),  # ty: ignore[invalid-argument-type]
         application_launcher=launcher or MagicMock(),  # ty: ignore[invalid-argument-type]
+        platform_services=make_applet_platform(),
     )
 
 

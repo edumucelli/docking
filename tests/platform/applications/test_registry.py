@@ -9,7 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.platform.applications.discovery as discovery_mod
+import docking.platform.applications.implementations.unix.associations as association_mod
+import docking.platform.applications.implementations.unix.catalog as catalog_mod
+import docking.platform.applications.implementations.unix.discovery as discovery_mod
 import docking.platform.applications.registry as registry_mod
 from docking.platform.applications.registry import (
     DEFAULT_DEBOUNCE_MS,
@@ -23,6 +25,7 @@ from docking.platform.applications.types import (
     DiscoveryReason,
     TransientApplicationInfo,
 )
+from tests.platform_factories import make_application_registry
 
 
 class _Icon:
@@ -44,7 +47,7 @@ def test_diagnostics_use_last_discovery_and_count_nodisplay(tmp_path):
         "[Desktop Entry]\nType=Application\nName=Hidden Menu\nExec=true\nNoDisplay=true\n"
     )
     source = MagicMock(return_value=(first,))
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (), desktop_directories_source=source
     )
     assert not registry.diagnostic_snapshot().loaded
@@ -316,12 +319,12 @@ def _registry(
     applications: list[object] | None = None,
     directories: list[Path] | None = None,
 ) -> ApplicationRegistry:
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: list(applications or ()),
         desktop_directories_source=lambda: list(directories or ()),
     )
-    registry._desktop_app_info_for_id = lambda _desktop_id: None
-    registry._desktop_app_info_from_filename = lambda _path: None
+    registry._catalog._desktop_app_info_for_id = lambda _desktop_id: None
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
     return registry
 
 
@@ -483,7 +486,7 @@ def test_failed_initial_discovery_leaves_registry_unready():
     def fail_discovery():
         raise RuntimeError("discovery failed")
 
-    registry._application_source = fail_discovery
+    registry._catalog._application_source = fail_discovery
 
     assert registry.refresh() is False
     assert registry.generation == 0
@@ -503,7 +506,7 @@ def test_default_gio_source_filters_non_desktop_app_infos_but_injection_does_not
         commandline="generic",
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_all",
         lambda: [generic, desktop],
     )
@@ -512,10 +515,10 @@ def test_default_gio_source_filters_non_desktop_app_infos_but_injection_does_not
         "is_gio_desktop_app_info",
         lambda app_info: app_info is desktop,
     )
-    default_registry = ApplicationRegistry(
+    default_registry = make_application_registry(
         desktop_directories_source=list,
     )
-    default_registry._desktop_app_info_from_filename = lambda _path: None
+    default_registry._catalog._desktop_app_info_from_filename = lambda _path: None
 
     assert default_registry.refresh() is True
     assert default_registry.get("desktop.desktop") is not None
@@ -798,9 +801,9 @@ def test_file_only_id_uses_canonical_gio_metadata_without_losing_xdg_mask(
         commandline="canonical-command",
     )
     registry = _registry(directories=[first, second])
-    registry._desktop_app_info_for_id = lambda _desktop_id: canonical
+    registry._catalog._desktop_app_info_for_id = lambda _desktop_id: canonical
     from_filename = MagicMock()
-    registry._desktop_app_info_from_filename = from_filename
+    registry._catalog._desktop_app_info_from_filename = from_filename
 
     registry.refresh()
 
@@ -1067,7 +1070,7 @@ def test_generated_origin_and_host_location_are_independent(tmp_path, monkeypatc
         extra="X-Docking-Generated=true\n",
     )
     monkeypatch.setattr(
-        registry_mod.desktop_entries,
+        catalog_mod.entries,
         "is_host_desktop_file",
         lambda path: path is not None and "host" in path.parts,
     )
@@ -1094,7 +1097,7 @@ def test_failed_refresh_rolls_back_every_published_value(tmp_path):
     def fail_discovery():
         raise RuntimeError("discovery failed")
 
-    registry._application_source = fail_discovery
+    registry._catalog._application_source = fail_discovery
 
     assert registry.refresh() is False
     assert registry.snapshot() is published_snapshot
@@ -1130,14 +1133,14 @@ def test_monitoring_debounces_and_rejects_stale_lifecycle_callbacks(tmp_path):
     directory_monitors: list[_DirectoryMonitor] = []
     scheduler = _Scheduler()
     registry = _registry(directories=[apps])
-    registry._app_monitor_factory = lambda: app_monitor
+    registry._monitor._app_monitor_factory = lambda: app_monitor
 
     def monitor_directory(_path: Path) -> _DirectoryMonitor:
         monitor = _DirectoryMonitor()
         directory_monitors.append(monitor)
         return monitor
 
-    registry._directory_monitor_factory = monitor_directory
+    registry._monitor._directory_monitor_factory = monitor_directory
     registry._schedule_timeout = scheduler.schedule
     registry._cancel_timeout = scheduler.cancel
     generations: list[int] = []
@@ -1185,19 +1188,19 @@ def test_monitor_set_reconciles_directory_changes(tmp_path):
     second.mkdir()
     directories = [first]
     monitors: dict[Path, list[_DirectoryMonitor]] = {}
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=list,
         desktop_directories_source=lambda: directories,
     )
-    registry._desktop_app_info_from_filename = lambda _path: None
-    registry._app_monitor_factory = _SignalSource
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
+    registry._monitor._app_monitor_factory = _SignalSource
 
     def monitor_directory(path: Path) -> _DirectoryMonitor:
         monitor = _DirectoryMonitor()
         monitors.setdefault(path, []).append(monitor)
         return monitor
 
-    registry._directory_monitor_factory = monitor_directory
+    registry._monitor._directory_monitor_factory = monitor_directory
     registry.start()
 
     directories[:] = [second]
@@ -1236,12 +1239,14 @@ def test_content_type_file_lookup_accepts_canonical_path_aliases(
         filename=str(alias),
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: content_handler,
     )
 
-    assert registry.default_for_content_type("application/example") is application
+    assert (
+        registry.default_for_content_type("application/example").listing is application
+    )
 
 
 def test_read_apis_use_snapshots_and_content_type_lookups_canonicalize(
@@ -1262,7 +1267,7 @@ def test_read_apis_use_snapshots_and_content_type_lookups_canonicalize(
     registry = _registry(applications=[visible, direct_only])
     registry.refresh()
 
-    registry._application_source = lambda: (_ for _ in ()).throw(
+    registry._catalog._application_source = lambda: (_ for _ in ()).throw(
         AssertionError("read path rediscovered applications")
     )
     assert registry.get("visible.desktop") is not None
@@ -1278,11 +1283,11 @@ def test_read_apis_use_snapshots_and_content_type_lookups_canonicalize(
         return direct_only
 
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         get_default,
     )
-    assert registry.default_for_content_type("audio/mpeg") is registry.get(
+    assert registry.default_for_content_type("audio/mpeg").listing is registry.get(
         "direct.desktop"
     )
     assert default_calls == [("audio/mpeg", False)]
@@ -1309,7 +1314,7 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
         generic_name="Media Handler",
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: handler,
     )
@@ -1351,22 +1356,22 @@ def test_default_listing_skips_registered_application_masked_by_no_display(
     )
     registry.refresh()
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: masked_handler,
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_recommended_for_type",
         lambda _content_type: [fallback_handler],
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_all_for_type",
         lambda _content_type: [],
     )
 
-    listing = registry.preferred_listing_for_content_types(("audio/mpeg",))
+    listing = registry.preferred_listing_for_content_types(("audio/mpeg",)).listing
 
     assert listing is registry.get("fallback.desktop")
 
@@ -1381,7 +1386,7 @@ def test_default_listing_skips_unregistered_handler_when_gio_hides_it(monkeypatc
         should_show=False,
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: hidden_handler,
     )
@@ -1414,7 +1419,7 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
         commandline="unregistered",
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_recommended_for_type",
         lambda _content_type: [
             registered_handler,
@@ -1484,22 +1489,24 @@ def test_preferred_content_handler_falls_back_from_empty_recommended_to_all(
     get_recommended = MagicMock(return_value=[])
     get_all = MagicMock(return_value=[handler])
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: None,
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_recommended_for_type",
         get_recommended,
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_all_for_type",
         get_all,
     )
 
-    listing = registry.preferred_listing_for_content_types(("audio/mpeg", "audio/flac"))
+    listing = registry.preferred_listing_for_content_types(
+        ("audio/mpeg", "audio/flac")
+    ).listing
 
     assert listing is registry.get("all-only.desktop")
     assert get_recommended.call_count == 2
@@ -1516,7 +1523,7 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
     selected = iter(handlers)
     monkeypatch.setattr(registry_mod, "MAX_CONTENT_HANDLER_TOKENS", 2)
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: next(selected),
     )
@@ -1549,12 +1556,12 @@ def test_content_type_lookup_can_project_an_unlisted_gio_handler(monkeypatch):
         icon="unlisted",
     )
     monkeypatch.setattr(
-        registry_mod.Gio.AppInfo,
+        association_mod.Gio.AppInfo,
         "get_default_for_type",
         lambda _content_type, _must_support_uris: handler,
     )
 
-    application = registry.default_for_content_type("application/example")
+    application = registry.default_for_content_type("application/example").listing
 
     assert application is not None
     assert application.desktop_id == "unlisted.desktop"

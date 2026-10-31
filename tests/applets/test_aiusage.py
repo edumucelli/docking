@@ -1491,3 +1491,20 @@ class TestRender:
 
         assert result == "pixbuf"
         draw_label.assert_not_called()
+
+
+def test_codex_hook_preserves_unicode_source_directory(tmp_path, monkeypatch):
+    from docking.applets.aiusage.backends import codex
+
+    config = tmp_path / "config.toml"
+    config.write_text('model = "example"\n', encoding="utf-8")
+    root = tmp_path / "source-😀"
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", config)
+    monkeypatch.setattr(
+        codex, "__file__", str(root / "docking/applets/aiusage/backends/codex.py")
+    )
+    codex.register_hook()
+    content = config.read_text(encoding="utf-8")
+    assert str(root) in content
+    assert r"\ud83d" not in content
+    assert 'model = "example"' in content

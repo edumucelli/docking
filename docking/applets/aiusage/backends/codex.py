@@ -26,6 +26,7 @@ from docking.applets.aiusage.backends.base import ProviderSessions
 from docking.applets.aiusage.state import ModelUsage, Provider
 from docking.applets.aiusage.store import replace_session
 from docking.log import get_logger, with_context
+from docking.platform.host.selection import host_services
 
 log = with_context(get_logger(name="aiusage.codex"))
 
@@ -59,9 +60,8 @@ def register_hook() -> None:
         return
 
     root = Path(__file__).resolve().parents[4]
-    our_toml = (
-        f'notify = ["env", "PYTHONPATH={root}",'
-        f' "{sys.executable}", "-m", "docking.applets.aiusage.hook", "codex"]'
+    our_toml = "notify = " + json.dumps(
+        host_services().hook_argv(root, sys.executable, "codex"), ensure_ascii=False
     )
 
     notify_match = re.search(r"^notify\s*=\s*\[.*?\]", content, re.MULTILINE)

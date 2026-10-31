@@ -29,8 +29,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any, NamedTuple
 
-from gi.repository import Gio, GLib
-
 from docking.i18n import _
 from docking.log import get_logger
 
@@ -133,47 +131,3 @@ def _charge_text(*, peripheral: PeripheralBattery) -> str:
     if peripheral.charging:
         text = _("{charge} (charging)").format(charge=text)
     return text
-
-
-def read_peripheral_batteries() -> list[PeripheralBattery]:
-    """Enumerate accessory batteries via UPower, sorted lowest charge first."""
-    try:
-        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-        paths = bus.call_sync(
-            _UPOWER,
-            _UPOWER_PATH,
-            _UPOWER,
-            "EnumerateDevices",
-            None,
-            GLib.VariantType("(ao)"),
-            Gio.DBusCallFlags.NONE,
-            _DBUS_TIMEOUT_MS,
-            None,
-        ).unpack()[0]
-    except GLib.Error as exc:
-        log.debug("UPower enumerate failed: %s", exc)
-        return []
-
-    peripherals: list[PeripheralBattery] = []
-    for path in paths:
-        try:
-            props = bus.call_sync(
-                _UPOWER,
-                path,
-                "org.freedesktop.DBus.Properties",
-                "GetAll",
-                GLib.Variant("(s)", (_UPOWER_DEVICE,)),
-                GLib.VariantType("(a{sv})"),
-                Gio.DBusCallFlags.NONE,
-                _DBUS_TIMEOUT_MS,
-                None,
-            ).unpack()[0]
-        except GLib.Error as exc:
-            log.debug("UPower properties failed for %s: %s", path, exc)
-            continue
-        peripheral = _peripheral_from_props(props=props)
-        if peripheral is not None:
-            peripherals.append(peripheral)
-
-    peripherals.sort(key=lambda p: p.percent if p.percent is not None else 999.0)
-    return peripherals

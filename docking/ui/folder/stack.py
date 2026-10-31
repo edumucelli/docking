@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import gi
 
+from docking.platform.files import file_for_uri
+
 gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
@@ -457,7 +459,7 @@ class FolderStackController(StackPopupController):
             self._folder_stack_monitor.cancel()
             self._folder_stack_monitor = None
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
             monitor.connect("changed", self._on_folder_stack_changed)
             self._folder_stack_monitor = monitor

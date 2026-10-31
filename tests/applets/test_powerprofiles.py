@@ -6,16 +6,19 @@ import subprocess
 from dataclasses import replace
 
 import docking.applets.powerprofiles.applet as powerprofiles_applet_mod
+import docking.applets.powerprofiles.implementations.unix.backend as native_powerprofiles
 import docking.applets.powerprofiles.state as powerprofiles_state_mod
 from docking.applets.powerprofiles.applet import PowerProfilesApplet
-from docking.applets.powerprofiles.render import create_power_profiles_icon
-from docking.applets.powerprofiles.state import (
+from docking.applets.powerprofiles.implementations.unix.backend import (
     NullPowerProfilesBackend,
     PowerProfilesBackend,
-    PowerProfilesState,
     TlpBackend,
     TunedBackend,
     detect_backend,
+)
+from docking.applets.powerprofiles.render import create_power_profiles_icon
+from docking.applets.powerprofiles.state import (
+    PowerProfilesState,
     normalize_profile,
     order_profiles,
     profile_label,
@@ -23,6 +26,7 @@ from docking.applets.powerprofiles.state import (
     unavailable_state,
 )
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 
 def _state(**overrides: object) -> PowerProfilesState:
@@ -124,7 +128,11 @@ class TestPowerProfilesBackend:
                 raise Exception("dbus fail")
 
         backend._dbus_proxy = _Proxy()
-        monkeypatch.setattr(powerprofiles_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            native_powerprofiles.GLib,
+            "Error",
+            Exception,
+        )
         assert backend._has_service_owner() is False
 
     def test_get_all_properties_returns_none_without_bus(self):
@@ -174,7 +182,11 @@ class TestPowerProfilesBackend:
                 raise Exception("boom")
 
         backend._bus = _Bus()
-        monkeypatch.setattr(powerprofiles_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            native_powerprofiles.GLib,
+            "Error",
+            Exception,
+        )
         assert (
             backend._set_property(
                 interface="i",
@@ -209,7 +221,7 @@ class TestPowerProfilesBackend:
 class TestFallbackBackends:
     def test_detect_backend_prefers_ppd(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            native_powerprofiles.PowerProfilesBackend,
             "get_state",
             lambda self: _state(),
         )
@@ -218,15 +230,17 @@ class TestFallbackBackends:
 
     def test_detect_backend_falls_back_to_tuned(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            native_powerprofiles.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
+            native_powerprofiles,
+            "_has_command",
+            lambda cmd: cmd == "tuned-adm",
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod.TunedBackend,
+            native_powerprofiles.TunedBackend,
             "get_state",
             lambda self: _state(
                 active_profile="balanced",
@@ -238,17 +252,17 @@ class TestFallbackBackends:
 
     def test_detect_backend_falls_back_to_tlp(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            native_powerprofiles.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_has_command",
             lambda cmd: cmd in {"tlp", "tlp-stat"},
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod.TlpBackend,
+            native_powerprofiles.TlpBackend,
             "get_state",
             lambda self: _state(
                 active_profile="power-saver",
@@ -260,11 +274,15 @@ class TestFallbackBackends:
 
     def test_detect_backend_returns_null_when_none_available(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            native_powerprofiles.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda cmd: False)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda cmd: False,
+        )
         backend = detect_backend()
         assert isinstance(backend, NullPowerProfilesBackend)
 
@@ -291,9 +309,15 @@ class TestFallbackBackends:
                 )
             return None
 
-        monkeypatch.setattr(powerprofiles_state_mod, "_run", fake_run)
         monkeypatch.setattr(
-            powerprofiles_state_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
+            native_powerprofiles,
+            "_run",
+            fake_run,
+        )
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda cmd: cmd == "tuned-adm",
         )
         state = backend.get_state()
         assert state.available is True
@@ -303,12 +327,12 @@ class TestFallbackBackends:
     def test_tlp_backend_maps_mode(self, monkeypatch):
         backend = TlpBackend()
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_has_command",
             lambda cmd: cmd in {"tlp", "tlp-stat"},
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_run",
             lambda cmd, timeout_s=2.5: (
                 "Mode = battery\n" if cmd == ["tlp-stat", "-s"] else ""
@@ -320,14 +344,22 @@ class TestFallbackBackends:
 
     def test_tuned_backend_unavailable_without_binary(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: False)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda _cmd: False,
+        )
         state = backend.get_state()
         assert state.available is False
         assert "tuned-adm not available" in state.error
 
     def test_tuned_backend_unavailable_when_no_supported_profiles(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda _cmd: True,
+        )
         monkeypatch.setattr(backend, "_active_profile_name", lambda: "")
         monkeypatch.setattr(backend, "_available_profile_names", lambda: ("custom",))
         state = backend.get_state()
@@ -336,7 +368,11 @@ class TestFallbackBackends:
 
     def test_tuned_backend_defaults_active_to_first_profile(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda _cmd: True,
+        )
         monkeypatch.setattr(backend, "_active_profile_name", lambda: "")
         monkeypatch.setattr(
             backend, "_available_profile_names", lambda: ("balanced", "powersave")
@@ -367,7 +403,7 @@ class TestFallbackBackends:
             lambda canonical, available_profiles: "balanced",
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_run",
             lambda cmd, timeout_s=4.0: "",
         )
@@ -376,7 +412,7 @@ class TestFallbackBackends:
     def test_tuned_active_profile_name_and_available_names_parsers(self, monkeypatch):
         backend = TunedBackend()
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_run",
             lambda cmd, timeout_s=3.0: (
                 "noise\n"
@@ -422,23 +458,31 @@ class TestFallbackBackends:
 
     def test_tlp_backend_unavailable_when_commands_absent(self, monkeypatch):
         backend = TlpBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: False)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_has_command",
+            lambda _cmd: False,
+        )
         state = backend.get_state()
         assert state.available is False
         assert "tlp not available" in state.error
 
     def test_tlp_backend_detects_other_status_variants(self, monkeypatch):
         backend = TlpBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
+            "_has_command",
+            lambda _cmd: True,
+        )
+        monkeypatch.setattr(
+            native_powerprofiles,
             "_run",
             lambda cmd, timeout_s=3.0: "Power source = AC\n",
         )
         assert backend.get_state().active_profile == "performance"
 
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            native_powerprofiles,
             "_run",
             lambda cmd, timeout_s=3.0: "unknown status\n",
         )
@@ -454,7 +498,11 @@ class TestFallbackBackends:
                 return None
             return ""
 
-        monkeypatch.setattr(powerprofiles_state_mod, "_run", fake_run)
+        monkeypatch.setattr(
+            native_powerprofiles,
+            "_run",
+            fake_run,
+        )
         assert backend.set_active_profile("power-saver") is True
         assert backend.set_active_profile("balanced") is True
         assert backend.set_active_profile("performance") is False
@@ -481,8 +529,14 @@ def _make_applet(
     state: PowerProfilesState,
 ) -> tuple[PowerProfilesApplet, _StubBackend]:
     backend = _StubBackend(state=state)
-    monkeypatch.setattr(powerprofiles_applet_mod, "detect_backend", lambda: backend)
-    applet = PowerProfilesApplet(48, config=Config())
+    monkeypatch.setattr(
+        native_powerprofiles,
+        "detect_backend",
+        lambda: backend,
+    )
+    applet = PowerProfilesApplet(
+        48, config=Config(), platform_services=make_applet_platform()
+    )
     return applet, backend
 
 
@@ -690,33 +744,43 @@ class TestPowerProfilesStateHelpers:
                 self.stdout = out
 
         monkeypatch.setattr(
-            powerprofiles_state_mod.subprocess,
+            native_powerprofiles.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(0, "ok"),
         )
-        assert powerprofiles_state_mod._run(["echo"]) == "ok"
+        assert native_powerprofiles._run(["echo"]) == "ok"
 
         monkeypatch.setattr(
-            powerprofiles_state_mod.subprocess,
+            native_powerprofiles.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(1, "nope"),
         )
-        assert powerprofiles_state_mod._run(["echo"]) is None
+        assert native_powerprofiles._run(["echo"]) is None
 
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired(cmd="x", timeout=1)
 
-        monkeypatch.setattr(powerprofiles_state_mod.subprocess, "run", raise_timeout)
-        assert powerprofiles_state_mod._run(["echo"]) is None
+        monkeypatch.setattr(
+            native_powerprofiles.subprocess,
+            "run",
+            raise_timeout,
+        )
+        assert native_powerprofiles._run(["echo"]) is None
 
     def test_has_command_and_supported_profiles(self, monkeypatch):
-        monkeypatch.setattr(powerprofiles_state_mod.shutil, "which", lambda cmd: None)
-        assert powerprofiles_state_mod._has_command("x") is False
         monkeypatch.setattr(
-            powerprofiles_state_mod.shutil, "which", lambda cmd: "/bin/x"
+            native_powerprofiles.shutil,
+            "which",
+            lambda cmd: None,
         )
-        assert powerprofiles_state_mod._has_command("x") is True
-        assert powerprofiles_state_mod._supported_profiles() == (
+        assert native_powerprofiles._has_command("x") is False
+        monkeypatch.setattr(
+            native_powerprofiles.shutil,
+            "which",
+            lambda cmd: "/bin/x",
+        )
+        assert native_powerprofiles._has_command("x") is True
+        assert native_powerprofiles._supported_profiles() == (
             "power-saver",
             "balanced",
             "performance",

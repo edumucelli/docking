@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.platform_factories import make_dock_model
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -18,8 +20,10 @@ except ModuleNotFoundError:  # pragma: no cover
 import docking.ui.dnd as dnd_mod
 from docking.core.items import APP_KIND
 from docking.core.position import Position
-from docking.platform.applications.entries import desktop_id_from_uri_or_path
-from docking.platform.model import DockItem, DockModel
+from docking.platform.applications.implementations.unix.entries import (
+    desktop_id_from_uri_or_path,
+)
+from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.dnd import DRAG_ICON_SCALE, DnDHandler
 from docking.ui.geometry import DockGeometryBuilder
@@ -185,7 +189,7 @@ class _ReorderDock:
             distance_from_edge=0,
             urgent_glow_time_ms=500,
         )
-        self.model = DockModel(
+        self.model = make_dock_model(
             config=self.config,
             applet_services=MagicMock(),
             application_registry=MagicMock(),

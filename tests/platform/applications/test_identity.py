@@ -12,9 +12,9 @@ import pytest
 from docking.platform.applications.identity import (
     APP_URI_PREFIX,
     LaunchProvenanceStore,
-    ProcessIdentityService,
     parse_application_uri,
 )
+from tests.platform_factories import make_process_identity
 
 
 @pytest.mark.parametrize(
@@ -38,7 +38,7 @@ def test_application_uri_parser_preserves_unity_validation(app_uri, expected):
 @pytest.mark.parametrize("pid", [None, 0, -1, True, False, 1.5, "1"])
 def test_process_identity_rejects_non_positive_exact_int_pids(pid):
     resolver_calls: list[object] = []
-    service = ProcessIdentityService(
+    service = make_process_identity(
         LaunchProvenanceStore(),
         executable_resolver=lambda value: resolver_calls.append(value) or None,
     )
@@ -55,7 +55,7 @@ def test_service_uses_injected_executable_resolver_and_shared_store():
         desktop_id="tool.desktop",
         executable_path=executable,
     )
-    service = ProcessIdentityService(
+    service = make_process_identity(
         store,
         executable_resolver=lambda pid: executable if pid == 42 else None,
     )
@@ -70,7 +70,7 @@ def test_service_uses_injected_executable_resolver_and_shared_store():
 
 def test_service_preserves_an_explicit_empty_store_instance():
     store = LaunchProvenanceStore()
-    service = ProcessIdentityService(store)
+    service = make_process_identity(store)
     store.record_launch(
         process=SimpleNamespace(pid=42, poll=lambda: None),
         desktop_id="tool.desktop",
@@ -85,7 +85,7 @@ def test_service_preserves_an_explicit_empty_store_instance():
 
 
 def test_identity_reads_current_process_executable():
-    identity = ProcessIdentityService(LaunchProvenanceStore()).identity_for_pid(
+    identity = make_process_identity(LaunchProvenanceStore()).identity_for_pid(
         os.getpid()
     )
 
@@ -104,7 +104,7 @@ def test_process_metadata_survives_unavailable_executable(tmp_path):
     (process / "cmdline").write_bytes(
         b"/usr/bin/python3.13\0/usr/share/gufw/gufw.py\0PRIVATE_ARGUMENT\0"
     )
-    service = ProcessIdentityService(
+    service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
         executable_resolver=lambda _pid: None,
@@ -132,7 +132,7 @@ def test_invalid_flatpak_process_metadata_does_not_create_identity(tmp_path, met
     root = tmp_path / "42" / "root"
     root.mkdir(parents=True)
     (root / ".flatpak-info").write_bytes(metadata)
-    service = ProcessIdentityService(
+    service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
         executable_resolver=lambda _pid: None,
@@ -155,7 +155,7 @@ def test_script_metadata_rejects_unconfirmed_script_names(tmp_path, cmdline):
     process = tmp_path / "42"
     process.mkdir()
     (process / "cmdline").write_bytes(cmdline)
-    service = ProcessIdentityService(
+    service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
         executable_resolver=lambda _pid: None,
@@ -172,7 +172,7 @@ def test_process_metadata_failure_is_optional(tmp_path, monkeypatch):
         return original(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", open_path)
-    service = ProcessIdentityService(
+    service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
         executable_resolver=lambda _pid: None,

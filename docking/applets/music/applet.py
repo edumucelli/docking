@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -42,7 +44,6 @@ from .render import create_music_icon
 from .state import (
     _MPRIS_PREFIX,
     VOLUME_STEP,
-    HybridBackend,
     MusicState,
     _normalize_desktop_entry,
     clamp_percent,
@@ -110,16 +111,18 @@ class MusicApplet(ApplicationServicesApplet):
         icon_size: int,
         config: Config,
         *,
+        platform_services: AppletPlatformServices,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
     ) -> None:
         super().__init__(
             icon_size=icon_size,
             config=config,
+            platform_services=platform_services,
             application_registry=application_registry,
             application_launcher=application_launcher,
         )
-        self._backend = HybridBackend()
+        self._backend = self._platform.backends.music()
         self._cover_art = CoverArtResolver()
         self._state = unavailable_state()
         self._album_art: GdkPixbuf.Pixbuf | None = None
@@ -286,7 +289,7 @@ class MusicApplet(ApplicationServicesApplet):
     def _find_media_application(self) -> ApplicationListing | None:
         return self._application_registry.preferred_listing_for_content_types(
             MEDIA_CONTENT_TYPES
-        )
+        ).listing
 
     def _launch_default_media_app(self) -> bool:
         launcher = self._application_launcher

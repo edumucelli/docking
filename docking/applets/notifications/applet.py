@@ -15,10 +15,6 @@
 
 from __future__ import annotations
 
-import shlex
-import shutil
-import subprocess
-import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -26,23 +22,23 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
 from docking.applets.worker import BackgroundWorker
 from docking.core.math import clamp_index, clamp_int
 from docking.i18n import _
 from docking.log import get_logger, with_context
-from docking.platform.environment import flatpak, is_flatpak
 
+from .backend import NotificationsBackend
 from .render import create_notifications_icon
 from .state import (
-    NotificationsBackend,
     NotificationsState,
-    detect_backend,
     tooltip_text,
 )
 
@@ -58,10 +54,7 @@ TOOLTIP_APP_LIMIT = 36
 TOOLTIP_SUMMARY_LIMIT = 72
 TOOLTIP_BODY_LIMIT = 96
 MAX_HISTORY_BADGE_COUNT = 99
-ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
 ELLIPSIS_RESERVED_CHARS = 3
-NOTIFICATION_MONITOR_RULE = "interface='org.freedesktop.Notifications',member='Notify'"
-HOST_MONITOR_PID_PREFIX = "__DOCKING_HOST_DBUS_MONITOR_PID="
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,26 +64,37 @@ class NotificationEntry:
     body: str
 
 
-class NotificationsApplet(Applet):
+class NotificationsApplet(PlatformServicesApplet):
     """Notification status and Do Not Disturb toggle."""
 
     id = meta.id
     name = _("Notifications")
     icon_name = "preferences-system-notifications"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend: NotificationsBackend = detect_backend()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.notifications()
+        self._backend: NotificationsBackend = self._native.detect_backend()
         self._state: NotificationsState = self._backend.get_state()
         self._timer_id: int = 0
         self._activity_until_monotonic: float = 0.0
         self._activity_clear_id: int = 0
-        self._activity_monitor_proc: subprocess.Popen[str] | None = None
-        self._activity_monitor_thread: threading.Thread | None = None
-        self._activity_monitor_host_pid: str | None = None
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
         self._worker = BackgroundWorker()
-        super().__init__(icon_size=icon_size, config=config)
+        self._activity_monitor = self._native.activity_monitor(
+            on_event=self._on_notification_event,
+            on_activity=self._on_notification_activity,
+        )
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int):
@@ -202,7 +206,7 @@ class NotificationsApplet(Applet):
 
     def _poll_worker(self) -> NotificationsState:
         if not self._state.available:
-            self._backend = detect_backend()
+            self._backend = self._native.detect_backend()
         return self._backend.get_state()
 
     def _on_poll_result(self, state: NotificationsState) -> bool:
@@ -245,139 +249,6 @@ class NotificationsApplet(Applet):
         self.present()
         return False
 
-    def _start_activity_monitor(self) -> None:
-        if self._activity_monitor_proc is not None:
-            return
-        command = self._activity_monitor_command()
-        if command is None:
-            log.bind(action="activity_monitor").warning(
-                "dbus-monitor not found; notification activity monitoring is disabled"
-            )
-            return
-        try:
-            self._activity_monitor_proc = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-            )
-        except OSError as exc:
-            self._activity_monitor_proc = None
-            log.bind(action="activity_monitor").warning(
-                "Failed to start dbus-monitor: %s", exc
-            )
-            return
-
-        self._activity_monitor_thread = threading.Thread(
-            target=self._activity_monitor_worker,
-            daemon=True,
-        )
-        self._activity_monitor_thread.start()
-
-    def _activity_monitor_command(self) -> list[str] | None:
-        if is_flatpak():
-            # The Flatpak D-Bus proxy does not expose other clients' Notify
-            # method calls to sandbox dbus-monitor, so observe on the host.
-            monitor_rule = shlex.quote(NOTIFICATION_MONITOR_RULE)
-            return flatpak.host_command(
-                [
-                    "sh",
-                    "-c",
-                    (
-                        "command -v dbus-monitor >/dev/null || exit 127; "
-                        f"echo {HOST_MONITOR_PID_PREFIX}$$; "
-                        f"exec dbus-monitor --session {monitor_rule}"
-                    ),
-                ]
-            )
-
-        dbus_monitor = shutil.which("dbus-monitor")
-        if dbus_monitor is None:
-            return None
-        return [dbus_monitor, "--session", NOTIFICATION_MONITOR_RULE]
-
-    def _stop_activity_monitor(self) -> None:
-        proc = self._activity_monitor_proc
-        self._activity_monitor_proc = None
-        host_pid = self._activity_monitor_host_pid
-        self._activity_monitor_host_pid = None
-        if proc is None:
-            return
-        if host_pid is not None:
-            self._stop_host_activity_monitor(host_pid)
-        try:
-            proc.terminate()
-            proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
-        except subprocess.TimeoutExpired as exc:
-            log.debug("dbus-monitor did not exit cleanly, forcing kill: %s", exc)
-            proc.kill()
-        except OSError as exc:
-            log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
-            return
-
-    def _stop_host_activity_monitor(self, pid: str) -> None:
-        command = flatpak.host_command(["kill", pid], sanitize_env=False)
-        if command is None:
-            return
-        try:
-            subprocess.run(
-                command,
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            log.debug("Failed to stop host dbus-monitor %s: %s", pid, exc)
-
-    def _activity_monitor_worker(self) -> None:
-        proc = self._activity_monitor_proc
-        if proc is None or proc.stdout is None:
-            return
-        capture_notify = False
-        notify_strings: list[str] = []
-        try:
-            for line in proc.stdout:
-                if line.startswith(HOST_MONITOR_PID_PREFIX):
-                    # Store the host-side pid so stop() can kill the actual
-                    # dbus-monitor, not just the flatpak-spawn wrapper.
-                    self._activity_monitor_host_pid = line[
-                        len(HOST_MONITOR_PID_PREFIX) :
-                    ].strip()
-                    continue
-                if "member=Notify" in line:
-                    capture_notify = True
-                    notify_strings = []
-                    continue
-                if not capture_notify:
-                    continue
-
-                value = self._extract_monitor_string(line)
-                if value is not None:
-                    notify_strings.append(value)
-
-                stripped = line.strip()
-                if stripped.startswith(("array [", "int32 ")):
-                    if len(notify_strings) >= 4:
-                        app_name = notify_strings[0]
-                        summary = notify_strings[2]
-                        body = notify_strings[3]
-                        GLib.idle_add(
-                            self._on_notification_event,
-                            app_name,
-                            summary,
-                            body,
-                        )
-                    else:
-                        GLib.idle_add(self._on_notification_activity)
-                    capture_notify = False
-        except Exception as exc:
-            log.bind(action="activity_monitor").warning(
-                "Notification activity monitor stopped unexpectedly: %s", exc
-            )
-            return
-
     def _on_notification_event(self, app_name: str, summary: str, body: str) -> bool:
         app = self._shorten_for_tooltip(app_name, TOOLTIP_APP_LIMIT)
         title = self._shorten_for_tooltip(summary, TOOLTIP_SUMMARY_LIMIT)
@@ -404,16 +275,14 @@ class NotificationsApplet(Applet):
         return lines
 
     @staticmethod
-    def _extract_monitor_string(line: str) -> str | None:
-        stripped = line.strip()
-        prefix = 'string "'
-        if not stripped.startswith(prefix) or not stripped.endswith('"'):
-            return None
-        return stripped[len(prefix) : -1].replace('\\"', '"')
-
-    @staticmethod
     def _shorten_for_tooltip(text: str, limit: int) -> str:
         normalized = " ".join(text.split())
         if len(normalized) <= limit:
             return normalized
         return normalized[: max(1, limit - ELLIPSIS_RESERVED_CHARS)].rstrip() + "..."
+
+    def _start_activity_monitor(self) -> None:
+        self._activity_monitor.start()
+
+    def _stop_activity_monitor(self) -> None:
+        self._activity_monitor.stop()
