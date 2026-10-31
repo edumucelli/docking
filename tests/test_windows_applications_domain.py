@@ -361,6 +361,7 @@ def _document_target(**changed):
         "native_window": 12,
         "dock_window": 12,
         "live_item": True,
+        "slide_offset": 0.0,
         **changed,
     }
 
@@ -431,13 +432,14 @@ def test_document_release_rejects_replaced_missed_or_occluded_target(changed):
         )
 
 
-def test_document_release_rechecks_live_target_after_settling():
+@pytest.mark.parametrize("changed", ({"native_window": 99}, {"slide_offset": -0.62}))
+def test_document_release_rechecks_live_target_after_settling(changed):
     current = [_document_target()]
 
     def wait(predicate, _message, _seconds):
         assert not predicate()
         settled = dict(current[0])
-        current[0] = _document_target(native_window=99)
+        current[0] = _document_target(**changed)
         return settled
 
     with pytest.raises(AssertionError, match="changed before release"):
@@ -448,6 +450,67 @@ def test_document_release_rechecks_live_target_after_settling():
             identifier="Owned.App",
             record={},
         )
+
+
+def test_document_release_waits_for_animation_to_finish_before_stability():
+    now = [0.0]
+    observations = iter(
+        [_document_target(slide_offset=-0.62)] * 3 + [_document_target()] * 3
+    )
+
+    def wait(predicate, _message, seconds):
+        assert seconds == 5
+        # The unchanged nonzero offset persists beyond the 0.4s stability
+        # period; it must never become a releasable target in that state.
+        for index, value in enumerate((0.0, 0.5, 1.0, 1.5, 2.0)):
+            now[0] = value
+            settled = predicate()
+            if index < 4:
+                assert not settled
+            else:
+                assert settled["slide_offset"] == 0.0
+                return settled
+        pytest.fail("Animation did not settle")
+
+    record = {}
+    document_release_target(
+        observe=lambda: next(observations),
+        move=lambda _x, _y: pytest.fail("The physical target never moved"),
+        wait_for=wait,
+        identifier="Owned.App",
+        record=record,
+        clock=lambda: now[0],
+    )
+    assert record["before_release"] == _document_target()
+    assert [row["slide_offset"] for row in record["observations"]] == [-0.62, 0.0]
+
+
+def test_document_release_permanent_animation_keeps_deadline_and_cancellation():
+    now, events, record = [0.0], [], {}
+
+    def wait(predicate, message, seconds):
+        assert seconds == 5
+        for value in (0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0):
+            now[0] = value
+            assert not predicate()
+        raise TimeoutError(message)
+
+    with pytest.raises(TimeoutError, match="did not settle"):
+        guard_document_release(
+            lambda: document_release_target(
+                observe=lambda: _document_target(slide_offset=-0.62),
+                move=lambda _x, _y: pytest.fail("The physical target never moved"),
+                wait_for=wait,
+                identifier="Owned.App",
+                record=record,
+                clock=lambda: now[0],
+            ),
+            cancel=lambda: events.append("cancel-owned-gesture"),
+            reject=lambda: events.append("reject-drop"),
+            record=record,
+        )
+    assert events == ["reject-drop", "cancel-owned-gesture"]
+    assert "before_release" not in record
 
 
 def test_document_release_failure_cancels_then_retains_both_errors():

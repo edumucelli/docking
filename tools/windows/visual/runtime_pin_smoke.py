@@ -63,6 +63,9 @@ def document_release_target(
             or current["reported_target"] != identifier
             or current["rendered_target"] != identifier
             or current["native_window"] != current["dock_window"]
+            # Subpixel slide animation can finish between otherwise identical
+            # physical snapshots. Start stability only after it has finished.
+            or current["slide_offset"] != 0.0
         ):
             stable, since = None, None
             return False

@@ -260,6 +260,96 @@ def test_superseded_worker_generation_cannot_mix_new_handles_and_old_catalog(wor
     )
 
 
+def test_shell_replacement_without_broadcast_discards_held_read_and_publishes_fresh_names(
+    worker, monkeypatch
+):
+    import ctypes
+
+    from docking.platform.backends.windows import catalog_monitor
+
+    owned = worker()
+    shell = [(101, 11)]
+    subscriptions = []
+    held, release = Event(), Event()
+    cancelled_reads, observed = [], []
+    native_read = windows_catalog.catalog.read_application_metadata
+
+    def native(ids, *, registrations, cancelled, exporter):
+        if owned.selected.version == "obsolete":
+            held.set()
+            assert release.wait(5), "Owned Shell read was not released"
+            cancelled_reads.append(cancelled())
+            return ApplicationMetadata(
+                applications=(replace(application(_ID), name="Shell obsolete"),)
+            )
+        return native_read(
+            ids, registrations=registrations, cancelled=cancelled, exporter=exporter
+        )
+
+    def subscribe(callback, *, folder_id, title):
+        monitor = SimpleNamespace(
+            closed=False,
+            reconnects=0,
+        )
+
+        def reconnect():
+            assert not monitor.closed
+            monitor.reconnects += 1
+            callback()
+
+        def close():
+            monitor.closed = True
+
+        monitor.reconnect, monitor.close = reconnect, close
+        subscriptions.append(monitor)
+        return monitor
+
+    monkeypatch.setattr(
+        ctypes, "WinDLL", lambda *_args, **_kwargs: object(), raising=False
+    )
+    monkeypatch.setattr(
+        catalog_monitor, "explorer_tray", lambda _user, *, exclude_pid: shell[0]
+    )
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    monkeypatch.setattr(catalog_monitor.GLib, "idle_add", owned.loop.idle)
+    monkeypatch.setattr(catalog_monitor.GLib, "timeout_add", owned.loop.timeout)
+    monkeypatch.setattr(catalog_monitor.GLib, "source_remove", owned.loop.remove)
+    monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
+    owned.registry._change_monitor_factory = catalog_monitor.CatalogChangeMonitor
+    owned.registry.subscribe(
+        lambda: (
+            observed.append(owned.registry.get(_ID).name)
+            if owned.registry.get(_ID) is not None
+            else None
+        )
+    )
+    try:
+        owned.registry.start()
+        owned.ready("first")
+        owned.changed("obsolete")
+        owned.loop.until(held.is_set)
+        held_generation = owned.registry._metadata._generation
+        owned.mode = "current"
+        shell[0] = (202, 22)
+        # No TaskbarCreated or folder notification is delivered. The real
+        # private GLib timer must invalidate the read still held on the worker.
+        owned.loop.until(lambda: owned.registry._metadata._generation > held_generation)
+        owned.loop.until(lambda: owned.registry._metadata._pending is not None)
+        assert not release.is_set()
+        assert owned.registry.get(_ID).name == "Shell first"
+        assert [monitor.reconnects for monitor in subscriptions] == [1, 1, 1]
+        release.set()
+        owned.ready("current")
+        assert cancelled_reads == [True]
+        assert "Shell obsolete" not in observed
+        assert observed[-1] == "Shell current"
+        assert owned.registry._gio_handle_for(_ID) is owned.handles["current"]
+    finally:
+        release.set()
+        owned.close()
+    assert all(monitor.closed for monitor in subscriptions)
+
+
 @pytest.mark.parametrize("already_published", (False, True))
 def test_stop_during_gio_read_cancels_native_work_and_late_handle_delivery(
     worker, already_published

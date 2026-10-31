@@ -191,14 +191,19 @@ class ShellChangeMonitor:
                         self._unlock(locked)
                 return 0
             if message == self._taskbar_created and not self._closed:
-                self._reconnect = True
-                self._queue()
+                self.reconnect()
             if message == 0x82:  # WM_NCDESTROY, including unexpected destruction
                 self._hwnd = None
                 self.close()
         except Exception:
             log.exception("Windows Shell notification failed")
         return self._next(hwnd, message, wparam, lparam)
+
+    def reconnect(self) -> None:
+        """Rebind a live subscription before publishing a shell lifetime change."""
+        if not self._closed:
+            self._reconnect = True
+            self._queue()
 
     def _queue(self):
         if not self._source:

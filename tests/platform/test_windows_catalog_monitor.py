@@ -10,15 +10,49 @@ from docking.applets.trash import windows_monitor
 from docking.platform.backends.windows import catalog_monitor, shell_changes
 
 
+@pytest.fixture
+def catalog_runtime(monkeypatch):
+    shell = [(101, 11)]
+    idle, timers, removed = {}, {}, []
+    serial = 0
+
+    def attach(collection, callback):
+        nonlocal serial
+        serial += 1
+        collection[serial] = callback
+        return serial
+
+    def timeout(milliseconds, callback):
+        assert milliseconds == 500
+        return attach(timers, callback)
+
+    def remove(source):
+        removed.append(source)
+        return idle.pop(source, timers.pop(source, None)) is not None
+
+    monkeypatch.setattr(
+        ctypes, "WinDLL", lambda *_args, **_kwargs: object(), raising=False
+    )
+    monkeypatch.setattr(
+        catalog_monitor, "explorer_tray", lambda _user, *, exclude_pid: shell[0]
+    )
+    monkeypatch.setattr(catalog_monitor.GLib, "timeout_add", timeout)
+    monkeypatch.setattr(
+        catalog_monitor.GLib, "idle_add", lambda callback: attach(idle, callback)
+    )
+    monkeypatch.setattr(catalog_monitor.GLib, "source_remove", remove)
+    return SimpleNamespace(shell=shell, idle=idle, timers=timers, removed=removed)
+
+
 @pytest.mark.parametrize("failure", [None, 1, 2])
 def test_catalog_owns_all_folder_subscriptions_and_unwinds_partial_start(
-    monkeypatch, failure
+    monkeypatch, failure, catalog_runtime
 ):
     opened, closed = [], []
     changed = Mock()
 
     def subscription(callback, *, folder_id, title):
-        assert callback is changed and title == "Docking application catalog monitor"
+        assert callable(callback) and title == "Docking application catalog monitor"
         if len(opened) == failure:
             raise OSError(5, "Denied")
         opened.append(folder_id)
@@ -34,6 +68,101 @@ def test_catalog_owns_all_folder_subscriptions_and_unwinds_partial_start(
         monitor.close()
         monitor.close()
     assert closed == list(reversed(opened))
+    assert not catalog_runtime.idle and not catalog_runtime.timers
+    changed.assert_not_called()
+
+
+def test_shell_identity_changes_reconnect_once_without_catalog_polling(
+    monkeypatch, catalog_runtime
+):
+    changed = Mock()
+    subscriptions = []
+
+    def subscribe(callback, *, folder_id, title):
+        monitor = SimpleNamespace(close=Mock(), reconnect=Mock(side_effect=callback))
+        subscriptions.append(monitor)
+        return monitor
+
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    monitor = catalog_monitor.CatalogChangeMonitor(changed)
+    tick = next(iter(catalog_runtime.timers.values()))
+    assert tick() is True
+    assert not catalog_runtime.idle
+    for subscription in subscriptions:
+        subscription.reconnect.assert_not_called()
+
+    for identity in (None, (202, 22)):
+        catalog_runtime.shell[0] = identity
+        assert tick() is True
+        assert tick() is True
+        assert len(catalog_runtime.idle) == 1
+        callback = catalog_runtime.idle.popitem()[1]
+        assert callback() is False
+    assert changed.call_count == 2
+    for subscription in subscriptions:
+        assert subscription.reconnect.call_count == 2
+    monitor.close()
+
+
+def test_one_native_callback_reconnects_all_folders_before_the_identity_timer(
+    monkeypatch, catalog_runtime
+):
+    changed = Mock()
+    callbacks, subscriptions = [], []
+
+    def subscribe(callback, *, folder_id, title):
+        callbacks.append(callback)
+        monitor = SimpleNamespace(close=Mock(), reconnect=Mock(side_effect=callback))
+        subscriptions.append(monitor)
+        return monitor
+
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    monitor = catalog_monitor.CatalogChangeMonitor(changed)
+    tick = next(iter(catalog_runtime.timers.values()))
+    catalog_runtime.shell[0] = (202, 22)
+    # Only one of the native windows receives the replacement broadcast.
+    callbacks[0]()
+    assert tick() is True
+    assert tick() is True
+    for subscription in subscriptions:
+        subscription.reconnect.assert_called_once_with()
+    assert len(catalog_runtime.idle) == 1
+    pending = catalog_runtime.idle.popitem()[1]
+    assert pending() is False
+    changed.assert_called_once_with()
+
+    callbacks[0]()
+    stale = catalog_runtime.idle.popitem()[1]
+    monitor.close()
+    assert tick() is False and stale() is False
+    callbacks[1]()
+    assert not catalog_runtime.idle and not catalog_runtime.timers
+    changed.assert_called_once_with()
+    for subscription in subscriptions:
+        subscription.close.assert_called_once_with()
+
+
+def test_failed_timer_start_unwinds_pending_native_notification_and_all_folders(
+    monkeypatch, catalog_runtime
+):
+    closed, pending = [], []
+    changed = Mock()
+
+    def subscribe(callback, *, folder_id, title):
+        callback()
+        pending.extend(catalog_runtime.idle.values())
+        return SimpleNamespace(close=lambda: closed.append(folder_id))
+
+    def fail_timer(_milliseconds, _callback):
+        raise OSError(5, "Owned timer setup failed")
+
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    monkeypatch.setattr(catalog_monitor.GLib, "timeout_add", fail_timer)
+    with pytest.raises(OSError, match="Owned timer setup failed"):
+        catalog_monitor.CatalogChangeMonitor(changed)
+    assert len(closed) == 3
+    assert not catalog_runtime.idle and not catalog_runtime.timers
+    assert all(callback() is False for callback in pending)
     changed.assert_not_called()
 
 
