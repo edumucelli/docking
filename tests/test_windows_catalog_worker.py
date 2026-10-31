@@ -315,7 +315,7 @@ def test_shell_replacement_without_broadcast_discards_held_read_and_publishes_fr
     monkeypatch.setattr(catalog_monitor.GLib, "timeout_add", owned.loop.timeout)
     monkeypatch.setattr(catalog_monitor.GLib, "source_remove", owned.loop.remove)
     monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
-    owned.registry._change_monitor_factory = catalog_monitor.CatalogChangeMonitor
+    owned.registry._change_monitor_factory = owned.backend.create_change_monitor
     owned.registry.subscribe(
         lambda: (
             observed.append(owned.registry.get(_ID).name)
@@ -348,6 +348,227 @@ def test_shell_replacement_without_broadcast_discards_held_read_and_publishes_fr
         release.set()
         owned.close()
     assert all(monitor.closed for monitor in subscriptions)
+
+
+@pytest.fixture
+def reconciled_worker(worker, monkeypatch):
+    import ctypes
+
+    from docking.platform.backends.windows import catalog_monitor
+
+    owned = worker()
+    now, shell, callbacks, monitors = [0.0], [(101, 11)], [], []
+    monitor_type = catalog_monitor.CatalogChangeMonitor
+
+    def subscribe(callback, *, folder_id, title):
+        callbacks.append(callback)
+        return SimpleNamespace(close=lambda: None, reconnect=callback)
+
+    def monitor(changed):
+        result = monitor_type(changed, clock=lambda: now[0])
+        monitors.append(result)
+        return result
+
+    monkeypatch.setattr(
+        ctypes, "WinDLL", lambda *_args, **_kwargs: object(), raising=False
+    )
+    monkeypatch.setattr(
+        catalog_monitor, "explorer_tray", lambda _user, *, exclude_pid: shell[0]
+    )
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    monkeypatch.setattr(catalog_monitor.GLib, "idle_add", owned.loop.idle)
+    monkeypatch.setattr(catalog_monitor.GLib, "timeout_add", owned.loop.timeout)
+    monkeypatch.setattr(catalog_monitor.GLib, "source_remove", owned.loop.remove)
+    monkeypatch.setattr(windows_catalog, "CatalogChangeMonitor", monitor)
+    owned.registry._change_monitor_factory = owned.backend.create_change_monitor
+    return SimpleNamespace(
+        owned=owned, now=now, shell=shell, callbacks=callbacks, monitors=monitors
+    )
+
+
+@pytest.mark.parametrize("first_result", ["unchanged", "unavailable", "error"])
+def test_native_event_retries_completed_stale_or_failed_read_without_another_notification(
+    reconciled_worker, monkeypatch, first_result
+):
+    signals = reconciled_worker
+    owned = signals.owned
+    changed, reads = Event(), []
+    original_read = windows_catalog.catalog.read_application_metadata
+
+    def native(ids, *, registrations, cancelled, exporter):
+        if not changed.is_set():
+            return original_read(
+                ids, registrations=registrations, cancelled=cancelled, exporter=exporter
+            )
+        assert get_ident() != owned.ui_thread and not cancelled()
+        reads.append(len(reads) + 1)
+        if len(reads) == 1:
+            if first_result == "error":
+                raise OSError("Owned native catalog temporarily unavailable")
+            if first_result == "unavailable":
+                return ApplicationMetadata()
+            return ApplicationMetadata(
+                applications=(replace(application(_ID), name="Shell first"),)
+            )
+        return ApplicationMetadata(
+            applications=(replace(application(_ID), name="Shell current"),)
+        )
+
+    monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
+    owned.registry.start()
+    owned.ready("first")
+    monitor = signals.monitors[0]
+    changed.set()
+    signals.callbacks[0]()  # The only native event, before namespace convergence.
+    owned.loop.until(lambda: reads == [1] and not monitor._reads)
+    owned.loop.pump()
+    assert owned.registry.get(_ID).name == "Shell first"
+    signals.now[0] = 0.9
+    monitor._check_shell()
+    owned.loop.pump()
+    assert reads == [1]
+    signals.now[0] = 1.0
+    monitor._check_shell()
+    owned.ready("current")
+    assert reads == [1, 2]
+    assert owned.registry._gio_handle_for(_ID) is owned.handles["first"]
+
+
+def test_reconciliation_waits_for_slow_full_resolver_without_cancelling_its_generation(
+    reconciled_worker, monkeypatch
+):
+    signals = reconciled_worker
+    owned = signals.owned
+    changed, held, release = Event(), Event(), Event()
+    reads, cancellations = [], []
+    original_read = windows_catalog.catalog.read_application_metadata
+
+    def native(ids, *, registrations, cancelled, exporter):
+        if not changed.is_set():
+            return original_read(
+                ids, registrations=registrations, cancelled=cancelled, exporter=exporter
+            )
+        reads.append(get_ident())
+        if len(reads) == 1:
+            held.set()
+            assert release.wait(5), "Owned settling read was not released"
+            cancellations.append(cancelled())
+            return ApplicationMetadata(
+                applications=(replace(application(_ID), name="Shell first"),)
+            )
+        return ApplicationMetadata(
+            applications=(replace(application(_ID), name="Shell current"),)
+        )
+
+    monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
+    try:
+        owned.registry.start()
+        owned.ready("first")
+        monitor = signals.monitors[0]
+        changed.set()
+        signals.callbacks[0]()
+        owned.loop.until(held.is_set)
+        generation = owned.registry._metadata._generation
+        for instant in (1.0, 2.0, 5.0):
+            signals.now[0] = instant
+            assert monitor._check_shell() is True
+            owned.loop.pump()
+        assert owned.registry._metadata._generation == generation
+        assert len(reads) == 1 and not release.is_set()
+        release.set()
+        owned.loop.until(lambda: not monitor._reads)
+        owned.loop.pump()
+        signals.now[0] = 5.9
+        monitor._check_shell()
+        assert len(reads) == 1
+        signals.now[0] = 6.0
+        monitor._check_shell()
+        owned.ready("current")
+        assert len(reads) == 2 and cancellations == [False]
+        assert set(reads) == {owned.thread.ident}
+    finally:
+        release.set()
+
+
+def test_resolver_completion_uses_captured_monitor_after_stop_and_restart(
+    reconciled_worker, monkeypatch
+):
+    signals = reconciled_worker
+    owned = signals.owned
+    held, release = Event(), Event()
+    old_worker = None
+    original_read = windows_catalog.catalog.read_application_metadata
+
+    def native(ids, *, registrations, cancelled, exporter):
+        if owned.selected.version == "obsolete":
+            held.set()
+            assert release.wait(5), "Owned stopped resolver was not released"
+            assert cancelled()
+            return ApplicationMetadata()
+        return original_read(
+            ids, registrations=registrations, cancelled=cancelled, exporter=exporter
+        )
+
+    monkeypatch.setattr(windows_catalog.catalog, "read_application_metadata", native)
+    try:
+        owned.registry.start()
+        owned.ready("first")
+        owned.changed("obsolete")
+        owned.loop.until(held.is_set)
+        old_worker = owned.thread
+        old_monitor = signals.monitors[0]
+        owned.registry.stop()
+        owned.mode = "current"
+        owned.registry.start()
+        owned.ready("current")
+        successor = signals.monitors[1]
+        assert not successor._reads
+        signals.now[0] = 1.0
+        release.set()
+        old_worker.join(2)
+        assert not old_worker.is_alive()
+        owned.loop.pump()
+        generation = owned.registry._metadata._generation
+        signals.now[0] = 2.0
+        assert old_monitor._check_shell() is False
+        successor._check_shell()
+        owned.loop.pump()
+        assert owned.registry._metadata._generation == generation
+        assert owned.registry.get(_ID).name == "Shell current"
+    finally:
+        release.set()
+        if old_worker is not None:
+            old_worker.join(2)
+            assert not old_worker.is_alive()
+
+
+def test_resolver_reserves_and_finishes_activity_even_when_already_cancelled(
+    monkeypatch,
+):
+    events = []
+
+    def started():
+        events.append("started")
+        return 17
+
+    def finished(ticket):
+        events.append(("finished", ticket))
+
+    def cancelled():
+        events.append("cancelled")
+        return True
+
+    monitor = SimpleNamespace(read_started=started, read_finished=finished)
+    monkeypatch.setattr(
+        windows_catalog, "CatalogChangeMonitor", lambda _changed: monitor
+    )
+    backend = windows_catalog.WindowsApplicationCatalogBackend()
+    backend.create_change_monitor(lambda: None)
+    resolve = backend.metadata_resolver_factory(
+        _Registrations(), read_default_source=True
+    )()
+    assert resolve((_ID,), cancelled) == ApplicationMetadata()
+    assert events == ["started", "cancelled", ("finished", 17)]
 
 
 @pytest.mark.parametrize("already_published", (False, True))

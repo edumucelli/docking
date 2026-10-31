@@ -166,6 +166,182 @@ def test_failed_timer_start_unwinds_pending_native_notification_and_all_folders(
     changed.assert_not_called()
 
 
+@pytest.fixture
+def settling_monitor(monkeypatch, catalog_runtime):
+    now, callbacks, subscriptions = [0.0], [], []
+
+    def subscribe(callback, *, folder_id, title):
+        callbacks.append(callback)
+        subscription = SimpleNamespace(
+            close=Mock(), reconnect=Mock(side_effect=callback)
+        )
+        subscriptions.append(subscription)
+        return subscription
+
+    monkeypatch.setattr(catalog_monitor, "ShellChangeMonitor", subscribe)
+    changed = Mock()
+    monitor = catalog_monitor.CatalogChangeMonitor(changed, clock=lambda: now[0])
+
+    def notify():
+        assert len(catalog_runtime.idle) == 1
+        assert catalog_runtime.idle.popitem()[1]() is False
+
+    yield SimpleNamespace(
+        monitor=monitor,
+        now=now,
+        callbacks=callbacks,
+        subscriptions=subscriptions,
+        changed=changed,
+        tick=next(iter(catalog_runtime.timers.values())),
+        notify=notify,
+    )
+    monitor.close()
+
+
+def test_native_change_reconciles_unchanged_reads_only_within_its_finite_window(
+    settling_monitor,
+):
+    owned = settling_monitor
+    monitor = owned.monitor
+    # Ordinary startup/periodic reads do not start catalog polling.
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 2.0
+    owned.tick()
+    owned.changed.assert_not_called()
+
+    owned.callbacks[0]()
+    owned.notify()
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 2.9
+    owned.tick()
+    assert owned.changed.call_count == 1
+    owned.now[0] = 3.0
+    owned.tick()
+    assert owned.changed.call_count == 2
+    owned.tick()
+    assert owned.changed.call_count == 2
+
+    # Even a successful but unchanged read needs a later fresh enumeration.
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 4.0
+    owned.tick()
+    assert owned.changed.call_count == 3
+    # Follow-up invalidations do not extend the original event's horizon.
+    owned.now[0] = 31.5
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 32.5
+    owned.tick()
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 35.0
+    owned.tick()
+    assert owned.changed.call_count == 3
+
+
+def test_reconciliation_waits_for_every_inflight_read_and_coalesces_late_native_events(
+    settling_monitor,
+):
+    owned = settling_monitor
+    monitor = owned.monitor
+    owned.callbacks[0]()
+    owned.notify()
+    first, second = monitor.read_started(), monitor.read_started()
+    owned.now[0] = 4.0
+    owned.tick()
+    monitor.read_finished(first)
+    owned.now[0] = 5.0
+    owned.tick()
+    assert owned.changed.call_count == 1
+    monitor.read_finished(second)
+    # A native burst replaces the pending follow-up with its immediate update.
+    owned.now[0] = 5.5
+    for callback in owned.callbacks:
+        callback()
+    owned.now[0] = 6.0
+    owned.tick()
+    assert owned.changed.call_count == 1
+    owned.notify()
+    assert owned.changed.call_count == 2
+    monitor.read_finished(monitor.read_started())
+    owned.now[0] = 7.0
+    owned.tick()
+    assert owned.changed.call_count == 3
+
+
+def test_second_shell_lifetime_restarts_settlement_but_stopped_completions_are_inert(
+    settling_monitor,
+    catalog_runtime,
+):
+    owned = settling_monitor
+    monitor = owned.monitor
+    catalog_runtime.shell[0] = None
+    owned.tick()
+    owned.notify()
+    old_read = monitor.read_started()
+    owned.now[0] = 29.0
+    catalog_runtime.shell[0] = (303, 33)
+    owned.tick()
+    owned.notify()
+    assert owned.changed.call_count == 2
+    monitor.read_finished(old_read)
+    owned.now[0] = 30.0
+    owned.tick()
+    assert owned.changed.call_count == 3
+    for subscription in owned.subscriptions:
+        assert subscription.reconnect.call_count == 2
+
+    old_read = monitor.read_started()
+    monitor.close()
+    monitor.read_finished(old_read)
+    assert monitor.read_started() is None
+    owned.now[0] = 31.0
+    assert owned.tick() is False
+    for callback in owned.callbacks:
+        callback()
+    assert not catalog_runtime.timers and not catalog_runtime.idle
+    assert owned.changed.call_count == 3
+
+
+def test_sustained_native_bursts_coalesce_without_timer_invalidations_during_read(
+    settling_monitor,
+):
+    owned = settling_monitor
+    read = owned.monitor.read_started()
+    for instant in range(10):
+        owned.now[0] = float(instant)
+        for callback in owned.callbacks:
+            callback()
+        owned.tick()
+        assert owned.changed.call_count == instant
+        owned.notify()
+        owned.tick()
+        assert owned.changed.call_count == instant + 1
+    owned.monitor.read_finished(read)
+    owned.now[0] = 10.0
+    owned.tick()
+    assert owned.changed.call_count == 11
+    # Only actual notifications extend the window; our follow-up cannot.
+    owned.now[0] = 38.5
+    owned.monitor.read_finished(owned.monitor.read_started())
+    owned.now[0] = 39.5
+    owned.tick()
+    assert owned.changed.call_count == 11
+
+
+def test_reentrant_close_during_reconciliation_removes_every_source(
+    settling_monitor, catalog_runtime
+):
+    owned = settling_monitor
+    owned.callbacks[0]()
+    owned.notify()
+    owned.monitor.read_finished(owned.monitor.read_started())
+    owned.changed.side_effect = owned.monitor.close
+    owned.now[0] = 1.0
+    assert owned.tick() is False
+    assert not catalog_runtime.timers and not catalog_runtime.idle
+    for subscription in owned.subscriptions:
+        subscription.close.assert_called_once_with()
+
+
 def test_recycle_bin_wrapper_keeps_its_exact_folder_and_native_title(monkeypatch):
     initialize = Mock(return_value=None)
     monkeypatch.setattr(shell_changes.ShellChangeMonitor, "__init__", initialize)

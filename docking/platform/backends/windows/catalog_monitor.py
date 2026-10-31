@@ -2,8 +2,10 @@
 
 import ctypes
 import os
+import time
 from collections.abc import Callable
 from contextlib import ExitStack
+from threading import RLock
 
 from gi.repository import GLib
 
@@ -12,8 +14,19 @@ from .shell_changes import ShellChangeMonitor
 
 
 class CatalogChangeMonitor:
-    def __init__(self, changed: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        changed: Callable[[], None],
+        *,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._changed = changed
+        self._clock = clock
+        self._lock = RLock()
+        self._read_serial = 0
+        self._reads: set[int] = set()
+        self._settle_deadline = 0.0
+        self._retry_at: float | None = None
         self._subscriptions = ExitStack()
         self._folders: list[ShellChangeMonitor] = []
         self._closed = False
@@ -46,12 +59,14 @@ class CatalogChangeMonitor:
         if self._closed:
             return False
         self._observe_shell()
-        return True
+        self._reconcile()
+        return not self._closed
 
     def _observe_shell(self) -> None:
         shell = explorer_tray(self._user, exclude_pid=os.getpid())
         if shell != self._shell:
             self._shell = shell
+            self._settle()
             for subscription in self._folders:
                 subscription.reconnect()
 
@@ -60,8 +75,56 @@ class CatalogChangeMonitor:
             # One folder may receive the broadcast before the other observers.
             # Reconnect all of them before coalescing the catalog invalidation.
             self._observe_shell()
+            self._settle()
             if not self._source:
                 self._source = GLib.idle_add(self._notify)
+
+    def _settle(self) -> None:
+        with self._lock:
+            # AppsFolder can successfully enumerate an old snapshot after a
+            # real change. Reconcile within the normal refresh horizon, but
+            # only after complete resolver calls, never by cancelling them.
+            self._settle_deadline = self._clock() + 30.0
+            self._retry_at = None
+
+    def read_started(self) -> int | None:
+        """Reserve activity before the worker checks its cancellation token."""
+        with self._lock:
+            if self._closed:
+                return None
+            self._read_serial += 1
+            self._reads.add(self._read_serial)
+            self._retry_at = None
+            return self._read_serial
+
+    def read_finished(self, ticket: int | None) -> None:
+        """Unchanged successful reads can still precede Shell cache convergence."""
+        with self._lock:
+            if self._closed or ticket is None:
+                return
+            self._reads.remove(ticket)
+            if not self._reads and self._clock() < self._settle_deadline:
+                self._retry_at = self._clock() + 1.0
+
+    def _reconcile(self) -> None:
+        with self._lock:
+            now = self._clock()
+            if now >= self._settle_deadline:
+                self._retry_at = None
+                return
+            if (
+                self._closed
+                or self._reads
+                or self._source
+                or self._retry_at is None
+                or now < self._retry_at
+            ):
+                return
+            self._retry_at = None
+            # Keep the activity gate until invalidation is scheduled. A new
+            # resolver cannot begin between the idle check and this callback;
+            # real native changes still invalidate immediately through _notify.
+            self._changed()
 
     def _notify(self) -> bool:
         self._source = 0
@@ -70,9 +133,13 @@ class CatalogChangeMonitor:
         return False
 
     def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._reads.clear()
+            self._retry_at = None
+            self._settle_deadline = 0.0
         if self._poll_source:
             GLib.source_remove(self._poll_source)
             self._poll_source = 0

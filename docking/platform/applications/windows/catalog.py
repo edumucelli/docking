@@ -41,6 +41,9 @@ def _read_gio_discovery() -> DiscoveryResult | None:
 
 
 class WindowsApplicationCatalogBackend:
+    def __init__(self) -> None:
+        self._change_monitor: CatalogChangeMonitor | None = None
+
     def association_reads(
         self, keys: tuple[AssociationKey, ...], lookup: ApplicationMetadataLookup | None
     ) -> AssociationReads:
@@ -72,7 +75,7 @@ class WindowsApplicationCatalogBackend:
         def resolver() -> MetadataResolver:
             exporter = WindowsApplicationExport()
 
-            def resolve(
+            def read(
                 ids: tuple[str, ...],
                 cancelled: Callable[[], bool],
                 *,
@@ -117,6 +120,22 @@ class WindowsApplicationCatalogBackend:
                     association_ids=frozenset(association_ids),
                 )
 
+            def resolve(
+                ids: tuple[str, ...],
+                cancelled: Callable[[], bool],
+                *,
+                association_keys: tuple[AssociationKey, ...] = (),
+            ) -> ApplicationMetadata:
+                # Capture this monitor lifetime before checking cancellation;
+                # a stopped worker must not report completion to its successor.
+                monitor = self._change_monitor
+                ticket = monitor.read_started() if monitor is not None else None
+                try:
+                    return read(ids, cancelled, association_keys=association_keys)
+                finally:
+                    if monitor is not None:
+                        monitor.read_finished(ticket)
+
             return resolve
 
         return resolver
@@ -125,8 +144,10 @@ class WindowsApplicationCatalogBackend:
         self,
         changed: Callable[[], None],
     ) -> ApplicationChangeMonitor | None:
+        self._change_monitor = None
         try:
-            return CatalogChangeMonitor(changed)
+            self._change_monitor = CatalogChangeMonitor(changed)
+            return self._change_monitor
         except OSError as exc:
             log.warning(
                 "Could not watch native application changes (error %s)", exc.errno

@@ -6,6 +6,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from dataclasses import replace
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -64,6 +65,45 @@ def test_no_mutation_is_authorized_on_normal_self_hosted_or_non_arm_windows(
 
 def test_actual_native_arm_client_is_required_even_for_emulated_python():
     hosted.require_hosted("win32", ENV, FACTS)
+
+
+@pytest.mark.parametrize("caption", ("User shell", "Private arbitrary title", ""))
+def test_runner_terminal_selection_requires_opt_in_family_and_exact_class(caption):
+    process = identity(
+        "windowsterminal.exe",
+        r"Q:\Registered\Terminal\WindowsTerminal.exe",
+        hosted._TERMINAL,
+        runner_terminal=True,
+    )
+    known = window(title=caption, **{"class": "CASCADIA_HOSTING_WINDOW_CLASS"})
+    assert (
+        hosted.action_for(process, known, root=ROOT, session=3, foreground=100)
+        == "minimize"
+    )
+    assert (
+        hosted.action_for(
+            replace(process, runner_terminal=False),
+            known,
+            root=ROOT,
+            session=3,
+            foreground=100,
+        )
+        is None
+    )
+    with pytest.raises(hosted.PreparationError, match="class"):
+        hosted.action_for(
+            process, window(title=caption), root=ROOT, session=3, foreground=100
+        )
+    with pytest.raises(hosted.PreparationError, match="package"):
+        hosted.action_for(
+            replace(process, family="Unknown.Package"),
+            known,
+            root=ROOT,
+            session=3,
+            foreground=100,
+        )
+    assert "title" not in process.journal()
+    assert process.journal()["runner_terminal"] is True
 
 
 @pytest.mark.parametrize(
@@ -2408,3 +2448,645 @@ def test_background_skip_never_reuses_old_window_proof_on_later_sweep(background
     assert f.original.live and journal["actions"] == []
     assert f.api.kernel.CloseHandle.call_count == 2
     f.api.kernel.TerminateProcess.assert_not_called()
+
+
+@pytest.fixture
+def runner_terminal_api(updater_api, fast_minimize_clock):
+    api, state, original = updater_api
+    registered = Path(r"Q:\RegisteredPackages\Terminal")
+    original.path = str(PureWindowsPath(registered) / "WindowsTerminal.exe")
+    resolver = SimpleNamespace(paths=Mock(return_value=(registered,)))
+    api._runner_terminal_paths = resolver
+    api.package = Mock(return_value=(hosted._TERMINAL, 0))
+    state.active, state.owner = 100, original.pid
+    state.native_class = "CASCADIA_HOSTING_WINDOW_CLASS"
+    state.suppress_minimize, state.after_restore_foreground = False, None
+    state.after_show = None
+    state.current = window(
+        title="Private unrelated shell title", **{"class": state.native_class}
+    )
+    target = identity(
+        "windowsterminal.exe",
+        original.path,
+        hosted._TERMINAL,
+        created=original.created,
+        runner_terminal=True,
+    )
+
+    def owner(_hwnd, output):
+        assert isinstance(output._obj, hosted.wintypes.DWORD)
+        output._obj.value = state.owner
+        return 21
+
+    def class_name(_hwnd, output, length):
+        assert length == 256
+        output.value = state.native_class
+        return len(output.value)
+
+    def show(hwnd, command):
+        assert hwnd == 100 and command in (4, 6, 7)
+        if command == 4:
+            state.current["minimized"] = False
+            if state.after_restore_foreground is not None:
+                state.active = state.after_restore_foreground
+        else:
+            state.current["minimized"] = not state.suppress_minimize
+            if command == 6:
+                state.active = 999
+        if state.after_show is not None:
+            state.after_show(command)
+        return 0  # ShowWindow returns previous visibility, not success/failure.
+
+    def wait_for(predicate, message, _seconds):
+        assert predicate(), message
+
+    api.user = SimpleNamespace(
+        ShowWindow=Mock(side_effect=show),
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+        GetClassNameW=Mock(side_effect=class_name),
+        PostMessageW=Mock(),
+    )
+    api.desktop = SimpleNamespace(wait_for=wait_for, key=Mock())
+    api.windows = Mock(side_effect=lambda _pid: [dict(state.current)])
+    api.foreground = Mock(side_effect=lambda: state.active)
+    return SimpleNamespace(
+        api=api,
+        state=state,
+        process=original,
+        identity=target,
+        registered=registered,
+        resolver=resolver,
+    )
+
+
+@pytest.mark.parametrize("foreground", (100, 999))
+def test_registered_runner_terminal_minimizes_without_title_or_editor_focus(
+    runner_terminal_api, foreground
+):
+    f = runner_terminal_api
+    f.state.active = foreground
+    record = {}
+    assert (
+        f.api.perform(f.identity, "minimize", f.state.current, record=record)
+        == "dismissed"
+    )
+    f.api.user.ShowWindow.assert_called_once_with(100, 6 if foreground == 100 else 7)
+    assert record["window_state"] == "minimized"
+    assert f.api._created(f.identity.handle) == f.identity.created
+    assert f.resolver.paths.call_count >= 2
+    assert all(
+        call.args == (hosted._TERMINAL,) for call in f.resolver.paths.call_args_list
+    )
+    f.api.kernel.TerminateProcess.assert_not_called()
+    f.api.user.PostMessageW.assert_not_called()
+    f.api.desktop.key.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        "created",
+        "pid",
+        "session",
+        "image",
+        "family",
+        "owner",
+        "class",
+        "registration",
+        "disabled",
+    ),
+)
+def test_runner_terminal_identity_mismatch_cannot_issue_first_native_command(
+    runner_terminal_api, change
+):
+    f = runner_terminal_api
+    if change == "created":
+        f.process.created += 1
+    elif change == "pid":
+        f.process.pid += 1
+    elif change == "session":
+        f.state.session = 4
+    elif change == "image":
+        f.process.path = r"Q:\Unregistered\WindowsTerminal.exe"
+    elif change == "family":
+        f.api.package.return_value = ("Other.Package", 0)
+    elif change == "owner":
+        f.state.owner = 21
+    elif change == "class":
+        f.state.native_class = "UnrelatedWindow"
+    elif change == "registration":
+        f.resolver.paths.return_value = ()
+    else:
+        f.api._runner_terminal_paths = None
+    with pytest.raises(hosted.PreparationError):
+        f.api.perform(f.identity, "minimize", f.state.current, record={})
+    f.api.user.ShowWindow.assert_not_called()
+    f.api.kernel.TerminateProcess.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ("terminate", "close", "escape", "stop-wsl-update"))
+def test_even_verified_runner_terminal_cannot_be_closed_or_killed(
+    runner_terminal_api, action
+):
+    f = runner_terminal_api
+    with pytest.raises(hosted.PreparationError, match="minimization only"):
+        f.api.perform(f.identity, action, f.state.current)
+    f.api.user.ShowWindow.assert_not_called()
+    f.api.kernel.TerminateProcess.assert_not_called()
+    f.api.user.PostMessageW.assert_not_called()
+    f.api.desktop.key.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ("package-path", "owner", "class"))
+def test_runner_terminal_native_failures_preserve_code_and_never_show(
+    runner_terminal_api, stage
+):
+    f = runner_terminal_api
+    if stage == "package-path":
+        f.resolver.paths.side_effect = OSError(5, "Native query failed")
+        expected = hosted.PreparationError
+    elif stage == "owner":
+        f.api.user.GetWindowThreadProcessId.return_value = 0
+        f.api.user.GetWindowThreadProcessId.side_effect = None
+        expected = hosted.PreparationError
+    else:
+        f.api.user.GetClassNameW.return_value = 0
+        f.api.user.GetClassNameW.side_effect = None
+        expected = hosted.PreparationError
+    with pytest.raises(expected) as caught:
+        f.api.perform(f.identity, "minimize", f.state.current)
+    assert caught.value.code == 5
+    f.api.user.ShowWindow.assert_not_called()
+
+
+@pytest.mark.parametrize("after_restore", (100, 999))
+def test_runner_iconic_foreground_reuses_verified_nonactivating_restore(
+    runner_terminal_api, after_restore
+):
+    f = runner_terminal_api
+    f.state.current["minimized"] = True
+    f.state.after_restore_foreground = after_restore
+    record = {}
+    assert (
+        f.api.perform(f.identity, "minimize", f.state.current, record=record)
+        == "dismissed"
+    )
+    assert record["show_commands"] == [4, 6 if after_restore == 100 else 7]
+    f.api.desktop.key.assert_not_called()
+
+
+@pytest.mark.parametrize("change", ("image", "owner", "class", "registration"))
+def test_runner_terminal_revalidation_after_restore_prevents_second_command(
+    runner_terminal_api, change
+):
+    f = runner_terminal_api
+    f.state.current["minimized"] = True
+
+    def replace(command):
+        assert command == 4
+        if change == "image":
+            f.process.path = r"Q:\Replaced\WindowsTerminal.exe"
+        elif change == "owner":
+            f.state.owner = 21
+        elif change == "class":
+            f.state.native_class = "ReplacedWindow"
+        else:
+            f.resolver.paths.return_value = ()
+
+    f.state.after_show = replace
+    with pytest.raises(hosted.PreparationError):
+        f.api.perform(f.identity, "minimize", f.state.current, record={})
+    f.api.user.ShowWindow.assert_called_once_with(100, 4)
+
+
+def test_runner_terminal_uses_foreground_after_last_identity_query(runner_terminal_api):
+    f = runner_terminal_api
+
+    def registered(_family):
+        f.state.active = 999
+        return (f.registered,)
+
+    f.resolver.paths.side_effect = registered
+    assert f.api.perform(f.identity, "minimize", f.state.current) == "dismissed"
+    f.api.user.ShowWindow.assert_called_once_with(100, 7)
+
+
+def test_runner_terminal_pending_minimize_requires_current_full_identity(
+    runner_terminal_api,
+):
+    f = runner_terminal_api
+    f.state.active, f.state.suppress_minimize = 999, True
+    record = {}
+    with pytest.raises(hosted.WslDismissalPendingError, match="runner Terminal"):
+        f.api.perform(f.identity, "minimize", f.state.current, record=record)
+    assert record["pending_identity_verified"] is True
+    assert f.resolver.paths.call_count > 2
+    f.api.user.ShowWindow.assert_called_once_with(100, 7)
+
+
+def test_late_runner_terminal_is_pinned_and_classified_on_its_own_sweep(
+    runner_terminal_api, monkeypatch
+):
+    f = runner_terminal_api
+    process = SimpleNamespace(pid=20, info={"name": "WindowsTerminal.exe"})
+    monkeypatch.setitem(
+        sys.modules,
+        "psutil",
+        SimpleNamespace(process_iter=Mock(side_effect=[[], [process]])),
+    )
+    with f.api.processes() as rows:
+        assert rows == []
+    with f.api.processes() as rows:
+        assert len(rows) == 1 and rows[0].runner_terminal
+        assert rows[0].created == f.process.created
+        assert rows[0].path == f.process.path
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+
+
+def test_runner_sweep_does_not_log_title_or_guess_wsl_ancestry(
+    runner_terminal_api, monkeypatch
+):
+    f = runner_terminal_api
+
+    @contextmanager
+    def processes():
+        yield [f.identity]
+
+    monkeypatch.setattr(f.api, "processes", processes)
+    journal = {"actions": []}
+    assert hosted.sweep(f.api, journal) == 1
+    assert journal["actions"][0]["runner_terminal"] is True
+    f.api.ancestry.assert_not_called()
+    assert "Private unrelated shell title" not in str(journal)
+
+
+@pytest.mark.parametrize(
+    ("platform", "environment", "facts"),
+    [
+        ("linux", ENV, FACTS),
+        ("win32", {}, FACTS),
+        ("win32", {**ENV, "RUNNER_ENVIRONMENT": "self-hosted"}, FACTS),
+        ("win32", ENV, {**FACTS, "native_machine": 0x8664}),
+        ("win32", ENV, {**FACTS, "product_type": 3}),
+        ("win32", ENV, {**FACTS, "build": 19045}),
+    ],
+)
+def test_runner_terminal_policy_cannot_enable_before_all_actual_host_guards(
+    monkeypatch, platform, environment, facts
+):
+    from docking.platform.backends.windows import packages
+
+    monkeypatch.setattr(hosted, "sys", SimpleNamespace(platform=platform))
+    for key in ENV:
+        monkeypatch.delenv(key, raising=False)
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    create = Mock()
+    monkeypatch.setattr(packages, "WindowsPackagePaths", create)
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api._runner_terminal_paths = None
+    api.facts = Mock(return_value=facts)
+    with pytest.raises(hosted.PreparationError):
+        api.enable_runner_terminal_policy()
+    create.assert_not_called()
+    assert api._runner_terminal_paths is None
+
+
+def test_runner_terminal_policy_resolver_created_only_for_verified_hosted_arm(
+    monkeypatch,
+):
+    from docking.platform.backends.windows import packages
+
+    monkeypatch.setattr(hosted, "sys", SimpleNamespace(platform="win32"))
+    for key, value in ENV.items():
+        monkeypatch.setenv(key, value)
+    resolver = SimpleNamespace(paths=Mock())
+    create = Mock(return_value=resolver)
+    monkeypatch.setattr(packages, "WindowsPackagePaths", create)
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api._runner_terminal_paths = None
+    api.facts = Mock(return_value=FACTS)
+    api.enable_runner_terminal_policy()
+    assert api._runner_terminal_paths is resolver
+    create.assert_called_once_with()
+
+
+@pytest.mark.parametrize("opt_in", (False, True))
+def test_main_default_stays_wsl_only_and_explicit_runner_policy_is_journaled(
+    monkeypatch, tmp_path, opt_in
+):
+    order = []
+    api = SimpleNamespace(
+        facts=Mock(side_effect=lambda: (order.append("facts"), FACTS)[1]),
+        enable_runner_terminal_policy=Mock(side_effect=lambda: order.append("enable")),
+    )
+    monkeypatch.setattr(hosted, "sys", SimpleNamespace(platform="win32"))
+    arguments = [
+        "hosted_desktop.py",
+        "--installed-root",
+        str(tmp_path),
+        "--wheel",
+        str(tmp_path / "candidate.whl"),
+        "--source-sha",
+        "a" * 40,
+        "--output",
+        str(tmp_path / "output"),
+    ]
+    if opt_in:
+        arguments.append("--minimize-runner-terminals")
+    monkeypatch.setattr(sys, "argv", arguments)
+    for key, value in ENV.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setitem(sys.modules, "winreg", SimpleNamespace())
+    monkeypatch.setattr(hosted, "NativeDesktop", Mock(return_value=api))
+    prepare = Mock(side_effect=lambda *_args: (order.append("prepare"), 0)[1])
+    monkeypatch.setattr(hosted, "run_prepared", prepare)
+    assert hosted.main() == 0
+    journal = prepare.call_args.args[-1]
+    if opt_in:
+        api.enable_runner_terminal_policy.assert_called_once_with()
+        assert journal["terminal_policy"] == "leave-minimized-disposable-hosted-arm"
+        assert order == ["facts", "enable", "prepare"]
+    else:
+        api.enable_runner_terminal_policy.assert_not_called()
+        assert "terminal_policy" not in journal
+        assert order == ["facts", "prepare"]
+
+
+def test_runner_discovery_rejects_unregistered_image_and_records_numeric_candidate(
+    runner_terminal_api, monkeypatch
+):
+    f = runner_terminal_api
+    f.resolver.paths.return_value = (Path(r"Q:\OtherPackage"),)
+    process = SimpleNamespace(pid=20, info={"name": "WindowsTerminal.exe"})
+    monkeypatch.setitem(
+        sys.modules, "psutil", SimpleNamespace(process_iter=lambda _args: [process])
+    )
+    with pytest.raises(hosted.PreparationError) as caught, f.api.processes():
+        pytest.fail("Unverified Terminal cannot be returned as an authorized identity")
+    assert caught.value.candidate["name"] == "windowsterminal.exe"
+    assert caught.value.candidate["family"] == hosted._TERMINAL
+    assert caught.value.code == 13
+    assert "OtherPackage" not in str(caught.value.candidate)
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+    f.api.user.ShowWindow.assert_not_called()
+
+
+def test_naturally_exited_terminal_during_discovery_is_not_minimized(
+    runner_terminal_api, monkeypatch
+):
+    f = runner_terminal_api
+    f.process.live = False
+    f.api.package.return_value = (None, 15700)
+    process = SimpleNamespace(pid=20, info={"name": "WindowsTerminal.exe"})
+    monkeypatch.setitem(
+        sys.modules, "psutil", SimpleNamespace(process_iter=lambda _args: [process])
+    )
+    with f.api.processes() as rows:
+        assert rows == []
+    assert f.api.exited[-1]["wait_status"] == 0
+    f.api.kernel.CloseHandle.assert_called_once_with(10)
+    f.api.user.ShowWindow.assert_not_called()
+
+
+@pytest.mark.parametrize("status", (0, 1))
+def test_runner_final_settle_occurs_after_collector_quiescence_without_changing_result(
+    tmp_path, monkeypatch, status
+):
+    api = SimpleNamespace(capture=Mock())
+    journal = {"terminal_policy": "leave-minimized-disposable-hosted-arm"}
+    order = []
+
+    def settle(_api, value):
+        if order:
+            assert value["collector_stopped"]
+            order.append("final-settle")
+        else:
+            order.append("initial-settle")
+
+    @contextmanager
+    def collect():
+        journal["collector_stopped"] = False
+        order.append("collector-started")
+        try:
+            yield SimpleNamespace(poll=lambda: status, returncode=status)
+        finally:
+            order.append("collector-stopped")
+            journal["collector_stopped"] = True
+
+    monkeypatch.setattr(hosted, "settle_desktop", settle)
+    assert (
+        hosted.run_prepared(api, Registry((0, 4)), tmp_path, collect, journal) == status
+    )
+    assert order == [
+        "initial-settle",
+        "collector-started",
+        "collector-stopped",
+        "final-settle",
+    ]
+    assert journal["ok"] is (status == 0)
+    assert journal["policy"]["restored"] and journal["collector_stopped"]
+
+
+def test_late_runner_terminal_is_minimized_during_collection_without_refocusing_editor(
+    runner_terminal_api, tmp_path, monkeypatch
+):
+    f = runner_terminal_api
+    active = [False]
+    journal = {"terminal_policy": "leave-minimized-disposable-hosted-arm"}
+    f.api.capture = Mock()
+
+    @contextmanager
+    def processes():
+        yield [f.identity] if active[0] else []
+
+    @contextmanager
+    def collect():
+        active[0] = True
+        journal["collector_stopped"] = False
+        try:
+            yield SimpleNamespace(
+                poll=Mock(side_effect=[None, 0]),
+                returncode=0,
+                wait=Mock(return_value=0),
+            )
+        finally:
+            active[0] = False
+            journal["collector_stopped"] = True
+
+    monkeypatch.setattr(f.api, "processes", processes)
+    assert hosted.run_prepared(f.api, Registry((0, 4)), tmp_path, collect, journal) == 0
+    assert journal["actions"][0]["runner_terminal"] is True
+    assert journal["actions"][0]["after"] == "dismissed"
+    assert f.state.current["minimized"] is True
+    f.api.user.ShowWindow.assert_called_once_with(100, 6)
+    f.api.desktop.key.assert_not_called()
+    f.api.kernel.TerminateProcess.assert_not_called()
+    assert journal["collector_stopped"] and journal["policy"]["restored"]
+
+
+def test_hosted_client_workflow_explicitly_selects_disposable_terminal_policy():
+    source = Path(__file__).resolve().parents[1] / ".github/workflows/windows-input.yml"
+    command = next(
+        line
+        for line in source.read_text().splitlines()
+        if "run: python -m tools.windows.visual.hosted_desktop" in line
+    )
+    assert "--minimize-runner-terminals" in command
+    assert "--installed-root artifacts/windows/runtime" in command
+    assert '--source-sha "$GITHUB_SHA"' in command
+
+
+@pytest.mark.parametrize(
+    "environment", ({}, {**ENV, "RUNNER_ENVIRONMENT": "self-hosted"})
+)
+def test_terminal_cli_opt_in_cannot_construct_native_helpers_on_unhosted_system(
+    monkeypatch, environment
+):
+    monkeypatch.setattr(hosted, "sys", SimpleNamespace(platform="win32"))
+    for key in ENV:
+        monkeypatch.delenv(key, raising=False)
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hosted_desktop.py",
+            "--minimize-runner-terminals",
+            "--installed-root",
+            "owned",
+            "--wheel",
+            "candidate.whl",
+            "--source-sha",
+            "a" * 40,
+            "--output",
+            "owned-output",
+        ],
+    )
+    native = Mock()
+    monkeypatch.setattr(hosted, "NativeDesktop", native)
+    with pytest.raises(hosted.PreparationError):
+        hosted.main()
+    native.assert_not_called()
+
+
+def test_collector_opt_in_argument_never_enables_desktop_policy(monkeypatch, tmp_path):
+    from tools.windows import ci
+
+    api = SimpleNamespace(facts=lambda: FACTS, enable_runner_terminal_policy=Mock())
+    monkeypatch.setattr(
+        hosted,
+        "sys",
+        SimpleNamespace(
+            platform="win32", stdin=SimpleNamespace(buffer=io.BytesIO(b"1"))
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hosted_desktop.py",
+            "--collect",
+            "--minimize-runner-terminals",
+            "--installed-root",
+            str(tmp_path),
+            "--wheel",
+            str(tmp_path / "candidate.whl"),
+            "--source-sha",
+            "a" * 40,
+            "--output",
+            str(tmp_path),
+        ],
+    )
+    for key, value in ENV.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setitem(sys.modules, "winreg", SimpleNamespace())
+    monkeypatch.setattr(hosted, "NativeDesktop", lambda: api)
+    collect = Mock(return_value=0)
+    monkeypatch.setattr(ci, "input_domain", collect)
+    assert hosted.main() == 0
+    api.enable_runner_terminal_policy.assert_not_called()
+    collect.assert_called_once()
+
+
+def test_background_runner_terminal_becoming_foreground_on_command7_is_pending(
+    runner_terminal_api,
+):
+    f = runner_terminal_api
+    f.state.active = 999
+
+    def becomes_foreground(command):
+        assert command == 7
+        f.state.active = 100
+
+    f.state.after_show = becomes_foreground
+    record = {}
+    with pytest.raises(hosted.WslDismissalPendingError):
+        f.api.perform(f.identity, "minimize", f.state.current, record=record)
+    assert f.state.current["minimized"] and f.state.active == 100
+    assert record["pending_identity_verified"] is True
+    assert record["foreground_after"] == 100
+    f.api.user.ShowWindow.assert_called_once_with(100, 7)
+    f.api.desktop.key.assert_not_called()
+
+
+@pytest.mark.parametrize("change_during_verification", (False, True))
+def test_runner_pending_readback_never_accepts_iconic_foreground_for_command7(
+    runner_terminal_api, change_during_verification
+):
+    f = runner_terminal_api
+    f.state.current["minimized"] = True
+    f.state.active = 999 if change_during_verification else 100
+    if change_during_verification:
+
+        def registered(_family):
+            f.state.active = 100
+            return (f.registered,)
+
+        f.resolver.paths.side_effect = registered
+    record = {}
+    assert f.api._verify_pending_wsl(f.identity, f.state.current, 7, record) is False
+    assert record["pending_identity_verified"] is True
+    f.api.user.ShowWindow.assert_not_called()
+
+
+def test_legacy_wsl_readback_retains_its_original_command7_behavior(
+    runner_terminal_api,
+):
+    f = runner_terminal_api
+    f.state.current.update(minimized=True, title=ROOT + r"\System32\wsl.exe")
+    f.state.active = 100
+    assert (
+        f.api._verify_pending_wsl(
+            replace(f.identity, runner_terminal=False), f.state.current, 7, {}
+        )
+        is True
+    )
+    f.resolver.paths.assert_not_called()
+
+
+def test_iconic_foreground_runner_terminal_cannot_claim_prepared_or_start_collector(
+    runner_terminal_api, tmp_path, monkeypatch
+):
+    f = runner_terminal_api
+    f.state.active = 999
+    f.api.capture = Mock()
+
+    def becomes_foreground(command):
+        assert command == 7
+        f.state.active = 100
+
+    @contextmanager
+    def processes():
+        yield [f.identity]
+
+    f.state.after_show = becomes_foreground
+    monkeypatch.setattr(f.api, "processes", processes)
+    journal = {"terminal_policy": "leave-minimized-disposable-hosted-arm"}
+    collect = Mock()
+    assert hosted.run_prepared(f.api, Registry((0, 4)), tmp_path, collect, journal) == 1
+    assert journal.get("prepared") is not True and journal["ok"] is False
+    assert journal["policy"]["restored"] and journal["collector_stopped"]
+    collect.assert_not_called()
+    f.api.desktop.key.assert_not_called()

@@ -237,7 +237,7 @@ jobs:
         run: python -m tools.windows.ci --stage preflight
       - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
-        run: python -m tools.windows.visual.hosted_desktop --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
+        run: python -m tools.windows.visual.hosted_desktop --minimize-runner-terminals --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
       - uses: actions/upload-artifact@v7
         if: always()
         with:

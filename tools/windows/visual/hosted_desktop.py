@@ -5,6 +5,8 @@ https://github.com/actions/runner-images/issues/14069
 https://github.com/electron/electron/pull/54535
 Only DisablePrivacyExperience is changed, and its exact previous value is
 restored. This tool is never part of Docking's normal application startup.
+An explicit hosted-Arm-only opt-in also leaves verified packaged Terminal
+windows minimized; ordinary invocations retain the exact WSL-only policy.
 """
 
 from __future__ import annotations
@@ -58,8 +60,13 @@ def _stamp():
 
 
 class WslDismissalPendingError(PreparationError):
-    def __init__(self):
-        super().__init__("Verified WSL terminal minimization is pending", 1460)
+    def __init__(self, *, runner_terminal=False):
+        super().__init__(
+            "Verified runner Terminal minimization is pending"
+            if runner_terminal
+            else "Verified WSL terminal minimization is pending",
+            1460,
+        )
 
 
 def require_hosted(platform, environment, facts=None):
@@ -102,6 +109,7 @@ class Identity:
     family: str | None = None
     package_error: int = 0
     wsl_update: bool = False
+    runner_terminal: bool = False
 
     def journal(self):
         result = {
@@ -114,6 +122,8 @@ class Identity:
         }
         if self.name == "wsl.exe":
             result["update_arguments_verified"] = self.wsl_update
+        if self.runner_terminal:
+            result["runner_terminal"] = True
         return result
 
 
@@ -171,6 +181,14 @@ def action_for(identity, window, *, root, session, foreground):
         if window["class"] == "Windows.UI.Core.CoreWindow":
             return "escape"
         raise PreparationError("Unproven Start window")
+    if identity.name == "windowsterminal.exe" and identity.runner_terminal:
+        if identity.family != _TERMINAL or identity.package_error:
+            raise PreparationError(
+                "Unproven runner Terminal package", identity.package_error or 13
+            )
+        if window["class"] != "CASCADIA_HOSTING_WINDOW_CLASS":
+            raise PreparationError("Unproven runner Terminal window class")
+        return "minimize"
     if identity.name == "windowsterminal.exe" and _path(window["title"]) == _path(
         system / "wsl.exe"
     ):
@@ -204,6 +222,88 @@ class NativeDesktop:
         self.exited = []
         self.unverified_background = {}
         self.unverified_background_dropped = 0
+        self._runner_terminal_paths = None
+
+    def enable_runner_terminal_policy(self):
+        # This disposable policy must never become normal/local desktop cleanup.
+        require_hosted(sys.platform, os.environ, self.facts())
+        from docking.platform.backends.windows.packages import WindowsPackagePaths
+
+        self._runner_terminal_paths = WindowsPackagePaths()
+
+    def _runner_terminal_process(self, identity):
+        if self._runner_terminal_paths is None:
+            raise PreparationError("Runner Terminal policy was not enabled")
+        if identity.name != "windowsterminal.exe" or identity.session != self.session:
+            raise PreparationError(
+                "Unproven runner Terminal identity", identity.package_error or 13
+            )
+
+        def same():
+            if self._same_process(
+                identity.handle, identity.pid, identity.created, identity.session
+            ):
+                return True
+            if (
+                bind(self.kernel, "WaitForSingleObject", _U, _P, _U)(identity.handle, 0)
+                == 0
+            ):
+                return False
+            raise PreparationError("Runner Terminal process identity changed")
+
+        if not same():
+            return False
+        if identity.family != _TERMINAL or identity.package_error:
+            raise PreparationError(
+                "Unproven runner Terminal identity", identity.package_error or 13
+            )
+        family, error = self.package(identity.handle)
+        if family != _TERMINAL or error:
+            raise PreparationError(
+                "Runner Terminal package identity changed", error or 13
+            )
+        image = self._image(identity.handle)
+        try:
+            paths = self._runner_terminal_paths.paths(_TERMINAL)
+        except OSError as error:
+            code = _error(error)["code"]
+            raise PreparationError(
+                "Registered runner Terminal package paths unavailable",
+                13 if code is None else code,
+            ) from None
+        if _path(image) != _path(identity.path) or not any(
+            _path(image) == _path(PureWindowsPath(path) / "WindowsTerminal.exe")
+            for path in paths
+        ):
+            raise PreparationError(
+                "Runner Terminal image is not in its registered package"
+            )
+        return same()
+
+    def _runner_terminal_window(self, identity, hwnd):
+        if not self._runner_terminal_process(identity):
+            return False
+        owner = wintypes.DWORD()
+        self.check(
+            bind(
+                self.user,
+                "GetWindowThreadProcessId",
+                wintypes.DWORD,
+                wintypes.HWND,
+                c.POINTER(wintypes.DWORD),
+            )(hwnd, c.byref(owner)),
+            "Read runner Terminal window owner",
+        )
+        name = c.create_unicode_buffer(256)
+        self.check(
+            bind(
+                self.user, "GetClassNameW", c.c_int, wintypes.HWND, c.c_wchar_p, c.c_int
+            )(hwnd, name, len(name)),
+            "Read runner Terminal window class",
+        )
+        if owner.value != identity.pid or name.value != "CASCADIA_HOSTING_WINDOW_CLASS":
+            raise PreparationError("Runner Terminal window identity changed")
+        return self._runner_terminal_process(identity)
 
     @staticmethod
     def check(result, operation):
@@ -682,6 +782,21 @@ class NativeDesktop:
                     family,
                     error,
                 )
+                if (
+                    name == "windowsterminal.exe"
+                    and self._runner_terminal_paths is not None
+                ):
+                    try:
+                        verified = self._runner_terminal_process(discovered)
+                    except PreparationError as error:
+                        error.candidate = discovered.journal()
+                        raise
+                    if not verified:
+                        self.exited.append(
+                            {"pid": discovered.pid, "name": name, "wait_status": 0}
+                        )
+                        continue
+                    discovered = replace(discovered, runner_terminal=True)
                 if name == "wsl.exe" and _path(path) == _path(
                     PureWindowsPath(self.root) / "System32/wsl.exe"
                 ):
@@ -733,6 +848,18 @@ class NativeDesktop:
             (row for row in self.windows(identity.pid) if row["hwnd"] == hwnd), None
         )
         foreground = self.foreground()
+        if (
+            identity.runner_terminal
+            and current is not None
+            and not self._runner_terminal_window(identity, hwnd)
+        ):
+            if self.foreground() == hwnd:
+                raise PreparationError(
+                    "Exited runner Terminal retained foreground", 1460
+                )
+            return True
+        if identity.runner_terminal:
+            foreground = self.foreground()
         if record is not None:
             record["window_state"] = (
                 "disappeared"
@@ -740,7 +867,7 @@ class NativeDesktop:
                 else ("minimized" if current["minimized"] else "visible")
             )
         if (current is None or current["minimized"]) and (
-            command != 6 or foreground != hwnd
+            (command != 6 and not identity.runner_terminal) or foreground != hwnd
         ):
             return True
         if current is None:
@@ -794,6 +921,8 @@ class NativeDesktop:
             raise PreparationError("First-login process wait", c.get_last_error())
         if bind(self.kernel, "GetProcessId", _U, _P)(identity.handle) != identity.pid:
             raise PreparationError("First-login process identity changed")
+        if identity.name == "windowsterminal.exe" and action != "minimize":
+            raise PreparationError("Terminal policy permits minimization only")
         if action == "stop-wsl-update":
             return self._stop_wsl_update(identity, record)
         if action == "terminate":
@@ -843,6 +972,12 @@ class NativeDesktop:
                 "Close Performance Options",
             )
         else:
+            if (
+                identity.runner_terminal
+                and current["minimized"]
+                and not self._runner_terminal_window(identity, hwnd)
+            ):
+                return "already-exited"
             before = self.foreground()
             show = bind(self.user, "ShowWindow", _B, _P, c.c_int32)
             commands = []
@@ -909,6 +1044,10 @@ class NativeDesktop:
                 ):
                     raise PreparationError("Restored WSL terminal identity changed")
                 before = self.foreground()
+            if identity.runner_terminal:
+                if not self._runner_terminal_window(identity, hwnd):
+                    return "already-exited"
+                before = self.foreground()
             # SW_MINIMIZE lets Windows activate the next window in Z order.
             # SW_SHOWMINNOACTIVE can leave an iconic terminal as foreground.
             command = 6 if before == hwnd else 7
@@ -921,6 +1060,12 @@ class NativeDesktop:
             rows = self.windows(identity.pid)
             if action == "minimize":
                 current = next((row for row in rows if row["hwnd"] == hwnd), None)
+                if (
+                    identity.runner_terminal
+                    and current is not None
+                    and not self._runner_terminal_window(identity, hwnd)
+                ):
+                    return self.foreground() != hwnd
                 if record is not None:
                     record["window_state"] = (
                         "disappeared"
@@ -928,7 +1073,8 @@ class NativeDesktop:
                         else ("minimized" if current["minimized"] else "visible")
                     )
                 return (current is None or current["minimized"]) and (
-                    command != 6 or self.foreground() != hwnd
+                    (command != 6 and not identity.runner_terminal)
+                    or self.foreground() != hwnd
                 )
             return not any(
                 row["hwnd"] == hwnd and not row["cloaked"] and not row["minimized"]
@@ -944,7 +1090,9 @@ class NativeDesktop:
                     if time.monotonic() >= deadline:
                         if self._verify_pending_wsl(identity, window, command, record):
                             return "dismissed"
-                        raise WslDismissalPendingError()
+                        raise WslDismissalPendingError(
+                            runner_terminal=identity.runner_terminal
+                        )
                     time.sleep(0.1)
             else:
                 self.desktop.wait_for(
@@ -1096,7 +1244,7 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                     if window is not None:
                         entry["window"] = window["hwnd"]
                 try:
-                    if timed:
+                    if timed and not identity.runner_terminal:
                         entry["ancestry"] = api.ancestry(identity)
                     entry["after"] = (
                         api.perform(identity, action, window, record=entry)
@@ -1246,6 +1394,11 @@ def run_prepared(api, registry, output, collect, journal):
             if not journal["collector_stopped"]:
                 raise PreparationError("Collector did not stop", 1460)
             journal["input_status"] = status
+            if (
+                journal.get("terminal_policy")
+                == "leave-minimized-disposable-hosted-arm"
+            ):
+                settle_desktop(api, journal)
             api.capture(output / "desktop-preparation-after.png")
         journal["ok"] = status == 0
         return status
@@ -1270,11 +1423,18 @@ def main():
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--collect", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--minimize-runner-terminals",
+        action="store_true",
+        help="Leave verified Terminal windows minimized on disposable hosted Arm CI",
+    )
     args = parser.parse_args()
     require_hosted(sys.platform, os.environ)
     api = NativeDesktop()
     facts = api.facts()
     require_hosted(sys.platform, os.environ, facts)
+    if args.minimize_runner_terminals and not args.collect:
+        api.enable_runner_terminal_policy()
     import winreg
 
     from tools.windows.ci import input_domain
@@ -1282,6 +1442,8 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     journal = {"guard": facts}
+    if args.minimize_runner_terminals and not args.collect:
+        journal["terminal_policy"] = "leave-minimized-disposable-hosted-arm"
     if args.collect:
         if sys.stdin.buffer.read(1) != b"1":
             raise PreparationError("Collector start was not authorized")
