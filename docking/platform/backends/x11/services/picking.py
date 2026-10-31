@@ -20,7 +20,6 @@ import gi
 gi.require_version("Wnck", "3.0")
 from gi.repository import Wnck
 
-from docking.applets.windowkiller.state import kill_pid
 from docking.log import get_logger
 from docking.platform.backends.base import (
     ActionResult,
@@ -29,6 +28,7 @@ from docking.platform.backends.base import (
     WindowPickService,
     WindowSnapshot,
 )
+from docking.platform.backends.unix.processes import kill_pid
 
 log = get_logger(name="x11_picking")
 

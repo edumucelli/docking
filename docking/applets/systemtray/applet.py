@@ -21,75 +21,65 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.platform.tray.menu import TrayMenuClient
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import GdkPixbuf, GLib, Gtk, Pango
 
-from docking.applets.base import Applet, load_theme_icon
+from docking.applets.base import PlatformServicesApplet, load_theme_icon
 from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.platform import AppletPlatformServices
 from docking.applets.popup import create_popup_window, show_wrapped_popup
 from docking.applets.systemtray import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
-from docking.platform.status_notifier import (
-    StatusNotifierService,
-    StatusTrayState,
-    TrayItem,
-)
-from docking.platform.status_notifier.dbusmenu import (
-    DBusMenuClient,
+from docking.platform.tray.menu import (
     DBusMenuItem,
     DBusMenuLayout,
+)
+from docking.platform.tray.state import (
+    StatusTrayState,
+    TrayItem,
 )
 
 from .render import create_status_tray_icon
 from .state import tooltip_text
-from .xembed import XEmbedTrayHost
 
 if TYPE_CHECKING:
-    from docking.applets.services import AppletServices
     from docking.core.config import Config
     from docking.core.position import Position
 
 
-class SystemTrayApplet(Applet):
+class SystemTrayApplet(PlatformServicesApplet):
     """System tray host for StatusNotifier/AppIndicator items."""
 
     id = meta.id
     name = _("System Tray")
     icon_name = "application-x-executable"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        # Replaced by the shared service through set_services; until then this
-        # applet polls on its own so it stays usable standalone.
-        self._service = StatusNotifierService()
-        self._owns_service = True
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._service = platform_services.tray
         self._state = self._service.state
         self._active = False
         self._popup: Gtk.Window | None = None
         self._item_menu: Gtk.Menu | None = None
         self._worker = BackgroundWorker()
-        self._legacy_host = XEmbedTrayHost(
+        self._legacy_host = platform_services.backends.tray_presentation(
             icon_size=min(32, max(22, icon_size)),
             on_changed=self._on_legacy_changed,
         )
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
-
-    def set_services(self, services: AppletServices) -> None:
-        service = services.status_notifier
-        if service is None or service is self._service:
-            return
-        self._service.remove_listener(self._on_state_result)
-        if self._owns_service:
-            self._service.stop()
-            self._owns_service = False
-        self._service = service
-        # Subscribing delivers the cached state, which is what repaints the icon
-        # and tooltip. Assigning it here first would make that callback a no-op
-        # and leave the applet showing the previous service's state.
-        service.add_listener(self._on_state_result)
 
     def create_icon(self, size: int):
         item_count = len(self._state.items)
@@ -112,17 +102,12 @@ class SystemTrayApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
         self._active = True
-        # Subscribing here covers a private service that set_services never
-        # replaced, and a restart after stop() unsubscribed.
+        # Subscribe for this applet lifetime, including restart after stop().
         self._service.add_listener(self._on_state_result)
-        if self._owns_service:
-            self._service.start()
 
     def stop(self) -> None:
         self._active = False
         self._service.remove_listener(self._on_state_result)
-        if self._owns_service:
-            self._service.stop()
         if self._item_menu is not None:
             self._item_menu.destroy()
             self._item_menu = None
@@ -329,7 +314,7 @@ class SystemTrayApplet(Applet):
             on_error=lambda _exc: self._on_context_menu(identifier),
         )
 
-    def _fetch_menu_layout(self, client: DBusMenuClient) -> DBusMenuLayout | None:
+    def _fetch_menu_layout(self, client: TrayMenuClient) -> DBusMenuLayout | None:
         """Run off the main thread: D-BusMenu handshake only, no GTK."""
         client.about_to_show(0)
         layout = client.get_layout()
@@ -345,7 +330,7 @@ class SystemTrayApplet(Applet):
         self,
         *,
         layout: DBusMenuLayout | None,
-        client: DBusMenuClient,
+        client: TrayMenuClient,
         identifier: str,
     ) -> None:
         # The layout arrives on a worker thread; the applet may be gone by now.
@@ -484,7 +469,7 @@ class SystemTrayApplet(Applet):
         self,
         *,
         root: DBusMenuItem,
-        client: DBusMenuClient,
+        client: TrayMenuClient,
     ) -> Gtk.Menu | None:
         menu = Gtk.Menu()
         for child in root.children:
@@ -499,7 +484,7 @@ class SystemTrayApplet(Applet):
         self,
         *,
         item: DBusMenuItem,
-        client: DBusMenuClient,
+        client: TrayMenuClient,
     ) -> Gtk.MenuItem | None:
         if not item.visible:
             return None
@@ -548,7 +533,7 @@ class SystemTrayApplet(Applet):
             )
         return menu_item
 
-    def _on_dbus_menu_activate(self, *, client: DBusMenuClient, item_id: int) -> None:
+    def _on_dbus_menu_activate(self, *, client: TrayMenuClient, item_id: int) -> None:
         self._run_tray_action(
             name="systemtray-menu-event",
             action=lambda: client.event(item_id),

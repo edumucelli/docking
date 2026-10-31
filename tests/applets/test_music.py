@@ -10,16 +10,20 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.music.applet as music_applet_mod
+import docking.applets.music.implementations.unix.backend as native_music
 import docking.applets.music.state as music_state_mod
 import docking.i18n as i18n_mod
-import docking.platform.applications.registry as registry_mod
+import docking.platform.applications.implementations.unix.associations as association_mod
 from docking.applets.music.applet import MusicApplet
-from docking.applets.music.render import create_music_icon
-from docking.applets.music.state import (
+from docking.applets.music.backend import MusicBackend
+from docking.applets.music.implementations.unix.backend import (
     HybridBackend,
-    MusicState,
     PlayerctlBackend,
     RhythmboxClientBackend,
+)
+from docking.applets.music.render import create_music_icon
+from docking.applets.music.state import (
+    MusicState,
     _normalize_desktop_entry,
     _normalize_volume_percent,
     clamp_percent,
@@ -28,6 +32,10 @@ from docking.applets.music.state import (
     unavailable_state,
 )
 from docking.core.config import Config
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -38,6 +46,7 @@ from tests.platform.application_fakes import (
     ApplicationRegistryHarness,
     GioApplicationFake,
 )
+from tests.platform_factories import make_applet_platform
 
 _CATALOG_MESSAGES = {
     "Play": "Abspielen",
@@ -374,7 +383,7 @@ class TestMusicStateHelpers:
 
 class TestMprisBackendInternals:
     def _make_backend(self):
-        backend = object.__new__(music_state_mod.MprisBackend)
+        backend = object.__new__(native_music.MprisBackend)
         backend._last_active_bus_name = ""
         backend._bus = object()
         backend._dbus_proxy = None
@@ -470,7 +479,11 @@ class TestMprisBackendInternals:
                 raise Exception("boom")
 
         backend._dbus_proxy = _ProxyFail()
-        monkeypatch.setattr(music_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            native_music.GLib,
+            "Error",
+            Exception,
+        )
         assert backend.has_owner("x") is False
         assert backend.list_players() == []
 
@@ -488,7 +501,11 @@ class TestMprisBackendInternals:
                     raise Exception("fail")
                 return object()
 
-        monkeypatch.setattr(music_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            native_music.GLib,
+            "Error",
+            Exception,
+        )
         backend._get_props_proxy = lambda bus_name: _Props(fail=False)  # type: ignore[method-assign]
         assert backend.set_volume("bus", 50) is True
         backend._get_props_proxy = lambda bus_name: _Props(fail=True)  # type: ignore[method-assign]
@@ -605,7 +622,11 @@ class TestMprisBackendInternals:
 
     def test_get_property_call_method_and_proxy_caches(self, monkeypatch):
         backend = self._make_backend()
-        monkeypatch.setattr(music_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(
+            native_music.GLib,
+            "Error",
+            Exception,
+        )
 
         class _Result:
             def __init__(self, payload):
@@ -667,17 +688,13 @@ class TestMprisBackendInternals:
         backend._get_player_proxy = lambda bus_name: _Player(fail=True)  # type: ignore[method-assign]
         assert backend._call_player_method("x", "PlayPause") is False
 
-        backend._get_player_proxy = (
-            music_state_mod.MprisBackend._get_player_proxy.__get__(  # type: ignore[method-assign]
-                backend,
-                music_state_mod.MprisBackend,
-            )
+        backend._get_player_proxy = native_music.MprisBackend._get_player_proxy.__get__(  # type: ignore[method-assign]
+            backend,
+            native_music.MprisBackend,
         )
-        backend._get_props_proxy = (
-            music_state_mod.MprisBackend._get_props_proxy.__get__(  # type: ignore[method-assign]
-                backend,
-                music_state_mod.MprisBackend,
-            )
+        backend._get_props_proxy = native_music.MprisBackend._get_props_proxy.__get__(  # type: ignore[method-assign]
+            backend,
+            native_music.MprisBackend,
         )
         backend._bus = None
         assert backend._get_player_proxy("x") is None
@@ -695,7 +712,11 @@ class TestMprisBackendInternals:
                 return proxy
 
         factory = _ProxyFactory()
-        monkeypatch.setattr(music_state_mod.Gio.DBusProxy, "new_sync", factory)
+        monkeypatch.setattr(
+            native_music.Gio.DBusProxy,
+            "new_sync",
+            factory,
+        )
         p1 = backend._get_player_proxy("bus.one")
         p2 = backend._get_player_proxy("bus.one")
         props1 = backend._get_props_proxy("bus.one")
@@ -704,7 +725,7 @@ class TestMprisBackendInternals:
         assert props1 is props2
 
         monkeypatch.setattr(
-            music_state_mod.Gio.DBusProxy,
+            native_music.Gio.DBusProxy,
             "new_sync",
             lambda *args, **kwargs: (_ for _ in ()).throw(Exception("bad")),
         )
@@ -790,7 +811,7 @@ def _make_applet(
     registry=None,
     launcher=None,
 ):
-    backend = MagicMock()
+    backend = MagicMock(spec=MusicBackend)
     backend.poll.return_value = state
     backend.play_pause.return_value = True
     backend.next_track.return_value = True
@@ -800,18 +821,25 @@ def _make_applet(
     resolver = MagicMock()
     resolver.resolve.return_value = None
 
-    monkeypatch.setattr(music_applet_mod, "HybridBackend", lambda: backend)
+    monkeypatch.setattr(
+        native_music,
+        "HybridBackend",
+        lambda: backend,
+    )
     monkeypatch.setattr(music_applet_mod, "CoverArtResolver", lambda: resolver)
     if registry is None:
         registry = MagicMock()
         registry.get.return_value = None
-        registry.preferred_listing_for_content_types.return_value = None
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=None)
+        )
     return (
         MusicApplet(
             48,
             config=Config(),
             application_registry=registry,
             application_launcher=launcher or MagicMock(),
+            platform_services=make_applet_platform(),
         ),
         backend,
         resolver,
@@ -922,7 +950,9 @@ class TestMusicApplet:
     def test_on_clicked_launches_media_app_when_no_player_is_open(self, monkeypatch):
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -951,17 +981,17 @@ class TestMusicApplet:
         get_recommended = MagicMock(return_value=[])
         get_all = MagicMock(return_value=[handler])
         monkeypatch.setattr(
-            registry_mod.Gio.AppInfo,
+            association_mod.Gio.AppInfo,
             "get_default_for_type",
             lambda _content_type, _must_support_uris: None,
         )
         monkeypatch.setattr(
-            registry_mod.Gio.AppInfo,
+            association_mod.Gio.AppInfo,
             "get_recommended_for_type",
             get_recommended,
         )
         monkeypatch.setattr(
-            registry_mod.Gio.AppInfo,
+            association_mod.Gio.AppInfo,
             "get_all_for_type",
             get_all,
         )
@@ -997,7 +1027,9 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1023,7 +1055,9 @@ class TestMusicApplet:
         )
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1334,7 +1368,9 @@ class TestMusicApplet:
     ):
         visible = _application_listing("visible.desktop")
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = visible
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=visible)
+        )
         applet, _backend, _resolver = _make_applet(
             monkeypatch,
             unavailable_state(),
@@ -1354,7 +1390,9 @@ class TestMusicApplet:
     ):
         application = _application_listing()
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = application
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=application)
+        )
         launcher = MagicMock()
         launcher.launch.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1383,7 +1421,9 @@ class TestMusicApplet:
             generic_name="Media Player",
         )
         registry = MagicMock()
-        registry.preferred_listing_for_content_types.return_value = listing
+        registry.preferred_listing_for_content_types.return_value = (
+            AssociationResolution(AssociationStatus.READY, listing=listing)
+        )
         launcher = MagicMock()
         launcher.launch_listing.return_value = True
         applet, backend, _resolver = _make_applet(
@@ -1513,7 +1553,11 @@ class TestPlayerctlBackendInternals:
         def fail_run(*_a, **_k):
             raise subprocess.TimeoutExpired(cmd="playerctl", timeout=1.0)
 
-        monkeypatch.setattr(music_state_mod.subprocess, "run", fail_run)
+        monkeypatch.setattr(
+            native_music.subprocess,
+            "run",
+            fail_run,
+        )
         assert backend._run(cmd=["playerctl", "-l"], timeout=1.0) is None
 
 
@@ -1547,7 +1591,11 @@ class TestRhythmboxClientBackendInternals:
         def fail_run(*_a, **_k):
             raise OSError("gdbus missing")
 
-        monkeypatch.setattr(music_state_mod.subprocess, "run", fail_run)
+        monkeypatch.setattr(
+            native_music.subprocess,
+            "run",
+            fail_run,
+        )
         assert backend._activate_gtk_action(action_name="play") is False
 
     def test_get_state_and_set_volume_and_is_running(self, monkeypatch):
@@ -1601,7 +1649,7 @@ class TestRhythmboxClientBackendInternals:
                 self.stdout = stdout
 
         monkeypatch.setattr(
-            music_state_mod.subprocess,
+            native_music.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(returncode=0, stdout="ok"),
         )
@@ -1609,7 +1657,7 @@ class TestRhythmboxClientBackendInternals:
         assert backend._run(["rhythmbox-client"], timeout=1.0) == "ok"
 
         monkeypatch.setattr(
-            music_state_mod.subprocess,
+            native_music.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(returncode=1, stdout="bad"),
         )
@@ -1619,7 +1667,11 @@ class TestRhythmboxClientBackendInternals:
         def raise_os(*_a, **_k):
             raise OSError("missing")
 
-        monkeypatch.setattr(music_state_mod.subprocess, "run", raise_os)
+        monkeypatch.setattr(
+            native_music.subprocess,
+            "run",
+            raise_os,
+        )
         assert backend._is_running() is False
         assert backend._run(["rhythmbox-client"], timeout=1.0) is None
 
@@ -1741,17 +1793,21 @@ class TestHybridBackendActions:
 
 class TestMusicAdditionalBranches:
     def test_mpris_constructor_error_and_basic_wrappers(self, monkeypatch):
-        monkeypatch.setattr(music_state_mod.GLib, "Error", Exception)
         monkeypatch.setattr(
-            music_state_mod.Gio,
+            native_music.GLib,
+            "Error",
+            Exception,
+        )
+        monkeypatch.setattr(
+            native_music.Gio,
             "bus_get_sync",
             lambda *args, **kwargs: (_ for _ in ()).throw(Exception("dbus")),
         )
-        backend = music_state_mod.MprisBackend()
+        backend = native_music.MprisBackend()
         assert backend._bus is None
         assert backend._dbus_proxy is None
 
-        backend = object.__new__(music_state_mod.MprisBackend)
+        backend = object.__new__(native_music.MprisBackend)
         backend._last_active_bus_name = ""
         backend._bus = object()
         backend._dbus_proxy = None
@@ -1767,7 +1823,7 @@ class TestMusicAdditionalBranches:
         assert calls == ["PlayPause", "Next", "Previous"]
 
     def test_mpris_select_fallback_and_empty_property_unpack(self):
-        backend = object.__new__(music_state_mod.MprisBackend)
+        backend = object.__new__(native_music.MprisBackend)
         backend._last_active_bus_name = "b"
         s1 = _state(player_bus_name="a", playback_status="Paused")
         s2 = _state(player_bus_name="b", playback_status="Stopped")
@@ -1797,7 +1853,9 @@ class TestMusicAdditionalBranches:
 
     def test_playerctl_constructor_and_public_methods(self, monkeypatch):
         monkeypatch.setattr(
-            music_state_mod.shutil, "which", lambda cmd: "/usr/bin/playerctl"
+            native_music.shutil,
+            "which",
+            lambda cmd: "/usr/bin/playerctl",
         )
         backend = PlayerctlBackend()
         assert backend._binary == "/usr/bin/playerctl"
@@ -1861,9 +1919,9 @@ class TestMusicAdditionalBranches:
         backend._binary = "playerctl"
         backend._run = lambda **kwargs: None  # type: ignore[method-assign]
         assert backend._list_players() == []
-        backend._run = music_state_mod.PlayerctlBackend._run.__get__(  # type: ignore[method-assign]
+        backend._run = native_music.PlayerctlBackend._run.__get__(  # type: ignore[method-assign]
             backend,
-            music_state_mod.PlayerctlBackend,
+            native_music.PlayerctlBackend,
         )
 
         class _Proc:
@@ -1872,7 +1930,7 @@ class TestMusicAdditionalBranches:
                 self.stdout = stdout
 
         monkeypatch.setattr(
-            music_state_mod.subprocess,
+            native_music.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(code=1, stdout=""),
         )
@@ -1913,7 +1971,7 @@ class TestMusicAdditionalBranches:
                 self.returncode = code
 
         monkeypatch.setattr(
-            music_state_mod.subprocess,
+            native_music.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(code=1),
         )

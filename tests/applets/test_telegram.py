@@ -8,24 +8,28 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import docking.applets.webapp.implementations.unix.backend as browser_backend
+import tests.platform_factories as test_platform
 from docking.applets import get_applet_catalog, load_applet_class
 from docking.applets.telegram.applet import TelegramApplet
 from docking.applets.telegram.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
-from docking.applets.telegram.browser import PROFILE, TelegramBrowser
 from docking.applets.telegram.render import render_icon
 from docking.applets.telegram.state import (
+    PROFILE,
     TELEGRAM_WEB_URL,
     TelegramState,
     navigation_target,
     parse_unread_count,
     tooltip_text,
 )
+from docking.applets.webapp.backend import BrowserBackend
 from docking.applets.webapp.bridge import parse_bridge_message
-from docking.applets.webapp.browser import _session_directories
-from docking.applets.webapp.notifications import DesktopNotifier
+from docking.applets.webapp.implementations.unix.backend import _session_directories
+from docking.applets.webapp.implementations.unix.notifications import DesktopNotifier
 from docking.applets.webapp.state import BrowserPhase, NavigationTarget
-from docking.applets.whatsapp.browser import PROFILE as WHATSAPP_PROFILE
+from docking.applets.whatsapp.state import PROFILE as WHATSAPP_PROFILE
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform, make_telegram_browser
 
 
 def browser(**overrides):
@@ -37,12 +41,14 @@ def browser(**overrides):
         "on_attention_cleared": lambda: None,
     }
     callbacks.update(overrides)
-    return TelegramBrowser(**callbacks)
+    return make_telegram_browser(**callbacks)
 
 
 @pytest.fixture
 def applet(monkeypatch):
-    fake = SimpleNamespace(
+    fake = MagicMock(
+        spec=BrowserBackend,
+        phase=BrowserPhase.STOPPED,
         visible=False,
         start=MagicMock(),
         stop=MagicMock(),
@@ -61,8 +67,12 @@ def applet(monkeypatch):
             setattr(fake, name, callback)
         return fake
 
-    monkeypatch.setattr(TelegramApplet, "browser_factory", staticmethod(factory))
-    instance = TelegramApplet(48, Config())
+    monkeypatch.setattr(
+        test_platform.TestAppletBackendFactories,
+        "browser",
+        staticmethod(lambda: factory),
+    )
+    instance = TelegramApplet(48, Config(), platform_services=make_applet_platform())
     yield instance, fake
     instance.stop()
 
@@ -110,10 +120,11 @@ def test_notification_fallback_is_named_and_cleared_separately_from_exact_count(
 def test_browser_profiles_separate_origin_bridge_and_persistent_data(
     tmp_path, monkeypatch
 ):
-    import docking.applets.webapp.browser as shared
 
-    monkeypatch.setattr(shared, "docking_data_dir", lambda: tmp_path / "data")
-    monkeypatch.setattr(shared, "docking_cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(browser_backend, "docking_data_dir", lambda: tmp_path / "data")
+    monkeypatch.setattr(
+        browser_backend, "docking_cache_dir", lambda: tmp_path / "cache"
+    )
     tg_data, tg_cache = _session_directories(PROFILE.session_name)
     wa_data, wa_cache = _session_directories(WHATSAPP_PROFILE.session_name)
     assert tg_data != wa_data and tg_cache != wa_cache

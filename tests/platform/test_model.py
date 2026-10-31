@@ -7,6 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.platform.applications.implementations.unix import entries as native_entries
+from tests.platform_factories import make_application_registry, make_dock_model
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -17,10 +20,15 @@ except ModuleNotFoundError:  # pragma: no cover
 
 import docking.platform.model as model_mod
 from docking.applets.services import AppletServices
-from docking.core.config import PinnedEntry
+from docking.core.config import Config, PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.applications.entries import GeneratedDesktopEntry
+from docking.platform.applications.implementations.unix.entries import (
+    GeneratedDesktopEntry,
+)
+from docking.platform.applications.implementations.unix.registration import (
+    UnixExecutableRegistrationBackend,
+)
 from docking.platform.applications.recents import (
     RecentApplications,
     RecentApplicationsPersistence,
@@ -46,6 +54,7 @@ class _ModelDependencies:
 def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     """Create distinct model collaborators that resolve given desktop IDs."""
     registry = MagicMock(spec=ApplicationRegistry)
+    registry.registrations = UnixExecutableRegistrationBackend()
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -106,7 +115,7 @@ def _make_model(
             application_registry,
             RecentApplicationsPersistence(config),
         )
-    return DockModel(
+    return make_dock_model(
         config=config,
         applet_services=applet_services or AppletServices(),
         application_registry=application_registry,
@@ -323,7 +332,7 @@ class TestPinUnpin:
     ):
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = native_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
@@ -356,7 +365,7 @@ class TestPinUnpin:
             desktop_file=generated.path,
             executable_path=executable,
             aliases=tuple(
-                model_mod.desktop_entries.match_aliases(
+                native_entries.match_aliases(
                     desktop_id=runtime_id,
                     wm_class="tool",
                     exec_line=str(executable),
@@ -367,7 +376,7 @@ class TestPinUnpin:
         )
         create = MagicMock(return_value=generated)
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            native_entries,
             "create_desktop_entry_for_executable",
             create,
         )
@@ -384,7 +393,7 @@ class TestPinUnpin:
         assert isinstance(item.application_info, ApplicationInfo)
         assert item.application_info.origin is ApplicationOrigin.GENERATED
         assert item.application_info.aliases == tuple(
-            model_mod.desktop_entries.match_aliases(
+            native_entries.match_aliases(
                 desktop_id=runtime_id,
                 wm_class="tool",
                 exec_line=str(executable),
@@ -404,23 +413,23 @@ class TestPinUnpin:
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
         executable.chmod(0o755)
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = native_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
         )
         applications_dir = tmp_path / "applications"
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            native_entries,
             "user_applications_dir",
             lambda: applications_dir,
         )
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            native_entries,
             "_refresh_desktop_database",
             lambda _directory: None,
         )
-        registry = ApplicationRegistry(
+        registry = make_application_registry(
             application_source=lambda: (),
             desktop_directories_source=lambda: (applications_dir,),
         )
@@ -456,7 +465,7 @@ class TestPinUnpin:
         assert promoted.icon_name == promoted_application.declared_icon
         assert promoted_application.description != runtime.description
 
-        fresh_registry = ApplicationRegistry(
+        fresh_registry = make_application_registry(
             application_source=lambda: (),
             desktop_directories_source=lambda: (applications_dir,),
         )
@@ -928,6 +937,33 @@ class TestCallbacks:
 
 
 class TestAppletLifecycleIntegration:
+    @pytest.mark.parametrize("applet_id", ["applications", "runcommand", "music"])
+    def test_constructs_application_applets_with_application_and_platform_services(
+        self, monkeypatch, applet_id
+    ):
+        from docking.applets import load_applet_class
+        from docking.applets.music.state import unavailable_state
+
+        config = Config()
+        monkeypatch.setattr(config, "save", MagicMock())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
+        backend = MagicMock()
+        backend.poll.return_value = unavailable_state()
+        monkeypatch.setattr(model._applet_platform.backends, "music", lambda: backend)
+        cls = load_applet_class(applet_id)
+        assert cls is not None
+
+        applet = model._instantiate_applet(cls=cls, icon_size=48)
+        try:
+            assert applet._platform is model._applet_platform
+            assert applet._application_registry is dependencies.application_registry
+            assert applet._application_launcher is dependencies.application_launcher
+            if applet_id == "music":
+                backend.poll.assert_called_once_with()
+        finally:
+            applet.stop()
+
     def test_loads_pinned_applet_via_lazy_loader(self, monkeypatch):
         config = MagicMock()
         config.pinned = [PinnedEntry(kind="applet", target="applet://session")]

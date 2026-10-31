@@ -6,7 +6,9 @@ import logging
 import stat
 from pathlib import Path
 
-from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.implementations.unix import (
+    entries as desktop_entries,
+)
 
 
 def _make_executable(path) -> None:

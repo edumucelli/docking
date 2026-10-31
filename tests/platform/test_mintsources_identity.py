@@ -6,11 +6,10 @@ import pytest
 
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
-    ProcessIdentityService,
 )
-from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import MatchMethod
 from docking.platform.backends.x11.impl.window_tracker import WindowMatcher
+from tests.platform_factories import make_application_registry, make_process_identity
 
 
 @pytest.mark.parametrize(
@@ -40,13 +39,13 @@ def test_software_sources_launcher(tmp_path, command, matched):
     (proc / "cmdline").write_bytes(
         b"/usr/bin/python3\0/usr/lib/linuxmint/mintSources/mintSources.py\0"
     )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (), desktop_directories_source=lambda: (apps,)
     )
-    registry._desktop_app_info_for_id = lambda _id: None
-    registry._desktop_app_info_from_filename = lambda _path: None
+    registry._catalog._desktop_app_info_for_id = lambda _id: None
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
     registry.refresh()
-    processes = ProcessIdentityService(
+    processes = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=proc.parent,
         executable_resolver=lambda _pid: None,

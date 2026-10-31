@@ -48,11 +48,15 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     fake_glib, fake_gtk = _install_fake_gi(monkeypatch)
 
     platform_pkg = types.ModuleType("docking.platform")
-    platform_pkg.__path__ = []
+    platform_pkg.__path__ = [
+        str(Path(__file__).resolve().parents[2] / "docking/platform")
+    ]
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
     applications_pkg = types.ModuleType("docking.platform.applications")
-    applications_pkg.__path__ = []
+    applications_pkg.__path__ = [
+        str(Path(__file__).resolve().parents[2] / "docking/platform/applications")
+    ]
     monkeypatch.setitem(
         sys.modules,
         "docking.platform.applications",
@@ -80,7 +84,42 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.registry = registry
             self.persistence = persistence
 
+    class _TrayService:
+        def __init__(self, *, backend_factory):
+            self.backend_factory = backend_factory
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+    def install_quit_handlers(quit):
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            fake_glib.unix_signal_add(fake_glib.PRIORITY_HIGH, sig, quit)
+        return lambda: None
+
+    provider = SimpleNamespace(
+        catalog=MagicMock(return_value=object()),
+        associations=MagicMock(return_value=object()),
+        registrations=MagicMock(return_value=object()),
+        launches=MagicMock(return_value=object()),
+        processes=MagicMock(return_value=object()),
+        applet_backends=MagicMock(return_value=object()),
+        tray_backend=MagicMock(),
+        search=MagicMock(return_value=object()),
+        session=MagicMock(),
+        desktop=lambda: SimpleNamespace(install_quit_handlers=install_quit_handlers),
+    )
+
     stub_modules = {
+        "docking.platform.composition.selection": {
+            "platform_provider": lambda: provider
+        },
+        "docking.platform.tray.service": {"TrayService": _TrayService},
+        "docking.platform.tray.notifications": {
+            "StatusNotifierNotificationBridge": type("Bridge", (), {})
+        },
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
         },
@@ -99,14 +138,14 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "ProcessIdentityService": type(
                 "ProcessIdentityService",
                 (),
-                {"__init__": lambda self, _store: None},
+                {"__init__": lambda self, _store, *, backend: None},
             ),
         },
         "docking.platform.applications.launcher": {
             "ApplicationLauncher": type(
                 "ApplicationLauncher",
                 (),
-                {"__init__": lambda self, _registry, _store: None},
+                {"__init__": lambda self, _registry, _store, *, backend: None},
             ),
         },
         "docking.platform.applications.recents": {
@@ -120,7 +159,7 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "TargetService": type(
                 "TargetService",
                 (),
-                {"__init__": lambda self, **_kwargs: None},
+                {"__init__": lambda self, *, icon_loader, application_registry: None},
             ),
         },
         "docking.platform.model": {
@@ -131,18 +170,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         },
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
-        },
-        "docking.platform.status_notifier": {
-            "StatusNotifierNotificationBridge": type(
-                "StatusNotifierNotificationBridge",
-                (),
-                {},
-            ),
-            "StatusNotifierService": type(
-                "StatusNotifierService",
-                (),
-                {"start": lambda self: None, "stop": lambda self: None},
-            ),
         },
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
@@ -358,8 +385,8 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
     monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
     monkeypatch.setattr(
-        app_mod,
-        "create_session_backend",
+        app_mod.platform_provider(),
+        "session",
         MagicMock(return_value=backend),
     )
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
@@ -387,7 +414,9 @@ def test_app_main_smoke(monkeypatch):
 
     ui.start.assert_called_once()
     ui.stop.assert_called_once()
-    registry_cls.assert_called_once_with(steam_source=ANY)
+    registry_cls.assert_called_once_with(
+        catalog_backend=ANY, association_backend=ANY, registration_backend=ANY
+    )
     registry.refresh.assert_called_once_with()
     registry.start.assert_called_once_with()
     registry.stop.assert_called_once_with()

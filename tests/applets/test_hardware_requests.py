@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.applets.brightness.applet as brightness_mod
+import docking.applets.brightness.implementations.unix.backend as brightness_native
 from docking.applets.powerprofiles.state import PowerProfilesState, profile_label
 from docking.applets.volume.state import VolumeState
 from tests.applets.deferred_worker import DeferredWorker
@@ -19,9 +19,9 @@ def test_rapid_brightness_scroll_applies_the_last_requested_value(monkeypatch):
     applet._worker = queue.worker
     written = []
     monkeypatch.setattr(
-        brightness_mod,
+        brightness_native,
         "set_brightness",
-        lambda *, backend, value: written.append(value),
+        lambda *, backend, value, backlight: written.append(value),
     )
 
     for _ in range(5):
@@ -39,9 +39,9 @@ def test_brightness_reset_is_ordered_after_pending_scroll(monkeypatch):
     applet._worker = queue.worker
     written = []
     monkeypatch.setattr(
-        brightness_mod,
+        brightness_native,
         "set_brightness",
-        lambda *, backend, value: written.append(value),
+        lambda *, backend, value, backlight: written.append(value),
     )
     applet.on_scroll(direction_up=True)
     applet.on_clicked()
@@ -112,8 +112,16 @@ def test_old_brightness_poll_cannot_restore_a_value_before_the_last_write(monkey
     applet = brightness_applet(brightness=0.5)
     queue = DeferredWorker()
     applet._worker = queue.worker
-    monkeypatch.setattr(brightness_mod, "get_brightness", lambda **_kwargs: 0.5)
-    monkeypatch.setattr(brightness_mod, "set_brightness", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        brightness_native,
+        "get_brightness",
+        lambda **_kwargs: 0.5,
+    )
+    monkeypatch.setattr(
+        brightness_native,
+        "set_brightness",
+        lambda **_kwargs: None,
+    )
     applet._tick()
     queue.read()
     applet.on_scroll(direction_up=True)
@@ -129,12 +137,16 @@ def test_brightness_write_failure_does_not_drop_pending_target(monkeypatch):
     applet._worker = queue.worker
     values = []
 
-    def write(*, backend, value):
+    def write(*, backend, value, backlight):
         values.append(value)
         if len(values) == 1:
             raise OSError("temporary backend failure")
 
-    monkeypatch.setattr(brightness_mod, "set_brightness", write)
+    monkeypatch.setattr(
+        brightness_native,
+        "set_brightness",
+        write,
+    )
     applet.on_scroll(direction_up=True)
     applet.on_scroll(direction_up=True)
     queue.drain()
@@ -169,15 +181,17 @@ def test_slow_volume_polls_do_not_overlap_or_arrive_out_of_order():
 def test_denied_sysfs_write_restores_the_actual_brightness(monkeypatch, tmp_path):
     from pathlib import Path
 
-    from docking.applets.brightness import state as brightness_state
-
     (tmp_path / "brightness").write_text("500")
     (tmp_path / "max_brightness").write_text("1000")
     applet = brightness_applet(brightness=0.5)
-    applet._backend = brightness_state.Backend("eDP-1", sysfs=tmp_path)
+    applet._native._output = brightness_native.Backend("eDP-1", sysfs=tmp_path)
     queue = DeferredWorker()
     applet._worker = queue.worker
-    monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+    monkeypatch.setattr(
+        brightness_native,
+        "is_wayland_session",
+        lambda: True,
+    )
     write_text = Path.write_text
 
     def denied(path, *args, **kwargs):

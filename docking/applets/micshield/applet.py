@@ -20,11 +20,13 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.micshield import meta
 from docking.applets.micshield.render import render_icon
@@ -32,10 +34,7 @@ from docking.applets.micshield.state import (
     DEFAULT_POLL_INTERVAL_S,
     MicShieldState,
     build_tooltip,
-    probe_mic_state,
-    set_mic_muted,
     stream_label,
-    toggle_mic_mute,
 )
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -50,22 +49,32 @@ _PULSE_INTERVAL_MS = 60
 _PULSE_PERIOD_MS = 1800
 
 
-class MicShieldApplet(Applet):
+class MicShieldApplet(PlatformServicesApplet):
     """Microphone mute toggle and active-capture privacy indicator."""
 
     id = meta.id
     name = _("Mic Shield")
     icon_name = "audio-input-microphone"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: MicShieldState = probe_mic_state()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.micshield()
+        self._state: MicShieldState = self._native.probe_mic_state()
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
         self._poll_generation = 0
         self._applied_poll_generation = 0
         self._worker = BackgroundWorker(logger=log)
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -155,7 +164,7 @@ class MicShieldApplet(Applet):
 
         self._worker.run(
             name="micshield-poll",
-            fn=probe_mic_state,
+            fn=self._native.probe_mic_state,
             on_result=apply_result,
         )
 
@@ -174,7 +183,7 @@ class MicShieldApplet(Applet):
             return
         self._worker.run(
             name="micshield-toggle",
-            fn=toggle_mic_mute,
+            fn=self._native.toggle_mic_mute,
             on_result=lambda _ok: self._refresh_after_action(),
         )
 
@@ -183,7 +192,7 @@ class MicShieldApplet(Applet):
             return
         self._worker.run(
             name="micshield-set-mute",
-            fn=lambda: set_mic_muted(muted=muted),
+            fn=lambda: self._native.set_mic_muted(muted=muted),
             on_result=lambda _ok: self._refresh_after_action(),
         )
 

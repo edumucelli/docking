@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import docking.platform.applications.launcher as launcher_mod
+import docking.platform.applications.implementations.unix.launch as launcher_mod
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.types import (
     ActionSource,
@@ -16,6 +16,7 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
+from tests.platform_factories import make_application_launcher
 
 
 class _Registry:
@@ -69,7 +70,7 @@ def _launcher(
     registry = _Registry([application])
     store = MagicMock()
     return (
-        ApplicationLauncher(
+        make_application_launcher(
             registry,  # type: ignore[arg-type]
             store,
             popen=popen,

@@ -156,6 +156,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import gi
 
+from docking.platform.files import file_for_uri
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -184,7 +186,6 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
-from docking.platform.backends.base import DisplayServer
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -893,7 +894,7 @@ class MenuHandler:
         if not self._window_close_zone_hit(widget=widget, event=event):
             return False
         self._tracker.close(window_id)
-        if window_id.backend is DisplayServer.WAYLAND:
+        if self._tracker.defer_menu_row_removal(window_id):
             GLib.idle_add(self._remove_window_row_deferred, widget, event)
         else:
             self._remove_window_row(widget=widget, event=event)
@@ -1009,7 +1010,7 @@ class MenuHandler:
         if uri is None:
             return
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
             monitor.connect("changed", self._on_folder_menu_changed, menu_id)
             self._folder_menu_monitors[menu_id] = monitor

@@ -14,6 +14,11 @@ from unittest.mock import ANY, MagicMock
 
 import pytest
 
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
+
 
 def _runtime_config() -> SimpleNamespace:
     return SimpleNamespace(
@@ -50,11 +55,15 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
     # Stub platform/UI modules imported by docking.app so we don't depend on the
     # full GI-backed runtime during unit tests.
     platform_pkg = types.ModuleType("docking.platform")
-    platform_pkg.__path__ = []
+    platform_pkg.__path__ = [
+        str(Path(__file__).resolve().parents[1] / "docking/platform")
+    ]
     monkeypatch.setitem(sys.modules, "docking.platform", platform_pkg)
 
     applications_pkg = types.ModuleType("docking.platform.applications")
-    applications_pkg.__path__ = []
+    applications_pkg.__path__ = [
+        str(Path(__file__).resolve().parents[1] / "docking/platform/applications")
+    ]
     monkeypatch.setitem(
         sys.modules,
         "docking.platform.applications",
@@ -77,11 +86,13 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         pass
 
     class _ProcessIdentityService:
-        def __init__(self, provenance_store):
+        def __init__(self, provenance_store, *, backend):
+            self.backend = backend
             self.provenance_store = provenance_store
 
     class _ApplicationLauncher:
-        def __init__(self, registry, provenance_store):
+        def __init__(self, registry, provenance_store, *, backend):
+            self.backend = backend
             self.registry = registry
             self.provenance_store = provenance_store
 
@@ -89,7 +100,8 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         pass
 
     class _TargetService:
-        def __init__(self, *, icon_loader):
+        def __init__(self, *, icon_loader, application_registry):
+            self.application_registry = application_registry
             self.icon_loader = icon_loader
 
     class _RecentApplicationsPersistence:
@@ -101,7 +113,42 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.registry = registry
             self.persistence = persistence
 
+    class _TrayService:
+        def __init__(self, *, backend_factory):
+            self.backend_factory = backend_factory
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+    def install_quit_handlers(quit):
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            fake_glib.unix_signal_add(fake_glib.PRIORITY_HIGH, sig, quit)
+        return lambda: None
+
+    provider = SimpleNamespace(
+        catalog=MagicMock(return_value=object()),
+        associations=MagicMock(return_value=object()),
+        registrations=MagicMock(return_value=object()),
+        processes=MagicMock(return_value=object()),
+        launches=MagicMock(return_value=object()),
+        applet_backends=MagicMock(return_value=object()),
+        tray_backend=MagicMock(),
+        search=MagicMock(return_value=object()),
+        session=MagicMock(return_value=None),
+        desktop=lambda: SimpleNamespace(install_quit_handlers=install_quit_handlers),
+    )
+
     stub_modules = {
+        "docking.platform.composition.selection": {
+            "platform_provider": lambda: provider
+        },
+        "docking.platform.tray.service": {"TrayService": _TrayService},
+        "docking.platform.tray.notifications": {
+            "StatusNotifierNotificationBridge": type("Bridge", (), {})
+        },
         "docking.platform.gamescope": {
             "prepare_gamescope_wayland_environment": lambda: False,
         },
@@ -140,18 +187,6 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         },
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
-        },
-        "docking.platform.status_notifier": {
-            "StatusNotifierNotificationBridge": type(
-                "StatusNotifierNotificationBridge",
-                (),
-                {},
-            ),
-            "StatusNotifierService": type(
-                "StatusNotifierService",
-                (),
-                {"start": lambda self: None, "stop": lambda self: None},
-            ),
         },
         "docking.ui.factory": {
             "build_dock_window": lambda **_kwargs: None,
@@ -220,9 +255,12 @@ class TestAppMain:
             object() if desktop_id in available else None
         )
         registry.default_for_content_type.side_effect = lambda content_type: (
-            SimpleNamespace(desktop_id=defaults[content_type])
-            if content_type in defaults
-            else None
+            AssociationResolution(
+                AssociationStatus.READY,
+                listing=SimpleNamespace(desktop_id=defaults[content_type])
+                if content_type in defaults
+                else None,
+            )
         )
 
         pinned = app_mod._initial_pinned_for_registry(registry)
@@ -310,7 +348,10 @@ class TestAppMain:
             call_order.append("first_run_resolve") or None
         )
         registry.default_for_content_type.side_effect = lambda _content_type: (
-            call_order.append("first_run_default") or None
+            AssociationResolution(
+                AssociationStatus.READY,
+                listing=call_order.append("first_run_default") or None,
+            )
         )
 
         window.show_all.side_effect = lambda: call_order.append("show_all")
@@ -386,8 +427,8 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "DockModel", model_cls)
         monkeypatch.setattr(app_mod, "DockRenderer", MagicMock(return_value=renderer))
         monkeypatch.setattr(
-            app_mod,
-            "create_session_backend",
+            app_mod.platform_provider(),
+            "session",
             MagicMock(return_value=backend),
         )
         monkeypatch.setattr(
@@ -416,7 +457,9 @@ class TestAppMain:
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
-        registry_cls.assert_called_once_with(steam_source=ANY)
+        registry_cls.assert_called_once_with(
+            catalog_backend=ANY, association_backend=ANY, registration_backend=ANY
+        )
         config_cls.load.assert_called_once()
         assert callable(config_cls.load.call_args.kwargs["initial_pinned_factory"])
         application_launcher = model_cls.call_args.kwargs["application_launcher"]
@@ -424,7 +467,7 @@ class TestAppMain:
         target_service = model_cls.call_args.kwargs["target_service"]
         assert application_launcher.registry is registry
         assert application_launcher.provenance_store is not None
-        process_identity_service = app_mod.create_session_backend.call_args.kwargs[
+        process_identity_service = app_mod.platform_provider().session.call_args.kwargs[
             "process_identity_service"
         ]
         assert (
@@ -440,7 +483,7 @@ class TestAppMain:
         recent_applications = model_cls.call_args.kwargs["recent_applications"]
         assert recent_applications.registry is registry
         assert recent_applications.persistence.config is config
-        backend_call = app_mod.create_session_backend.call_args.kwargs
+        backend_call = app_mod.platform_provider().session.call_args.kwargs
         assert backend_call["application_registry"] is registry
         assert backend_call["process_identity_service"] is process_identity_service
         assert "launcher" not in backend_call
@@ -464,6 +507,7 @@ class TestAppMain:
             service=services.status_notifier,
         )
         factory.assert_called_once_with(
+            search_integration=app_mod.platform_provider().search(),
             config=config,
             model=model,
             renderer=renderer,
@@ -522,8 +566,8 @@ class TestAppMain:
                 "ui_stop",
                 "status_notifications_stop",
                 "unity_stop",
-                "backend_stop",
                 "applets_stop",
+                "backend_stop",
                 "registry_stop",
             ]
             assert "first_run_resolve" in call_order
@@ -546,7 +590,7 @@ class TestAppMain:
             "unity_stop"
         )
         assert call_order.index("unity_stop") < call_order.index("backend_stop")
-        assert call_order.index("backend_stop") < call_order.index("applets_stop")
+        assert call_order.index("applets_stop") < call_order.index("backend_stop")
         assert call_order.index("applets_stop") < call_order.index("registry_stop")
 
         assert fake_glib.unix_signal_add.call_count == 2
@@ -684,8 +728,8 @@ class TestAppMain:
         monkeypatch.setattr(app_mod, "Theme", theme_cls)
         monkeypatch.setattr(app_mod, "DockModel", MagicMock(return_value=model))
         monkeypatch.setattr(
-            app_mod,
-            "create_session_backend",
+            app_mod.platform_provider(),
+            "session",
             MagicMock(side_effect=RuntimeError("backend construction failed")),
         )
 
@@ -780,15 +824,15 @@ class TestAppMain:
             sys.modules["docking.ui.renderer"], "DockRenderer", renderer_cls
         )
         monkeypatch.setattr(
-            sys.modules["docking.platform.backends.selection"],
-            "create_session_backend",
+            _app_mod.platform_provider(),
+            "session",
             backend_cls,
         )
         monkeypatch.setattr(
             sys.modules["docking.platform.unity"], "UnityLauncherListener", unity_cls
         )
         monkeypatch.setattr(
-            sys.modules["docking.platform.status_notifier"],
+            sys.modules["docking.platform.tray.notifications"],
             "StatusNotifierNotificationBridge",
             status_notifications_cls,
         )
@@ -799,7 +843,7 @@ class TestAppMain:
             sys.modules["docking.ipc"], "DockItemsService", items_service_cls
         )
 
-        sys.modules.pop("__main__", None)
+        monkeypatch.delitem(sys.modules, "__main__", raising=False)
         sys.modules.pop("docking.app", None)
 
         # When
@@ -808,7 +852,9 @@ class TestAppMain:
         # Then
         theme_cls.load.assert_called_once_with(name="default", icon_size=48)
         theme.with_opacity.assert_called_once_with(1.0)
-        registry_cls.assert_called_once_with(steam_source=ANY)
+        registry_cls.assert_called_once_with(
+            catalog_backend=ANY, association_backend=ANY, registration_backend=ANY
+        )
         application_launcher = factory.call_args.kwargs["application_launcher"]
         icon_loader = factory.call_args.kwargs["icon_loader"]
         target_service = factory.call_args.kwargs["target_service"]

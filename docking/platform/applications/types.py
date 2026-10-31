@@ -249,3 +249,6 @@ __all__ = [
     "MatchMethod",
     "TransientApplicationInfo",
 ]
+
+
+ApplicationListing = ApplicationInfo | TransientApplicationInfo

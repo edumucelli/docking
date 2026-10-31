@@ -8,6 +8,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import docking.applets.keyboardlayout.implementations.unix.backend as native_keyboardlayout
+from tests.platform_factories import make_applet_platform
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -17,29 +20,31 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
 import docking.applets.keyboardlayout.state as kbl_state
-from docking.applets.keyboardlayout.state import (
+from docking.applets.keyboardlayout.implementations.unix.backend import (
     Fcitx5Backend,
     GnomeBackend,
     IBusBackend,
     MateBackend,
     XkbBackend,
-    _fcitx5_layout_code,
     _first_available_command,
-    _ibus_layout_code,
     _open_command,
+    _run,
+    current_layout_command,
+    detect_backend,
+    keyboard_settings_command,
+    open_keyboard_settings,
+    show_current_layout,
+)
+from docking.applets.keyboardlayout.state import (
+    _fcitx5_layout_code,
+    _ibus_layout_code,
     _parse_gsettings_string,
     _parse_gsettings_string_list,
     _parse_input_sources,
-    _run,
     _source_layout_code,
-    current_layout_command,
     cycle_layout,
-    detect_backend,
-    keyboard_settings_command,
     layout_display_name,
     layout_label,
-    open_keyboard_settings,
-    show_current_layout,
     tooltip_text,
 )
 from docking.core.config import Config
@@ -120,7 +125,11 @@ class TestIBusBackend:
                 return IBUS_ENGINES_DCONF
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         backend = IBusBackend()
         state = backend.query()
         assert state.active == "us"
@@ -128,14 +137,18 @@ class TestIBusBackend:
 
     def test_is_available_true(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: "xkb:us::eng" if cmd == ["ibus", "engine"] else None,
         )
         assert IBusBackend().is_available()
 
     def test_is_available_false(self, monkeypatch):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
         assert not IBusBackend().is_available()
 
     def test_switch_calls_ibus_engine(self, monkeypatch):
@@ -147,7 +160,11 @@ class TestIBusBackend:
                 return IBUS_ENGINES_DCONF
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         IBusBackend().switch(layout_code="br")
         assert ["ibus", "engine", "xkb:br::por"] in commands
 
@@ -159,12 +176,20 @@ class TestIBusBackend:
                 return IBUS_ENGINES_DCONF
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         state = IBusBackend().query()
         assert state.active == "br"
 
     def test_query_unavailable_and_fallback_to_active_engine(self, monkeypatch):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
         assert IBusBackend().query().available == []
 
         def mock_run(cmd):
@@ -174,7 +199,11 @@ class TestIBusBackend:
                 return ""
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         assert IBusBackend().query().available == ["us"]
 
     def test_switch_falls_back_to_synthetic_engine(self, monkeypatch):
@@ -186,7 +215,11 @@ class TestIBusBackend:
                 return ""
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
         IBusBackend().switch(layout_code="de")
 
@@ -209,8 +242,16 @@ class TestFcitx5Backend:
                 return "keyboard-us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
-        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.Path,
+            "home",
+            lambda: tmp_path,
+        )
 
         backend = Fcitx5Backend()
         state = backend.query()
@@ -219,25 +260,33 @@ class TestFcitx5Backend:
 
     def test_is_available_true(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: "keyboard-us" if cmd == ["fcitx5-remote", "-n"] else None,
         )
         assert Fcitx5Backend().is_available()
 
     def test_is_available_false(self, monkeypatch):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
         assert not Fcitx5Backend().is_available()
 
     def test_switch_calls_fcitx5_remote(self, monkeypatch, tmp_path):
         profile = tmp_path / ".config" / "fcitx5" / "profile"
         profile.parent.mkdir(parents=True)
         profile.write_text(FCITX5_PROFILE)
-        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            native_keyboardlayout.Path,
+            "home",
+            lambda: tmp_path,
+        )
 
         commands = []
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: commands.append(cmd) or None,
         )
@@ -245,26 +294,42 @@ class TestFcitx5Backend:
         assert ["fcitx5-remote", "-s", "keyboard-br"] in commands
 
     def test_empty_profile(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            native_keyboardlayout.Path,
+            "home",
+            lambda: tmp_path,
+        )
 
         def mock_run(cmd):
             if cmd == ["fcitx5-remote", "-n"]:
                 return "keyboard-us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         state = Fcitx5Backend().query()
         assert state.active == "us"
         assert state.available == ["us"]
 
     def test_query_unavailable_and_switch_fallback(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
-        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.Path,
+            "home",
+            lambda: tmp_path,
+        )
         assert Fcitx5Backend().query().available == []
 
         commands = []
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: commands.append(cmd) or None,
         )
@@ -275,7 +340,11 @@ class TestFcitx5Backend:
         profile = tmp_path / ".config" / "fcitx5" / "profile"
         profile.parent.mkdir(parents=True)
         profile.write_text(FCITX5_PROFILE + "\n[Other]\nName=keyboard-de\n")
-        monkeypatch.setattr(kbl_state.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(
+            native_keyboardlayout.Path,
+            "home",
+            lambda: tmp_path,
+        )
 
         assert Fcitx5Backend()._get_ims() == ["keyboard-us", "keyboard-br"]
 
@@ -314,7 +383,11 @@ class TestMateBackend:
                 return "layout:     br"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
         state = MateBackend().query()
         assert state.active == "br"
@@ -349,7 +422,11 @@ class TestMateBackend:
                 return "['grp:alt_shift_toggle']"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
         MateBackend().switch(layout_code="us")
 
@@ -365,7 +442,11 @@ class TestMateBackend:
 
     def test_is_available_requires_mate_session(self, monkeypatch):
         _set_desktop(monkeypatch, Desktop.UNKNOWN)
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: "['gb', 'br', 'us']")
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: "['gb', 'br', 'us']",
+        )
 
         assert not MateBackend().is_available()
 
@@ -382,7 +463,11 @@ class TestMateBackend:
                 return "['gb', 'br']"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
         assert MateBackend().is_available()
         assert MateBackend().query() == kbl_state.LayoutState("gb", ["gb", "br"])
@@ -401,7 +486,11 @@ class TestMateBackend:
                 return "['gb', 'br']"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
         MateBackend().switch(layout_code="de")
 
@@ -421,7 +510,11 @@ class TestGnomeBackend:
 
     def test_query_returns_gnome_sources(self, monkeypatch):
         _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
-        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus",
+        )
 
         def mock_run(cmd):
             if cmd == [
@@ -447,14 +540,22 @@ class TestGnomeBackend:
                 return GNOME_MRU_SOURCES
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         state = GnomeBackend().query()
         assert state.active == "br"
         assert state.available == ["us", "br"]
 
     def test_switch_calls_gdbus_eval(self, monkeypatch):
         _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
-        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: "/usr/bin/gdbus")
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
+            "which",
+            lambda cmd: "/usr/bin/gdbus",
+        )
         commands = []
 
         def mock_run(cmd):
@@ -468,7 +569,11 @@ class TestGnomeBackend:
                 return GNOME_SOURCES
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         GnomeBackend().switch(layout_code="br")
         assert [
             "gsettings",
@@ -492,9 +597,13 @@ class TestGnomeBackend:
 
     def test_is_available_requires_gnome_and_gdbus(self, monkeypatch):
         _set_desktop(monkeypatch, Desktop.UBUNTU | Desktop.GNOME)
-        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout.shutil,
+            "which",
+            lambda cmd: None,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout,
             "_run",
             lambda cmd: GNOME_SOURCES if cmd[0] == "gsettings" else None,
         )
@@ -502,7 +611,11 @@ class TestGnomeBackend:
 
     def test_is_available_false_outside_gnome(self, monkeypatch):
         _set_desktop(monkeypatch, Desktop.UNKNOWN)
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: GNOME_SOURCES)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: GNOME_SOURCES,
+        )
         assert not GnomeBackend().is_available()
 
     def test_active_source_falls_back_to_mru_and_first_xkb(self, monkeypatch):
@@ -515,7 +628,11 @@ class TestGnomeBackend:
                 return GNOME_MRU_SOURCES
             return GNOME_SOURCES
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run_mru)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run_mru,
+        )
         assert (
             backend._active_source_code(sources=[("xkb", "us"), ("xkb", "br")]) == "br"
         )
@@ -527,7 +644,11 @@ class TestGnomeBackend:
                 return "[('ibus', 'anthy')]"
             return GNOME_SOURCES
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run_first)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run_first,
+        )
         assert (
             backend._active_source_code(sources=[("ibus", "anthy"), ("xkb", "us")])
             == "us"
@@ -549,8 +670,16 @@ class TestGnomeBackend:
             "_sources",
             lambda self: [("ibus", "anthy"), ("xkb", "br")],
         )
-        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: commands.append(cmd) or None)
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
+            "which",
+            lambda cmd: None,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: commands.append(cmd) or None,
+        )
 
         GnomeBackend().switch(layout_code="br")
         GnomeBackend().switch(layout_code="de")
@@ -572,7 +701,7 @@ class TestGnomeBackend:
 class TestXkbBackend:
     def test_query_returns_layouts(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: SETXKBMAP_MULTI if cmd == ["setxkbmap", "-query"] else None,
         )
@@ -583,7 +712,7 @@ class TestXkbBackend:
     def test_switch_calls_setxkbmap(self, monkeypatch):
         commands = []
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: commands.append(cmd) or None,
         )
@@ -591,10 +720,18 @@ class TestXkbBackend:
         assert ["setxkbmap", "-layout", "es"] in commands
 
     def test_query_empty_and_missing_layout(self, monkeypatch):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
         assert XkbBackend().query() == kbl_state.LayoutState("", [])
 
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: "rules: evdev")
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: "rules: evdev",
+        )
         assert XkbBackend().query() == kbl_state.LayoutState("", [])
 
     def test_run_falls_back_to_host_command_in_flatpak(self, monkeypatch):
@@ -622,13 +759,21 @@ class TestXkbBackend:
                 return subprocess.CompletedProcess(cmd, 0, stdout=SETXKBMAP_MULTI)
             raise AssertionError(cmd)
 
-        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            kbl_state.flatpak,
+            native_keyboardlayout.environment,
+            "is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
-        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            native_keyboardlayout.subprocess,
+            "run",
+            fake_run,
+        )
 
         assert _run(["setxkbmap", "-query"]) == SETXKBMAP_MULTI.strip()
         assert calls == [
@@ -677,13 +822,21 @@ class TestXkbBackend:
                 return subprocess.CompletedProcess(cmd, 0, stdout="'value'\n")
             raise AssertionError(cmd)
 
-        monkeypatch.setattr(kbl_state.environment, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            kbl_state.flatpak,
+            native_keyboardlayout.environment,
+            "is_flatpak",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
-        monkeypatch.setattr(kbl_state.subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            native_keyboardlayout.subprocess,
+            "run",
+            fake_run,
+        )
 
         assert _run(["gsettings", "get", "schema", "key"]) == "'value'"
         assert calls == [
@@ -716,7 +869,7 @@ class TestXkbBackend:
 class TestDetectBackend:
     def test_prefers_ibus(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "_run",
             lambda cmd: "xkb:us::eng" if cmd == ["ibus", "engine"] else None,
         )
@@ -745,9 +898,13 @@ class TestDetectBackend:
                 return "xkb:us::eng"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
         monkeypatch.setattr(
-            kbl_state.shutil,
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
             "which",
             lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
         )
@@ -762,7 +919,11 @@ class TestDetectBackend:
                 return "keyboard-us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         backend = detect_backend()
         assert isinstance(backend, Fcitx5Backend)
 
@@ -780,7 +941,11 @@ class TestDetectBackend:
                 return "layout:     us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         backend = detect_backend()
         assert isinstance(backend, XkbBackend)
 
@@ -803,7 +968,11 @@ class TestDetectBackend:
                 return "layout:     br"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         backend = detect_backend()
         assert isinstance(backend, MateBackend)
 
@@ -824,7 +993,11 @@ class TestDetectBackend:
                 return "layout:     gb,br,us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         backend = detect_backend()
         assert isinstance(backend, MateBackend)
 
@@ -861,9 +1034,13 @@ class TestDetectBackend:
                 return "layout:     us"
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
         monkeypatch.setattr(
-            kbl_state.shutil,
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
             "which",
             lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
         )
@@ -913,7 +1090,7 @@ class TestCommandHelpers:
             "ibus-setup": "/usr/bin/ibus-setup",
         }
         monkeypatch.setattr(
-            kbl_state.shutil,
+            native_keyboardlayout.shutil,
             "which",
             lambda cmd: commands.get(cmd),
         )
@@ -921,7 +1098,7 @@ class TestCommandHelpers:
 
     def test_current_layout_command(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state.shutil,
+            native_keyboardlayout.shutil,
             "which",
             lambda cmd: (
                 "/usr/bin/gkbd-keyboard-display"
@@ -933,7 +1110,7 @@ class TestCommandHelpers:
         assert current_layout_command("") is None
 
         monkeypatch.setattr(
-            kbl_state.shutil,
+            native_keyboardlayout.shutil,
             "which",
             lambda cmd: "/usr/bin/tecla" if cmd == "tecla" else None,
         )
@@ -942,17 +1119,17 @@ class TestCommandHelpers:
     def test_open_commands(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "keyboard_settings_command",
             lambda: ["mate-keyboard-properties"],
         )
         monkeypatch.setattr(
-            kbl_state,
+            native_keyboardlayout,
             "current_layout_command",
             lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
         )
         monkeypatch.setattr(
-            kbl_state.subprocess,
+            native_keyboardlayout.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
@@ -964,12 +1141,16 @@ class TestCommandHelpers:
         ]
 
     def test_first_available_and_open_command_failures(self, monkeypatch):
-        monkeypatch.setattr(kbl_state.shutil, "which", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout.shutil,
+            "which",
+            lambda cmd: None,
+        )
         assert _first_available_command((("missing",),)) is None
         assert _open_command(cmd=None, action="missing") is False
 
         monkeypatch.setattr(
-            kbl_state.subprocess,
+            native_keyboardlayout.subprocess,
             "Popen",
             MagicMock(side_effect=OSError("boom")),
         )
@@ -977,7 +1158,7 @@ class TestCommandHelpers:
 
     def test_run_helper_success_failure_and_timeout(self, monkeypatch):
         monkeypatch.setattr(
-            kbl_state.subprocess,
+            native_keyboardlayout.subprocess,
             "run",
             lambda *_args, **_kwargs: subprocess.CompletedProcess(
                 args=["cmd"],
@@ -985,10 +1166,10 @@ class TestCommandHelpers:
                 stdout=" ok \n",
             ),
         )
-        assert kbl_state._run(["cmd"]) == "ok"
+        assert native_keyboardlayout._run(["cmd"]) == "ok"
 
         monkeypatch.setattr(
-            kbl_state.subprocess,
+            native_keyboardlayout.subprocess,
             "run",
             lambda *_args, **_kwargs: subprocess.CompletedProcess(
                 args=["cmd"],
@@ -996,16 +1177,16 @@ class TestCommandHelpers:
                 stdout="bad",
             ),
         )
-        assert kbl_state._run(["cmd"]) is None
+        assert native_keyboardlayout._run(["cmd"]) is None
 
         monkeypatch.setattr(
-            kbl_state.subprocess,
+            native_keyboardlayout.subprocess,
             "run",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(
                 subprocess.TimeoutExpired("cmd", 1)
             ),
         )
-        assert kbl_state._run(["cmd"]) is None
+        assert native_keyboardlayout._run(["cmd"]) is None
 
 
 # ---------------------------------------------------------------------------
@@ -1043,13 +1224,19 @@ class TestKeyboardLayoutApplet:
                 return IBUS_ENGINES_DCONF
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
 
     def test_creates_with_layout(self, monkeypatch):
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         assert applet._active == "us"
         assert applet._available == ["us", "br"]
 
@@ -1057,7 +1244,9 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.refresh_tooltip()
         assert applet.item.name == "English (US)"
 
@@ -1072,10 +1261,16 @@ class TestKeyboardLayoutApplet:
                 return IBUS_ENGINES_DCONF
             return None
 
-        monkeypatch.setattr(kbl_state, "_run", mock_run)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            mock_run,
+        )
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.on_clicked()
         assert applet._active == "br"
         assert ["ibus", "engine", "xkb:br::por"] in commands
@@ -1084,7 +1279,9 @@ class TestKeyboardLayoutApplet:
         self._mock_ibus(monkeypatch)
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.on_scroll(direction_up=True)
         assert applet._active == "br"
         applet.on_scroll(direction_up=False)
@@ -1095,14 +1292,16 @@ class TestKeyboardLayoutApplet:
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
         monkeypatch.setattr(
-            "docking.applets.keyboardlayout.applet.keyboard_settings_command",
+            "docking.applets.keyboardlayout.implementations.unix.backend.keyboard_settings_command",
             lambda: ["mate-keyboard-properties"],
         )
         monkeypatch.setattr(
-            "docking.applets.keyboardlayout.applet.current_layout_command",
+            "docking.applets.keyboardlayout.implementations.unix.backend.current_layout_command",
             lambda layout_code: ["gkbd-keyboard-display", "-l", layout_code],
         )
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert labels[0] == "Show Current Layout"
         assert labels[-1] == "Keyboard Settings"
@@ -1116,9 +1315,15 @@ class TestKeyboardLayoutApplet:
         assert [item.get_label() for item in active_items] == ["EN - us"]
 
     def test_no_layout_detected(self, monkeypatch):
-        monkeypatch.setattr(kbl_state, "_run", lambda cmd: None)
+        monkeypatch.setattr(
+            native_keyboardlayout,
+            "_run",
+            lambda cmd: None,
+        )
         from docking.applets.keyboardlayout.applet import KeyboardLayoutApplet
 
-        applet = KeyboardLayoutApplet(icon_size=48, config=Config())
+        applet = KeyboardLayoutApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.refresh_tooltip()
         assert "No keyboard" in applet.item.name

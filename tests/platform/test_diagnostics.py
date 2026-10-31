@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import pytest
 
 from docking.core.config import Config
-from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationDiscoveryDiagnostic
 from docking.platform.backends.base import DisplayServer, PlatformCapabilities
 from docking.platform.backends.diagnostics import (
@@ -15,6 +14,7 @@ from docking.platform.backends.diagnostics import (
     WindowTrackingDiagnostic,
 )
 from docking.platform.diagnostics import collect_diagnostics, format_diagnostics_report
+from tests.platform_factories import make_application_registry
 
 
 class _Backend:
@@ -71,7 +71,7 @@ def test_window_report_uses_cached_evidence_and_escapes_dynamic_values(monkeypat
     windows = SimpleNamespace(diagnostic_snapshot=MagicMock(return_value=tracking))
     backend = _Backend()
     backend.windows = windows
-    registry = ApplicationRegistry()
+    registry = make_application_registry()
     registry_snapshot = ApplicationDiscoveryDiagnostic(
         generation=8,
         registered_count=2,
@@ -102,7 +102,7 @@ def test_diagnostic_failures_do_not_break_report(monkeypatch):
 
     backend = _Backend()
     backend.windows = SimpleNamespace(diagnostic_snapshot=fail)
-    registry = ApplicationRegistry()
+    registry = make_application_registry()
     monkeypatch.setattr(registry, "diagnostic_snapshot", fail)
     snapshot = collect_diagnostics(backend=backend, application_registry=registry)
     report = format_diagnostics_report(snapshot)
@@ -132,12 +132,12 @@ def test_report_uses_scan_inventory_after_registry_changes(tmp_path, monkeypatch
     (second / "app.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Overridden\nExec=lower PRIVATE\n"
     )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (),
         desktop_directories_source=lambda: (first, second),
     )
-    registry._desktop_app_info_for_id = lambda _id: None
-    registry._desktop_app_info_from_filename = lambda _path: None
+    registry._catalog._desktop_app_info_for_id = lambda _id: None
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
     registry.refresh()
     retained = registry.diagnostic_snapshot()
     tracking = WindowTrackingDiagnostic(
@@ -199,7 +199,7 @@ def test_cinnamon_shell_reports_pending_tracking_without_querying_shell():
         client=client, model=MagicMock(), **identity_services()
     )
     snapshot = collect_diagnostics(
-        backend=backend, application_registry=ApplicationRegistry()
+        backend=backend, application_registry=make_application_registry()
     )
     assert snapshot.window_tracking.status == "pending"
     assert backend.capabilities.tracks_windows
@@ -235,7 +235,9 @@ def test_collect_diagnostics_reports_backend_and_features(monkeypatch):
     monkeypatch.setenv("DOCKING_BACKEND", "test-backend")
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(), backend=_Backend(), display=None
+        application_registry=make_application_registry(),
+        backend=_Backend(),
+        display=None,
     )
 
     assert snapshot.backend_name == "test-backend"
@@ -252,7 +254,7 @@ def test_reduced_backend_gets_reduced_health(monkeypatch):
     monkeypatch.delenv("DOCKING_BACKEND", raising=False)
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(),
+        application_registry=make_application_registry(),
         backend=_ReducedBackend(),
         display=None,
     )
@@ -266,7 +268,9 @@ def test_report_contains_issue_relevant_runtime_fields(monkeypatch):
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-1")
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(), backend=_Backend(), display=None
+        application_registry=make_application_registry(),
+        backend=_Backend(),
+        display=None,
     )
     report = format_diagnostics_report(snapshot)
 
@@ -305,7 +309,7 @@ def test_report_includes_settings_and_system_details_without_private_config(
     )
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(),
+        application_registry=make_application_registry(),
         backend=_Backend(),
         config=config,
         edge_gap=12,
@@ -333,13 +337,15 @@ def test_report_includes_settings_and_system_details_without_private_config(
 
 def test_settings_are_optional_and_missing_effective_gap_is_unknown():
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(), backend=_Backend()
+        application_registry=make_application_registry(), backend=_Backend()
     )
     assert snapshot.settings == {}
     assert "## Dock Settings\n\n- unavailable" in format_diagnostics_report(snapshot)
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(), backend=_Backend(), config=Config()
+        application_registry=make_application_registry(),
+        backend=_Backend(),
+        config=Config(),
     )
     assert snapshot.settings["effective_edge_gap"] == "unknown"
 
@@ -370,7 +376,9 @@ def test_monitors_keep_geometry_when_optional_details_are_unavailable(optional_d
     )
 
     snapshot = collect_diagnostics(
-        application_registry=ApplicationRegistry(), backend=_Backend(), display=display
+        application_registry=make_application_registry(),
+        backend=_Backend(),
+        display=display,
     )
     (row,) = snapshot.monitors
     assert row.geometry == "-1920,0 1920x1080"
@@ -391,7 +399,7 @@ def test_monitors_keep_geometry_when_optional_details_are_unavailable(optional_d
 def test_supported_capabilities_do_not_claim_verified_runtime_behavior():
     snapshot = replace(
         collect_diagnostics(
-            application_registry=ApplicationRegistry(), backend=_Backend()
+            application_registry=make_application_registry(), backend=_Backend()
         ),
         checks=(),
     )

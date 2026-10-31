@@ -20,26 +20,21 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import menu_sections
 from docking.applets.volume import meta
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from .backend import create_backend
 from .render import create_volume_icon
-from .state import (
-    STEP,
-    VolumeState,
-    _volume_icon_name,
-    open_volume_settings,
-    volume_settings_command,
-)
+from .state import STEP, VolumeState, _volume_icon_name
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -47,15 +42,23 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 
-class VolumeApplet(Applet):
+class VolumeApplet(PlatformServicesApplet):
     """Volume control via scroll and click."""
 
     id = meta.id
     name = _("Volume")
     icon_name = "audio-volume-medium"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = create_backend()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.volume_settings()
+        self._backend = self._platform.backends.volume()
         if not self._backend:
             log.bind(action="detect_backend").warning(
                 "No audio backend found",
@@ -69,7 +72,7 @@ class VolumeApplet(Applet):
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_level = bool(prefs.get("show_level", False))
         self._poll()
-        super().__init__(icon_size, config)
+        super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
     def _update_tooltip(self) -> None:
@@ -129,10 +132,12 @@ class VolumeApplet(Applet):
         show.connect("toggled", self._on_toggle_level)
 
         settings: list[Gtk.MenuItem] = []
-        cmd = volume_settings_command()
+        cmd = self._native.volume_settings_command()
         if cmd is not None:
             volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
-            volume_settings.connect("activate", lambda _widget: open_volume_settings())
+            volume_settings.connect(
+                "activate", lambda _widget: self._native.open_volume_settings()
+            )
             settings.append(volume_settings)
         return menu_sections(display=[show], settings=settings, gtk=Gtk)
 

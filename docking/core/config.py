@@ -160,6 +160,7 @@ from docking.core.paths import ensure_parent_dir, local_path_from_uri_or_path
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.environment import docking_config_dir
+from docking.platform.host.selection import host_services
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_ENABLED,
     DEFAULT_GLOBAL_SEARCH_SHORTCUT,
@@ -1367,11 +1368,4 @@ def _is_valid_config_file(*, path: Path) -> bool:
 
 
 def _fsync_directory(path: Path) -> None:
-    flags = os.O_RDONLY
-    if hasattr(os, "O_DIRECTORY"):
-        flags |= os.O_DIRECTORY
-    fd = os.open(path, flags)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    host_services().flush_directory(path)

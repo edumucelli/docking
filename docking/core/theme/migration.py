@@ -27,6 +27,7 @@ from typing import Any
 
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
+from docking.platform.host.selection import host_services
 
 _THEME_MIGRATION_BACKUP_SUFFIX = ".pre-nested-schema.bak"
 _THEME_SAVE_LOCK = threading.RLock()
@@ -324,10 +325,4 @@ def _new_theme_tmp_path(*, path: Path) -> Path:
 
 
 def _fsync_directory(directory: Path) -> None:
-    if os.name == "nt":
-        return
-    fd = os.open(directory, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    host_services().flush_directory(directory)

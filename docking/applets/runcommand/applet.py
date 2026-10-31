@@ -49,6 +49,7 @@ from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
+    from docking.applets.platform import AppletPlatformServices
     from docking.core.config import Config
 
 RUN_DIALOG_WIDTH_PX = 575
@@ -83,6 +84,7 @@ class RunCommandApplet(ApplicationServicesApplet):
         *,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
+        platform_services: AppletPlatformServices,
     ) -> None:
         prefs = config.applet_prefs.get(meta.id, {})
         self._history = normalize_history(prefs.get("history"))
@@ -103,6 +105,7 @@ class RunCommandApplet(ApplicationServicesApplet):
             config=config,
             application_registry=application_registry,
             application_launcher=application_launcher,
+            platform_services=platform_services,
         )
         self.present()
 

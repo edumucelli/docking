@@ -15,21 +15,18 @@
 
 from __future__ import annotations
 
-import shutil
-import subprocess
-import sys
-import threading
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
+
+from docking.applets.platform import AppletPlatformServices
 
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.camshield import meta
 from docking.applets.camshield.render import render_icon
 from docking.applets.camshield.state import (
@@ -37,7 +34,6 @@ from docking.applets.camshield.state import (
     CamshieldState,
     build_tooltip,
     holder_label,
-    probe_camera_state,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.worker import BackgroundWorker
@@ -51,19 +47,24 @@ log = with_context(get_logger(name="camshield"), applet_id=meta.id)
 
 _PULSE_INTERVAL_MS = 60  # Match Desk Presence: smooth enough without taxing CPU.
 _PULSE_PERIOD_MS = 1800
-_HELPER_BIN = "docking-camshield-helper"
-_PKEXEC_BIN = "pkexec"
-_SOURCE_HELPER = Path(__file__).with_name("helper.py")
 
 
-class CamshieldApplet(Applet):
+class CamshieldApplet(PlatformServicesApplet):
     """Show when any process is holding a camera device."""
 
     id = meta.id
     name = _("Cam Shield")
     icon_name = "camera-web"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._native = platform_services.backends.camshield()
+        self._platform = platform_services
         self._state = CamshieldState(available=False, active=False)
         self._worker = BackgroundWorker(logger=log)
         self._generation = 0
@@ -71,7 +72,9 @@ class CamshieldApplet(Applet):
         self._timer_id: int = 0
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
         self._refresh_now()
 
@@ -156,7 +159,7 @@ class CamshieldApplet(Applet):
         self._worker.run_guarded(
             key="camera-probe",
             name="camera-probe",
-            fn=probe_camera_state,
+            fn=self._native.probe,
             on_result=lambda state: self._on_state_result(state, generation),
         )
 
@@ -195,51 +198,20 @@ class CamshieldApplet(Applet):
         return True
 
     def _helper_available(self) -> bool:
-        return _helper_command(action="status") is not None
+        return self._native.helper_available()
 
     def _run_helper_action(self, action: str) -> None:
-        command = _helper_command(action=action)
-        if command is None:
+        if not self._native.helper_available():
             log.warning("Camera lock helper unavailable")
             return
-
-        thread = threading.Thread(
-            target=self._run_helper_command,
-            args=(command,),
-            daemon=True,
+        backend = self._native
+        generation = self._generation
+        self._worker.run(
+            name="camera-helper",
+            fn=lambda: backend.perform(action),
+            on_result=lambda accepted: (
+                self._refresh_once()
+                if accepted and not self._stopped and generation == self._generation
+                else False
+            ),
         )
-        thread.start()
-
-    def _run_helper_command(self, command: list[str]) -> None:
-        try:
-            completed = subprocess.run(
-                command,
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-        except OSError:
-            log.exception("Failed to run camera lock helper")
-            return
-
-        if completed.returncode != 0:
-            log.warning(
-                "Camera lock helper exited with status %s",
-                completed.returncode,
-            )
-        GLib.idle_add(self._refresh_once)
-
-
-def _helper_command(*, action: str) -> list[str] | None:
-    pkexec = shutil.which(_PKEXEC_BIN)
-    if pkexec is None:
-        return None
-
-    helper = shutil.which(_HELPER_BIN)
-    if helper is not None:
-        return [pkexec, helper, action]
-
-    if _SOURCE_HELPER.exists():
-        return [pkexec, sys.executable, str(_SOURCE_HELPER), action]
-    return None

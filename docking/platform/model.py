@@ -152,6 +152,7 @@ import docking.applets as applets
 from docking.applets.base import (
     Applet,
     ApplicationServicesApplet,
+    PlatformServicesApplet,
     TargetServicesApplet,
 )
 from docking.applets.identity import (
@@ -160,6 +161,7 @@ from docking.applets.identity import (
     applet_id_from,
     is_applet_desktop_id,
 )
+from docking.applets.platform import AppletPlatformServices
 from docking.applets.separator import meta as _separator_meta
 from docking.applets.services import AppletServices
 from docking.core.config import PinnedEntry, normalize_pinned_entries
@@ -173,7 +175,6 @@ from docking.core.items import (
 from docking.core.math import clamp
 from docking.log import get_logger, with_context
 from docking.platform import icon_overrides
-from docking.platform.applications import entries as desktop_entries
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.recents import (
     RecentApplications,
@@ -265,6 +266,7 @@ class DockModel:
         *,
         config: Config,
         applet_services: AppletServices,
+        applet_platform: AppletPlatformServices,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
         icon_loader: IconLoader,
@@ -276,6 +278,7 @@ class DockModel:
         self._application_launcher = application_launcher
         self._icon_loader = icon_loader
         self._target_service = target_service
+        self._applet_platform = applet_platform
         self._applet_services = applet_services
         self.pinned_items: list[DockItem] = []
         self._transient: list[DockItem] = []
@@ -901,6 +904,13 @@ class DockModel:
                 config=self._config,
                 application_registry=self._application_registry,
                 application_launcher=self._application_launcher,
+                platform_services=self._applet_platform,
+            )
+        elif isinstance(cls, type) and issubclass(cls, PlatformServicesApplet):
+            applet = cls(
+                icon_size=icon_size,
+                config=self._config,
+                platform_services=self._applet_platform,
             )
         elif isinstance(cls, type) and issubclass(cls, TargetServicesApplet):
             applet = cls(
@@ -1408,7 +1418,7 @@ class DockModel:
         # Runtime IDs deliberately use generated_desktop_id_for_path(), so this
         # promotion creates the matching desktop file without changing the
         # item's identity (and therefore without losing its running windows).
-        generated = desktop_entries.create_desktop_entry_for_executable(
+        generated = self._application_registry.registrations.register(
             item.runtime_executable,
             startup_wm_class=item.wm_class,
         )

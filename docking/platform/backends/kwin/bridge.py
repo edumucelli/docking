@@ -24,7 +24,7 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.backends.native_windows import NativeWindowService
+from docking.platform.backends.window_projection import SnapshotWindowService
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -354,7 +354,7 @@ def snapshots_from_json(payload: str) -> tuple[WindowSnapshot, ...]:
     return tuple(windows)
 
 
-class KWinWindowService(NativeWindowService):
+class KWinWindowService(SnapshotWindowService):
     def __init__(
         self,
         *,

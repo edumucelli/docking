@@ -21,6 +21,8 @@ from typing import Any, TypeVar
 
 import gi
 
+from docking.platform.files import file_for_uri
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import GdkPixbuf, Gio
@@ -146,7 +148,7 @@ class FolderBrowser:
         if uri is None:
             return "missing"
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             return "ok" if folder.query_exists(None) else "missing"
         except Exception as exc:
             log.debug("Failed to query folder target %s: %s", target, exc)
@@ -157,7 +159,7 @@ class FolderBrowser:
         if uri is None:
             return 0
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             info = folder.query_info(
                 "time::modified",
                 Gio.FileQueryInfoFlags.NONE,
@@ -227,7 +229,7 @@ class FolderBrowser:
         self, *, uri: str, show_hidden: bool
     ) -> list[_FolderEntry] | None:
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             enumerator = folder.enumerate_children(
                 ",".join(
                     (
@@ -291,7 +293,7 @@ class FolderBrowser:
         if uri is None:
             return False
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             enumerator = folder.enumerate_children(
                 "standard::is-hidden",
                 Gio.FileQueryInfoFlags.NONE,

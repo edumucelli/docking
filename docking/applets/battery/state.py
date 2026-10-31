@@ -16,8 +16,6 @@
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
@@ -83,27 +81,6 @@ def format_power(watts: float, *, compact: bool = False) -> str:
     """Format watts as e.g. ``7.6 W`` (or ``7.6W`` for the compact overlay)."""
     digits = f"{watts:.1f}" if watts < 10 else f"{watts:.0f}"
     return f"{digits}W" if compact else f"{digits} W"
-
-
-def power_settings_command() -> list[str] | None:
-    """Return the first available desktop power-settings command."""
-    for cmd in _POWER_SETTINGS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
-
-
-def open_power_settings() -> bool:
-    """Launch the desktop power-settings tool when one is available."""
-    cmd = power_settings_command()
-    if cmd is None:
-        return False
-    try:
-        subprocess.Popen(cmd, start_new_session=True)
-    except OSError as exc:
-        log.bind(action="open_power_settings").warning("Failed to run %s: %s", cmd, exc)
-        return False
-    return True
 
 
 def tooltip_text(state: BatteryState | None) -> str:
@@ -193,15 +170,3 @@ def _positive_delta(full: int | None, now: int | None) -> int | None:
     if delta <= 0:
         return None
     return delta
-
-
-def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_battery(bat_name, base)
-
-
-def read_power_watts(bat_name: str = "BAT0", base: Path = BAT_BASE) -> float | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_power_watts(bat_name, base)

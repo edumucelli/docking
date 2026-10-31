@@ -31,34 +31,27 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.bluetooth import meta
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from .backend import create_backend
 from .render import create_bluetooth_icon
 from .state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
     adapter_from_state,
-    adapters_command,
     build_tooltip,
     connected_count,
     device_menu_label,
-    devices_command,
-    local_services_command,
-    open_adapters,
-    open_devices,
-    open_local_services,
-    open_send_files,
-    send_files_command,
     unavailable_state,
 )
 
@@ -75,15 +68,23 @@ DISCOVERY_SUPPRESS_AFTER_POWER_OFF_S = 4.0
 RECENT_CONNECTION_LIMIT = 6
 
 
-class BluetoothApplet(Applet):
+class BluetoothApplet(PlatformServicesApplet):
     """Bluetooth quick manager with multi-adapter support."""
 
     id = meta.id
     name = _("Bluetooth")
     icon_name = "bluetooth-active-symbolic"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = create_backend()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.bluetooth_desktop()
+        self._backend = self._platform.backends.bluetooth()
         self._state: BluetoothState = unavailable_state()
         self._poll_id: int = 0
         self._discovery_id: int = 0
@@ -121,7 +122,9 @@ class BluetoothApplet(Applet):
                     self._recent_connections[str(address)] = timestamp
 
         self._known_connected_addresses: set[str] = set()
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         if self._prefs_dirty:
             self._save_prefs()
         self.present()
@@ -149,7 +152,7 @@ class BluetoothApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         if self._stopped:
-            self._backend = create_backend()
+            self._backend = self._platform.backends.bluetooth()
             self._local_discovery_paths = set()
             self._power_transition_in_progress = False
             self._power_transition_adapter_path = ""
@@ -277,30 +280,32 @@ class BluetoothApplet(Applet):
             )
             primary.append(disconnect_item)
 
-        send_cmd = send_files_command()
+        send_cmd = self._native.send_files_command()
         if send_cmd is not None:
             send_item = Gtk.MenuItem(label=_("Send Files to Device..."))
-            send_item.connect("activate", lambda _w: open_send_files())
+            send_item.connect("activate", lambda _w: self._native.open_send_files())
             primary.append(send_item)
 
         manage.append(self._build_recent_connections_submenu(adapter_path=adapter.path))
 
-        devices_cmd = devices_command()
+        devices_cmd = self._native.devices_command()
         if devices_cmd is not None:
             devices_item = Gtk.MenuItem(label=_("Devices..."))
-            devices_item.connect("activate", lambda _w: open_devices())
+            devices_item.connect("activate", lambda _w: self._native.open_devices())
             settings.append(devices_item)
 
-        adapters_cmd = adapters_command()
+        adapters_cmd = self._native.adapters_command()
         if adapters_cmd is not None:
             adapters_item = Gtk.MenuItem(label=_("Adapters..."))
-            adapters_item.connect("activate", lambda _w: open_adapters())
+            adapters_item.connect("activate", lambda _w: self._native.open_adapters())
             settings.append(adapters_item)
 
-        services_cmd = local_services_command()
+        services_cmd = self._native.local_services_command()
         if services_cmd is not None:
             services_item = Gtk.MenuItem(label=_("Local Services..."))
-            services_item.connect("activate", lambda _w: open_local_services())
+            services_item.connect(
+                "activate", lambda _w: self._native.open_local_services()
+            )
             settings.append(services_item)
 
         return primary, manage, settings

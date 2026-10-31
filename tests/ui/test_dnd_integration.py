@@ -10,6 +10,9 @@ from unittest.mock import ANY, MagicMock, call
 
 import pytest
 
+from docking.platform.applications.implementations.unix import entries as native_entries
+from tests.platform_factories import make_application_launcher
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -18,13 +21,15 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.applications.launcher as launcher_mod
+import docking.platform.applications.implementations.unix.launch as launcher_mod
 import docking.ui.dnd as dnd_mod
 from docking.core.config import PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.applications.identity import LaunchProvenanceStore
-from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.implementations.unix.registration import (
+    UnixExecutableRegistrationBackend,
+)
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -130,6 +135,7 @@ def _make_handler(
     theme = SimpleNamespace(item_padding=8, horizontal_padding=10)
     if application_registry is None:
         application_registry = MagicMock()
+        application_registry.registrations = UnixExecutableRegistrationBackend()
         application_registry.get.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
     application_launcher = application_launcher or MagicMock()
@@ -218,7 +224,7 @@ def test_host_uri_drop_flows_through_real_launcher_without_pinning(
     popen = MagicMock()
     if launch_fails:
         popen.side_effect = OSError("host launch failed")
-    launcher = ApplicationLauncher(
+    launcher = make_application_launcher(
         registry,  # type: ignore[arg-type]
         LaunchProvenanceStore(),
         popen=popen,
@@ -824,7 +830,7 @@ class TestDropAndReceive:
     ):
         handler = _make_handler(monkeypatch)
         binary = tmp_path / "tool"
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+        generated = native_entries.GeneratedDesktopEntry(
             desktop_id="docking-generated-tool-123.desktop",
             path=tmp_path / "docking-generated-tool-123.desktop",
             name="tool",
@@ -837,7 +843,7 @@ class TestDropAndReceive:
             wm_class="tool",
         )
         monkeypatch.setattr(
-            dnd_mod.desktop_entries,
+            native_entries,
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
@@ -868,7 +874,7 @@ class TestDropAndReceive:
         appimage.chmod(0o644)
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
         monkeypatch.setattr(
-            dnd_mod.desktop_entries, "_refresh_desktop_database", lambda _d: None
+            native_entries, "_refresh_desktop_database", lambda _d: None
         )
         dialog = _FakeResponseDialog(dnd_mod.Gtk.ResponseType.OK)
         monkeypatch.setattr(
@@ -928,7 +934,7 @@ class TestDropAndReceive:
         handler.drop_insert_index = 0
         handler._model.pinned_items = []
         handler._model.find_by_desktop_id.return_value = None
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+        generated = native_entries.GeneratedDesktopEntry(
             desktop_id="docking-generated-tool-123.desktop",
             path=tmp_path / "docking-generated-tool-123.desktop",
             name="tool",
@@ -941,7 +947,7 @@ class TestDropAndReceive:
             wm_class="tool",
         )
         monkeypatch.setattr(
-            dnd_mod.desktop_entries,
+            native_entries,
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )
@@ -987,7 +993,7 @@ class TestDropAndReceive:
         handler._drop_committed = True
         handler.drop_insert_index = 0
         handler._model.pinned_items = []
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
+        generated = native_entries.GeneratedDesktopEntry(
             desktop_id="docking-generated-tool-123.desktop",
             path=tmp_path / "docking-generated-tool-123.desktop",
             name="tool",
@@ -1000,7 +1006,7 @@ class TestDropAndReceive:
             wm_class="tool",
         )
         monkeypatch.setattr(
-            dnd_mod.desktop_entries,
+            native_entries,
             "create_desktop_entry_for_executable",
             MagicMock(return_value=generated),
         )

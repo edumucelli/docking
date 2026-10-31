@@ -93,6 +93,75 @@ You can also pass explicit pytest targets:
 bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
 ```
 
+## Platform boundaries
+
+Shared application policy lives in `platform/applications/`, applet policy and
+GTK wiring in each `applets/<name>/` directory, and concrete adapters in the
+owning domain's `implementations/<family>/` package. Use `unix` for shared
+Linux/BSD protocols and tools, `linux` or `bsd` for kernel APIs, and `shared`
+for portable native tools. Keep package initializers lightweight.
+
+`platform/host/` supplies paths, storage durability, file locking, hook commands,
+and mounted-filesystem facts without importing GI. Host selection is cached;
+XDG variables are read when directory helpers are called. Desktop file/URI
+operations and GUI lifecycle hooks live separately in `platform/desktop/`.
+Window-management sessions remain under `platform/backends/`; an OS and its
+GTK display/session are separate choices.
+
+`platform/composition/` assembles these interfaces at startup. Only entry points
+use the complete `PlatformProvider`. Registries, launchers, the model, applets,
+and Search receive the narrow dependencies they need. Native discovery sources
+and desktop monitors stay in their adapters. Association lookups return an
+`AssociationResolution`: inspect its status and use `.listing` or `.name`.
+Unix lookups remain synchronous, and ready-empty differs from unavailable.
+
+`platform/applications/backend.py` collects the application platform contracts
+and their catalog, launch, and registration results. Each capability remains
+independently injected. Canonical application values stay in `types.py`, and
+association requests/statuses/resolutions stay in `associations.py`. The common
+contract module imports no GI or native implementations.
+
+Owned platform contracts use `ABC` and `@abstractmethod`. Implementations and
+backend test doubles inherit their contracts explicitly; an incomplete adapter
+must fail at construction. Required metadata uses abstract read-only properties,
+which concrete properties or class constants can implement. Shared Unix host,
+provider, and applet factory classes remain abstract where Linux/BSD supply the
+remaining operations. Preserve structural protocols for callable factories
+(`BrowserFactory`), external native handles, and consumer views. Keep native
+resource acquisition in concrete implementations and retain their existing
+method signatures and lifetimes.
+
+Keep each domain's contracts in its root `backend.py`, separate from state and
+native code. Import canonical modules directly; avoid import-only compatibility
+files or forwarding modules with a single caller. Shared native helpers expose
+public functions when other implementation modules call them. Tests patch I/O
+at the module that owns it. Tray consumers import `platform/tray/`; SNI transport
+lives under `platform/tray/implementations/unix/`.
+
+Create one shared `TrayService` before constructing applets. Consumers borrow
+it and unsubscribe on stop; composition owns shutdown. Stateful backend
+factories produce independent instances. A serial worker queues related native
+I/O and finalizes resources on its own thread, including when stopped before its
+first job. Always guard replies across stop/restart. Stop UI and applet consumers
+before session, tray, and registry providers, including on startup failure.
+
+For a complete regression run without a desktop session:
+
+```bash
+xvfb-run -a dbus-run-session -- .venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
+xvfb-run -a dbus-run-session -- .venv/bin/behave -q
+```
+
+Run the smoke file in its own process. Full-suite import caches can hide
+incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
+this checkout over system-installed Docking releases.
+
+When changing platform interfaces, migrate Behave callers in `features/steps/`
+as well as pytest fixtures. The shared test factories deliberately construct
+Linux adapters for deterministic filesystem/command fixtures; tests reading the
+real host must explicitly use the native backend from composition.
+
 ## D-Bus Remote Control
 
 Docking exposes the `org.docking.Docking.Items1` session-bus interface for item

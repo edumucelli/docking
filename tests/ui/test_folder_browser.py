@@ -7,9 +7,9 @@ import pytest
 
 from docking.core.config import Config
 from docking.core.items import DockItem
-from docking.platform.targets import TargetService
 from docking.ui.folder._browser import FolderBrowser, FolderPrefs
 from docking.ui.folder.stack import FolderStackController
+from tests.platform_factories import make_target_service
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def folder(tmp_path):
 def browser():
     loader = MagicMock()
     loader.resolve_file_icon.side_effect = lambda **kwargs: kwargs["target"]
-    return FolderBrowser(target_service=TargetService(icon_loader=loader)), loader
+    return FolderBrowser(target_service=make_target_service(icon_loader=loader)), loader
 
 
 @pytest.mark.parametrize("sort", ["name", "kind", "size", "created", "modified"])

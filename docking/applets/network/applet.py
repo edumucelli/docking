@@ -22,27 +22,23 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.network import meta
-from docking.applets.network.backend import ConnectionManager, create_backend
+from docking.applets.network.backend import ConnectionManager
 from docking.applets.network.render import create_icon
 from docking.applets.network.state import (
     NetworkState,
     TrafficCounters,
     build_tooltip,
     compute_speeds,
-    connection_info_command,
-    edit_connections_command,
     format_speed,
-    open_connection_info,
-    open_edit_connections,
-    open_hidden_wifi_settings,
-    open_new_wifi_settings,
 )
 from docking.i18n import _
 
@@ -52,14 +48,22 @@ if TYPE_CHECKING:
 POLL_INTERVAL_S = 2
 
 
-class NetworkApplet(Applet):
+class NetworkApplet(PlatformServicesApplet):
     """Show connection status and traffic through the selected backend."""
 
     id = meta.id
     name = _("Network")
     icon_name = "network-wireless-symbolic"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._native = platform_services.backends.network_settings()
         self._timer_id = 0
         self._state = NetworkState()
         self._prev_counters: TrafficCounters | None = None
@@ -67,8 +71,10 @@ class NetworkApplet(Applet):
         self._prev_iface = ""
         prefs = config.applet_prefs.get(meta.id, {})
         self._speed_overlay = prefs.get("speed_overlay", "download")
-        self._backend = create_backend(str(prefs.get("interface", "")))
-        super().__init__(icon_size=icon_size, config=config)
+        self._backend = self._platform.backends.network(str(prefs.get("interface", "")))
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int):
@@ -120,16 +126,20 @@ class NetworkApplet(Applet):
             status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}", gtk=Gtk))
 
         settings: list[Gtk.MenuItem] = []
-        info_cmd = connection_info_command()
+        info_cmd = self._native.connection_info_command()
         if info_cmd is not None:
             info_item = Gtk.MenuItem(label=_("Connection Information"))
-            info_item.connect("activate", lambda _widget: open_connection_info())
+            info_item.connect(
+                "activate", lambda _widget: self._native.open_connection_info()
+            )
             settings.append(info_item)
 
-        edit_cmd = edit_connections_command()
+        edit_cmd = self._native.edit_connections_command()
         if edit_cmd is not None:
             edit_item = Gtk.MenuItem(label=_("Edit Connections..."))
-            edit_item.connect("activate", lambda _widget: open_edit_connections())
+            edit_item.connect(
+                "activate", lambda _widget: self._native.open_edit_connections()
+            )
             settings.append(edit_item)
 
         manage: list[Gtk.MenuItem] = []
@@ -149,11 +159,13 @@ class NetworkApplet(Applet):
                     label=_("Connect to Hidden Wi-Fi Network...")
                 )
                 hidden_item.connect(
-                    "activate", lambda _widget: open_hidden_wifi_settings()
+                    "activate", lambda _widget: self._native.open_hidden_wifi_settings()
                 )
                 manage.append(hidden_item)
                 new_item = Gtk.MenuItem(label=_("Create New Wi-Fi Network..."))
-                new_item.connect("activate", lambda _widget: open_new_wifi_settings())
+                new_item.connect(
+                    "activate", lambda _widget: self._native.open_new_wifi_settings()
+                )
                 manage.append(new_item)
 
             networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))

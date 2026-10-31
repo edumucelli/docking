@@ -2,7 +2,7 @@
 
 import pytest
 
-from docking.applets.session import bsd
+from docking.applets.session.implementations.bsd import backend as bsd
 
 
 @pytest.mark.parametrize(

@@ -9,9 +9,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.platform.applications.launcher as launcher_mod
-from docking.platform.applications.launcher import ApplicationLauncher
-from docking.platform.applications.registry import ApplicationRegistry
+import docking.platform.applications.implementations.unix.desktop_launch as desktop_launch_mod
+import docking.platform.applications.implementations.unix.launch as launcher_mod
+from tests.platform_factories import (
+    make_application_launcher,
+    make_application_registry,
+)
 
 
 def _discover(tmp_path, *, extra, gio):
@@ -20,12 +23,12 @@ def _discover(tmp_path, *, extra, gio):
         "[Desktop Entry]\nType=Application\nName=Audit Launch\n"
         f"Exec=/bin/true --fixture\n{extra}\n"
     )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (), desktop_directories_source=lambda: (tmp_path,)
     )
     if not gio:
-        registry._desktop_app_info_for_id = lambda _id: None
-        registry._desktop_app_info_from_filename = lambda _path: None
+        registry._catalog._desktop_app_info_for_id = lambda _id: None
+        registry._catalog._desktop_app_info_from_filename = lambda _path: None
     registry.refresh()
     assert registry.get(path.name) is not None
     return registry
@@ -37,9 +40,9 @@ def test_terminal_desktop_entry_launches_in_terminal(tmp_path, monkeypatch, gio)
     terminal = MagicMock(
         return_value=["/usr/bin/fake-terminal", "-e", "/bin/true", "--fixture"]
     )
-    monkeypatch.setattr(launcher_mod.commands, "build_terminal_argv", terminal)
+    monkeypatch.setattr(desktop_launch_mod.commands, "build_terminal_argv", terminal)
     popen = MagicMock()
-    launcher = ApplicationLauncher(registry, MagicMock(), popen=popen)
+    launcher = make_application_launcher(registry, MagicMock(), popen=popen)
 
     assert launcher.launch("audit-launch.desktop")
     terminal.assert_called_once()
@@ -52,7 +55,7 @@ def test_desktop_entry_sets_declared_working_directory(tmp_path, gio):
     folder.mkdir()
     registry = _discover(tmp_path, extra=f"Path={folder}", gio=gio)
     popen = MagicMock()
-    launcher = ApplicationLauncher(registry, MagicMock(), popen=popen)
+    launcher = make_application_launcher(registry, MagicMock(), popen=popen)
 
     assert launcher.launch("audit-launch.desktop")
     assert Path(popen.call_args.kwargs["cwd"]) == folder
@@ -80,7 +83,7 @@ def test_real_child_process_uses_desktop_working_directory(tmp_path):
         processes.append(process)
         return process
 
-    launcher = ApplicationLauncher(registry, MagicMock(), popen=spawn)
+    launcher = make_application_launcher(registry, MagicMock(), popen=spawn)
     assert launcher.launch("audit-launch.desktop")
     assert processes[0].wait(timeout=5) == 0
     assert output.read_text() == str(folder)
@@ -89,10 +92,10 @@ def test_real_child_process_uses_desktop_working_directory(tmp_path):
 def test_missing_terminal_does_not_launch_terminal_app_invisibly(tmp_path, monkeypatch):
     registry = _discover(tmp_path, extra="Terminal=true", gio=False)
     monkeypatch.setattr(
-        launcher_mod.commands, "build_terminal_argv", lambda **_kwargs: None
+        desktop_launch_mod.commands, "build_terminal_argv", lambda **_kwargs: None
     )
     popen = MagicMock()
-    launcher = ApplicationLauncher(registry, MagicMock(), popen=popen)
+    launcher = make_application_launcher(registry, MagicMock(), popen=popen)
     assert not launcher.launch("audit-launch.desktop")
     popen.assert_not_called()
 

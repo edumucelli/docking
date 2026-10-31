@@ -27,6 +27,7 @@ from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
     WindowId,
+    WindowService,
     WindowSnapshot,
 )
 from docking.platform.model import DockItem
@@ -771,6 +772,9 @@ def handler(monkeypatch):
         recent_apps_opacity=0.85,
     )
     tracker = MagicMock()
+    tracker.defer_menu_row_removal.side_effect = (
+        WindowService.defer_menu_row_removal.__get__(tracker)
+    )
     tracker.list_windows.return_value = []
     preview_service = MagicMock()
     preview_service.thumbnail.return_value = None

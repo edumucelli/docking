@@ -43,6 +43,7 @@ from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import ApplicationListing
 
 if TYPE_CHECKING:
+    from docking.applets.platform import AppletPlatformServices
     from docking.core.config import Config
 
 SEARCH_ENTRY_WIDTH_CHARS = 24
@@ -64,12 +65,14 @@ class ApplicationsApplet(ApplicationServicesApplet):
         *,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
+        platform_services: AppletPlatformServices,
     ) -> None:
         super().__init__(
             icon_size=icon_size,
             config=config,
             application_registry=application_registry,
             application_launcher=application_launcher,
+            platform_services=platform_services,
         )
         self._popup_menu: Gtk.Menu | None = None
         self.present()

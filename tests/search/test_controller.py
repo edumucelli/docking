@@ -23,11 +23,14 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.search.controller import GlobalSearchController
-from docking.search.services.global_shortcuts import (
+from docking.search.services.global_shortcuts import GlobalShortcutService
+from docking.search.services.implementations.unix.platform import UnixSearchIntegration
+from docking.search.services.implementations.unix.shortcuts import (
     GlobalShortcutBinding,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
+from docking.search.services.platform import ShortcutFallback
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -171,7 +174,7 @@ def _make_controller(
         list_windows=lambda _desktop_id: (),
         icon_name_for_desktop=lambda _desktop_id: "application-x-executable",
     )
-    shortcuts = MagicMock()
+    shortcuts = MagicMock(spec=GlobalShortcutService)
     config = Config()
 
     if schedule_idle is None:
@@ -214,6 +217,7 @@ def _make_controller(
         applications if application_registry is None else application_registry
     )
     controller = GlobalSearchController(
+        integration=UnixSearchIntegration(),
         config=config,
         model=cast(Any, model),
         windows=cast(Any, windows),
@@ -426,7 +430,7 @@ def test_shortcut_status_uses_concise_text_and_summary(
 
 
 def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     fallback.error = None
 
@@ -459,7 +463,7 @@ def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
 
 
 def test_x11_fallback_does_not_override_portal_denial(monkeypatch) -> None:
-    fallback = MagicMock(active=False, error=None)
+    fallback = MagicMock(spec=ShortcutFallback, active=False, error=None)
     controller, _window, _apps, _recent, _shortcuts = _make_controller(
         monkeypatch,
         shortcut_fallback=fallback,
@@ -474,7 +478,7 @@ def test_x11_fallback_does_not_override_portal_denial(monkeypatch) -> None:
 
 
 def test_x11_shortcut_conflict_is_actionable(monkeypatch) -> None:
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     fallback.error = "shortcut is already in use"
     controller, _window, _apps, _recent, _shortcuts = _make_controller(
@@ -727,7 +731,7 @@ def test_shortcut_status_names_the_trigger_when_the_desktop_reports_one(
 def test_shortcut_status_distinguishes_fallback_failures(monkeypatch) -> None:
     """A shortcut conflict needs different advice than a generic failure."""
     controller, *_ = _make_controller(monkeypatch)
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     controller._shortcut_fallback = fallback
 
