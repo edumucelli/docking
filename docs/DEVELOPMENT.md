@@ -150,11 +150,17 @@ For a complete regression run without a desktop session:
 ```bash
 xvfb-run -a dbus-run-session -- .venv/bin/python -m pytest tests/ -q
 .venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
+xvfb-run -a dbus-run-session -- .venv/bin/behave -q
 ```
 
 Run the smoke file in its own process. Full-suite import caches can hide
 incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
 this checkout over system-installed Docking releases.
+
+When changing platform interfaces, migrate Behave callers in `features/steps/`
+as well as pytest fixtures. The shared test factories deliberately construct
+Linux adapters for deterministic filesystem/command fixtures; tests reading the
+real host must explicitly use the native backend from composition.
 
 ## D-Bus Remote Control
 

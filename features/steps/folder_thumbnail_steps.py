@@ -8,8 +8,8 @@ from behave import given, then, when
 
 from docking.core.config import Config
 from docking.core.items import DockItem
-from docking.platform.targets import TargetService
 from docking.ui.folder.stack import FolderStackController
+from tests.platform_factories import make_target_service
 
 
 @given("a thumbnail folder containing 30 files")
@@ -29,7 +29,7 @@ def thumbnail_folder(context):
         config=context.thumbnail_config,
         runtime=MagicMock(),
         dock_window=MagicMock(),
-        target_service=TargetService(icon_loader=context.thumbnail_loader),
+        target_service=make_target_service(icon_loader=context.thumbnail_loader),
     )
 
 

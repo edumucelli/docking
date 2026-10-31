@@ -588,6 +588,7 @@ implementation makes these reviewed boundaries concrete:
 
 - Update domain consumers to import contracts/shared values and receive the concrete dependencies. Update concrete implementation imports to their canonical packages.
 - In implementation tests, construct the canonical Unix/Linux/BSD adapter directly. Patch native calls at their new owning module. Pure state tests continue importing root `state.py`.
+- Migrate Behave callers in `features/steps/` too, including System Monitor sampling and folder-thumbnail construction. Reuse explicit applet/target test factories. Tests that read the actual host process use the process backend from composition; the deterministic Linux `/proc` fixture factory must not be used for native BSD assertions.
 - Extend architecture checks to the full `implementations/` subtree, including imports inside functions and runtime import strings. Shared application/host contracts must import without the Unix implementation present.
 - Preserve source and installed hook/helper commands. Their small public entry-point wrappers forward to the selected concrete code without loading the GUI runtime.
 - Check packaging/module discovery and all documentation/entry-point references touched by a move. Do not combine these moves with configuration migration, class-wide renaming, or fallback changes.
@@ -622,6 +623,9 @@ The local verification also covers:
   changed. The new contract/inheritance tests cover 38 contracts and 53 native
   adapter declarations, including the three intentionally abstract Unix bases.
 - All 878 tests in `tools/test_gui_headless.sh`.
+- All 112 Behave scenarios (516 steps), including explicit platform dependencies
+  in System Monitor sampling and folder-thumbnail steps. Native-host process
+  identity checks use composition rather than the Linux filesystem fixture.
 - Fresh-process bootstrap smoke tests, import/dependency guards, association
   outcomes, native worker finalization, tray restart/stale replies, and mixed
   Cinnamon/XWayland menu policy.

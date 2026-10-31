@@ -12,8 +12,10 @@ import pytest
 from docking.platform.applications.identity import (
     APP_URI_PREFIX,
     LaunchProvenanceStore,
+    ProcessIdentityService,
     parse_application_uri,
 )
+from docking.platform.composition.selection import platform_provider
 from tests.platform_factories import make_process_identity
 
 
@@ -85,9 +87,9 @@ def test_service_preserves_an_explicit_empty_store_instance():
 
 
 def test_identity_reads_current_process_executable():
-    identity = make_process_identity(LaunchProvenanceStore()).identity_for_pid(
-        os.getpid()
-    )
+    identity = ProcessIdentityService(
+        LaunchProvenanceStore(), backend=platform_provider().processes()
+    ).identity_for_pid(os.getpid())
 
     assert identity is not None
     import sys
